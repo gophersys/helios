@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { ProductStageConfig } from '$lib/types/stages';
+  import type { ProductStageConfig, Secret } from '$lib/types/stages';
   import type { BoardRevision } from '$lib/types/models';
   import { listStageConfigs, initializeStages } from '$lib/services/stages';
+  import { apiFetch } from '$lib/api';
+  import type { ApiResponse } from '$lib/types';
   import StageCard from './stage-card.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import { Loader2 } from 'lucide-svelte';
@@ -16,6 +18,7 @@
   let { productId, productName = '', revisions = [] }: Props = $props();
 
   let configs = $state<ProductStageConfig[]>([]);
+  let secrets = $state<Secret[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let initializing = $state(false);
@@ -23,7 +26,7 @@
   const enabledCount = $derived(configs.filter(c => c.enabled).length);
 
   onMount(async () => {
-    await loadConfigs();
+    await Promise.all([loadConfigs(), loadSecrets()]);
   });
 
   async function loadConfigs() {
@@ -35,6 +38,16 @@
       error = e instanceof Error ? e.message : 'Failed to load stage configs';
     } finally {
       loading = false;
+    }
+  }
+
+  async function loadSecrets() {
+    try {
+      const res = await apiFetch<ApiResponse<Secret[]>>('/v2/system/secrets');
+      secrets = res.data ?? [];
+    } catch {
+      // Secrets endpoint may not exist yet — non-fatal
+      secrets = [];
     }
   }
 
@@ -89,6 +102,7 @@
           config={getConfig(stage)}
           {productId}
           {revisions}
+          {secrets}
           onUpdated={loadConfigs}
         />
       {/each}

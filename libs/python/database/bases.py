@@ -354,6 +354,16 @@ class BaseAuditLog(_PrismaModel):
         return actions.AuditLogActions[_PrismaModelT](client or get_client(), cls)
 
 
+class BaseSecret(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['Secret']] = 'Secret'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.SecretActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.SecretActions[_PrismaModelT](client or get_client(), cls)
+
+
 class BaseSetting(_PrismaModel):
     __prisma_model__: ClassVar[Literal['Setting']] = 'Setting'  # pyright: ignore[reportIncompatibleVariableOverride]
 

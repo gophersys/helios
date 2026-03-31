@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from corekinect.utils import Logger
+from corekinect.test.errors import CloudError, ConfigError, HardwareError, TimeoutError as ValidationTimeoutError
 
 log = Logger(log_name="fuota.orchestrator")
 
@@ -140,7 +141,7 @@ class FuotaOrchestrator:
                 stored_targets = sorted(stage.get("targets", []))
                 submitted = sorted(stages[i]["targets"]) if i < len(stages) else []
                 if stored_targets != submitted:
-                    raise RuntimeError(
+                    raise CloudError(
                         f"FUOTA plan target MISMATCH — CoreCloud modified our targets!\n"
                         f"  Submitted: {submitted}\n"
                         f"  Stored:    {stored_targets}\n"
@@ -178,15 +179,15 @@ class FuotaOrchestrator:
                     f"Device assigned to wrong plan: expected {plan_id}, "
                     f"got {d.get('planId')}"
                 )
-                assert d.get("enableFuota") is True, (
-                    "FUOTA not enabled after assignment"
-                )
+                if d.get("enableFuota") is not True:
+                    raise CloudError("FUOTA not enabled after assignment")
                 found = True
                 break
 
-        assert found, (
-            f"Device {device_id} not found in FUOTA settings after assignment"
-        )
+        if not found:
+            raise CloudError(
+                f"Device {device_id} not found in FUOTA settings after assignment"
+            )
         self._log.info("Assignment verified: planId=%d, enabled=True", plan_id)
 
         return plan_id
@@ -342,7 +343,7 @@ class FuotaOrchestrator:
 
             # Hard fail on never-started
             if not seen_active and stall_duration > max_stale_s:
-                raise TimeoutError(
+                raise ValidationTimeoutError(
                     f"FUOTA delivery never started after {elapsed_min:.1f} min. "
                     f"CoreCloud progress endpoint only returns stale data. "
                     f"Completed: {completed or 'none'}"
@@ -354,7 +355,7 @@ class FuotaOrchestrator:
         if self._all_completed(completed, expected_strs):
             return
 
-        raise TimeoutError(
+        raise ValidationTimeoutError(
             f"FUOTA did not complete within {timeout_s / 60:.0f} min. "
             f"Completed: {completed or 'none'}"
         )
@@ -419,7 +420,7 @@ class FuotaOrchestrator:
 
             time.sleep(poll_interval_s)
 
-        raise TimeoutError(
+        raise ValidationTimeoutError(
             f"Device {device_id} did not check into CoreCloud within {timeout_s}s "
             f"(last recordId={initial_record_id})"
         )
@@ -439,7 +440,7 @@ class FuotaOrchestrator:
         """
         all_cfws = source.cfws() + target.cfws()
         if not all_cfws:
-            raise ValueError(
+            raise ConfigError(
                 f"No CFW files found for transition "
                 f"{source.label} -> {target.label}"
             )
@@ -472,7 +473,7 @@ class FuotaOrchestrator:
         """
         target_strings = target.target_strings()
         if not target_strings:
-            raise ValueError(
+            raise ConfigError(
                 f"No CFW target strings found in {target.label}. "
                 f"Build may not produce CFW artifacts."
             )
@@ -562,6 +563,6 @@ def personalize_with_retry(
             continue
         break  # Non-timeout error, don't retry
 
-    raise RuntimeError(
+    raise HardwareError(
         f"Personalization failed after {max_retries} attempts: {last_err}"
     )

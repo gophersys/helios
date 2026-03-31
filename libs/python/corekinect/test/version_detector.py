@@ -19,6 +19,7 @@ import threading
 import time
 from typing import Dict, List, Optional, Pattern
 
+from corekinect.test.errors import FirmwareError
 from corekinect.utils import Logger
 
 log = Logger(log_name="version_detector")
@@ -181,7 +182,7 @@ class BootVersionDetector:
             Detected versions dict.
 
         Raises:
-            RuntimeError: If versions don't match after all retries.
+            FirmwareError: If versions don't match after all retries.
         """
         log.info("Verifying firmware version (expecting v%s)...", expected_version)
         log.info(
@@ -237,26 +238,30 @@ class BootVersionDetector:
         log.info("    APP:   %s", best_versions["app"] or "NOT DETECTED")
 
         if best_versions["comms"] is None:
-            raise RuntimeError(
+            raise FirmwareError(
                 f"COMMS version not detected after {max_boot_cycles} boot cycles"
             )
         if best_versions["comms"] != expected_version:
-            raise RuntimeError(
+            raise FirmwareError(
                 f"COMMS version mismatch: expected {expected_version}, "
                 f"got {best_versions['comms']} after {max_boot_cycles} boot cycles. "
-                f"The COMMS MCUboot may not have swapped the secondary image."
+                f"The COMMS MCUboot may not have swapped the secondary image.",
+                expected=expected_version,
+                actual=best_versions["comms"] or "",
             )
 
         if require_both:
             if best_versions["app"] is None:
-                raise RuntimeError(
+                raise FirmwareError(
                     f"APP version not detected after {max_boot_cycles} boot cycles. "
                     f"The APP processor may be in a boot loop."
                 )
             if best_versions["app"] != expected_version:
-                raise RuntimeError(
+                raise FirmwareError(
                     f"APP version mismatch: expected {expected_version}, "
-                    f"got {best_versions['app']} after {max_boot_cycles} boot cycles."
+                    f"got {best_versions['app']} after {max_boot_cycles} boot cycles.",
+                    expected=expected_version,
+                    actual=best_versions["app"] or "",
                 )
 
         return best_versions

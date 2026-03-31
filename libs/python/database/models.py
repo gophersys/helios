@@ -1040,9 +1040,9 @@ class FirmwareBuild(bases.BaseFirmwareBuild):
 
 class ProductStageConfig(bases.BaseProductStageConfig):
     """Configuration for a single validation stage within a product.
-    Defines which revision to test, what tests to run, and scheduling rules.
-    Build recipes are convention-driven via StageBuildDef (stage_builds.py) —
-    the system derives what to build from the product's repos + revision + stage.
+    Thin config: which revision, which branch, which signing key.
+    Test config (directories, markers, timeouts) lives in the test repo itself.
+    Build recipes are convention-driven via StageBuildDef (stage_builds.py).
     """
 
     id: _str
@@ -1056,47 +1056,26 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     """
 
     enabled: _bool
+    """Disabled by default
+    """
+
     boardRevisionId: Optional[_str] = None
     """FK to BoardRevision (e.g., Alpha B0)
     """
 
-    testDirectory: Optional[_str] = None
-    """Pytest path: "tests/smoke/", "tests/fuota/"
+    watchBranch: Optional[_str] = None
+    """Git branch to poll for this stage (e.g., "main", "develop")
     """
 
-    testMarker: Optional[_str] = None
-    """Pytest marker: "-m smoke", "-m fuota"
+    signingKeyId: Optional[_str] = None
+    """FK to Secret (signing key for this stage's builds)
     """
 
-    testTimeout: _int
-    """Max seconds for test execution
-    """
-
-    priority: _int
-    """Higher = more urgent
-    """
-
-    blocksMerge: _bool
-    """Passing this stage is required before merge
-    """
-
-    autoProgress: _bool
-    """Auto-trigger next stage on pass
-    """
-
-    requiresBench: _bool
-    """Needs physical hardware (false for native_sim)
-    """
-
-    maxDurationSec: _int
-    """Hard timeout for entire stage
-    """
-
-    description: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: Optional['models.Product'] = None
     boardRevision: Optional['models.BoardRevision'] = None
+    signingKey: Optional['models.Secret'] = None
     buildRuns: Optional[List['models.BuildRun']] = None
     queueEntries: Optional[List['models.ValidationQueueEntry']] = None
 
@@ -4004,6 +3983,7 @@ class User(bases.BaseUser):
     deployments: Optional[List['models.Deployment']] = None
     testExecutions: Optional[List['models.TestExecution']] = None
     auditLogs: Optional[List['models.AuditLog']] = None
+    secrets: Optional[List['models.Secret']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -4565,6 +4545,155 @@ class AuditLog(bases.BaseAuditLog):
                 'name': name,
                 'fields': cast(Mapping[str, PartialModelField], fields),
                 'from_model': 'AuditLog',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class Secret(bases.BaseSecret):
+    """Platform secrets — signing keys, credentials, tokens.
+    Managed via Settings > Secrets. Referenced by stage configs.
+    Values are encrypted/base64 — never exposed in API responses.
+    """
+
+    id: _str
+    name: _str
+    """Human-readable: "Bench Signing Key", "Production Signing Key"
+    """
+
+    type: _str
+    """"signing_key", "ssh_key", "api_token"
+    """
+
+    value: _str
+    """Base64-encoded secret value (never returned in API)
+    """
+
+    description: Optional[_str] = None
+    createdById: Optional[_str] = None
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    createdBy: Optional['models.User'] = None
+    stageConfigs: Optional[List['models.ProductStageConfig']] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.SecretKeys']] = None,
+        exclude: Optional[Iterable['types.SecretKeys']] = None,
+        required: Optional[Iterable['types.SecretKeys']] = None,
+        optional: Optional[Iterable['types.SecretKeys']] = None,
+        relations: Optional[Mapping['types.SecretRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.SecretKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _Secret_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _Secret_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _Secret_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _Secret_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _Secret_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _Secret_relational_fields:
+                        raise errors.UnknownRelationalFieldError('Secret', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid Secret / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'Secret',
             }
         )
         _created_partial_types.add(name)
@@ -5607,6 +5736,7 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
 _ProductStageConfig_relational_fields: Set[str] = {
         'product',
         'boardRevision',
+        'signingKey',
         'buildRuns',
         'queueEntries',
     }
@@ -5650,7 +5780,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_bool',
             'is_relational': False,
-            'documentation': None,
+            'documentation': '''Disabled by default''',
         }),
         ('boardRevisionId', {
             'name': 'boardRevisionId',
@@ -5660,77 +5790,21 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_relational': False,
             'documentation': '''FK to BoardRevision (e.g., Alpha B0)''',
         }),
-        ('testDirectory', {
-            'name': 'testDirectory',
+        ('watchBranch', {
+            'name': 'watchBranch',
             'is_list': False,
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''Pytest path: "tests/smoke/", "tests/fuota/"''',
+            'documentation': '''Git branch to poll for this stage (e.g., "main", "develop")''',
         }),
-        ('testMarker', {
-            'name': 'testMarker',
+        ('signingKeyId', {
+            'name': 'signingKeyId',
             'is_list': False,
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''Pytest marker: "-m smoke", "-m fuota"''',
-        }),
-        ('testTimeout', {
-            'name': 'testTimeout',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': '''Max seconds for test execution''',
-        }),
-        ('priority', {
-            'name': 'priority',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': '''Higher = more urgent''',
-        }),
-        ('blocksMerge', {
-            'name': 'blocksMerge',
-            'is_list': False,
-            'optional': False,
-            'type': '_bool',
-            'is_relational': False,
-            'documentation': '''Passing this stage is required before merge''',
-        }),
-        ('autoProgress', {
-            'name': 'autoProgress',
-            'is_list': False,
-            'optional': False,
-            'type': '_bool',
-            'is_relational': False,
-            'documentation': '''Auto-trigger next stage on pass''',
-        }),
-        ('requiresBench', {
-            'name': 'requiresBench',
-            'is_list': False,
-            'optional': False,
-            'type': '_bool',
-            'is_relational': False,
-            'documentation': '''Needs physical hardware (false for native_sim)''',
-        }),
-        ('maxDurationSec', {
-            'name': 'maxDurationSec',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': '''Hard timeout for entire stage''',
-        }),
-        ('description', {
-            'name': 'description',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
+            'documentation': '''FK to Secret (signing key for this stage's builds)''',
         }),
         ('createdAt', {
             'name': 'createdAt',
@@ -5761,6 +5835,14 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_list': False,
             'optional': True,
             'type': 'models.BoardRevision',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('signingKey', {
+            'name': 'signingKey',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.Secret',
             'is_relational': True,
             'documentation': None,
         }),
@@ -8223,6 +8305,7 @@ _User_relational_fields: Set[str] = {
         'deployments',
         'testExecutions',
         'auditLogs',
+        'secrets',
     }
 _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
     [
@@ -8343,6 +8426,14 @@ _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.AuditLog\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('secrets', {
+            'name': 'secrets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.Secret\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -8573,6 +8664,95 @@ _AuditLog_fields: Dict['types.AuditLogKeys', PartialModelField] = OrderedDict(
     ],
 )
 
+_Secret_relational_fields: Set[str] = {
+        'createdBy',
+        'stageConfigs',
+    }
+_Secret_fields: Dict['types.SecretKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('name', {
+            'name': 'name',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Human-readable: "Bench Signing Key", "Production Signing Key"''',
+        }),
+        ('type', {
+            'name': 'type',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"signing_key", "ssh_key", "api_token"''',
+        }),
+        ('value', {
+            'name': 'value',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Base64-encoded secret value (never returned in API)''',
+        }),
+        ('description', {
+            'name': 'description',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdById', {
+            'name': 'createdById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('updatedAt', {
+            'name': 'updatedAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdBy', {
+            'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('stageConfigs', {
+            'name': 'stageConfigs',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ProductStageConfig\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
 _Setting_relational_fields: Set[str] = set()  # pyright: ignore[reportUnusedVariable]
 _Setting_fields: Dict['types.SettingKeys', PartialModelField] = OrderedDict(
     [
@@ -8718,5 +8898,6 @@ model_rebuild(User)
 model_rebuild(PermissionSet)
 model_rebuild(ApiKey)
 model_rebuild(AuditLog)
+model_rebuild(Secret)
 model_rebuild(Setting)
 model_rebuild(Log)

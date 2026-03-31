@@ -2770,6 +2770,7 @@ class ProductStageConfigIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromProductRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive1']
 
@@ -2778,6 +2779,7 @@ class ProductStageConfigIncludeFromProductRecursive1(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromProductRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive2']
 
@@ -2786,6 +2788,7 @@ class ProductStageConfigIncludeFromProductRecursive2(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromProductRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive3']
 
@@ -2794,6 +2797,7 @@ class ProductStageConfigIncludeFromProductRecursive3(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromProductRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive4']
 
@@ -4808,6 +4812,7 @@ class UserIncludeFromProduct(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromProductRecursive1']
 
 
 class UserIncludeFromProductRecursive1(TypedDict, total=False):
@@ -4818,6 +4823,7 @@ class UserIncludeFromProductRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromProductRecursive2']
 
 
 class UserIncludeFromProductRecursive2(TypedDict, total=False):
@@ -4828,6 +4834,7 @@ class UserIncludeFromProductRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromProductRecursive3']
 
 
 class UserIncludeFromProductRecursive3(TypedDict, total=False):
@@ -4838,6 +4845,7 @@ class UserIncludeFromProductRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromProductRecursive4']
 
 
 class UserIncludeFromProductRecursive4(TypedDict, total=False):
@@ -5237,6 +5245,115 @@ class FindManyAuditLogArgsFromProductRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromProduct(TypedDict, total=False):
+    """Relational arguments for Product"""
+    createdBy: Union[bool, 'UserArgsFromProductRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive1']
+
+
+class SecretIncludeFromProductRecursive1(TypedDict, total=False):
+    """Relational arguments for Product"""
+    createdBy: Union[bool, 'UserArgsFromProductRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive2']
+
+
+class SecretIncludeFromProductRecursive2(TypedDict, total=False):
+    """Relational arguments for Product"""
+    createdBy: Union[bool, 'UserArgsFromProductRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive3']
+
+
+class SecretIncludeFromProductRecursive3(TypedDict, total=False):
+    """Relational arguments for Product"""
+    createdBy: Union[bool, 'UserArgsFromProductRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive4']
+
+
+class SecretIncludeFromProductRecursive4(TypedDict, total=False):
+    """Relational arguments for Product"""
+
+    
+
+class SecretArgsFromProduct(TypedDict, total=False):
+    """Arguments for Product"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromProductRecursive1(TypedDict, total=False):
+    """Arguments for Product"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromProductRecursive2(TypedDict, total=False):
+    """Arguments for Product"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromProductRecursive3(TypedDict, total=False):
+    """Arguments for Product"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromProductRecursive4(TypedDict, total=False):
+    """Arguments for Product"""
+    
+    
+
+class FindManySecretArgsFromProduct(TypedDict, total=False):
+    """Arguments for Product"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromProductRecursive1(TypedDict, total=False):
+    """Arguments for Product"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromProductRecursive2(TypedDict, total=False):
+    """Arguments for Product"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromProductRecursive3(TypedDict, total=False):
+    """Arguments for Product"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromProductRecursive4(TypedDict, total=False):
+    """Arguments for Product"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -6811,6 +6928,7 @@ class ProductStageConfigIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromProductTargetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive1']
 
@@ -6819,6 +6937,7 @@ class ProductStageConfigIncludeFromProductTargetRecursive1(TypedDict, total=Fals
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromProductTargetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive2']
 
@@ -6827,6 +6946,7 @@ class ProductStageConfigIncludeFromProductTargetRecursive2(TypedDict, total=Fals
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromProductTargetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive3']
 
@@ -6835,6 +6955,7 @@ class ProductStageConfigIncludeFromProductTargetRecursive3(TypedDict, total=Fals
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromProductTargetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive4']
 
@@ -8849,6 +8970,7 @@ class UserIncludeFromProductTarget(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductTargetRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductTargetRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromProductTargetRecursive1']
 
 
 class UserIncludeFromProductTargetRecursive1(TypedDict, total=False):
@@ -8859,6 +8981,7 @@ class UserIncludeFromProductTargetRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductTargetRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductTargetRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromProductTargetRecursive2']
 
 
 class UserIncludeFromProductTargetRecursive2(TypedDict, total=False):
@@ -8869,6 +8992,7 @@ class UserIncludeFromProductTargetRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductTargetRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductTargetRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromProductTargetRecursive3']
 
 
 class UserIncludeFromProductTargetRecursive3(TypedDict, total=False):
@@ -8879,6 +9003,7 @@ class UserIncludeFromProductTargetRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductTargetRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductTargetRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromProductTargetRecursive4']
 
 
 class UserIncludeFromProductTargetRecursive4(TypedDict, total=False):
@@ -9278,6 +9403,115 @@ class FindManyAuditLogArgsFromProductTargetRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromProductTarget(TypedDict, total=False):
+    """Relational arguments for ProductTarget"""
+    createdBy: Union[bool, 'UserArgsFromProductTargetRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive1']
+
+
+class SecretIncludeFromProductTargetRecursive1(TypedDict, total=False):
+    """Relational arguments for ProductTarget"""
+    createdBy: Union[bool, 'UserArgsFromProductTargetRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive2']
+
+
+class SecretIncludeFromProductTargetRecursive2(TypedDict, total=False):
+    """Relational arguments for ProductTarget"""
+    createdBy: Union[bool, 'UserArgsFromProductTargetRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive3']
+
+
+class SecretIncludeFromProductTargetRecursive3(TypedDict, total=False):
+    """Relational arguments for ProductTarget"""
+    createdBy: Union[bool, 'UserArgsFromProductTargetRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive4']
+
+
+class SecretIncludeFromProductTargetRecursive4(TypedDict, total=False):
+    """Relational arguments for ProductTarget"""
+
+    
+
+class SecretArgsFromProductTarget(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromProductTargetRecursive1(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromProductTargetRecursive2(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromProductTargetRecursive3(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromProductTargetRecursive4(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    
+    
+
+class FindManySecretArgsFromProductTarget(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromProductTargetRecursive1(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromProductTargetRecursive2(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromProductTargetRecursive3(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromProductTargetRecursive4(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -10749,6 +10983,7 @@ class ProductStageConfigIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromBoardRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive1']
 
@@ -10757,6 +10992,7 @@ class ProductStageConfigIncludeFromBoardRecursive1(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromBoardRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive2']
 
@@ -10765,6 +11001,7 @@ class ProductStageConfigIncludeFromBoardRecursive2(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromBoardRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive3']
 
@@ -10773,6 +11010,7 @@ class ProductStageConfigIncludeFromBoardRecursive3(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromBoardRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive4']
 
@@ -12787,6 +13025,7 @@ class UserIncludeFromBoard(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromBoardRecursive1']
 
 
 class UserIncludeFromBoardRecursive1(TypedDict, total=False):
@@ -12797,6 +13036,7 @@ class UserIncludeFromBoardRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromBoardRecursive2']
 
 
 class UserIncludeFromBoardRecursive2(TypedDict, total=False):
@@ -12807,6 +13047,7 @@ class UserIncludeFromBoardRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromBoardRecursive3']
 
 
 class UserIncludeFromBoardRecursive3(TypedDict, total=False):
@@ -12817,6 +13058,7 @@ class UserIncludeFromBoardRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromBoardRecursive4']
 
 
 class UserIncludeFromBoardRecursive4(TypedDict, total=False):
@@ -13216,6 +13458,115 @@ class FindManyAuditLogArgsFromBoardRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromBoard(TypedDict, total=False):
+    """Relational arguments for Board"""
+    createdBy: Union[bool, 'UserArgsFromBoardRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive1']
+
+
+class SecretIncludeFromBoardRecursive1(TypedDict, total=False):
+    """Relational arguments for Board"""
+    createdBy: Union[bool, 'UserArgsFromBoardRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive2']
+
+
+class SecretIncludeFromBoardRecursive2(TypedDict, total=False):
+    """Relational arguments for Board"""
+    createdBy: Union[bool, 'UserArgsFromBoardRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive3']
+
+
+class SecretIncludeFromBoardRecursive3(TypedDict, total=False):
+    """Relational arguments for Board"""
+    createdBy: Union[bool, 'UserArgsFromBoardRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive4']
+
+
+class SecretIncludeFromBoardRecursive4(TypedDict, total=False):
+    """Relational arguments for Board"""
+
+    
+
+class SecretArgsFromBoard(TypedDict, total=False):
+    """Arguments for Board"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromBoardRecursive1(TypedDict, total=False):
+    """Arguments for Board"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromBoardRecursive2(TypedDict, total=False):
+    """Arguments for Board"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromBoardRecursive3(TypedDict, total=False):
+    """Arguments for Board"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromBoardRecursive4(TypedDict, total=False):
+    """Arguments for Board"""
+    
+    
+
+class FindManySecretArgsFromBoard(TypedDict, total=False):
+    """Arguments for Board"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromBoardRecursive1(TypedDict, total=False):
+    """Arguments for Board"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromBoardRecursive2(TypedDict, total=False):
+    """Arguments for Board"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromBoardRecursive3(TypedDict, total=False):
+    """Arguments for Board"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromBoardRecursive4(TypedDict, total=False):
+    """Arguments for Board"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -14823,6 +15174,7 @@ class ProductStageConfigIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromBoardRevisionRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive1']
 
@@ -14831,6 +15183,7 @@ class ProductStageConfigIncludeFromBoardRevisionRecursive1(TypedDict, total=Fals
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromBoardRevisionRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive2']
 
@@ -14839,6 +15192,7 @@ class ProductStageConfigIncludeFromBoardRevisionRecursive2(TypedDict, total=Fals
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromBoardRevisionRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive3']
 
@@ -14847,6 +15201,7 @@ class ProductStageConfigIncludeFromBoardRevisionRecursive3(TypedDict, total=Fals
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromBoardRevisionRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive4']
 
@@ -16861,6 +17216,7 @@ class UserIncludeFromBoardRevision(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromBoardRevisionRecursive1']
 
 
 class UserIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
@@ -16871,6 +17227,7 @@ class UserIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromBoardRevisionRecursive2']
 
 
 class UserIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
@@ -16881,6 +17238,7 @@ class UserIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromBoardRevisionRecursive3']
 
 
 class UserIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
@@ -16891,6 +17249,7 @@ class UserIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromBoardRevisionRecursive4']
 
 
 class UserIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
@@ -17290,6 +17649,115 @@ class FindManyAuditLogArgsFromBoardRevisionRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromBoardRevision(TypedDict, total=False):
+    """Relational arguments for BoardRevision"""
+    createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive1']
+
+
+class SecretIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
+    """Relational arguments for BoardRevision"""
+    createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive2']
+
+
+class SecretIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
+    """Relational arguments for BoardRevision"""
+    createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive3']
+
+
+class SecretIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
+    """Relational arguments for BoardRevision"""
+    createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive4']
+
+
+class SecretIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
+    """Relational arguments for BoardRevision"""
+
+    
+
+class SecretArgsFromBoardRevision(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromBoardRevisionRecursive1(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromBoardRevisionRecursive2(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromBoardRevisionRecursive3(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromBoardRevisionRecursive4(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    
+    
+
+class FindManySecretArgsFromBoardRevision(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromBoardRevisionRecursive1(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromBoardRevisionRecursive2(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromBoardRevisionRecursive3(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromBoardRevisionRecursive4(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -18977,6 +19445,7 @@ class ProductStageConfigIncludeFromFirmwareSet(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromFirmwareSetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive1']
 
@@ -18985,6 +19454,7 @@ class ProductStageConfigIncludeFromFirmwareSetRecursive1(TypedDict, total=False)
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromFirmwareSetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive2']
 
@@ -18993,6 +19463,7 @@ class ProductStageConfigIncludeFromFirmwareSetRecursive2(TypedDict, total=False)
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromFirmwareSetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive3']
 
@@ -19001,6 +19472,7 @@ class ProductStageConfigIncludeFromFirmwareSetRecursive3(TypedDict, total=False)
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromFirmwareSetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive4']
 
@@ -21015,6 +21487,7 @@ class UserIncludeFromFirmwareSet(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromFirmwareSetRecursive1']
 
 
 class UserIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
@@ -21025,6 +21498,7 @@ class UserIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromFirmwareSetRecursive2']
 
 
 class UserIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
@@ -21035,6 +21509,7 @@ class UserIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromFirmwareSetRecursive3']
 
 
 class UserIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
@@ -21045,6 +21520,7 @@ class UserIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromFirmwareSetRecursive4']
 
 
 class UserIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
@@ -21444,6 +21920,115 @@ class FindManyAuditLogArgsFromFirmwareSetRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive1']
+
+
+class SecretIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive2']
+
+
+class SecretIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive3']
+
+
+class SecretIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive4']
+
+
+class SecretIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class SecretArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManySecretArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -23143,6 +23728,7 @@ class ProductStageConfigIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromFirmwareBuildRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive1']
 
@@ -23151,6 +23737,7 @@ class ProductStageConfigIncludeFromFirmwareBuildRecursive1(TypedDict, total=Fals
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromFirmwareBuildRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive2']
 
@@ -23159,6 +23746,7 @@ class ProductStageConfigIncludeFromFirmwareBuildRecursive2(TypedDict, total=Fals
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromFirmwareBuildRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive3']
 
@@ -23167,6 +23755,7 @@ class ProductStageConfigIncludeFromFirmwareBuildRecursive3(TypedDict, total=Fals
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromFirmwareBuildRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive4']
 
@@ -25181,6 +25770,7 @@ class UserIncludeFromFirmwareBuild(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareBuildRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareBuildRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromFirmwareBuildRecursive1']
 
 
 class UserIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
@@ -25191,6 +25781,7 @@ class UserIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareBuildRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareBuildRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromFirmwareBuildRecursive2']
 
 
 class UserIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
@@ -25201,6 +25792,7 @@ class UserIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareBuildRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareBuildRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromFirmwareBuildRecursive3']
 
 
 class UserIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
@@ -25211,6 +25803,7 @@ class UserIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareBuildRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareBuildRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromFirmwareBuildRecursive4']
 
 
 class UserIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
@@ -25610,6 +26203,115 @@ class FindManyAuditLogArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromFirmwareBuild(TypedDict, total=False):
+    """Relational arguments for FirmwareBuild"""
+    createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive1']
+
+
+class SecretIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareBuild"""
+    createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive2']
+
+
+class SecretIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareBuild"""
+    createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive3']
+
+
+class SecretIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareBuild"""
+    createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive4']
+
+
+class SecretIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareBuild"""
+
+    
+
+class SecretArgsFromFirmwareBuild(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromFirmwareBuildRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromFirmwareBuildRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromFirmwareBuildRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    
+    
+
+class FindManySecretArgsFromFirmwareBuild(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromFirmwareBuildRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromFirmwareBuildRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromFirmwareBuildRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -26255,19 +26957,13 @@ class ProductStageConfigOptionalCreateInput(TypedDict, total=False):
     productId: _str
     enabled: _bool
     boardRevisionId: Optional[_str]
-    testDirectory: Optional[_str]
-    testMarker: Optional[_str]
-    testTimeout: _int
-    priority: _int
-    blocksMerge: _bool
-    autoProgress: _bool
-    requiresBench: _bool
-    maxDurationSec: _int
-    description: Optional[_str]
+    watchBranch: Optional[_str]
+    signingKeyId: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: 'ProductCreateNestedWithoutRelationsInput'
     boardRevision: 'BoardRevisionCreateNestedWithoutRelationsInput'
+    signingKey: 'SecretCreateNestedWithoutRelationsInput'
     buildRuns: 'BuildRunCreateManyNestedWithoutRelationsInput'
     queueEntries: 'ValidationQueueEntryCreateManyNestedWithoutRelationsInput'
 
@@ -26287,15 +26983,8 @@ class ProductStageConfigOptionalCreateWithoutRelationsInput(TypedDict, total=Fal
     productId: _str
     enabled: _bool
     boardRevisionId: Optional[_str]
-    testDirectory: Optional[_str]
-    testMarker: Optional[_str]
-    testTimeout: _int
-    priority: _int
-    blocksMerge: _bool
-    autoProgress: _bool
-    requiresBench: _bool
-    maxDurationSec: _int
-    description: Optional[_str]
+    watchBranch: Optional[_str]
+    signingKeyId: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -26357,19 +27046,12 @@ class ProductStageConfigUpdateInput(TypedDict, total=False):
     stage: Union[AtomicIntInput, _int]
     name: _str
     enabled: _bool
-    testDirectory: Optional[_str]
-    testMarker: Optional[_str]
-    testTimeout: Union[AtomicIntInput, _int]
-    priority: Union[AtomicIntInput, _int]
-    blocksMerge: _bool
-    autoProgress: _bool
-    requiresBench: _bool
-    maxDurationSec: Union[AtomicIntInput, _int]
-    description: Optional[_str]
+    watchBranch: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: 'ProductUpdateOneWithoutRelationsInput'
     boardRevision: 'BoardRevisionUpdateOneWithoutRelationsInput'
+    signingKey: 'SecretUpdateOneWithoutRelationsInput'
     buildRuns: 'BuildRunUpdateManyWithoutRelationsInput'
     queueEntries: 'ValidationQueueEntryUpdateManyWithoutRelationsInput'
 
@@ -26380,15 +27062,7 @@ class ProductStageConfigUpdateManyMutationInput(TypedDict, total=False):
     stage: Union[AtomicIntInput, _int]
     name: _str
     enabled: _bool
-    testDirectory: Optional[_str]
-    testMarker: Optional[_str]
-    testTimeout: Union[AtomicIntInput, _int]
-    priority: Union[AtomicIntInput, _int]
-    blocksMerge: _bool
-    autoProgress: _bool
-    requiresBench: _bool
-    maxDurationSec: Union[AtomicIntInput, _int]
-    description: Optional[_str]
+    watchBranch: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -26473,74 +27147,18 @@ _ProductStageConfig_boardRevisionId_OrderByInput = TypedDict(
     total=True
 )
 
-_ProductStageConfig_testDirectory_OrderByInput = TypedDict(
-    '_ProductStageConfig_testDirectory_OrderByInput',
+_ProductStageConfig_watchBranch_OrderByInput = TypedDict(
+    '_ProductStageConfig_watchBranch_OrderByInput',
     {
-        'testDirectory': 'SortOrder',
+        'watchBranch': 'SortOrder',
     },
     total=True
 )
 
-_ProductStageConfig_testMarker_OrderByInput = TypedDict(
-    '_ProductStageConfig_testMarker_OrderByInput',
+_ProductStageConfig_signingKeyId_OrderByInput = TypedDict(
+    '_ProductStageConfig_signingKeyId_OrderByInput',
     {
-        'testMarker': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_testTimeout_OrderByInput = TypedDict(
-    '_ProductStageConfig_testTimeout_OrderByInput',
-    {
-        'testTimeout': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_priority_OrderByInput = TypedDict(
-    '_ProductStageConfig_priority_OrderByInput',
-    {
-        'priority': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_blocksMerge_OrderByInput = TypedDict(
-    '_ProductStageConfig_blocksMerge_OrderByInput',
-    {
-        'blocksMerge': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_autoProgress_OrderByInput = TypedDict(
-    '_ProductStageConfig_autoProgress_OrderByInput',
-    {
-        'autoProgress': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_requiresBench_OrderByInput = TypedDict(
-    '_ProductStageConfig_requiresBench_OrderByInput',
-    {
-        'requiresBench': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_maxDurationSec_OrderByInput = TypedDict(
-    '_ProductStageConfig_maxDurationSec_OrderByInput',
-    {
-        'maxDurationSec': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_description_OrderByInput = TypedDict(
-    '_ProductStageConfig_description_OrderByInput',
-    {
-        'description': 'SortOrder',
+        'signingKeyId': 'SortOrder',
     },
     total=True
 )
@@ -26586,15 +27204,8 @@ ProductStageConfigOrderByInput = Union[
     '_ProductStageConfig_name_OrderByInput',
     '_ProductStageConfig_enabled_OrderByInput',
     '_ProductStageConfig_boardRevisionId_OrderByInput',
-    '_ProductStageConfig_testDirectory_OrderByInput',
-    '_ProductStageConfig_testMarker_OrderByInput',
-    '_ProductStageConfig_testTimeout_OrderByInput',
-    '_ProductStageConfig_priority_OrderByInput',
-    '_ProductStageConfig_blocksMerge_OrderByInput',
-    '_ProductStageConfig_autoProgress_OrderByInput',
-    '_ProductStageConfig_requiresBench_OrderByInput',
-    '_ProductStageConfig_maxDurationSec_OrderByInput',
-    '_ProductStageConfig_description_OrderByInput',
+    '_ProductStageConfig_watchBranch_OrderByInput',
+    '_ProductStageConfig_signingKeyId_OrderByInput',
     '_ProductStageConfig_createdAt_OrderByInput',
     '_ProductStageConfig_updatedAt_OrderByInput',
     '_ProductStageConfig_RelevanceOrderByInput',
@@ -26630,6 +27241,7 @@ class ProductStageConfigInclude(TypedDict, total=False):
     """ProductStageConfig relational arguments"""
     product: Union[bool, 'ProductArgsFromProductStageConfig']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfig']
+    signingKey: Union[bool, 'SecretArgsFromProductStageConfig']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfig']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfig']
 
@@ -27334,6 +27946,7 @@ class ProductStageConfigIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromProductStageConfigRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive1']
 
@@ -27342,6 +27955,7 @@ class ProductStageConfigIncludeFromProductStageConfigRecursive1(TypedDict, total
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromProductStageConfigRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive2']
 
@@ -27350,6 +27964,7 @@ class ProductStageConfigIncludeFromProductStageConfigRecursive2(TypedDict, total
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromProductStageConfigRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive3']
 
@@ -27358,6 +27973,7 @@ class ProductStageConfigIncludeFromProductStageConfigRecursive3(TypedDict, total
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromProductStageConfigRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive4']
 
@@ -29372,6 +29988,7 @@ class UserIncludeFromProductStageConfig(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductStageConfigRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductStageConfigRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromProductStageConfigRecursive1']
 
 
 class UserIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
@@ -29382,6 +29999,7 @@ class UserIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductStageConfigRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductStageConfigRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromProductStageConfigRecursive2']
 
 
 class UserIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
@@ -29392,6 +30010,7 @@ class UserIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductStageConfigRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductStageConfigRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromProductStageConfigRecursive3']
 
 
 class UserIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
@@ -29402,6 +30021,7 @@ class UserIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductStageConfigRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductStageConfigRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromProductStageConfigRecursive4']
 
 
 class UserIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
@@ -29804,6 +30424,115 @@ class FindManyAuditLogArgsFromProductStageConfigRecursive4(TypedDict, total=Fals
     
     
 
+class SecretIncludeFromProductStageConfig(TypedDict, total=False):
+    """Relational arguments for ProductStageConfig"""
+    createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive1']
+
+
+class SecretIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
+    """Relational arguments for ProductStageConfig"""
+    createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive2']
+
+
+class SecretIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
+    """Relational arguments for ProductStageConfig"""
+    createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive3']
+
+
+class SecretIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
+    """Relational arguments for ProductStageConfig"""
+    createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive4']
+
+
+class SecretIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
+    """Relational arguments for ProductStageConfig"""
+
+    
+
+class SecretArgsFromProductStageConfig(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromProductStageConfigRecursive1(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromProductStageConfigRecursive2(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromProductStageConfigRecursive3(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromProductStageConfigRecursive4(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    
+    
+
+class FindManySecretArgsFromProductStageConfig(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromProductStageConfigRecursive1(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromProductStageConfigRecursive2(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromProductStageConfigRecursive3(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromProductStageConfigRecursive4(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    
+    
+
 class SettingIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
 
@@ -30024,19 +30753,13 @@ class ProductStageConfigWhereInput(TypedDict, total=False):
     name: Union[_str, 'types.StringFilter']
     enabled: Union[_bool, 'types.BooleanFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
-    testDirectory: Union[None, _str, 'types.StringFilter']
-    testMarker: Union[None, _str, 'types.StringFilter']
-    testTimeout: Union[_int, 'types.IntFilter']
-    priority: Union[_int, 'types.IntFilter']
-    blocksMerge: Union[_bool, 'types.BooleanFilter']
-    autoProgress: Union[_bool, 'types.BooleanFilter']
-    requiresBench: Union[_bool, 'types.BooleanFilter']
-    maxDurationSec: Union[_int, 'types.IntFilter']
-    description: Union[None, _str, 'types.StringFilter']
+    watchBranch: Union[None, _str, 'types.StringFilter']
+    signingKeyId: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
     boardRevision: 'BoardRevisionRelationFilter'
+    signingKey: 'SecretRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
 
@@ -30055,19 +30778,13 @@ class ProductStageConfigWhereInputRecursive1(TypedDict, total=False):
     name: Union[_str, 'types.StringFilter']
     enabled: Union[_bool, 'types.BooleanFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
-    testDirectory: Union[None, _str, 'types.StringFilter']
-    testMarker: Union[None, _str, 'types.StringFilter']
-    testTimeout: Union[_int, 'types.IntFilter']
-    priority: Union[_int, 'types.IntFilter']
-    blocksMerge: Union[_bool, 'types.BooleanFilter']
-    autoProgress: Union[_bool, 'types.BooleanFilter']
-    requiresBench: Union[_bool, 'types.BooleanFilter']
-    maxDurationSec: Union[_int, 'types.IntFilter']
-    description: Union[None, _str, 'types.StringFilter']
+    watchBranch: Union[None, _str, 'types.StringFilter']
+    signingKeyId: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
     boardRevision: 'BoardRevisionRelationFilter'
+    signingKey: 'SecretRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
 
@@ -30086,19 +30803,13 @@ class ProductStageConfigWhereInputRecursive2(TypedDict, total=False):
     name: Union[_str, 'types.StringFilter']
     enabled: Union[_bool, 'types.BooleanFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
-    testDirectory: Union[None, _str, 'types.StringFilter']
-    testMarker: Union[None, _str, 'types.StringFilter']
-    testTimeout: Union[_int, 'types.IntFilter']
-    priority: Union[_int, 'types.IntFilter']
-    blocksMerge: Union[_bool, 'types.BooleanFilter']
-    autoProgress: Union[_bool, 'types.BooleanFilter']
-    requiresBench: Union[_bool, 'types.BooleanFilter']
-    maxDurationSec: Union[_int, 'types.IntFilter']
-    description: Union[None, _str, 'types.StringFilter']
+    watchBranch: Union[None, _str, 'types.StringFilter']
+    signingKeyId: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
     boardRevision: 'BoardRevisionRelationFilter'
+    signingKey: 'SecretRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
 
@@ -30117,19 +30828,13 @@ class ProductStageConfigWhereInputRecursive3(TypedDict, total=False):
     name: Union[_str, 'types.StringFilter']
     enabled: Union[_bool, 'types.BooleanFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
-    testDirectory: Union[None, _str, 'types.StringFilter']
-    testMarker: Union[None, _str, 'types.StringFilter']
-    testTimeout: Union[_int, 'types.IntFilter']
-    priority: Union[_int, 'types.IntFilter']
-    blocksMerge: Union[_bool, 'types.BooleanFilter']
-    autoProgress: Union[_bool, 'types.BooleanFilter']
-    requiresBench: Union[_bool, 'types.BooleanFilter']
-    maxDurationSec: Union[_int, 'types.IntFilter']
-    description: Union[None, _str, 'types.StringFilter']
+    watchBranch: Union[None, _str, 'types.StringFilter']
+    signingKeyId: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
     boardRevision: 'BoardRevisionRelationFilter'
+    signingKey: 'SecretRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
 
@@ -30148,19 +30853,13 @@ class ProductStageConfigWhereInputRecursive4(TypedDict, total=False):
     name: Union[_str, 'types.StringFilter']
     enabled: Union[_bool, 'types.BooleanFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
-    testDirectory: Union[None, _str, 'types.StringFilter']
-    testMarker: Union[None, _str, 'types.StringFilter']
-    testTimeout: Union[_int, 'types.IntFilter']
-    priority: Union[_int, 'types.IntFilter']
-    blocksMerge: Union[_bool, 'types.BooleanFilter']
-    autoProgress: Union[_bool, 'types.BooleanFilter']
-    requiresBench: Union[_bool, 'types.BooleanFilter']
-    maxDurationSec: Union[_int, 'types.IntFilter']
-    description: Union[None, _str, 'types.StringFilter']
+    watchBranch: Union[None, _str, 'types.StringFilter']
+    signingKeyId: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
     boardRevision: 'BoardRevisionRelationFilter'
+    signingKey: 'SecretRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
 
@@ -30179,15 +30878,8 @@ class ProductStageConfigScalarWhereWithAggregatesInput(TypedDict, total=False):
     name: Union[_str, 'types.StringWithAggregatesFilter']
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
-    testDirectory: Union[_str, 'types.StringWithAggregatesFilter']
-    testMarker: Union[_str, 'types.StringWithAggregatesFilter']
-    testTimeout: Union[_int, 'types.IntWithAggregatesFilter']
-    priority: Union[_int, 'types.IntWithAggregatesFilter']
-    blocksMerge: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    autoProgress: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    requiresBench: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    maxDurationSec: Union[_int, 'types.IntWithAggregatesFilter']
-    description: Union[_str, 'types.StringWithAggregatesFilter']
+    watchBranch: Union[_str, 'types.StringWithAggregatesFilter']
+    signingKeyId: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -30204,15 +30896,8 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive1(TypedDict, tota
     name: Union[_str, 'types.StringWithAggregatesFilter']
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
-    testDirectory: Union[_str, 'types.StringWithAggregatesFilter']
-    testMarker: Union[_str, 'types.StringWithAggregatesFilter']
-    testTimeout: Union[_int, 'types.IntWithAggregatesFilter']
-    priority: Union[_int, 'types.IntWithAggregatesFilter']
-    blocksMerge: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    autoProgress: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    requiresBench: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    maxDurationSec: Union[_int, 'types.IntWithAggregatesFilter']
-    description: Union[_str, 'types.StringWithAggregatesFilter']
+    watchBranch: Union[_str, 'types.StringWithAggregatesFilter']
+    signingKeyId: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -30229,15 +30914,8 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive2(TypedDict, tota
     name: Union[_str, 'types.StringWithAggregatesFilter']
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
-    testDirectory: Union[_str, 'types.StringWithAggregatesFilter']
-    testMarker: Union[_str, 'types.StringWithAggregatesFilter']
-    testTimeout: Union[_int, 'types.IntWithAggregatesFilter']
-    priority: Union[_int, 'types.IntWithAggregatesFilter']
-    blocksMerge: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    autoProgress: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    requiresBench: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    maxDurationSec: Union[_int, 'types.IntWithAggregatesFilter']
-    description: Union[_str, 'types.StringWithAggregatesFilter']
+    watchBranch: Union[_str, 'types.StringWithAggregatesFilter']
+    signingKeyId: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -30254,15 +30932,8 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive3(TypedDict, tota
     name: Union[_str, 'types.StringWithAggregatesFilter']
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
-    testDirectory: Union[_str, 'types.StringWithAggregatesFilter']
-    testMarker: Union[_str, 'types.StringWithAggregatesFilter']
-    testTimeout: Union[_int, 'types.IntWithAggregatesFilter']
-    priority: Union[_int, 'types.IntWithAggregatesFilter']
-    blocksMerge: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    autoProgress: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    requiresBench: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    maxDurationSec: Union[_int, 'types.IntWithAggregatesFilter']
-    description: Union[_str, 'types.StringWithAggregatesFilter']
+    watchBranch: Union[_str, 'types.StringWithAggregatesFilter']
+    signingKeyId: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -30279,15 +30950,8 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive4(TypedDict, tota
     name: Union[_str, 'types.StringWithAggregatesFilter']
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
-    testDirectory: Union[_str, 'types.StringWithAggregatesFilter']
-    testMarker: Union[_str, 'types.StringWithAggregatesFilter']
-    testTimeout: Union[_int, 'types.IntWithAggregatesFilter']
-    priority: Union[_int, 'types.IntWithAggregatesFilter']
-    blocksMerge: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    autoProgress: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    requiresBench: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    maxDurationSec: Union[_int, 'types.IntWithAggregatesFilter']
-    description: Union[_str, 'types.StringWithAggregatesFilter']
+    watchBranch: Union[_str, 'types.StringWithAggregatesFilter']
+    signingKeyId: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -30300,15 +30964,8 @@ class ProductStageConfigGroupByOutput(TypedDict, total=False):
     name: _str
     enabled: _bool
     boardRevisionId: _str
-    testDirectory: _str
-    testMarker: _str
-    testTimeout: _int
-    priority: _int
-    blocksMerge: _bool
-    autoProgress: _bool
-    requiresBench: _bool
-    maxDurationSec: _int
-    description: _str
+    watchBranch: _str
+    signingKeyId: _str
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     _sum: 'ProductStageConfigSumAggregateOutput'
@@ -30321,17 +30978,11 @@ class ProductStageConfigGroupByOutput(TypedDict, total=False):
 class ProductStageConfigAvgAggregateOutput(TypedDict, total=False):
     """ProductStageConfig output for aggregating averages"""
     stage: float
-    testTimeout: float
-    priority: float
-    maxDurationSec: float
 
 
 class ProductStageConfigSumAggregateOutput(TypedDict, total=False):
     """ProductStageConfig output for aggregating sums"""
     stage: _int
-    testTimeout: _int
-    priority: _int
-    maxDurationSec: _int
 
 
 class ProductStageConfigScalarAggregateOutput(TypedDict, total=False):
@@ -30342,15 +30993,8 @@ class ProductStageConfigScalarAggregateOutput(TypedDict, total=False):
     name: _str
     enabled: _bool
     boardRevisionId: _str
-    testDirectory: _str
-    testMarker: _str
-    testTimeout: _int
-    priority: _int
-    blocksMerge: _bool
-    autoProgress: _bool
-    requiresBench: _bool
-    maxDurationSec: _int
-    description: _str
+    watchBranch: _str
+    signingKeyId: _str
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -30367,15 +31011,8 @@ class ProductStageConfigMaxAggregateInput(TypedDict, total=False):
     name: bool
     enabled: bool
     boardRevisionId: bool
-    testDirectory: bool
-    testMarker: bool
-    testTimeout: bool
-    priority: bool
-    blocksMerge: bool
-    autoProgress: bool
-    requiresBench: bool
-    maxDurationSec: bool
-    description: bool
+    watchBranch: bool
+    signingKeyId: bool
     createdAt: bool
     updatedAt: bool
 
@@ -30388,15 +31025,8 @@ class ProductStageConfigMinAggregateInput(TypedDict, total=False):
     name: bool
     enabled: bool
     boardRevisionId: bool
-    testDirectory: bool
-    testMarker: bool
-    testTimeout: bool
-    priority: bool
-    blocksMerge: bool
-    autoProgress: bool
-    requiresBench: bool
-    maxDurationSec: bool
-    description: bool
+    watchBranch: bool
+    signingKeyId: bool
     createdAt: bool
     updatedAt: bool
 
@@ -30404,9 +31034,6 @@ class ProductStageConfigMinAggregateInput(TypedDict, total=False):
 class ProductStageConfigNumberAggregateInput(TypedDict, total=False):
     """ProductStageConfig input for aggregating numbers"""
     stage: bool
-    testTimeout: bool
-    priority: bool
-    maxDurationSec: bool
 
 
 ProductStageConfigAvgAggregateInput = ProductStageConfigNumberAggregateInput
@@ -30422,15 +31049,8 @@ ProductStageConfigCountAggregateInput = TypedDict(
         'name': bool,
         'enabled': bool,
         'boardRevisionId': bool,
-        'testDirectory': bool,
-        'testMarker': bool,
-        'testTimeout': bool,
-        'priority': bool,
-        'blocksMerge': bool,
-        'autoProgress': bool,
-        'requiresBench': bool,
-        'maxDurationSec': bool,
-        'description': bool,
+        'watchBranch': bool,
+        'signingKeyId': bool,
         'createdAt': bool,
         'updatedAt': bool,
         '_all': bool,
@@ -30447,15 +31067,8 @@ ProductStageConfigCountAggregateOutput = TypedDict(
         'name': int,
         'enabled': int,
         'boardRevisionId': int,
-        'testDirectory': int,
-        'testMarker': int,
-        'testTimeout': int,
-        'priority': int,
-        'blocksMerge': int,
-        'autoProgress': int,
-        'requiresBench': int,
-        'maxDurationSec': int,
-        'description': int,
+        'watchBranch': int,
+        'signingKeyId': int,
         'createdAt': int,
         'updatedAt': int,
         '_all': int,
@@ -30471,19 +31084,13 @@ ProductStageConfigKeys = Literal[
     'name',
     'enabled',
     'boardRevisionId',
-    'testDirectory',
-    'testMarker',
-    'testTimeout',
-    'priority',
-    'blocksMerge',
-    'autoProgress',
-    'requiresBench',
-    'maxDurationSec',
-    'description',
+    'watchBranch',
+    'signingKeyId',
     'createdAt',
     'updatedAt',
     'product',
     'boardRevision',
+    'signingKey',
     'buildRuns',
     'queueEntries',
 ]
@@ -30494,15 +31101,8 @@ ProductStageConfigScalarFieldKeys = Literal[
     'name',
     'enabled',
     'boardRevisionId',
-    'testDirectory',
-    'testMarker',
-    'testTimeout',
-    'priority',
-    'blocksMerge',
-    'autoProgress',
-    'requiresBench',
-    'maxDurationSec',
-    'description',
+    'watchBranch',
+    'signingKeyId',
     'createdAt',
     'updatedAt',
 ]
@@ -30511,6 +31111,7 @@ ProductStageConfigScalarFieldKeysT = TypeVar('ProductStageConfigScalarFieldKeysT
 ProductStageConfigRelationalFieldKeys = Literal[
         'product',
         'boardRevision',
+        'signingKey',
         'buildRuns',
         'queueEntries',
     ]
@@ -31589,6 +32190,7 @@ class ProductStageConfigIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromValidationQueueEntryRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive1']
 
@@ -31597,6 +32199,7 @@ class ProductStageConfigIncludeFromValidationQueueEntryRecursive1(TypedDict, tot
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromValidationQueueEntryRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive2']
 
@@ -31605,6 +32208,7 @@ class ProductStageConfigIncludeFromValidationQueueEntryRecursive2(TypedDict, tot
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromValidationQueueEntryRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive3']
 
@@ -31613,6 +32217,7 @@ class ProductStageConfigIncludeFromValidationQueueEntryRecursive3(TypedDict, tot
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromValidationQueueEntryRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive4']
 
@@ -33627,6 +34232,7 @@ class UserIncludeFromValidationQueueEntry(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromValidationQueueEntryRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromValidationQueueEntryRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromValidationQueueEntryRecursive1']
 
 
 class UserIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
@@ -33637,6 +34243,7 @@ class UserIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromValidationQueueEntryRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromValidationQueueEntryRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromValidationQueueEntryRecursive2']
 
 
 class UserIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
@@ -33647,6 +34254,7 @@ class UserIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromValidationQueueEntryRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromValidationQueueEntryRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromValidationQueueEntryRecursive3']
 
 
 class UserIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
@@ -33657,6 +34265,7 @@ class UserIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromValidationQueueEntryRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromValidationQueueEntryRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromValidationQueueEntryRecursive4']
 
 
 class UserIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
@@ -34056,6 +34665,115 @@ class FindManyAuditLogArgsFromValidationQueueEntryRecursive4(TypedDict, total=Fa
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromValidationQueueEntry(TypedDict, total=False):
+    """Relational arguments for ValidationQueueEntry"""
+    createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive1']
+
+
+class SecretIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
+    """Relational arguments for ValidationQueueEntry"""
+    createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive2']
+
+
+class SecretIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
+    """Relational arguments for ValidationQueueEntry"""
+    createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive3']
+
+
+class SecretIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
+    """Relational arguments for ValidationQueueEntry"""
+    createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive4']
+
+
+class SecretIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
+    """Relational arguments for ValidationQueueEntry"""
+
+    
+
+class SecretArgsFromValidationQueueEntry(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromValidationQueueEntryRecursive1(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromValidationQueueEntryRecursive2(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromValidationQueueEntryRecursive3(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromValidationQueueEntryRecursive4(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    
+    
+
+class FindManySecretArgsFromValidationQueueEntry(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromValidationQueueEntryRecursive1(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromValidationQueueEntryRecursive2(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromValidationQueueEntryRecursive3(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromValidationQueueEntryRecursive4(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -35886,6 +36604,7 @@ class ProductStageConfigIncludeFromBuildRun(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromBuildRunRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive1']
 
@@ -35894,6 +36613,7 @@ class ProductStageConfigIncludeFromBuildRunRecursive1(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromBuildRunRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive2']
 
@@ -35902,6 +36622,7 @@ class ProductStageConfigIncludeFromBuildRunRecursive2(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromBuildRunRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive3']
 
@@ -35910,6 +36631,7 @@ class ProductStageConfigIncludeFromBuildRunRecursive3(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromBuildRunRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive4']
 
@@ -37924,6 +38646,7 @@ class UserIncludeFromBuildRun(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildRunRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildRunRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildRunRecursive1']
 
 
 class UserIncludeFromBuildRunRecursive1(TypedDict, total=False):
@@ -37934,6 +38657,7 @@ class UserIncludeFromBuildRunRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildRunRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildRunRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildRunRecursive2']
 
 
 class UserIncludeFromBuildRunRecursive2(TypedDict, total=False):
@@ -37944,6 +38668,7 @@ class UserIncludeFromBuildRunRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildRunRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildRunRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildRunRecursive3']
 
 
 class UserIncludeFromBuildRunRecursive3(TypedDict, total=False):
@@ -37954,6 +38679,7 @@ class UserIncludeFromBuildRunRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildRunRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildRunRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildRunRecursive4']
 
 
 class UserIncludeFromBuildRunRecursive4(TypedDict, total=False):
@@ -38353,6 +39079,115 @@ class FindManyAuditLogArgsFromBuildRunRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromBuildRun(TypedDict, total=False):
+    """Relational arguments for BuildRun"""
+    createdBy: Union[bool, 'UserArgsFromBuildRunRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive1']
+
+
+class SecretIncludeFromBuildRunRecursive1(TypedDict, total=False):
+    """Relational arguments for BuildRun"""
+    createdBy: Union[bool, 'UserArgsFromBuildRunRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive2']
+
+
+class SecretIncludeFromBuildRunRecursive2(TypedDict, total=False):
+    """Relational arguments for BuildRun"""
+    createdBy: Union[bool, 'UserArgsFromBuildRunRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive3']
+
+
+class SecretIncludeFromBuildRunRecursive3(TypedDict, total=False):
+    """Relational arguments for BuildRun"""
+    createdBy: Union[bool, 'UserArgsFromBuildRunRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive4']
+
+
+class SecretIncludeFromBuildRunRecursive4(TypedDict, total=False):
+    """Relational arguments for BuildRun"""
+
+    
+
+class SecretArgsFromBuildRun(TypedDict, total=False):
+    """Arguments for BuildRun"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromBuildRunRecursive1(TypedDict, total=False):
+    """Arguments for BuildRun"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromBuildRunRecursive2(TypedDict, total=False):
+    """Arguments for BuildRun"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromBuildRunRecursive3(TypedDict, total=False):
+    """Arguments for BuildRun"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromBuildRunRecursive4(TypedDict, total=False):
+    """Arguments for BuildRun"""
+    
+    
+
+class FindManySecretArgsFromBuildRun(TypedDict, total=False):
+    """Arguments for BuildRun"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromBuildRunRecursive1(TypedDict, total=False):
+    """Arguments for BuildRun"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromBuildRunRecursive2(TypedDict, total=False):
+    """Arguments for BuildRun"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromBuildRunRecursive3(TypedDict, total=False):
+    """Arguments for BuildRun"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromBuildRunRecursive4(TypedDict, total=False):
+    """Arguments for BuildRun"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -40380,6 +41215,7 @@ class ProductStageConfigIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromBuildJobRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive1']
 
@@ -40388,6 +41224,7 @@ class ProductStageConfigIncludeFromBuildJobRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromBuildJobRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive2']
 
@@ -40396,6 +41233,7 @@ class ProductStageConfigIncludeFromBuildJobRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromBuildJobRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive3']
 
@@ -40404,6 +41242,7 @@ class ProductStageConfigIncludeFromBuildJobRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromBuildJobRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive4']
 
@@ -42418,6 +43257,7 @@ class UserIncludeFromBuildJob(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildJobRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildJobRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildJobRecursive1']
 
 
 class UserIncludeFromBuildJobRecursive1(TypedDict, total=False):
@@ -42428,6 +43268,7 @@ class UserIncludeFromBuildJobRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildJobRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildJobRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildJobRecursive2']
 
 
 class UserIncludeFromBuildJobRecursive2(TypedDict, total=False):
@@ -42438,6 +43279,7 @@ class UserIncludeFromBuildJobRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildJobRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildJobRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildJobRecursive3']
 
 
 class UserIncludeFromBuildJobRecursive3(TypedDict, total=False):
@@ -42448,6 +43290,7 @@ class UserIncludeFromBuildJobRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildJobRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildJobRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildJobRecursive4']
 
 
 class UserIncludeFromBuildJobRecursive4(TypedDict, total=False):
@@ -42847,6 +43690,115 @@ class FindManyAuditLogArgsFromBuildJobRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromBuildJob(TypedDict, total=False):
+    """Relational arguments for BuildJob"""
+    createdBy: Union[bool, 'UserArgsFromBuildJobRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive1']
+
+
+class SecretIncludeFromBuildJobRecursive1(TypedDict, total=False):
+    """Relational arguments for BuildJob"""
+    createdBy: Union[bool, 'UserArgsFromBuildJobRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive2']
+
+
+class SecretIncludeFromBuildJobRecursive2(TypedDict, total=False):
+    """Relational arguments for BuildJob"""
+    createdBy: Union[bool, 'UserArgsFromBuildJobRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive3']
+
+
+class SecretIncludeFromBuildJobRecursive3(TypedDict, total=False):
+    """Relational arguments for BuildJob"""
+    createdBy: Union[bool, 'UserArgsFromBuildJobRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive4']
+
+
+class SecretIncludeFromBuildJobRecursive4(TypedDict, total=False):
+    """Relational arguments for BuildJob"""
+
+    
+
+class SecretArgsFromBuildJob(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromBuildJobRecursive1(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromBuildJobRecursive2(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromBuildJobRecursive3(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromBuildJobRecursive4(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    
+    
+
+class FindManySecretArgsFromBuildJob(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromBuildJobRecursive1(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromBuildJobRecursive2(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromBuildJobRecursive3(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromBuildJobRecursive4(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -44774,6 +45726,7 @@ class ProductStageConfigIncludeFromBuildArtifact(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromBuildArtifactRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive1']
 
@@ -44782,6 +45735,7 @@ class ProductStageConfigIncludeFromBuildArtifactRecursive1(TypedDict, total=Fals
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromBuildArtifactRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive2']
 
@@ -44790,6 +45744,7 @@ class ProductStageConfigIncludeFromBuildArtifactRecursive2(TypedDict, total=Fals
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromBuildArtifactRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive3']
 
@@ -44798,6 +45753,7 @@ class ProductStageConfigIncludeFromBuildArtifactRecursive3(TypedDict, total=Fals
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromBuildArtifactRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive4']
 
@@ -46812,6 +47768,7 @@ class UserIncludeFromBuildArtifact(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildArtifactRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildArtifactRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildArtifactRecursive1']
 
 
 class UserIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
@@ -46822,6 +47779,7 @@ class UserIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildArtifactRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildArtifactRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildArtifactRecursive2']
 
 
 class UserIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
@@ -46832,6 +47790,7 @@ class UserIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildArtifactRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildArtifactRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildArtifactRecursive3']
 
 
 class UserIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
@@ -46842,6 +47801,7 @@ class UserIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildArtifactRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildArtifactRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromBuildArtifactRecursive4']
 
 
 class UserIncludeFromBuildArtifactRecursive4(TypedDict, total=False):
@@ -47241,6 +48201,115 @@ class FindManyAuditLogArgsFromBuildArtifactRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromBuildArtifact(TypedDict, total=False):
+    """Relational arguments for BuildArtifact"""
+    createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive1']
+
+
+class SecretIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
+    """Relational arguments for BuildArtifact"""
+    createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive2']
+
+
+class SecretIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
+    """Relational arguments for BuildArtifact"""
+    createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive3']
+
+
+class SecretIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
+    """Relational arguments for BuildArtifact"""
+    createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive4']
+
+
+class SecretIncludeFromBuildArtifactRecursive4(TypedDict, total=False):
+    """Relational arguments for BuildArtifact"""
+
+    
+
+class SecretArgsFromBuildArtifact(TypedDict, total=False):
+    """Arguments for BuildArtifact"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromBuildArtifactRecursive1(TypedDict, total=False):
+    """Arguments for BuildArtifact"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromBuildArtifactRecursive2(TypedDict, total=False):
+    """Arguments for BuildArtifact"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromBuildArtifactRecursive3(TypedDict, total=False):
+    """Arguments for BuildArtifact"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromBuildArtifactRecursive4(TypedDict, total=False):
+    """Arguments for BuildArtifact"""
+    
+    
+
+class FindManySecretArgsFromBuildArtifact(TypedDict, total=False):
+    """Arguments for BuildArtifact"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromBuildArtifactRecursive1(TypedDict, total=False):
+    """Arguments for BuildArtifact"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromBuildArtifactRecursive2(TypedDict, total=False):
+    """Arguments for BuildArtifact"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromBuildArtifactRecursive3(TypedDict, total=False):
+    """Arguments for BuildArtifact"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromBuildArtifactRecursive4(TypedDict, total=False):
+    """Arguments for BuildArtifact"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -48907,6 +49976,7 @@ class ProductStageConfigIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromSessionRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive1']
 
@@ -48915,6 +49985,7 @@ class ProductStageConfigIncludeFromSessionRecursive1(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromSessionRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive2']
 
@@ -48923,6 +49994,7 @@ class ProductStageConfigIncludeFromSessionRecursive2(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromSessionRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive3']
 
@@ -48931,6 +50003,7 @@ class ProductStageConfigIncludeFromSessionRecursive3(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromSessionRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive4']
 
@@ -50945,6 +52018,7 @@ class UserIncludeFromSession(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSessionRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSessionRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromSessionRecursive1']
 
 
 class UserIncludeFromSessionRecursive1(TypedDict, total=False):
@@ -50955,6 +52029,7 @@ class UserIncludeFromSessionRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSessionRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSessionRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromSessionRecursive2']
 
 
 class UserIncludeFromSessionRecursive2(TypedDict, total=False):
@@ -50965,6 +52040,7 @@ class UserIncludeFromSessionRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSessionRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSessionRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromSessionRecursive3']
 
 
 class UserIncludeFromSessionRecursive3(TypedDict, total=False):
@@ -50975,6 +52051,7 @@ class UserIncludeFromSessionRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSessionRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSessionRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromSessionRecursive4']
 
 
 class UserIncludeFromSessionRecursive4(TypedDict, total=False):
@@ -51374,6 +52451,115 @@ class FindManyAuditLogArgsFromSessionRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromSession(TypedDict, total=False):
+    """Relational arguments for Session"""
+    createdBy: Union[bool, 'UserArgsFromSessionRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive1']
+
+
+class SecretIncludeFromSessionRecursive1(TypedDict, total=False):
+    """Relational arguments for Session"""
+    createdBy: Union[bool, 'UserArgsFromSessionRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive2']
+
+
+class SecretIncludeFromSessionRecursive2(TypedDict, total=False):
+    """Relational arguments for Session"""
+    createdBy: Union[bool, 'UserArgsFromSessionRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive3']
+
+
+class SecretIncludeFromSessionRecursive3(TypedDict, total=False):
+    """Relational arguments for Session"""
+    createdBy: Union[bool, 'UserArgsFromSessionRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive4']
+
+
+class SecretIncludeFromSessionRecursive4(TypedDict, total=False):
+    """Relational arguments for Session"""
+
+    
+
+class SecretArgsFromSession(TypedDict, total=False):
+    """Arguments for Session"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromSessionRecursive1(TypedDict, total=False):
+    """Arguments for Session"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromSessionRecursive2(TypedDict, total=False):
+    """Arguments for Session"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromSessionRecursive3(TypedDict, total=False):
+    """Arguments for Session"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromSessionRecursive4(TypedDict, total=False):
+    """Arguments for Session"""
+    
+    
+
+class FindManySecretArgsFromSession(TypedDict, total=False):
+    """Arguments for Session"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromSessionRecursive1(TypedDict, total=False):
+    """Arguments for Session"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromSessionRecursive2(TypedDict, total=False):
+    """Arguments for Session"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromSessionRecursive3(TypedDict, total=False):
+    """Arguments for Session"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromSessionRecursive4(TypedDict, total=False):
+    """Arguments for Session"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -53112,6 +54298,7 @@ class ProductStageConfigIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromDeviceRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive1']
 
@@ -53120,6 +54307,7 @@ class ProductStageConfigIncludeFromDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromDeviceRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive2']
 
@@ -53128,6 +54316,7 @@ class ProductStageConfigIncludeFromDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromDeviceRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive3']
 
@@ -53136,6 +54325,7 @@ class ProductStageConfigIncludeFromDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromDeviceRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive4']
 
@@ -55150,6 +56340,7 @@ class UserIncludeFromDevice(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeviceRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeviceRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromDeviceRecursive1']
 
 
 class UserIncludeFromDeviceRecursive1(TypedDict, total=False):
@@ -55160,6 +56351,7 @@ class UserIncludeFromDeviceRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeviceRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeviceRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromDeviceRecursive2']
 
 
 class UserIncludeFromDeviceRecursive2(TypedDict, total=False):
@@ -55170,6 +56362,7 @@ class UserIncludeFromDeviceRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeviceRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeviceRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromDeviceRecursive3']
 
 
 class UserIncludeFromDeviceRecursive3(TypedDict, total=False):
@@ -55180,6 +56373,7 @@ class UserIncludeFromDeviceRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeviceRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeviceRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromDeviceRecursive4']
 
 
 class UserIncludeFromDeviceRecursive4(TypedDict, total=False):
@@ -55579,6 +56773,115 @@ class FindManyAuditLogArgsFromDeviceRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromDevice(TypedDict, total=False):
+    """Relational arguments for Device"""
+    createdBy: Union[bool, 'UserArgsFromDeviceRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive1']
+
+
+class SecretIncludeFromDeviceRecursive1(TypedDict, total=False):
+    """Relational arguments for Device"""
+    createdBy: Union[bool, 'UserArgsFromDeviceRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive2']
+
+
+class SecretIncludeFromDeviceRecursive2(TypedDict, total=False):
+    """Relational arguments for Device"""
+    createdBy: Union[bool, 'UserArgsFromDeviceRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive3']
+
+
+class SecretIncludeFromDeviceRecursive3(TypedDict, total=False):
+    """Relational arguments for Device"""
+    createdBy: Union[bool, 'UserArgsFromDeviceRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive4']
+
+
+class SecretIncludeFromDeviceRecursive4(TypedDict, total=False):
+    """Relational arguments for Device"""
+
+    
+
+class SecretArgsFromDevice(TypedDict, total=False):
+    """Arguments for Device"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromDeviceRecursive1(TypedDict, total=False):
+    """Arguments for Device"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromDeviceRecursive2(TypedDict, total=False):
+    """Arguments for Device"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromDeviceRecursive3(TypedDict, total=False):
+    """Arguments for Device"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromDeviceRecursive4(TypedDict, total=False):
+    """Arguments for Device"""
+    
+    
+
+class FindManySecretArgsFromDevice(TypedDict, total=False):
+    """Arguments for Device"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromDeviceRecursive1(TypedDict, total=False):
+    """Arguments for Device"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromDeviceRecursive2(TypedDict, total=False):
+    """Arguments for Device"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromDeviceRecursive3(TypedDict, total=False):
+    """Arguments for Device"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromDeviceRecursive4(TypedDict, total=False):
+    """Arguments for Device"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -57095,6 +58398,7 @@ class ProductStageConfigIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromFixtureDesignRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive1']
 
@@ -57103,6 +58407,7 @@ class ProductStageConfigIncludeFromFixtureDesignRecursive1(TypedDict, total=Fals
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromFixtureDesignRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive2']
 
@@ -57111,6 +58416,7 @@ class ProductStageConfigIncludeFromFixtureDesignRecursive2(TypedDict, total=Fals
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromFixtureDesignRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive3']
 
@@ -57119,6 +58425,7 @@ class ProductStageConfigIncludeFromFixtureDesignRecursive3(TypedDict, total=Fals
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromFixtureDesignRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive4']
 
@@ -59133,6 +60440,7 @@ class UserIncludeFromFixtureDesign(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureDesignRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureDesignRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureDesignRecursive1']
 
 
 class UserIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
@@ -59143,6 +60451,7 @@ class UserIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureDesignRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureDesignRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureDesignRecursive2']
 
 
 class UserIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
@@ -59153,6 +60462,7 @@ class UserIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureDesignRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureDesignRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureDesignRecursive3']
 
 
 class UserIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
@@ -59163,6 +60473,7 @@ class UserIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureDesignRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureDesignRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureDesignRecursive4']
 
 
 class UserIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
@@ -59562,6 +60873,115 @@ class FindManyAuditLogArgsFromFixtureDesignRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromFixtureDesign(TypedDict, total=False):
+    """Relational arguments for FixtureDesign"""
+    createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive1']
+
+
+class SecretIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
+    """Relational arguments for FixtureDesign"""
+    createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive2']
+
+
+class SecretIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
+    """Relational arguments for FixtureDesign"""
+    createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive3']
+
+
+class SecretIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
+    """Relational arguments for FixtureDesign"""
+    createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive4']
+
+
+class SecretIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
+    """Relational arguments for FixtureDesign"""
+
+    
+
+class SecretArgsFromFixtureDesign(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromFixtureDesignRecursive1(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromFixtureDesignRecursive2(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromFixtureDesignRecursive3(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromFixtureDesignRecursive4(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    
+    
+
+class FindManySecretArgsFromFixtureDesign(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromFixtureDesignRecursive1(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromFixtureDesignRecursive2(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromFixtureDesignRecursive3(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromFixtureDesignRecursive4(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -61221,6 +62641,7 @@ class ProductStageConfigIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromFixtureRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive1']
 
@@ -61229,6 +62650,7 @@ class ProductStageConfigIncludeFromFixtureRecursive1(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromFixtureRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive2']
 
@@ -61237,6 +62659,7 @@ class ProductStageConfigIncludeFromFixtureRecursive2(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromFixtureRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive3']
 
@@ -61245,6 +62668,7 @@ class ProductStageConfigIncludeFromFixtureRecursive3(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromFixtureRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive4']
 
@@ -63259,6 +64683,7 @@ class UserIncludeFromFixture(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureRecursive1']
 
 
 class UserIncludeFromFixtureRecursive1(TypedDict, total=False):
@@ -63269,6 +64694,7 @@ class UserIncludeFromFixtureRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureRecursive2']
 
 
 class UserIncludeFromFixtureRecursive2(TypedDict, total=False):
@@ -63279,6 +64705,7 @@ class UserIncludeFromFixtureRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureRecursive3']
 
 
 class UserIncludeFromFixtureRecursive3(TypedDict, total=False):
@@ -63289,6 +64716,7 @@ class UserIncludeFromFixtureRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureRecursive4']
 
 
 class UserIncludeFromFixtureRecursive4(TypedDict, total=False):
@@ -63688,6 +65116,115 @@ class FindManyAuditLogArgsFromFixtureRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromFixture(TypedDict, total=False):
+    """Relational arguments for Fixture"""
+    createdBy: Union[bool, 'UserArgsFromFixtureRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive1']
+
+
+class SecretIncludeFromFixtureRecursive1(TypedDict, total=False):
+    """Relational arguments for Fixture"""
+    createdBy: Union[bool, 'UserArgsFromFixtureRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive2']
+
+
+class SecretIncludeFromFixtureRecursive2(TypedDict, total=False):
+    """Relational arguments for Fixture"""
+    createdBy: Union[bool, 'UserArgsFromFixtureRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive3']
+
+
+class SecretIncludeFromFixtureRecursive3(TypedDict, total=False):
+    """Relational arguments for Fixture"""
+    createdBy: Union[bool, 'UserArgsFromFixtureRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive4']
+
+
+class SecretIncludeFromFixtureRecursive4(TypedDict, total=False):
+    """Relational arguments for Fixture"""
+
+    
+
+class SecretArgsFromFixture(TypedDict, total=False):
+    """Arguments for Fixture"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromFixtureRecursive1(TypedDict, total=False):
+    """Arguments for Fixture"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromFixtureRecursive2(TypedDict, total=False):
+    """Arguments for Fixture"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromFixtureRecursive3(TypedDict, total=False):
+    """Arguments for Fixture"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromFixtureRecursive4(TypedDict, total=False):
+    """Arguments for Fixture"""
+    
+    
+
+class FindManySecretArgsFromFixture(TypedDict, total=False):
+    """Arguments for Fixture"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromFixtureRecursive1(TypedDict, total=False):
+    """Arguments for Fixture"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromFixtureRecursive2(TypedDict, total=False):
+    """Arguments for Fixture"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromFixtureRecursive3(TypedDict, total=False):
+    """Arguments for Fixture"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromFixtureRecursive4(TypedDict, total=False):
+    """Arguments for Fixture"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -65459,6 +66996,7 @@ class ProductStageConfigIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromFixtureSlotRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive1']
 
@@ -65467,6 +67005,7 @@ class ProductStageConfigIncludeFromFixtureSlotRecursive1(TypedDict, total=False)
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromFixtureSlotRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive2']
 
@@ -65475,6 +67014,7 @@ class ProductStageConfigIncludeFromFixtureSlotRecursive2(TypedDict, total=False)
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromFixtureSlotRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive3']
 
@@ -65483,6 +67023,7 @@ class ProductStageConfigIncludeFromFixtureSlotRecursive3(TypedDict, total=False)
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromFixtureSlotRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive4']
 
@@ -67497,6 +69038,7 @@ class UserIncludeFromFixtureSlot(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureSlotRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureSlotRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureSlotRecursive1']
 
 
 class UserIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
@@ -67507,6 +69049,7 @@ class UserIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureSlotRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureSlotRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureSlotRecursive2']
 
 
 class UserIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
@@ -67517,6 +69060,7 @@ class UserIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureSlotRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureSlotRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureSlotRecursive3']
 
 
 class UserIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
@@ -67527,6 +69071,7 @@ class UserIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureSlotRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureSlotRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromFixtureSlotRecursive4']
 
 
 class UserIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
@@ -67926,6 +69471,115 @@ class FindManyAuditLogArgsFromFixtureSlotRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromFixtureSlot(TypedDict, total=False):
+    """Relational arguments for FixtureSlot"""
+    createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive1']
+
+
+class SecretIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
+    """Relational arguments for FixtureSlot"""
+    createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive2']
+
+
+class SecretIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
+    """Relational arguments for FixtureSlot"""
+    createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive3']
+
+
+class SecretIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
+    """Relational arguments for FixtureSlot"""
+    createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive4']
+
+
+class SecretIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
+    """Relational arguments for FixtureSlot"""
+
+    
+
+class SecretArgsFromFixtureSlot(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromFixtureSlotRecursive1(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromFixtureSlotRecursive2(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromFixtureSlotRecursive3(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromFixtureSlotRecursive4(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    
+    
+
+class FindManySecretArgsFromFixtureSlot(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromFixtureSlotRecursive1(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromFixtureSlotRecursive2(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromFixtureSlotRecursive3(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromFixtureSlotRecursive4(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -69591,6 +71245,7 @@ class ProductStageConfigIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromNodeRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive1']
 
@@ -69599,6 +71254,7 @@ class ProductStageConfigIncludeFromNodeRecursive1(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromNodeRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive2']
 
@@ -69607,6 +71263,7 @@ class ProductStageConfigIncludeFromNodeRecursive2(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromNodeRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive3']
 
@@ -69615,6 +71272,7 @@ class ProductStageConfigIncludeFromNodeRecursive3(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromNodeRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive4']
 
@@ -71629,6 +73287,7 @@ class UserIncludeFromNode(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromNodeRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromNodeRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromNodeRecursive1']
 
 
 class UserIncludeFromNodeRecursive1(TypedDict, total=False):
@@ -71639,6 +73298,7 @@ class UserIncludeFromNodeRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromNodeRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromNodeRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromNodeRecursive2']
 
 
 class UserIncludeFromNodeRecursive2(TypedDict, total=False):
@@ -71649,6 +73309,7 @@ class UserIncludeFromNodeRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromNodeRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromNodeRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromNodeRecursive3']
 
 
 class UserIncludeFromNodeRecursive3(TypedDict, total=False):
@@ -71659,6 +73320,7 @@ class UserIncludeFromNodeRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromNodeRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromNodeRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromNodeRecursive4']
 
 
 class UserIncludeFromNodeRecursive4(TypedDict, total=False):
@@ -72058,6 +73720,115 @@ class FindManyAuditLogArgsFromNodeRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromNode(TypedDict, total=False):
+    """Relational arguments for Node"""
+    createdBy: Union[bool, 'UserArgsFromNodeRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive1']
+
+
+class SecretIncludeFromNodeRecursive1(TypedDict, total=False):
+    """Relational arguments for Node"""
+    createdBy: Union[bool, 'UserArgsFromNodeRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive2']
+
+
+class SecretIncludeFromNodeRecursive2(TypedDict, total=False):
+    """Relational arguments for Node"""
+    createdBy: Union[bool, 'UserArgsFromNodeRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive3']
+
+
+class SecretIncludeFromNodeRecursive3(TypedDict, total=False):
+    """Relational arguments for Node"""
+    createdBy: Union[bool, 'UserArgsFromNodeRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive4']
+
+
+class SecretIncludeFromNodeRecursive4(TypedDict, total=False):
+    """Relational arguments for Node"""
+
+    
+
+class SecretArgsFromNode(TypedDict, total=False):
+    """Arguments for Node"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromNodeRecursive1(TypedDict, total=False):
+    """Arguments for Node"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromNodeRecursive2(TypedDict, total=False):
+    """Arguments for Node"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromNodeRecursive3(TypedDict, total=False):
+    """Arguments for Node"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromNodeRecursive4(TypedDict, total=False):
+    """Arguments for Node"""
+    
+    
+
+class FindManySecretArgsFromNode(TypedDict, total=False):
+    """Arguments for Node"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromNodeRecursive1(TypedDict, total=False):
+    """Arguments for Node"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromNodeRecursive2(TypedDict, total=False):
+    """Arguments for Node"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromNodeRecursive3(TypedDict, total=False):
+    """Arguments for Node"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromNodeRecursive4(TypedDict, total=False):
+    """Arguments for Node"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -73657,6 +75428,7 @@ class ProductStageConfigIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromIcleDeviceRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive1']
 
@@ -73665,6 +75437,7 @@ class ProductStageConfigIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromIcleDeviceRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive2']
 
@@ -73673,6 +75446,7 @@ class ProductStageConfigIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromIcleDeviceRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive3']
 
@@ -73681,6 +75455,7 @@ class ProductStageConfigIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromIcleDeviceRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive4']
 
@@ -75695,6 +77470,7 @@ class UserIncludeFromIcleDevice(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleDeviceRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleDeviceRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromIcleDeviceRecursive1']
 
 
 class UserIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
@@ -75705,6 +77481,7 @@ class UserIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleDeviceRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleDeviceRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromIcleDeviceRecursive2']
 
 
 class UserIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
@@ -75715,6 +77492,7 @@ class UserIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleDeviceRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleDeviceRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromIcleDeviceRecursive3']
 
 
 class UserIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
@@ -75725,6 +77503,7 @@ class UserIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleDeviceRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleDeviceRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromIcleDeviceRecursive4']
 
 
 class UserIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
@@ -76124,6 +77903,115 @@ class FindManyAuditLogArgsFromIcleDeviceRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromIcleDevice(TypedDict, total=False):
+    """Relational arguments for IcleDevice"""
+    createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive1']
+
+
+class SecretIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
+    """Relational arguments for IcleDevice"""
+    createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive2']
+
+
+class SecretIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
+    """Relational arguments for IcleDevice"""
+    createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive3']
+
+
+class SecretIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
+    """Relational arguments for IcleDevice"""
+    createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive4']
+
+
+class SecretIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
+    """Relational arguments for IcleDevice"""
+
+    
+
+class SecretArgsFromIcleDevice(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromIcleDeviceRecursive1(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromIcleDeviceRecursive2(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromIcleDeviceRecursive3(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromIcleDeviceRecursive4(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    
+    
+
+class FindManySecretArgsFromIcleDevice(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromIcleDeviceRecursive1(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromIcleDeviceRecursive2(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromIcleDeviceRecursive3(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromIcleDeviceRecursive4(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -77701,6 +79589,7 @@ class ProductStageConfigIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromIclePendingCommandRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive1']
 
@@ -77709,6 +79598,7 @@ class ProductStageConfigIncludeFromIclePendingCommandRecursive1(TypedDict, total
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromIclePendingCommandRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive2']
 
@@ -77717,6 +79607,7 @@ class ProductStageConfigIncludeFromIclePendingCommandRecursive2(TypedDict, total
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromIclePendingCommandRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive3']
 
@@ -77725,6 +79616,7 @@ class ProductStageConfigIncludeFromIclePendingCommandRecursive3(TypedDict, total
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromIclePendingCommandRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive4']
 
@@ -79739,6 +81631,7 @@ class UserIncludeFromIclePendingCommand(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIclePendingCommandRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIclePendingCommandRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromIclePendingCommandRecursive1']
 
 
 class UserIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
@@ -79749,6 +81642,7 @@ class UserIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIclePendingCommandRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIclePendingCommandRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromIclePendingCommandRecursive2']
 
 
 class UserIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
@@ -79759,6 +81653,7 @@ class UserIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIclePendingCommandRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIclePendingCommandRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromIclePendingCommandRecursive3']
 
 
 class UserIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
@@ -79769,6 +81664,7 @@ class UserIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIclePendingCommandRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIclePendingCommandRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromIclePendingCommandRecursive4']
 
 
 class UserIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
@@ -80168,6 +82064,115 @@ class FindManyAuditLogArgsFromIclePendingCommandRecursive4(TypedDict, total=Fals
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromIclePendingCommand(TypedDict, total=False):
+    """Relational arguments for IclePendingCommand"""
+    createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive1']
+
+
+class SecretIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
+    """Relational arguments for IclePendingCommand"""
+    createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive2']
+
+
+class SecretIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
+    """Relational arguments for IclePendingCommand"""
+    createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive3']
+
+
+class SecretIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
+    """Relational arguments for IclePendingCommand"""
+    createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive4']
+
+
+class SecretIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
+    """Relational arguments for IclePendingCommand"""
+
+    
+
+class SecretArgsFromIclePendingCommand(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromIclePendingCommandRecursive1(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromIclePendingCommandRecursive2(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromIclePendingCommandRecursive3(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    
+    
+
+class FindManySecretArgsFromIclePendingCommand(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromIclePendingCommandRecursive1(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromIclePendingCommandRecursive2(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromIclePendingCommandRecursive3(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -81640,6 +83645,7 @@ class ProductStageConfigIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromIcleLogRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive1']
 
@@ -81648,6 +83654,7 @@ class ProductStageConfigIncludeFromIcleLogRecursive1(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromIcleLogRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive2']
 
@@ -81656,6 +83663,7 @@ class ProductStageConfigIncludeFromIcleLogRecursive2(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromIcleLogRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive3']
 
@@ -81664,6 +83672,7 @@ class ProductStageConfigIncludeFromIcleLogRecursive3(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromIcleLogRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive4']
 
@@ -83678,6 +85687,7 @@ class UserIncludeFromIcleLog(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleLogRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleLogRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromIcleLogRecursive1']
 
 
 class UserIncludeFromIcleLogRecursive1(TypedDict, total=False):
@@ -83688,6 +85698,7 @@ class UserIncludeFromIcleLogRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleLogRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleLogRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromIcleLogRecursive2']
 
 
 class UserIncludeFromIcleLogRecursive2(TypedDict, total=False):
@@ -83698,6 +85709,7 @@ class UserIncludeFromIcleLogRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleLogRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleLogRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromIcleLogRecursive3']
 
 
 class UserIncludeFromIcleLogRecursive3(TypedDict, total=False):
@@ -83708,6 +85720,7 @@ class UserIncludeFromIcleLogRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleLogRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleLogRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromIcleLogRecursive4']
 
 
 class UserIncludeFromIcleLogRecursive4(TypedDict, total=False):
@@ -84107,6 +86120,115 @@ class FindManyAuditLogArgsFromIcleLogRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromIcleLog(TypedDict, total=False):
+    """Relational arguments for IcleLog"""
+    createdBy: Union[bool, 'UserArgsFromIcleLogRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive1']
+
+
+class SecretIncludeFromIcleLogRecursive1(TypedDict, total=False):
+    """Relational arguments for IcleLog"""
+    createdBy: Union[bool, 'UserArgsFromIcleLogRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive2']
+
+
+class SecretIncludeFromIcleLogRecursive2(TypedDict, total=False):
+    """Relational arguments for IcleLog"""
+    createdBy: Union[bool, 'UserArgsFromIcleLogRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive3']
+
+
+class SecretIncludeFromIcleLogRecursive3(TypedDict, total=False):
+    """Relational arguments for IcleLog"""
+    createdBy: Union[bool, 'UserArgsFromIcleLogRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive4']
+
+
+class SecretIncludeFromIcleLogRecursive4(TypedDict, total=False):
+    """Relational arguments for IcleLog"""
+
+    
+
+class SecretArgsFromIcleLog(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromIcleLogRecursive1(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromIcleLogRecursive2(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromIcleLogRecursive3(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromIcleLogRecursive4(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    
+    
+
+class FindManySecretArgsFromIcleLog(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromIcleLogRecursive1(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromIcleLogRecursive2(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromIcleLogRecursive3(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromIcleLogRecursive4(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -85568,6 +87690,7 @@ class ProductStageConfigIncludeFromDeployment(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromDeploymentRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive1']
 
@@ -85576,6 +87699,7 @@ class ProductStageConfigIncludeFromDeploymentRecursive1(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromDeploymentRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive2']
 
@@ -85584,6 +87708,7 @@ class ProductStageConfigIncludeFromDeploymentRecursive2(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromDeploymentRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive3']
 
@@ -85592,6 +87717,7 @@ class ProductStageConfigIncludeFromDeploymentRecursive3(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromDeploymentRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive4']
 
@@ -87606,6 +89732,7 @@ class UserIncludeFromDeployment(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeploymentRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromDeploymentRecursive1']
 
 
 class UserIncludeFromDeploymentRecursive1(TypedDict, total=False):
@@ -87616,6 +89743,7 @@ class UserIncludeFromDeploymentRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeploymentRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromDeploymentRecursive2']
 
 
 class UserIncludeFromDeploymentRecursive2(TypedDict, total=False):
@@ -87626,6 +89754,7 @@ class UserIncludeFromDeploymentRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeploymentRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromDeploymentRecursive3']
 
 
 class UserIncludeFromDeploymentRecursive3(TypedDict, total=False):
@@ -87636,6 +89765,7 @@ class UserIncludeFromDeploymentRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeploymentRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromDeploymentRecursive4']
 
 
 class UserIncludeFromDeploymentRecursive4(TypedDict, total=False):
@@ -88035,6 +90165,115 @@ class FindManyAuditLogArgsFromDeploymentRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromDeployment(TypedDict, total=False):
+    """Relational arguments for Deployment"""
+    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive1']
+
+
+class SecretIncludeFromDeploymentRecursive1(TypedDict, total=False):
+    """Relational arguments for Deployment"""
+    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive2']
+
+
+class SecretIncludeFromDeploymentRecursive2(TypedDict, total=False):
+    """Relational arguments for Deployment"""
+    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive3']
+
+
+class SecretIncludeFromDeploymentRecursive3(TypedDict, total=False):
+    """Relational arguments for Deployment"""
+    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive4']
+
+
+class SecretIncludeFromDeploymentRecursive4(TypedDict, total=False):
+    """Relational arguments for Deployment"""
+
+    
+
+class SecretArgsFromDeployment(TypedDict, total=False):
+    """Arguments for Deployment"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromDeploymentRecursive1(TypedDict, total=False):
+    """Arguments for Deployment"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromDeploymentRecursive2(TypedDict, total=False):
+    """Arguments for Deployment"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromDeploymentRecursive3(TypedDict, total=False):
+    """Arguments for Deployment"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromDeploymentRecursive4(TypedDict, total=False):
+    """Arguments for Deployment"""
+    
+    
+
+class FindManySecretArgsFromDeployment(TypedDict, total=False):
+    """Arguments for Deployment"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromDeploymentRecursive1(TypedDict, total=False):
+    """Arguments for Deployment"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromDeploymentRecursive2(TypedDict, total=False):
+    """Arguments for Deployment"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromDeploymentRecursive3(TypedDict, total=False):
+    """Arguments for Deployment"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromDeploymentRecursive4(TypedDict, total=False):
+    """Arguments for Deployment"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -89572,6 +91811,7 @@ class ProductStageConfigIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromTestRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive1']
 
@@ -89580,6 +91820,7 @@ class ProductStageConfigIncludeFromTestRecursive1(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromTestRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive2']
 
@@ -89588,6 +91829,7 @@ class ProductStageConfigIncludeFromTestRecursive2(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromTestRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive3']
 
@@ -89596,6 +91838,7 @@ class ProductStageConfigIncludeFromTestRecursive3(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromTestRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive4']
 
@@ -91610,6 +93853,7 @@ class UserIncludeFromTest(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromTestRecursive1']
 
 
 class UserIncludeFromTestRecursive1(TypedDict, total=False):
@@ -91620,6 +93864,7 @@ class UserIncludeFromTestRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromTestRecursive2']
 
 
 class UserIncludeFromTestRecursive2(TypedDict, total=False):
@@ -91630,6 +93875,7 @@ class UserIncludeFromTestRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromTestRecursive3']
 
 
 class UserIncludeFromTestRecursive3(TypedDict, total=False):
@@ -91640,6 +93886,7 @@ class UserIncludeFromTestRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromTestRecursive4']
 
 
 class UserIncludeFromTestRecursive4(TypedDict, total=False):
@@ -92039,6 +94286,115 @@ class FindManyAuditLogArgsFromTestRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromTest(TypedDict, total=False):
+    """Relational arguments for Test"""
+    createdBy: Union[bool, 'UserArgsFromTestRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive1']
+
+
+class SecretIncludeFromTestRecursive1(TypedDict, total=False):
+    """Relational arguments for Test"""
+    createdBy: Union[bool, 'UserArgsFromTestRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive2']
+
+
+class SecretIncludeFromTestRecursive2(TypedDict, total=False):
+    """Relational arguments for Test"""
+    createdBy: Union[bool, 'UserArgsFromTestRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive3']
+
+
+class SecretIncludeFromTestRecursive3(TypedDict, total=False):
+    """Relational arguments for Test"""
+    createdBy: Union[bool, 'UserArgsFromTestRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive4']
+
+
+class SecretIncludeFromTestRecursive4(TypedDict, total=False):
+    """Relational arguments for Test"""
+
+    
+
+class SecretArgsFromTest(TypedDict, total=False):
+    """Arguments for Test"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromTestRecursive1(TypedDict, total=False):
+    """Arguments for Test"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromTestRecursive2(TypedDict, total=False):
+    """Arguments for Test"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromTestRecursive3(TypedDict, total=False):
+    """Arguments for Test"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromTestRecursive4(TypedDict, total=False):
+    """Arguments for Test"""
+    
+    
+
+class FindManySecretArgsFromTest(TypedDict, total=False):
+    """Arguments for Test"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromTestRecursive1(TypedDict, total=False):
+    """Arguments for Test"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromTestRecursive2(TypedDict, total=False):
+    """Arguments for Test"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromTestRecursive3(TypedDict, total=False):
+    """Arguments for Test"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromTestRecursive4(TypedDict, total=False):
+    """Arguments for Test"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -93609,6 +95965,7 @@ class ProductStageConfigIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromTestExecutionRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive1']
 
@@ -93617,6 +95974,7 @@ class ProductStageConfigIncludeFromTestExecutionRecursive1(TypedDict, total=Fals
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromTestExecutionRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive2']
 
@@ -93625,6 +95983,7 @@ class ProductStageConfigIncludeFromTestExecutionRecursive2(TypedDict, total=Fals
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromTestExecutionRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive3']
 
@@ -93633,6 +95992,7 @@ class ProductStageConfigIncludeFromTestExecutionRecursive3(TypedDict, total=Fals
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromTestExecutionRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive4']
 
@@ -95647,6 +98007,7 @@ class UserIncludeFromTestExecution(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestExecutionRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestExecutionRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromTestExecutionRecursive1']
 
 
 class UserIncludeFromTestExecutionRecursive1(TypedDict, total=False):
@@ -95657,6 +98018,7 @@ class UserIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestExecutionRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestExecutionRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromTestExecutionRecursive2']
 
 
 class UserIncludeFromTestExecutionRecursive2(TypedDict, total=False):
@@ -95667,6 +98029,7 @@ class UserIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestExecutionRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestExecutionRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromTestExecutionRecursive3']
 
 
 class UserIncludeFromTestExecutionRecursive3(TypedDict, total=False):
@@ -95677,6 +98040,7 @@ class UserIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestExecutionRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestExecutionRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromTestExecutionRecursive4']
 
 
 class UserIncludeFromTestExecutionRecursive4(TypedDict, total=False):
@@ -96076,6 +98440,115 @@ class FindManyAuditLogArgsFromTestExecutionRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromTestExecution(TypedDict, total=False):
+    """Relational arguments for TestExecution"""
+    createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive1']
+
+
+class SecretIncludeFromTestExecutionRecursive1(TypedDict, total=False):
+    """Relational arguments for TestExecution"""
+    createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive2']
+
+
+class SecretIncludeFromTestExecutionRecursive2(TypedDict, total=False):
+    """Relational arguments for TestExecution"""
+    createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive3']
+
+
+class SecretIncludeFromTestExecutionRecursive3(TypedDict, total=False):
+    """Relational arguments for TestExecution"""
+    createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive4']
+
+
+class SecretIncludeFromTestExecutionRecursive4(TypedDict, total=False):
+    """Relational arguments for TestExecution"""
+
+    
+
+class SecretArgsFromTestExecution(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromTestExecutionRecursive1(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromTestExecutionRecursive2(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromTestExecutionRecursive3(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromTestExecutionRecursive4(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    
+    
+
+class FindManySecretArgsFromTestExecution(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromTestExecutionRecursive1(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromTestExecutionRecursive2(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromTestExecutionRecursive3(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromTestExecutionRecursive4(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -97730,6 +100203,7 @@ class ProductStageConfigIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromTestStepRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive1']
 
@@ -97738,6 +100212,7 @@ class ProductStageConfigIncludeFromTestStepRecursive1(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromTestStepRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive2']
 
@@ -97746,6 +100221,7 @@ class ProductStageConfigIncludeFromTestStepRecursive2(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromTestStepRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive3']
 
@@ -97754,6 +100230,7 @@ class ProductStageConfigIncludeFromTestStepRecursive3(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromTestStepRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive4']
 
@@ -99768,6 +102245,7 @@ class UserIncludeFromTestStep(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestStepRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestStepRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromTestStepRecursive1']
 
 
 class UserIncludeFromTestStepRecursive1(TypedDict, total=False):
@@ -99778,6 +102256,7 @@ class UserIncludeFromTestStepRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestStepRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestStepRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromTestStepRecursive2']
 
 
 class UserIncludeFromTestStepRecursive2(TypedDict, total=False):
@@ -99788,6 +102267,7 @@ class UserIncludeFromTestStepRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestStepRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestStepRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromTestStepRecursive3']
 
 
 class UserIncludeFromTestStepRecursive3(TypedDict, total=False):
@@ -99798,6 +102278,7 @@ class UserIncludeFromTestStepRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestStepRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestStepRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromTestStepRecursive4']
 
 
 class UserIncludeFromTestStepRecursive4(TypedDict, total=False):
@@ -100197,6 +102678,115 @@ class FindManyAuditLogArgsFromTestStepRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromTestStep(TypedDict, total=False):
+    """Relational arguments for TestStep"""
+    createdBy: Union[bool, 'UserArgsFromTestStepRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive1']
+
+
+class SecretIncludeFromTestStepRecursive1(TypedDict, total=False):
+    """Relational arguments for TestStep"""
+    createdBy: Union[bool, 'UserArgsFromTestStepRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive2']
+
+
+class SecretIncludeFromTestStepRecursive2(TypedDict, total=False):
+    """Relational arguments for TestStep"""
+    createdBy: Union[bool, 'UserArgsFromTestStepRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive3']
+
+
+class SecretIncludeFromTestStepRecursive3(TypedDict, total=False):
+    """Relational arguments for TestStep"""
+    createdBy: Union[bool, 'UserArgsFromTestStepRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive4']
+
+
+class SecretIncludeFromTestStepRecursive4(TypedDict, total=False):
+    """Relational arguments for TestStep"""
+
+    
+
+class SecretArgsFromTestStep(TypedDict, total=False):
+    """Arguments for TestStep"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromTestStepRecursive1(TypedDict, total=False):
+    """Arguments for TestStep"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromTestStepRecursive2(TypedDict, total=False):
+    """Arguments for TestStep"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromTestStepRecursive3(TypedDict, total=False):
+    """Arguments for TestStep"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromTestStepRecursive4(TypedDict, total=False):
+    """Arguments for TestStep"""
+    
+    
+
+class FindManySecretArgsFromTestStep(TypedDict, total=False):
+    """Arguments for TestStep"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromTestStepRecursive1(TypedDict, total=False):
+    """Arguments for TestStep"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromTestStepRecursive2(TypedDict, total=False):
+    """Arguments for TestStep"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromTestStepRecursive3(TypedDict, total=False):
+    """Arguments for TestStep"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromTestStepRecursive4(TypedDict, total=False):
+    """Arguments for TestStep"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -100847,6 +103437,7 @@ class UserOptionalCreateInput(TypedDict, total=False):
     deployments: 'DeploymentCreateManyNestedWithoutRelationsInput'
     testExecutions: 'TestExecutionCreateManyNestedWithoutRelationsInput'
     auditLogs: 'AuditLogCreateManyNestedWithoutRelationsInput'
+    secrets: 'SecretCreateManyNestedWithoutRelationsInput'
 
 
 class UserCreateInput(UserOptionalCreateInput):
@@ -100936,6 +103527,7 @@ class UserUpdateInput(TypedDict, total=False):
     deployments: 'DeploymentUpdateManyWithoutRelationsInput'
     testExecutions: 'TestExecutionUpdateManyWithoutRelationsInput'
     auditLogs: 'AuditLogUpdateManyWithoutRelationsInput'
+    secrets: 'SecretUpdateManyWithoutRelationsInput'
 
 
 class UserUpdateManyMutationInput(TypedDict, total=False):
@@ -101119,6 +103711,7 @@ class UserInclude(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromUser']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromUser']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromUser']
+    secrets: Union[bool, 'FindManySecretArgsFromUser']
 
 
     
@@ -101821,6 +104414,7 @@ class ProductStageConfigIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromUserRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive1']
 
@@ -101829,6 +104423,7 @@ class ProductStageConfigIncludeFromUserRecursive1(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromUserRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive2']
 
@@ -101837,6 +104432,7 @@ class ProductStageConfigIncludeFromUserRecursive2(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromUserRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive3']
 
@@ -101845,6 +104441,7 @@ class ProductStageConfigIncludeFromUserRecursive3(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromUserRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive4']
 
@@ -103859,6 +106456,7 @@ class UserIncludeFromUser(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromUserRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromUserRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromUserRecursive1']
 
 
 class UserIncludeFromUserRecursive1(TypedDict, total=False):
@@ -103869,6 +106467,7 @@ class UserIncludeFromUserRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromUserRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromUserRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromUserRecursive2']
 
 
 class UserIncludeFromUserRecursive2(TypedDict, total=False):
@@ -103879,6 +106478,7 @@ class UserIncludeFromUserRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromUserRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromUserRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromUserRecursive3']
 
 
 class UserIncludeFromUserRecursive3(TypedDict, total=False):
@@ -103889,6 +106489,7 @@ class UserIncludeFromUserRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromUserRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromUserRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromUserRecursive4']
 
 
 class UserIncludeFromUserRecursive4(TypedDict, total=False):
@@ -104291,6 +106892,115 @@ class FindManyAuditLogArgsFromUserRecursive4(TypedDict, total=False):
     
     
 
+class SecretIncludeFromUser(TypedDict, total=False):
+    """Relational arguments for User"""
+    createdBy: Union[bool, 'UserArgsFromUserRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive1']
+
+
+class SecretIncludeFromUserRecursive1(TypedDict, total=False):
+    """Relational arguments for User"""
+    createdBy: Union[bool, 'UserArgsFromUserRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive2']
+
+
+class SecretIncludeFromUserRecursive2(TypedDict, total=False):
+    """Relational arguments for User"""
+    createdBy: Union[bool, 'UserArgsFromUserRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive3']
+
+
+class SecretIncludeFromUserRecursive3(TypedDict, total=False):
+    """Relational arguments for User"""
+    createdBy: Union[bool, 'UserArgsFromUserRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive4']
+
+
+class SecretIncludeFromUserRecursive4(TypedDict, total=False):
+    """Relational arguments for User"""
+
+    
+
+class SecretArgsFromUser(TypedDict, total=False):
+    """Arguments for User"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromUserRecursive1(TypedDict, total=False):
+    """Arguments for User"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromUserRecursive2(TypedDict, total=False):
+    """Arguments for User"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromUserRecursive3(TypedDict, total=False):
+    """Arguments for User"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromUserRecursive4(TypedDict, total=False):
+    """Arguments for User"""
+    
+    
+
+class FindManySecretArgsFromUser(TypedDict, total=False):
+    """Arguments for User"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromUserRecursive1(TypedDict, total=False):
+    """Arguments for User"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromUserRecursive2(TypedDict, total=False):
+    """Arguments for User"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromUserRecursive3(TypedDict, total=False):
+    """Arguments for User"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromUserRecursive4(TypedDict, total=False):
+    """Arguments for User"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    
+    
+
 class SettingIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
 
@@ -104520,6 +107230,7 @@ class UserWhereInput(TypedDict, total=False):
     deployments: 'DeploymentListRelationFilter'
     testExecutions: 'TestExecutionListRelationFilter'
     auditLogs: 'AuditLogListRelationFilter'
+    secrets: 'SecretListRelationFilter'
 
     # should be noted that AND and NOT should be Union['UserWhereInputRecursive1', List['UserWhereInputRecursive1']]
     # but this causes mypy to hang :/
@@ -104545,6 +107256,7 @@ class UserWhereInputRecursive1(TypedDict, total=False):
     deployments: 'DeploymentListRelationFilter'
     testExecutions: 'TestExecutionListRelationFilter'
     auditLogs: 'AuditLogListRelationFilter'
+    secrets: 'SecretListRelationFilter'
 
     # should be noted that AND and NOT should be Union['UserWhereInputRecursive2', List['UserWhereInputRecursive2']]
     # but this causes mypy to hang :/
@@ -104570,6 +107282,7 @@ class UserWhereInputRecursive2(TypedDict, total=False):
     deployments: 'DeploymentListRelationFilter'
     testExecutions: 'TestExecutionListRelationFilter'
     auditLogs: 'AuditLogListRelationFilter'
+    secrets: 'SecretListRelationFilter'
 
     # should be noted that AND and NOT should be Union['UserWhereInputRecursive3', List['UserWhereInputRecursive3']]
     # but this causes mypy to hang :/
@@ -104595,6 +107308,7 @@ class UserWhereInputRecursive3(TypedDict, total=False):
     deployments: 'DeploymentListRelationFilter'
     testExecutions: 'TestExecutionListRelationFilter'
     auditLogs: 'AuditLogListRelationFilter'
+    secrets: 'SecretListRelationFilter'
 
     # should be noted that AND and NOT should be Union['UserWhereInputRecursive4', List['UserWhereInputRecursive4']]
     # but this causes mypy to hang :/
@@ -104620,6 +107334,7 @@ class UserWhereInputRecursive4(TypedDict, total=False):
     deployments: 'DeploymentListRelationFilter'
     testExecutions: 'TestExecutionListRelationFilter'
     auditLogs: 'AuditLogListRelationFilter'
+    secrets: 'SecretListRelationFilter'
 
 
 
@@ -104837,6 +107552,7 @@ UserKeys = Literal[
     'deployments',
     'testExecutions',
     'auditLogs',
+    'secrets',
 ]
 UserScalarFieldKeys = Literal[
     'id',
@@ -104858,6 +107574,7 @@ UserRelationalFieldKeys = Literal[
         'deployments',
         'testExecutions',
         'auditLogs',
+        'secrets',
     ]
 
 # PermissionSet types
@@ -105790,6 +108507,7 @@ class ProductStageConfigIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromPermissionSetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive1']
 
@@ -105798,6 +108516,7 @@ class ProductStageConfigIncludeFromPermissionSetRecursive1(TypedDict, total=Fals
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromPermissionSetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive2']
 
@@ -105806,6 +108525,7 @@ class ProductStageConfigIncludeFromPermissionSetRecursive2(TypedDict, total=Fals
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromPermissionSetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive3']
 
@@ -105814,6 +108534,7 @@ class ProductStageConfigIncludeFromPermissionSetRecursive3(TypedDict, total=Fals
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromPermissionSetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive4']
 
@@ -107828,6 +110549,7 @@ class UserIncludeFromPermissionSet(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPermissionSetRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPermissionSetRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromPermissionSetRecursive1']
 
 
 class UserIncludeFromPermissionSetRecursive1(TypedDict, total=False):
@@ -107838,6 +110560,7 @@ class UserIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPermissionSetRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPermissionSetRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromPermissionSetRecursive2']
 
 
 class UserIncludeFromPermissionSetRecursive2(TypedDict, total=False):
@@ -107848,6 +110571,7 @@ class UserIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPermissionSetRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPermissionSetRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromPermissionSetRecursive3']
 
 
 class UserIncludeFromPermissionSetRecursive3(TypedDict, total=False):
@@ -107858,6 +110582,7 @@ class UserIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPermissionSetRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPermissionSetRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromPermissionSetRecursive4']
 
 
 class UserIncludeFromPermissionSetRecursive4(TypedDict, total=False):
@@ -108257,6 +110982,115 @@ class FindManyAuditLogArgsFromPermissionSetRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromPermissionSet(TypedDict, total=False):
+    """Relational arguments for PermissionSet"""
+    createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive1']
+
+
+class SecretIncludeFromPermissionSetRecursive1(TypedDict, total=False):
+    """Relational arguments for PermissionSet"""
+    createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive2']
+
+
+class SecretIncludeFromPermissionSetRecursive2(TypedDict, total=False):
+    """Relational arguments for PermissionSet"""
+    createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive3']
+
+
+class SecretIncludeFromPermissionSetRecursive3(TypedDict, total=False):
+    """Relational arguments for PermissionSet"""
+    createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive4']
+
+
+class SecretIncludeFromPermissionSetRecursive4(TypedDict, total=False):
+    """Relational arguments for PermissionSet"""
+
+    
+
+class SecretArgsFromPermissionSet(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromPermissionSetRecursive1(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromPermissionSetRecursive2(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromPermissionSetRecursive3(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromPermissionSetRecursive4(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    
+    
+
+class FindManySecretArgsFromPermissionSet(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromPermissionSetRecursive1(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromPermissionSetRecursive2(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromPermissionSetRecursive3(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromPermissionSetRecursive4(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -109694,6 +112528,7 @@ class ProductStageConfigIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromApiKeyRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive1']
 
@@ -109702,6 +112537,7 @@ class ProductStageConfigIncludeFromApiKeyRecursive1(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromApiKeyRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive2']
 
@@ -109710,6 +112546,7 @@ class ProductStageConfigIncludeFromApiKeyRecursive2(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromApiKeyRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive3']
 
@@ -109718,6 +112555,7 @@ class ProductStageConfigIncludeFromApiKeyRecursive3(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromApiKeyRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive4']
 
@@ -111732,6 +114570,7 @@ class UserIncludeFromApiKey(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromApiKeyRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromApiKeyRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromApiKeyRecursive1']
 
 
 class UserIncludeFromApiKeyRecursive1(TypedDict, total=False):
@@ -111742,6 +114581,7 @@ class UserIncludeFromApiKeyRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromApiKeyRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromApiKeyRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromApiKeyRecursive2']
 
 
 class UserIncludeFromApiKeyRecursive2(TypedDict, total=False):
@@ -111752,6 +114592,7 @@ class UserIncludeFromApiKeyRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromApiKeyRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromApiKeyRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromApiKeyRecursive3']
 
 
 class UserIncludeFromApiKeyRecursive3(TypedDict, total=False):
@@ -111762,6 +114603,7 @@ class UserIncludeFromApiKeyRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromApiKeyRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromApiKeyRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromApiKeyRecursive4']
 
 
 class UserIncludeFromApiKeyRecursive4(TypedDict, total=False):
@@ -112161,6 +115003,115 @@ class FindManyAuditLogArgsFromApiKeyRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromApiKey(TypedDict, total=False):
+    """Relational arguments for ApiKey"""
+    createdBy: Union[bool, 'UserArgsFromApiKeyRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive1']
+
+
+class SecretIncludeFromApiKeyRecursive1(TypedDict, total=False):
+    """Relational arguments for ApiKey"""
+    createdBy: Union[bool, 'UserArgsFromApiKeyRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive2']
+
+
+class SecretIncludeFromApiKeyRecursive2(TypedDict, total=False):
+    """Relational arguments for ApiKey"""
+    createdBy: Union[bool, 'UserArgsFromApiKeyRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive3']
+
+
+class SecretIncludeFromApiKeyRecursive3(TypedDict, total=False):
+    """Relational arguments for ApiKey"""
+    createdBy: Union[bool, 'UserArgsFromApiKeyRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive4']
+
+
+class SecretIncludeFromApiKeyRecursive4(TypedDict, total=False):
+    """Relational arguments for ApiKey"""
+
+    
+
+class SecretArgsFromApiKey(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromApiKeyRecursive1(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromApiKeyRecursive2(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromApiKeyRecursive3(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromApiKeyRecursive4(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    
+    
+
+class FindManySecretArgsFromApiKey(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromApiKeyRecursive1(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromApiKeyRecursive2(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromApiKeyRecursive3(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromApiKeyRecursive4(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -113623,6 +116574,7 @@ class ProductStageConfigIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromAuditLogRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive1']
 
@@ -113631,6 +116583,7 @@ class ProductStageConfigIncludeFromAuditLogRecursive1(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromAuditLogRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive2']
 
@@ -113639,6 +116592,7 @@ class ProductStageConfigIncludeFromAuditLogRecursive2(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromAuditLogRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive3']
 
@@ -113647,6 +116601,7 @@ class ProductStageConfigIncludeFromAuditLogRecursive3(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromAuditLogRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive4']
 
@@ -115661,6 +118616,7 @@ class UserIncludeFromAuditLog(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAuditLogRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAuditLogRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromAuditLogRecursive1']
 
 
 class UserIncludeFromAuditLogRecursive1(TypedDict, total=False):
@@ -115671,6 +118627,7 @@ class UserIncludeFromAuditLogRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAuditLogRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAuditLogRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromAuditLogRecursive2']
 
 
 class UserIncludeFromAuditLogRecursive2(TypedDict, total=False):
@@ -115681,6 +118638,7 @@ class UserIncludeFromAuditLogRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAuditLogRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAuditLogRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromAuditLogRecursive3']
 
 
 class UserIncludeFromAuditLogRecursive3(TypedDict, total=False):
@@ -115691,6 +118649,7 @@ class UserIncludeFromAuditLogRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAuditLogRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAuditLogRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromAuditLogRecursive4']
 
 
 class UserIncludeFromAuditLogRecursive4(TypedDict, total=False):
@@ -116090,6 +119049,115 @@ class FindManyAuditLogArgsFromAuditLogRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromAuditLog(TypedDict, total=False):
+    """Relational arguments for AuditLog"""
+    createdBy: Union[bool, 'UserArgsFromAuditLogRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive1']
+
+
+class SecretIncludeFromAuditLogRecursive1(TypedDict, total=False):
+    """Relational arguments for AuditLog"""
+    createdBy: Union[bool, 'UserArgsFromAuditLogRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive2']
+
+
+class SecretIncludeFromAuditLogRecursive2(TypedDict, total=False):
+    """Relational arguments for AuditLog"""
+    createdBy: Union[bool, 'UserArgsFromAuditLogRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive3']
+
+
+class SecretIncludeFromAuditLogRecursive3(TypedDict, total=False):
+    """Relational arguments for AuditLog"""
+    createdBy: Union[bool, 'UserArgsFromAuditLogRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive4']
+
+
+class SecretIncludeFromAuditLogRecursive4(TypedDict, total=False):
+    """Relational arguments for AuditLog"""
+
+    
+
+class SecretArgsFromAuditLog(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromAuditLogRecursive1(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromAuditLogRecursive2(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromAuditLogRecursive3(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromAuditLogRecursive4(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    
+    
+
+class FindManySecretArgsFromAuditLog(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromAuditLogRecursive1(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromAuditLogRecursive2(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromAuditLogRecursive3(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromAuditLogRecursive4(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -116607,6 +119675,4073 @@ AuditLogScalarFieldKeysT = TypeVar('AuditLogScalarFieldKeysT', bound=AuditLogSca
 
 AuditLogRelationalFieldKeys = Literal[
         'user',
+    ]
+
+# Secret types
+
+class SecretOptionalCreateInput(TypedDict, total=False):
+    """Optional arguments to the Secret create method"""
+    id: _str
+    description: Optional[_str]
+    createdById: Optional[_str]
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    createdBy: 'UserCreateNestedWithoutRelationsInput'
+    stageConfigs: 'ProductStageConfigCreateManyNestedWithoutRelationsInput'
+
+
+class SecretCreateInput(SecretOptionalCreateInput):
+    """Required arguments to the Secret create method"""
+    name: _str
+    type: _str
+    value: _str
+
+
+# TODO: remove this in favour of without explicit relations
+# e.g. PostCreateWithoutAuthorInput
+
+class SecretOptionalCreateWithoutRelationsInput(TypedDict, total=False):
+    """Optional arguments to the Secret create method, without relations"""
+    id: _str
+    description: Optional[_str]
+    createdById: Optional[_str]
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+
+
+class SecretCreateWithoutRelationsInput(SecretOptionalCreateWithoutRelationsInput):
+    """Required arguments to the Secret create method, without relations"""
+    name: _str
+    type: _str
+    value: _str
+
+class SecretConnectOrCreateWithoutRelationsInput(TypedDict):
+    create: 'SecretCreateWithoutRelationsInput'
+    where: 'SecretWhereUniqueInput'
+
+class SecretCreateNestedWithoutRelationsInput(TypedDict, total=False):
+    create: 'SecretCreateWithoutRelationsInput'
+    connect: 'SecretWhereUniqueInput'
+    connect_or_create: 'SecretConnectOrCreateWithoutRelationsInput'
+
+
+class SecretCreateManyNestedWithoutRelationsInput(TypedDict, total=False):
+    create: Union['SecretCreateWithoutRelationsInput', List['SecretCreateWithoutRelationsInput']]
+    connect: Union['SecretWhereUniqueInput', List['SecretWhereUniqueInput']]
+    connect_or_create: Union['SecretConnectOrCreateWithoutRelationsInput', List['SecretConnectOrCreateWithoutRelationsInput']]
+
+_SecretWhereUnique_id_Input = TypedDict(
+    '_SecretWhereUnique_id_Input',
+    {
+        'id': '_str',
+    },
+    total=True
+)
+
+_SecretWhereUnique_name_Input = TypedDict(
+    '_SecretWhereUnique_name_Input',
+    {
+        'name': '_str',
+    },
+    total=True
+)
+
+SecretWhereUniqueInput = Union[
+    '_SecretWhereUnique_id_Input',
+    '_SecretWhereUnique_name_Input',
+]
+
+
+class SecretUpdateInput(TypedDict, total=False):
+    """Optional arguments for updating a record"""
+    id: _str
+    name: _str
+    type: _str
+    value: _str
+    description: Optional[_str]
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    createdBy: 'UserUpdateOneWithoutRelationsInput'
+    stageConfigs: 'ProductStageConfigUpdateManyWithoutRelationsInput'
+
+
+class SecretUpdateManyMutationInput(TypedDict, total=False):
+    """Arguments for updating many records"""
+    id: _str
+    name: _str
+    type: _str
+    value: _str
+    description: Optional[_str]
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+
+
+class SecretUpdateManyWithoutRelationsInput(TypedDict, total=False):
+    create: List['SecretCreateWithoutRelationsInput']
+    connect: List['SecretWhereUniqueInput']
+    connect_or_create: List['SecretConnectOrCreateWithoutRelationsInput']
+    set: List['SecretWhereUniqueInput']
+    disconnect: List['SecretWhereUniqueInput']
+    delete: List['SecretWhereUniqueInput']
+
+    # TODO
+    # update: List['SecretUpdateWithWhereUniqueWithoutRelationsInput']
+    # updateMany: List['SecretUpdateManyWithWhereUniqueWithoutRelationsInput']
+    # deleteMany: List['SecretScalarWhereInput']
+    # upsert: List['SecretUpserteWithWhereUniqueWithoutRelationsInput']
+
+
+class SecretUpdateOneWithoutRelationsInput(TypedDict, total=False):
+    create: 'SecretCreateWithoutRelationsInput'
+    connect: 'SecretWhereUniqueInput'
+    connect_or_create: 'SecretConnectOrCreateWithoutRelationsInput'
+    disconnect: bool
+    delete: bool
+
+    # TODO
+    # update: 'SecretUpdateInput'
+    # upsert: 'SecretUpsertWithoutRelationsInput'
+
+
+class SecretUpsertInput(TypedDict):
+    create: 'SecretCreateInput'
+    update: 'SecretUpdateInput'  # pyright: ignore[reportIncompatibleMethodOverride]
+
+
+_Secret_id_OrderByInput = TypedDict(
+    '_Secret_id_OrderByInput',
+    {
+        'id': 'SortOrder',
+    },
+    total=True
+)
+
+_Secret_name_OrderByInput = TypedDict(
+    '_Secret_name_OrderByInput',
+    {
+        'name': 'SortOrder',
+    },
+    total=True
+)
+
+_Secret_type_OrderByInput = TypedDict(
+    '_Secret_type_OrderByInput',
+    {
+        'type': 'SortOrder',
+    },
+    total=True
+)
+
+_Secret_value_OrderByInput = TypedDict(
+    '_Secret_value_OrderByInput',
+    {
+        'value': 'SortOrder',
+    },
+    total=True
+)
+
+_Secret_description_OrderByInput = TypedDict(
+    '_Secret_description_OrderByInput',
+    {
+        'description': 'SortOrder',
+    },
+    total=True
+)
+
+_Secret_createdById_OrderByInput = TypedDict(
+    '_Secret_createdById_OrderByInput',
+    {
+        'createdById': 'SortOrder',
+    },
+    total=True
+)
+
+_Secret_createdAt_OrderByInput = TypedDict(
+    '_Secret_createdAt_OrderByInput',
+    {
+        'createdAt': 'SortOrder',
+    },
+    total=True
+)
+
+_Secret_updatedAt_OrderByInput = TypedDict(
+    '_Secret_updatedAt_OrderByInput',
+    {
+        'updatedAt': 'SortOrder',
+    },
+    total=True
+)
+
+_Secret_RelevanceInner = TypedDict(
+    '_Secret_RelevanceInner',
+    {
+        'fields': 'List[SecretScalarFieldKeys]',
+        'search': 'str',
+        'sort': 'SortOrder',
+    },
+    total=True
+)
+
+_Secret_RelevanceOrderByInput = TypedDict(
+    '_Secret_RelevanceOrderByInput',
+    {
+        '_relevance': '_Secret_RelevanceInner',
+    },
+    total=True
+)
+
+SecretOrderByInput = Union[
+    '_Secret_id_OrderByInput',
+    '_Secret_name_OrderByInput',
+    '_Secret_type_OrderByInput',
+    '_Secret_value_OrderByInput',
+    '_Secret_description_OrderByInput',
+    '_Secret_createdById_OrderByInput',
+    '_Secret_createdAt_OrderByInput',
+    '_Secret_updatedAt_OrderByInput',
+    '_Secret_RelevanceOrderByInput',
+]
+
+
+
+# recursive Secret types
+# TODO: cleanup these types
+
+
+# Dict[str, Any] is a mypy limitation
+# see https://github.com/RobertCraigie/prisma-client-py/issues/45
+# switch to pyright for improved types, see https://prisma-client-py.readthedocs.io/en/stable/reference/limitations/
+
+SecretRelationFilter = TypedDict(
+    'SecretRelationFilter',
+    {
+        'is': 'Dict[str, Any]',
+        'is_not': 'Dict[str, Any]',
+    },
+    total=False,
+)
+
+
+class SecretListRelationFilter(TypedDict, total=False):
+    some: 'Dict[str, Any]'
+    none: 'Dict[str, Any]'
+    every: 'Dict[str, Any]'
+
+
+class SecretInclude(TypedDict, total=False):
+    """Secret relational arguments"""
+    createdBy: Union[bool, 'UserArgsFromSecret']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecret']
+
+
+    
+
+class ProductIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    boards: Union[bool, 'FindManyBoardArgsFromSecretRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive1']
+    tests: Union[bool, 'FindManyTestArgsFromSecretRecursive1']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive1']
+    buildJobs: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive1']
+    buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive1']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive1']
+
+
+class ProductIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    boards: Union[bool, 'FindManyBoardArgsFromSecretRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive2']
+    tests: Union[bool, 'FindManyTestArgsFromSecretRecursive2']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive2']
+    buildJobs: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive2']
+    buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive2']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive2']
+
+
+class ProductIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    boards: Union[bool, 'FindManyBoardArgsFromSecretRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive3']
+    tests: Union[bool, 'FindManyTestArgsFromSecretRecursive3']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive3']
+    buildJobs: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive3']
+    buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive3']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive3']
+
+
+class ProductIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    boards: Union[bool, 'FindManyBoardArgsFromSecretRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive4']
+    tests: Union[bool, 'FindManyTestArgsFromSecretRecursive4']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive4']
+    buildJobs: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive4']
+    buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive4']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive4']
+
+
+class ProductIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class ProductArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductIncludeFromProductRecursive1'
+
+
+class ProductArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductIncludeFromProductRecursive2'
+
+
+class ProductArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductIncludeFromProductRecursive3'
+
+
+class ProductArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductIncludeFromProductRecursive4'
+
+
+class ProductArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyProductArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
+    where: 'ProductWhereInput'
+    cursor: 'ProductWhereUniqueInput'
+    distinct: List['ProductScalarFieldKeys']
+    include: 'ProductIncludeFromProductRecursive1'
+
+
+class FindManyProductArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
+    where: 'ProductWhereInput'
+    cursor: 'ProductWhereUniqueInput'
+    distinct: List['ProductScalarFieldKeys']
+    include: 'ProductIncludeFromProductRecursive2'
+
+
+class FindManyProductArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
+    where: 'ProductWhereInput'
+    cursor: 'ProductWhereUniqueInput'
+    distinct: List['ProductScalarFieldKeys']
+    include: 'ProductIncludeFromProductRecursive3'
+
+
+class FindManyProductArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
+    where: 'ProductWhereInput'
+    cursor: 'ProductWhereUniqueInput'
+    distinct: List['ProductScalarFieldKeys']
+    include: 'ProductIncludeFromProductRecursive4'
+
+
+class FindManyProductArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
+    where: 'ProductWhereInput'
+    cursor: 'ProductWhereUniqueInput'
+    distinct: List['ProductScalarFieldKeys']
+    
+    
+
+class ProductTargetIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSecretRecursive1']
+
+
+class ProductTargetIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSecretRecursive2']
+
+
+class ProductTargetIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSecretRecursive3']
+
+
+class ProductTargetIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSecretRecursive4']
+
+
+class ProductTargetIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class ProductTargetArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductTargetIncludeFromProductTargetRecursive1'
+
+
+class ProductTargetArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductTargetIncludeFromProductTargetRecursive2'
+
+
+class ProductTargetArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductTargetIncludeFromProductTargetRecursive3'
+
+
+class ProductTargetArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductTargetIncludeFromProductTargetRecursive4'
+
+
+class ProductTargetArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyProductTargetArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
+    where: 'ProductTargetWhereInput'
+    cursor: 'ProductTargetWhereUniqueInput'
+    distinct: List['ProductTargetScalarFieldKeys']
+    include: 'ProductTargetIncludeFromProductTargetRecursive1'
+
+
+class FindManyProductTargetArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
+    where: 'ProductTargetWhereInput'
+    cursor: 'ProductTargetWhereUniqueInput'
+    distinct: List['ProductTargetScalarFieldKeys']
+    include: 'ProductTargetIncludeFromProductTargetRecursive2'
+
+
+class FindManyProductTargetArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
+    where: 'ProductTargetWhereInput'
+    cursor: 'ProductTargetWhereUniqueInput'
+    distinct: List['ProductTargetScalarFieldKeys']
+    include: 'ProductTargetIncludeFromProductTargetRecursive3'
+
+
+class FindManyProductTargetArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
+    where: 'ProductTargetWhereInput'
+    cursor: 'ProductTargetWhereUniqueInput'
+    distinct: List['ProductTargetScalarFieldKeys']
+    include: 'ProductTargetIncludeFromProductTargetRecursive4'
+
+
+class FindManyProductTargetArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
+    where: 'ProductTargetWhereInput'
+    cursor: 'ProductTargetWhereUniqueInput'
+    distinct: List['ProductTargetScalarFieldKeys']
+    
+    
+
+class BoardIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive1']
+    revisions: Union[bool, 'FindManyBoardRevisionArgsFromSecretRecursive1']
+
+
+class BoardIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive2']
+    revisions: Union[bool, 'FindManyBoardRevisionArgsFromSecretRecursive2']
+
+
+class BoardIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive3']
+    revisions: Union[bool, 'FindManyBoardRevisionArgsFromSecretRecursive3']
+
+
+class BoardIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive4']
+    revisions: Union[bool, 'FindManyBoardRevisionArgsFromSecretRecursive4']
+
+
+class BoardIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class BoardArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BoardIncludeFromBoardRecursive1'
+
+
+class BoardArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BoardIncludeFromBoardRecursive2'
+
+
+class BoardArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BoardIncludeFromBoardRecursive3'
+
+
+class BoardArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BoardIncludeFromBoardRecursive4'
+
+
+class BoardArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyBoardArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
+    where: 'BoardWhereInput'
+    cursor: 'BoardWhereUniqueInput'
+    distinct: List['BoardScalarFieldKeys']
+    include: 'BoardIncludeFromBoardRecursive1'
+
+
+class FindManyBoardArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
+    where: 'BoardWhereInput'
+    cursor: 'BoardWhereUniqueInput'
+    distinct: List['BoardScalarFieldKeys']
+    include: 'BoardIncludeFromBoardRecursive2'
+
+
+class FindManyBoardArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
+    where: 'BoardWhereInput'
+    cursor: 'BoardWhereUniqueInput'
+    distinct: List['BoardScalarFieldKeys']
+    include: 'BoardIncludeFromBoardRecursive3'
+
+
+class FindManyBoardArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
+    where: 'BoardWhereInput'
+    cursor: 'BoardWhereUniqueInput'
+    distinct: List['BoardScalarFieldKeys']
+    include: 'BoardIncludeFromBoardRecursive4'
+
+
+class FindManyBoardArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
+    where: 'BoardWhereInput'
+    cursor: 'BoardWhereUniqueInput'
+    distinct: List['BoardScalarFieldKeys']
+    
+    
+
+class BoardRevisionIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    board: Union[bool, 'BoardArgsFromSecretRecursive1']
+    targets: Union[bool, 'FindManyProductTargetArgsFromSecretRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive1']
+
+
+class BoardRevisionIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    board: Union[bool, 'BoardArgsFromSecretRecursive2']
+    targets: Union[bool, 'FindManyProductTargetArgsFromSecretRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive2']
+
+
+class BoardRevisionIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    board: Union[bool, 'BoardArgsFromSecretRecursive3']
+    targets: Union[bool, 'FindManyProductTargetArgsFromSecretRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive3']
+
+
+class BoardRevisionIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    board: Union[bool, 'BoardArgsFromSecretRecursive4']
+    targets: Union[bool, 'FindManyProductTargetArgsFromSecretRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive4']
+
+
+class BoardRevisionIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class BoardRevisionArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive1'
+
+
+class BoardRevisionArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive2'
+
+
+class BoardRevisionArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive3'
+
+
+class BoardRevisionArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive4'
+
+
+class BoardRevisionArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyBoardRevisionArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
+    where: 'BoardRevisionWhereInput'
+    cursor: 'BoardRevisionWhereUniqueInput'
+    distinct: List['BoardRevisionScalarFieldKeys']
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive1'
+
+
+class FindManyBoardRevisionArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
+    where: 'BoardRevisionWhereInput'
+    cursor: 'BoardRevisionWhereUniqueInput'
+    distinct: List['BoardRevisionScalarFieldKeys']
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive2'
+
+
+class FindManyBoardRevisionArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
+    where: 'BoardRevisionWhereInput'
+    cursor: 'BoardRevisionWhereUniqueInput'
+    distinct: List['BoardRevisionScalarFieldKeys']
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive3'
+
+
+class FindManyBoardRevisionArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
+    where: 'BoardRevisionWhereInput'
+    cursor: 'BoardRevisionWhereUniqueInput'
+    distinct: List['BoardRevisionScalarFieldKeys']
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive4'
+
+
+class FindManyBoardRevisionArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
+    where: 'BoardRevisionWhereInput'
+    cursor: 'BoardRevisionWhereUniqueInput'
+    distinct: List['BoardRevisionScalarFieldKeys']
+    
+    
+
+class FirmwareSetIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSecretRecursive1']
+
+
+class FirmwareSetIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSecretRecursive2']
+
+
+class FirmwareSetIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSecretRecursive3']
+
+
+class FirmwareSetIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSecretRecursive4']
+
+
+class FirmwareSetIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class FirmwareSetArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyFirmwareSetArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSecretRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromSecretRecursive1']
+
+
+class FirmwareBuildIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSecretRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromSecretRecursive2']
+
+
+class FirmwareBuildIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSecretRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromSecretRecursive3']
+
+
+class FirmwareBuildIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSecretRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromSecretRecursive4']
+
+
+class FirmwareBuildIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class FirmwareBuildArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive1'
+
+
+class FirmwareBuildArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive2'
+
+
+class FirmwareBuildArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive3'
+
+
+class FirmwareBuildArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive4'
+
+
+class FirmwareBuildArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyFirmwareBuildArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
+    where: 'FirmwareBuildWhereInput'
+    cursor: 'FirmwareBuildWhereUniqueInput'
+    distinct: List['FirmwareBuildScalarFieldKeys']
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive1'
+
+
+class FindManyFirmwareBuildArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
+    where: 'FirmwareBuildWhereInput'
+    cursor: 'FirmwareBuildWhereUniqueInput'
+    distinct: List['FirmwareBuildScalarFieldKeys']
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive2'
+
+
+class FindManyFirmwareBuildArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
+    where: 'FirmwareBuildWhereInput'
+    cursor: 'FirmwareBuildWhereUniqueInput'
+    distinct: List['FirmwareBuildScalarFieldKeys']
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive3'
+
+
+class FindManyFirmwareBuildArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
+    where: 'FirmwareBuildWhereInput'
+    cursor: 'FirmwareBuildWhereUniqueInput'
+    distinct: List['FirmwareBuildScalarFieldKeys']
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive4'
+
+
+class FindManyFirmwareBuildArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
+    where: 'FirmwareBuildWhereInput'
+    cursor: 'FirmwareBuildWhereUniqueInput'
+    distinct: List['FirmwareBuildScalarFieldKeys']
+    
+    
+
+class ProductStageConfigIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromSecretRecursive1']
+    buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive1']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive1']
+
+
+class ProductStageConfigIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromSecretRecursive2']
+    buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive2']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive2']
+
+
+class ProductStageConfigIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromSecretRecursive3']
+    buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive3']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive3']
+
+
+class ProductStageConfigIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromSecretRecursive4']
+    buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive4']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive4']
+
+
+class ProductStageConfigIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class ProductStageConfigArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive1'
+
+
+class ProductStageConfigArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive2'
+
+
+class ProductStageConfigArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive3'
+
+
+class ProductStageConfigArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive4'
+
+
+class ProductStageConfigArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyProductStageConfigArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
+    where: 'ProductStageConfigWhereInput'
+    cursor: 'ProductStageConfigWhereUniqueInput'
+    distinct: List['ProductStageConfigScalarFieldKeys']
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive1'
+
+
+class FindManyProductStageConfigArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
+    where: 'ProductStageConfigWhereInput'
+    cursor: 'ProductStageConfigWhereUniqueInput'
+    distinct: List['ProductStageConfigScalarFieldKeys']
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive2'
+
+
+class FindManyProductStageConfigArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
+    where: 'ProductStageConfigWhereInput'
+    cursor: 'ProductStageConfigWhereUniqueInput'
+    distinct: List['ProductStageConfigScalarFieldKeys']
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive3'
+
+
+class FindManyProductStageConfigArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
+    where: 'ProductStageConfigWhereInput'
+    cursor: 'ProductStageConfigWhereUniqueInput'
+    distinct: List['ProductStageConfigScalarFieldKeys']
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive4'
+
+
+class FindManyProductStageConfigArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
+    where: 'ProductStageConfigWhereInput'
+    cursor: 'ProductStageConfigWhereUniqueInput'
+    distinct: List['ProductStageConfigScalarFieldKeys']
+    
+    
+
+class ValidationQueueEntryIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive1']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive1']
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive1']
+    session: Union[bool, 'SessionArgsFromSecretRecursive1']
+
+
+class ValidationQueueEntryIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive2']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive2']
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive2']
+    session: Union[bool, 'SessionArgsFromSecretRecursive2']
+
+
+class ValidationQueueEntryIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive3']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive3']
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive3']
+    session: Union[bool, 'SessionArgsFromSecretRecursive3']
+
+
+class ValidationQueueEntryIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive4']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive4']
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive4']
+    session: Union[bool, 'SessionArgsFromSecretRecursive4']
+
+
+class ValidationQueueEntryIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class ValidationQueueEntryArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive1'
+
+
+class ValidationQueueEntryArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive2'
+
+
+class ValidationQueueEntryArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive3'
+
+
+class ValidationQueueEntryArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive4'
+
+
+class ValidationQueueEntryArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyValidationQueueEntryArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
+    where: 'ValidationQueueEntryWhereInput'
+    cursor: 'ValidationQueueEntryWhereUniqueInput'
+    distinct: List['ValidationQueueEntryScalarFieldKeys']
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive1'
+
+
+class FindManyValidationQueueEntryArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
+    where: 'ValidationQueueEntryWhereInput'
+    cursor: 'ValidationQueueEntryWhereUniqueInput'
+    distinct: List['ValidationQueueEntryScalarFieldKeys']
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive2'
+
+
+class FindManyValidationQueueEntryArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
+    where: 'ValidationQueueEntryWhereInput'
+    cursor: 'ValidationQueueEntryWhereUniqueInput'
+    distinct: List['ValidationQueueEntryScalarFieldKeys']
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive3'
+
+
+class FindManyValidationQueueEntryArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
+    where: 'ValidationQueueEntryWhereInput'
+    cursor: 'ValidationQueueEntryWhereUniqueInput'
+    distinct: List['ValidationQueueEntryScalarFieldKeys']
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive4'
+
+
+class FindManyValidationQueueEntryArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
+    where: 'ValidationQueueEntryWhereInput'
+    cursor: 'ValidationQueueEntryWhereUniqueInput'
+    distinct: List['ValidationQueueEntryScalarFieldKeys']
+    
+    
+
+class BuildRunIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive1']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive1']
+    builds: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive1']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive1']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive1']
+
+
+class BuildRunIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive2']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive2']
+    builds: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive2']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive2']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive2']
+
+
+class BuildRunIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive3']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive3']
+    builds: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive3']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive3']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive3']
+
+
+class BuildRunIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive4']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive4']
+    builds: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive4']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive4']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive4']
+
+
+class BuildRunIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class BuildRunArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildRunIncludeFromBuildRunRecursive1'
+
+
+class BuildRunArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildRunIncludeFromBuildRunRecursive2'
+
+
+class BuildRunArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildRunIncludeFromBuildRunRecursive3'
+
+
+class BuildRunArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildRunIncludeFromBuildRunRecursive4'
+
+
+class BuildRunArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyBuildRunArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildRunOrderByInput', List['BuildRunOrderByInput']]
+    where: 'BuildRunWhereInput'
+    cursor: 'BuildRunWhereUniqueInput'
+    distinct: List['BuildRunScalarFieldKeys']
+    include: 'BuildRunIncludeFromBuildRunRecursive1'
+
+
+class FindManyBuildRunArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildRunOrderByInput', List['BuildRunOrderByInput']]
+    where: 'BuildRunWhereInput'
+    cursor: 'BuildRunWhereUniqueInput'
+    distinct: List['BuildRunScalarFieldKeys']
+    include: 'BuildRunIncludeFromBuildRunRecursive2'
+
+
+class FindManyBuildRunArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildRunOrderByInput', List['BuildRunOrderByInput']]
+    where: 'BuildRunWhereInput'
+    cursor: 'BuildRunWhereUniqueInput'
+    distinct: List['BuildRunScalarFieldKeys']
+    include: 'BuildRunIncludeFromBuildRunRecursive3'
+
+
+class FindManyBuildRunArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildRunOrderByInput', List['BuildRunOrderByInput']]
+    where: 'BuildRunWhereInput'
+    cursor: 'BuildRunWhereUniqueInput'
+    distinct: List['BuildRunScalarFieldKeys']
+    include: 'BuildRunIncludeFromBuildRunRecursive4'
+
+
+class FindManyBuildRunArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildRunOrderByInput', List['BuildRunOrderByInput']]
+    where: 'BuildRunWhereInput'
+    cursor: 'BuildRunWhereUniqueInput'
+    distinct: List['BuildRunScalarFieldKeys']
+    
+    
+
+class BuildJobIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive1']
+    product: Union[bool, 'ProductArgsFromSecretRecursive1']
+    artifacts: Union[bool, 'FindManyBuildArtifactArgsFromSecretRecursive1']
+    reusedFrom: Union[bool, 'BuildJobArgsFromSecretRecursive1']
+    reusedBy: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive1']
+
+
+class BuildJobIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive2']
+    product: Union[bool, 'ProductArgsFromSecretRecursive2']
+    artifacts: Union[bool, 'FindManyBuildArtifactArgsFromSecretRecursive2']
+    reusedFrom: Union[bool, 'BuildJobArgsFromSecretRecursive2']
+    reusedBy: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive2']
+
+
+class BuildJobIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive3']
+    product: Union[bool, 'ProductArgsFromSecretRecursive3']
+    artifacts: Union[bool, 'FindManyBuildArtifactArgsFromSecretRecursive3']
+    reusedFrom: Union[bool, 'BuildJobArgsFromSecretRecursive3']
+    reusedBy: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive3']
+
+
+class BuildJobIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive4']
+    product: Union[bool, 'ProductArgsFromSecretRecursive4']
+    artifacts: Union[bool, 'FindManyBuildArtifactArgsFromSecretRecursive4']
+    reusedFrom: Union[bool, 'BuildJobArgsFromSecretRecursive4']
+    reusedBy: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive4']
+
+
+class BuildJobIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class BuildJobArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildJobIncludeFromBuildJobRecursive1'
+
+
+class BuildJobArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildJobIncludeFromBuildJobRecursive2'
+
+
+class BuildJobArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildJobIncludeFromBuildJobRecursive3'
+
+
+class BuildJobArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildJobIncludeFromBuildJobRecursive4'
+
+
+class BuildJobArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyBuildJobArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
+    where: 'BuildJobWhereInput'
+    cursor: 'BuildJobWhereUniqueInput'
+    distinct: List['BuildJobScalarFieldKeys']
+    include: 'BuildJobIncludeFromBuildJobRecursive1'
+
+
+class FindManyBuildJobArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
+    where: 'BuildJobWhereInput'
+    cursor: 'BuildJobWhereUniqueInput'
+    distinct: List['BuildJobScalarFieldKeys']
+    include: 'BuildJobIncludeFromBuildJobRecursive2'
+
+
+class FindManyBuildJobArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
+    where: 'BuildJobWhereInput'
+    cursor: 'BuildJobWhereUniqueInput'
+    distinct: List['BuildJobScalarFieldKeys']
+    include: 'BuildJobIncludeFromBuildJobRecursive3'
+
+
+class FindManyBuildJobArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
+    where: 'BuildJobWhereInput'
+    cursor: 'BuildJobWhereUniqueInput'
+    distinct: List['BuildJobScalarFieldKeys']
+    include: 'BuildJobIncludeFromBuildJobRecursive4'
+
+
+class FindManyBuildJobArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
+    where: 'BuildJobWhereInput'
+    cursor: 'BuildJobWhereUniqueInput'
+    distinct: List['BuildJobScalarFieldKeys']
+    
+    
+
+class BuildArtifactIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildJob: Union[bool, 'BuildJobArgsFromSecretRecursive1']
+
+
+class BuildArtifactIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildJob: Union[bool, 'BuildJobArgsFromSecretRecursive2']
+
+
+class BuildArtifactIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildJob: Union[bool, 'BuildJobArgsFromSecretRecursive3']
+
+
+class BuildArtifactIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    buildJob: Union[bool, 'BuildJobArgsFromSecretRecursive4']
+
+
+class BuildArtifactIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class BuildArtifactArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildArtifactIncludeFromBuildArtifactRecursive1'
+
+
+class BuildArtifactArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildArtifactIncludeFromBuildArtifactRecursive2'
+
+
+class BuildArtifactArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildArtifactIncludeFromBuildArtifactRecursive3'
+
+
+class BuildArtifactArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'BuildArtifactIncludeFromBuildArtifactRecursive4'
+
+
+class BuildArtifactArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyBuildArtifactArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildArtifactOrderByInput', List['BuildArtifactOrderByInput']]
+    where: 'BuildArtifactWhereInput'
+    cursor: 'BuildArtifactWhereUniqueInput'
+    distinct: List['BuildArtifactScalarFieldKeys']
+    include: 'BuildArtifactIncludeFromBuildArtifactRecursive1'
+
+
+class FindManyBuildArtifactArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildArtifactOrderByInput', List['BuildArtifactOrderByInput']]
+    where: 'BuildArtifactWhereInput'
+    cursor: 'BuildArtifactWhereUniqueInput'
+    distinct: List['BuildArtifactScalarFieldKeys']
+    include: 'BuildArtifactIncludeFromBuildArtifactRecursive2'
+
+
+class FindManyBuildArtifactArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildArtifactOrderByInput', List['BuildArtifactOrderByInput']]
+    where: 'BuildArtifactWhereInput'
+    cursor: 'BuildArtifactWhereUniqueInput'
+    distinct: List['BuildArtifactScalarFieldKeys']
+    include: 'BuildArtifactIncludeFromBuildArtifactRecursive3'
+
+
+class FindManyBuildArtifactArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildArtifactOrderByInput', List['BuildArtifactOrderByInput']]
+    where: 'BuildArtifactWhereInput'
+    cursor: 'BuildArtifactWhereUniqueInput'
+    distinct: List['BuildArtifactScalarFieldKeys']
+    include: 'BuildArtifactIncludeFromBuildArtifactRecursive4'
+
+
+class FindManyBuildArtifactArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['BuildArtifactOrderByInput', List['BuildArtifactOrderByInput']]
+    where: 'BuildArtifactWhereInput'
+    cursor: 'BuildArtifactWhereUniqueInput'
+    distinct: List['BuildArtifactScalarFieldKeys']
+    
+    
+
+class SessionIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive1']
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive1']
+    pipeline: Union[bool, 'BuildRunArgsFromSecretRecursive1']
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive1']
+    devices: Union[bool, 'FindManyDeviceArgsFromSecretRecursive1']
+    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromSecretRecursive1']
+
+
+class SessionIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive2']
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive2']
+    pipeline: Union[bool, 'BuildRunArgsFromSecretRecursive2']
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive2']
+    devices: Union[bool, 'FindManyDeviceArgsFromSecretRecursive2']
+    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromSecretRecursive2']
+
+
+class SessionIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive3']
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive3']
+    pipeline: Union[bool, 'BuildRunArgsFromSecretRecursive3']
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive3']
+    devices: Union[bool, 'FindManyDeviceArgsFromSecretRecursive3']
+    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromSecretRecursive3']
+
+
+class SessionIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive4']
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive4']
+    pipeline: Union[bool, 'BuildRunArgsFromSecretRecursive4']
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive4']
+    devices: Union[bool, 'FindManyDeviceArgsFromSecretRecursive4']
+    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromSecretRecursive4']
+
+
+class SessionIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class SessionArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SessionIncludeFromSessionRecursive1'
+
+
+class SessionArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SessionIncludeFromSessionRecursive2'
+
+
+class SessionArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SessionIncludeFromSessionRecursive3'
+
+
+class SessionArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SessionIncludeFromSessionRecursive4'
+
+
+class SessionArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManySessionArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
+    where: 'SessionWhereInput'
+    cursor: 'SessionWhereUniqueInput'
+    distinct: List['SessionScalarFieldKeys']
+    include: 'SessionIncludeFromSessionRecursive1'
+
+
+class FindManySessionArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
+    where: 'SessionWhereInput'
+    cursor: 'SessionWhereUniqueInput'
+    distinct: List['SessionScalarFieldKeys']
+    include: 'SessionIncludeFromSessionRecursive2'
+
+
+class FindManySessionArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
+    where: 'SessionWhereInput'
+    cursor: 'SessionWhereUniqueInput'
+    distinct: List['SessionScalarFieldKeys']
+    include: 'SessionIncludeFromSessionRecursive3'
+
+
+class FindManySessionArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
+    where: 'SessionWhereInput'
+    cursor: 'SessionWhereUniqueInput'
+    distinct: List['SessionScalarFieldKeys']
+    include: 'SessionIncludeFromSessionRecursive4'
+
+
+class FindManySessionArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
+    where: 'SessionWhereInput'
+    cursor: 'SessionWhereUniqueInput'
+    distinct: List['SessionScalarFieldKeys']
+    
+    
+
+class DeviceIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    session: Union[bool, 'SessionArgsFromSecretRecursive1']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive1']
+
+
+class DeviceIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    session: Union[bool, 'SessionArgsFromSecretRecursive2']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive2']
+
+
+class DeviceIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    session: Union[bool, 'SessionArgsFromSecretRecursive3']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive3']
+
+
+class DeviceIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    session: Union[bool, 'SessionArgsFromSecretRecursive4']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive4']
+
+
+class DeviceIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class DeviceArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'DeviceIncludeFromDeviceRecursive1'
+
+
+class DeviceArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'DeviceIncludeFromDeviceRecursive2'
+
+
+class DeviceArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'DeviceIncludeFromDeviceRecursive3'
+
+
+class DeviceArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'DeviceIncludeFromDeviceRecursive4'
+
+
+class DeviceArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyDeviceArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
+    where: 'DeviceWhereInput'
+    cursor: 'DeviceWhereUniqueInput'
+    distinct: List['DeviceScalarFieldKeys']
+    include: 'DeviceIncludeFromDeviceRecursive1'
+
+
+class FindManyDeviceArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
+    where: 'DeviceWhereInput'
+    cursor: 'DeviceWhereUniqueInput'
+    distinct: List['DeviceScalarFieldKeys']
+    include: 'DeviceIncludeFromDeviceRecursive2'
+
+
+class FindManyDeviceArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
+    where: 'DeviceWhereInput'
+    cursor: 'DeviceWhereUniqueInput'
+    distinct: List['DeviceScalarFieldKeys']
+    include: 'DeviceIncludeFromDeviceRecursive3'
+
+
+class FindManyDeviceArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
+    where: 'DeviceWhereInput'
+    cursor: 'DeviceWhereUniqueInput'
+    distinct: List['DeviceScalarFieldKeys']
+    include: 'DeviceIncludeFromDeviceRecursive4'
+
+
+class FindManyDeviceArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
+    where: 'DeviceWhereInput'
+    cursor: 'DeviceWhereUniqueInput'
+    distinct: List['DeviceScalarFieldKeys']
+    
+    
+
+class FixtureDesignIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive1']
+
+
+class FixtureDesignIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive2']
+
+
+class FixtureDesignIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive3']
+
+
+class FixtureDesignIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive4']
+
+
+class FixtureDesignIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class FixtureDesignArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive1'
+
+
+class FixtureDesignArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive2'
+
+
+class FixtureDesignArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive3'
+
+
+class FixtureDesignArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive4'
+
+
+class FixtureDesignArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyFixtureDesignArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
+    where: 'FixtureDesignWhereInput'
+    cursor: 'FixtureDesignWhereUniqueInput'
+    distinct: List['FixtureDesignScalarFieldKeys']
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive1'
+
+
+class FindManyFixtureDesignArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
+    where: 'FixtureDesignWhereInput'
+    cursor: 'FixtureDesignWhereUniqueInput'
+    distinct: List['FixtureDesignScalarFieldKeys']
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive2'
+
+
+class FindManyFixtureDesignArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
+    where: 'FixtureDesignWhereInput'
+    cursor: 'FixtureDesignWhereUniqueInput'
+    distinct: List['FixtureDesignScalarFieldKeys']
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive3'
+
+
+class FindManyFixtureDesignArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
+    where: 'FixtureDesignWhereInput'
+    cursor: 'FixtureDesignWhereUniqueInput'
+    distinct: List['FixtureDesignScalarFieldKeys']
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive4'
+
+
+class FindManyFixtureDesignArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
+    where: 'FixtureDesignWhereInput'
+    cursor: 'FixtureDesignWhereUniqueInput'
+    distinct: List['FixtureDesignScalarFieldKeys']
+    
+    
+
+class FixtureIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive1']
+    design: Union[bool, 'FixtureDesignArgsFromSecretRecursive1']
+    slots: Union[bool, 'FindManyFixtureSlotArgsFromSecretRecursive1']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive1']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive1']
+
+
+class FixtureIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive2']
+    design: Union[bool, 'FixtureDesignArgsFromSecretRecursive2']
+    slots: Union[bool, 'FindManyFixtureSlotArgsFromSecretRecursive2']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive2']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive2']
+
+
+class FixtureIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive3']
+    design: Union[bool, 'FixtureDesignArgsFromSecretRecursive3']
+    slots: Union[bool, 'FindManyFixtureSlotArgsFromSecretRecursive3']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive3']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive3']
+
+
+class FixtureIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive4']
+    design: Union[bool, 'FixtureDesignArgsFromSecretRecursive4']
+    slots: Union[bool, 'FindManyFixtureSlotArgsFromSecretRecursive4']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive4']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive4']
+
+
+class FixtureIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class FixtureArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureIncludeFromFixtureRecursive1'
+
+
+class FixtureArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureIncludeFromFixtureRecursive2'
+
+
+class FixtureArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureIncludeFromFixtureRecursive3'
+
+
+class FixtureArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureIncludeFromFixtureRecursive4'
+
+
+class FixtureArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyFixtureArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
+    where: 'FixtureWhereInput'
+    cursor: 'FixtureWhereUniqueInput'
+    distinct: List['FixtureScalarFieldKeys']
+    include: 'FixtureIncludeFromFixtureRecursive1'
+
+
+class FindManyFixtureArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
+    where: 'FixtureWhereInput'
+    cursor: 'FixtureWhereUniqueInput'
+    distinct: List['FixtureScalarFieldKeys']
+    include: 'FixtureIncludeFromFixtureRecursive2'
+
+
+class FindManyFixtureArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
+    where: 'FixtureWhereInput'
+    cursor: 'FixtureWhereUniqueInput'
+    distinct: List['FixtureScalarFieldKeys']
+    include: 'FixtureIncludeFromFixtureRecursive3'
+
+
+class FindManyFixtureArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
+    where: 'FixtureWhereInput'
+    cursor: 'FixtureWhereUniqueInput'
+    distinct: List['FixtureScalarFieldKeys']
+    include: 'FixtureIncludeFromFixtureRecursive4'
+
+
+class FindManyFixtureArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
+    where: 'FixtureWhereInput'
+    cursor: 'FixtureWhereUniqueInput'
+    distinct: List['FixtureScalarFieldKeys']
+    
+    
+
+class FixtureSlotIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive1']
+    node: Union[bool, 'NodeArgsFromSecretRecursive1']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive1']
+
+
+class FixtureSlotIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive2']
+    node: Union[bool, 'NodeArgsFromSecretRecursive2']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive2']
+
+
+class FixtureSlotIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive3']
+    node: Union[bool, 'NodeArgsFromSecretRecursive3']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive3']
+
+
+class FixtureSlotIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixture: Union[bool, 'FixtureArgsFromSecretRecursive4']
+    node: Union[bool, 'NodeArgsFromSecretRecursive4']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive4']
+
+
+class FixtureSlotIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class FixtureSlotArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive1'
+
+
+class FixtureSlotArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive2'
+
+
+class FixtureSlotArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive3'
+
+
+class FixtureSlotArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive4'
+
+
+class FixtureSlotArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyFixtureSlotArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
+    where: 'FixtureSlotWhereInput'
+    cursor: 'FixtureSlotWhereUniqueInput'
+    distinct: List['FixtureSlotScalarFieldKeys']
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive1'
+
+
+class FindManyFixtureSlotArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
+    where: 'FixtureSlotWhereInput'
+    cursor: 'FixtureSlotWhereUniqueInput'
+    distinct: List['FixtureSlotScalarFieldKeys']
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive2'
+
+
+class FindManyFixtureSlotArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
+    where: 'FixtureSlotWhereInput'
+    cursor: 'FixtureSlotWhereUniqueInput'
+    distinct: List['FixtureSlotScalarFieldKeys']
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive3'
+
+
+class FindManyFixtureSlotArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
+    where: 'FixtureSlotWhereInput'
+    cursor: 'FixtureSlotWhereUniqueInput'
+    distinct: List['FixtureSlotScalarFieldKeys']
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive4'
+
+
+class FindManyFixtureSlotArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
+    where: 'FixtureSlotWhereInput'
+    cursor: 'FixtureSlotWhereUniqueInput'
+    distinct: List['FixtureSlotScalarFieldKeys']
+    
+    
+
+class NodeIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixtureSlot: Union[bool, 'FixtureSlotArgsFromSecretRecursive1']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive1']
+
+
+class NodeIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixtureSlot: Union[bool, 'FixtureSlotArgsFromSecretRecursive2']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive2']
+
+
+class NodeIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixtureSlot: Union[bool, 'FixtureSlotArgsFromSecretRecursive3']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive3']
+
+
+class NodeIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    fixtureSlot: Union[bool, 'FixtureSlotArgsFromSecretRecursive4']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive4']
+
+
+class NodeIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class NodeArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'NodeIncludeFromNodeRecursive1'
+
+
+class NodeArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'NodeIncludeFromNodeRecursive2'
+
+
+class NodeArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'NodeIncludeFromNodeRecursive3'
+
+
+class NodeArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'NodeIncludeFromNodeRecursive4'
+
+
+class NodeArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyNodeArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
+    where: 'NodeWhereInput'
+    cursor: 'NodeWhereUniqueInput'
+    distinct: List['NodeScalarFieldKeys']
+    include: 'NodeIncludeFromNodeRecursive1'
+
+
+class FindManyNodeArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
+    where: 'NodeWhereInput'
+    cursor: 'NodeWhereUniqueInput'
+    distinct: List['NodeScalarFieldKeys']
+    include: 'NodeIncludeFromNodeRecursive2'
+
+
+class FindManyNodeArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
+    where: 'NodeWhereInput'
+    cursor: 'NodeWhereUniqueInput'
+    distinct: List['NodeScalarFieldKeys']
+    include: 'NodeIncludeFromNodeRecursive3'
+
+
+class FindManyNodeArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
+    where: 'NodeWhereInput'
+    cursor: 'NodeWhereUniqueInput'
+    distinct: List['NodeScalarFieldKeys']
+    include: 'NodeIncludeFromNodeRecursive4'
+
+
+class FindManyNodeArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
+    where: 'NodeWhereInput'
+    cursor: 'NodeWhereUniqueInput'
+    distinct: List['NodeScalarFieldKeys']
+    
+    
+
+class IcleDeviceIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    commands: Union[bool, 'FindManyIclePendingCommandArgsFromSecretRecursive1']
+    logs: Union[bool, 'FindManyIcleLogArgsFromSecretRecursive1']
+
+
+class IcleDeviceIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    commands: Union[bool, 'FindManyIclePendingCommandArgsFromSecretRecursive2']
+    logs: Union[bool, 'FindManyIcleLogArgsFromSecretRecursive2']
+
+
+class IcleDeviceIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    commands: Union[bool, 'FindManyIclePendingCommandArgsFromSecretRecursive3']
+    logs: Union[bool, 'FindManyIcleLogArgsFromSecretRecursive3']
+
+
+class IcleDeviceIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    commands: Union[bool, 'FindManyIclePendingCommandArgsFromSecretRecursive4']
+    logs: Union[bool, 'FindManyIcleLogArgsFromSecretRecursive4']
+
+
+class IcleDeviceIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class IcleDeviceArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive1'
+
+
+class IcleDeviceArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive2'
+
+
+class IcleDeviceArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive3'
+
+
+class IcleDeviceArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive4'
+
+
+class IcleDeviceArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyIcleDeviceArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
+    where: 'IcleDeviceWhereInput'
+    cursor: 'IcleDeviceWhereUniqueInput'
+    distinct: List['IcleDeviceScalarFieldKeys']
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive1'
+
+
+class FindManyIcleDeviceArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
+    where: 'IcleDeviceWhereInput'
+    cursor: 'IcleDeviceWhereUniqueInput'
+    distinct: List['IcleDeviceScalarFieldKeys']
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive2'
+
+
+class FindManyIcleDeviceArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
+    where: 'IcleDeviceWhereInput'
+    cursor: 'IcleDeviceWhereUniqueInput'
+    distinct: List['IcleDeviceScalarFieldKeys']
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive3'
+
+
+class FindManyIcleDeviceArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
+    where: 'IcleDeviceWhereInput'
+    cursor: 'IcleDeviceWhereUniqueInput'
+    distinct: List['IcleDeviceScalarFieldKeys']
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive4'
+
+
+class FindManyIcleDeviceArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
+    where: 'IcleDeviceWhereInput'
+    cursor: 'IcleDeviceWhereUniqueInput'
+    distinct: List['IcleDeviceScalarFieldKeys']
+    
+    
+
+class IclePendingCommandIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    device: Union[bool, 'IcleDeviceArgsFromSecretRecursive1']
+
+
+class IclePendingCommandIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    device: Union[bool, 'IcleDeviceArgsFromSecretRecursive2']
+
+
+class IclePendingCommandIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    device: Union[bool, 'IcleDeviceArgsFromSecretRecursive3']
+
+
+class IclePendingCommandIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    device: Union[bool, 'IcleDeviceArgsFromSecretRecursive4']
+
+
+class IclePendingCommandIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class IclePendingCommandArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive1'
+
+
+class IclePendingCommandArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive2'
+
+
+class IclePendingCommandArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive3'
+
+
+class IclePendingCommandArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive4'
+
+
+class IclePendingCommandArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyIclePendingCommandArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
+    where: 'IclePendingCommandWhereInput'
+    cursor: 'IclePendingCommandWhereUniqueInput'
+    distinct: List['IclePendingCommandScalarFieldKeys']
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive1'
+
+
+class FindManyIclePendingCommandArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
+    where: 'IclePendingCommandWhereInput'
+    cursor: 'IclePendingCommandWhereUniqueInput'
+    distinct: List['IclePendingCommandScalarFieldKeys']
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive2'
+
+
+class FindManyIclePendingCommandArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
+    where: 'IclePendingCommandWhereInput'
+    cursor: 'IclePendingCommandWhereUniqueInput'
+    distinct: List['IclePendingCommandScalarFieldKeys']
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive3'
+
+
+class FindManyIclePendingCommandArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
+    where: 'IclePendingCommandWhereInput'
+    cursor: 'IclePendingCommandWhereUniqueInput'
+    distinct: List['IclePendingCommandScalarFieldKeys']
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive4'
+
+
+class FindManyIclePendingCommandArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
+    where: 'IclePendingCommandWhereInput'
+    cursor: 'IclePendingCommandWhereUniqueInput'
+    distinct: List['IclePendingCommandScalarFieldKeys']
+    
+    
+
+class IcleLogIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    device: Union[bool, 'IcleDeviceArgsFromSecretRecursive1']
+
+
+class IcleLogIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    device: Union[bool, 'IcleDeviceArgsFromSecretRecursive2']
+
+
+class IcleLogIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    device: Union[bool, 'IcleDeviceArgsFromSecretRecursive3']
+
+
+class IcleLogIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    device: Union[bool, 'IcleDeviceArgsFromSecretRecursive4']
+
+
+class IcleLogIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class IcleLogArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IcleLogIncludeFromIcleLogRecursive1'
+
+
+class IcleLogArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IcleLogIncludeFromIcleLogRecursive2'
+
+
+class IcleLogArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IcleLogIncludeFromIcleLogRecursive3'
+
+
+class IcleLogArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'IcleLogIncludeFromIcleLogRecursive4'
+
+
+class IcleLogArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyIcleLogArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
+    where: 'IcleLogWhereInput'
+    cursor: 'IcleLogWhereUniqueInput'
+    distinct: List['IcleLogScalarFieldKeys']
+    include: 'IcleLogIncludeFromIcleLogRecursive1'
+
+
+class FindManyIcleLogArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
+    where: 'IcleLogWhereInput'
+    cursor: 'IcleLogWhereUniqueInput'
+    distinct: List['IcleLogScalarFieldKeys']
+    include: 'IcleLogIncludeFromIcleLogRecursive2'
+
+
+class FindManyIcleLogArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
+    where: 'IcleLogWhereInput'
+    cursor: 'IcleLogWhereUniqueInput'
+    distinct: List['IcleLogScalarFieldKeys']
+    include: 'IcleLogIncludeFromIcleLogRecursive3'
+
+
+class FindManyIcleLogArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
+    where: 'IcleLogWhereInput'
+    cursor: 'IcleLogWhereUniqueInput'
+    distinct: List['IcleLogScalarFieldKeys']
+    include: 'IcleLogIncludeFromIcleLogRecursive4'
+
+
+class FindManyIcleLogArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
+    where: 'IcleLogWhereInput'
+    cursor: 'IcleLogWhereUniqueInput'
+    distinct: List['IcleLogScalarFieldKeys']
+    
+    
+
+class DeploymentIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive1']
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive1']
+
+
+class DeploymentIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive2']
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive2']
+
+
+class DeploymentIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive3']
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive3']
+
+
+class DeploymentIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive4']
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive4']
+
+
+class DeploymentIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class DeploymentArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'DeploymentIncludeFromDeploymentRecursive1'
+
+
+class DeploymentArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'DeploymentIncludeFromDeploymentRecursive2'
+
+
+class DeploymentArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'DeploymentIncludeFromDeploymentRecursive3'
+
+
+class DeploymentArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'DeploymentIncludeFromDeploymentRecursive4'
+
+
+class DeploymentArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyDeploymentArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
+    where: 'DeploymentWhereInput'
+    cursor: 'DeploymentWhereUniqueInput'
+    distinct: List['DeploymentScalarFieldKeys']
+    include: 'DeploymentIncludeFromDeploymentRecursive1'
+
+
+class FindManyDeploymentArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
+    where: 'DeploymentWhereInput'
+    cursor: 'DeploymentWhereUniqueInput'
+    distinct: List['DeploymentScalarFieldKeys']
+    include: 'DeploymentIncludeFromDeploymentRecursive2'
+
+
+class FindManyDeploymentArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
+    where: 'DeploymentWhereInput'
+    cursor: 'DeploymentWhereUniqueInput'
+    distinct: List['DeploymentScalarFieldKeys']
+    include: 'DeploymentIncludeFromDeploymentRecursive3'
+
+
+class FindManyDeploymentArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
+    where: 'DeploymentWhereInput'
+    cursor: 'DeploymentWhereUniqueInput'
+    distinct: List['DeploymentScalarFieldKeys']
+    include: 'DeploymentIncludeFromDeploymentRecursive4'
+
+
+class FindManyDeploymentArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
+    where: 'DeploymentWhereInput'
+    cursor: 'DeploymentWhereUniqueInput'
+    distinct: List['DeploymentScalarFieldKeys']
+    
+    
+
+class TestIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive1']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive1']
+
+
+class TestIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive2']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive2']
+
+
+class TestIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive3']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive3']
+
+
+class TestIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    product: Union[bool, 'ProductArgsFromSecretRecursive4']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive4']
+
+
+class TestIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class TestArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestIncludeFromTestRecursive1'
+
+
+class TestArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestIncludeFromTestRecursive2'
+
+
+class TestArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestIncludeFromTestRecursive3'
+
+
+class TestArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestIncludeFromTestRecursive4'
+
+
+class TestArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyTestArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
+    where: 'TestWhereInput'
+    cursor: 'TestWhereUniqueInput'
+    distinct: List['TestScalarFieldKeys']
+    include: 'TestIncludeFromTestRecursive1'
+
+
+class FindManyTestArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
+    where: 'TestWhereInput'
+    cursor: 'TestWhereUniqueInput'
+    distinct: List['TestScalarFieldKeys']
+    include: 'TestIncludeFromTestRecursive2'
+
+
+class FindManyTestArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
+    where: 'TestWhereInput'
+    cursor: 'TestWhereUniqueInput'
+    distinct: List['TestScalarFieldKeys']
+    include: 'TestIncludeFromTestRecursive3'
+
+
+class FindManyTestArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
+    where: 'TestWhereInput'
+    cursor: 'TestWhereUniqueInput'
+    distinct: List['TestScalarFieldKeys']
+    include: 'TestIncludeFromTestRecursive4'
+
+
+class FindManyTestArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
+    where: 'TestWhereInput'
+    cursor: 'TestWhereUniqueInput'
+    distinct: List['TestScalarFieldKeys']
+    
+    
+
+class TestExecutionIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    test: Union[bool, 'TestArgsFromSecretRecursive1']
+    node: Union[bool, 'NodeArgsFromSecretRecursive1']
+    device: Union[bool, 'DeviceArgsFromSecretRecursive1']
+    slot: Union[bool, 'FixtureSlotArgsFromSecretRecursive1']
+    triggeredBy: Union[bool, 'UserArgsFromSecretRecursive1']
+    steps: Union[bool, 'FindManyTestStepArgsFromSecretRecursive1']
+    logs: Union[bool, 'FindManyLogArgsFromSecretRecursive1']
+
+
+class TestExecutionIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    test: Union[bool, 'TestArgsFromSecretRecursive2']
+    node: Union[bool, 'NodeArgsFromSecretRecursive2']
+    device: Union[bool, 'DeviceArgsFromSecretRecursive2']
+    slot: Union[bool, 'FixtureSlotArgsFromSecretRecursive2']
+    triggeredBy: Union[bool, 'UserArgsFromSecretRecursive2']
+    steps: Union[bool, 'FindManyTestStepArgsFromSecretRecursive2']
+    logs: Union[bool, 'FindManyLogArgsFromSecretRecursive2']
+
+
+class TestExecutionIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    test: Union[bool, 'TestArgsFromSecretRecursive3']
+    node: Union[bool, 'NodeArgsFromSecretRecursive3']
+    device: Union[bool, 'DeviceArgsFromSecretRecursive3']
+    slot: Union[bool, 'FixtureSlotArgsFromSecretRecursive3']
+    triggeredBy: Union[bool, 'UserArgsFromSecretRecursive3']
+    steps: Union[bool, 'FindManyTestStepArgsFromSecretRecursive3']
+    logs: Union[bool, 'FindManyLogArgsFromSecretRecursive3']
+
+
+class TestExecutionIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    test: Union[bool, 'TestArgsFromSecretRecursive4']
+    node: Union[bool, 'NodeArgsFromSecretRecursive4']
+    device: Union[bool, 'DeviceArgsFromSecretRecursive4']
+    slot: Union[bool, 'FixtureSlotArgsFromSecretRecursive4']
+    triggeredBy: Union[bool, 'UserArgsFromSecretRecursive4']
+    steps: Union[bool, 'FindManyTestStepArgsFromSecretRecursive4']
+    logs: Union[bool, 'FindManyLogArgsFromSecretRecursive4']
+
+
+class TestExecutionIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class TestExecutionArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestExecutionIncludeFromTestExecutionRecursive1'
+
+
+class TestExecutionArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestExecutionIncludeFromTestExecutionRecursive2'
+
+
+class TestExecutionArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestExecutionIncludeFromTestExecutionRecursive3'
+
+
+class TestExecutionArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestExecutionIncludeFromTestExecutionRecursive4'
+
+
+class TestExecutionArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyTestExecutionArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
+    where: 'TestExecutionWhereInput'
+    cursor: 'TestExecutionWhereUniqueInput'
+    distinct: List['TestExecutionScalarFieldKeys']
+    include: 'TestExecutionIncludeFromTestExecutionRecursive1'
+
+
+class FindManyTestExecutionArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
+    where: 'TestExecutionWhereInput'
+    cursor: 'TestExecutionWhereUniqueInput'
+    distinct: List['TestExecutionScalarFieldKeys']
+    include: 'TestExecutionIncludeFromTestExecutionRecursive2'
+
+
+class FindManyTestExecutionArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
+    where: 'TestExecutionWhereInput'
+    cursor: 'TestExecutionWhereUniqueInput'
+    distinct: List['TestExecutionScalarFieldKeys']
+    include: 'TestExecutionIncludeFromTestExecutionRecursive3'
+
+
+class FindManyTestExecutionArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
+    where: 'TestExecutionWhereInput'
+    cursor: 'TestExecutionWhereUniqueInput'
+    distinct: List['TestExecutionScalarFieldKeys']
+    include: 'TestExecutionIncludeFromTestExecutionRecursive4'
+
+
+class FindManyTestExecutionArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
+    where: 'TestExecutionWhereInput'
+    cursor: 'TestExecutionWhereUniqueInput'
+    distinct: List['TestExecutionScalarFieldKeys']
+    
+    
+
+class TestStepIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    execution: Union[bool, 'TestExecutionArgsFromSecretRecursive1']
+
+
+class TestStepIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    execution: Union[bool, 'TestExecutionArgsFromSecretRecursive2']
+
+
+class TestStepIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    execution: Union[bool, 'TestExecutionArgsFromSecretRecursive3']
+
+
+class TestStepIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    execution: Union[bool, 'TestExecutionArgsFromSecretRecursive4']
+
+
+class TestStepIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class TestStepArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestStepIncludeFromTestStepRecursive1'
+
+
+class TestStepArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestStepIncludeFromTestStepRecursive2'
+
+
+class TestStepArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestStepIncludeFromTestStepRecursive3'
+
+
+class TestStepArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'TestStepIncludeFromTestStepRecursive4'
+
+
+class TestStepArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyTestStepArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
+    where: 'TestStepWhereInput'
+    cursor: 'TestStepWhereUniqueInput'
+    distinct: List['TestStepScalarFieldKeys']
+    include: 'TestStepIncludeFromTestStepRecursive1'
+
+
+class FindManyTestStepArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
+    where: 'TestStepWhereInput'
+    cursor: 'TestStepWhereUniqueInput'
+    distinct: List['TestStepScalarFieldKeys']
+    include: 'TestStepIncludeFromTestStepRecursive2'
+
+
+class FindManyTestStepArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
+    where: 'TestStepWhereInput'
+    cursor: 'TestStepWhereUniqueInput'
+    distinct: List['TestStepScalarFieldKeys']
+    include: 'TestStepIncludeFromTestStepRecursive3'
+
+
+class FindManyTestStepArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
+    where: 'TestStepWhereInput'
+    cursor: 'TestStepWhereUniqueInput'
+    distinct: List['TestStepScalarFieldKeys']
+    include: 'TestStepIncludeFromTestStepRecursive4'
+
+
+class FindManyTestStepArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
+    where: 'TestStepWhereInput'
+    cursor: 'TestStepWhereUniqueInput'
+    distinct: List['TestStepScalarFieldKeys']
+    
+    
+
+class UserIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    permissionSet: Union[bool, 'PermissionSetArgsFromSecretRecursive1']
+    apiKeys: Union[bool, 'FindManyApiKeyArgsFromSecretRecursive1']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive1']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive1']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive1']
+    auditLogs: Union[bool, 'FindManyAuditLogArgsFromSecretRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromSecretRecursive1']
+
+
+class UserIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    permissionSet: Union[bool, 'PermissionSetArgsFromSecretRecursive2']
+    apiKeys: Union[bool, 'FindManyApiKeyArgsFromSecretRecursive2']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive2']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive2']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive2']
+    auditLogs: Union[bool, 'FindManyAuditLogArgsFromSecretRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromSecretRecursive2']
+
+
+class UserIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    permissionSet: Union[bool, 'PermissionSetArgsFromSecretRecursive3']
+    apiKeys: Union[bool, 'FindManyApiKeyArgsFromSecretRecursive3']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive3']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive3']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive3']
+    auditLogs: Union[bool, 'FindManyAuditLogArgsFromSecretRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromSecretRecursive3']
+
+
+class UserIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    permissionSet: Union[bool, 'PermissionSetArgsFromSecretRecursive4']
+    apiKeys: Union[bool, 'FindManyApiKeyArgsFromSecretRecursive4']
+    sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive4']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive4']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive4']
+    auditLogs: Union[bool, 'FindManyAuditLogArgsFromSecretRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromSecretRecursive4']
+
+
+class UserIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class UserArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'UserIncludeFromUserRecursive1'
+
+
+class UserArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'UserIncludeFromUserRecursive2'
+
+
+class UserArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'UserIncludeFromUserRecursive3'
+
+
+class UserArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'UserIncludeFromUserRecursive4'
+
+
+class UserArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyUserArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
+    where: 'UserWhereInput'
+    cursor: 'UserWhereUniqueInput'
+    distinct: List['UserScalarFieldKeys']
+    include: 'UserIncludeFromUserRecursive1'
+
+
+class FindManyUserArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
+    where: 'UserWhereInput'
+    cursor: 'UserWhereUniqueInput'
+    distinct: List['UserScalarFieldKeys']
+    include: 'UserIncludeFromUserRecursive2'
+
+
+class FindManyUserArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
+    where: 'UserWhereInput'
+    cursor: 'UserWhereUniqueInput'
+    distinct: List['UserScalarFieldKeys']
+    include: 'UserIncludeFromUserRecursive3'
+
+
+class FindManyUserArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
+    where: 'UserWhereInput'
+    cursor: 'UserWhereUniqueInput'
+    distinct: List['UserScalarFieldKeys']
+    include: 'UserIncludeFromUserRecursive4'
+
+
+class FindManyUserArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
+    where: 'UserWhereInput'
+    cursor: 'UserWhereUniqueInput'
+    distinct: List['UserScalarFieldKeys']
+    
+    
+
+class PermissionSetIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    users: Union[bool, 'FindManyUserArgsFromSecretRecursive1']
+
+
+class PermissionSetIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    users: Union[bool, 'FindManyUserArgsFromSecretRecursive2']
+
+
+class PermissionSetIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    users: Union[bool, 'FindManyUserArgsFromSecretRecursive3']
+
+
+class PermissionSetIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    users: Union[bool, 'FindManyUserArgsFromSecretRecursive4']
+
+
+class PermissionSetIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class PermissionSetArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'PermissionSetIncludeFromPermissionSetRecursive1'
+
+
+class PermissionSetArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'PermissionSetIncludeFromPermissionSetRecursive2'
+
+
+class PermissionSetArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'PermissionSetIncludeFromPermissionSetRecursive3'
+
+
+class PermissionSetArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'PermissionSetIncludeFromPermissionSetRecursive4'
+
+
+class PermissionSetArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyPermissionSetArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
+    where: 'PermissionSetWhereInput'
+    cursor: 'PermissionSetWhereUniqueInput'
+    distinct: List['PermissionSetScalarFieldKeys']
+    include: 'PermissionSetIncludeFromPermissionSetRecursive1'
+
+
+class FindManyPermissionSetArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
+    where: 'PermissionSetWhereInput'
+    cursor: 'PermissionSetWhereUniqueInput'
+    distinct: List['PermissionSetScalarFieldKeys']
+    include: 'PermissionSetIncludeFromPermissionSetRecursive2'
+
+
+class FindManyPermissionSetArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
+    where: 'PermissionSetWhereInput'
+    cursor: 'PermissionSetWhereUniqueInput'
+    distinct: List['PermissionSetScalarFieldKeys']
+    include: 'PermissionSetIncludeFromPermissionSetRecursive3'
+
+
+class FindManyPermissionSetArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
+    where: 'PermissionSetWhereInput'
+    cursor: 'PermissionSetWhereUniqueInput'
+    distinct: List['PermissionSetScalarFieldKeys']
+    include: 'PermissionSetIncludeFromPermissionSetRecursive4'
+
+
+class FindManyPermissionSetArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
+    where: 'PermissionSetWhereInput'
+    cursor: 'PermissionSetWhereUniqueInput'
+    distinct: List['PermissionSetScalarFieldKeys']
+    
+    
+
+class ApiKeyIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    user: Union[bool, 'UserArgsFromSecretRecursive1']
+
+
+class ApiKeyIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    user: Union[bool, 'UserArgsFromSecretRecursive2']
+
+
+class ApiKeyIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    user: Union[bool, 'UserArgsFromSecretRecursive3']
+
+
+class ApiKeyIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    user: Union[bool, 'UserArgsFromSecretRecursive4']
+
+
+class ApiKeyIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class ApiKeyArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ApiKeyIncludeFromApiKeyRecursive1'
+
+
+class ApiKeyArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ApiKeyIncludeFromApiKeyRecursive2'
+
+
+class ApiKeyArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ApiKeyIncludeFromApiKeyRecursive3'
+
+
+class ApiKeyArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'ApiKeyIncludeFromApiKeyRecursive4'
+
+
+class ApiKeyArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyApiKeyArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
+    where: 'ApiKeyWhereInput'
+    cursor: 'ApiKeyWhereUniqueInput'
+    distinct: List['ApiKeyScalarFieldKeys']
+    include: 'ApiKeyIncludeFromApiKeyRecursive1'
+
+
+class FindManyApiKeyArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
+    where: 'ApiKeyWhereInput'
+    cursor: 'ApiKeyWhereUniqueInput'
+    distinct: List['ApiKeyScalarFieldKeys']
+    include: 'ApiKeyIncludeFromApiKeyRecursive2'
+
+
+class FindManyApiKeyArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
+    where: 'ApiKeyWhereInput'
+    cursor: 'ApiKeyWhereUniqueInput'
+    distinct: List['ApiKeyScalarFieldKeys']
+    include: 'ApiKeyIncludeFromApiKeyRecursive3'
+
+
+class FindManyApiKeyArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
+    where: 'ApiKeyWhereInput'
+    cursor: 'ApiKeyWhereUniqueInput'
+    distinct: List['ApiKeyScalarFieldKeys']
+    include: 'ApiKeyIncludeFromApiKeyRecursive4'
+
+
+class FindManyApiKeyArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
+    where: 'ApiKeyWhereInput'
+    cursor: 'ApiKeyWhereUniqueInput'
+    distinct: List['ApiKeyScalarFieldKeys']
+    
+    
+
+class AuditLogIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    user: Union[bool, 'UserArgsFromSecretRecursive1']
+
+
+class AuditLogIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    user: Union[bool, 'UserArgsFromSecretRecursive2']
+
+
+class AuditLogIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    user: Union[bool, 'UserArgsFromSecretRecursive3']
+
+
+class AuditLogIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    user: Union[bool, 'UserArgsFromSecretRecursive4']
+
+
+class AuditLogIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class AuditLogArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'AuditLogIncludeFromAuditLogRecursive1'
+
+
+class AuditLogArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'AuditLogIncludeFromAuditLogRecursive2'
+
+
+class AuditLogArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'AuditLogIncludeFromAuditLogRecursive3'
+
+
+class AuditLogArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'AuditLogIncludeFromAuditLogRecursive4'
+
+
+class AuditLogArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyAuditLogArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
+    where: 'AuditLogWhereInput'
+    cursor: 'AuditLogWhereUniqueInput'
+    distinct: List['AuditLogScalarFieldKeys']
+    include: 'AuditLogIncludeFromAuditLogRecursive1'
+
+
+class FindManyAuditLogArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
+    where: 'AuditLogWhereInput'
+    cursor: 'AuditLogWhereUniqueInput'
+    distinct: List['AuditLogScalarFieldKeys']
+    include: 'AuditLogIncludeFromAuditLogRecursive2'
+
+
+class FindManyAuditLogArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
+    where: 'AuditLogWhereInput'
+    cursor: 'AuditLogWhereUniqueInput'
+    distinct: List['AuditLogScalarFieldKeys']
+    include: 'AuditLogIncludeFromAuditLogRecursive3'
+
+
+class FindManyAuditLogArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
+    where: 'AuditLogWhereInput'
+    cursor: 'AuditLogWhereUniqueInput'
+    distinct: List['AuditLogScalarFieldKeys']
+    include: 'AuditLogIncludeFromAuditLogRecursive4'
+
+
+class FindManyAuditLogArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
+    where: 'AuditLogWhereInput'
+    cursor: 'AuditLogWhereUniqueInput'
+    distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive1']
+
+
+class SecretIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive2']
+
+
+class SecretIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive3']
+
+
+class SecretIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    createdBy: Union[bool, 'UserArgsFromSecretRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive4']
+
+
+class SecretIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class SecretArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManySecretArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    
+    
+
+class SettingIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+
+class SettingIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+
+class SettingIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+
+class SettingIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+
+class SettingIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class SettingArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SettingIncludeFromSettingRecursive1'
+
+
+class SettingArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SettingIncludeFromSettingRecursive2'
+
+
+class SettingArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SettingIncludeFromSettingRecursive3'
+
+
+class SettingArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'SettingIncludeFromSettingRecursive4'
+
+
+class SettingArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManySettingArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
+    where: 'SettingWhereInput'
+    cursor: 'SettingWhereUniqueInput'
+    distinct: List['SettingScalarFieldKeys']
+    include: 'SettingIncludeFromSettingRecursive1'
+
+
+class FindManySettingArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
+    where: 'SettingWhereInput'
+    cursor: 'SettingWhereUniqueInput'
+    distinct: List['SettingScalarFieldKeys']
+    include: 'SettingIncludeFromSettingRecursive2'
+
+
+class FindManySettingArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
+    where: 'SettingWhereInput'
+    cursor: 'SettingWhereUniqueInput'
+    distinct: List['SettingScalarFieldKeys']
+    include: 'SettingIncludeFromSettingRecursive3'
+
+
+class FindManySettingArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
+    where: 'SettingWhereInput'
+    cursor: 'SettingWhereUniqueInput'
+    distinct: List['SettingScalarFieldKeys']
+    include: 'SettingIncludeFromSettingRecursive4'
+
+
+class FindManySettingArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
+    where: 'SettingWhereInput'
+    cursor: 'SettingWhereUniqueInput'
+    distinct: List['SettingScalarFieldKeys']
+    
+    
+
+class LogIncludeFromSecret(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    execution: Union[bool, 'TestExecutionArgsFromSecretRecursive1']
+
+
+class LogIncludeFromSecretRecursive1(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    execution: Union[bool, 'TestExecutionArgsFromSecretRecursive2']
+
+
+class LogIncludeFromSecretRecursive2(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    execution: Union[bool, 'TestExecutionArgsFromSecretRecursive3']
+
+
+class LogIncludeFromSecretRecursive3(TypedDict, total=False):
+    """Relational arguments for Secret"""
+    execution: Union[bool, 'TestExecutionArgsFromSecretRecursive4']
+
+
+class LogIncludeFromSecretRecursive4(TypedDict, total=False):
+    """Relational arguments for Secret"""
+
+    
+
+class LogArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'LogIncludeFromLogRecursive1'
+
+
+class LogArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'LogIncludeFromLogRecursive2'
+
+
+class LogArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'LogIncludeFromLogRecursive3'
+
+
+class LogArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    include: 'LogIncludeFromLogRecursive4'
+
+
+class LogArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    
+    
+
+class FindManyLogArgsFromSecret(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
+    where: 'LogWhereInput'
+    cursor: 'LogWhereUniqueInput'
+    distinct: List['LogScalarFieldKeys']
+    include: 'LogIncludeFromLogRecursive1'
+
+
+class FindManyLogArgsFromSecretRecursive1(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
+    where: 'LogWhereInput'
+    cursor: 'LogWhereUniqueInput'
+    distinct: List['LogScalarFieldKeys']
+    include: 'LogIncludeFromLogRecursive2'
+
+
+class FindManyLogArgsFromSecretRecursive2(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
+    where: 'LogWhereInput'
+    cursor: 'LogWhereUniqueInput'
+    distinct: List['LogScalarFieldKeys']
+    include: 'LogIncludeFromLogRecursive3'
+
+
+class FindManyLogArgsFromSecretRecursive3(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
+    where: 'LogWhereInput'
+    cursor: 'LogWhereUniqueInput'
+    distinct: List['LogScalarFieldKeys']
+    include: 'LogIncludeFromLogRecursive4'
+
+
+class FindManyLogArgsFromSecretRecursive4(TypedDict, total=False):
+    """Arguments for Secret"""
+    take: int
+    skip: int
+    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
+    where: 'LogWhereInput'
+    cursor: 'LogWhereUniqueInput'
+    distinct: List['LogScalarFieldKeys']
+    
+
+
+FindManySecretArgs = FindManySecretArgsFromSecret
+FindFirstSecretArgs = FindManySecretArgsFromSecret
+
+
+    
+
+class SecretWhereInput(TypedDict, total=False):
+    """Secret arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    name: Union[_str, 'types.StringFilter']
+    type: Union[_str, 'types.StringFilter']
+    value: Union[_str, 'types.StringFilter']
+    description: Union[None, _str, 'types.StringFilter']
+    createdById: Union[None, _str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    createdBy: 'UserRelationFilter'
+    stageConfigs: 'ProductStageConfigListRelationFilter'
+
+    # should be noted that AND and NOT should be Union['SecretWhereInputRecursive1', List['SecretWhereInputRecursive1']]
+    # but this causes mypy to hang :/
+    AND: List['SecretWhereInputRecursive1']
+    OR: List['SecretWhereInputRecursive1']
+    NOT: List['SecretWhereInputRecursive1']
+
+
+class SecretWhereInputRecursive1(TypedDict, total=False):
+    """Secret arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    name: Union[_str, 'types.StringFilter']
+    type: Union[_str, 'types.StringFilter']
+    value: Union[_str, 'types.StringFilter']
+    description: Union[None, _str, 'types.StringFilter']
+    createdById: Union[None, _str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    createdBy: 'UserRelationFilter'
+    stageConfigs: 'ProductStageConfigListRelationFilter'
+
+    # should be noted that AND and NOT should be Union['SecretWhereInputRecursive2', List['SecretWhereInputRecursive2']]
+    # but this causes mypy to hang :/
+    AND: List['SecretWhereInputRecursive2']
+    OR: List['SecretWhereInputRecursive2']
+    NOT: List['SecretWhereInputRecursive2']
+
+
+class SecretWhereInputRecursive2(TypedDict, total=False):
+    """Secret arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    name: Union[_str, 'types.StringFilter']
+    type: Union[_str, 'types.StringFilter']
+    value: Union[_str, 'types.StringFilter']
+    description: Union[None, _str, 'types.StringFilter']
+    createdById: Union[None, _str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    createdBy: 'UserRelationFilter'
+    stageConfigs: 'ProductStageConfigListRelationFilter'
+
+    # should be noted that AND and NOT should be Union['SecretWhereInputRecursive3', List['SecretWhereInputRecursive3']]
+    # but this causes mypy to hang :/
+    AND: List['SecretWhereInputRecursive3']
+    OR: List['SecretWhereInputRecursive3']
+    NOT: List['SecretWhereInputRecursive3']
+
+
+class SecretWhereInputRecursive3(TypedDict, total=False):
+    """Secret arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    name: Union[_str, 'types.StringFilter']
+    type: Union[_str, 'types.StringFilter']
+    value: Union[_str, 'types.StringFilter']
+    description: Union[None, _str, 'types.StringFilter']
+    createdById: Union[None, _str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    createdBy: 'UserRelationFilter'
+    stageConfigs: 'ProductStageConfigListRelationFilter'
+
+    # should be noted that AND and NOT should be Union['SecretWhereInputRecursive4', List['SecretWhereInputRecursive4']]
+    # but this causes mypy to hang :/
+    AND: List['SecretWhereInputRecursive4']
+    OR: List['SecretWhereInputRecursive4']
+    NOT: List['SecretWhereInputRecursive4']
+
+
+class SecretWhereInputRecursive4(TypedDict, total=False):
+    """Secret arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    name: Union[_str, 'types.StringFilter']
+    type: Union[_str, 'types.StringFilter']
+    value: Union[_str, 'types.StringFilter']
+    description: Union[None, _str, 'types.StringFilter']
+    createdById: Union[None, _str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    createdBy: 'UserRelationFilter'
+    stageConfigs: 'ProductStageConfigListRelationFilter'
+
+
+
+# aggregate Secret types
+
+
+    
+
+class SecretScalarWhereWithAggregatesInput(TypedDict, total=False):
+    """Secret arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    name: Union[_str, 'types.StringWithAggregatesFilter']
+    type: Union[_str, 'types.StringWithAggregatesFilter']
+    value: Union[_str, 'types.StringWithAggregatesFilter']
+    description: Union[_str, 'types.StringWithAggregatesFilter']
+    createdById: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['SecretScalarWhereWithAggregatesInputRecursive1']
+    OR: List['SecretScalarWhereWithAggregatesInputRecursive1']
+    NOT: List['SecretScalarWhereWithAggregatesInputRecursive1']
+
+
+class SecretScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
+    """Secret arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    name: Union[_str, 'types.StringWithAggregatesFilter']
+    type: Union[_str, 'types.StringWithAggregatesFilter']
+    value: Union[_str, 'types.StringWithAggregatesFilter']
+    description: Union[_str, 'types.StringWithAggregatesFilter']
+    createdById: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['SecretScalarWhereWithAggregatesInputRecursive2']
+    OR: List['SecretScalarWhereWithAggregatesInputRecursive2']
+    NOT: List['SecretScalarWhereWithAggregatesInputRecursive2']
+
+
+class SecretScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
+    """Secret arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    name: Union[_str, 'types.StringWithAggregatesFilter']
+    type: Union[_str, 'types.StringWithAggregatesFilter']
+    value: Union[_str, 'types.StringWithAggregatesFilter']
+    description: Union[_str, 'types.StringWithAggregatesFilter']
+    createdById: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['SecretScalarWhereWithAggregatesInputRecursive3']
+    OR: List['SecretScalarWhereWithAggregatesInputRecursive3']
+    NOT: List['SecretScalarWhereWithAggregatesInputRecursive3']
+
+
+class SecretScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
+    """Secret arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    name: Union[_str, 'types.StringWithAggregatesFilter']
+    type: Union[_str, 'types.StringWithAggregatesFilter']
+    value: Union[_str, 'types.StringWithAggregatesFilter']
+    description: Union[_str, 'types.StringWithAggregatesFilter']
+    createdById: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['SecretScalarWhereWithAggregatesInputRecursive4']
+    OR: List['SecretScalarWhereWithAggregatesInputRecursive4']
+    NOT: List['SecretScalarWhereWithAggregatesInputRecursive4']
+
+
+class SecretScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
+    """Secret arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    name: Union[_str, 'types.StringWithAggregatesFilter']
+    type: Union[_str, 'types.StringWithAggregatesFilter']
+    value: Union[_str, 'types.StringWithAggregatesFilter']
+    description: Union[_str, 'types.StringWithAggregatesFilter']
+    createdById: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+
+
+class SecretGroupByOutput(TypedDict, total=False):
+    id: _str
+    name: _str
+    type: _str
+    value: _str
+    description: _str
+    createdById: _str
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    _sum: 'SecretSumAggregateOutput'
+    _avg: 'SecretAvgAggregateOutput'
+    _min: 'SecretMinAggregateOutput'
+    _max: 'SecretMaxAggregateOutput'
+    _count: 'SecretCountAggregateOutput'
+
+
+class SecretAvgAggregateOutput(TypedDict, total=False):
+    """Secret output for aggregating averages"""
+
+
+class SecretSumAggregateOutput(TypedDict, total=False):
+    """Secret output for aggregating sums"""
+
+
+class SecretScalarAggregateOutput(TypedDict, total=False):
+    """Secret output including scalar fields"""
+    id: _str
+    name: _str
+    type: _str
+    value: _str
+    description: _str
+    createdById: _str
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+
+
+SecretMinAggregateOutput = SecretScalarAggregateOutput
+SecretMaxAggregateOutput = SecretScalarAggregateOutput
+
+
+class SecretMaxAggregateInput(TypedDict, total=False):
+    """Secret input for aggregating by max"""
+    id: bool
+    name: bool
+    type: bool
+    value: bool
+    description: bool
+    createdById: bool
+    createdAt: bool
+    updatedAt: bool
+
+
+class SecretMinAggregateInput(TypedDict, total=False):
+    """Secret input for aggregating by min"""
+    id: bool
+    name: bool
+    type: bool
+    value: bool
+    description: bool
+    createdById: bool
+    createdAt: bool
+    updatedAt: bool
+
+
+class SecretNumberAggregateInput(TypedDict, total=False):
+    """Secret input for aggregating numbers"""
+
+
+SecretAvgAggregateInput = SecretNumberAggregateInput
+SecretSumAggregateInput = SecretNumberAggregateInput
+
+
+SecretCountAggregateInput = TypedDict(
+    'SecretCountAggregateInput',
+    {
+        'id': bool,
+        'name': bool,
+        'type': bool,
+        'value': bool,
+        'description': bool,
+        'createdById': bool,
+        'createdAt': bool,
+        'updatedAt': bool,
+        '_all': bool,
+    },
+    total=False,
+)
+
+SecretCountAggregateOutput = TypedDict(
+    'SecretCountAggregateOutput',
+    {
+        'id': int,
+        'name': int,
+        'type': int,
+        'value': int,
+        'description': int,
+        'createdById': int,
+        'createdAt': int,
+        'updatedAt': int,
+        '_all': int,
+    },
+    total=False,
+)
+
+
+SecretKeys = Literal[
+    'id',
+    'name',
+    'type',
+    'value',
+    'description',
+    'createdById',
+    'createdAt',
+    'updatedAt',
+    'createdBy',
+    'stageConfigs',
+]
+SecretScalarFieldKeys = Literal[
+    'id',
+    'name',
+    'type',
+    'value',
+    'description',
+    'createdById',
+    'createdAt',
+    'updatedAt',
+]
+SecretScalarFieldKeysT = TypeVar('SecretScalarFieldKeysT', bound=SecretScalarFieldKeys)
+
+SecretRelationalFieldKeys = Literal[
+        'createdBy',
+        'stageConfigs',
     ]
 
 # Setting types
@@ -117512,6 +124647,7 @@ class ProductStageConfigIncludeFromSetting(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromSettingRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSettingRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSettingRecursive1']
 
@@ -117520,6 +124656,7 @@ class ProductStageConfigIncludeFromSettingRecursive1(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromSettingRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSettingRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSettingRecursive2']
 
@@ -117528,6 +124665,7 @@ class ProductStageConfigIncludeFromSettingRecursive2(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromSettingRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSettingRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSettingRecursive3']
 
@@ -117536,6 +124674,7 @@ class ProductStageConfigIncludeFromSettingRecursive3(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromSettingRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSettingRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSettingRecursive4']
 
@@ -119550,6 +126689,7 @@ class UserIncludeFromSetting(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromSettingRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSettingRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSettingRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromSettingRecursive1']
 
 
 class UserIncludeFromSettingRecursive1(TypedDict, total=False):
@@ -119560,6 +126700,7 @@ class UserIncludeFromSettingRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromSettingRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSettingRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSettingRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromSettingRecursive2']
 
 
 class UserIncludeFromSettingRecursive2(TypedDict, total=False):
@@ -119570,6 +126711,7 @@ class UserIncludeFromSettingRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromSettingRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSettingRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSettingRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromSettingRecursive3']
 
 
 class UserIncludeFromSettingRecursive3(TypedDict, total=False):
@@ -119580,6 +126722,7 @@ class UserIncludeFromSettingRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromSettingRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSettingRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSettingRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromSettingRecursive4']
 
 
 class UserIncludeFromSettingRecursive4(TypedDict, total=False):
@@ -119979,6 +127122,115 @@ class FindManyAuditLogArgsFromSettingRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromSetting(TypedDict, total=False):
+    """Relational arguments for Setting"""
+    createdBy: Union[bool, 'UserArgsFromSettingRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSettingRecursive1']
+
+
+class SecretIncludeFromSettingRecursive1(TypedDict, total=False):
+    """Relational arguments for Setting"""
+    createdBy: Union[bool, 'UserArgsFromSettingRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSettingRecursive2']
+
+
+class SecretIncludeFromSettingRecursive2(TypedDict, total=False):
+    """Relational arguments for Setting"""
+    createdBy: Union[bool, 'UserArgsFromSettingRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSettingRecursive3']
+
+
+class SecretIncludeFromSettingRecursive3(TypedDict, total=False):
+    """Relational arguments for Setting"""
+    createdBy: Union[bool, 'UserArgsFromSettingRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSettingRecursive4']
+
+
+class SecretIncludeFromSettingRecursive4(TypedDict, total=False):
+    """Relational arguments for Setting"""
+
+    
+
+class SecretArgsFromSetting(TypedDict, total=False):
+    """Arguments for Setting"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromSettingRecursive1(TypedDict, total=False):
+    """Arguments for Setting"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromSettingRecursive2(TypedDict, total=False):
+    """Arguments for Setting"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromSettingRecursive3(TypedDict, total=False):
+    """Arguments for Setting"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromSettingRecursive4(TypedDict, total=False):
+    """Arguments for Setting"""
+    
+    
+
+class FindManySecretArgsFromSetting(TypedDict, total=False):
+    """Arguments for Setting"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromSettingRecursive1(TypedDict, total=False):
+    """Arguments for Setting"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromSettingRecursive2(TypedDict, total=False):
+    """Arguments for Setting"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromSettingRecursive3(TypedDict, total=False):
+    """Arguments for Setting"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromSettingRecursive4(TypedDict, total=False):
+    """Arguments for Setting"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 
@@ -121353,6 +128605,7 @@ class ProductStageConfigIncludeFromLog(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive1']
+    signingKey: Union[bool, 'SecretArgsFromLogRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromLogRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromLogRecursive1']
 
@@ -121361,6 +128614,7 @@ class ProductStageConfigIncludeFromLogRecursive1(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive2']
+    signingKey: Union[bool, 'SecretArgsFromLogRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromLogRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromLogRecursive2']
 
@@ -121369,6 +128623,7 @@ class ProductStageConfigIncludeFromLogRecursive2(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive3']
+    signingKey: Union[bool, 'SecretArgsFromLogRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromLogRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromLogRecursive3']
 
@@ -121377,6 +128632,7 @@ class ProductStageConfigIncludeFromLogRecursive3(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive4']
+    signingKey: Union[bool, 'SecretArgsFromLogRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromLogRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromLogRecursive4']
 
@@ -123391,6 +130647,7 @@ class UserIncludeFromLog(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromLogRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromLogRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromLogRecursive1']
+    secrets: Union[bool, 'FindManySecretArgsFromLogRecursive1']
 
 
 class UserIncludeFromLogRecursive1(TypedDict, total=False):
@@ -123401,6 +130658,7 @@ class UserIncludeFromLogRecursive1(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromLogRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromLogRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromLogRecursive2']
+    secrets: Union[bool, 'FindManySecretArgsFromLogRecursive2']
 
 
 class UserIncludeFromLogRecursive2(TypedDict, total=False):
@@ -123411,6 +130669,7 @@ class UserIncludeFromLogRecursive2(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromLogRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromLogRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromLogRecursive3']
+    secrets: Union[bool, 'FindManySecretArgsFromLogRecursive3']
 
 
 class UserIncludeFromLogRecursive3(TypedDict, total=False):
@@ -123421,6 +130680,7 @@ class UserIncludeFromLogRecursive3(TypedDict, total=False):
     deployments: Union[bool, 'FindManyDeploymentArgsFromLogRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromLogRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromLogRecursive4']
+    secrets: Union[bool, 'FindManySecretArgsFromLogRecursive4']
 
 
 class UserIncludeFromLogRecursive4(TypedDict, total=False):
@@ -123820,6 +131080,115 @@ class FindManyAuditLogArgsFromLogRecursive4(TypedDict, total=False):
     where: 'AuditLogWhereInput'
     cursor: 'AuditLogWhereUniqueInput'
     distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SecretIncludeFromLog(TypedDict, total=False):
+    """Relational arguments for Log"""
+    createdBy: Union[bool, 'UserArgsFromLogRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromLogRecursive1']
+
+
+class SecretIncludeFromLogRecursive1(TypedDict, total=False):
+    """Relational arguments for Log"""
+    createdBy: Union[bool, 'UserArgsFromLogRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromLogRecursive2']
+
+
+class SecretIncludeFromLogRecursive2(TypedDict, total=False):
+    """Relational arguments for Log"""
+    createdBy: Union[bool, 'UserArgsFromLogRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromLogRecursive3']
+
+
+class SecretIncludeFromLogRecursive3(TypedDict, total=False):
+    """Relational arguments for Log"""
+    createdBy: Union[bool, 'UserArgsFromLogRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromLogRecursive4']
+
+
+class SecretIncludeFromLogRecursive4(TypedDict, total=False):
+    """Relational arguments for Log"""
+
+    
+
+class SecretArgsFromLog(TypedDict, total=False):
+    """Arguments for Log"""
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class SecretArgsFromLogRecursive1(TypedDict, total=False):
+    """Arguments for Log"""
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class SecretArgsFromLogRecursive2(TypedDict, total=False):
+    """Arguments for Log"""
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class SecretArgsFromLogRecursive3(TypedDict, total=False):
+    """Arguments for Log"""
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class SecretArgsFromLogRecursive4(TypedDict, total=False):
+    """Arguments for Log"""
+    
+    
+
+class FindManySecretArgsFromLog(TypedDict, total=False):
+    """Arguments for Log"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive1'
+
+
+class FindManySecretArgsFromLogRecursive1(TypedDict, total=False):
+    """Arguments for Log"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive2'
+
+
+class FindManySecretArgsFromLogRecursive2(TypedDict, total=False):
+    """Arguments for Log"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive3'
+
+
+class FindManySecretArgsFromLogRecursive3(TypedDict, total=False):
+    """Arguments for Log"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
+    include: 'SecretIncludeFromSecretRecursive4'
+
+
+class FindManySecretArgsFromLogRecursive4(TypedDict, total=False):
+    """Arguments for Log"""
+    take: int
+    skip: int
+    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
+    where: 'SecretWhereInput'
+    cursor: 'SecretWhereUniqueInput'
+    distinct: List['SecretScalarFieldKeys']
     
     
 

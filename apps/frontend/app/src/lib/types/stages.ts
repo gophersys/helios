@@ -1,5 +1,3 @@
-// Product stage configuration types
-
 export interface ProductStageConfig {
   id: string;
   productId: string;
@@ -8,17 +6,18 @@ export interface ProductStageConfig {
   enabled: boolean;
   boardRevisionId: string | null;
   boardRevision: { id: string; version: string; ckBoardsName: string } | null;
-  testDirectory: string | null;
-  testMarker: string | null;
-  testTimeout: number;
-  priority: number;
-  blocksMerge: boolean;
-  autoProgress: boolean;
-  requiresBench: boolean;
-  maxDurationSec: number;
-  description: string | null;
+  watchBranch: string | null;
+  signingKeyId: string | null;
+  signingKey: { id: string; name: string; type: string } | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Secret {
+  id: string;
+  name: string;
+  type: string;
+  description: string | null;
 }
 
 export const STAGE_NAMES: Record<number, string> = {

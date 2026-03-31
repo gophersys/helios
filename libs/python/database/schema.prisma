@@ -308,37 +308,31 @@ model FirmwareBuild {
 // =============================================================================
 
 /// Configuration for a single validation stage within a product.
-/// Defines which revision to test, what tests to run, and scheduling rules.
-/// Build recipes are convention-driven via StageBuildDef (stage_builds.py) —
-/// the system derives what to build from the product's repos + revision + stage.
+/// Thin config: which revision, which branch, which signing key.
+/// Test config (directories, markers, timeouts) lives in the test repo itself.
+/// Build recipes are convention-driven via StageBuildDef (stage_builds.py).
 model ProductStageConfig {
   id        String  @id @default(cuid())
   productId String
   stage     Int /// 1=Smoke, 2=Silicon, 3=Integration, 4=Nightly, 5=FUOTA
   name      String /// Display name: "Smoke", "Silicon", "Integration", "Nightly", "FUOTA"
-  enabled   Boolean @default(true)
+  enabled   Boolean @default(false) /// Disabled by default
 
   // Target — which hardware revision to build and test against
   boardRevisionId String? /// FK to BoardRevision (e.g., Alpha B0)
 
-  // Test configuration
-  testDirectory String? /// Pytest path: "tests/smoke/", "tests/fuota/"
-  testMarker    String? /// Pytest marker: "-m smoke", "-m fuota"
-  testTimeout   Int     @default(900) /// Max seconds for test execution
+  // Source — which branch to watch for changes
+  watchBranch String? /// Git branch to poll for this stage (e.g., "main", "develop")
 
-  // Scheduling / progression
-  priority       Int     @default(50) /// Higher = more urgent
-  blocksMerge    Boolean @default(false) /// Passing this stage is required before merge
-  autoProgress   Boolean @default(false) /// Auto-trigger next stage on pass
-  requiresBench  Boolean @default(true) /// Needs physical hardware (false for native_sim)
-  maxDurationSec Int     @default(3600) /// Hard timeout for entire stage
+  // Signing — which key set to use for builds
+  signingKeyId String? /// FK to Secret (signing key for this stage's builds)
 
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   product       Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
   boardRevision BoardRevision?         @relation(fields: [boardRevisionId], references: [id])
+  signingKey    Secret?                @relation(fields: [signingKeyId], references: [id])
   buildRuns     BuildRun[]
   queueEntries  ValidationQueueEntry[]
 
@@ -958,6 +952,7 @@ model User {
   deployments    Deployment[]
   testExecutions TestExecution[]
   auditLogs      AuditLog[]
+  secrets        Secret[]
 
   @@map("users")
 }
@@ -1011,6 +1006,25 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([userId])
   @@map("audit_logs")
+}
+
+/// Platform secrets — signing keys, credentials, tokens.
+/// Managed via Settings > Secrets. Referenced by stage configs.
+/// Values are encrypted/base64 — never exposed in API responses.
+model Secret {
+  id          String   @id @default(cuid())
+  name        String   @unique /// Human-readable: "Bench Signing Key", "Production Signing Key"
+  type        String /// "signing_key", "ssh_key", "api_token"
+  value       String   @db.Text /// Base64-encoded secret value (never returned in API)
+  description String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy    User?                @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  stageConfigs ProductStageConfig[]
+
+  @@map("secrets")
 }
 
 /// Key-value configuration store for system-wide settings

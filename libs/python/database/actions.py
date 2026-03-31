@@ -7023,7 +7023,7 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         results = ProductStageConfig.prisma().count(
             select={
                 '_all': True,
-                'testDirectory': True,
+                'watchBranch': True,
             },
         )
         ```
@@ -7090,7 +7090,7 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         results = ProductStageConfig.prisma().count(
             select={
                 '_all': True,
-                'testMarker': True,
+                'signingKeyId': True,
             },
         )
         ```
@@ -7230,10 +7230,10 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group ProductStageConfig records by testTimeout values
+        # group ProductStageConfig records by createdAt values
         # and count how many records are in each group
         results = ProductStageConfig.prisma().group_by(
-            ['testTimeout'],
+            ['createdAt'],
             count=True,
         )
         ```
@@ -28943,6 +28943,1039 @@ class AuditLogActions(Generic[_PrismaModelT]):
         return resp['data']['result']  # type: ignore[no-any-return]
 
 
+class SecretActions(Generic[_PrismaModelT]):
+    __slots__ = (
+        '_client',
+        '_model',
+    )
+
+    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
+        self._client = client
+        self._model = model
+
+    def query_raw(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> List[_PrismaModelT]:
+        """Execute a raw SQL query
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        List[prisma.models.Secret]
+            The records returned by the SQL query
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        users = Secret.prisma().query_raw(
+            'SELECT * FROM Secret WHERE id = $1',
+            'jhffeibhe',
+        )
+        ```
+        """
+        return self._client.query_raw(query, *args, model=self._model)
+
+    def query_first(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> Optional[_PrismaModelT]:
+        """Execute a raw SQL query, returning the first result
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        prisma.models.Secret
+            The first record returned by the SQL query
+        None
+            The raw SQL query did not return any records
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        user = Secret.prisma().query_first(
+            'SELECT * FROM Secret WHERE name = $1',
+            'iaiieefjb',
+        )
+        ```
+        """
+        return self._client.query_first(query, *args, model=self._model)
+
+    def create(
+        self,
+        data: types.SecretCreateInput,
+        include: Optional[types.SecretInclude] = None
+    ) -> _PrismaModelT:
+        """Create a new Secret record.
+
+        Parameters
+        ----------
+        data
+            Secret record data
+        include
+            Specifies which relations should be loaded on the returned Secret model
+
+        Returns
+        -------
+        prisma.models.Secret
+            The created Secret record
+
+        Raises
+        ------
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # create a Secret record from just the required fields
+        secret = Secret.prisma().create(
+            data={
+                # data to create a Secret record
+                'name': 'jjhjdgjfg',
+                'type': 'bhhjcfadhd',
+                'value': 'fbejadda',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='create',
+            model=self._model,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def create_many(
+        self,
+        data: List[types.SecretCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> int:
+        """Create multiple Secret records at once.
+
+        This function is *not* available when using SQLite.
+
+        Parameters
+        ----------
+        data
+            List of Secret record data
+        skip_duplicates
+            Boolean flag for ignoring unique constraint errors
+
+        Returns
+        -------
+        int
+            The total number of records created
+
+        Raises
+        ------
+        prisma.errors.UnsupportedDatabaseError
+            Attempting to query when using SQLite
+        prisma.errors.UniqueViolationError
+            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        total = Secret.prisma().create_many(
+            data=[
+                {
+                    # data to create a Secret record
+                    'name': 'bjeaigeddb',
+                    'type': 'eceecabdg',
+                    'value': 'bdgaajbcab',
+                },
+                {
+                    # data to create a Secret record
+                    'name': 'chhgehieg',
+                    'type': 'faggbiggd',
+                    'value': 'bciijiajei',
+                },
+            ],
+            skip_duplicates=True,
+        )
+        ```
+        """
+        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
+
+        resp = self._client._execute(
+            method='create_many',
+            model=self._model,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    def delete(
+        self,
+        where: types.SecretWhereUniqueInput,
+        include: Optional[types.SecretInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Delete a single Secret record.
+
+        Parameters
+        ----------
+        where
+            Secret filter to select the record to be deleted, must be unique
+        include
+            Specifies which relations should be loaded on the returned Secret model
+
+        Returns
+        -------
+        prisma.models.Secret
+            The deleted Secret record
+        None
+            Could not find a record to delete
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        secret = Secret.prisma().delete(
+            where={
+                'id': 'bdjaadchgf',
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='delete',
+                model=self._model,
+                arguments={
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_unique(
+        self,
+        where: types.SecretWhereUniqueInput,
+        include: Optional[types.SecretInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Find a unique Secret record.
+
+        Parameters
+        ----------
+        where
+            Secret filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned Secret model
+
+        Returns
+        -------
+        prisma.models.Secret
+            The found Secret record
+        None
+            No record matching the given input could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        secret = Secret.prisma().find_unique(
+            where={
+                'id': 'biadfeebhi',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+        return model_parse(self._model, result)
+
+    def find_unique_or_raise(
+        self,
+        where: types.SecretWhereUniqueInput,
+        include: Optional[types.SecretInclude] = None
+    ) -> _PrismaModelT:
+        """Find a unique Secret record. Raises `RecordNotFoundError` if no record is found.
+
+        Parameters
+        ----------
+        where
+            Secret filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned Secret model
+
+        Returns
+        -------
+        prisma.models.Secret
+            The found Secret record
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        secret = Secret.prisma().find_unique_or_raise(
+            where={
+                'id': 'biajdcaged',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique_or_raise',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_many(
+        self,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.SecretWhereInput] = None,
+        cursor: Optional[types.SecretWhereUniqueInput] = None,
+        include: Optional[types.SecretInclude] = None,
+        order: Optional[Union[types.SecretOrderByInput, List[types.SecretOrderByInput]]] = None,
+        distinct: Optional[List[types.SecretScalarFieldKeys]] = None,
+    ) -> List[_PrismaModelT]:
+        """Find multiple Secret records.
+
+        An empty list is returned if no records could be found.
+
+        Parameters
+        ----------
+        take
+            Limit the maximum number of Secret records returned
+        skip
+            Ignore the first N results
+        where
+            Secret filter to select records
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned Secret model
+        order
+            Order the returned Secret records by any field
+        distinct
+            Filter Secret records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        List[prisma.models.Secret]
+            The list of all Secret records that could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the first 10 Secret records
+        secrets = Secret.prisma().find_many(take=10)
+
+        # find the first 5 Secret records ordered by the type field
+        secrets = Secret.prisma().find_many(
+            take=5,
+            order={
+                'type': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_many',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return [model_parse(self._model, r) for r in resp['data']['result']]
+
+    def find_first(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.SecretWhereInput] = None,
+        cursor: Optional[types.SecretWhereUniqueInput] = None,
+        include: Optional[types.SecretInclude] = None,
+        order: Optional[Union[types.SecretOrderByInput, List[types.SecretOrderByInput]]] = None,
+        distinct: Optional[List[types.SecretScalarFieldKeys]] = None,
+    ) -> Optional[_PrismaModelT]:
+        """Find a single Secret record.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            Secret filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned Secret model
+        order
+            Order the returned Secret records by any field
+        distinct
+            Filter Secret records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.Secret
+            The first Secret record found, matching the given arguments
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second Secret record ordered by the value field
+        secret = Secret.prisma().find_first(
+            skip=1,
+            order={
+                'value': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+
+        return model_parse(self._model, result)
+
+    def find_first_or_raise(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.SecretWhereInput] = None,
+        cursor: Optional[types.SecretWhereUniqueInput] = None,
+        include: Optional[types.SecretInclude] = None,
+        order: Optional[Union[types.SecretOrderByInput, List[types.SecretOrderByInput]]] = None,
+        distinct: Optional[List[types.SecretScalarFieldKeys]] = None,
+    ) -> _PrismaModelT:
+        """Find a single Secret record. Raises `RecordNotFoundError` if no record was found.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            Secret filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned Secret model
+        order
+            Order the returned Secret records by any field
+        distinct
+            Filter Secret records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.Secret
+            The first Secret record found, matching the given arguments
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second Secret record ordered by the description field
+        secret = Secret.prisma().find_first_or_raise(
+            skip=1,
+            order={
+                'description': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first_or_raise',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update(
+        self,
+        data: types.SecretUpdateInput,
+        where: types.SecretWhereUniqueInput,
+        include: Optional[types.SecretInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Update a single Secret record.
+
+        Parameters
+        ----------
+        data
+            Secret record data specifying what to update
+        where
+            Secret filter to select the unique record to create / update
+        include
+            Specifies which relations should be loaded on the returned Secret model
+
+        Returns
+        -------
+        prisma.models.Secret
+            The updated Secret record
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        secret = Secret.prisma().update(
+            where={
+                'id': 'ddgjjicai',
+            },
+            data={
+                # data to update the Secret record to
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='update',
+                model=self._model,
+                arguments={
+                    'data': data,
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def upsert(
+        self,
+        where: types.SecretWhereUniqueInput,
+        data: types.SecretUpsertInput,
+        include: Optional[types.SecretInclude] = None,
+    ) -> _PrismaModelT:
+        """Updates an existing record or create a new one
+
+        Parameters
+        ----------
+        where
+            Secret filter to select the unique record to create / update
+        data
+            Data specifying what fields to set on create and update
+        include
+            Specifies which relations should be loaded on the returned Secret model
+
+        Returns
+        -------
+        prisma.models.Secret
+            The created or updated Secret record
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        secret = Secret.prisma().upsert(
+            where={
+                'id': 'efihdjdcb',
+            },
+            data={
+                'create': {
+                    'id': 'efihdjdcb',
+                    'name': 'chhgehieg',
+                    'type': 'faggbiggd',
+                    'value': 'bciijiajei',
+                },
+                'update': {
+                    'name': 'chhgehieg',
+                    'type': 'faggbiggd',
+                    'value': 'bciijiajei',
+                },
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='upsert',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update_many(
+        self,
+        data: types.SecretUpdateManyMutationInput,
+        where: types.SecretWhereInput,
+    ) -> int:
+        """Update multiple Secret records
+
+        Parameters
+        ----------
+        data
+            Secret data to update the selected Secret records to
+        where
+            Filter to select the Secret records to update
+
+        Returns
+        -------
+        int
+            The total number of Secret records that were updated
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # update all Secret records
+        total = Secret.prisma().update_many(
+            data={
+                'createdById': 'bdeacajaig'
+            },
+            where={}
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='update_many',
+            model=self._model,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    @overload
+    def count(
+        self,
+        select: None = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.SecretWhereInput] = None,
+        cursor: Optional[types.SecretWhereUniqueInput] = None,
+    ) -> int:
+        """Count the number of Secret records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the Secret fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            Secret filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.SecretCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = Secret.prisma().count()
+
+        # results: prisma.types.SecretCountAggregateOutput
+        results = Secret.prisma().count(
+            select={
+                '_all': True,
+                'createdAt': True,
+            },
+        )
+        ```
+        """
+
+
+    @overload
+    def count(
+        self,
+        select: types.SecretCountAggregateInput,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.SecretWhereInput] = None,
+        cursor: Optional[types.SecretWhereUniqueInput] = None,
+    ) -> types.SecretCountAggregateOutput:
+        ...
+
+    def count(
+        self,
+        select: Optional[types.SecretCountAggregateInput] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.SecretWhereInput] = None,
+        cursor: Optional[types.SecretWhereUniqueInput] = None,
+    ) -> Union[int, types.SecretCountAggregateOutput]:
+        """Count the number of Secret records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the Secret fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            Secret filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.SecretCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = Secret.prisma().count()
+
+        # results: prisma.types.SecretCountAggregateOutput
+        results = Secret.prisma().count(
+            select={
+                '_all': True,
+                'updatedAt': True,
+            },
+        )
+        ```
+        """
+
+        # TODO: this selection building should be moved to the QueryBuilder
+        #
+        # note the distinction between checking for `not select` here and `select is None`
+        # later is to handle the case that the given select dictionary is empty, this
+        # is a limitation of our types.
+        if not select:
+            root_selection = ['_count { _all }']
+        else:
+
+            root_selection = [
+                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
+            ]
+
+        resp = self._client._execute(
+            method='count',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'cursor': cursor,
+            },
+            root_selection=root_selection,
+        )
+
+        if select is None:
+            return cast(int, resp['data']['result']['_count']['_all'])
+        else:
+            return cast(types.SecretCountAggregateOutput, resp['data']['result']['_count'])
+
+    def delete_many(
+        self,
+        where: Optional[types.SecretWhereInput] = None
+    ) -> int:
+        """Delete multiple Secret records.
+
+        Parameters
+        ----------
+        where
+            Optional Secret filter to find the records to be deleted
+
+        Returns
+        -------
+        int
+            The total number of Secret records that were deleted
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # delete all Secret records
+        total = Secret.prisma().delete_many()
+        ```
+        """
+        resp = self._client._execute(
+            method='delete_many',
+            model=self._model,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    # TODO: make this easier to work with safely, currently output fields are typed as
+    #       not required, we should refactor the return type
+    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
+    # TODO: statically type that the order argument is required when take or skip are present
+    def group_by(
+        self,
+        by: List['types.SecretScalarFieldKeys'],
+        *,
+        where: Optional['types.SecretWhereInput'] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        avg: Optional['types.SecretAvgAggregateInput'] = None,
+        sum: Optional['types.SecretSumAggregateInput'] = None,
+        min: Optional['types.SecretMinAggregateInput'] = None,
+        max: Optional['types.SecretMaxAggregateInput'] = None,
+        having: Optional['types.SecretScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.SecretCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.SecretScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.SecretScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.SecretGroupByOutput']:
+        """Group Secret records by one or more field values and perform aggregations
+        each group such as finding the average.
+
+        Parameters
+        ----------
+        by
+            List of scalar Secret fields to group records by
+        where
+            Secret filter to select records
+        take
+            Limit the maximum number of Secret records returned
+        skip
+            Ignore the first N records
+        avg
+            Adds the average of all values of the specified fields to the `_avg` field
+            in the returned data.
+        sum
+            Adds the sum of all values of the specified fields to the `_sum` field
+            in the returned data.
+        min
+            Adds the smallest available value for the specified fields to the `_min` field
+            in the returned data.
+        max
+            Adds the largest available value for the specified fields to the `_max` field
+            in the returned data.
+        count
+            Adds a count of non-fields to the `_count` field in the returned data.
+        having
+            Allows you to filter groups by an aggregate value - for example only return
+            groups having an average age less than 50.
+        order
+            Lets you order the returned list by any property that is also present in `by`.
+            Only **one** field is allowed at a time.
+
+        Returns
+        -------
+        List[prisma.types.SecretGroupByOutput]
+            A list of dictionaries representing the Secret record,
+            this will also have additional fields present if aggregation arguments
+            are used (see the above parameters)
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # group Secret records by id values
+        # and count how many records are in each group
+        results = Secret.prisma().group_by(
+            ['id'],
+            count=True,
+        )
+        ```
+        """
+        if order is None:
+            if take is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
+
+            if skip is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
+
+        root_selection: List[str] = [*by]
+        if avg is not None:
+            root_selection.append(_select_fields('_avg', avg))
+
+        if min is not None:
+            root_selection.append(_select_fields('_min', min))
+
+        if sum is not None:
+            root_selection.append(_select_fields('_sum', sum))
+
+        if max is not None:
+            root_selection.append(_select_fields('_max', max))
+
+        if count is not None:
+            if count is True:
+                root_selection.append('_count { _all }')
+            elif isinstance(count, dict):
+                root_selection.append(_select_fields('_count', count))
+
+        resp = self._client._execute(
+            method='group_by',
+            model=self._model,
+            arguments={
+                'by': by,
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'having': having,
+                'orderBy': order,
+            },
+            root_selection=root_selection,
+        )
+        return resp['data']['result']  # type: ignore[no-any-return]
+
+
 class SettingActions(Generic[_PrismaModelT]):
     __slots__ = (
         '_client',
@@ -28985,7 +30018,7 @@ class SettingActions(Generic[_PrismaModelT]):
         ```py
         users = Setting.prisma().query_raw(
             'SELECT * FROM Setting WHERE key = $1',
-            'jhffeibhe',
+            'jddggchfb',
         )
         ```
         """
@@ -29025,7 +30058,7 @@ class SettingActions(Generic[_PrismaModelT]):
         ```py
         user = Setting.prisma().query_first(
             'SELECT * FROM Setting WHERE value = $1',
-            'iaiieefjb',
+            'bccbfcfdfg',
         )
         ```
         """
@@ -29064,8 +30097,8 @@ class SettingActions(Generic[_PrismaModelT]):
         setting = Setting.prisma().create(
             data={
                 # data to create a Setting record
-                'key': 'jjhjdgjfg',
-                'value': 'bhhjcfadhd',
+                'key': 'bjchjgjib',
+                'value': 'ibiaaifcc',
             },
         )
         ```
@@ -29120,13 +30153,13 @@ class SettingActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a Setting record
-                    'key': 'fbejadda',
-                    'value': 'bjeaigeddb',
+                    'key': 'bffejbbadf',
+                    'value': 'bajgjiebfc',
                 },
                 {
                     # data to create a Setting record
-                    'key': 'eceecabdg',
-                    'value': 'bdgaajbcab',
+                    'key': 'bhahahadif',
+                    'value': 'bijhaihbcg',
                 },
             ],
             skip_duplicates=True,
@@ -29180,7 +30213,7 @@ class SettingActions(Generic[_PrismaModelT]):
         ```py
         setting = Setting.prisma().delete(
             where={
-                'key': 'chhgehieg',
+                'key': 'cbgcjeecd',
             },
         )
         ```
@@ -29232,7 +30265,7 @@ class SettingActions(Generic[_PrismaModelT]):
         ```py
         setting = Setting.prisma().find_unique(
             where={
-                'key': 'faggbiggd',
+                'key': 'bebibighfg',
             },
         )
         ```
@@ -29283,7 +30316,7 @@ class SettingActions(Generic[_PrismaModelT]):
         ```py
         setting = Setting.prisma().find_unique_or_raise(
             where={
-                'key': 'bciijiajei',
+                'key': 'bbhjeejidh',
             },
         )
         ```
@@ -29535,7 +30568,7 @@ class SettingActions(Generic[_PrismaModelT]):
         ```py
         setting = Setting.prisma().update(
             where={
-                'key': 'bdjaadchgf',
+                'key': 'bfgebdfefi',
             },
             data={
                 # data to update the Setting record to
@@ -29592,15 +30625,15 @@ class SettingActions(Generic[_PrismaModelT]):
         ```py
         setting = Setting.prisma().upsert(
             where={
-                'key': 'biadfeebhi',
+                'key': 'jgijgagjb',
             },
             data={
                 'create': {
-                    'key': 'biadfeebhi',
-                    'value': 'bdgaajbcab',
+                    'key': 'jgijgagjb',
+                    'value': 'bijhaihbcg',
                 },
                 'update': {
-                    'value': 'bdgaajbcab',
+                    'value': 'bijhaihbcg',
                 },
             },
         )
@@ -29648,7 +30681,7 @@ class SettingActions(Generic[_PrismaModelT]):
         # update all Setting records
         total = Setting.prisma().update_many(
             data={
-                'key': 'biajdcaged'
+                'key': 'biagjfcfga'
             },
             where={}
         )
@@ -30011,7 +31044,7 @@ class LogActions(Generic[_PrismaModelT]):
         ```py
         users = Log.prisma().query_raw(
             'SELECT * FROM Log WHERE id = $1',
-            'ddgjjicai',
+            'bggbhejccf',
         )
         ```
         """
@@ -30090,7 +31123,7 @@ class LogActions(Generic[_PrismaModelT]):
         log = Log.prisma().create(
             data={
                 # data to create a Log record
-                'message': 'efihdjdcb',
+                'message': 'ichjgigcc',
             },
         )
         ```
@@ -30145,11 +31178,11 @@ class LogActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a Log record
-                    'message': 'bdeacajaig',
+                    'message': 'bhiiegaibf',
                 },
                 {
                     # data to create a Log record
-                    'message': 'jddggchfb',
+                    'message': 'bdegidheae',
                 },
             ],
             skip_duplicates=True,
@@ -30203,7 +31236,7 @@ class LogActions(Generic[_PrismaModelT]):
         ```py
         log = Log.prisma().delete(
             where={
-                'id': 'bccbfcfdfg',
+                'id': 'bddbbjidhd',
             },
         )
         ```
@@ -30255,7 +31288,7 @@ class LogActions(Generic[_PrismaModelT]):
         ```py
         log = Log.prisma().find_unique(
             where={
-                'id': 'bjchjgjib',
+                'id': 'jefedjaji',
             },
         )
         ```
@@ -30306,7 +31339,7 @@ class LogActions(Generic[_PrismaModelT]):
         ```py
         log = Log.prisma().find_unique_or_raise(
             where={
-                'id': 'ibiaaifcc',
+                'id': 'eicbgeabb',
             },
         )
         ```
@@ -30558,7 +31591,7 @@ class LogActions(Generic[_PrismaModelT]):
         ```py
         log = Log.prisma().update(
             where={
-                'id': 'bffejbbadf',
+                'id': 'fchjhjjbc',
             },
             data={
                 # data to update the Log record to
@@ -30615,15 +31648,15 @@ class LogActions(Generic[_PrismaModelT]):
         ```py
         log = Log.prisma().upsert(
             where={
-                'id': 'bajgjiebfc',
+                'id': 'bagfajdjcb',
             },
             data={
                 'create': {
-                    'id': 'bajgjiebfc',
-                    'message': 'jddggchfb',
+                    'id': 'bagfajdjcb',
+                    'message': 'bdegidheae',
                 },
                 'update': {
-                    'message': 'jddggchfb',
+                    'message': 'bdegidheae',
                 },
             },
         )

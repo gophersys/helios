@@ -1,34 +1,29 @@
 <script lang="ts">
-  import type { ProductStageConfig } from '$lib/types/stages';
+  import type { ProductStageConfig, Secret } from '$lib/types/stages';
   import { STAGE_NAMES, STAGE_DESCRIPTIONS, STAGE_BUILD_COUNTS } from '$lib/types/stages';
   import { updateStageConfig } from '$lib/services/stages';
   import type { BoardRevision } from '$lib/types/models';
-  import { ChevronDown, Settings, Zap, Clock, GitBranch, Shield } from 'lucide-svelte';
+  import { ChevronDown, Settings, Zap, GitBranch, Key } from 'lucide-svelte';
 
   interface Props {
     stage: number;
     config: ProductStageConfig | undefined;
     productId: string;
     revisions: BoardRevision[];
+    secrets: Secret[];
     onUpdated: () => void;
   }
 
-  let { stage, config, productId, revisions, onUpdated }: Props = $props();
+  let { stage, config, productId, revisions, secrets, onUpdated }: Props = $props();
 
   let expanded = $state(false);
   let configuring = $state(false);
   let saving = $state(false);
 
-  // Config form state
+  // Config form
   let formRevisionId = $state('');
-  let formTestDir = $state('');
-  let formTestMarker = $state('');
-  let formTestTimeout = $state(900);
-  let formPriority = $state(50);
-  let formBlocksMerge = $state(false);
-  let formAutoProgress = $state(false);
-  let formRequiresBench = $state(true);
-  let formMaxDuration = $state(3600);
+  let formBranch = $state('main');
+  let formSigningKeyId = $state('');
 
   const stageBadgeColors: Record<number, string> = {
     1: 'bg-blue-500/10 text-blue-400',
@@ -42,53 +37,31 @@
     1: 'SM', 2: 'SI', 3: 'IN', 4: 'NY', 5: 'FU',
   };
 
+  const signingKeys = $derived(secrets.filter(s => s.type === 'signing_key'));
+
   function startConfiguring() {
     if (config) {
       formRevisionId = config.boardRevisionId || '';
-      formTestDir = config.testDirectory || '';
-      formTestMarker = config.testMarker || '';
-      formTestTimeout = config.testTimeout;
-      formPriority = config.priority;
-      formBlocksMerge = config.blocksMerge;
-      formAutoProgress = config.autoProgress;
-      formRequiresBench = config.requiresBench;
-      formMaxDuration = config.maxDurationSec;
+      formBranch = config.watchBranch || 'main';
+      formSigningKeyId = config.signingKeyId || '';
     } else {
-      // Defaults for this stage
-      const defaults: Record<number, { dir: string; marker: string; timeout: number; priority: number; bench: boolean; merge: boolean }> = {
-        1: { dir: 'tests/smoke/', marker: '-m smoke', timeout: 120, priority: 10, bench: false, merge: true },
-        2: { dir: 'tests/silicon/', marker: '-m silicon', timeout: 300, priority: 20, bench: true, merge: true },
-        3: { dir: 'tests/integration/', marker: '-m integration', timeout: 600, priority: 30, bench: true, merge: true },
-        4: { dir: 'tests/nightly/', marker: '-m nightly', timeout: 1800, priority: 40, bench: true, merge: false },
-        5: { dir: 'tests/fuota/', marker: '-m fuota', timeout: 600, priority: 100, bench: true, merge: true },
-      };
-      const d = defaults[stage] || defaults[1];
-      formTestDir = d.dir;
-      formTestMarker = d.marker;
-      formTestTimeout = d.timeout;
-      formPriority = d.priority;
-      formRequiresBench = d.bench;
-      formBlocksMerge = d.merge;
       formRevisionId = revisions[0]?.id || '';
+      formBranch = 'main';
+      formSigningKeyId = signingKeys[0]?.id || '';
     }
     configuring = true;
     expanded = true;
   }
 
   async function saveAndEnable() {
+    if (!formRevisionId) return;
     saving = true;
     try {
       await updateStageConfig(productId, stage, {
         enabled: true,
-        boardRevisionId: formRevisionId || null,
-        testDirectory: formTestDir || null,
-        testMarker: formTestMarker || null,
-        testTimeout: formTestTimeout,
-        priority: formPriority,
-        blocksMerge: formBlocksMerge,
-        autoProgress: formAutoProgress,
-        requiresBench: formRequiresBench,
-        maxDurationSec: formMaxDuration,
+        boardRevisionId: formRevisionId,
+        watchBranch: formBranch || null,
+        signingKeyId: formSigningKeyId || null,
       });
       configuring = false;
       onUpdated();
@@ -129,6 +102,11 @@
             {config.boardRevision.ckBoardsName}
           </span>
         {/if}
+        {#if config?.enabled && config?.watchBranch}
+          <span class="px-1.5 py-0.5 text-2xs rounded bg-surface-2 text-text-tertiary flex items-center gap-1">
+            <GitBranch size={10} /> {config.watchBranch}
+          </span>
+        {/if}
       </div>
       <p class="text-2xs text-text-tertiary truncate">{STAGE_DESCRIPTIONS[stage]}</p>
     </div>
@@ -150,17 +128,17 @@
     </div>
   </button>
 
-  <!-- Configuring wizard (when enabling) -->
+  <!-- Enable wizard -->
   {#if configuring}
     <div class="border-t border-accent/30 bg-accent/5 px-4 py-4 space-y-4">
       <h4 class="text-sm font-semibold text-text-primary flex items-center gap-2">
         <Settings size={14} class="text-accent" />
-        Configure {STAGE_NAMES[stage]} Stage
+        Configure {STAGE_NAMES[stage]}
       </h4>
 
-      <!-- Target revision -->
+      <!-- Revision -->
       <div>
-        <label for="stage-rev-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Target Hardware Revision</label>
+        <label for="stage-rev-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Target Hardware Revision *</label>
         <select
           id="stage-rev-{stage}"
           bind:value={formRevisionId}
@@ -173,73 +151,61 @@
         </select>
       </div>
 
-      <!-- Test config -->
+      <!-- Branch + Signing Key -->
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
-          <label for="stage-testdir-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Test Directory</label>
-          <input id="stage-testdir-{stage}" type="text" bind:value={formTestDir} placeholder="tests/smoke/"
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none" />
+          <label for="stage-branch-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Watch Branch</label>
+          <input
+            id="stage-branch-{stage}"
+            type="text"
+            bind:value={formBranch}
+            placeholder="main"
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          />
         </div>
         <div>
-          <label for="stage-marker-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Pytest Marker</label>
-          <input id="stage-marker-{stage}" type="text" bind:value={formTestMarker} placeholder="-m smoke"
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none" />
+          <label for="stage-key-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Signing Key</label>
+          <select
+            id="stage-key-{stage}"
+            bind:value={formSigningKeyId}
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+          >
+            <option value="">— No signing key —</option>
+            {#each signingKeys as key}
+              <option value={key.id}>{key.name}</option>
+            {/each}
+          </select>
+          {#if signingKeys.length === 0}
+            <p class="mt-1 text-2xs text-text-tertiary">No signing keys configured. Add them in Settings → Secrets.</p>
+          {/if}
         </div>
-      </div>
-
-      <!-- Timing -->
-      <div class="grid gap-3 sm:grid-cols-3">
-        <div>
-          <label for="stage-timeout-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Test Timeout (s)</label>
-          <input id="stage-timeout-{stage}" type="number" bind:value={formTestTimeout} min="30"
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none" />
-        </div>
-        <div>
-          <label for="stage-duration-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Max Duration (s)</label>
-          <input id="stage-duration-{stage}" type="number" bind:value={formMaxDuration} min="60"
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none" />
-        </div>
-        <div>
-          <label for="stage-priority-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Priority</label>
-          <input id="stage-priority-{stage}" type="number" bind:value={formPriority} min="0" max="200"
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none" />
-        </div>
-      </div>
-
-      <!-- Toggles -->
-      <div class="flex flex-wrap gap-4">
-        <label class="inline-flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
-          <input type="checkbox" bind:checked={formBlocksMerge} class="rounded border-border accent-accent" />
-          Blocks merge
-        </label>
-        <label class="inline-flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
-          <input type="checkbox" bind:checked={formAutoProgress} class="rounded border-border accent-accent" />
-          Auto-progress to next stage
-        </label>
-        <label class="inline-flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
-          <input type="checkbox" bind:checked={formRequiresBench} class="rounded border-border accent-accent" />
-          Requires hardware bench
-        </label>
       </div>
 
       <!-- Info -->
       <div class="rounded bg-surface-0 border border-border-subtle px-3 py-2 text-2xs text-text-tertiary flex items-center gap-2">
-        <Zap size={12} class="text-accent" />
-        This stage triggers {STAGE_BUILD_COUNTS[stage] || '?'} firmware builds automatically when run.
+        <Zap size={12} class="text-accent shrink-0" />
+        Enabling this stage will create {STAGE_BUILD_COUNTS[stage] || '?'} firmware builds when triggered. Start initial builds now, or wait for next push to the watched branch.
       </div>
 
       <!-- Actions -->
       <div class="flex gap-2">
         <button
           onclick={saveAndEnable}
-          disabled={saving}
+          disabled={saving || !formRevisionId}
           class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
         >
-          {saving ? 'Saving...' : 'Enable Stage'}
+          {saving ? 'Saving...' : 'Enable & Build Now'}
+        </button>
+        <button
+          onclick={async () => { await saveAndEnable(); /* TODO: don't trigger build */ }}
+          disabled={saving || !formRevisionId}
+          class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50"
+        >
+          Enable (Build on Next Push)
         </button>
         <button
           onclick={() => { configuring = false; expanded = false; }}
-          class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-text-tertiary hover:bg-surface-2"
         >
           Cancel
         </button>
@@ -247,59 +213,35 @@
     </div>
   {/if}
 
-  <!-- Enabled stage summary (when expanded, not configuring) -->
+  <!-- Enabled summary -->
   {#if expanded && !configuring && config?.enabled}
     <div class="border-t border-border px-4 py-3 space-y-3">
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+      <div class="grid grid-cols-3 gap-3 text-sm">
         <div>
           <span class="block text-2xs text-text-tertiary">Revision</span>
           <span class="font-mono text-text-primary">{config.boardRevision?.ckBoardsName || '—'}</span>
         </div>
         <div>
-          <span class="block text-2xs text-text-tertiary">Test Dir</span>
-          <span class="font-mono text-text-primary">{config.testDirectory || '—'}</span>
+          <span class="block text-2xs text-text-tertiary">Branch</span>
+          <span class="font-mono text-text-primary flex items-center gap-1">
+            <GitBranch size={12} /> {config.watchBranch || '—'}
+          </span>
         </div>
         <div>
-          <span class="block text-2xs text-text-tertiary">Timeout</span>
-          <span class="text-text-primary">{config.testTimeout}s</span>
+          <span class="block text-2xs text-text-tertiary">Signing Key</span>
+          <span class="text-text-primary flex items-center gap-1">
+            {#if config.signingKey}
+              <Key size={12} /> {config.signingKey.name}
+            {:else}
+              —
+            {/if}
+          </span>
         </div>
-        <div>
-          <span class="block text-2xs text-text-tertiary">Builds</span>
-          <span class="text-text-primary">{STAGE_BUILD_COUNTS[stage]} per run</span>
-        </div>
-      </div>
-
-      <div class="flex flex-wrap gap-2">
-        {#if config.blocksMerge}
-          <span class="inline-flex items-center gap-1 rounded bg-warning-muted px-1.5 py-0.5 text-2xs text-warning">
-            <Shield size={10} /> Blocks merge
-          </span>
-        {/if}
-        {#if config.autoProgress}
-          <span class="inline-flex items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 text-2xs text-accent">
-            <GitBranch size={10} /> Auto-progress
-          </span>
-        {/if}
-        {#if config.requiresBench}
-          <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary">
-            <Zap size={10} /> Needs hardware
-          </span>
-        {/if}
       </div>
 
       <div class="flex items-center gap-2 border-t border-border-subtle pt-3">
-        <button
-          onclick={startConfiguring}
-          class="text-xs text-text-secondary hover:text-text-primary"
-        >
-          Edit Config
-        </button>
-        <button
-          onclick={disable}
-          class="text-xs text-error hover:text-error"
-        >
-          Disable
-        </button>
+        <button onclick={startConfiguring} class="text-xs text-text-secondary hover:text-text-primary">Edit</button>
+        <button onclick={disable} class="text-xs text-error hover:text-error">Disable</button>
       </div>
     </div>
   {/if}

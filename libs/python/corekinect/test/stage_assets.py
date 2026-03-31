@@ -43,6 +43,7 @@ from typing import Any, Dict, List, Optional, Set, TYPE_CHECKING
 if TYPE_CHECKING:
     from corekinect.test.artifact_resolver import ArtifactResolver
 
+from corekinect.test.errors import ConfigError
 from corekinect.utils import Logger
 
 log = Logger(log_name="stage_assets")
@@ -124,13 +125,13 @@ class BuildAsset:
             Local file path to the downloaded hex file.
 
         Raises:
-            ValueError: If no hex artifact exists for this target.
+            ConfigError: If no hex artifact exists for this target.
         """
         path = self._resolver.get_artifact(
             self._label, role=target, artifact_type="plaintextHex",
         )
         if not path:
-            raise ValueError(
+            raise ConfigError(
                 f"No plaintext hex for label={self._label}, target={target}"
             )
         return path
@@ -145,13 +146,13 @@ class BuildAsset:
             Local file path to the downloaded CFW file.
 
         Raises:
-            ValueError: If no CFW artifact exists for this target.
+            ConfigError: If no CFW artifact exists for this target.
         """
         path = self._resolver.get_artifact(
             self._label, role=target, artifact_type="encryptedCfw",
         )
         if not path:
-            raise ValueError(
+            raise ConfigError(
                 f"No encrypted CFW for label={self._label}, target={target}"
             )
         return path
@@ -191,7 +192,7 @@ class BuildAsset:
         build_manifest = self.manifest()
         target_info = build_manifest.get_target(target)
         if target_info is None:
-            raise ValueError(
+            raise ConfigError(
                 f"No target '{target}' in manifest for label={self._label}. "
                 f"Available: {[mt.role for mt in build_manifest.targets]}"
             )
@@ -235,7 +236,7 @@ class BuildAsset:
         """
         target_info = self.manifest().get_target(role)
         if target_info is None:
-            raise ValueError(
+            raise ConfigError(
                 f"No target '{role}' in label={self._label}. "
                 f"Available: {[mt.role for mt in self.manifest().targets]}"
             )
@@ -391,11 +392,11 @@ class StageAssets:
         """Validate that all required labels are present and builds succeeded.
 
         Raises:
-            ValueError: If any required labels are missing or builds failed.
+            ConfigError: If any required labels are missing or builds failed.
         """
         missing = self.missing_labels()
         if missing:
-            raise ValueError(
+            raise ConfigError(
                 f"Stage '{self._stage}' is missing required builds: {missing}. "
                 f"Available: {self.labels}. "
                 f"The pipeline may not have been created with matrix_mode='{self._stage}'."
@@ -407,7 +408,7 @@ class StageAssets:
             for label in failed:
                 build = self._resolver.builds.get(label)
                 statuses[label] = getattr(build, "status", "UNKNOWN")
-            raise ValueError(
+            raise ConfigError(
                 f"Stage '{self._stage}' has failed builds: {statuses}. "
                 f"All required builds must be SUCCESS or CACHED."
             )

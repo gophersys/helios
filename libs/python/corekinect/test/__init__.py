@@ -38,7 +38,17 @@ This library provides everything a product validation app needs:
 - Test session context (context.py)
 """
 
+__version__ = "0.1.0"
+
 # ── Core ──
+from .errors import (
+    CloudError,
+    ConfigError,
+    FirmwareError,
+    HardwareError,
+    ValidationError,
+)
+from .errors import TimeoutError as ValidationTimeoutError
 from .stages import Stage, STAGE_NUMBERS, STAGE_NAMES
 from .assertions import (
     assert_cloud_message,
@@ -110,6 +120,12 @@ from .pytest_integration import (
 
 __all__ = [
     # ── Core ──
+    "CloudError",
+    "ConfigError",
+    "FirmwareError",
+    "HardwareError",
+    "ValidationError",
+    "ValidationTimeoutError",
     "Stage",
     "STAGE_NUMBERS",
     "STAGE_NAMES",
