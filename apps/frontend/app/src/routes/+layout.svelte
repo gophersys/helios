@@ -24,6 +24,8 @@
   })();
 
   let routeAnnouncement = $state('');
+  let boundaryError = $state<{ message: string; stack?: string } | null>(null);
+  const isDev = PUBLIC_APP_ENVIRONMENT === 'development' || PUBLIC_APP_ENVIRONMENT === 'local' || !PUBLIC_APP_ENVIRONMENT;
 
   afterNavigate(() => {
     const title = document.title || $page.url.pathname;
@@ -33,6 +35,17 @@
   // Initialize auth on mount
   onMount(async () => {
     await auth.init();
+
+    // Catch unhandled errors in dev/staging
+    if (isDev) {
+      window.addEventListener('error', (e) => {
+        boundaryError = { message: e.message, stack: e.filename + ':' + e.lineno };
+      });
+      window.addEventListener('unhandledrejection', (e) => {
+        const msg = e.reason?.message || String(e.reason);
+        boundaryError = { message: msg, stack: e.reason?.stack };
+      });
+    }
   });
 
   // Redirect logic
@@ -61,7 +74,20 @@
   {@render children()}
 {:else if auth.isAuthenticated}
   <Layout>
-    {@render children()}
+    <svelte:boundary onerror={(e) => { boundaryError = { message: e.message, stack: e.stack }; console.error('[boundary]', e); }}>
+      {@render children()}
+      {#snippet failed(error)}
+        <div class="p-8">
+          <div class="rounded-lg border border-error/30 bg-error-muted p-4">
+            <h2 class="text-lg font-semibold text-error mb-2">Something went wrong</h2>
+            <p class="text-sm text-text-primary mb-3">{error?.message || 'Unknown error'}</p>
+            <button onclick={() => location.reload()} class="rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover">
+              Reload Page
+            </button>
+          </div>
+        </div>
+      {/snippet}
+    </svelte:boundary>
   </Layout>
 {:else}
   <!-- Redirecting to login - show loading while redirect happens -->
@@ -71,3 +97,19 @@
 {/if}
 
 <div aria-live="polite" aria-atomic="true" class="sr-only">{routeAnnouncement}</div>
+
+<!-- Dev error toast — persists until dismissed -->
+{#if isDev && boundaryError}
+  <div class="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-[500px] z-50 rounded-lg border border-error/50 bg-surface-1 shadow-xl overflow-hidden">
+    <div class="flex items-center justify-between bg-error px-3 py-1.5">
+      <span class="text-xs font-bold text-white">Runtime Error</span>
+      <button onclick={() => (boundaryError = null)} class="text-white/80 hover:text-white text-xs">dismiss</button>
+    </div>
+    <div class="px-3 py-2 max-h-[200px] overflow-auto">
+      <p class="text-sm font-medium text-error mb-1">{boundaryError.message}</p>
+      {#if boundaryError.stack}
+        <pre class="text-2xs text-text-tertiary whitespace-pre-wrap font-mono">{boundaryError.stack}</pre>
+      {/if}
+    </div>
+  </div>
+{/if}
