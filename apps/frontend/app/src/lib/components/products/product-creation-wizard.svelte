@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { ChevronLeft, ChevronRight, Check, Loader2, Cpu, CircuitBoard } from 'lucide-svelte';
+  import { ChevronLeft, ChevronRight, Check, Loader2, Cpu, CircuitBoard, AlertTriangle } from 'lucide-svelte';
+  import { onDestroy } from 'svelte';
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import type {
@@ -40,6 +41,10 @@
   let productDescription = $state('');
   let fwRepoSlug = $state('');
   let mfgFwRepoSlug = $state('');
+  let fwRepoStatus = $state<'idle'|'checking'|'exists'|'not_found'>('idle');
+  let mfgRepoStatus = $state<'idle'|'checking'|'exists'|'not_found'>('idle');
+  let fwTimer: ReturnType<typeof setTimeout>|null = null;
+  let mfgTimer: ReturnType<typeof setTimeout>|null = null;
   let revisionConfigs = $state<Record<string, {
     deviceType: number;
     deviceVariant: number;
@@ -50,6 +55,33 @@
     if (soc.includes('9151') || soc.includes('9160') || soc.includes('9161')) return 'comms';
     return 'app';
   }
+
+  async function checkRepo(slug: string): Promise<boolean> {
+    if (!slug.trim()) return false;
+    try {
+      const res = await apiFetch<ApiResponse<{exists:boolean}>>(`/v2/products/repos/check?slug=${encodeURIComponent(slug)}`);
+      return res.data?.exists ?? false;
+    } catch { return false; }
+  }
+
+  function onFwSlugChange(val: string) {
+    if (fwTimer) clearTimeout(fwTimer);
+    if (!val.trim()) { fwRepoStatus = 'idle'; return; }
+    fwRepoStatus = 'checking';
+    fwTimer = setTimeout(async () => { fwRepoStatus = (await checkRepo(val)) ? 'exists' : 'not_found'; }, 500);
+  }
+
+  function onMfgSlugChange(val: string) {
+    if (mfgTimer) clearTimeout(mfgTimer);
+    if (!val.trim()) { mfgRepoStatus = 'idle'; return; }
+    mfgRepoStatus = 'checking';
+    mfgTimer = setTimeout(async () => { mfgRepoStatus = (await checkRepo(val)) ? 'exists' : 'not_found'; }, 500);
+  }
+
+  onDestroy(() => {
+    if (fwTimer) clearTimeout(fwTimer);
+    if (mfgTimer) clearTimeout(mfgTimer);
+  });
 
   // Step 5: Submitting
   let submitting = $state(false);
@@ -115,6 +147,8 @@
       productSlug = boardDetail.family;
       fwRepoSlug = `${boardDetail.family}_fw`;
       mfgFwRepoSlug = `${boardDetail.family}_mfg_fw`;
+      onFwSlugChange(fwRepoSlug);
+      onMfgSlugChange(mfgFwRepoSlug);
       // Build per-revision configs
       const newConfigs: typeof revisionConfigs = {};
       for (const rev of boardDetail.revisions) {
@@ -192,6 +226,14 @@
   // Load branches on mount
   $effect(() => {
     loadBranches();
+  });
+
+  // Debounced repo checks when slugs change (covers both typing and auto-populate)
+  $effect(() => {
+    onFwSlugChange(fwRepoSlug);
+  });
+  $effect(() => {
+    onMfgSlugChange(mfgFwRepoSlug);
   });
 
 </script>
@@ -423,24 +465,44 @@
 
           <!-- Firmware Repositories -->
           <div class="grid gap-3 sm:grid-cols-2">
-            <label class="block">
+            <div class="block">
               <span class="mb-1 block text-2xs font-medium text-text-tertiary">Firmware Repository (Bitbucket slug)</span>
-              <input
-                type="text"
-                bind:value={fwRepoSlug}
-                placeholder="e.g. alpha_fw"
-                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-              />
-            </label>
-            <label class="block">
+              <div class="flex items-center gap-2">
+                <input
+                  type="text"
+                  bind:value={fwRepoSlug}
+                  oninput={() => onFwSlugChange(fwRepoSlug)}
+                  placeholder="e.g. alpha_fw"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                />
+                {#if fwRepoStatus === 'checking'}
+                  <Loader2 size={14} class="animate-spin text-text-tertiary" />
+                {:else if fwRepoStatus === 'exists'}
+                  <Check size={14} class="text-success" />
+                {:else if fwRepoStatus === 'not_found'}
+                  <AlertTriangle size={14} class="text-warning" title="Repository not found on Bitbucket" />
+                {/if}
+              </div>
+            </div>
+            <div class="block">
               <span class="mb-1 block text-2xs font-medium text-text-tertiary">Manufacturing Firmware Repository (Bitbucket slug)</span>
-              <input
-                type="text"
-                bind:value={mfgFwRepoSlug}
-                placeholder="e.g. alpha_mfg_fw"
-                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-              />
-            </label>
+              <div class="flex items-center gap-2">
+                <input
+                  type="text"
+                  bind:value={mfgFwRepoSlug}
+                  oninput={() => onMfgSlugChange(mfgFwRepoSlug)}
+                  placeholder="e.g. alpha_mfg_fw"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                />
+                {#if mfgRepoStatus === 'checking'}
+                  <Loader2 size={14} class="animate-spin text-text-tertiary" />
+                {:else if mfgRepoStatus === 'exists'}
+                  <Check size={14} class="text-success" />
+                {:else if mfgRepoStatus === 'not_found'}
+                  <AlertTriangle size={14} class="text-warning" title="Repository not found on Bitbucket" />
+                {/if}
+              </div>
+            </div>
           </div>
         </div>
       </div>

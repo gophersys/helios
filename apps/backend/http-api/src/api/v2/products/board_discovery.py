@@ -90,3 +90,44 @@ def discover_board_detail(board_name: str):
     except Exception:
         logger.exception("Failed to get detail for board %s on %s", board_name, branch)
         return internal_error("Failed to get board detail")
+
+
+@require_permissions(Permissions.PRODUCTS_VIEW)
+def check_repo():
+    """GET /v2/products/repos/check?slug=alpha_fw — verify Bitbucket repo exists."""
+    import base64
+    import os
+    import stat
+    import subprocess
+
+    from config import env_config
+
+    slug = request.args.get("slug", "").strip()
+    if not slug:
+        return bad_request("slug query parameter is required")
+
+    repo_url = f"git@bitbucket.org:corekinect/{slug}.git"
+    result = {"exists": False, "slug": slug}
+
+    try:
+        env = dict(os.environ)
+        ssh_key_b64 = env_config.BITBUCKET_SSH_KEY
+        if ssh_key_b64:
+            key_path = f"/tmp/.ssh_check_{os.getpid()}"
+            with open(key_path, "wb") as f:
+                f.write(base64.b64decode(ssh_key_b64))
+            os.chmod(key_path, stat.S_IRUSR)
+            env["GIT_SSH_COMMAND"] = f"ssh -i {key_path} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+        proc = subprocess.run(
+            ["git", "ls-remote", "--exit-code", repo_url],
+            timeout=10, capture_output=True, env=env,
+        )
+        result["exists"] = proc.returncode == 0
+
+        if ssh_key_b64:
+            os.unlink(key_path)
+    except Exception:
+        pass
+
+    return jsonify(ApiResponse.ok(result).to_dict()), 200

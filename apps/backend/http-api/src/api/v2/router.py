@@ -23,6 +23,7 @@ from .healthcheck import healthcheck
 
 # Products handlers (was catalog/)
 from .products.board_discovery import (
+    check_repo,
     discover_board_detail,
     discover_boards,
     list_board_branches,
@@ -335,6 +336,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/boards/branches",                                                  endpoint="list_board_branches",    view_func=list_board_branches,    methods=["GET"])
     v2.add_url_rule("/products/boards/discover",                                                  endpoint="discover_boards",        view_func=discover_boards,        methods=["GET"])
     v2.add_url_rule("/products/boards/discover/<board_name>",                                     endpoint="discover_board_detail",  view_func=discover_board_detail,  methods=["GET"])
+    v2.add_url_rule("/products/repos/check",                                                      endpoint="check_repo",             view_func=check_repo,             methods=["GET"])
 
     # Products
     v2.add_url_rule("/products",                                                                   view_func=list_products,          methods=["GET"])
