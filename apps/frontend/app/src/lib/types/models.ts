@@ -112,6 +112,8 @@ export interface Product {
   targets: ProductTarget[];
   boardCount?: number;
   firmwareBuildCount?: number;
+  sessionCount?: number;
+  testCount?: number;
   boards?: Board[];
   firmwareBuilds?: FirmwareBuild[];
   createdAt: string;

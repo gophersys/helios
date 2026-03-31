@@ -207,6 +207,36 @@ def create_product():
     if data.metadata is not None:
         create_data["metadata"] = Json(data.metadata)
 
+    # Inline board creation from wizard
+    if data.board:
+        board_data = {
+            "name": data.board.ckBoardsFamily,
+            "ckBoardsFamily": data.board.ckBoardsFamily,
+            "vendor": data.board.vendor,
+        }
+        if data.board.revisions:
+            rev_creates = []
+            for r in data.board.revisions:
+                rev_data = {
+                    "version": r["version"],
+                    "ckBoardsName": r["ckBoardsName"],
+                    "socs": r["socs"],
+                }
+                if r.get("deviceType") is not None:
+                    rev_data["deviceType"] = r["deviceType"]
+                if r.get("deviceVariant") is not None:
+                    rev_data["deviceVariant"] = r["deviceVariant"]
+                if r.get("targets"):
+                    rev_data["targets"] = {
+                        "create": [
+                            {"role": t.role, "soc": t.soc, "appId": t.appId}
+                            for t in r["targets"]
+                        ],
+                    }
+                rev_creates.append(rev_data)
+            board_data["revisions"] = {"create": rev_creates}
+        create_data["boards"] = {"create": [board_data]}
+
     product = db.product.create(
         data=create_data,
         include={

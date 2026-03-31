@@ -12,6 +12,14 @@ class TargetInput:
 
 
 @dataclass
+class InlineBoardInput:
+    """Board + revisions + targets to create inline with a product."""
+    ckBoardsFamily: str
+    vendor: str = "corekinect"
+    revisions: Optional[List[Dict[str, Any]]] = None
+
+
+@dataclass
 class ProductCreateRequest:
     name: str
     description: Optional[str] = None
@@ -21,6 +29,7 @@ class ProductCreateRequest:
     mfgFwRepoSlug: Optional[str] = None
     buildConfig: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
+    board: Optional[InlineBoardInput] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ProductCreateRequest"], Optional[str]]:
@@ -57,6 +66,84 @@ class ProductCreateRequest:
         if metadata is not None and not isinstance(metadata, dict):
             return None, "Metadata must be a JSON object"
 
+        # Optional inline board with revisions and targets
+        board_input = None
+        raw_board = data.get("board")
+        if raw_board is not None:
+            if not isinstance(raw_board, dict):
+                return None, "board must be a JSON object"
+            ck_family = (raw_board.get("ckBoardsFamily") or "").strip()
+            if not ck_family:
+                return None, "board.ckBoardsFamily is required"
+            vendor = (raw_board.get("vendor") or "corekinect").strip()
+
+            raw_revisions = raw_board.get("revisions")
+            parsed_revisions = None
+            if raw_revisions is not None:
+                if not isinstance(raw_revisions, list):
+                    return None, "board.revisions must be an array"
+                parsed_revisions = []
+                for i, r in enumerate(raw_revisions):
+                    if not isinstance(r, dict):
+                        return None, f"board.revisions[{i}] must be an object"
+                    rev_version = (r.get("version") or "").strip()
+                    rev_ck_name = (r.get("ckBoardsName") or "").strip()
+                    if not rev_version:
+                        return None, f"board.revisions[{i}].version is required"
+                    if not rev_ck_name:
+                        return None, f"board.revisions[{i}].ckBoardsName is required"
+                    rev_socs = r.get("socs", [])
+                    if not isinstance(rev_socs, list):
+                        return None, f"board.revisions[{i}].socs must be an array"
+                    rev_device_type = r.get("deviceType")
+                    if rev_device_type is not None and not isinstance(rev_device_type, int):
+                        return None, f"board.revisions[{i}].deviceType must be an integer"
+                    rev_device_variant = r.get("deviceVariant")
+                    if rev_device_variant is not None and not isinstance(rev_device_variant, int):
+                        return None, f"board.revisions[{i}].deviceVariant must be an integer"
+                    # Parse inline targets
+                    raw_targets = r.get("targets")
+                    rev_targets = None
+                    if raw_targets is not None:
+                        if not isinstance(raw_targets, list):
+                            return None, f"board.revisions[{i}].targets must be an array"
+                        rev_targets = []
+                        seen_roles = set()
+                        seen_app_ids = set()
+                        for j, t in enumerate(raw_targets):
+                            if not isinstance(t, dict):
+                                return None, f"board.revisions[{i}].targets[{j}] must be an object"
+                            role = (t.get("role") or "").strip()
+                            soc = (t.get("soc") or "").strip()
+                            app_id = t.get("appId")
+                            if not role:
+                                return None, f"board.revisions[{i}].targets[{j}].role is required"
+                            if not soc:
+                                return None, f"board.revisions[{i}].targets[{j}].soc is required"
+                            if app_id is None or not isinstance(app_id, int):
+                                return None, f"board.revisions[{i}].targets[{j}].appId is required and must be an integer"
+                            if role in seen_roles:
+                                return None, f"board.revisions[{i}]: duplicate target role '{role}'"
+                            if app_id in seen_app_ids:
+                                return None, f"board.revisions[{i}]: duplicate target appId {app_id}"
+                            seen_roles.add(role)
+                            seen_app_ids.add(app_id)
+                            rev_targets.append(TargetInput(role=role, soc=soc, appId=app_id))
+                    parsed_revisions.append({
+                        "version": rev_version,
+                        "ckBoardsName": rev_ck_name,
+                        "socs": rev_socs,
+                        "deviceType": rev_device_type,
+                        "deviceVariant": rev_device_variant,
+                        "targets": rev_targets,
+                    })
+
+            board_input = InlineBoardInput(
+                ckBoardsFamily=ck_family,
+                vendor=vendor,
+                revisions=parsed_revisions,
+            )
+
         return cls(
             name=name,
             description=description.strip() if description else None,
@@ -66,6 +153,7 @@ class ProductCreateRequest:
             mfgFwRepoSlug=mfg_fw_repo_slug,
             buildConfig=build_config,
             metadata=metadata,
+            board=board_input,
         ), None
 
 
@@ -586,53 +674,3 @@ class TargetUpdateRequest:
         if self._has_app_id:
             update_data["appId"] = self.appId
         return update_data
-
-
-@dataclass
-class RevisionConfigUpdateRequest:
-    """Bulk update a revision's deviceType/deviceVariant and its targets in one call."""
-    deviceType: Optional[int] = None
-    deviceVariant: Optional[int] = None
-    targets: Optional[List[Dict[str, Any]]] = None
-    _has_device_type: bool = False
-    _has_device_variant: bool = False
-
-    @classmethod
-    def from_json(cls, data: dict) -> Tuple[Optional["RevisionConfigUpdateRequest"], Optional[str]]:
-        if not data:
-            return None, "Request body must contain JSON data"
-
-        device_type = data.get("deviceType")
-        has_device_type = "deviceType" in data
-        if has_device_type and device_type is not None and not isinstance(device_type, int):
-            return None, "deviceType must be an integer"
-
-        device_variant = data.get("deviceVariant")
-        has_device_variant = "deviceVariant" in data
-        if has_device_variant and device_variant is not None and not isinstance(device_variant, int):
-            return None, "deviceVariant must be an integer"
-
-        targets = data.get("targets")
-        if targets is not None:
-            if not isinstance(targets, list):
-                return None, "targets must be an array"
-            for i, t in enumerate(targets):
-                if not isinstance(t, dict):
-                    return None, f"targets[{i}] must be an object"
-                if "role" not in t or not (t.get("role") or "").strip():
-                    return None, f"targets[{i}].role is required"
-                if "soc" not in t or not (t.get("soc") or "").strip():
-                    return None, f"targets[{i}].soc is required"
-                if "appId" not in t or not isinstance(t.get("appId"), int):
-                    return None, f"targets[{i}].appId is required and must be an integer"
-
-        if not has_device_type and not has_device_variant and targets is None:
-            return None, "No fields to update"
-
-        return cls(
-            deviceType=device_type,
-            deviceVariant=device_variant,
-            targets=targets,
-            _has_device_type=has_device_type,
-            _has_device_variant=has_device_variant,
-        ), None
