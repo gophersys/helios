@@ -32,7 +32,7 @@ def _resolve_product_by_repo(db, repo_slug: str):
     """
     return db.product.find_first(
         where={"slug": repo_slug},
-        include={"boards": True, "targets": True},
+        include={"boards": {"include": {"revisions": {"include": {"targets": True}}}}},
     )
 
 
@@ -56,18 +56,31 @@ def _product_to_build_config(product, repo_slug: str) -> dict:
     build_config = product.buildConfig if isinstance(getattr(product, "buildConfig", None), dict) else {}
     metadata = product.metadata if isinstance(product.metadata, dict) else {}
 
-    # Derive targets from ProductTarget relation or fallback to metadata
-    if hasattr(product, "targets") and product.targets:
-        targets = [t.role for t in product.targets]
-    elif build_config.get("targets"):
-        targets = list(build_config["targets"].keys())
-    else:
-        targets = metadata.get("targets", ["app", "comms"])
+    # Derive targets from BoardRevision.targets or fallback to metadata
+    targets = []
+    if hasattr(product, "boards") and product.boards:
+        for board in product.boards:
+            if hasattr(board, "revisions") and board.revisions:
+                for rev in board.revisions:
+                    if hasattr(rev, "targets") and rev.targets:
+                        targets = [t.role for t in rev.targets]
+                        break
+            if targets:
+                break
+    if not targets:
+        if build_config.get("targets"):
+            targets = list(build_config["targets"].keys())
+        else:
+            targets = metadata.get("targets", ["app", "comms"])
 
-    # Derive board from Board relation
+    # Derive board from Board revision (ckBoardsName is on BoardRevision)
     board_name = build_config.get("board") or "alpha_b0"
     if hasattr(product, "boards") and product.boards:
-        board_name = product.boards[0].ckBoardsName
+        b = product.boards[0]
+        if hasattr(b, "revisions") and b.revisions:
+            board_name = b.revisions[0].ckBoardsName
+        else:
+            board_name = b.ckBoardsFamily
 
     return {
         "product_name": product.name,
@@ -307,25 +320,38 @@ def list_ci_repos():
     # All repos come from Product model in DB
     products = db.product.find_many(
         where={"active": True},
-        include={"boards": True, "targets": True},
+        include={"boards": {"include": {"revisions": {"include": {"targets": True}}}}},
     )
     for product in products:
         build_config = product.buildConfig if isinstance(getattr(product, "buildConfig", None), dict) else {}
         metadata = product.metadata if isinstance(product.metadata, dict) else {}
         trigger_branches = list(_get_trigger_branches(product))
 
-        # Derive targets from ProductTarget relation or fallback
-        if hasattr(product, "targets") and product.targets:
-            targets = [t.role for t in product.targets]
-        elif build_config.get("targets"):
-            targets = list(build_config["targets"].keys())
-        else:
-            targets = metadata.get("targets", ["app", "comms"])
+        # Derive targets from BoardRevision.targets or fallback
+        targets = []
+        if hasattr(product, "boards") and product.boards:
+            for brd in product.boards:
+                if hasattr(brd, "revisions") and brd.revisions:
+                    for rev in brd.revisions:
+                        if hasattr(rev, "targets") and rev.targets:
+                            targets = [t.role for t in rev.targets]
+                            break
+                if targets:
+                    break
+        if not targets:
+            if build_config.get("targets"):
+                targets = list(build_config["targets"].keys())
+            else:
+                targets = metadata.get("targets", ["app", "comms"])
 
-        # Derive board from Board relation
+        # Derive board from Board revision (ckBoardsName is on BoardRevision)
         board = build_config.get("board") or ""
         if hasattr(product, "boards") and product.boards:
-            board = product.boards[0].ckBoardsName
+            b = product.boards[0]
+            if hasattr(b, "revisions") and b.revisions:
+                board = b.revisions[0].ckBoardsName
+            else:
+                board = b.ckBoardsFamily
         ncs_version = build_config.get("ncsVersion") or metadata.get("ncsVersion", "")
 
         product_slug = product.slug or product.name.lower().replace(" ", "_")

@@ -258,14 +258,18 @@ def create_build():
                 {"slug": data.product},
                 {"name": {"contains": data.product, "mode": "insensitive"}},
             ]},
-            include={"boards": True},
+            include={"boards": {"include": {"revisions": True}}},
         )
     product_id = product_record.id if product_record else None
 
     # Use board from Product's Board model if available and not explicitly provided
     board = data.board
     if not board and product_record and hasattr(product_record, "boards") and product_record.boards:
-        board = product_record.boards[0].ckBoardsName
+        b = product_record.boards[0]
+        if hasattr(b, "revisions") and b.revisions:
+            board = b.revisions[0].ckBoardsName
+        else:
+            board = b.ckBoardsFamily
 
     # Build configFlags — merge versionOverride if present
     config_flags = dict(data.config) if data.config else {"source": data.trigger_type}

@@ -63,15 +63,14 @@ def test_create_board(authed_client, mock_db):
         name="Test Product",
     )
 
-    # No duplicate (name check, then ckBoardsName check)
+    # No duplicate (name check, then ckBoardsFamily check)
     mock_db.board.find_first.return_value = None
 
     mock_db.board.create.return_value = make_obj(
         id="board-new",
         productId="prod-1",
         name="New Board",
-        ckBoardsName="new_board",
-        ckBoardsBranch="main",
+        ckBoardsFamily="new_board",
         vendor="corekinect",
         description="A new PCB",
         active=True,
@@ -85,7 +84,7 @@ def test_create_board(authed_client, mock_db):
             "/v2/products/prod-1/boards",
             data=json.dumps({
                 "name": "New Board",
-                "ckBoardsName": "new_board",
+                "ckBoardsFamily": "new_board",
                 "description": "A new PCB",
             }),
         )
@@ -111,7 +110,7 @@ def test_create_board_duplicate_name(authed_client, mock_db):
 
     response = authed_client.post(
         "/v2/products/prod-1/boards",
-        data=json.dumps({"name": "Main Board", "ckBoardsName": "main_board"}),
+        data=json.dumps({"name": "Main Board", "ckBoardsFamily": "main_board"}),
     )
 
     assert response.status_code == 409
@@ -321,23 +320,23 @@ def test_list_boards_empty(authed_client, mock_db):
     assert len(data["data"]) == 0
 
 
-def test_create_board_duplicate_ck_boards_name_returns_409(authed_client, mock_db):
-    """Creating a board with a ckBoardsName already used by another board returns 409."""
+def test_create_board_duplicate_ck_boards_family_returns_409(authed_client, mock_db):
+    """Creating a board with a ckBoardsFamily already used by another board returns 409."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-1",
         name="Test Product",
     )
 
     # First find_first call (name uniqueness check) returns None — name is available.
-    # Second find_first call (ckBoardsName uniqueness check) returns an existing board.
+    # Second find_first call (ckBoardsFamily uniqueness check) returns an existing board.
     mock_db.board.find_first.side_effect = [
         None,
-        make_obj(id="other-board", productId="prod-2", name="Other Board", ckBoardsName="shared_ck_name"),
+        make_obj(id="other-board", productId="prod-2", name="Other Board", ckBoardsFamily="shared_ck_name"),
     ]
 
     response = authed_client.post(
         "/v2/products/prod-1/boards",
-        data=json.dumps({"name": "New Board", "ckBoardsName": "shared_ck_name"}),
+        data=json.dumps({"name": "New Board", "ckBoardsFamily": "shared_ck_name"}),
     )
 
     assert response.status_code == 409

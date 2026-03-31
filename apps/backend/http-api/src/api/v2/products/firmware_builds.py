@@ -125,9 +125,12 @@ def upload_firmware_build(product_id: str):
     if not target_id:
         return bad_request("Target ID is required")
 
-    # Validate target exists and belongs to product
+    # Validate target exists and belongs to a board revision under this product
     target_record = db.producttarget.find_first(
-        where={"id": target_id, "productId": product_id}
+        where={
+            "id": target_id,
+            "boardRevision": {"board": {"productId": product_id}},
+        },
     )
     if not target_record:
         return bad_request(f"Target '{target_id}' not found for this product")

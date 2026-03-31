@@ -25,6 +25,18 @@ def _serialize_target(t: Any) -> dict:
     }
 
 
+def _collect_targets(p: Any) -> list:
+    """Collect all ProductTargets from product.boards[].revisions[].targets[]."""
+    targets = []
+    if hasattr(p, "boards") and p.boards:
+        for b in p.boards:
+            if hasattr(b, "revisions") and b.revisions:
+                for r in b.revisions:
+                    if hasattr(r, "targets") and r.targets:
+                        targets.extend(r.targets)
+    return targets
+
+
 def _serialize_product(p: Any, include_children: bool = False) -> dict:
     data = {
         "id": p.id,
@@ -37,10 +49,8 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         "createdAt": p.createdAt.isoformat(),
         "updatedAt": p.updatedAt.isoformat(),
     }
-    if hasattr(p, "targets") and p.targets is not None:
-        data["targets"] = [_serialize_target(t) for t in p.targets]
-    else:
-        data["targets"] = []
+    # Targets live on BoardRevision — collect from boards→revisions→targets
+    data["targets"] = [_serialize_target(t) for t in _collect_targets(p)]
     if hasattr(p, "boards") and p.boards is not None:
         data["boardCount"] = len(p.boards)
         if include_children:
@@ -60,8 +70,7 @@ def _serialize_board_summary(b: Any) -> dict:
         "id": b.id,
         "productId": b.productId,
         "name": b.name,
-        "ckBoardsName": getattr(b, "ckBoardsName", None),
-        "ckBoardsBranch": getattr(b, "ckBoardsBranch", "main"),
+        "ckBoardsFamily": getattr(b, "ckBoardsFamily", None),
         "vendor": getattr(b, "vendor", "corekinect"),
         "description": b.description,
         "active": b.active,
@@ -75,15 +84,22 @@ def _serialize_board_summary(b: Any) -> dict:
 
 
 def _serialize_board_revision(r: Any) -> dict:
-    return {
+    result = {
         "id": r.id,
         "boardId": r.boardId,
         "version": r.version,
+        "ckBoardsName": getattr(r, "ckBoardsName", None),
+        "socs": getattr(r, "socs", []),
         "status": r.status,
         "notes": r.notes,
         "createdAt": r.createdAt.isoformat(),
         "updatedAt": r.updatedAt.isoformat(),
     }
+    if hasattr(r, "targets") and r.targets is not None:
+        result["targets"] = [_serialize_target(t) for t in r.targets]
+    else:
+        result["targets"] = []
+    return result
 
 
 def _serialize_firmware_build(b: Any) -> dict:
@@ -136,8 +152,7 @@ def list_products():
         take=limit,
         order={"name": "asc"},
         include={
-            "targets": True,
-            "boards": {"include": {"revisions": True}},
+            "boards": {"include": {"revisions": {"include": {"targets": True}}}},
             "firmwareBuilds": {"include": {"target": True}},
         },
     )
@@ -176,12 +191,6 @@ def create_product():
         "name": data.name,
         "description": data.description,
         "active": data.active,
-        "targets": {
-            "create": [
-                {"role": t.role, "soc": t.soc, "appId": t.appId}
-                for t in data.targets
-            ],
-        },
     }
     if data.slug is not None:
         create_data["slug"] = data.slug
@@ -193,14 +202,12 @@ def create_product():
     product = db.product.create(
         data=create_data,
         include={
-            "targets": True,
-            "boards": {"include": {"revisions": True}},
+            "boards": {"include": {"revisions": {"include": {"targets": True}}}},
             "firmwareBuilds": {"include": {"target": True}},
         },
     )
     log_audit("product.create", "Product", product.id, {
         "name": data.name,
-        "targets": [{"role": t.role, "soc": t.soc, "appId": t.appId} for t in data.targets],
     })
     return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 201
 
@@ -211,12 +218,12 @@ def get_product(product_id: str):
     product = db.product.find_unique(
         where={"id": product_id},
         include={
-            "targets": True,
             "boards": {
                 "order_by": {"name": "asc"},
                 "include": {
                     "revisions": {
                         "order_by": {"version": "asc"},
+                        "include": {"targets": True},
                     },
                 },
             },
@@ -257,22 +264,11 @@ def update_product(product_id: str):
 
     update_data = data.to_update_data()
 
-    # Handle targets replacement (delete-all + create-new)
-    if data._has_targets and data.targets is not None:
-        update_data["targets"] = {
-            "deleteMany": {},
-            "create": [
-                {"role": t.role, "soc": t.soc, "appId": t.appId}
-                for t in data.targets
-            ],
-        }
-
     product = db.product.update(
         where={"id": product_id},
         data=update_data,
         include={
-            "targets": True,
-            "boards": {"include": {"revisions": True}},
+            "boards": {"include": {"revisions": {"include": {"targets": True}}}},
             "firmwareBuilds": {"include": {"target": True}},
         },
     )
@@ -308,7 +304,9 @@ def get_product_by_slug(slug: str):
     db = get_db_client()
     product = db.product.find_first(
         where={"slug": slug},
-        include={"targets": True},
+        include={
+            "boards": {"include": {"revisions": {"include": {"targets": True}}}},
+        },
     )
     if not product:
         return not_found(f"Product with slug '{slug}' not found")

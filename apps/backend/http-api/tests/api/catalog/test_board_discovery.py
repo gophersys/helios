@@ -13,32 +13,29 @@ MOCK_REFS = {
 
 MOCK_BOARDS = [
     {
-        "board": "alpha",
-        "socs": ["nrf52840", "nrf9151"],
-        "revisions": ["rev1.1", "rev1.2"],
-        "variants": ["alpha_b0"],
+        "family": "alpha",
+        "vendor": "corekinect",
+        "revisions": [
+            {"version": "a0", "ckBoardsName": "alpha_a0", "socs": ["nrf9160", "nrf52840"]},
+            {"version": "b0", "ckBoardsName": "alpha_b0", "socs": ["nrf9151", "nrf52840"]},
+        ],
     },
     {
-        "board": "sigma5",
-        "socs": ["nrf52840"],
-        "revisions": ["rev1.0"],
-        "variants": ["sigma5_std"],
+        "family": "sigma5",
+        "vendor": "corekinect",
+        "revisions": [
+            {"version": "c0", "ckBoardsName": "sigma5_c0", "socs": ["nrf52840"]},
+        ],
     },
 ]
 
 MOCK_ALPHA_DETAIL = {
-    "board": "alpha",
-    "socs": ["nrf52840", "nrf9151"],
+    "family": "alpha",
+    "vendor": "corekinect",
     "revisions": [
-        {
-            "name": "rev1.2",
-            "peripherals": [
-                {"compatible": "bosch,bmi270", "type": "accelerometer", "bus": "spi"},
-                {"compatible": "ti,bq25180", "type": "charger", "bus": "i2c"},
-            ],
-        },
+        {"version": "a0", "ckBoardsName": "alpha_a0", "socs": ["nrf9160", "nrf52840"]},
+        {"version": "b0", "ckBoardsName": "alpha_b0", "socs": ["nrf9151", "nrf52840"]},
     ],
-    "variants": ["alpha_b0"],
 }
 
 
@@ -86,9 +83,9 @@ def test_discover_boards(authed_client, mock_ck_boards):
     response = authed_client.get("/v2/products/boards/discover?branch=main")
     assert response.status_code == 200
     body = json.loads(response.data)
-    boards = body["data"]
-    assert len(boards) == 2
-    names = [b["board"] for b in boards]
+    families = body["data"]
+    assert len(families) == 2
+    names = [f["family"] for f in families]
     assert "alpha" in names
     assert "sigma5" in names
 
@@ -112,18 +109,17 @@ def test_discover_boards_invalid_branch(authed_client, mock_ck_boards):
 # ---------------------------------------------------------------------------
 
 def test_discover_board_detail(authed_client, mock_ck_boards):
-    """Deep scan of a single board with peripheral manifest."""
+    """Detail scan of a single product family with revisions."""
     mock_ck_boards.discover_board_detail.return_value = MOCK_ALPHA_DETAIL
 
     response = authed_client.get("/v2/products/boards/discover/alpha?branch=main")
     assert response.status_code == 200
     body = json.loads(response.data)
     data = body["data"]
-    assert data["board"] == "alpha"
-    assert len(data["revisions"]) == 1
-    assert data["revisions"][0]["name"] == "rev1.2"
-    peripherals = data["revisions"][0]["peripherals"]
-    assert any(p["compatible"] == "bosch,bmi270" for p in peripherals)
+    assert data["family"] == "alpha"
+    assert len(data["revisions"]) == 2
+    assert data["revisions"][0]["ckBoardsName"] == "alpha_a0"
+    assert data["revisions"][1]["ckBoardsName"] == "alpha_b0"
 
 
 def test_discover_board_detail_missing_branch(authed_client, mock_ck_boards):

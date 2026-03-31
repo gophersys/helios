@@ -75,11 +75,13 @@ def _product_obj(**overrides):
         "slug": "alpha_b0",
         "metadata": {"targets": ["app", "comms"]},
         "buildConfig": None,
-        "boards": [make_obj(ckBoardsName="alpha_b0")],
-        "targets": [
-            make_obj(role="comms", soc="nRF9151", appId=108),
-            make_obj(role="app", soc="nRF52840", appId=109),
-        ],
+        "boards": [make_obj(ckBoardsFamily="alpha", revisions=[make_obj(
+            ckBoardsName="alpha_b0",
+            targets=[
+                make_obj(role="comms", soc="nRF9151", appId=108),
+                make_obj(role="app", soc="nRF52840", appId=109),
+            ],
+        )])],
     }
     defaults.update(overrides)
     return make_obj(**defaults)

@@ -39,7 +39,6 @@ PRISMA_MODELS: set[str] = {
 
 RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     'Product': {
-        'targets': 'ProductTarget',
         'boards': 'Board',
         'firmwareBuilds': 'FirmwareBuild',
         'fixtures': 'Fixture',
@@ -51,7 +50,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'stageConfigs': 'ProductStageConfig',
     },
     'ProductTarget': {
-        'product': 'Product',
+        'boardRevision': 'BoardRevision',
         'firmwareBuilds': 'FirmwareBuild',
     },
     'Board': {
@@ -60,6 +59,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     },
     'BoardRevision': {
         'board': 'Board',
+        'targets': 'ProductTarget',
     },
     'FirmwareBuild': {
         'product': 'Product',

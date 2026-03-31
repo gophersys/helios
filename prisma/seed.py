@@ -282,20 +282,14 @@ def seed():
             data={
                 "create": {
                     "name": "Alpha",
-                    "slug": "alpha_b0",
+                    "slug": "alpha",
                     "description": "Alpha wearable device platform",
                     "active": True,
                     "buildConfig": Json(alpha_build_config),
                     "metadata": Json(alpha_metadata),
-                    "targets": {
-                        "create": [
-                            {"role": "comms", "soc": "nRF9151", "appId": 108},
-                            {"role": "app", "soc": "nRF52840", "appId": 109},
-                        ],
-                    },
                 },
                 "update": {
-                    "slug": "alpha_b0",
+                    "slug": "alpha",
                     "buildConfig": Json(alpha_build_config),
                     "metadata": Json(alpha_metadata),
                 },
@@ -303,39 +297,54 @@ def seed():
         )
         print(f"Product: {alpha_product.name} (id: {alpha_product.id})")
 
-        # Upsert ProductTargets (idempotent)
-        for target in [
-            {"role": "comms", "soc": "nRF9151", "appId": 108},
-            {"role": "app", "soc": "nRF52840", "appId": 109},
-        ]:
-            db.producttarget.upsert(
-                where={"productId_role": {"productId": alpha_product.id, "role": target["role"]}},
-                data={
-                    "create": {"productId": alpha_product.id, **target},
-                    "update": {"soc": target["soc"], "appId": target["appId"]},
-                },
-            )
-
-        # Alpha B0 board
+        # Alpha board (family: alpha)
         alpha_board = db.board.upsert(
             where={"productId": alpha_product.id},
             data={
                 "create": {
                     "productId": alpha_product.id,
                     "name": "Main Board",
-                    "ckBoardsName": "alpha_b0",
-                    "ckBoardsBranch": "main",
+                    "ckBoardsFamily": "alpha",
                     "vendor": "corekinect",
                     "description": "Alpha main board with nRF52840 + nRF9151",
                     "active": True,
                 },
                 "update": {
-                    "ckBoardsName": "alpha_b0",
-                    "ckBoardsBranch": "main",
+                    "ckBoardsFamily": "alpha",
                     "vendor": "corekinect",
                 },
             },
         )
+
+        alpha_a0_rev = db.boardrevision.upsert(
+            where={"boardId_version": {"boardId": alpha_board.id, "version": "A0"}},
+            data={
+                "create": {
+                    "boardId": alpha_board.id,
+                    "version": "A0",
+                    "ckBoardsName": "alpha_a0",
+                    "socs": ["nrf9160", "nrf52840"],
+                    "notes": "Alpha A0 revision - initial board (nRF52840 + nRF9160)",
+                },
+                "update": {
+                    "ckBoardsName": "alpha_a0",
+                    "socs": ["nrf9160", "nrf52840"],
+                },
+            },
+        )
+
+        # Alpha A0 targets (nRF9160 comms uses appId 106, nRF52840 app uses appId 109)
+        for target in [
+            {"role": "comms", "soc": "nRF9160", "appId": 106},
+            {"role": "app", "soc": "nRF52840", "appId": 109},
+        ]:
+            db.producttarget.upsert(
+                where={"boardRevisionId_role": {"boardRevisionId": alpha_a0_rev.id, "role": target["role"]}},
+                data={
+                    "create": {"boardRevisionId": alpha_a0_rev.id, **target},
+                    "update": {"soc": target["soc"], "appId": target["appId"]},
+                },
+            )
 
         alpha_b0_rev = db.boardrevision.upsert(
             where={"boardId_version": {"boardId": alpha_board.id, "version": "B0"}},
@@ -343,12 +352,30 @@ def seed():
                 "create": {
                     "boardId": alpha_board.id,
                     "version": "B0",
+                    "ckBoardsName": "alpha_b0",
+                    "socs": ["nrf9151", "nrf52840"],
                     "notes": "Alpha B0 revision - production board (nRF52840 + nRF9151)",
                 },
-                "update": {},
+                "update": {
+                    "ckBoardsName": "alpha_b0",
+                    "socs": ["nrf9151", "nrf52840"],
+                },
             },
         )
-        print(f"  Board: {alpha_board.name} / B0")
+
+        # Alpha B0 targets (nRF9151 comms uses appId 108, nRF52840 app uses appId 109)
+        for target in [
+            {"role": "comms", "soc": "nRF9151", "appId": 108},
+            {"role": "app", "soc": "nRF52840", "appId": 109},
+        ]:
+            db.producttarget.upsert(
+                where={"boardRevisionId_role": {"boardRevisionId": alpha_b0_rev.id, "role": target["role"]}},
+                data={
+                    "create": {"boardRevisionId": alpha_b0_rev.id, **target},
+                    "update": {"soc": target["soc"], "appId": target["appId"]},
+                },
+            )
+        print(f"  Board: {alpha_board.name} / A0, B0")
 
         # Sigma 5 product with C0 and B0 board revisions
         sigma5_metadata = {
@@ -362,54 +389,33 @@ def seed():
             data={
                 "create": {
                     "name": "Sigma5",
-                    "slug": "sigma5_c0",
+                    "slug": "sigma5",
                     "description": "Sigma 5 industrial IoT platform",
                     "active": True,
                     "metadata": Json(sigma5_metadata),
-                    "targets": {
-                        "create": [
-                            {"role": "comms", "soc": "nRF9160", "appId": 104},
-                            {"role": "app", "soc": "nRF52840", "appId": 105},
-                        ],
-                    },
                 },
                 "update": {
-                    "slug": "sigma5_c0",
+                    "slug": "sigma5",
                     "metadata": Json(sigma5_metadata),
                 },
             },
         )
         print(f"Product: {sigma5_product.name} (id: {sigma5_product.id})")
 
-        # Upsert ProductTargets for Sigma5
-        for target in [
-            {"role": "comms", "soc": "nRF9160", "appId": 104},
-            {"role": "app", "soc": "nRF52840", "appId": 105},
-        ]:
-            db.producttarget.upsert(
-                where={"productId_role": {"productId": sigma5_product.id, "role": target["role"]}},
-                data={
-                    "create": {"productId": sigma5_product.id, **target},
-                    "update": {"soc": target["soc"], "appId": target["appId"]},
-                },
-            )
-
-        # Sigma 5 board
+        # Sigma 5 board (family: sigma5)
         sigma5_board = db.board.upsert(
             where={"productId": sigma5_product.id},
             data={
                 "create": {
                     "productId": sigma5_product.id,
                     "name": "Main Board",
-                    "ckBoardsName": "sigma5_b0",
-                    "ckBoardsBranch": "main",
+                    "ckBoardsFamily": "sigma5",
                     "vendor": "corekinect",
                     "description": "Sigma 5 main board with nRF52840 + nRF9160",
                     "active": True,
                 },
                 "update": {
-                    "ckBoardsName": "sigma5_b0",
-                    "ckBoardsBranch": "main",
+                    "ckBoardsFamily": "sigma5",
                     "vendor": "corekinect",
                 },
             },
@@ -422,12 +428,29 @@ def seed():
                 "create": {
                     "boardId": sigma5_board.id,
                     "version": "B0",
+                    "ckBoardsName": "sigma5_b0",
+                    "socs": ["nrf52840"],
                     "notes": "Sigma5 B0 - previous revision, superseded by C0",
                 },
-                "update": {},
+                "update": {
+                    "ckBoardsName": "sigma5_b0",
+                    "socs": ["nrf52840"],
+                },
             },
         )
-        print(f"  Board: {sigma5_board.name} / B0")
+
+        # Sigma5 B0 ProductTargets
+        for target in [
+            {"role": "comms", "soc": "nRF9160", "appId": 104},
+            {"role": "app", "soc": "nRF52840", "appId": 105},
+        ]:
+            db.producttarget.upsert(
+                where={"boardRevisionId_role": {"boardRevisionId": sigma5_b0_rev.id, "role": target["role"]}},
+                data={
+                    "create": {"boardRevisionId": sigma5_b0_rev.id, **target},
+                    "update": {"soc": target["soc"], "appId": target["appId"]},
+                },
+            )
 
         # Sigma 5 C0 revision (current)
         sigma5_c0_rev = db.boardrevision.upsert(
@@ -436,12 +459,29 @@ def seed():
                 "create": {
                     "boardId": sigma5_board.id,
                     "version": "C0",
+                    "ckBoardsName": "sigma5_c0",
+                    "socs": ["nrf52840"],
                     "notes": "Sigma5 C0 - current production revision",
                 },
-                "update": {},
+                "update": {
+                    "ckBoardsName": "sigma5_c0",
+                    "socs": ["nrf52840"],
+                },
             },
         )
-        print(f"  Board: {sigma5_board.name} / C0")
+        # Sigma5 C0 ProductTargets (current production revision)
+        for target in [
+            {"role": "comms", "soc": "nRF9160", "appId": 104},
+            {"role": "app", "soc": "nRF52840", "appId": 105},
+        ]:
+            db.producttarget.upsert(
+                where={"boardRevisionId_role": {"boardRevisionId": sigma5_c0_rev.id, "role": target["role"]}},
+                data={
+                    "create": {"boardRevisionId": sigma5_c0_rev.id, **target},
+                    "update": {"soc": target["soc"], "appId": target["appId"]},
+                },
+            )
+        print(f"  Board: {sigma5_board.name} / B0, C0")
 
         # Theta product with C0 board revision (asset tracker)
         theta_metadata = {
@@ -455,45 +495,33 @@ def seed():
             data={
                 "create": {
                     "name": "Theta",
-                    "slug": "theta_c0",
+                    "slug": "theta",
                     "description": "Theta asset tracker platform",
                     "active": True,
                     "metadata": Json(theta_metadata),
                 },
                 "update": {
-                    "slug": "theta_c0",
+                    "slug": "theta",
                     "metadata": Json(theta_metadata),
                 },
             },
         )
         print(f"Product: {theta_product.name} (id: {theta_product.id})")
 
-        # Theta ProductTargets
-        for target in [
-            {"role": "comms", "soc": "nRF9160", "appId": 104},
-            {"role": "app", "soc": "nRF52840", "appId": 105},
-        ]:
-            db.producttarget.upsert(
-                where={"productId_role": {"productId": theta_product.id, "role": target["role"]}},
-                data={
-                    "create": {"productId": theta_product.id, **target},
-                    "update": {"soc": target["soc"], "appId": target["appId"]},
-                },
-            )
-
-        # Theta board
+        # Theta board (family: theta)
         theta_board = db.board.upsert(
             where={"productId": theta_product.id},
             data={
                 "create": {
                     "productId": theta_product.id,
                     "name": "Main Board",
-                    "ckBoardsName": "theta_c0",
-                    "ckBoardsBranch": "main",
+                    "ckBoardsFamily": "theta",
                     "description": "Theta main board with nRF52840 + nRF9160",
                     "active": True,
                 },
-                "update": {},
+                "update": {
+                    "ckBoardsFamily": "theta",
+                },
             },
         )
 
@@ -504,11 +532,28 @@ def seed():
                 "create": {
                     "boardId": theta_board.id,
                     "version": "C0",
+                    "ckBoardsName": "theta_c0",
+                    "socs": ["nrf9160", "nrf52840"],
                     "notes": "Theta C0 - current production revision (nRF52840 + nRF9160)",
                 },
-                "update": {},
+                "update": {
+                    "ckBoardsName": "theta_c0",
+                    "socs": ["nrf9160", "nrf52840"],
+                },
             },
         )
+        # Theta C0 ProductTargets
+        for target in [
+            {"role": "comms", "soc": "nRF9160", "appId": 104},
+            {"role": "app", "soc": "nRF52840", "appId": 105},
+        ]:
+            db.producttarget.upsert(
+                where={"boardRevisionId_role": {"boardRevisionId": theta_c0_rev.id, "role": target["role"]}},
+                data={
+                    "create": {"boardRevisionId": theta_c0_rev.id, **target},
+                    "update": {"soc": target["soc"], "appId": target["appId"]},
+                },
+            )
         print(f"  Board: {theta_board.name} / C0")
 
         # IWSCK product with A1 board revision (BLE-only device)
@@ -523,41 +568,33 @@ def seed():
             data={
                 "create": {
                     "name": "IWSCK",
-                    "slug": "iwsck_a1",
+                    "slug": "iwsck",
                     "description": "IWSCK BLE-only device platform",
                     "active": True,
                     "metadata": Json(iwsck_metadata),
                 },
                 "update": {
-                    "slug": "iwsck_a1",
+                    "slug": "iwsck",
                     "metadata": Json(iwsck_metadata),
                 },
             },
         )
         print(f"Product: {iwsck_product.name} (id: {iwsck_product.id})")
 
-        # IWSCK ProductTargets (single SoC)
-        db.producttarget.upsert(
-            where={"productId_role": {"productId": iwsck_product.id, "role": "app"}},
-            data={
-                "create": {"productId": iwsck_product.id, "role": "app", "soc": "nRF52840", "appId": 110},
-                "update": {"soc": "nRF52840", "appId": 110},
-            },
-        )
-
-        # IWSCK board
+        # IWSCK board (family: iwsck)
         iwsck_board = db.board.upsert(
             where={"productId": iwsck_product.id},
             data={
                 "create": {
                     "productId": iwsck_product.id,
                     "name": "Main Board",
-                    "ckBoardsName": "iwsck_a1",
-                    "ckBoardsBranch": "main",
+                    "ckBoardsFamily": "iwsck",
                     "description": "IWSCK main board with nRF52840 only (no modem)",
                     "active": True,
                 },
-                "update": {},
+                "update": {
+                    "ckBoardsFamily": "iwsck",
+                },
             },
         )
 
@@ -568,9 +605,22 @@ def seed():
                 "create": {
                     "boardId": iwsck_board.id,
                     "version": "A1",
+                    "ckBoardsName": "iwsck_a1",
+                    "socs": ["nrf52840"],
                     "notes": "IWSCK A1 - current revision (nRF52840 only, BLE)",
                 },
-                "update": {},
+                "update": {
+                    "ckBoardsName": "iwsck_a1",
+                    "socs": ["nrf52840"],
+                },
+            },
+        )
+        # IWSCK A1 ProductTarget (single SoC)
+        db.producttarget.upsert(
+            where={"boardRevisionId_role": {"boardRevisionId": iwsck_a1_rev.id, "role": "app"}},
+            data={
+                "create": {"boardRevisionId": iwsck_a1_rev.id, "role": "app", "soc": "nRF52840", "appId": 110},
+                "update": {"soc": "nRF52840", "appId": 110},
             },
         )
         print(f"  Board: {iwsck_board.name} / A1")

@@ -17,10 +17,6 @@ def test_product_create_valid():
         "name": "Sigma5 Device",
         "description": "IoT sensor",
         "active": True,
-        "targets": [
-            {"role": "app", "soc": "nrf52840", "appId": 109},
-            {"role": "comms", "soc": "nrf9151", "appId": 108},
-        ],
     }
     req, err = ProductCreateRequest.from_json(data)
 
@@ -29,15 +25,12 @@ def test_product_create_valid():
     assert req.name == "Sigma5 Device"
     assert req.description == "IoT sensor"
     assert req.active is True
-    assert len(req.targets) == 2
-    assert req.targets[0].role == "app"
-    assert req.targets[0].appId == 109
 
 
 def test_product_create_missing_name():
     from src.api.v2.products.types import ProductCreateRequest
 
-    data = {"description": "IoT sensor", "targets": [{"role": "app", "soc": "nrf52840", "appId": 109}]}
+    data = {"description": "IoT sensor"}
     req, err = ProductCreateRequest.from_json(data)
 
     assert req is None
@@ -64,7 +57,7 @@ def test_product_create_empty_body():
 def test_product_create_active_non_bool():
     from src.api.v2.products.types import ProductCreateRequest
 
-    data = {"name": "Product", "active": "true", "targets": [{"role": "app", "soc": "nrf52840", "appId": 109}]}
+    data = {"name": "Product", "active": "true"}
     req, err = ProductCreateRequest.from_json(data)
 
     assert req is None
@@ -131,14 +124,13 @@ def test_product_update_to_update_data():
 def test_board_create_valid():
     from src.api.v2.products.types import BoardCreateRequest
 
-    data = {"name": "Main Board", "ckBoardsName": "main_board", "description": "Primary PCB", "active": True}
+    data = {"name": "Main Board", "ckBoardsFamily": "main_board", "description": "Primary PCB", "active": True}
     req, err = BoardCreateRequest.from_json(data)
 
     assert err is None
     assert req is not None
     assert req.name == "Main Board"
-    assert req.ckBoardsName == "main_board"
-    assert req.ckBoardsBranch == "main"
+    assert req.ckBoardsFamily == "main_board"
     assert req.vendor == "corekinect"
     assert req.description == "Primary PCB"
     assert req.active is True
@@ -201,12 +193,13 @@ def test_board_update_empty_name():
 def test_board_revision_create_valid():
     from src.api.v2.products.types import BoardRevisionCreateRequest
 
-    data = {"version": "v1.2", "status": "ACTIVE"}
+    data = {"version": "v1.2", "ckBoardsName": "alpha_a0", "status": "ACTIVE"}
     req, err = BoardRevisionCreateRequest.from_json(data)
 
     assert err is None
     assert req is not None
     assert req.version == "v1.2"
+    assert req.ckBoardsName == "alpha_a0"
     assert req.status == "ACTIVE"
 
 
@@ -223,7 +216,7 @@ def test_board_revision_create_missing_version():
 def test_board_revision_create_invalid_status():
     from src.api.v2.products.types import BoardRevisionCreateRequest
 
-    data = {"version": "v1.0", "status": "INVALID_STATUS"}
+    data = {"version": "v1.0", "ckBoardsName": "alpha_a0", "status": "INVALID_STATUS"}
     req, err = BoardRevisionCreateRequest.from_json(data)
 
     assert req is None

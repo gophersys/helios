@@ -82,7 +82,6 @@ class Product(bases.BaseProduct):
 
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
-    targets: Optional[List['models.ProductTarget']] = None
     boards: Optional[List['models.Board']] = None
     firmwareBuilds: Optional[List['models.FirmwareBuild']] = None
     fixtures: Optional[List['models.Fixture']] = None
@@ -217,12 +216,13 @@ class Product(bases.BaseProduct):
 
 
 class ProductTarget(bases.BaseProductTarget):
-    """A firmware target within a product (e.g. "comms" on nRF9151, "app" on nRF52840).
-    Each target has a role, SoC, and unique appId used for OTA addressing.
+    """A firmware target within a board revision (e.g. "comms" on nRF9151, "app" on nRF52840).
+    Each target has a role, SoC, and unique appId used for OTA/FUOTA addressing.
+    Lives on BoardRevision because different HW revisions can have different SoCs/AppIDs.
     """
 
     id: _str
-    productId: _str
+    boardRevisionId: _str
     role: _str
     """"comms", "app" -- functional role
     """
@@ -235,7 +235,7 @@ class ProductTarget(bases.BaseProductTarget):
     """CoreCloud application ID (108, 109)
     """
 
-    product: Optional['models.Product'] = None
+    boardRevision: Optional['models.BoardRevision'] = None
     firmwareBuilds: Optional[List['models.FirmwareBuild']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
@@ -363,7 +363,7 @@ class ProductTarget(bases.BaseProductTarget):
 
 class Board(bases.BaseBoard):
     """A distinct PCB design within a product (e.g. "Main Board", "Sensor Board").
-    Each product has exactly one board, linked to a ck_boards definition.
+    Each product has exactly one board, linked to a ck_boards family definition.
     """
 
     id: _str
@@ -372,12 +372,8 @@ class Board(bases.BaseBoard):
     """"Main Board", "Sensor Board"
     """
 
-    ckBoardsName: _str
-    """west board name from ck_boards repo, e.g. "alpha_b0"
-    """
-
-    ckBoardsBranch: _str
-    """branch in ck_boards repo
+    ckBoardsFamily: _str
+    """product family prefix from ck_boards repo, e.g. "alpha", "sigma5"
     """
 
     vendor: _str
@@ -513,6 +509,7 @@ class Board(bases.BaseBoard):
 
 class BoardRevision(bases.BaseBoardRevision):
     """A board revision (e.g. A0, B0, B1) -- a specific version of a Board PCB.
+    Each revision maps to a specific ck_boards directory and has its own SoC list.
     """
 
     id: _str
@@ -521,11 +518,20 @@ class BoardRevision(bases.BaseBoardRevision):
     """e.g. "A0", "B0", "B1"
     """
 
+    ckBoardsName: _str
+    """full west build target name, e.g. "alpha_b0"
+    """
+
+    socs: List[_str]
+    """parsed from board.yml, e.g. ["nrf52840", "nrf9151"]
+    """
+
     status: 'enums.LifecycleStatus'
     notes: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     board: Optional['models.Board'] = None
+    targets: Optional[List['models.ProductTarget']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -542,6 +548,19 @@ class BoardRevision(bases.BaseBoardRevision):
                 stacklevel=3,
             )
 
+    @field_validator('socs', pre=True, allow_reuse=True)
+    @classmethod
+    def _transform_required_list_fields(cls, value: object) -> object:
+        # When using raw queries, some databases will return `None` for an array field that has not been set yet.
+        #
+        # In our case we want to use an empty list instead as that is the internal Prisma behaviour and we want
+        # to use the same consistent structure between the core ORM and raw queries. For example, if we updated
+        # our type definitions to include `None` for `List` fields then it would be misleading as it will only
+        # ever be `None` in raw queries.
+        if value is None:
+            return []
+
+        return value
 
     @staticmethod
     def create_partial(
@@ -4622,7 +4641,6 @@ class Log(bases.BaseLog):
 
 
 _Product_relational_fields: Set[str] = {
-        'targets',
         'boards',
         'firmwareBuilds',
         'fixtures',
@@ -4707,14 +4725,6 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
-        ('targets', {
-            'name': 'targets',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.ProductTarget\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
         ('boards', {
             'name': 'boards',
             'is_list': True,
@@ -4791,7 +4801,7 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
 )
 
 _ProductTarget_relational_fields: Set[str] = {
-        'product',
+        'boardRevision',
         'firmwareBuilds',
     }
 _ProductTarget_fields: Dict['types.ProductTargetKeys', PartialModelField] = OrderedDict(
@@ -4804,8 +4814,8 @@ _ProductTarget_fields: Dict['types.ProductTargetKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': None,
         }),
-        ('productId', {
-            'name': 'productId',
+        ('boardRevisionId', {
+            'name': 'boardRevisionId',
             'is_list': False,
             'optional': False,
             'type': '_str',
@@ -4836,11 +4846,11 @@ _ProductTarget_fields: Dict['types.ProductTargetKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': '''CoreCloud application ID (108, 109)''',
         }),
-        ('product', {
-            'name': 'product',
+        ('boardRevision', {
+            'name': 'boardRevision',
             'is_list': False,
             'optional': True,
-            'type': 'models.Product',
+            'type': 'models.BoardRevision',
             'is_relational': True,
             'documentation': None,
         }),
@@ -4885,21 +4895,13 @@ _Board_fields: Dict['types.BoardKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': '''"Main Board", "Sensor Board"''',
         }),
-        ('ckBoardsName', {
-            'name': 'ckBoardsName',
+        ('ckBoardsFamily', {
+            'name': 'ckBoardsFamily',
             'is_list': False,
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''west board name from ck_boards repo, e.g. "alpha_b0"''',
-        }),
-        ('ckBoardsBranch', {
-            'name': 'ckBoardsBranch',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''branch in ck_boards repo''',
+            'documentation': '''product family prefix from ck_boards repo, e.g. "alpha", "sigma5"''',
         }),
         ('vendor', {
             'name': 'vendor',
@@ -4962,6 +4964,7 @@ _Board_fields: Dict['types.BoardKeys', PartialModelField] = OrderedDict(
 
 _BoardRevision_relational_fields: Set[str] = {
         'board',
+        'targets',
     }
 _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = OrderedDict(
     [
@@ -4988,6 +4991,22 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'type': '_str',
             'is_relational': False,
             'documentation': '''e.g. "A0", "B0", "B1"''',
+        }),
+        ('ckBoardsName', {
+            'name': 'ckBoardsName',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''full west build target name, e.g. "alpha_b0"''',
+        }),
+        ('socs', {
+            'name': 'socs',
+            'is_list': True,
+            'optional': False,
+            'type': 'List[_str]',
+            'is_relational': False,
+            'documentation': '''parsed from board.yml, e.g. ["nrf52840", "nrf9151"]''',
         }),
         ('status', {
             'name': 'status',
@@ -5026,6 +5045,14 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_list': False,
             'optional': True,
             'type': 'models.Board',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('targets', {
+            'name': 'targets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ProductTarget\']',
             'is_relational': True,
             'documentation': None,
         }),

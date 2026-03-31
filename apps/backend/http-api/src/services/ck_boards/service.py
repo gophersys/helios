@@ -2,21 +2,42 @@
 
 Self-contained service: clones the repo on init, fetches periodically,
 creates ephemeral worktrees per request, parses board.yml for SoC topology.
+
+Board directories follow {family}_{rev} naming convention:
+  alpha_a0, alpha_b0  → family "alpha", revisions "a0", "b0"
+  sigma5_b0, sigma5_c0 → family "sigma5", revisions "b0", "c0"
 """
 
 import base64
 import logging
 import os
+import re
 import shutil
 import stat
 import subprocess
 import threading
 import uuid
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+def _split_board_name(dir_name: str) -> Tuple[str, str]:
+    """Split a board directory name into (family, revision).
+
+    Splits on the LAST underscore followed by a letter+digit pattern.
+    Examples:
+        alpha_a0   → ("alpha", "a0")
+        sigma5_c0  → ("sigma5", "c0")
+        iwsck_a1   → ("iwsck", "a1")
+    """
+    match = re.match(r'^(.+)_([a-zA-Z]\d+)$', dir_name)
+    if match:
+        return match.group(1), match.group(2)
+    return dir_name, ""
 
 
 def _parse_board_yml(content: str) -> Dict[str, Any]:
@@ -152,7 +173,20 @@ class CkBoardsService:
         self._run_git(["fetch", "--prune", "origin"])
 
     def discover_boards(self, branch: str) -> List[Dict[str, Any]]:
-        """Scan all board directories on a branch."""
+        """Scan all board directories on a branch, grouped by product family.
+
+        Returns a list of families, each with vendor and revisions:
+        [
+          {
+            "family": "alpha",
+            "vendor": "corekinect",
+            "revisions": [
+              {"version": "a0", "ckBoardsName": "alpha_a0", "socs": ["nrf9160", "nrf52840"]},
+              {"version": "b0", "ckBoardsName": "alpha_b0", "socs": ["nrf9151", "nrf52840"]}
+            ]
+          }
+        ]
+        """
         self._validate_ref(branch)
         worktree_path = self._checkout_worktree(branch)
         try:
@@ -160,28 +194,17 @@ class CkBoardsService:
         finally:
             self._remove_worktree(worktree_path)
 
-    def discover_board_detail(self, board_name: str, branch: str) -> Dict[str, Any]:
-        """Get full details for a single board."""
+    def discover_board_detail(self, family_name: str, branch: str) -> Dict[str, Any]:
+        """Get full details for a product family — all revisions with SoCs."""
         self._validate_ref(branch)
         worktree_path = self._checkout_worktree(branch)
         try:
             boards_dir = self._find_boards_dir(worktree_path)
-            board_dir = os.path.join(boards_dir, board_name)
-            board_yml = os.path.join(board_dir, "board.yml")
-
-            if not os.path.isdir(board_dir) or not os.path.isfile(board_yml):
-                raise ValueError(f"Board '{board_name}' not found on this branch")
-
-            with open(board_yml) as f:
-                board_data = _parse_board_yml(f.read())
-
-            return {
-                "board": board_data["name"] or board_name,
-                "vendor": board_data["vendor"],
-                "socs": board_data["socs"],
-                "revisions": board_data["revisions"],
-                "variants": board_data["variants"],
-            }
+            families = self._scan_boards_in_dir(boards_dir)
+            family = families.get(family_name)
+            if not family:
+                raise ValueError(f"Board '{family_name}' not found on this branch")
+            return family
         finally:
             self._remove_worktree(worktree_path)
 
@@ -248,9 +271,20 @@ class CkBoardsService:
             return boards_dir
         return worktree_path
 
-    def _scan_boards(self, worktree_path: str) -> List[Dict[str, Any]]:
-        boards_dir = self._find_boards_dir(worktree_path)
-        results = []
+    def _scan_boards_in_dir(self, boards_dir: str) -> Dict[str, Dict[str, Any]]:
+        """Scan board directories and group by product family.
+
+        Returns a dict keyed by family name, each containing:
+        {
+          "family": "alpha",
+          "vendor": "corekinect",
+          "revisions": [
+            {"version": "a0", "ckBoardsName": "alpha_a0", "socs": [...]},
+            ...
+          ]
+        }
+        """
+        families: Dict[str, Dict[str, Any]] = {}
         for entry in sorted(os.listdir(boards_dir)):
             board_dir = os.path.join(boards_dir, entry)
             board_yml = os.path.join(board_dir, "board.yml")
@@ -258,21 +292,30 @@ class CkBoardsService:
                 try:
                     with open(board_yml) as f:
                         board_data = _parse_board_yml(f.read())
-                    results.append({
-                        "board": board_data["name"] or entry,
-                        "vendor": board_data["vendor"],
+
+                    family, version = _split_board_name(entry)
+                    if not version:
+                        # Fallback: use directory name as family, no version
+                        family = entry
+                        version = ""
+
+                    if family not in families:
+                        families[family] = {
+                            "family": family,
+                            "vendor": board_data["vendor"],
+                            "revisions": [],
+                        }
+
+                    families[family]["revisions"].append({
+                        "version": version,
+                        "ckBoardsName": entry,
                         "socs": board_data["socs"],
-                        "revisions": board_data["revisions"],
-                        "variants": board_data["variants"],
                     })
                 except Exception as e:
                     logger.warning("Failed to parse board %s: %s", entry, e)
-                    results.append({
-                        "board": entry,
-                        "vendor": "",
-                        "socs": [],
-                        "revisions": [],
-                        "variants": [],
-                        "error": str(e),
-                    })
-        return results
+        return families
+
+    def _scan_boards(self, worktree_path: str) -> List[Dict[str, Any]]:
+        boards_dir = self._find_boards_dir(worktree_path)
+        families = self._scan_boards_in_dir(boards_dir)
+        return sorted(families.values(), key=lambda f: f["family"])

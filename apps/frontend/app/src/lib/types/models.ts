@@ -46,8 +46,11 @@ export interface BoardRevision {
   id: string;
   boardId: string;
   version: string;
+  ckBoardsName: string | null;
+  socs: string[];
   status: string;
   notes: string | null;
+  targets?: ProductTarget[];
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +59,8 @@ export interface Board {
   id: string;
   productId: string;
   name: string;
+  ckBoardsFamily: string | null;
+  vendor: string;
   description: string | null;
   active: boolean;
   revisionCount?: number;
@@ -136,20 +141,22 @@ export interface BuildConfig {
 
 // ── Board Discovery types ───────────────────────────────────
 
-export interface BoardSummary {
-  board: string;
-  vendor: string;
+export interface BoardFamilyRevision {
+  version: string;
+  ckBoardsName: string;
   socs: string[];
-  revisions: string[];
-  variants: string[];
+}
+
+export interface BoardSummary {
+  family: string;
+  vendor: string;
+  revisions: BoardFamilyRevision[];
 }
 
 export interface BoardDetail {
-  board: string;
+  family: string;
   vendor: string;
-  socs: string[];
-  revisions: string[];
-  variants: string[];
+  revisions: BoardFamilyRevision[];
 }
 
 export interface BoardBranchesResponse {

@@ -6,7 +6,6 @@
     BoardBranchesResponse,
     BoardSummary,
     BoardDetail,
-    DtsPeripheral,
     BuildConfig,
   } from '$lib/types/models';
 
@@ -27,9 +26,9 @@
   let selectedBranch = $state('');
   let loadingBranches = $state(false);
 
-  // Step 2: Board selection
+  // Step 2: Board family selection
   let boardSummaries = $state<BoardSummary[]>([]);
-  let selectedBoardName = $state('');
+  let selectedFamily = $state('');
   let loadingBoards = $state(false);
 
   // Step 3: Board detail
@@ -52,13 +51,13 @@
   const stepLabels = ['Branch', 'Board', 'Configure', 'Create'];
 
   const selectedBoard = $derived(
-    boardSummaries.find((b) => b.board === selectedBoardName)
+    boardSummaries.find((b) => b.family === selectedFamily)
   );
 
   const canNext = $derived.by(() => {
     switch (step) {
       case 1: return selectedBranch !== '';
-      case 2: return selectedBoardName !== '';
+      case 2: return selectedFamily !== '';
       case 3: return productName.trim() !== '' && Object.keys(targets).length > 0;
       default: return false;
     }
@@ -100,21 +99,22 @@
     error = null;
     try {
       const res = await apiFetch<ApiResponse<BoardDetail>>(
-        `/v2/products/boards/discover/${encodeURIComponent(selectedBoardName)}?branch=${encodeURIComponent(selectedBranch)}`
+        `/v2/products/boards/discover/${encodeURIComponent(selectedFamily)}?branch=${encodeURIComponent(selectedBranch)}`
       );
       boardDetail = res.data;
       // Auto-populate step 4 fields from discovery
-      productName = boardDetail.board.charAt(0).toUpperCase() + boardDetail.board.slice(1);
-      productSlug = boardDetail.board;
+      productName = boardDetail.family.charAt(0).toUpperCase() + boardDetail.family.slice(1);
+      productSlug = boardDetail.family;
+      // Collect unique SoCs across all revisions
+      const allSocs = [...new Set(boardDetail.revisions.flatMap((r) => r.socs))];
       // Build targets from SoCs
       const newTargets: Record<string, { soc: string; appId: number; role: string }> = {};
-      const socs = boardDetail.socs;
-      if (socs.length === 1) {
-        newTargets['app'] = { soc: socs[0], appId: 0, role: 'application' };
-      } else if (socs.length >= 2) {
+      if (allSocs.length === 1) {
+        newTargets['app'] = { soc: allSocs[0], appId: 0, role: 'application' };
+      } else if (allSocs.length >= 2) {
         // Convention: nrf52840 = app, nrf9151 = comms
-        const appSoc = socs.find((s) => s.includes('52840')) || socs[0];
-        const commsSoc = socs.find((s) => s.includes('9151') || s.includes('9161')) || socs[1];
+        const appSoc = allSocs.find((s) => s.includes('52840')) || allSocs[0];
+        const commsSoc = allSocs.find((s) => s.includes('9151') || s.includes('9161')) || allSocs[1];
         newTargets['app'] = { soc: appSoc, appId: 0, role: 'application' };
         if (commsSoc !== appSoc) {
           newTargets['comms'] = { soc: commsSoc, appId: 0, role: 'communications' };
@@ -162,11 +162,9 @@
       cfw: { deviceType, deviceVariant },
     };
 
-    const targetArray = Object.entries(targets).map(([, t]) => ({
-      role: t.role,
-      soc: t.soc,
-      appId: t.appId,
-    }));
+    // Build per-revision targets: each revision gets targets based on its SoCs
+    // matched against the user-configured targets (which map SoC → role/appId)
+    const targetBySoc = new Map(Object.values(targets).map((t) => [t.soc, t]));
 
     try {
       await api.post('/v2/products', {
@@ -175,11 +173,18 @@
         description: productDescription.trim() || null,
         board: boardDetail
           ? {
-              ckBoardsName: selectedBoardName,
-              ckBoardsBranch: selectedBranch,
+              ckBoardsFamily: selectedFamily,
+              revisions: boardDetail.revisions.map((r) => ({
+                version: r.version,
+                ckBoardsName: r.ckBoardsName,
+                socs: r.socs,
+                targets: r.socs
+                  .map((soc) => targetBySoc.get(soc))
+                  .filter((t): t is NonNullable<typeof t> => t != null)
+                  .map((t) => ({ role: t.role, soc: t.soc, appId: t.appId })),
+              })),
             }
           : null,
-        targets: targetArray,
         buildConfig,
         triggerBranches: triggerBranches.split(',').map((b) => b.trim()).filter(Boolean),
       });
@@ -280,43 +285,43 @@
       </div>
     {/if}
 
-    <!-- Step 2: Board -->
+    <!-- Step 2: Board Family -->
     {#if step === 2}
       <div>
-        <h3 class="mb-1 text-base font-semibold text-text-primary">Select board</h3>
+        <h3 class="mb-1 text-base font-semibold text-text-primary">Select product family</h3>
         <p class="mb-4 text-sm text-text-secondary">
-          Choose a board discovered on the <code class="rounded bg-surface-2 px-1.5 py-0.5 text-2xs font-mono">{selectedBranch}</code> branch.
+          Choose a product family discovered on the <code class="rounded bg-surface-2 px-1.5 py-0.5 text-2xs font-mono">{selectedBranch}</code> branch.
         </p>
         {#if loadingBoards}
           <div class="flex items-center gap-2 py-8 text-sm text-text-tertiary">
             <Loader2 size={16} class="animate-spin" /> Scanning boards...
           </div>
         {:else if boardSummaries.length === 0}
-          <p class="py-8 text-center text-sm text-text-tertiary">No boards found on this branch.</p>
+          <p class="py-8 text-center text-sm text-text-tertiary">No board families found on this branch.</p>
         {:else}
           <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {#each boardSummaries as board}
               <button
-                onclick={() => (selectedBoardName = board.board)}
+                onclick={() => (selectedFamily = board.family)}
                 class={[
                   'rounded-lg border p-4 text-left transition-colors',
-                  selectedBoardName === board.board
+                  selectedFamily === board.family
                     ? 'border-accent bg-accent/5'
                     : 'border-border bg-surface-0 hover:border-accent/50',
                 ].join(' ')}
               >
                 <div class="mb-2 flex items-center gap-2">
-                  <CircuitBoard size={16} class={selectedBoardName === board.board ? 'text-accent' : 'text-text-tertiary'} />
-                  <span class="text-sm font-semibold text-text-primary">{board.board}</span>
+                  <CircuitBoard size={16} class={selectedFamily === board.family ? 'text-accent' : 'text-text-tertiary'} />
+                  <span class="text-sm font-semibold text-text-primary capitalize">{board.family}</span>
                 </div>
                 <div class="space-y-1 text-2xs text-text-tertiary">
+                  <div>
+                    {board.revisions.length} revision{board.revisions.length !== 1 ? 's' : ''}:
+                    {board.revisions.map((r) => r.version.toUpperCase()).join(', ')}
+                  </div>
                   <div class="flex items-center gap-1">
                     <Cpu size={12} />
-                    <span>{board.socs.join(', ')}</span>
-                  </div>
-                  <div>
-                    {board.revisions.length} revision{board.revisions.length !== 1 ? 's' : ''} &middot;
-                    {board.variants.length} variant{board.variants.length !== 1 ? 's' : ''}
+                    <span>{[...new Set(board.revisions.flatMap((r) => r.socs))].join(', ')}</span>
                   </div>
                 </div>
               </button>
@@ -449,7 +454,7 @@
               {#each [
                 ['Product', productName],
                 ['Slug', productSlug || '(auto)'],
-                ['Board', selectedBoardName],
+                ['Board Family', selectedFamily],
                 ['Branch', selectedBranch],
                 ['NCS Version', ncsVersion],
                 ['Device Type', String(deviceType)],
@@ -493,7 +498,7 @@
       {step === 1 ? 'Cancel' : 'Back'}
     </button>
 
-    {#if step < 5}
+    {#if step < 4}
       <button
         onclick={handleNext}
         disabled={!canNext}

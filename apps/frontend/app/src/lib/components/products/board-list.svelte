@@ -25,6 +25,8 @@
   let boardDetails = $state<Record<string, Board>>({});
 
   let formName = $state('');
+  let formCkBoardsFamily = $state('');
+  let formVendor = $state('corekinect');
   let formDescription = $state('');
   let formActive = $state(true);
 
@@ -32,6 +34,8 @@
 
   function resetForm() {
     formName = '';
+    formCkBoardsFamily = '';
+    formVendor = 'corekinect';
     formDescription = '';
     formActive = true;
     editingId = null;
@@ -40,6 +44,8 @@
 
   function startEdit(b: Board) {
     formName = b.name;
+    formCkBoardsFamily = b.ckBoardsFamily || '';
+    formVendor = b.vendor || 'corekinect';
     formDescription = b.description || '';
     formActive = b.active;
     editingId = b.id;
@@ -74,8 +80,10 @@
     error = null;
     submitting = true;
 
-    const body = {
+    const body: Record<string, unknown> = {
       name: formName,
+      ckBoardsFamily: formCkBoardsFamily || null,
+      vendor: formVendor,
       description: formDescription || null,
       active: formActive,
     };
@@ -142,7 +150,7 @@
       onsubmit={handleSubmit}
       class="mb-4 rounded-lg border border-border bg-surface-0 p-3"
     >
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <label>
           <span class="mb-1 block text-2xs font-medium text-text-tertiary">Name</span>
           <input
@@ -151,6 +159,15 @@
             bind:value={formName}
             placeholder="e.g. Main Board"
             class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          />
+        </label>
+        <label>
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Board Family</span>
+          <input
+            type="text"
+            bind:value={formCkBoardsFamily}
+            placeholder="e.g. alpha"
+            class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />
         </label>
         <label>
@@ -212,6 +229,9 @@
               class="flex-1 text-left"
             >
               <span class="font-semibold text-text-primary text-sm">{b.name}</span>
+              {#if b.ckBoardsFamily}
+                <span class="ml-2 font-mono text-2xs text-text-secondary">{b.ckBoardsFamily}</span>
+              {/if}
               {#if b.description}
                 <span class="ml-2 text-2xs text-text-tertiary">{b.description}</span>
               {/if}

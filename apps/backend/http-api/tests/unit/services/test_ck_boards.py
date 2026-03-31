@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.services.ck_boards.service import CkBoardsService
+from src.services.ck_boards.service import CkBoardsService, _split_board_name, _parse_board_yml
 
 
 # ---------------------------------------------------------------------------
@@ -17,8 +17,13 @@ from src.services.ck_boards.service import CkBoardsService
 
 @pytest.fixture
 def tmp_repo(tmp_path):
-    """Create a real bare git repo with board.yml files for integration tests."""
-    # Create a temporary normal repo, add board files, then clone as bare
+    """Create a real bare git repo with board.yml files for integration tests.
+
+    Directory layout mirrors the real ck_boards repo:
+        current/boards/corekinect/alpha_a0/board.yml
+        current/boards/corekinect/alpha_b0/board.yml
+        current/boards/corekinect/sigma5_c0/board.yml
+    """
     src = tmp_path / "src_repo"
     src.mkdir()
     subprocess.run(["git", "init", str(src)], check=True, capture_output=True)
@@ -31,49 +36,45 @@ def tmp_repo(tmp_path):
         check=True, capture_output=True,
     )
 
-    # Create alpha board
-    alpha_dir = src / "boards" / "alpha"
-    alpha_dir.mkdir(parents=True)
-    (alpha_dir / "board.yml").write_text(textwrap.dedent("""\
-        name: alpha
-        socs:
-          - nrf52840
-          - nrf9151
-        revisions:
-          - rev1.1
-          - rev1.2
-        variants:
-          - alpha_b0
+    vendor_dir = src / "current" / "boards" / "corekinect"
+    vendor_dir.mkdir(parents=True)
+
+    # alpha_a0
+    (vendor_dir / "alpha_a0").mkdir()
+    (vendor_dir / "alpha_a0" / "board.yml").write_text(textwrap.dedent("""\
+        board:
+          name: alpha_a0
+          vendor: corekinect
+          socs:
+            - name: nrf9160
+            - name: nrf52840
+          revision:
+            revisions: []
     """))
 
-    # Create alpha DTS file with compatible strings
-    alpha_dts_dir = alpha_dir / "rev1.2"
-    alpha_dts_dir.mkdir()
-    (alpha_dts_dir / "alpha.dts").write_text(textwrap.dedent("""\
-        / {
-            bmi270: bmi270@0 {
-                compatible = "bosch,bmi270";
-                reg = <0>;
-                spi-max-frequency = <8000000>;
-            };
-            bq25180: bq25180@6a {
-                compatible = "ti,bq25180";
-                reg = <0x6a>;
-            };
-        };
+    # alpha_b0
+    (vendor_dir / "alpha_b0").mkdir()
+    (vendor_dir / "alpha_b0" / "board.yml").write_text(textwrap.dedent("""\
+        board:
+          name: alpha_b0
+          vendor: corekinect
+          socs:
+            - name: nrf9151
+            - name: nrf52840
+          revision:
+            revisions: []
     """))
 
-    # Create sigma5 board (single-processor)
-    sigma_dir = src / "boards" / "sigma5"
-    sigma_dir.mkdir(parents=True)
-    (sigma_dir / "board.yml").write_text(textwrap.dedent("""\
-        name: sigma5
-        socs:
-          - nrf52840
-        revisions:
-          - rev1.0
-        variants:
-          - sigma5_std
+    # sigma5_c0
+    (vendor_dir / "sigma5_c0").mkdir()
+    (vendor_dir / "sigma5_c0" / "board.yml").write_text(textwrap.dedent("""\
+        board:
+          name: sigma5_c0
+          vendor: corekinect
+          socs:
+            - name: nrf52840
+          revision:
+            revisions: []
     """))
 
     # Commit everything
@@ -108,12 +109,96 @@ def tmp_repo(tmp_path):
 @pytest.fixture
 def service(tmp_repo, tmp_path):
     """Create a CkBoardsService pointed at the test bare repo."""
-    worktree_dir = tmp_path / "worktrees"
-    worktree_dir.mkdir()
+    base_path = tmp_path / "service_base"
+    base_path.mkdir()
+
+    # Symlink the bare repo to where the service expects it
+    ck_boards_git = base_path / "ck_boards.git"
+    ck_boards_git.symlink_to(tmp_repo)
+
     return CkBoardsService(
-        bare_repo_path=str(tmp_repo),
-        worktree_base_path=str(worktree_dir),
+        repo_url=str(tmp_repo),
+        base_path=str(base_path),
+        ssh_key_b64="",
+        fetch_interval=0,  # Don't start background fetch
     )
+
+
+# ---------------------------------------------------------------------------
+# _split_board_name helper
+# ---------------------------------------------------------------------------
+
+def test_split_board_name_standard():
+    """Standard {family}_{rev} names split correctly."""
+    assert _split_board_name("alpha_a0") == ("alpha", "a0")
+    assert _split_board_name("alpha_b0") == ("alpha", "b0")
+    assert _split_board_name("sigma5_c0") == ("sigma5", "c0")
+    assert _split_board_name("iwsck_a1") == ("iwsck", "a1")
+
+
+def test_split_board_name_no_revision():
+    """Names without revision pattern return full name as family."""
+    assert _split_board_name("standalone") == ("standalone", "")
+    assert _split_board_name("no_match_here") == ("no_match_here", "")
+
+
+def test_split_board_name_underscore_in_family():
+    """Family names with underscores still split on the last letter+digit pattern."""
+    assert _split_board_name("my_board_b0") == ("my_board", "b0")
+
+
+# ---------------------------------------------------------------------------
+# _parse_board_yml
+# ---------------------------------------------------------------------------
+
+def test_parse_board_yml_zephyr_format():
+    """Parses Zephyr-style board.yml with nested 'board:' key."""
+    content = textwrap.dedent("""\
+        board:
+          name: alpha_b0
+          vendor: corekinect
+          socs:
+            - name: nrf9151
+            - name: nrf52840
+          revision:
+            revisions:
+              - name: rev1.2
+    """)
+    result = _parse_board_yml(content)
+    assert result["name"] == "alpha_b0"
+    assert result["vendor"] == "corekinect"
+    assert result["socs"] == ["nrf9151", "nrf52840"]
+    assert result["revisions"] == ["rev1.2"]
+
+
+def test_parse_board_yml_flat_format():
+    """Parses flat-style board.yml without 'board:' wrapper."""
+    content = textwrap.dedent("""\
+        name: theta_c0
+        vendor: corekinect
+        socs:
+          - name: nrf52840
+    """)
+    result = _parse_board_yml(content)
+    assert result["name"] == "theta_c0"
+    assert result["socs"] == ["nrf52840"]
+    assert result["revisions"] == []
+
+
+def test_parse_board_yml_with_variants():
+    """Variants are extracted from socs[].variants[]."""
+    content = textwrap.dedent("""\
+        board:
+          name: alpha_b0
+          vendor: corekinect
+          socs:
+            - name: nrf52840
+              variants:
+                - name: debug
+                - name: release
+    """)
+    result = _parse_board_yml(content)
+    assert result["variants"] == ["debug", "release"]
 
 
 # ---------------------------------------------------------------------------
@@ -129,27 +214,34 @@ def test_list_branches(service):
 
 
 # ---------------------------------------------------------------------------
-# Board scanning (lightweight — no DTS parsing)
+# Board scanning — returns grouped families
 # ---------------------------------------------------------------------------
 
 def test_discover_boards(service):
-    """discover_boards returns summary list of all boards on a branch."""
-    # Determine the default branch name
+    """discover_boards returns family-grouped list of boards."""
     refs = service.list_refs()
     branch = "main" if "main" in refs["branches"] else "master"
 
-    boards = service.discover_boards(branch)
-    names = [b["board"] for b in boards]
-    assert "alpha" in names
-    assert "sigma5" in names
+    families = service.discover_boards(branch)
+    family_names = [f["family"] for f in families]
+    assert "alpha" in family_names
+    assert "sigma5" in family_names
 
-    alpha = next(b for b in boards if b["board"] == "alpha")
-    assert set(alpha["socs"]) == {"nrf52840", "nrf9151"}
-    assert "rev1.2" in alpha["revisions"]
-    assert "alpha_b0" in alpha["variants"]
+    alpha = next(f for f in families if f["family"] == "alpha")
+    assert alpha["vendor"] == "corekinect"
+    assert len(alpha["revisions"]) == 2
 
-    sigma = next(b for b in boards if b["board"] == "sigma5")
-    assert sigma["socs"] == ["nrf52840"]
+    rev_names = [r["ckBoardsName"] for r in alpha["revisions"]]
+    assert "alpha_a0" in rev_names
+    assert "alpha_b0" in rev_names
+
+    # Check SoCs on a revision
+    b0 = next(r for r in alpha["revisions"] if r["ckBoardsName"] == "alpha_b0")
+    assert set(b0["socs"]) == {"nrf9151", "nrf52840"}
+
+    sigma = next(f for f in families if f["family"] == "sigma5")
+    assert len(sigma["revisions"]) == 1
+    assert sigma["revisions"][0]["socs"] == ["nrf52840"]
 
 
 def test_discover_boards_invalid_branch(service):
@@ -159,87 +251,27 @@ def test_discover_boards_invalid_branch(service):
 
 
 # ---------------------------------------------------------------------------
-# Single board detail (with DTS parsing)
+# Single board detail
 # ---------------------------------------------------------------------------
 
 def test_discover_board_detail(service):
-    """discover_board_detail parses DTS files for peripheral manifest."""
+    """discover_board_detail returns detail for a single product family."""
     refs = service.list_refs()
     branch = "main" if "main" in refs["branches"] else "master"
 
     detail = service.discover_board_detail("alpha", branch)
-    assert detail["board"] == "alpha"
-    assert set(detail["socs"]) == {"nrf52840", "nrf9151"}
-    assert len(detail["revisions"]) > 0
-
-    rev12 = next((r for r in detail["revisions"] if r["name"] == "rev1.2"), None)
-    assert rev12 is not None
-    peripherals = rev12["peripherals"]
-    compatibles = [p["compatible"] for p in peripherals]
-    assert "bosch,bmi270" in compatibles
-    assert "ti,bq25180" in compatibles
+    assert detail["family"] == "alpha"
+    assert detail["vendor"] == "corekinect"
+    assert len(detail["revisions"]) == 2
 
 
 def test_discover_board_detail_not_found(service):
-    """discover_board_detail raises ValueError for unknown board."""
+    """discover_board_detail raises ValueError for unknown family."""
     refs = service.list_refs()
     branch = "main" if "main" in refs["branches"] else "master"
 
     with pytest.raises(ValueError, match="not found"):
         service.discover_board_detail("nonexistent-board", branch)
-
-
-# ---------------------------------------------------------------------------
-# DTS compatible string parser
-# ---------------------------------------------------------------------------
-
-def test_parse_dts_compatible_strings():
-    """_parse_dts_compatibles extracts compatible strings from DTS content."""
-    from src.services.ck_boards.service import _parse_dts_compatibles
-
-    dts = textwrap.dedent("""\
-        / {
-            bmi270: bmi270@0 {
-                compatible = "bosch,bmi270";
-                reg = <0>;
-            };
-            bq35100: bq35100@55 {
-                compatible = "ti,bq35100";
-                reg = <0x55>;
-            };
-        };
-    """)
-    compatibles = _parse_dts_compatibles(dts)
-    assert "bosch,bmi270" in compatibles
-    assert "ti,bq35100" in compatibles
-
-
-def test_parse_dts_no_compatibles():
-    """_parse_dts_compatibles returns empty list for DTS without compatible."""
-    from src.services.ck_boards.service import _parse_dts_compatibles
-
-    dts = "/ { model = \"test\"; };"
-    assert _parse_dts_compatibles(dts) == []
-
-
-# ---------------------------------------------------------------------------
-# Peripheral type classification
-# ---------------------------------------------------------------------------
-
-def test_classify_peripheral():
-    """_classify_peripheral maps known compatible strings to type and bus."""
-    from src.services.ck_boards.service import _classify_peripheral
-
-    accel = _classify_peripheral("bosch,bmi270")
-    assert accel["type"] == "accelerometer"
-    assert accel["bus"] == "spi"
-
-    charger = _classify_peripheral("ti,bq25180")
-    assert charger["type"] == "charger"
-    assert charger["bus"] == "i2c"
-
-    unknown = _classify_peripheral("vendor,unknown-part")
-    assert unknown["type"] == "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -255,45 +287,3 @@ def test_worktree_cleanup(service):
     # After the call, worktree directory should be cleaned up
     worktree_entries = list(Path(service._worktree_base).iterdir()) if Path(service._worktree_base).exists() else []
     assert len(worktree_entries) == 0
-
-
-# ---------------------------------------------------------------------------
-# board.yml parsing
-# ---------------------------------------------------------------------------
-
-def test_parse_board_yml():
-    """_parse_board_yml extracts board metadata from YAML content."""
-    from src.services.ck_boards.service import _parse_board_yml
-
-    content = textwrap.dedent("""\
-        name: alpha
-        socs:
-          - nrf52840
-          - nrf9151
-        revisions:
-          - rev1.1
-          - rev1.2
-        variants:
-          - alpha_b0
-    """)
-    result = _parse_board_yml(content)
-    assert result["name"] == "alpha"
-    assert result["socs"] == ["nrf52840", "nrf9151"]
-    assert result["revisions"] == ["rev1.1", "rev1.2"]
-    assert result["variants"] == ["alpha_b0"]
-
-
-def test_parse_board_yml_minimal():
-    """_parse_board_yml handles minimal board.yml with only name and socs."""
-    from src.services.ck_boards.service import _parse_board_yml
-
-    content = textwrap.dedent("""\
-        name: theta
-        socs:
-          - nrf52840
-    """)
-    result = _parse_board_yml(content)
-    assert result["name"] == "theta"
-    assert result["socs"] == ["nrf52840"]
-    assert result["revisions"] == []
-    assert result["variants"] == []

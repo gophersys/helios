@@ -20,8 +20,7 @@ def _serialize_board(b: Any) -> dict:
         "id": b.id,
         "productId": b.productId,
         "name": b.name,
-        "ckBoardsName": getattr(b, "ckBoardsName", None),
-        "ckBoardsBranch": getattr(b, "ckBoardsBranch", "main"),
+        "ckBoardsFamily": getattr(b, "ckBoardsFamily", None),
         "vendor": getattr(b, "vendor", "corekinect"),
         "description": b.description,
         "active": b.active,
@@ -43,7 +42,7 @@ def list_boards(product_id: str):
     boards = db.board.find_many(
         where={"productId": product_id},
         order={"name": "asc"},
-        include={"revisions": True},
+        include={"revisions": {"include": {"targets": True}}},
     )
     return jsonify(ApiResponse.ok([_serialize_board(b) for b in boards]).to_dict()), 200
 
@@ -65,22 +64,42 @@ def create_board(product_id: str):
     if existing:
         return conflict(f"Board '{data.name}' already exists for this product")
 
-    # Check ckBoardsName uniqueness
-    existing_ck = db.board.find_first(where={"ckBoardsName": data.ckBoardsName})
+    # Check ckBoardsFamily uniqueness
+    existing_ck = db.board.find_first(where={"ckBoardsFamily": data.ckBoardsFamily})
     if existing_ck:
-        return conflict(f"Board with ckBoardsName '{data.ckBoardsName}' already exists")
+        return conflict(f"Board with ckBoardsFamily '{data.ckBoardsFamily}' already exists")
+
+    create_data = {
+        "productId": product_id,
+        "name": data.name,
+        "ckBoardsFamily": data.ckBoardsFamily,
+        "vendor": data.vendor,
+        "description": data.description,
+        "active": data.active,
+    }
+
+    # Create inline revisions if provided
+    if data.revisions:
+        rev_creates = []
+        for r in data.revisions:
+            rev_data = {
+                "version": r["version"],
+                "ckBoardsName": r["ckBoardsName"],
+                "socs": r["socs"],
+            }
+            if r.get("targets"):
+                rev_data["targets"] = {
+                    "create": [
+                        {"role": t.role, "soc": t.soc, "appId": t.appId}
+                        for t in r["targets"]
+                    ],
+                }
+            rev_creates.append(rev_data)
+        create_data["revisions"] = {"create": rev_creates}
 
     board = db.board.create(
-        data={
-            "productId": product_id,
-            "name": data.name,
-            "ckBoardsName": data.ckBoardsName,
-            "ckBoardsBranch": data.ckBoardsBranch,
-            "vendor": data.vendor,
-            "description": data.description,
-            "active": data.active,
-        },
-        include={"revisions": True},
+        data=create_data,
+        include={"revisions": {"include": {"targets": True}}},
     )
     log_audit("board.create", "Board", board.id, {
         "productName": product.name, "name": data.name,
@@ -96,6 +115,7 @@ def get_board(product_id: str, board_id: str):
         include={
             "revisions": {
                 "order_by": {"version": "asc"},
+                "include": {"targets": True},
             },
         },
     )
@@ -109,15 +129,22 @@ def get_board(product_id: str, board_id: str):
 
 
 def _serialize_board_revision(r: Any) -> dict:
-    return {
+    result = {
         "id": r.id,
         "boardId": r.boardId,
         "version": r.version,
+        "ckBoardsName": getattr(r, "ckBoardsName", None),
+        "socs": getattr(r, "socs", []),
         "status": r.status,
         "notes": r.notes,
         "createdAt": r.createdAt.isoformat(),
         "updatedAt": r.updatedAt.isoformat(),
     }
+    if hasattr(r, "targets") and r.targets is not None:
+        result["targets"] = [{"id": t.id, "role": t.role, "soc": t.soc, "appId": t.appId} for t in r.targets]
+    else:
+        result["targets"] = []
+    return result
 
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
@@ -143,7 +170,7 @@ def update_board(product_id: str, board_id: str):
     board = db.board.update(
         where={"id": board_id},
         data=data.to_update_data(),
-        include={"revisions": True},
+        include={"revisions": {"include": {"targets": True}}},
     )
     log_audit("board.update", "Board", board_id, {
         "name": existing.name, "changes": data.to_update_data(),

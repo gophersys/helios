@@ -13,7 +13,6 @@ def _product_defaults() -> dict:
     return {
         "slug": None,
         "buildConfig": None,
-        "targets": [],
     }
 
 
@@ -93,9 +92,6 @@ def test_create_product(authed_client, mock_db):
                 "name": "New Product",
                 "description": "A new product",
                 "active": True,
-                "targets": [
-                    {"role": "app", "soc": "nrf52840", "appId": 109},
-                ],
             }),
         )
 
@@ -122,7 +118,6 @@ def test_create_product_duplicate_name(authed_client, mock_db):
         "/v2/products",
         data=json.dumps({
             "name": "Existing Product",
-            "targets": [{"role": "app", "soc": "nrf52840", "appId": 109}],
         }),
     )
 
@@ -360,8 +355,8 @@ def test_delete_product_with_tests(authed_client, mock_db):
 # ── Target tests ───────────────────────────────────────────
 
 
-def test_create_product_with_targets_passes_nested_create(authed_client, mock_db):
-    """Targets are forwarded to Prisma as a nested create list."""
+def test_create_product_no_targets_in_product_create(authed_client, mock_db):
+    """Product create no longer includes targets — targets live on BoardRevision."""
     mock_db.product.find_unique.return_value = None
 
     created = make_obj(
@@ -376,10 +371,6 @@ def test_create_product_with_targets_passes_nested_create(authed_client, mock_db
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         boards=[],
         firmwareBuilds=[],
-        targets=[
-            make_obj(id="tgt-1", role="app", soc="nrf52840", appId=109),
-            make_obj(id="tgt-2", role="comms", soc="nrf9151", appId=108),
-        ],
     )
     mock_db.product.create.return_value = created
 
@@ -388,60 +379,15 @@ def test_create_product_with_targets_passes_nested_create(authed_client, mock_db
             "/v2/products",
             data=json.dumps({
                 "name": "Alpha",
-                "targets": [
-                    {"role": "app", "soc": "nrf52840", "appId": 109},
-                    {"role": "comms", "soc": "nrf9151", "appId": 108},
-                ],
             }),
         )
 
     call_kwargs = mock_db.product.create.call_args[1]
-    nested = call_kwargs["data"]["targets"]["create"]
-    assert len(nested) == 2
-    assert {"role": "app", "soc": "nrf52840", "appId": 109} in nested
-    assert {"role": "comms", "soc": "nrf9151", "appId": 108} in nested
-
-
-def test_create_product_duplicate_target_role_returns_400(authed_client, mock_db):
-    """Two targets with the same role are rejected before hitting the DB."""
-    response = authed_client.post(
-        "/v2/products",
-        data=json.dumps({
-            "name": "Alpha",
-            "targets": [
-                {"role": "app", "soc": "nrf52840", "appId": 109},
-                {"role": "app", "soc": "nrf52840", "appId": 108},
-            ],
-        }),
-    )
-
-    assert response.status_code == 400
-    data = json.loads(response.data)
-    assert any("Duplicate target role" in e["message"] for e in data["errors"])
-    mock_db.product.create.assert_not_called()
-
-
-def test_create_product_duplicate_target_app_id_returns_400(authed_client, mock_db):
-    """Two targets with the same appId are rejected before hitting the DB."""
-    response = authed_client.post(
-        "/v2/products",
-        data=json.dumps({
-            "name": "Alpha",
-            "targets": [
-                {"role": "app", "soc": "nrf52840", "appId": 109},
-                {"role": "comms", "soc": "nrf9151", "appId": 109},
-            ],
-        }),
-    )
-
-    assert response.status_code == 400
-    data = json.loads(response.data)
-    assert any("Duplicate target appId" in e["message"] for e in data["errors"])
-    mock_db.product.create.assert_not_called()
+    assert "targets" not in call_kwargs["data"]
 
 
 def test_get_product_includes_targets_in_response(authed_client, mock_db):
-    """GET /v2/products/<id> includes targets array with role/soc/appId."""
+    """GET /v2/products/<id> includes targets collected from board revisions."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-with-targets",
         name="Alpha",
@@ -452,11 +398,32 @@ def test_get_product_includes_targets_in_response(authed_client, mock_db):
         buildConfig=None,
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
-        boards=[],
-        firmwareBuilds=[],
-        targets=[
-            make_obj(id="tgt-1", role="app", soc="nrf52840", appId=109),
+        boards=[
+            make_obj(
+                id="board-1",
+                productId="prod-with-targets",
+                name="Main Board",
+                description=None,
+                active=True,
+                createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                revisions=[
+                    make_obj(
+                        id="rev-1",
+                        boardId="board-1",
+                        version="B0",
+                        status="ACTIVE",
+                        notes=None,
+                        createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                        updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                        targets=[
+                            make_obj(id="tgt-1", role="app", soc="nrf52840", appId=109),
+                        ],
+                    ),
+                ],
+            ),
         ],
+        firmwareBuilds=[],
     )
 
     response = authed_client.get("/v2/products/prod-with-targets")
@@ -471,7 +438,7 @@ def test_get_product_includes_targets_in_response(authed_client, mock_db):
 
 
 def test_get_product_empty_targets_returns_empty_list(authed_client, mock_db):
-    """GET /v2/products/<id> returns targets=[] when no targets exist."""
+    """GET /v2/products/<id> returns targets=[] when no board revisions have targets."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-no-targets",
         name="Alpha",
@@ -484,7 +451,6 @@ def test_get_product_empty_targets_returns_empty_list(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         boards=[],
         firmwareBuilds=[],
-        targets=[],
     )
 
     response = authed_client.get("/v2/products/prod-no-targets")
@@ -494,8 +460,8 @@ def test_get_product_empty_targets_returns_empty_list(authed_client, mock_db):
     assert data["data"]["targets"] == []
 
 
-def test_delete_product_with_targets_succeeds(authed_client, mock_db):
-    """Products with targets can be deleted — Prisma cascade handles cleanup."""
+def test_delete_product_with_board_targets_succeeds(authed_client, mock_db):
+    """Products with board revision targets can be deleted — Prisma cascade handles cleanup."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-cascade",
         name="Alpha",

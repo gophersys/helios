@@ -112,7 +112,7 @@ def test_board_name_unique_per_product(authed_client, mock_db):
 
     response = authed_client.post(
         "/v2/products/prod-1/boards",
-        data=json.dumps({"name": "Main Board", "ckBoardsName": "main_board"}),
+        data=json.dumps({"name": "Main Board", "ckBoardsFamily": "main_board"}),
     )
     assert response.status_code == 409
 
@@ -126,8 +126,7 @@ def test_board_name_unique_per_product(authed_client, mock_db):
         id="board-new",
         productId="prod-2",
         name="Main Board",
-        ckBoardsName="main_board_beta",
-        ckBoardsBranch="main",
+        ckBoardsFamily="main_board_beta",
         vendor="corekinect",
         description=None,
         active=True,
@@ -139,7 +138,7 @@ def test_board_name_unique_per_product(authed_client, mock_db):
     with patch("src.api.v2.products.boards.log_audit"):
         response = authed_client.post(
             "/v2/products/prod-2/boards",
-            data=json.dumps({"name": "Main Board", "ckBoardsName": "main_board_beta"}),
+            data=json.dumps({"name": "Main Board", "ckBoardsFamily": "main_board_beta"}),
         )
 
     assert response.status_code == 201
@@ -167,7 +166,7 @@ def test_revision_version_unique_per_board(authed_client, mock_db):
 
     response = authed_client.post(
         "/v2/products/prod-1/boards/board-1/revisions",
-        data=json.dumps({"version": "1.0"}),
+        data=json.dumps({"version": "1.0", "ckBoardsName": "alpha_a0"}),
     )
     assert response.status_code == 409
 
@@ -182,6 +181,8 @@ def test_revision_version_unique_per_board(authed_client, mock_db):
         id="rev-new",
         boardId="board-2",
         version="1.0",
+        ckBoardsName="sensor_a0",
+        socs=[],
         status="ACTIVE",
         notes=None,
         createdAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
@@ -191,7 +192,7 @@ def test_revision_version_unique_per_board(authed_client, mock_db):
     with patch("src.api.v2.products.board_revisions.log_audit"):
         response = authed_client.post(
             "/v2/products/prod-1/boards/board-2/revisions",
-            data=json.dumps({"version": "1.0"}),
+            data=json.dumps({"version": "1.0", "ckBoardsName": "sensor_a0"}),
         )
 
     assert response.status_code == 201
@@ -212,7 +213,7 @@ def test_firmware_version_unique_per_product_target(authed_client, mock_db):
 
     mock_db.producttarget.find_first.return_value = make_obj(
         id="tgt-1",
-        productId="prod-1",
+        boardRevisionId="rev-1",
         role="app",
         soc="nrf52840",
         appId=109,
@@ -250,7 +251,7 @@ def test_firmware_version_unique_per_product_target(authed_client, mock_db):
     # Now upload with a different target (tgt-2) — no duplicate
     mock_db.producttarget.find_first.return_value = make_obj(
         id="tgt-2",
-        productId="prod-1",
+        boardRevisionId="rev-1",
         role="comms",
         soc="nrf9151",
         appId=108,

@@ -14,16 +14,32 @@ from .types import BoardRevisionCreateRequest, BoardRevisionUpdateRequest
 logger = logging.getLogger(__name__)
 
 
-def _serialize_revision(r) -> dict:
+def _serialize_target(t) -> dict:
     return {
+        "id": t.id,
+        "role": t.role,
+        "soc": t.soc,
+        "appId": t.appId,
+    }
+
+
+def _serialize_revision(r) -> dict:
+    result = {
         "id": r.id,
         "boardId": r.boardId,
         "version": r.version,
+        "ckBoardsName": getattr(r, "ckBoardsName", None),
+        "socs": getattr(r, "socs", []),
         "status": r.status,
         "notes": r.notes,
         "createdAt": r.createdAt.isoformat(),
         "updatedAt": r.updatedAt.isoformat(),
     }
+    if hasattr(r, "targets") and r.targets is not None:
+        result["targets"] = [_serialize_target(t) for t in r.targets]
+    else:
+        result["targets"] = []
+    return result
 
 
 # ── Board Revisions CRUD ─────────────────────────────────
@@ -50,13 +66,23 @@ def create_board_revision(product_id: str, board_id: str):
     if existing:
         return conflict(f"Board revision '{data.version}' already exists for this board")
 
+    # Check ckBoardsName uniqueness across all revisions
+    existing_ck = db.boardrevision.find_first(
+        where={"ckBoardsName": data.ckBoardsName}
+    )
+    if existing_ck:
+        return conflict(f"Board revision with ckBoardsName '{data.ckBoardsName}' already exists")
+
     revision = db.boardrevision.create(
         data={
             "boardId": board_id,
             "version": data.version,
+            "ckBoardsName": data.ckBoardsName,
+            "socs": data.socs,
             "status": data.status,
             "notes": data.notes,
         },
+        include={"targets": True},
     )
 
     log_audit("boardRevision.create", "BoardRevision", revision.id, {
@@ -103,6 +129,7 @@ def update_board_revision(product_id: str, board_id: str, revision_id: str):
     # Re-fetch
     updated = db.boardrevision.find_unique(
         where={"id": revision_id},
+        include={"targets": True},
     )
 
     log_audit("boardRevision.update", "BoardRevision", revision_id, {

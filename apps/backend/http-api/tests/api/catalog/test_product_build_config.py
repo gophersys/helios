@@ -34,7 +34,6 @@ def _product_defaults() -> dict:
     return {
         "slug": None,
         "buildConfig": None,
-        "targets": [],
     }
 
 
@@ -61,10 +60,6 @@ def test_create_product_with_build_config(authed_client, mock_db):
             data=json.dumps({
                 "name": "Alpha B0",
                 "buildConfig": ALPHA_BUILD_CONFIG,
-                "targets": [
-                    {"role": "app", "soc": "nrf52840", "appId": 109},
-                    {"role": "comms", "soc": "nrf9151", "appId": 108},
-                ],
             }),
         )
 
@@ -95,7 +90,6 @@ def test_create_product_without_build_config(authed_client, mock_db):
             "/v2/products",
             data=json.dumps({
                 "name": "Sigma5",
-                "targets": [{"role": "app", "soc": "nrf52840", "appId": 105}],
             }),
         )
 
@@ -110,7 +104,6 @@ def test_create_product_build_config_not_dict_rejected(authed_client, mock_db):
         "/v2/products",
         data=json.dumps({
             "name": "Bad",
-            "targets": [{"role": "app", "soc": "nrf52840", "appId": 109}],
             "buildConfig": "not-a-dict",
         }),
     )

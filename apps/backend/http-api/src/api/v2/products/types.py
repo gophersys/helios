@@ -14,7 +14,6 @@ class TargetInput:
 @dataclass
 class ProductCreateRequest:
     name: str
-    targets: List[TargetInput]
     description: Optional[str] = None
     active: bool = True
     slug: Optional[str] = None
@@ -34,33 +33,6 @@ class ProductCreateRequest:
         if not isinstance(active, bool):
             return None, "Active must be a boolean"
 
-        # Targets are required
-        raw_targets = data.get("targets")
-        if not raw_targets or not isinstance(raw_targets, list):
-            return None, "targets is required and must be a non-empty array"
-        targets = []
-        seen_roles = set()
-        seen_app_ids = set()
-        for i, t in enumerate(raw_targets):
-            if not isinstance(t, dict):
-                return None, f"targets[{i}] must be an object"
-            role = (t.get("role") or "").strip()
-            soc = (t.get("soc") or "").strip()
-            app_id = t.get("appId")
-            if not role:
-                return None, f"targets[{i}].role is required"
-            if not soc:
-                return None, f"targets[{i}].soc is required"
-            if app_id is None or not isinstance(app_id, int):
-                return None, f"targets[{i}].appId is required and must be an integer"
-            if role in seen_roles:
-                return None, f"Duplicate target role: {role}"
-            if app_id in seen_app_ids:
-                return None, f"Duplicate target appId: {app_id}"
-            seen_roles.add(role)
-            seen_app_ids.add(app_id)
-            targets.append(TargetInput(role=role, soc=soc, appId=app_id))
-
         slug = data.get("slug")
         if slug is not None:
             slug = slug.strip()
@@ -77,7 +49,6 @@ class ProductCreateRequest:
 
         return cls(
             name=name,
-            targets=targets,
             description=description.strip() if description else None,
             active=active,
             slug=slug,
@@ -94,12 +65,10 @@ class ProductUpdateRequest:
     slug: Optional[str] = None
     buildConfig: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
-    targets: Optional[List[TargetInput]] = None
     _has_description: bool = False
     _has_slug: bool = False
     _has_build_config: bool = False
     _has_metadata: bool = False
-    _has_targets: bool = False
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ProductUpdateRequest"], Optional[str]]:
@@ -132,39 +101,9 @@ class ProductUpdateRequest:
         if has_metadata and metadata is not None and not isinstance(metadata, dict):
             return None, "Metadata must be a JSON object"
 
-        raw_targets = data.get("targets")
-        has_targets = "targets" in data
-        targets = None
-        if has_targets:
-            if raw_targets is not None:
-                if not isinstance(raw_targets, list) or len(raw_targets) == 0:
-                    return None, "targets must be a non-empty array"
-                targets = []
-                seen_roles = set()
-                seen_app_ids = set()
-                for i, t in enumerate(raw_targets):
-                    if not isinstance(t, dict):
-                        return None, f"targets[{i}] must be an object"
-                    role = (t.get("role") or "").strip()
-                    soc = (t.get("soc") or "").strip()
-                    app_id = t.get("appId")
-                    if not role:
-                        return None, f"targets[{i}].role is required"
-                    if not soc:
-                        return None, f"targets[{i}].soc is required"
-                    if app_id is None or not isinstance(app_id, int):
-                        return None, f"targets[{i}].appId is required and must be an integer"
-                    if role in seen_roles:
-                        return None, f"Duplicate target role: {role}"
-                    if app_id in seen_app_ids:
-                        return None, f"Duplicate target appId: {app_id}"
-                    seen_roles.add(role)
-                    seen_app_ids.add(app_id)
-                    targets.append(TargetInput(role=role, soc=soc, appId=app_id))
-
         has_any_field = (
             name is not None or has_description or active is not None or
-            has_slug or has_build_config or has_metadata or has_targets
+            has_slug or has_build_config or has_metadata
         )
         if not has_any_field:
             return None, "No fields to update"
@@ -176,12 +115,10 @@ class ProductUpdateRequest:
             slug=slug,
             buildConfig=build_config,
             metadata=metadata,
-            targets=targets,
             _has_description=has_description,
             _has_slug=has_slug,
             _has_build_config=has_build_config,
             _has_metadata=has_metadata,
-            _has_targets=has_targets,
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
@@ -204,11 +141,11 @@ class ProductUpdateRequest:
 @dataclass
 class BoardCreateRequest:
     name: str
-    ckBoardsName: str
-    ckBoardsBranch: str = "main"
+    ckBoardsFamily: str
     vendor: str = "corekinect"
     description: Optional[str] = None
     active: bool = True
+    revisions: Optional[List[Dict[str, Any]]] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BoardCreateRequest"], Optional[str]]:
@@ -217,36 +154,88 @@ class BoardCreateRequest:
         name = (data.get("name") or "").strip()
         if not name:
             return None, "Name is required"
-        ck_boards_name = (data.get("ckBoardsName") or "").strip()
-        if not ck_boards_name:
-            return None, "ckBoardsName is required"
-        ck_boards_branch = (data.get("ckBoardsBranch") or "main").strip()
+        ck_boards_family = (data.get("ckBoardsFamily") or "").strip()
+        if not ck_boards_family:
+            return None, "ckBoardsFamily is required"
         vendor = (data.get("vendor") or "corekinect").strip()
         description = data.get("description")
         active = data.get("active", True)
         if not isinstance(active, bool):
             return None, "Active must be a boolean"
+
+        # Optional inline revisions
+        raw_revisions = data.get("revisions")
+        revisions = None
+        if raw_revisions is not None:
+            if not isinstance(raw_revisions, list):
+                return None, "revisions must be an array"
+            revisions = []
+            for i, r in enumerate(raw_revisions):
+                if not isinstance(r, dict):
+                    return None, f"revisions[{i}] must be an object"
+                rev_version = (r.get("version") or "").strip()
+                rev_ck_name = (r.get("ckBoardsName") or "").strip()
+                if not rev_version:
+                    return None, f"revisions[{i}].version is required"
+                if not rev_ck_name:
+                    return None, f"revisions[{i}].ckBoardsName is required"
+                rev_socs = r.get("socs", [])
+                if not isinstance(rev_socs, list):
+                    return None, f"revisions[{i}].socs must be an array"
+                # Optional inline targets per revision
+                raw_targets = r.get("targets")
+                rev_targets = None
+                if raw_targets is not None:
+                    if not isinstance(raw_targets, list):
+                        return None, f"revisions[{i}].targets must be an array"
+                    rev_targets = []
+                    seen_roles = set()
+                    seen_app_ids = set()
+                    for j, t in enumerate(raw_targets):
+                        if not isinstance(t, dict):
+                            return None, f"revisions[{i}].targets[{j}] must be an object"
+                        role = (t.get("role") or "").strip()
+                        soc = (t.get("soc") or "").strip()
+                        app_id = t.get("appId")
+                        if not role:
+                            return None, f"revisions[{i}].targets[{j}].role is required"
+                        if not soc:
+                            return None, f"revisions[{i}].targets[{j}].soc is required"
+                        if app_id is None or not isinstance(app_id, int):
+                            return None, f"revisions[{i}].targets[{j}].appId is required and must be an integer"
+                        if role in seen_roles:
+                            return None, f"revisions[{i}]: duplicate target role '{role}'"
+                        if app_id in seen_app_ids:
+                            return None, f"revisions[{i}]: duplicate target appId {app_id}"
+                        seen_roles.add(role)
+                        seen_app_ids.add(app_id)
+                        rev_targets.append(TargetInput(role=role, soc=soc, appId=app_id))
+                revisions.append({
+                    "version": rev_version,
+                    "ckBoardsName": rev_ck_name,
+                    "socs": rev_socs,
+                    "targets": rev_targets,
+                })
+
         return cls(
             name=name,
-            ckBoardsName=ck_boards_name,
-            ckBoardsBranch=ck_boards_branch,
+            ckBoardsFamily=ck_boards_family,
             vendor=vendor,
             description=description.strip() if description else None,
             active=active,
+            revisions=revisions,
         ), None
 
 
 @dataclass
 class BoardUpdateRequest:
     name: Optional[str] = None
-    ckBoardsName: Optional[str] = None
-    ckBoardsBranch: Optional[str] = None
+    ckBoardsFamily: Optional[str] = None
     vendor: Optional[str] = None
     description: Optional[str] = None
     active: Optional[bool] = None
     _has_description: bool = False
-    _has_ck_boards_name: bool = False
-    _has_ck_boards_branch: bool = False
+    _has_ck_boards_family: bool = False
     _has_vendor: bool = False
 
     @classmethod
@@ -258,16 +247,12 @@ class BoardUpdateRequest:
             name = name.strip()
             if not name:
                 return None, "Name cannot be empty"
-        ck_boards_name = data.get("ckBoardsName")
-        has_ck_boards_name = "ckBoardsName" in data
-        if ck_boards_name is not None:
-            ck_boards_name = ck_boards_name.strip()
-            if not ck_boards_name:
-                return None, "ckBoardsName cannot be empty"
-        ck_boards_branch = data.get("ckBoardsBranch")
-        has_ck_boards_branch = "ckBoardsBranch" in data
-        if ck_boards_branch is not None:
-            ck_boards_branch = ck_boards_branch.strip() or None
+        ck_boards_family = data.get("ckBoardsFamily")
+        has_ck_boards_family = "ckBoardsFamily" in data
+        if ck_boards_family is not None:
+            ck_boards_family = ck_boards_family.strip()
+            if not ck_boards_family:
+                return None, "ckBoardsFamily cannot be empty"
         vendor = data.get("vendor")
         has_vendor = "vendor" in data
         if vendor is not None:
@@ -279,19 +264,17 @@ class BoardUpdateRequest:
             return None, "Active must be a boolean"
 
         if (name is None and not has_description and active is None and
-                not has_ck_boards_name and not has_ck_boards_branch and not has_vendor):
+                not has_ck_boards_family and not has_vendor):
             return None, "No fields to update"
 
         return cls(
             name=name,
-            ckBoardsName=ck_boards_name,
-            ckBoardsBranch=ck_boards_branch,
+            ckBoardsFamily=ck_boards_family,
             vendor=vendor,
             description=description.strip() if description else description,
             active=active,
             _has_description=has_description,
-            _has_ck_boards_name=has_ck_boards_name,
-            _has_ck_boards_branch=has_ck_boards_branch,
+            _has_ck_boards_family=has_ck_boards_family,
             _has_vendor=has_vendor,
         ), None
 
@@ -299,10 +282,8 @@ class BoardUpdateRequest:
         update_data: Dict[str, Any] = {}
         if self.name is not None:
             update_data["name"] = self.name
-        if self._has_ck_boards_name:
-            update_data["ckBoardsName"] = self.ckBoardsName
-        if self._has_ck_boards_branch:
-            update_data["ckBoardsBranch"] = self.ckBoardsBranch
+        if self._has_ck_boards_family:
+            update_data["ckBoardsFamily"] = self.ckBoardsFamily
         if self._has_vendor:
             update_data["vendor"] = self.vendor
         if self._has_description:
@@ -315,6 +296,8 @@ class BoardUpdateRequest:
 @dataclass
 class BoardRevisionCreateRequest:
     version: str
+    ckBoardsName: str
+    socs: List[str]
     status: str = "ACTIVE"
     notes: Optional[str] = None
 
@@ -323,16 +306,24 @@ class BoardRevisionCreateRequest:
         if not data:
             return None, "Request body must contain JSON data"
         version = (data.get("version") or "").strip()
+        ck_boards_name = (data.get("ckBoardsName") or "").strip()
+        socs = data.get("socs", [])
         status = (data.get("status") or "ACTIVE").strip()
         notes = data.get("notes")
 
         if not version:
             return None, "Version is required"
+        if not ck_boards_name:
+            return None, "ckBoardsName is required"
+        if not isinstance(socs, list):
+            return None, "socs must be an array"
         if status not in ("ACTIVE", "DEPRECATED", "EOL"):
             return None, "Status must be ACTIVE, DEPRECATED, or EOL"
 
         return cls(
             version=version,
+            ckBoardsName=ck_boards_name,
+            socs=socs,
             status=status,
             notes=notes.strip() if notes else None,
         ), None
@@ -341,9 +332,13 @@ class BoardRevisionCreateRequest:
 @dataclass
 class BoardRevisionUpdateRequest:
     version: Optional[str] = None
+    ckBoardsName: Optional[str] = None
+    socs: Optional[List[str]] = None
     status: Optional[str] = None
     notes: Optional[str] = None
     _has_notes: bool = False
+    _has_ck_boards_name: bool = False
+    _has_socs: bool = False
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BoardRevisionUpdateRequest"], Optional[str]]:
@@ -355,6 +350,16 @@ class BoardRevisionUpdateRequest:
             version = version.strip()
             if not version:
                 return None, "Version cannot be empty"
+        ck_boards_name = data.get("ckBoardsName")
+        has_ck_boards_name = "ckBoardsName" in data
+        if ck_boards_name is not None:
+            ck_boards_name = ck_boards_name.strip()
+            if not ck_boards_name:
+                return None, "ckBoardsName cannot be empty"
+        socs = data.get("socs")
+        has_socs = "socs" in data
+        if has_socs and socs is not None and not isinstance(socs, list):
+            return None, "socs must be an array"
         status = data.get("status")
         if status is not None:
             status = status.strip()
@@ -363,20 +368,28 @@ class BoardRevisionUpdateRequest:
         notes = data.get("notes")
         has_notes = "notes" in data
 
-        if version is None and status is None and not has_notes:
+        if version is None and status is None and not has_notes and not has_ck_boards_name and not has_socs:
             return None, "No fields to update"
 
         return cls(
             version=version,
+            ckBoardsName=ck_boards_name,
+            socs=socs,
             status=status,
             notes=notes.strip() if notes else notes,
             _has_notes=has_notes,
+            _has_ck_boards_name=has_ck_boards_name,
+            _has_socs=has_socs,
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
         update_data: Dict[str, Any] = {}
         if self.version is not None:
             update_data["version"] = self.version
+        if self._has_ck_boards_name:
+            update_data["ckBoardsName"] = self.ckBoardsName
+        if self._has_socs:
+            update_data["socs"] = self.socs
         if self.status is not None:
             update_data["status"] = self.status
         if self._has_notes:

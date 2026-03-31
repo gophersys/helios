@@ -21,6 +21,8 @@ def test_create_board_revision(authed_client, mock_db):
         id="rev-new",
         boardId="board-1",
         version="2.0",
+        ckBoardsName="alpha_b0",
+        socs=["nrf52840", "nrf9151"],
         status="ACTIVE",
         notes="New revision",
         createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
@@ -32,6 +34,8 @@ def test_create_board_revision(authed_client, mock_db):
             "/v2/products/prod-1/boards/board-1/revisions",
             data=json.dumps({
                 "version": "2.0",
+                "ckBoardsName": "alpha_b0",
+                "socs": ["nrf52840", "nrf9151"],
                 "status": "ACTIVE",
                 "notes": "New revision",
             }),
@@ -40,6 +44,7 @@ def test_create_board_revision(authed_client, mock_db):
     assert response.status_code == 201
     data = json.loads(response.data)
     assert data["data"]["version"] == "2.0"
+    assert data["data"]["ckBoardsName"] == "alpha_b0"
     assert data["data"]["status"] == "ACTIVE"
 
 
@@ -49,7 +54,7 @@ def test_create_board_revision_board_not_found(authed_client, mock_db):
 
     response = authed_client.post(
         "/v2/products/prod-1/boards/nonexistent/revisions",
-        data=json.dumps({"version": "1.0"}),
+        data=json.dumps({"version": "1.0", "ckBoardsName": "test_a0"}),
     )
 
     assert response.status_code == 404
@@ -71,7 +76,7 @@ def test_create_board_revision_duplicate_version(authed_client, mock_db):
 
     response = authed_client.post(
         "/v2/products/prod-1/boards/board-1/revisions",
-        data=json.dumps({"version": "1.0"}),
+        data=json.dumps({"version": "1.0", "ckBoardsName": "alpha_a0"}),
     )
 
     assert response.status_code == 409
@@ -148,8 +153,8 @@ def test_delete_board_revision(authed_client, mock_db):
     assert data["data"]["deleted"] is True
 
 
-def test_create_board_revision_no_optional_fields(authed_client, mock_db):
-    """Test creating board revision with just version succeeds."""
+def test_create_board_revision_minimal_fields(authed_client, mock_db):
+    """Test creating board revision with version + ckBoardsName succeeds."""
     mock_db.board.find_first.return_value = make_obj(
         id="board-1",
         productId="prod-1",
@@ -162,6 +167,8 @@ def test_create_board_revision_no_optional_fields(authed_client, mock_db):
         id="rev-new",
         boardId="board-1",
         version="3.0",
+        ckBoardsName="alpha_c0",
+        socs=[],
         status="ACTIVE",
         notes=None,
         createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
@@ -171,12 +178,13 @@ def test_create_board_revision_no_optional_fields(authed_client, mock_db):
     with patch("src.api.v2.products.board_revisions.log_audit"):
         response = authed_client.post(
             "/v2/products/prod-1/boards/board-1/revisions",
-            data=json.dumps({"version": "3.0"}),
+            data=json.dumps({"version": "3.0", "ckBoardsName": "alpha_c0"}),
         )
 
     assert response.status_code == 201
     data = json.loads(response.data)
     assert data["data"]["version"] == "3.0"
+    assert data["data"]["ckBoardsName"] == "alpha_c0"
 
 
 def test_update_board_revision_duplicate_version(authed_client, mock_db):

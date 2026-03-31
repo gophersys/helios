@@ -3,6 +3,7 @@ import type {
   BoardBranchesResponse,
   BoardSummary,
   BoardDetail,
+  BoardFamilyRevision,
   BuildConfig,
   ProductTarget,
 } from '$lib/types/models';
@@ -11,8 +12,8 @@ import type {
 // The wizard auto-populates fields from board discovery —
 // these tests validate that logic.
 //
-// The wizard has a SINGLE flow (branch → board → review → configure → create).
-// There is no manual path. All products are created via the 5-step wizard.
+// The wizard has a SINGLE flow (branch → board family → configure → create).
+// There is no manual path. All products are created via the 4-step wizard.
 
 function createMockBranchesResponse(): BoardBranchesResponse {
   return {
@@ -24,30 +25,37 @@ function createMockBranchesResponse(): BoardBranchesResponse {
 function createMockBoardSummaries(): BoardSummary[] {
   return [
     {
-      board: 'alpha',
+      family: 'alpha',
       vendor: 'corekinect',
-      socs: ['nrf52840', 'nrf9151'],
-      revisions: ['rev1.1', 'rev1.2'],
-      variants: ['alpha_b0'],
+      revisions: [
+        { version: 'a0', ckBoardsName: 'alpha_a0', socs: ['nrf9160', 'nrf52840'] },
+        { version: 'b0', ckBoardsName: 'alpha_b0', socs: ['nrf9151', 'nrf52840'] },
+      ],
     },
     {
-      board: 'sigma5',
+      family: 'sigma5',
       vendor: 'corekinect',
-      socs: ['nrf52840'],
-      revisions: ['rev1.0'],
-      variants: ['sigma5_std'],
+      revisions: [
+        { version: 'c0', ckBoardsName: 'sigma5_c0', socs: ['nrf52840'] },
+      ],
     },
   ];
 }
 
 function createMockBoardDetail(): BoardDetail {
   return {
-    board: 'alpha',
+    family: 'alpha',
     vendor: 'corekinect',
-    socs: ['nrf52840', 'nrf9151'],
-    revisions: ['rev1.2'],
-    variants: ['alpha_b0'],
+    revisions: [
+      { version: 'a0', ckBoardsName: 'alpha_a0', socs: ['nrf9160', 'nrf52840'] },
+      { version: 'b0', ckBoardsName: 'alpha_b0', socs: ['nrf9151', 'nrf52840'] },
+    ],
   };
+}
+
+// Collect unique SoCs across all revisions (mirrors wizard logic)
+function collectSocs(revisions: BoardFamilyRevision[]): string[] {
+  return [...new Set(revisions.flatMap((r) => r.socs))];
 }
 
 // Replicate the wizard's target auto-populate logic (mirrors product-creation-wizard.svelte)
@@ -107,54 +115,67 @@ describe('Wizard branch selection', () => {
   });
 });
 
-describe('Wizard board selection', () => {
-  it('lists all discovered boards', () => {
+describe('Wizard board family selection', () => {
+  it('lists all discovered families', () => {
     const summaries = createMockBoardSummaries();
     expect(summaries).toHaveLength(2);
-    expect(summaries.map((s) => s.board)).toEqual(['alpha', 'sigma5']);
+    expect(summaries.map((s) => s.family)).toEqual(['alpha', 'sigma5']);
   });
 
-  it('board summary includes SoC list', () => {
+  it('family summary includes revisions with SoCs', () => {
     const summaries = createMockBoardSummaries();
-    const alpha = summaries.find((s) => s.board === 'alpha')!;
-    expect(alpha.socs).toEqual(['nrf52840', 'nrf9151']);
+    const alpha = summaries.find((s) => s.family === 'alpha')!;
+    expect(alpha.revisions).toHaveLength(2);
+    expect(alpha.revisions[0].ckBoardsName).toBe('alpha_a0');
+    expect(alpha.revisions[1].socs).toEqual(['nrf9151', 'nrf52840']);
+  });
+
+  it('collectSocs deduplicates SoCs across revisions', () => {
+    const summaries = createMockBoardSummaries();
+    const alpha = summaries.find((s) => s.family === 'alpha')!;
+    const socs = collectSocs(alpha.revisions);
+    expect(socs).toContain('nrf52840');
+    expect(socs).toContain('nrf9151');
+    expect(socs).toContain('nrf9160');
   });
 });
 
 describe('Wizard auto-populate from board detail', () => {
   const detail = createMockBoardDetail();
+  const allSocs = collectSocs(detail.revisions);
 
-  it('creates dual targets for dual-SoC board', () => {
-    const targets = autoPopulateTargets(detail.socs);
+  it('creates dual targets for dual-SoC family', () => {
+    const targets = autoPopulateTargets(allSocs);
     expect(Object.keys(targets)).toEqual(['app', 'comms']);
     expect(targets.app.soc).toBe('nrf52840');
-    expect(targets.comms.soc).toBe('nrf9151');
   });
 
-  it('creates single target for single-SoC board', () => {
+  it('creates single target for single-SoC family', () => {
     const targets = autoPopulateTargets(['nrf52840']);
     expect(Object.keys(targets)).toEqual(['app']);
     expect(targets.app.soc).toBe('nrf52840');
   });
 
   it('sets appId to 0 (user must fill in)', () => {
-    const targets = autoPopulateTargets(detail.socs);
+    const targets = autoPopulateTargets(allSocs);
     expect(targets.app.appId).toBe(0);
     expect(targets.comms.appId).toBe(0);
   });
 
-  it('auto-populates product name from board', () => {
-    const name = detail.board.charAt(0).toUpperCase() + detail.board.slice(1);
+  it('auto-populates product name from family', () => {
+    const name = detail.family.charAt(0).toUpperCase() + detail.family.slice(1);
     expect(name).toBe('Alpha');
   });
 
-  it('auto-populates repo slugs from board name', () => {
-    expect(`${detail.board}_fw`).toBe('alpha_fw');
-    expect(`${detail.board}_mfg_fw`).toBe('alpha_mfg_fw');
+  it('auto-populates slug from family name', () => {
+    expect(detail.family).toBe('alpha');
   });
 
-  it('revisions are string arrays from board.yml', () => {
-    expect(detail.revisions).toEqual(['rev1.2']);
+  it('revisions include ckBoardsName and socs', () => {
+    expect(detail.revisions).toHaveLength(2);
+    expect(detail.revisions[0].ckBoardsName).toBe('alpha_a0');
+    expect(detail.revisions[1].ckBoardsName).toBe('alpha_b0');
+    expect(detail.revisions[1].socs).toEqual(['nrf9151', 'nrf52840']);
   });
 });
 
@@ -233,8 +254,8 @@ describe('Wizard buildConfig assembly', () => {
     });
   });
 
-  it('BuildConfig does NOT contain targets — targets live on Product.targets array', () => {
-    // Targets were moved from BuildConfig to a separate top-level Product.targets array.
+  it('BuildConfig does NOT contain targets — targets live on BoardRevision', () => {
+    // Targets live on BoardRevision; the API collects them into the Product response.
     const buildConfig: BuildConfig = {
       board: 'alpha',
       ncsVersion: 'v2.9.0',
@@ -264,7 +285,7 @@ describe('Wizard buildConfig assembly', () => {
 });
 
 describe('Product.targets — array shape used by product-detail', () => {
-  // Product.targets is ProductTarget[] — each entry has id, role, soc, appId.
+  // Targets live on BoardRevision but the API collects them into a flat array on the Product response.
   // product-detail.svelte iterates this array to render one chip per target.
 
   it('ProductTarget has id, role, soc, appId fields', () => {
