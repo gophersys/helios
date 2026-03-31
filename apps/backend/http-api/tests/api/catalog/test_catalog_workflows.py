@@ -204,113 +204,16 @@ def test_revision_version_unique_per_board(authed_client, mock_db):
 # ── 6. Firmware version unique per product + target ──
 
 
-def test_firmware_version_unique_per_product_target(authed_client, mock_db):
-    """Same firmware version + target should conflict, but different target should succeed."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Product Alpha",
-    )
+def test_firmware_set_list(authed_client, mock_db):
+    """FirmwareSet list returns sets for a product."""
+    mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
+    mock_db.firmwareset.count.return_value = 0
+    mock_db.firmwareset.find_many.return_value = []
 
-    mock_db.producttarget.find_first.return_value = make_obj(
-        id="tgt-1",
-        boardRevisionId="rev-1",
-        role="app",
-        soc="nrf52840",
-        appId=109,
-    )
-
-    # Duplicate exists for prod-1 / tgt-1 / 1.0.0
-    mock_db.firmwarebuild.find_first.return_value = make_obj(
-        id="build-existing",
-        productId="prod-1",
-        targetId="tgt-1",
-        version="1.0.0",
-    )
-
-    from src.services.auth.jwt import create_token
-    token = create_token(
-        user_id="test-user-id",
-        email="test@example.com",
-        name="Test User",
-        permission_set_id="test-perm-set-id",
-    )
-    auth_headers = {"Authorization": f"Bearer {token}"}
-
-    response = authed_client._client.post(
-        "/v2/products/prod-1/firmware/upload",
-        headers=auth_headers,
-        data={
-            "targetId": "tgt-1",
-            "version": "1.0.0",
-            "file": (BytesIO(b"\x00\x01\x02\x03"), "app.bin"),
-        },
-        content_type="multipart/form-data",
-    )
-    assert response.status_code == 409
-
-    # Now upload with a different target (tgt-2) — no duplicate
-    mock_db.producttarget.find_first.return_value = make_obj(
-        id="tgt-2",
-        boardRevisionId="rev-1",
-        role="comms",
-        soc="nrf9151",
-        appId=108,
-    )
-    mock_db.firmwarebuild.find_first.return_value = None
-
-    mock_db.firmwarebuild.create.return_value = make_obj(
-        id="build-new",
-        productId="prod-1",
-        targetId="tgt-2",
-        version="1.0.0",
-        isManufacturing=False,
-        storageKey="firmware/prod-1/pending/app.bin",
-        filename="app.bin",
-        sizeBytes=4,
-        checksum="abc123",
-        contentType="application/octet-stream",
-        status="DRAFT",
-        notes=None,
-        createdAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
-    )
-
-    mock_db.firmwarebuild.update.return_value = make_obj(
-        id="build-new",
-        productId="prod-1",
-        targetId="tgt-2",
-        version="1.0.0",
-        isManufacturing=False,
-        storageKey="firmware/prod-1/build-new/app.bin",
-        filename="app.bin",
-        sizeBytes=4,
-        checksum="abc123",
-        contentType="application/octet-stream",
-        status="DRAFT",
-        notes=None,
-        createdAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
-        target=make_obj(id="tgt-2", role="comms", soc="nrf9151", appId=108),
-    )
-
-    mock_storage = MagicMock()
-    with patch("api.v2.products.firmware_builds.get_storage_client", return_value=mock_storage):
-        with patch("api.v2.products.firmware_builds.get_bucket_name", return_value="test-bucket"):
-            with patch("api.v2.products.firmware_builds.log_audit"):
-                response = authed_client._client.post(
-                    "/v2/products/prod-1/firmware/upload",
-                    headers=auth_headers,
-                    data={
-                        "targetId": "tgt-2",
-                        "version": "1.0.0",
-                        "file": (BytesIO(b"\x00\x01\x02\x03"), "app.bin"),
-                    },
-                    content_type="multipart/form-data",
-                )
-
-    assert response.status_code == 201
+    response = authed_client.get("/v2/products/prod-1/firmware")
+    assert response.status_code == 200
     data = json.loads(response.data)
-    assert data["data"]["targetId"] == "tgt-2"
-    assert data["data"]["version"] == "1.0.0"
+    assert data["data"]["data"] == []
+    assert data["data"]["pagination"]["total"] == 0
 
 

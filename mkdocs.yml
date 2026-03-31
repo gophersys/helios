@@ -76,7 +76,7 @@ nav:
       - "Stage 4: Product Tests": architecture/validation/stage4-product-tests.md
       - "Stage 4: FUOTA Flow": architecture/validation/stage4-fuota-flow.md
       - "Stage 4: PR Flow": architecture/validation/stage4-pr-flow.md
-      - "Stage 5: Gate Tests": architecture/validation/stage5-gate-tests.md
+      - "Stage 5: FUOTA Tests": architecture/validation/stage5-fuota-tests.md
       - Test Runner: architecture/validation/test-runner.md
     - Build:
       - architecture/build/index.md

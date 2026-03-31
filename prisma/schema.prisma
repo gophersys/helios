@@ -150,7 +150,7 @@ model Product {
     updatedAt DateTime @updatedAt
 
     boards         Board[]
-    firmwareBuilds FirmwareBuild[]
+    firmwareSets   FirmwareSet[]
     fixtures       Fixture[]
     tests          Test[]
     sessions       Session[]
@@ -216,8 +216,9 @@ model BoardRevision {
     createdAt    DateTime        @default(now())
     updatedAt    DateTime        @updatedAt
 
-    board   Board           @relation(fields: [boardId], references: [id], onDelete: Cascade)
-    targets ProductTarget[]
+    board        Board           @relation(fields: [boardId], references: [id], onDelete: Cascade)
+    targets      ProductTarget[]
+    firmwareSets FirmwareSet[]
 
     @@unique([boardId, version])
     @@unique([ckBoardsName])
@@ -225,31 +226,77 @@ model BoardRevision {
 }
 
 /// An uploaded firmware build file with version metadata.
-model FirmwareBuild {
-    id              String          @id @default(cuid())
+/// A complete firmware release for a specific board revision.
+/// Groups all per-target builds produced in one build run.
+/// Example: Alpha B0 v0.5.2-BM contains builds for both target 108 + 109.
+model FirmwareSet {
+    id              String  @id @default(cuid())
     productId       String
-    targetId        String? /// FK to ProductTarget (optional for legacy builds)
-    version         String /// Semantic version string "1.0.0"
-    isManufacturing Boolean         @default(false)
-    status          LifecycleStatus @default(DRAFT)
-    storageKey      String /// MinIO object key
-    filename        String
-    sizeBytes       BigInt
-    checksum        String /// SHA-256 hex digest
-    contentType     String?
-    modemStorageKey String? /// MinIO key for modem firmware zip (modem targets only)
-    modemFilename   String?
-    modemSizeBytes  BigInt?
-    modemChecksum   String? /// SHA-256 hex digest of modem file
-    notes           String?
-    createdAt       DateTime        @default(now())
-    updatedAt       DateTime        @updatedAt
+    boardRevisionId String? /// Which HW revision this targets
 
-    product Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-    target  ProductTarget? @relation(fields: [targetId], references: [id])
+    // Version identity (per CK firmware versioning spec)
+    version         String  /// "0.5.2" (major.minor.build)
+    releaseTrack    String  @default("bench") /// "bench", "engineering", "production"
+    isManufacturing Boolean @default(false)
+    isDebug         Boolean @default(false)
 
-    @@unique([productId, targetId, version])
+    // Source — how this firmware entered Concord
+    source          String  @default("upload") /// "upload", "build-service", "teamcity"
+    buildJobId      String? /// FK to BuildJob if built by Concord CI
+    externalBuildId String? /// External build system ID
+
+    // Shared modem firmware (applies to all targets with nRF91xx comms)
+    modemVersion    String? /// "2.0.2"
+    modemStorageKey String? /// MinIO key for modem firmware zip
+
+    // Build fingerprint for caching
+    buildFingerprint String? /// SHA-256 of source + config — enables build reuse
+
+    status  String   @default("active") /// "active", "deprecated", "recalled"
+    notes   String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+    boardRevision BoardRevision? @relation(fields: [boardRevisionId], references: [id])
+    builds        FirmwareBuild[]
+
     @@index([productId])
+    @@index([boardRevisionId])
+    @@index([productId, version])
+    @@map("firmware_sets")
+}
+
+/// A single firmware artifact for one target (one AppID) within a FirmwareSet.
+/// Per CK spec: version string = {AppId}.{Major}.{Minor}.{Build}-{Flags}
+model FirmwareBuild {
+    id             String @id @default(cuid())
+    firmwareSetId  String
+    targetId       String? /// FK to ProductTarget (appId + soc + role)
+
+    // Version identity
+    versionString  String? /// Full CK version: "109.0.5.2-BM"
+
+    // Artifacts (MinIO storage keys)
+    hexStorageKey    String?  /// Plaintext hex (bootloader + app merged) — for J-Link
+    hexEncStorageKey String?  /// Encrypted hex (bootloader + encrypted app)
+    cfwStorageKey    String?  /// Encrypted CFW binary — for FUOTA/OTA
+    manifestKey      String?  /// Build manifest JSON
+
+    // File metadata (primary artifact)
+    filename    String
+    sizeBytes   BigInt
+    checksum    String  /// SHA-256
+    contentType String?
+
+    notes     String?
+    createdAt DateTime @default(now())
+
+    firmwareSet FirmwareSet    @relation(fields: [firmwareSetId], references: [id], onDelete: Cascade)
+    target      ProductTarget? @relation(fields: [targetId], references: [id])
+
+    @@index([firmwareSetId])
     @@map("firmware_builds")
 }
 

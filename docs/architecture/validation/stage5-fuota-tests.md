@@ -1,14 +1,14 @@
-# Stage 5 Gate Tests — PR Validation + FUOTA
+# Stage 5 FUOTA Tests — PR Validation + OTA Verification
 
-> Implementation blueprint for Stage 5 (Gate) — the fast validation gate that runs on every PR.
-> Includes FUOTA verification to ensure OTA updates work before code is merged.
+> Implementation blueprint for Stage 5 (FUOTA) — the merge-blocking OTA verification stage.
+> Ensures firmware updates work before code is merged.
 > **Hard limit: < 15 minutes total.**
 
 ---
 
 ## 1. Purpose
 
-Stage 5 Gate is the **merge blocker**. Every PR that touches firmware must pass Gate before merging.
+Stage 5 FUOTA is the **merge blocker**. Every PR that touches firmware must pass FUOTA validation before merging.
 
 **Why FUOTA is here**: FUOTA is the highest-risk operation — a broken OTA can brick devices in the field. By running FUOTA on every PR, we catch packaging issues, version mismatches, and bootloader problems before they ship.
 

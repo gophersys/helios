@@ -12,7 +12,7 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 | 2 | **Silicon** | Dev kit + MTIB | K8s pod → MTIB | PR/nightly | 5-15 min |
 | 3 | **Integration** | Product board + MTIB | K8s pod → MTIB | PR/weekly | 15-30 min |
 | 4 | **Nightly** | Product board + MTIB + CoreCloud | K8s pod → MTIB → Cloud | Nightly/release | 30-60 min |
-| 5 | **Gate** | Product board + MTIB + CoreCloud + FUOTA | K8s pod → MTIB → Cloud | Every PR | < 15 min |
+| 5 | **FUOTA** | Product board + MTIB + CoreCloud + FUOTA | K8s pod → MTIB → Cloud | Every PR | < 15 min |
 
 ---
 
@@ -171,7 +171,7 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 
 ---
 
-## Stage 5 — Gate (PR Validation + FUOTA)
+## Stage 5 — FUOTA (PR Validation + OTA Verification)
 
 **Purpose**: Fast validation gate for every PR — must pass before merge. Includes FUOTA verification.
 
@@ -222,13 +222,13 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 - Test runner: `apps/validation/alpha/tests/stage5/`
 - FUOTA client: `libs/python/corekinect/test/fuota_client.py`
 - Artifact resolver: `libs/python/corekinect/test/artifact_resolver.py`
-- Implementation doc: [stage5-gate-tests.md](./stage5-gate-tests.md)
+- Implementation doc: [stage5-fuota-tests.md](./stage5-fuota-tests.md)
 
 ---
 
 ## Stage Comparison Matrix
 
-| Capability | Stage 1 (Smoke) | Stage 2 (Silicon) | Stage 3 (Integration) | Stage 4 (Nightly) | Stage 5 (Gate) |
+| Capability | Stage 1 (Smoke) | Stage 2 (Silicon) | Stage 3 (Integration) | Stage 4 (Nightly) | Stage 5 (FUOTA) |
 |------------|-----------------|-------------------|----------------------|-------------------|----------------|
 | Real hardware | No | Yes | Yes | Yes | Yes |
 | Production firmware | No | No | No | Yes | Yes |
@@ -254,7 +254,7 @@ Each test has a unique ID linking to requirements:
 | 2 | Silicon | `SILICON-{driver}-{test}` | `SILICON-LSM6DSO-FIFO` | Datasheet spec |
 | 3 | Integration | `INTEG-{product}-{feature}` | `INTEG-ALPHA-IPC-MSG` | Integration spec |
 | 4 | Nightly | `NIGHTLY-{product}-{seq}` | `NIGHTLY-ALPHA-001` | Product requirements |
-| 5 | Gate | `GATE-{product}-{seq}` | `GATE-ALPHA-FUOTA-001` | OTA requirements |
+| 5 | FUOTA | `FUOTA-{product}-{seq}` | `FUOTA-ALPHA-001` | OTA requirements |
 
 ### Pipeline Integration
 
@@ -267,7 +267,7 @@ Each test has a unique ID linking to requirements:
 
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │     PR      │────►│  Stage 2+3  │────►│  Stage 5    │────►│    Pass?    │
-│             │     │  (Silicon + │     │  (Gate)     │     └──────┬──────┘
+│             │     │  (Silicon + │     │  (FUOTA)    │     └──────┬──────┘
 │             │     │ Integration)│     │  + FUOTA    │            │
 │             │     │   30 min    │     │   15 min    │            ▼ No → Block merge
 └─────────────┘     └─────────────┘     └─────────────┘
@@ -279,7 +279,7 @@ Each test has a unique ID linking to requirements:
 └─────────────┘     └─────────────┘            ▼ No → Alert + investigate
 ```
 
-**Key insight**: Stage 5 (Gate) runs on every PR and includes FUOTA. This ensures OTA updates work before code is merged. Stage 4 (Nightly) runs comprehensive tests overnight but doesn't block merges.
+**Key insight**: Stage 5 (FUOTA) runs on every PR and verifies OTA firmware updates work before code is merged. Stage 4 (Nightly) runs comprehensive tests overnight but doesn't block merges.
 
 ### CI/CD Configuration
 
@@ -303,12 +303,11 @@ stages:
     requires: [stage2-silicon]
     timeout: 30m
 
-  - name: stage5-gate
+  - name: stage5-fuota
     trigger: [pull_request]
     runner: self-hosted-mtib
     requires: [stage3-integration]
     timeout: 15m
-    includes: [fuota]  # FUOTA is part of gate
 
   - name: stage4-nightly
     trigger: [schedule: "0 2 * * *"]  # 2 AM daily
@@ -326,5 +325,5 @@ stages:
 - [Stage 2 Silicon](./stage2-driver-hw-tests.md) — Driver HW tests, dev kits
 - [Stage 3 Integration](./stage3-integration-tests.md) — concord_harness, integration
 - [Stage 4 Nightly](./stage4-product-tests.md) — Comprehensive black-box validation
-- [Stage 5 Gate](./stage5-gate-tests.md) — PR validation + FUOTA
+- [Stage 5 FUOTA](./stage5-fuota-tests.md) — PR validation + OTA verification
 - [PRDTST Reference](../../reference/alpha-test-cases.md) — Product test case catalog

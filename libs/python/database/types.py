@@ -1757,7 +1757,7 @@ class ProductOptionalCreateInput(TypedDict, total=False):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     boards: 'BoardCreateManyNestedWithoutRelationsInput'
-    firmwareBuilds: 'FirmwareBuildCreateManyNestedWithoutRelationsInput'
+    firmwareSets: 'FirmwareSetCreateManyNestedWithoutRelationsInput'
     fixtures: 'FixtureCreateManyNestedWithoutRelationsInput'
     tests: 'TestCreateManyNestedWithoutRelationsInput'
     sessions: 'SessionCreateManyNestedWithoutRelationsInput'
@@ -1853,7 +1853,7 @@ class ProductUpdateInput(TypedDict, total=False):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     boards: 'BoardUpdateManyWithoutRelationsInput'
-    firmwareBuilds: 'FirmwareBuildUpdateManyWithoutRelationsInput'
+    firmwareSets: 'FirmwareSetUpdateManyWithoutRelationsInput'
     fixtures: 'FixtureUpdateManyWithoutRelationsInput'
     tests: 'TestUpdateManyWithoutRelationsInput'
     sessions: 'SessionUpdateManyWithoutRelationsInput'
@@ -2060,7 +2060,7 @@ class ProductListRelationFilter(TypedDict, total=False):
 class ProductInclude(TypedDict, total=False):
     """Product relational arguments"""
     boards: Union[bool, 'FindManyBoardArgsFromProduct']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProduct']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProduct']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProduct']
     tests: Union[bool, 'FindManyTestArgsFromProduct']
     sessions: Union[bool, 'FindManySessionArgsFromProduct']
@@ -2075,7 +2075,7 @@ class ProductInclude(TypedDict, total=False):
 class ProductIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
     boards: Union[bool, 'FindManyBoardArgsFromProductRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromProductRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive1']
@@ -2088,7 +2088,7 @@ class ProductIncludeFromProduct(TypedDict, total=False):
 class ProductIncludeFromProductRecursive1(TypedDict, total=False):
     """Relational arguments for Product"""
     boards: Union[bool, 'FindManyBoardArgsFromProductRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromProductRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive2']
@@ -2101,7 +2101,7 @@ class ProductIncludeFromProductRecursive1(TypedDict, total=False):
 class ProductIncludeFromProductRecursive2(TypedDict, total=False):
     """Relational arguments for Product"""
     boards: Union[bool, 'FindManyBoardArgsFromProductRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromProductRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive3']
@@ -2114,7 +2114,7 @@ class ProductIncludeFromProductRecursive2(TypedDict, total=False):
 class ProductIncludeFromProductRecursive3(TypedDict, total=False):
     """Relational arguments for Product"""
     boards: Union[bool, 'FindManyBoardArgsFromProductRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromProductRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive4']
@@ -2431,24 +2431,28 @@ class BoardRevisionIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
     board: Union[bool, 'BoardArgsFromProductRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive1']
 
 
 class BoardRevisionIncludeFromProductRecursive1(TypedDict, total=False):
     """Relational arguments for Product"""
     board: Union[bool, 'BoardArgsFromProductRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive2']
 
 
 class BoardRevisionIncludeFromProductRecursive2(TypedDict, total=False):
     """Relational arguments for Product"""
     board: Union[bool, 'BoardArgsFromProductRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive3']
 
 
 class BoardRevisionIncludeFromProductRecursive3(TypedDict, total=False):
     """Relational arguments for Product"""
     board: Union[bool, 'BoardArgsFromProductRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive4']
 
 
 class BoardRevisionIncludeFromProductRecursive4(TypedDict, total=False):
@@ -2536,27 +2540,140 @@ class FindManyBoardRevisionArgsFromProductRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromProduct(TypedDict, total=False):
+class FirmwareSetIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive1']
+
+
+class FirmwareSetIncludeFromProductRecursive1(TypedDict, total=False):
+    """Relational arguments for Product"""
+    product: Union[bool, 'ProductArgsFromProductRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive2']
+
+
+class FirmwareSetIncludeFromProductRecursive2(TypedDict, total=False):
+    """Relational arguments for Product"""
+    product: Union[bool, 'ProductArgsFromProductRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive3']
+
+
+class FirmwareSetIncludeFromProductRecursive3(TypedDict, total=False):
+    """Relational arguments for Product"""
+    product: Union[bool, 'ProductArgsFromProductRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive4']
+
+
+class FirmwareSetIncludeFromProductRecursive4(TypedDict, total=False):
+    """Relational arguments for Product"""
+
+    
+
+class FirmwareSetArgsFromProduct(TypedDict, total=False):
+    """Arguments for Product"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromProductRecursive1(TypedDict, total=False):
+    """Arguments for Product"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromProductRecursive2(TypedDict, total=False):
+    """Arguments for Product"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromProductRecursive3(TypedDict, total=False):
+    """Arguments for Product"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromProductRecursive4(TypedDict, total=False):
+    """Arguments for Product"""
+    
+    
+
+class FindManyFirmwareSetArgsFromProduct(TypedDict, total=False):
+    """Arguments for Product"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromProductRecursive1(TypedDict, total=False):
+    """Arguments for Product"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromProductRecursive2(TypedDict, total=False):
+    """Arguments for Product"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromProductRecursive3(TypedDict, total=False):
+    """Arguments for Product"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromProductRecursive4(TypedDict, total=False):
+    """Arguments for Product"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromProduct(TypedDict, total=False):
+    """Relational arguments for Product"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductRecursive1']
     target: Union[bool, 'ProductTargetArgsFromProductRecursive1']
 
 
 class FirmwareBuildIncludeFromProductRecursive1(TypedDict, total=False):
     """Relational arguments for Product"""
-    product: Union[bool, 'ProductArgsFromProductRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductRecursive2']
     target: Union[bool, 'ProductTargetArgsFromProductRecursive2']
 
 
 class FirmwareBuildIncludeFromProductRecursive2(TypedDict, total=False):
     """Relational arguments for Product"""
-    product: Union[bool, 'ProductArgsFromProductRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductRecursive3']
     target: Union[bool, 'ProductTargetArgsFromProductRecursive3']
 
 
 class FirmwareBuildIncludeFromProductRecursive3(TypedDict, total=False):
     """Relational arguments for Product"""
-    product: Union[bool, 'ProductArgsFromProductRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductRecursive4']
     target: Union[bool, 'ProductTargetArgsFromProductRecursive4']
 
 
@@ -5341,7 +5458,7 @@ class ProductWhereInput(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     boards: 'BoardListRelationFilter'
-    firmwareBuilds: 'FirmwareBuildListRelationFilter'
+    firmwareSets: 'FirmwareSetListRelationFilter'
     fixtures: 'FixtureListRelationFilter'
     tests: 'TestListRelationFilter'
     sessions: 'SessionListRelationFilter'
@@ -5371,7 +5488,7 @@ class ProductWhereInputRecursive1(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     boards: 'BoardListRelationFilter'
-    firmwareBuilds: 'FirmwareBuildListRelationFilter'
+    firmwareSets: 'FirmwareSetListRelationFilter'
     fixtures: 'FixtureListRelationFilter'
     tests: 'TestListRelationFilter'
     sessions: 'SessionListRelationFilter'
@@ -5401,7 +5518,7 @@ class ProductWhereInputRecursive2(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     boards: 'BoardListRelationFilter'
-    firmwareBuilds: 'FirmwareBuildListRelationFilter'
+    firmwareSets: 'FirmwareSetListRelationFilter'
     fixtures: 'FixtureListRelationFilter'
     tests: 'TestListRelationFilter'
     sessions: 'SessionListRelationFilter'
@@ -5431,7 +5548,7 @@ class ProductWhereInputRecursive3(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     boards: 'BoardListRelationFilter'
-    firmwareBuilds: 'FirmwareBuildListRelationFilter'
+    firmwareSets: 'FirmwareSetListRelationFilter'
     fixtures: 'FixtureListRelationFilter'
     tests: 'TestListRelationFilter'
     sessions: 'SessionListRelationFilter'
@@ -5461,7 +5578,7 @@ class ProductWhereInputRecursive4(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     boards: 'BoardListRelationFilter'
-    firmwareBuilds: 'FirmwareBuildListRelationFilter'
+    firmwareSets: 'FirmwareSetListRelationFilter'
     fixtures: 'FixtureListRelationFilter'
     tests: 'TestListRelationFilter'
     sessions: 'SessionListRelationFilter'
@@ -5705,7 +5822,7 @@ ProductKeys = Literal[
     'createdAt',
     'updatedAt',
     'boards',
-    'firmwareBuilds',
+    'firmwareSets',
     'fixtures',
     'tests',
     'sessions',
@@ -5731,7 +5848,7 @@ ProductScalarFieldKeysT = TypeVar('ProductScalarFieldKeysT', bound=ProductScalar
 
 ProductRelationalFieldKeys = Literal[
         'boards',
-        'firmwareBuilds',
+        'firmwareSets',
         'fixtures',
         'tests',
         'sessions',
@@ -5991,7 +6108,7 @@ class ProductTargetInclude(TypedDict, total=False):
 class ProductIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     boards: Union[bool, 'FindManyBoardArgsFromProductTargetRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromProductTargetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive1']
@@ -6004,7 +6121,7 @@ class ProductIncludeFromProductTarget(TypedDict, total=False):
 class ProductIncludeFromProductTargetRecursive1(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     boards: Union[bool, 'FindManyBoardArgsFromProductTargetRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromProductTargetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive2']
@@ -6017,7 +6134,7 @@ class ProductIncludeFromProductTargetRecursive1(TypedDict, total=False):
 class ProductIncludeFromProductTargetRecursive2(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     boards: Union[bool, 'FindManyBoardArgsFromProductTargetRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromProductTargetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive3']
@@ -6030,7 +6147,7 @@ class ProductIncludeFromProductTargetRecursive2(TypedDict, total=False):
 class ProductIncludeFromProductTargetRecursive3(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     boards: Union[bool, 'FindManyBoardArgsFromProductTargetRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromProductTargetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive4']
@@ -6347,24 +6464,28 @@ class BoardRevisionIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     board: Union[bool, 'BoardArgsFromProductTargetRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductTargetRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive1']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive1(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     board: Union[bool, 'BoardArgsFromProductTargetRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductTargetRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive2']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive2(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     board: Union[bool, 'BoardArgsFromProductTargetRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductTargetRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive3']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive3(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     board: Union[bool, 'BoardArgsFromProductTargetRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductTargetRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive4']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive4(TypedDict, total=False):
@@ -6452,27 +6573,140 @@ class FindManyBoardRevisionArgsFromProductTargetRecursive4(TypedDict, total=Fals
     
     
 
-class FirmwareBuildIncludeFromProductTarget(TypedDict, total=False):
+class FirmwareSetIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive1']
+
+
+class FirmwareSetIncludeFromProductTargetRecursive1(TypedDict, total=False):
+    """Relational arguments for ProductTarget"""
+    product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive2']
+
+
+class FirmwareSetIncludeFromProductTargetRecursive2(TypedDict, total=False):
+    """Relational arguments for ProductTarget"""
+    product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive3']
+
+
+class FirmwareSetIncludeFromProductTargetRecursive3(TypedDict, total=False):
+    """Relational arguments for ProductTarget"""
+    product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive4']
+
+
+class FirmwareSetIncludeFromProductTargetRecursive4(TypedDict, total=False):
+    """Relational arguments for ProductTarget"""
+
+    
+
+class FirmwareSetArgsFromProductTarget(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromProductTargetRecursive1(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromProductTargetRecursive2(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromProductTargetRecursive3(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromProductTargetRecursive4(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    
+    
+
+class FindManyFirmwareSetArgsFromProductTarget(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromProductTargetRecursive1(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromProductTargetRecursive2(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromProductTargetRecursive3(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromProductTargetRecursive4(TypedDict, total=False):
+    """Arguments for ProductTarget"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromProductTarget(TypedDict, total=False):
+    """Relational arguments for ProductTarget"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductTargetRecursive1']
     target: Union[bool, 'ProductTargetArgsFromProductTargetRecursive1']
 
 
 class FirmwareBuildIncludeFromProductTargetRecursive1(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
-    product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductTargetRecursive2']
     target: Union[bool, 'ProductTargetArgsFromProductTargetRecursive2']
 
 
 class FirmwareBuildIncludeFromProductTargetRecursive2(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
-    product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductTargetRecursive3']
     target: Union[bool, 'ProductTargetArgsFromProductTargetRecursive3']
 
 
 class FirmwareBuildIncludeFromProductTargetRecursive3(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
-    product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductTargetRecursive4']
     target: Union[bool, 'ProductTargetArgsFromProductTargetRecursive4']
 
 
@@ -9804,7 +10038,7 @@ class BoardInclude(TypedDict, total=False):
 class ProductIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
     boards: Union[bool, 'FindManyBoardArgsFromBoardRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromBoardRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive1']
@@ -9817,7 +10051,7 @@ class ProductIncludeFromBoard(TypedDict, total=False):
 class ProductIncludeFromBoardRecursive1(TypedDict, total=False):
     """Relational arguments for Board"""
     boards: Union[bool, 'FindManyBoardArgsFromBoardRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromBoardRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive2']
@@ -9830,7 +10064,7 @@ class ProductIncludeFromBoardRecursive1(TypedDict, total=False):
 class ProductIncludeFromBoardRecursive2(TypedDict, total=False):
     """Relational arguments for Board"""
     boards: Union[bool, 'FindManyBoardArgsFromBoardRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromBoardRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive3']
@@ -9843,7 +10077,7 @@ class ProductIncludeFromBoardRecursive2(TypedDict, total=False):
 class ProductIncludeFromBoardRecursive3(TypedDict, total=False):
     """Relational arguments for Board"""
     boards: Union[bool, 'FindManyBoardArgsFromBoardRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromBoardRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive4']
@@ -10160,24 +10394,28 @@ class BoardRevisionIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
     board: Union[bool, 'BoardArgsFromBoardRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive1']
 
 
 class BoardRevisionIncludeFromBoardRecursive1(TypedDict, total=False):
     """Relational arguments for Board"""
     board: Union[bool, 'BoardArgsFromBoardRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive2']
 
 
 class BoardRevisionIncludeFromBoardRecursive2(TypedDict, total=False):
     """Relational arguments for Board"""
     board: Union[bool, 'BoardArgsFromBoardRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive3']
 
 
 class BoardRevisionIncludeFromBoardRecursive3(TypedDict, total=False):
     """Relational arguments for Board"""
     board: Union[bool, 'BoardArgsFromBoardRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive4']
 
 
 class BoardRevisionIncludeFromBoardRecursive4(TypedDict, total=False):
@@ -10265,27 +10503,140 @@ class FindManyBoardRevisionArgsFromBoardRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromBoard(TypedDict, total=False):
+class FirmwareSetIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive1']
+
+
+class FirmwareSetIncludeFromBoardRecursive1(TypedDict, total=False):
+    """Relational arguments for Board"""
+    product: Union[bool, 'ProductArgsFromBoardRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive2']
+
+
+class FirmwareSetIncludeFromBoardRecursive2(TypedDict, total=False):
+    """Relational arguments for Board"""
+    product: Union[bool, 'ProductArgsFromBoardRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive3']
+
+
+class FirmwareSetIncludeFromBoardRecursive3(TypedDict, total=False):
+    """Relational arguments for Board"""
+    product: Union[bool, 'ProductArgsFromBoardRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive4']
+
+
+class FirmwareSetIncludeFromBoardRecursive4(TypedDict, total=False):
+    """Relational arguments for Board"""
+
+    
+
+class FirmwareSetArgsFromBoard(TypedDict, total=False):
+    """Arguments for Board"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromBoardRecursive1(TypedDict, total=False):
+    """Arguments for Board"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromBoardRecursive2(TypedDict, total=False):
+    """Arguments for Board"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromBoardRecursive3(TypedDict, total=False):
+    """Arguments for Board"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromBoardRecursive4(TypedDict, total=False):
+    """Arguments for Board"""
+    
+    
+
+class FindManyFirmwareSetArgsFromBoard(TypedDict, total=False):
+    """Arguments for Board"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromBoardRecursive1(TypedDict, total=False):
+    """Arguments for Board"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromBoardRecursive2(TypedDict, total=False):
+    """Arguments for Board"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromBoardRecursive3(TypedDict, total=False):
+    """Arguments for Board"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromBoardRecursive4(TypedDict, total=False):
+    """Arguments for Board"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromBoard(TypedDict, total=False):
+    """Relational arguments for Board"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBoardRecursive1']
     target: Union[bool, 'ProductTargetArgsFromBoardRecursive1']
 
 
 class FirmwareBuildIncludeFromBoardRecursive1(TypedDict, total=False):
     """Relational arguments for Board"""
-    product: Union[bool, 'ProductArgsFromBoardRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBoardRecursive2']
     target: Union[bool, 'ProductTargetArgsFromBoardRecursive2']
 
 
 class FirmwareBuildIncludeFromBoardRecursive2(TypedDict, total=False):
     """Relational arguments for Board"""
-    product: Union[bool, 'ProductArgsFromBoardRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBoardRecursive3']
     target: Union[bool, 'ProductTargetArgsFromBoardRecursive3']
 
 
 class FirmwareBuildIncludeFromBoardRecursive3(TypedDict, total=False):
     """Relational arguments for Board"""
-    product: Union[bool, 'ProductArgsFromBoardRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBoardRecursive4']
     target: Union[bool, 'ProductTargetArgsFromBoardRecursive4']
 
 
@@ -13400,6 +13751,7 @@ class BoardRevisionOptionalCreateInput(TypedDict, total=False):
     updatedAt: datetime.datetime
     board: 'BoardCreateNestedWithoutRelationsInput'
     targets: 'ProductTargetCreateManyNestedWithoutRelationsInput'
+    firmwareSets: 'FirmwareSetCreateManyNestedWithoutRelationsInput'
 
 
 class BoardRevisionCreateInput(BoardRevisionOptionalCreateInput):
@@ -13515,6 +13867,7 @@ class BoardRevisionUpdateInput(TypedDict, total=False):
     updatedAt: datetime.datetime
     board: 'BoardUpdateOneWithoutRelationsInput'
     targets: 'ProductTargetUpdateManyWithoutRelationsInput'
+    firmwareSets: 'FirmwareSetUpdateManyWithoutRelationsInput'
 
 
 class BoardRevisionUpdateManyMutationInput(TypedDict, total=False):
@@ -13714,6 +14067,7 @@ class BoardRevisionInclude(TypedDict, total=False):
     """BoardRevision relational arguments"""
     board: Union[bool, 'BoardArgsFromBoardRevision']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevision']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevision']
 
 
     
@@ -13721,7 +14075,7 @@ class BoardRevisionInclude(TypedDict, total=False):
 class ProductIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     boards: Union[bool, 'FindManyBoardArgsFromBoardRevisionRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromBoardRevisionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive1']
@@ -13734,7 +14088,7 @@ class ProductIncludeFromBoardRevision(TypedDict, total=False):
 class ProductIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     boards: Union[bool, 'FindManyBoardArgsFromBoardRevisionRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromBoardRevisionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive2']
@@ -13747,7 +14101,7 @@ class ProductIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
 class ProductIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     boards: Union[bool, 'FindManyBoardArgsFromBoardRevisionRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromBoardRevisionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive3']
@@ -13760,7 +14114,7 @@ class ProductIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
 class ProductIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     boards: Union[bool, 'FindManyBoardArgsFromBoardRevisionRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromBoardRevisionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive4']
@@ -14077,24 +14431,28 @@ class BoardRevisionIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive1']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive2']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive3']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive4']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
@@ -14182,27 +14540,140 @@ class FindManyBoardRevisionArgsFromBoardRevisionRecursive4(TypedDict, total=Fals
     
     
 
-class FirmwareBuildIncludeFromBoardRevision(TypedDict, total=False):
+class FirmwareSetIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive1']
+
+
+class FirmwareSetIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
+    """Relational arguments for BoardRevision"""
+    product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive2']
+
+
+class FirmwareSetIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
+    """Relational arguments for BoardRevision"""
+    product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive3']
+
+
+class FirmwareSetIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
+    """Relational arguments for BoardRevision"""
+    product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive4']
+
+
+class FirmwareSetIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
+    """Relational arguments for BoardRevision"""
+
+    
+
+class FirmwareSetArgsFromBoardRevision(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromBoardRevisionRecursive1(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromBoardRevisionRecursive2(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromBoardRevisionRecursive3(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromBoardRevisionRecursive4(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    
+    
+
+class FindManyFirmwareSetArgsFromBoardRevision(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromBoardRevisionRecursive1(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromBoardRevisionRecursive2(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromBoardRevisionRecursive3(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromBoardRevisionRecursive4(TypedDict, total=False):
+    """Arguments for BoardRevision"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromBoardRevision(TypedDict, total=False):
+    """Relational arguments for BoardRevision"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBoardRevisionRecursive1']
     target: Union[bool, 'ProductTargetArgsFromBoardRevisionRecursive1']
 
 
 class FirmwareBuildIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBoardRevisionRecursive2']
     target: Union[bool, 'ProductTargetArgsFromBoardRevisionRecursive2']
 
 
 class FirmwareBuildIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBoardRevisionRecursive3']
     target: Union[bool, 'ProductTargetArgsFromBoardRevisionRecursive3']
 
 
 class FirmwareBuildIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBoardRevisionRecursive4']
     target: Union[bool, 'ProductTargetArgsFromBoardRevisionRecursive4']
 
 
@@ -16988,6 +17459,7 @@ class BoardRevisionWhereInput(TypedDict, total=False):
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     board: 'BoardRelationFilter'
     targets: 'ProductTargetListRelationFilter'
+    firmwareSets: 'FirmwareSetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive1', List['BoardRevisionWhereInputRecursive1']]
     # but this causes mypy to hang :/
@@ -17011,6 +17483,7 @@ class BoardRevisionWhereInputRecursive1(TypedDict, total=False):
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     board: 'BoardRelationFilter'
     targets: 'ProductTargetListRelationFilter'
+    firmwareSets: 'FirmwareSetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive2', List['BoardRevisionWhereInputRecursive2']]
     # but this causes mypy to hang :/
@@ -17034,6 +17507,7 @@ class BoardRevisionWhereInputRecursive2(TypedDict, total=False):
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     board: 'BoardRelationFilter'
     targets: 'ProductTargetListRelationFilter'
+    firmwareSets: 'FirmwareSetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive3', List['BoardRevisionWhereInputRecursive3']]
     # but this causes mypy to hang :/
@@ -17057,6 +17531,7 @@ class BoardRevisionWhereInputRecursive3(TypedDict, total=False):
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     board: 'BoardRelationFilter'
     targets: 'ProductTargetListRelationFilter'
+    firmwareSets: 'FirmwareSetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive4', List['BoardRevisionWhereInputRecursive4']]
     # but this causes mypy to hang :/
@@ -17080,6 +17555,7 @@ class BoardRevisionWhereInputRecursive4(TypedDict, total=False):
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     board: 'BoardRelationFilter'
     targets: 'ProductTargetListRelationFilter'
+    firmwareSets: 'FirmwareSetListRelationFilter'
 
 
 
@@ -17323,6 +17799,7 @@ BoardRevisionKeys = Literal[
     'updatedAt',
     'board',
     'targets',
+    'firmwareSets',
 ]
 BoardRevisionScalarFieldKeys = Literal[
     'id',
@@ -17342,6 +17819,4225 @@ BoardRevisionScalarFieldKeysT = TypeVar('BoardRevisionScalarFieldKeysT', bound=B
 BoardRevisionRelationalFieldKeys = Literal[
         'board',
         'targets',
+        'firmwareSets',
+    ]
+
+# FirmwareSet types
+
+class FirmwareSetOptionalCreateInput(TypedDict, total=False):
+    """Optional arguments to the FirmwareSet create method"""
+    id: _str
+    productId: _str
+    boardRevisionId: Optional[_str]
+    releaseTrack: _str
+    isManufacturing: _bool
+    isDebug: _bool
+    source: _str
+    buildJobId: Optional[_str]
+    externalBuildId: Optional[_str]
+    modemVersion: Optional[_str]
+    modemStorageKey: Optional[_str]
+    buildFingerprint: Optional[_str]
+    status: _str
+    notes: Optional[_str]
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    product: 'ProductCreateNestedWithoutRelationsInput'
+    boardRevision: 'BoardRevisionCreateNestedWithoutRelationsInput'
+    builds: 'FirmwareBuildCreateManyNestedWithoutRelationsInput'
+
+
+class FirmwareSetCreateInput(FirmwareSetOptionalCreateInput):
+    """Required arguments to the FirmwareSet create method"""
+    version: _str
+
+
+# TODO: remove this in favour of without explicit relations
+# e.g. PostCreateWithoutAuthorInput
+
+class FirmwareSetOptionalCreateWithoutRelationsInput(TypedDict, total=False):
+    """Optional arguments to the FirmwareSet create method, without relations"""
+    id: _str
+    productId: _str
+    boardRevisionId: Optional[_str]
+    releaseTrack: _str
+    isManufacturing: _bool
+    isDebug: _bool
+    source: _str
+    buildJobId: Optional[_str]
+    externalBuildId: Optional[_str]
+    modemVersion: Optional[_str]
+    modemStorageKey: Optional[_str]
+    buildFingerprint: Optional[_str]
+    status: _str
+    notes: Optional[_str]
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+
+
+class FirmwareSetCreateWithoutRelationsInput(FirmwareSetOptionalCreateWithoutRelationsInput):
+    """Required arguments to the FirmwareSet create method, without relations"""
+    version: _str
+
+class FirmwareSetConnectOrCreateWithoutRelationsInput(TypedDict):
+    create: 'FirmwareSetCreateWithoutRelationsInput'
+    where: 'FirmwareSetWhereUniqueInput'
+
+class FirmwareSetCreateNestedWithoutRelationsInput(TypedDict, total=False):
+    create: 'FirmwareSetCreateWithoutRelationsInput'
+    connect: 'FirmwareSetWhereUniqueInput'
+    connect_or_create: 'FirmwareSetConnectOrCreateWithoutRelationsInput'
+
+
+class FirmwareSetCreateManyNestedWithoutRelationsInput(TypedDict, total=False):
+    create: Union['FirmwareSetCreateWithoutRelationsInput', List['FirmwareSetCreateWithoutRelationsInput']]
+    connect: Union['FirmwareSetWhereUniqueInput', List['FirmwareSetWhereUniqueInput']]
+    connect_or_create: Union['FirmwareSetConnectOrCreateWithoutRelationsInput', List['FirmwareSetConnectOrCreateWithoutRelationsInput']]
+
+_FirmwareSetWhereUnique_id_Input = TypedDict(
+    '_FirmwareSetWhereUnique_id_Input',
+    {
+        'id': '_str',
+    },
+    total=True
+)
+
+FirmwareSetWhereUniqueInput = _FirmwareSetWhereUnique_id_Input
+
+
+class FirmwareSetUpdateInput(TypedDict, total=False):
+    """Optional arguments for updating a record"""
+    id: _str
+    version: _str
+    releaseTrack: _str
+    isManufacturing: _bool
+    isDebug: _bool
+    source: _str
+    buildJobId: Optional[_str]
+    externalBuildId: Optional[_str]
+    modemVersion: Optional[_str]
+    modemStorageKey: Optional[_str]
+    buildFingerprint: Optional[_str]
+    status: _str
+    notes: Optional[_str]
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    product: 'ProductUpdateOneWithoutRelationsInput'
+    boardRevision: 'BoardRevisionUpdateOneWithoutRelationsInput'
+    builds: 'FirmwareBuildUpdateManyWithoutRelationsInput'
+
+
+class FirmwareSetUpdateManyMutationInput(TypedDict, total=False):
+    """Arguments for updating many records"""
+    id: _str
+    version: _str
+    releaseTrack: _str
+    isManufacturing: _bool
+    isDebug: _bool
+    source: _str
+    buildJobId: Optional[_str]
+    externalBuildId: Optional[_str]
+    modemVersion: Optional[_str]
+    modemStorageKey: Optional[_str]
+    buildFingerprint: Optional[_str]
+    status: _str
+    notes: Optional[_str]
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+
+
+class FirmwareSetUpdateManyWithoutRelationsInput(TypedDict, total=False):
+    create: List['FirmwareSetCreateWithoutRelationsInput']
+    connect: List['FirmwareSetWhereUniqueInput']
+    connect_or_create: List['FirmwareSetConnectOrCreateWithoutRelationsInput']
+    set: List['FirmwareSetWhereUniqueInput']
+    disconnect: List['FirmwareSetWhereUniqueInput']
+    delete: List['FirmwareSetWhereUniqueInput']
+
+    # TODO
+    # update: List['FirmwareSetUpdateWithWhereUniqueWithoutRelationsInput']
+    # updateMany: List['FirmwareSetUpdateManyWithWhereUniqueWithoutRelationsInput']
+    # deleteMany: List['FirmwareSetScalarWhereInput']
+    # upsert: List['FirmwareSetUpserteWithWhereUniqueWithoutRelationsInput']
+
+
+class FirmwareSetUpdateOneWithoutRelationsInput(TypedDict, total=False):
+    create: 'FirmwareSetCreateWithoutRelationsInput'
+    connect: 'FirmwareSetWhereUniqueInput'
+    connect_or_create: 'FirmwareSetConnectOrCreateWithoutRelationsInput'
+    disconnect: bool
+    delete: bool
+
+    # TODO
+    # update: 'FirmwareSetUpdateInput'
+    # upsert: 'FirmwareSetUpsertWithoutRelationsInput'
+
+
+class FirmwareSetUpsertInput(TypedDict):
+    create: 'FirmwareSetCreateInput'
+    update: 'FirmwareSetUpdateInput'  # pyright: ignore[reportIncompatibleMethodOverride]
+
+
+_FirmwareSet_id_OrderByInput = TypedDict(
+    '_FirmwareSet_id_OrderByInput',
+    {
+        'id': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_productId_OrderByInput = TypedDict(
+    '_FirmwareSet_productId_OrderByInput',
+    {
+        'productId': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_boardRevisionId_OrderByInput = TypedDict(
+    '_FirmwareSet_boardRevisionId_OrderByInput',
+    {
+        'boardRevisionId': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_version_OrderByInput = TypedDict(
+    '_FirmwareSet_version_OrderByInput',
+    {
+        'version': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_releaseTrack_OrderByInput = TypedDict(
+    '_FirmwareSet_releaseTrack_OrderByInput',
+    {
+        'releaseTrack': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_isManufacturing_OrderByInput = TypedDict(
+    '_FirmwareSet_isManufacturing_OrderByInput',
+    {
+        'isManufacturing': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_isDebug_OrderByInput = TypedDict(
+    '_FirmwareSet_isDebug_OrderByInput',
+    {
+        'isDebug': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_source_OrderByInput = TypedDict(
+    '_FirmwareSet_source_OrderByInput',
+    {
+        'source': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_buildJobId_OrderByInput = TypedDict(
+    '_FirmwareSet_buildJobId_OrderByInput',
+    {
+        'buildJobId': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_externalBuildId_OrderByInput = TypedDict(
+    '_FirmwareSet_externalBuildId_OrderByInput',
+    {
+        'externalBuildId': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_modemVersion_OrderByInput = TypedDict(
+    '_FirmwareSet_modemVersion_OrderByInput',
+    {
+        'modemVersion': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_modemStorageKey_OrderByInput = TypedDict(
+    '_FirmwareSet_modemStorageKey_OrderByInput',
+    {
+        'modemStorageKey': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_buildFingerprint_OrderByInput = TypedDict(
+    '_FirmwareSet_buildFingerprint_OrderByInput',
+    {
+        'buildFingerprint': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_status_OrderByInput = TypedDict(
+    '_FirmwareSet_status_OrderByInput',
+    {
+        'status': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_notes_OrderByInput = TypedDict(
+    '_FirmwareSet_notes_OrderByInput',
+    {
+        'notes': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_createdAt_OrderByInput = TypedDict(
+    '_FirmwareSet_createdAt_OrderByInput',
+    {
+        'createdAt': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_updatedAt_OrderByInput = TypedDict(
+    '_FirmwareSet_updatedAt_OrderByInput',
+    {
+        'updatedAt': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_RelevanceInner = TypedDict(
+    '_FirmwareSet_RelevanceInner',
+    {
+        'fields': 'List[FirmwareSetScalarFieldKeys]',
+        'search': 'str',
+        'sort': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareSet_RelevanceOrderByInput = TypedDict(
+    '_FirmwareSet_RelevanceOrderByInput',
+    {
+        '_relevance': '_FirmwareSet_RelevanceInner',
+    },
+    total=True
+)
+
+FirmwareSetOrderByInput = Union[
+    '_FirmwareSet_id_OrderByInput',
+    '_FirmwareSet_productId_OrderByInput',
+    '_FirmwareSet_boardRevisionId_OrderByInput',
+    '_FirmwareSet_version_OrderByInput',
+    '_FirmwareSet_releaseTrack_OrderByInput',
+    '_FirmwareSet_isManufacturing_OrderByInput',
+    '_FirmwareSet_isDebug_OrderByInput',
+    '_FirmwareSet_source_OrderByInput',
+    '_FirmwareSet_buildJobId_OrderByInput',
+    '_FirmwareSet_externalBuildId_OrderByInput',
+    '_FirmwareSet_modemVersion_OrderByInput',
+    '_FirmwareSet_modemStorageKey_OrderByInput',
+    '_FirmwareSet_buildFingerprint_OrderByInput',
+    '_FirmwareSet_status_OrderByInput',
+    '_FirmwareSet_notes_OrderByInput',
+    '_FirmwareSet_createdAt_OrderByInput',
+    '_FirmwareSet_updatedAt_OrderByInput',
+    '_FirmwareSet_RelevanceOrderByInput',
+]
+
+
+
+# recursive FirmwareSet types
+# TODO: cleanup these types
+
+
+# Dict[str, Any] is a mypy limitation
+# see https://github.com/RobertCraigie/prisma-client-py/issues/45
+# switch to pyright for improved types, see https://prisma-client-py.readthedocs.io/en/stable/reference/limitations/
+
+FirmwareSetRelationFilter = TypedDict(
+    'FirmwareSetRelationFilter',
+    {
+        'is': 'Dict[str, Any]',
+        'is_not': 'Dict[str, Any]',
+    },
+    total=False,
+)
+
+
+class FirmwareSetListRelationFilter(TypedDict, total=False):
+    some: 'Dict[str, Any]'
+    none: 'Dict[str, Any]'
+    every: 'Dict[str, Any]'
+
+
+class FirmwareSetInclude(TypedDict, total=False):
+    """FirmwareSet relational arguments"""
+    product: Union[bool, 'ProductArgsFromFirmwareSet']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSet']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareSet']
+
+
+    
+
+class ProductIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    boards: Union[bool, 'FindManyBoardArgsFromFirmwareSetRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive1']
+    tests: Union[bool, 'FindManyTestArgsFromFirmwareSetRecursive1']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive1']
+    buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive1']
+    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromFirmwareSetRecursive1']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive1']
+
+
+class ProductIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    boards: Union[bool, 'FindManyBoardArgsFromFirmwareSetRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive2']
+    tests: Union[bool, 'FindManyTestArgsFromFirmwareSetRecursive2']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive2']
+    buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive2']
+    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromFirmwareSetRecursive2']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive2']
+
+
+class ProductIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    boards: Union[bool, 'FindManyBoardArgsFromFirmwareSetRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive3']
+    tests: Union[bool, 'FindManyTestArgsFromFirmwareSetRecursive3']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive3']
+    buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive3']
+    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromFirmwareSetRecursive3']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive3']
+
+
+class ProductIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    boards: Union[bool, 'FindManyBoardArgsFromFirmwareSetRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive4']
+    tests: Union[bool, 'FindManyTestArgsFromFirmwareSetRecursive4']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive4']
+    buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive4']
+    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromFirmwareSetRecursive4']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive4']
+
+
+class ProductIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class ProductArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductIncludeFromProductRecursive1'
+
+
+class ProductArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductIncludeFromProductRecursive2'
+
+
+class ProductArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductIncludeFromProductRecursive3'
+
+
+class ProductArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductIncludeFromProductRecursive4'
+
+
+class ProductArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyProductArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
+    where: 'ProductWhereInput'
+    cursor: 'ProductWhereUniqueInput'
+    distinct: List['ProductScalarFieldKeys']
+    include: 'ProductIncludeFromProductRecursive1'
+
+
+class FindManyProductArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
+    where: 'ProductWhereInput'
+    cursor: 'ProductWhereUniqueInput'
+    distinct: List['ProductScalarFieldKeys']
+    include: 'ProductIncludeFromProductRecursive2'
+
+
+class FindManyProductArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
+    where: 'ProductWhereInput'
+    cursor: 'ProductWhereUniqueInput'
+    distinct: List['ProductScalarFieldKeys']
+    include: 'ProductIncludeFromProductRecursive3'
+
+
+class FindManyProductArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
+    where: 'ProductWhereInput'
+    cursor: 'ProductWhereUniqueInput'
+    distinct: List['ProductScalarFieldKeys']
+    include: 'ProductIncludeFromProductRecursive4'
+
+
+class FindManyProductArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
+    where: 'ProductWhereInput'
+    cursor: 'ProductWhereUniqueInput'
+    distinct: List['ProductScalarFieldKeys']
+    
+    
+
+class ProductTargetIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareSetRecursive1']
+
+
+class ProductTargetIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareSetRecursive2']
+
+
+class ProductTargetIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareSetRecursive3']
+
+
+class ProductTargetIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareSetRecursive4']
+
+
+class ProductTargetIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class ProductTargetArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductTargetIncludeFromProductTargetRecursive1'
+
+
+class ProductTargetArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductTargetIncludeFromProductTargetRecursive2'
+
+
+class ProductTargetArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductTargetIncludeFromProductTargetRecursive3'
+
+
+class ProductTargetArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductTargetIncludeFromProductTargetRecursive4'
+
+
+class ProductTargetArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyProductTargetArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
+    where: 'ProductTargetWhereInput'
+    cursor: 'ProductTargetWhereUniqueInput'
+    distinct: List['ProductTargetScalarFieldKeys']
+    include: 'ProductTargetIncludeFromProductTargetRecursive1'
+
+
+class FindManyProductTargetArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
+    where: 'ProductTargetWhereInput'
+    cursor: 'ProductTargetWhereUniqueInput'
+    distinct: List['ProductTargetScalarFieldKeys']
+    include: 'ProductTargetIncludeFromProductTargetRecursive2'
+
+
+class FindManyProductTargetArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
+    where: 'ProductTargetWhereInput'
+    cursor: 'ProductTargetWhereUniqueInput'
+    distinct: List['ProductTargetScalarFieldKeys']
+    include: 'ProductTargetIncludeFromProductTargetRecursive3'
+
+
+class FindManyProductTargetArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
+    where: 'ProductTargetWhereInput'
+    cursor: 'ProductTargetWhereUniqueInput'
+    distinct: List['ProductTargetScalarFieldKeys']
+    include: 'ProductTargetIncludeFromProductTargetRecursive4'
+
+
+class FindManyProductTargetArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
+    where: 'ProductTargetWhereInput'
+    cursor: 'ProductTargetWhereUniqueInput'
+    distinct: List['ProductTargetScalarFieldKeys']
+    
+    
+
+class BoardIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    revisions: Union[bool, 'FindManyBoardRevisionArgsFromFirmwareSetRecursive1']
+
+
+class BoardIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    revisions: Union[bool, 'FindManyBoardRevisionArgsFromFirmwareSetRecursive2']
+
+
+class BoardIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    revisions: Union[bool, 'FindManyBoardRevisionArgsFromFirmwareSetRecursive3']
+
+
+class BoardIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    revisions: Union[bool, 'FindManyBoardRevisionArgsFromFirmwareSetRecursive4']
+
+
+class BoardIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class BoardArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BoardIncludeFromBoardRecursive1'
+
+
+class BoardArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BoardIncludeFromBoardRecursive2'
+
+
+class BoardArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BoardIncludeFromBoardRecursive3'
+
+
+class BoardArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BoardIncludeFromBoardRecursive4'
+
+
+class BoardArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyBoardArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
+    where: 'BoardWhereInput'
+    cursor: 'BoardWhereUniqueInput'
+    distinct: List['BoardScalarFieldKeys']
+    include: 'BoardIncludeFromBoardRecursive1'
+
+
+class FindManyBoardArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
+    where: 'BoardWhereInput'
+    cursor: 'BoardWhereUniqueInput'
+    distinct: List['BoardScalarFieldKeys']
+    include: 'BoardIncludeFromBoardRecursive2'
+
+
+class FindManyBoardArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
+    where: 'BoardWhereInput'
+    cursor: 'BoardWhereUniqueInput'
+    distinct: List['BoardScalarFieldKeys']
+    include: 'BoardIncludeFromBoardRecursive3'
+
+
+class FindManyBoardArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
+    where: 'BoardWhereInput'
+    cursor: 'BoardWhereUniqueInput'
+    distinct: List['BoardScalarFieldKeys']
+    include: 'BoardIncludeFromBoardRecursive4'
+
+
+class FindManyBoardArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
+    where: 'BoardWhereInput'
+    cursor: 'BoardWhereUniqueInput'
+    distinct: List['BoardScalarFieldKeys']
+    
+    
+
+class BoardRevisionIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    board: Union[bool, 'BoardArgsFromFirmwareSetRecursive1']
+    targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareSetRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive1']
+
+
+class BoardRevisionIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    board: Union[bool, 'BoardArgsFromFirmwareSetRecursive2']
+    targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareSetRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive2']
+
+
+class BoardRevisionIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    board: Union[bool, 'BoardArgsFromFirmwareSetRecursive3']
+    targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareSetRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive3']
+
+
+class BoardRevisionIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    board: Union[bool, 'BoardArgsFromFirmwareSetRecursive4']
+    targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareSetRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive4']
+
+
+class BoardRevisionIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class BoardRevisionArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive1'
+
+
+class BoardRevisionArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive2'
+
+
+class BoardRevisionArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive3'
+
+
+class BoardRevisionArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive4'
+
+
+class BoardRevisionArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyBoardRevisionArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
+    where: 'BoardRevisionWhereInput'
+    cursor: 'BoardRevisionWhereUniqueInput'
+    distinct: List['BoardRevisionScalarFieldKeys']
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive1'
+
+
+class FindManyBoardRevisionArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
+    where: 'BoardRevisionWhereInput'
+    cursor: 'BoardRevisionWhereUniqueInput'
+    distinct: List['BoardRevisionScalarFieldKeys']
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive2'
+
+
+class FindManyBoardRevisionArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
+    where: 'BoardRevisionWhereInput'
+    cursor: 'BoardRevisionWhereUniqueInput'
+    distinct: List['BoardRevisionScalarFieldKeys']
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive3'
+
+
+class FindManyBoardRevisionArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
+    where: 'BoardRevisionWhereInput'
+    cursor: 'BoardRevisionWhereUniqueInput'
+    distinct: List['BoardRevisionScalarFieldKeys']
+    include: 'BoardRevisionIncludeFromBoardRevisionRecursive4'
+
+
+class FindManyBoardRevisionArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
+    where: 'BoardRevisionWhereInput'
+    cursor: 'BoardRevisionWhereUniqueInput'
+    distinct: List['BoardRevisionScalarFieldKeys']
+    
+    
+
+class FirmwareSetIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareSetRecursive1']
+
+
+class FirmwareSetIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareSetRecursive2']
+
+
+class FirmwareSetIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareSetRecursive3']
+
+
+class FirmwareSetIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareSetRecursive4']
+
+
+class FirmwareSetIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class FirmwareSetArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyFirmwareSetArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFirmwareSetRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromFirmwareSetRecursive1']
+
+
+class FirmwareBuildIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFirmwareSetRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromFirmwareSetRecursive2']
+
+
+class FirmwareBuildIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFirmwareSetRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromFirmwareSetRecursive3']
+
+
+class FirmwareBuildIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFirmwareSetRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromFirmwareSetRecursive4']
+
+
+class FirmwareBuildIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class FirmwareBuildArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive1'
+
+
+class FirmwareBuildArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive2'
+
+
+class FirmwareBuildArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive3'
+
+
+class FirmwareBuildArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive4'
+
+
+class FirmwareBuildArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyFirmwareBuildArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
+    where: 'FirmwareBuildWhereInput'
+    cursor: 'FirmwareBuildWhereUniqueInput'
+    distinct: List['FirmwareBuildScalarFieldKeys']
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive1'
+
+
+class FindManyFirmwareBuildArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
+    where: 'FirmwareBuildWhereInput'
+    cursor: 'FirmwareBuildWhereUniqueInput'
+    distinct: List['FirmwareBuildScalarFieldKeys']
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive2'
+
+
+class FindManyFirmwareBuildArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
+    where: 'FirmwareBuildWhereInput'
+    cursor: 'FirmwareBuildWhereUniqueInput'
+    distinct: List['FirmwareBuildScalarFieldKeys']
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive3'
+
+
+class FindManyFirmwareBuildArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
+    where: 'FirmwareBuildWhereInput'
+    cursor: 'FirmwareBuildWhereUniqueInput'
+    distinct: List['FirmwareBuildScalarFieldKeys']
+    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive4'
+
+
+class FindManyFirmwareBuildArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
+    where: 'FirmwareBuildWhereInput'
+    cursor: 'FirmwareBuildWhereUniqueInput'
+    distinct: List['FirmwareBuildScalarFieldKeys']
+    
+    
+
+class ProductStageConfigIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromFirmwareSetRecursive1']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive1']
+
+
+class ProductStageConfigIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromFirmwareSetRecursive2']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive2']
+
+
+class ProductStageConfigIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromFirmwareSetRecursive3']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive3']
+
+
+class ProductStageConfigIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromFirmwareSetRecursive4']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive4']
+
+
+class ProductStageConfigIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class ProductStageConfigArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive1'
+
+
+class ProductStageConfigArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive2'
+
+
+class ProductStageConfigArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive3'
+
+
+class ProductStageConfigArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive4'
+
+
+class ProductStageConfigArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyProductStageConfigArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
+    where: 'ProductStageConfigWhereInput'
+    cursor: 'ProductStageConfigWhereUniqueInput'
+    distinct: List['ProductStageConfigScalarFieldKeys']
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive1'
+
+
+class FindManyProductStageConfigArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
+    where: 'ProductStageConfigWhereInput'
+    cursor: 'ProductStageConfigWhereUniqueInput'
+    distinct: List['ProductStageConfigScalarFieldKeys']
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive2'
+
+
+class FindManyProductStageConfigArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
+    where: 'ProductStageConfigWhereInput'
+    cursor: 'ProductStageConfigWhereUniqueInput'
+    distinct: List['ProductStageConfigScalarFieldKeys']
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive3'
+
+
+class FindManyProductStageConfigArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
+    where: 'ProductStageConfigWhereInput'
+    cursor: 'ProductStageConfigWhereUniqueInput'
+    distinct: List['ProductStageConfigScalarFieldKeys']
+    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive4'
+
+
+class FindManyProductStageConfigArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
+    where: 'ProductStageConfigWhereInput'
+    cursor: 'ProductStageConfigWhereUniqueInput'
+    distinct: List['ProductStageConfigScalarFieldKeys']
+    
+    
+
+class ValidationQueueEntryIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    pipelineRun: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive1']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive1']
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive1']
+    session: Union[bool, 'SessionArgsFromFirmwareSetRecursive1']
+
+
+class ValidationQueueEntryIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    pipelineRun: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive2']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive2']
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive2']
+    session: Union[bool, 'SessionArgsFromFirmwareSetRecursive2']
+
+
+class ValidationQueueEntryIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    pipelineRun: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive3']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive3']
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive3']
+    session: Union[bool, 'SessionArgsFromFirmwareSetRecursive3']
+
+
+class ValidationQueueEntryIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    pipelineRun: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive4']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive4']
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive4']
+    session: Union[bool, 'SessionArgsFromFirmwareSetRecursive4']
+
+
+class ValidationQueueEntryIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class ValidationQueueEntryArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive1'
+
+
+class ValidationQueueEntryArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive2'
+
+
+class ValidationQueueEntryArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive3'
+
+
+class ValidationQueueEntryArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive4'
+
+
+class ValidationQueueEntryArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyValidationQueueEntryArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
+    where: 'ValidationQueueEntryWhereInput'
+    cursor: 'ValidationQueueEntryWhereUniqueInput'
+    distinct: List['ValidationQueueEntryScalarFieldKeys']
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive1'
+
+
+class FindManyValidationQueueEntryArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
+    where: 'ValidationQueueEntryWhereInput'
+    cursor: 'ValidationQueueEntryWhereUniqueInput'
+    distinct: List['ValidationQueueEntryScalarFieldKeys']
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive2'
+
+
+class FindManyValidationQueueEntryArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
+    where: 'ValidationQueueEntryWhereInput'
+    cursor: 'ValidationQueueEntryWhereUniqueInput'
+    distinct: List['ValidationQueueEntryScalarFieldKeys']
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive3'
+
+
+class FindManyValidationQueueEntryArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
+    where: 'ValidationQueueEntryWhereInput'
+    cursor: 'ValidationQueueEntryWhereUniqueInput'
+    distinct: List['ValidationQueueEntryScalarFieldKeys']
+    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive4'
+
+
+class FindManyValidationQueueEntryArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
+    where: 'ValidationQueueEntryWhereInput'
+    cursor: 'ValidationQueueEntryWhereUniqueInput'
+    distinct: List['ValidationQueueEntryScalarFieldKeys']
+    
+    
+
+class PipelineRunIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive1']
+    builds: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive1']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive1']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive1']
+
+
+class PipelineRunIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive2']
+    builds: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive2']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive2']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive2']
+
+
+class PipelineRunIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive3']
+    builds: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive3']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive3']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive3']
+
+
+class PipelineRunIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive4']
+    builds: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive4']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive4']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive4']
+
+
+class PipelineRunIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class PipelineRunArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'PipelineRunIncludeFromPipelineRunRecursive1'
+
+
+class PipelineRunArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'PipelineRunIncludeFromPipelineRunRecursive2'
+
+
+class PipelineRunArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'PipelineRunIncludeFromPipelineRunRecursive3'
+
+
+class PipelineRunArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'PipelineRunIncludeFromPipelineRunRecursive4'
+
+
+class PipelineRunArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyPipelineRunArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
+    where: 'PipelineRunWhereInput'
+    cursor: 'PipelineRunWhereUniqueInput'
+    distinct: List['PipelineRunScalarFieldKeys']
+    include: 'PipelineRunIncludeFromPipelineRunRecursive1'
+
+
+class FindManyPipelineRunArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
+    where: 'PipelineRunWhereInput'
+    cursor: 'PipelineRunWhereUniqueInput'
+    distinct: List['PipelineRunScalarFieldKeys']
+    include: 'PipelineRunIncludeFromPipelineRunRecursive2'
+
+
+class FindManyPipelineRunArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
+    where: 'PipelineRunWhereInput'
+    cursor: 'PipelineRunWhereUniqueInput'
+    distinct: List['PipelineRunScalarFieldKeys']
+    include: 'PipelineRunIncludeFromPipelineRunRecursive3'
+
+
+class FindManyPipelineRunArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
+    where: 'PipelineRunWhereInput'
+    cursor: 'PipelineRunWhereUniqueInput'
+    distinct: List['PipelineRunScalarFieldKeys']
+    include: 'PipelineRunIncludeFromPipelineRunRecursive4'
+
+
+class FindManyPipelineRunArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
+    where: 'PipelineRunWhereInput'
+    cursor: 'PipelineRunWhereUniqueInput'
+    distinct: List['PipelineRunScalarFieldKeys']
+    
+    
+
+class BuildJobIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    pipelineRun: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive1']
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromFirmwareSetRecursive1']
+    reusedFrom: Union[bool, 'BuildJobArgsFromFirmwareSetRecursive1']
+    reusedBy: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive1']
+
+
+class BuildJobIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    pipelineRun: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive2']
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromFirmwareSetRecursive2']
+    reusedFrom: Union[bool, 'BuildJobArgsFromFirmwareSetRecursive2']
+    reusedBy: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive2']
+
+
+class BuildJobIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    pipelineRun: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive3']
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromFirmwareSetRecursive3']
+    reusedFrom: Union[bool, 'BuildJobArgsFromFirmwareSetRecursive3']
+    reusedBy: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive3']
+
+
+class BuildJobIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    pipelineRun: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive4']
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromFirmwareSetRecursive4']
+    reusedFrom: Union[bool, 'BuildJobArgsFromFirmwareSetRecursive4']
+    reusedBy: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive4']
+
+
+class BuildJobIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class BuildJobArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BuildJobIncludeFromBuildJobRecursive1'
+
+
+class BuildJobArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BuildJobIncludeFromBuildJobRecursive2'
+
+
+class BuildJobArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BuildJobIncludeFromBuildJobRecursive3'
+
+
+class BuildJobArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BuildJobIncludeFromBuildJobRecursive4'
+
+
+class BuildJobArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyBuildJobArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
+    where: 'BuildJobWhereInput'
+    cursor: 'BuildJobWhereUniqueInput'
+    distinct: List['BuildJobScalarFieldKeys']
+    include: 'BuildJobIncludeFromBuildJobRecursive1'
+
+
+class FindManyBuildJobArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
+    where: 'BuildJobWhereInput'
+    cursor: 'BuildJobWhereUniqueInput'
+    distinct: List['BuildJobScalarFieldKeys']
+    include: 'BuildJobIncludeFromBuildJobRecursive2'
+
+
+class FindManyBuildJobArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
+    where: 'BuildJobWhereInput'
+    cursor: 'BuildJobWhereUniqueInput'
+    distinct: List['BuildJobScalarFieldKeys']
+    include: 'BuildJobIncludeFromBuildJobRecursive3'
+
+
+class FindManyBuildJobArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
+    where: 'BuildJobWhereInput'
+    cursor: 'BuildJobWhereUniqueInput'
+    distinct: List['BuildJobScalarFieldKeys']
+    include: 'BuildJobIncludeFromBuildJobRecursive4'
+
+
+class FindManyBuildJobArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
+    where: 'BuildJobWhereInput'
+    cursor: 'BuildJobWhereUniqueInput'
+    distinct: List['BuildJobScalarFieldKeys']
+    
+    
+
+class BuildJobArtifactIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    buildJob: Union[bool, 'BuildJobArgsFromFirmwareSetRecursive1']
+
+
+class BuildJobArtifactIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    buildJob: Union[bool, 'BuildJobArgsFromFirmwareSetRecursive2']
+
+
+class BuildJobArtifactIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    buildJob: Union[bool, 'BuildJobArgsFromFirmwareSetRecursive3']
+
+
+class BuildJobArtifactIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    buildJob: Union[bool, 'BuildJobArgsFromFirmwareSetRecursive4']
+
+
+class BuildJobArtifactIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class BuildJobArtifactArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive1'
+
+
+class BuildJobArtifactArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive2'
+
+
+class BuildJobArtifactArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive3'
+
+
+class BuildJobArtifactArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive4'
+
+
+class BuildJobArtifactArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyBuildJobArtifactArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
+    where: 'BuildJobArtifactWhereInput'
+    cursor: 'BuildJobArtifactWhereUniqueInput'
+    distinct: List['BuildJobArtifactScalarFieldKeys']
+    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive1'
+
+
+class FindManyBuildJobArtifactArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
+    where: 'BuildJobArtifactWhereInput'
+    cursor: 'BuildJobArtifactWhereUniqueInput'
+    distinct: List['BuildJobArtifactScalarFieldKeys']
+    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive2'
+
+
+class FindManyBuildJobArtifactArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
+    where: 'BuildJobArtifactWhereInput'
+    cursor: 'BuildJobArtifactWhereUniqueInput'
+    distinct: List['BuildJobArtifactScalarFieldKeys']
+    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive3'
+
+
+class FindManyBuildJobArtifactArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
+    where: 'BuildJobArtifactWhereInput'
+    cursor: 'BuildJobArtifactWhereUniqueInput'
+    distinct: List['BuildJobArtifactScalarFieldKeys']
+    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive4'
+
+
+class FindManyBuildJobArtifactArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
+    where: 'BuildJobArtifactWhereInput'
+    cursor: 'BuildJobArtifactWhereUniqueInput'
+    distinct: List['BuildJobArtifactScalarFieldKeys']
+    
+    
+
+class SessionIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive1']
+    pipeline: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive1']
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive1']
+    devices: Union[bool, 'FindManyDeviceArgsFromFirmwareSetRecursive1']
+    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromFirmwareSetRecursive1']
+
+
+class SessionIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive2']
+    pipeline: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive2']
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive2']
+    devices: Union[bool, 'FindManyDeviceArgsFromFirmwareSetRecursive2']
+    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromFirmwareSetRecursive2']
+
+
+class SessionIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive3']
+    pipeline: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive3']
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive3']
+    devices: Union[bool, 'FindManyDeviceArgsFromFirmwareSetRecursive3']
+    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromFirmwareSetRecursive3']
+
+
+class SessionIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive4']
+    pipeline: Union[bool, 'PipelineRunArgsFromFirmwareSetRecursive4']
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive4']
+    devices: Union[bool, 'FindManyDeviceArgsFromFirmwareSetRecursive4']
+    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromFirmwareSetRecursive4']
+
+
+class SessionIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class SessionArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SessionIncludeFromSessionRecursive1'
+
+
+class SessionArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SessionIncludeFromSessionRecursive2'
+
+
+class SessionArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SessionIncludeFromSessionRecursive3'
+
+
+class SessionArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SessionIncludeFromSessionRecursive4'
+
+
+class SessionArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManySessionArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
+    where: 'SessionWhereInput'
+    cursor: 'SessionWhereUniqueInput'
+    distinct: List['SessionScalarFieldKeys']
+    include: 'SessionIncludeFromSessionRecursive1'
+
+
+class FindManySessionArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
+    where: 'SessionWhereInput'
+    cursor: 'SessionWhereUniqueInput'
+    distinct: List['SessionScalarFieldKeys']
+    include: 'SessionIncludeFromSessionRecursive2'
+
+
+class FindManySessionArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
+    where: 'SessionWhereInput'
+    cursor: 'SessionWhereUniqueInput'
+    distinct: List['SessionScalarFieldKeys']
+    include: 'SessionIncludeFromSessionRecursive3'
+
+
+class FindManySessionArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
+    where: 'SessionWhereInput'
+    cursor: 'SessionWhereUniqueInput'
+    distinct: List['SessionScalarFieldKeys']
+    include: 'SessionIncludeFromSessionRecursive4'
+
+
+class FindManySessionArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
+    where: 'SessionWhereInput'
+    cursor: 'SessionWhereUniqueInput'
+    distinct: List['SessionScalarFieldKeys']
+    
+    
+
+class DeviceIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    session: Union[bool, 'SessionArgsFromFirmwareSetRecursive1']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive1']
+
+
+class DeviceIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    session: Union[bool, 'SessionArgsFromFirmwareSetRecursive2']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive2']
+
+
+class DeviceIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    session: Union[bool, 'SessionArgsFromFirmwareSetRecursive3']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive3']
+
+
+class DeviceIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    session: Union[bool, 'SessionArgsFromFirmwareSetRecursive4']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive4']
+
+
+class DeviceIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class DeviceArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'DeviceIncludeFromDeviceRecursive1'
+
+
+class DeviceArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'DeviceIncludeFromDeviceRecursive2'
+
+
+class DeviceArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'DeviceIncludeFromDeviceRecursive3'
+
+
+class DeviceArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'DeviceIncludeFromDeviceRecursive4'
+
+
+class DeviceArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyDeviceArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
+    where: 'DeviceWhereInput'
+    cursor: 'DeviceWhereUniqueInput'
+    distinct: List['DeviceScalarFieldKeys']
+    include: 'DeviceIncludeFromDeviceRecursive1'
+
+
+class FindManyDeviceArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
+    where: 'DeviceWhereInput'
+    cursor: 'DeviceWhereUniqueInput'
+    distinct: List['DeviceScalarFieldKeys']
+    include: 'DeviceIncludeFromDeviceRecursive2'
+
+
+class FindManyDeviceArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
+    where: 'DeviceWhereInput'
+    cursor: 'DeviceWhereUniqueInput'
+    distinct: List['DeviceScalarFieldKeys']
+    include: 'DeviceIncludeFromDeviceRecursive3'
+
+
+class FindManyDeviceArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
+    where: 'DeviceWhereInput'
+    cursor: 'DeviceWhereUniqueInput'
+    distinct: List['DeviceScalarFieldKeys']
+    include: 'DeviceIncludeFromDeviceRecursive4'
+
+
+class FindManyDeviceArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
+    where: 'DeviceWhereInput'
+    cursor: 'DeviceWhereUniqueInput'
+    distinct: List['DeviceScalarFieldKeys']
+    
+    
+
+class FixtureDesignIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive1']
+
+
+class FixtureDesignIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive2']
+
+
+class FixtureDesignIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive3']
+
+
+class FixtureDesignIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive4']
+
+
+class FixtureDesignIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class FixtureDesignArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive1'
+
+
+class FixtureDesignArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive2'
+
+
+class FixtureDesignArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive3'
+
+
+class FixtureDesignArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive4'
+
+
+class FixtureDesignArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyFixtureDesignArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
+    where: 'FixtureDesignWhereInput'
+    cursor: 'FixtureDesignWhereUniqueInput'
+    distinct: List['FixtureDesignScalarFieldKeys']
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive1'
+
+
+class FindManyFixtureDesignArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
+    where: 'FixtureDesignWhereInput'
+    cursor: 'FixtureDesignWhereUniqueInput'
+    distinct: List['FixtureDesignScalarFieldKeys']
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive2'
+
+
+class FindManyFixtureDesignArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
+    where: 'FixtureDesignWhereInput'
+    cursor: 'FixtureDesignWhereUniqueInput'
+    distinct: List['FixtureDesignScalarFieldKeys']
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive3'
+
+
+class FindManyFixtureDesignArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
+    where: 'FixtureDesignWhereInput'
+    cursor: 'FixtureDesignWhereUniqueInput'
+    distinct: List['FixtureDesignScalarFieldKeys']
+    include: 'FixtureDesignIncludeFromFixtureDesignRecursive4'
+
+
+class FindManyFixtureDesignArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
+    where: 'FixtureDesignWhereInput'
+    cursor: 'FixtureDesignWhereUniqueInput'
+    distinct: List['FixtureDesignScalarFieldKeys']
+    
+    
+
+class FixtureIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    design: Union[bool, 'FixtureDesignArgsFromFirmwareSetRecursive1']
+    slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareSetRecursive1']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive1']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive1']
+
+
+class FixtureIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    design: Union[bool, 'FixtureDesignArgsFromFirmwareSetRecursive2']
+    slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareSetRecursive2']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive2']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive2']
+
+
+class FixtureIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    design: Union[bool, 'FixtureDesignArgsFromFirmwareSetRecursive3']
+    slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareSetRecursive3']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive3']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive3']
+
+
+class FixtureIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    design: Union[bool, 'FixtureDesignArgsFromFirmwareSetRecursive4']
+    slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareSetRecursive4']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive4']
+    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive4']
+
+
+class FixtureIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class FixtureArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureIncludeFromFixtureRecursive1'
+
+
+class FixtureArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureIncludeFromFixtureRecursive2'
+
+
+class FixtureArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureIncludeFromFixtureRecursive3'
+
+
+class FixtureArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureIncludeFromFixtureRecursive4'
+
+
+class FixtureArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyFixtureArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
+    where: 'FixtureWhereInput'
+    cursor: 'FixtureWhereUniqueInput'
+    distinct: List['FixtureScalarFieldKeys']
+    include: 'FixtureIncludeFromFixtureRecursive1'
+
+
+class FindManyFixtureArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
+    where: 'FixtureWhereInput'
+    cursor: 'FixtureWhereUniqueInput'
+    distinct: List['FixtureScalarFieldKeys']
+    include: 'FixtureIncludeFromFixtureRecursive2'
+
+
+class FindManyFixtureArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
+    where: 'FixtureWhereInput'
+    cursor: 'FixtureWhereUniqueInput'
+    distinct: List['FixtureScalarFieldKeys']
+    include: 'FixtureIncludeFromFixtureRecursive3'
+
+
+class FindManyFixtureArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
+    where: 'FixtureWhereInput'
+    cursor: 'FixtureWhereUniqueInput'
+    distinct: List['FixtureScalarFieldKeys']
+    include: 'FixtureIncludeFromFixtureRecursive4'
+
+
+class FindManyFixtureArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
+    where: 'FixtureWhereInput'
+    cursor: 'FixtureWhereUniqueInput'
+    distinct: List['FixtureScalarFieldKeys']
+    
+    
+
+class FixtureSlotIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive1']
+    node: Union[bool, 'NodeArgsFromFirmwareSetRecursive1']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive1']
+
+
+class FixtureSlotIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive2']
+    node: Union[bool, 'NodeArgsFromFirmwareSetRecursive2']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive2']
+
+
+class FixtureSlotIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive3']
+    node: Union[bool, 'NodeArgsFromFirmwareSetRecursive3']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive3']
+
+
+class FixtureSlotIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive4']
+    node: Union[bool, 'NodeArgsFromFirmwareSetRecursive4']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive4']
+
+
+class FixtureSlotIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class FixtureSlotArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive1'
+
+
+class FixtureSlotArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive2'
+
+
+class FixtureSlotArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive3'
+
+
+class FixtureSlotArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive4'
+
+
+class FixtureSlotArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyFixtureSlotArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
+    where: 'FixtureSlotWhereInput'
+    cursor: 'FixtureSlotWhereUniqueInput'
+    distinct: List['FixtureSlotScalarFieldKeys']
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive1'
+
+
+class FindManyFixtureSlotArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
+    where: 'FixtureSlotWhereInput'
+    cursor: 'FixtureSlotWhereUniqueInput'
+    distinct: List['FixtureSlotScalarFieldKeys']
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive2'
+
+
+class FindManyFixtureSlotArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
+    where: 'FixtureSlotWhereInput'
+    cursor: 'FixtureSlotWhereUniqueInput'
+    distinct: List['FixtureSlotScalarFieldKeys']
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive3'
+
+
+class FindManyFixtureSlotArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
+    where: 'FixtureSlotWhereInput'
+    cursor: 'FixtureSlotWhereUniqueInput'
+    distinct: List['FixtureSlotScalarFieldKeys']
+    include: 'FixtureSlotIncludeFromFixtureSlotRecursive4'
+
+
+class FindManyFixtureSlotArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
+    where: 'FixtureSlotWhereInput'
+    cursor: 'FixtureSlotWhereUniqueInput'
+    distinct: List['FixtureSlotScalarFieldKeys']
+    
+    
+
+class NodeIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixtureSlot: Union[bool, 'FixtureSlotArgsFromFirmwareSetRecursive1']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive1']
+
+
+class NodeIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixtureSlot: Union[bool, 'FixtureSlotArgsFromFirmwareSetRecursive2']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive2']
+
+
+class NodeIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixtureSlot: Union[bool, 'FixtureSlotArgsFromFirmwareSetRecursive3']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive3']
+
+
+class NodeIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    fixtureSlot: Union[bool, 'FixtureSlotArgsFromFirmwareSetRecursive4']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive4']
+
+
+class NodeIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class NodeArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'NodeIncludeFromNodeRecursive1'
+
+
+class NodeArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'NodeIncludeFromNodeRecursive2'
+
+
+class NodeArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'NodeIncludeFromNodeRecursive3'
+
+
+class NodeArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'NodeIncludeFromNodeRecursive4'
+
+
+class NodeArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyNodeArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
+    where: 'NodeWhereInput'
+    cursor: 'NodeWhereUniqueInput'
+    distinct: List['NodeScalarFieldKeys']
+    include: 'NodeIncludeFromNodeRecursive1'
+
+
+class FindManyNodeArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
+    where: 'NodeWhereInput'
+    cursor: 'NodeWhereUniqueInput'
+    distinct: List['NodeScalarFieldKeys']
+    include: 'NodeIncludeFromNodeRecursive2'
+
+
+class FindManyNodeArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
+    where: 'NodeWhereInput'
+    cursor: 'NodeWhereUniqueInput'
+    distinct: List['NodeScalarFieldKeys']
+    include: 'NodeIncludeFromNodeRecursive3'
+
+
+class FindManyNodeArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
+    where: 'NodeWhereInput'
+    cursor: 'NodeWhereUniqueInput'
+    distinct: List['NodeScalarFieldKeys']
+    include: 'NodeIncludeFromNodeRecursive4'
+
+
+class FindManyNodeArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
+    where: 'NodeWhereInput'
+    cursor: 'NodeWhereUniqueInput'
+    distinct: List['NodeScalarFieldKeys']
+    
+    
+
+class IcleDeviceIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    commands: Union[bool, 'FindManyIclePendingCommandArgsFromFirmwareSetRecursive1']
+    logs: Union[bool, 'FindManyIcleLogArgsFromFirmwareSetRecursive1']
+
+
+class IcleDeviceIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    commands: Union[bool, 'FindManyIclePendingCommandArgsFromFirmwareSetRecursive2']
+    logs: Union[bool, 'FindManyIcleLogArgsFromFirmwareSetRecursive2']
+
+
+class IcleDeviceIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    commands: Union[bool, 'FindManyIclePendingCommandArgsFromFirmwareSetRecursive3']
+    logs: Union[bool, 'FindManyIcleLogArgsFromFirmwareSetRecursive3']
+
+
+class IcleDeviceIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    commands: Union[bool, 'FindManyIclePendingCommandArgsFromFirmwareSetRecursive4']
+    logs: Union[bool, 'FindManyIcleLogArgsFromFirmwareSetRecursive4']
+
+
+class IcleDeviceIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class IcleDeviceArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive1'
+
+
+class IcleDeviceArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive2'
+
+
+class IcleDeviceArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive3'
+
+
+class IcleDeviceArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive4'
+
+
+class IcleDeviceArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyIcleDeviceArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
+    where: 'IcleDeviceWhereInput'
+    cursor: 'IcleDeviceWhereUniqueInput'
+    distinct: List['IcleDeviceScalarFieldKeys']
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive1'
+
+
+class FindManyIcleDeviceArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
+    where: 'IcleDeviceWhereInput'
+    cursor: 'IcleDeviceWhereUniqueInput'
+    distinct: List['IcleDeviceScalarFieldKeys']
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive2'
+
+
+class FindManyIcleDeviceArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
+    where: 'IcleDeviceWhereInput'
+    cursor: 'IcleDeviceWhereUniqueInput'
+    distinct: List['IcleDeviceScalarFieldKeys']
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive3'
+
+
+class FindManyIcleDeviceArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
+    where: 'IcleDeviceWhereInput'
+    cursor: 'IcleDeviceWhereUniqueInput'
+    distinct: List['IcleDeviceScalarFieldKeys']
+    include: 'IcleDeviceIncludeFromIcleDeviceRecursive4'
+
+
+class FindManyIcleDeviceArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
+    where: 'IcleDeviceWhereInput'
+    cursor: 'IcleDeviceWhereUniqueInput'
+    distinct: List['IcleDeviceScalarFieldKeys']
+    
+    
+
+class IclePendingCommandIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    device: Union[bool, 'IcleDeviceArgsFromFirmwareSetRecursive1']
+
+
+class IclePendingCommandIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    device: Union[bool, 'IcleDeviceArgsFromFirmwareSetRecursive2']
+
+
+class IclePendingCommandIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    device: Union[bool, 'IcleDeviceArgsFromFirmwareSetRecursive3']
+
+
+class IclePendingCommandIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    device: Union[bool, 'IcleDeviceArgsFromFirmwareSetRecursive4']
+
+
+class IclePendingCommandIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class IclePendingCommandArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive1'
+
+
+class IclePendingCommandArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive2'
+
+
+class IclePendingCommandArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive3'
+
+
+class IclePendingCommandArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive4'
+
+
+class IclePendingCommandArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyIclePendingCommandArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
+    where: 'IclePendingCommandWhereInput'
+    cursor: 'IclePendingCommandWhereUniqueInput'
+    distinct: List['IclePendingCommandScalarFieldKeys']
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive1'
+
+
+class FindManyIclePendingCommandArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
+    where: 'IclePendingCommandWhereInput'
+    cursor: 'IclePendingCommandWhereUniqueInput'
+    distinct: List['IclePendingCommandScalarFieldKeys']
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive2'
+
+
+class FindManyIclePendingCommandArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
+    where: 'IclePendingCommandWhereInput'
+    cursor: 'IclePendingCommandWhereUniqueInput'
+    distinct: List['IclePendingCommandScalarFieldKeys']
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive3'
+
+
+class FindManyIclePendingCommandArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
+    where: 'IclePendingCommandWhereInput'
+    cursor: 'IclePendingCommandWhereUniqueInput'
+    distinct: List['IclePendingCommandScalarFieldKeys']
+    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive4'
+
+
+class FindManyIclePendingCommandArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
+    where: 'IclePendingCommandWhereInput'
+    cursor: 'IclePendingCommandWhereUniqueInput'
+    distinct: List['IclePendingCommandScalarFieldKeys']
+    
+    
+
+class IcleLogIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    device: Union[bool, 'IcleDeviceArgsFromFirmwareSetRecursive1']
+
+
+class IcleLogIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    device: Union[bool, 'IcleDeviceArgsFromFirmwareSetRecursive2']
+
+
+class IcleLogIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    device: Union[bool, 'IcleDeviceArgsFromFirmwareSetRecursive3']
+
+
+class IcleLogIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    device: Union[bool, 'IcleDeviceArgsFromFirmwareSetRecursive4']
+
+
+class IcleLogIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class IcleLogArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IcleLogIncludeFromIcleLogRecursive1'
+
+
+class IcleLogArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IcleLogIncludeFromIcleLogRecursive2'
+
+
+class IcleLogArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IcleLogIncludeFromIcleLogRecursive3'
+
+
+class IcleLogArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'IcleLogIncludeFromIcleLogRecursive4'
+
+
+class IcleLogArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyIcleLogArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
+    where: 'IcleLogWhereInput'
+    cursor: 'IcleLogWhereUniqueInput'
+    distinct: List['IcleLogScalarFieldKeys']
+    include: 'IcleLogIncludeFromIcleLogRecursive1'
+
+
+class FindManyIcleLogArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
+    where: 'IcleLogWhereInput'
+    cursor: 'IcleLogWhereUniqueInput'
+    distinct: List['IcleLogScalarFieldKeys']
+    include: 'IcleLogIncludeFromIcleLogRecursive2'
+
+
+class FindManyIcleLogArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
+    where: 'IcleLogWhereInput'
+    cursor: 'IcleLogWhereUniqueInput'
+    distinct: List['IcleLogScalarFieldKeys']
+    include: 'IcleLogIncludeFromIcleLogRecursive3'
+
+
+class FindManyIcleLogArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
+    where: 'IcleLogWhereInput'
+    cursor: 'IcleLogWhereUniqueInput'
+    distinct: List['IcleLogScalarFieldKeys']
+    include: 'IcleLogIncludeFromIcleLogRecursive4'
+
+
+class FindManyIcleLogArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
+    where: 'IcleLogWhereInput'
+    cursor: 'IcleLogWhereUniqueInput'
+    distinct: List['IcleLogScalarFieldKeys']
+    
+    
+
+class DeploymentIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive1']
+
+
+class DeploymentIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive2']
+
+
+class DeploymentIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive3']
+
+
+class DeploymentIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive4']
+
+
+class DeploymentIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class DeploymentArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'DeploymentIncludeFromDeploymentRecursive1'
+
+
+class DeploymentArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'DeploymentIncludeFromDeploymentRecursive2'
+
+
+class DeploymentArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'DeploymentIncludeFromDeploymentRecursive3'
+
+
+class DeploymentArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'DeploymentIncludeFromDeploymentRecursive4'
+
+
+class DeploymentArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyDeploymentArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
+    where: 'DeploymentWhereInput'
+    cursor: 'DeploymentWhereUniqueInput'
+    distinct: List['DeploymentScalarFieldKeys']
+    include: 'DeploymentIncludeFromDeploymentRecursive1'
+
+
+class FindManyDeploymentArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
+    where: 'DeploymentWhereInput'
+    cursor: 'DeploymentWhereUniqueInput'
+    distinct: List['DeploymentScalarFieldKeys']
+    include: 'DeploymentIncludeFromDeploymentRecursive2'
+
+
+class FindManyDeploymentArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
+    where: 'DeploymentWhereInput'
+    cursor: 'DeploymentWhereUniqueInput'
+    distinct: List['DeploymentScalarFieldKeys']
+    include: 'DeploymentIncludeFromDeploymentRecursive3'
+
+
+class FindManyDeploymentArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
+    where: 'DeploymentWhereInput'
+    cursor: 'DeploymentWhereUniqueInput'
+    distinct: List['DeploymentScalarFieldKeys']
+    include: 'DeploymentIncludeFromDeploymentRecursive4'
+
+
+class FindManyDeploymentArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
+    where: 'DeploymentWhereInput'
+    cursor: 'DeploymentWhereUniqueInput'
+    distinct: List['DeploymentScalarFieldKeys']
+    
+    
+
+class TestIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive1']
+
+
+class TestIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive2']
+
+
+class TestIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive3']
+
+
+class TestIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    executions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive4']
+
+
+class TestIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class TestArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestIncludeFromTestRecursive1'
+
+
+class TestArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestIncludeFromTestRecursive2'
+
+
+class TestArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestIncludeFromTestRecursive3'
+
+
+class TestArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestIncludeFromTestRecursive4'
+
+
+class TestArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyTestArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
+    where: 'TestWhereInput'
+    cursor: 'TestWhereUniqueInput'
+    distinct: List['TestScalarFieldKeys']
+    include: 'TestIncludeFromTestRecursive1'
+
+
+class FindManyTestArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
+    where: 'TestWhereInput'
+    cursor: 'TestWhereUniqueInput'
+    distinct: List['TestScalarFieldKeys']
+    include: 'TestIncludeFromTestRecursive2'
+
+
+class FindManyTestArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
+    where: 'TestWhereInput'
+    cursor: 'TestWhereUniqueInput'
+    distinct: List['TestScalarFieldKeys']
+    include: 'TestIncludeFromTestRecursive3'
+
+
+class FindManyTestArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
+    where: 'TestWhereInput'
+    cursor: 'TestWhereUniqueInput'
+    distinct: List['TestScalarFieldKeys']
+    include: 'TestIncludeFromTestRecursive4'
+
+
+class FindManyTestArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
+    where: 'TestWhereInput'
+    cursor: 'TestWhereUniqueInput'
+    distinct: List['TestScalarFieldKeys']
+    
+    
+
+class TestExecutionIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    test: Union[bool, 'TestArgsFromFirmwareSetRecursive1']
+    node: Union[bool, 'NodeArgsFromFirmwareSetRecursive1']
+    device: Union[bool, 'DeviceArgsFromFirmwareSetRecursive1']
+    slot: Union[bool, 'FixtureSlotArgsFromFirmwareSetRecursive1']
+    triggeredBy: Union[bool, 'UserArgsFromFirmwareSetRecursive1']
+    steps: Union[bool, 'FindManyTestStepArgsFromFirmwareSetRecursive1']
+    logs: Union[bool, 'FindManyLogArgsFromFirmwareSetRecursive1']
+
+
+class TestExecutionIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    test: Union[bool, 'TestArgsFromFirmwareSetRecursive2']
+    node: Union[bool, 'NodeArgsFromFirmwareSetRecursive2']
+    device: Union[bool, 'DeviceArgsFromFirmwareSetRecursive2']
+    slot: Union[bool, 'FixtureSlotArgsFromFirmwareSetRecursive2']
+    triggeredBy: Union[bool, 'UserArgsFromFirmwareSetRecursive2']
+    steps: Union[bool, 'FindManyTestStepArgsFromFirmwareSetRecursive2']
+    logs: Union[bool, 'FindManyLogArgsFromFirmwareSetRecursive2']
+
+
+class TestExecutionIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    test: Union[bool, 'TestArgsFromFirmwareSetRecursive3']
+    node: Union[bool, 'NodeArgsFromFirmwareSetRecursive3']
+    device: Union[bool, 'DeviceArgsFromFirmwareSetRecursive3']
+    slot: Union[bool, 'FixtureSlotArgsFromFirmwareSetRecursive3']
+    triggeredBy: Union[bool, 'UserArgsFromFirmwareSetRecursive3']
+    steps: Union[bool, 'FindManyTestStepArgsFromFirmwareSetRecursive3']
+    logs: Union[bool, 'FindManyLogArgsFromFirmwareSetRecursive3']
+
+
+class TestExecutionIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    test: Union[bool, 'TestArgsFromFirmwareSetRecursive4']
+    node: Union[bool, 'NodeArgsFromFirmwareSetRecursive4']
+    device: Union[bool, 'DeviceArgsFromFirmwareSetRecursive4']
+    slot: Union[bool, 'FixtureSlotArgsFromFirmwareSetRecursive4']
+    triggeredBy: Union[bool, 'UserArgsFromFirmwareSetRecursive4']
+    steps: Union[bool, 'FindManyTestStepArgsFromFirmwareSetRecursive4']
+    logs: Union[bool, 'FindManyLogArgsFromFirmwareSetRecursive4']
+
+
+class TestExecutionIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class TestExecutionArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestExecutionIncludeFromTestExecutionRecursive1'
+
+
+class TestExecutionArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestExecutionIncludeFromTestExecutionRecursive2'
+
+
+class TestExecutionArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestExecutionIncludeFromTestExecutionRecursive3'
+
+
+class TestExecutionArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestExecutionIncludeFromTestExecutionRecursive4'
+
+
+class TestExecutionArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyTestExecutionArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
+    where: 'TestExecutionWhereInput'
+    cursor: 'TestExecutionWhereUniqueInput'
+    distinct: List['TestExecutionScalarFieldKeys']
+    include: 'TestExecutionIncludeFromTestExecutionRecursive1'
+
+
+class FindManyTestExecutionArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
+    where: 'TestExecutionWhereInput'
+    cursor: 'TestExecutionWhereUniqueInput'
+    distinct: List['TestExecutionScalarFieldKeys']
+    include: 'TestExecutionIncludeFromTestExecutionRecursive2'
+
+
+class FindManyTestExecutionArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
+    where: 'TestExecutionWhereInput'
+    cursor: 'TestExecutionWhereUniqueInput'
+    distinct: List['TestExecutionScalarFieldKeys']
+    include: 'TestExecutionIncludeFromTestExecutionRecursive3'
+
+
+class FindManyTestExecutionArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
+    where: 'TestExecutionWhereInput'
+    cursor: 'TestExecutionWhereUniqueInput'
+    distinct: List['TestExecutionScalarFieldKeys']
+    include: 'TestExecutionIncludeFromTestExecutionRecursive4'
+
+
+class FindManyTestExecutionArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
+    where: 'TestExecutionWhereInput'
+    cursor: 'TestExecutionWhereUniqueInput'
+    distinct: List['TestExecutionScalarFieldKeys']
+    
+    
+
+class TestStepIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    execution: Union[bool, 'TestExecutionArgsFromFirmwareSetRecursive1']
+
+
+class TestStepIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    execution: Union[bool, 'TestExecutionArgsFromFirmwareSetRecursive2']
+
+
+class TestStepIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    execution: Union[bool, 'TestExecutionArgsFromFirmwareSetRecursive3']
+
+
+class TestStepIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    execution: Union[bool, 'TestExecutionArgsFromFirmwareSetRecursive4']
+
+
+class TestStepIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class TestStepArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestStepIncludeFromTestStepRecursive1'
+
+
+class TestStepArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestStepIncludeFromTestStepRecursive2'
+
+
+class TestStepArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestStepIncludeFromTestStepRecursive3'
+
+
+class TestStepArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'TestStepIncludeFromTestStepRecursive4'
+
+
+class TestStepArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyTestStepArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
+    where: 'TestStepWhereInput'
+    cursor: 'TestStepWhereUniqueInput'
+    distinct: List['TestStepScalarFieldKeys']
+    include: 'TestStepIncludeFromTestStepRecursive1'
+
+
+class FindManyTestStepArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
+    where: 'TestStepWhereInput'
+    cursor: 'TestStepWhereUniqueInput'
+    distinct: List['TestStepScalarFieldKeys']
+    include: 'TestStepIncludeFromTestStepRecursive2'
+
+
+class FindManyTestStepArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
+    where: 'TestStepWhereInput'
+    cursor: 'TestStepWhereUniqueInput'
+    distinct: List['TestStepScalarFieldKeys']
+    include: 'TestStepIncludeFromTestStepRecursive3'
+
+
+class FindManyTestStepArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
+    where: 'TestStepWhereInput'
+    cursor: 'TestStepWhereUniqueInput'
+    distinct: List['TestStepScalarFieldKeys']
+    include: 'TestStepIncludeFromTestStepRecursive4'
+
+
+class FindManyTestStepArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
+    where: 'TestStepWhereInput'
+    cursor: 'TestStepWhereUniqueInput'
+    distinct: List['TestStepScalarFieldKeys']
+    
+    
+
+class UserIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    permissionSet: Union[bool, 'PermissionSetArgsFromFirmwareSetRecursive1']
+    apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareSetRecursive1']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive1']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive1']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive1']
+    auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive1']
+
+
+class UserIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    permissionSet: Union[bool, 'PermissionSetArgsFromFirmwareSetRecursive2']
+    apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareSetRecursive2']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive2']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive2']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive2']
+    auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive2']
+
+
+class UserIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    permissionSet: Union[bool, 'PermissionSetArgsFromFirmwareSetRecursive3']
+    apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareSetRecursive3']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive3']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive3']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive3']
+    auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive3']
+
+
+class UserIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    permissionSet: Union[bool, 'PermissionSetArgsFromFirmwareSetRecursive4']
+    apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareSetRecursive4']
+    sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive4']
+    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive4']
+    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive4']
+    auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive4']
+
+
+class UserIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class UserArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'UserIncludeFromUserRecursive1'
+
+
+class UserArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'UserIncludeFromUserRecursive2'
+
+
+class UserArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'UserIncludeFromUserRecursive3'
+
+
+class UserArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'UserIncludeFromUserRecursive4'
+
+
+class UserArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyUserArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
+    where: 'UserWhereInput'
+    cursor: 'UserWhereUniqueInput'
+    distinct: List['UserScalarFieldKeys']
+    include: 'UserIncludeFromUserRecursive1'
+
+
+class FindManyUserArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
+    where: 'UserWhereInput'
+    cursor: 'UserWhereUniqueInput'
+    distinct: List['UserScalarFieldKeys']
+    include: 'UserIncludeFromUserRecursive2'
+
+
+class FindManyUserArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
+    where: 'UserWhereInput'
+    cursor: 'UserWhereUniqueInput'
+    distinct: List['UserScalarFieldKeys']
+    include: 'UserIncludeFromUserRecursive3'
+
+
+class FindManyUserArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
+    where: 'UserWhereInput'
+    cursor: 'UserWhereUniqueInput'
+    distinct: List['UserScalarFieldKeys']
+    include: 'UserIncludeFromUserRecursive4'
+
+
+class FindManyUserArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
+    where: 'UserWhereInput'
+    cursor: 'UserWhereUniqueInput'
+    distinct: List['UserScalarFieldKeys']
+    
+    
+
+class PermissionSetIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    users: Union[bool, 'FindManyUserArgsFromFirmwareSetRecursive1']
+
+
+class PermissionSetIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    users: Union[bool, 'FindManyUserArgsFromFirmwareSetRecursive2']
+
+
+class PermissionSetIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    users: Union[bool, 'FindManyUserArgsFromFirmwareSetRecursive3']
+
+
+class PermissionSetIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    users: Union[bool, 'FindManyUserArgsFromFirmwareSetRecursive4']
+
+
+class PermissionSetIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class PermissionSetArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'PermissionSetIncludeFromPermissionSetRecursive1'
+
+
+class PermissionSetArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'PermissionSetIncludeFromPermissionSetRecursive2'
+
+
+class PermissionSetArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'PermissionSetIncludeFromPermissionSetRecursive3'
+
+
+class PermissionSetArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'PermissionSetIncludeFromPermissionSetRecursive4'
+
+
+class PermissionSetArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyPermissionSetArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
+    where: 'PermissionSetWhereInput'
+    cursor: 'PermissionSetWhereUniqueInput'
+    distinct: List['PermissionSetScalarFieldKeys']
+    include: 'PermissionSetIncludeFromPermissionSetRecursive1'
+
+
+class FindManyPermissionSetArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
+    where: 'PermissionSetWhereInput'
+    cursor: 'PermissionSetWhereUniqueInput'
+    distinct: List['PermissionSetScalarFieldKeys']
+    include: 'PermissionSetIncludeFromPermissionSetRecursive2'
+
+
+class FindManyPermissionSetArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
+    where: 'PermissionSetWhereInput'
+    cursor: 'PermissionSetWhereUniqueInput'
+    distinct: List['PermissionSetScalarFieldKeys']
+    include: 'PermissionSetIncludeFromPermissionSetRecursive3'
+
+
+class FindManyPermissionSetArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
+    where: 'PermissionSetWhereInput'
+    cursor: 'PermissionSetWhereUniqueInput'
+    distinct: List['PermissionSetScalarFieldKeys']
+    include: 'PermissionSetIncludeFromPermissionSetRecursive4'
+
+
+class FindManyPermissionSetArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
+    where: 'PermissionSetWhereInput'
+    cursor: 'PermissionSetWhereUniqueInput'
+    distinct: List['PermissionSetScalarFieldKeys']
+    
+    
+
+class ApiKeyIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    user: Union[bool, 'UserArgsFromFirmwareSetRecursive1']
+
+
+class ApiKeyIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    user: Union[bool, 'UserArgsFromFirmwareSetRecursive2']
+
+
+class ApiKeyIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    user: Union[bool, 'UserArgsFromFirmwareSetRecursive3']
+
+
+class ApiKeyIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    user: Union[bool, 'UserArgsFromFirmwareSetRecursive4']
+
+
+class ApiKeyIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class ApiKeyArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ApiKeyIncludeFromApiKeyRecursive1'
+
+
+class ApiKeyArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ApiKeyIncludeFromApiKeyRecursive2'
+
+
+class ApiKeyArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ApiKeyIncludeFromApiKeyRecursive3'
+
+
+class ApiKeyArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'ApiKeyIncludeFromApiKeyRecursive4'
+
+
+class ApiKeyArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyApiKeyArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
+    where: 'ApiKeyWhereInput'
+    cursor: 'ApiKeyWhereUniqueInput'
+    distinct: List['ApiKeyScalarFieldKeys']
+    include: 'ApiKeyIncludeFromApiKeyRecursive1'
+
+
+class FindManyApiKeyArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
+    where: 'ApiKeyWhereInput'
+    cursor: 'ApiKeyWhereUniqueInput'
+    distinct: List['ApiKeyScalarFieldKeys']
+    include: 'ApiKeyIncludeFromApiKeyRecursive2'
+
+
+class FindManyApiKeyArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
+    where: 'ApiKeyWhereInput'
+    cursor: 'ApiKeyWhereUniqueInput'
+    distinct: List['ApiKeyScalarFieldKeys']
+    include: 'ApiKeyIncludeFromApiKeyRecursive3'
+
+
+class FindManyApiKeyArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
+    where: 'ApiKeyWhereInput'
+    cursor: 'ApiKeyWhereUniqueInput'
+    distinct: List['ApiKeyScalarFieldKeys']
+    include: 'ApiKeyIncludeFromApiKeyRecursive4'
+
+
+class FindManyApiKeyArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
+    where: 'ApiKeyWhereInput'
+    cursor: 'ApiKeyWhereUniqueInput'
+    distinct: List['ApiKeyScalarFieldKeys']
+    
+    
+
+class AuditLogIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    user: Union[bool, 'UserArgsFromFirmwareSetRecursive1']
+
+
+class AuditLogIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    user: Union[bool, 'UserArgsFromFirmwareSetRecursive2']
+
+
+class AuditLogIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    user: Union[bool, 'UserArgsFromFirmwareSetRecursive3']
+
+
+class AuditLogIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    user: Union[bool, 'UserArgsFromFirmwareSetRecursive4']
+
+
+class AuditLogIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class AuditLogArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'AuditLogIncludeFromAuditLogRecursive1'
+
+
+class AuditLogArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'AuditLogIncludeFromAuditLogRecursive2'
+
+
+class AuditLogArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'AuditLogIncludeFromAuditLogRecursive3'
+
+
+class AuditLogArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'AuditLogIncludeFromAuditLogRecursive4'
+
+
+class AuditLogArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyAuditLogArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
+    where: 'AuditLogWhereInput'
+    cursor: 'AuditLogWhereUniqueInput'
+    distinct: List['AuditLogScalarFieldKeys']
+    include: 'AuditLogIncludeFromAuditLogRecursive1'
+
+
+class FindManyAuditLogArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
+    where: 'AuditLogWhereInput'
+    cursor: 'AuditLogWhereUniqueInput'
+    distinct: List['AuditLogScalarFieldKeys']
+    include: 'AuditLogIncludeFromAuditLogRecursive2'
+
+
+class FindManyAuditLogArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
+    where: 'AuditLogWhereInput'
+    cursor: 'AuditLogWhereUniqueInput'
+    distinct: List['AuditLogScalarFieldKeys']
+    include: 'AuditLogIncludeFromAuditLogRecursive3'
+
+
+class FindManyAuditLogArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
+    where: 'AuditLogWhereInput'
+    cursor: 'AuditLogWhereUniqueInput'
+    distinct: List['AuditLogScalarFieldKeys']
+    include: 'AuditLogIncludeFromAuditLogRecursive4'
+
+
+class FindManyAuditLogArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
+    where: 'AuditLogWhereInput'
+    cursor: 'AuditLogWhereUniqueInput'
+    distinct: List['AuditLogScalarFieldKeys']
+    
+    
+
+class SettingIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+
+class SettingIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+
+class SettingIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+
+class SettingIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+
+class SettingIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class SettingArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SettingIncludeFromSettingRecursive1'
+
+
+class SettingArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SettingIncludeFromSettingRecursive2'
+
+
+class SettingArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SettingIncludeFromSettingRecursive3'
+
+
+class SettingArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'SettingIncludeFromSettingRecursive4'
+
+
+class SettingArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManySettingArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
+    where: 'SettingWhereInput'
+    cursor: 'SettingWhereUniqueInput'
+    distinct: List['SettingScalarFieldKeys']
+    include: 'SettingIncludeFromSettingRecursive1'
+
+
+class FindManySettingArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
+    where: 'SettingWhereInput'
+    cursor: 'SettingWhereUniqueInput'
+    distinct: List['SettingScalarFieldKeys']
+    include: 'SettingIncludeFromSettingRecursive2'
+
+
+class FindManySettingArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
+    where: 'SettingWhereInput'
+    cursor: 'SettingWhereUniqueInput'
+    distinct: List['SettingScalarFieldKeys']
+    include: 'SettingIncludeFromSettingRecursive3'
+
+
+class FindManySettingArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
+    where: 'SettingWhereInput'
+    cursor: 'SettingWhereUniqueInput'
+    distinct: List['SettingScalarFieldKeys']
+    include: 'SettingIncludeFromSettingRecursive4'
+
+
+class FindManySettingArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
+    where: 'SettingWhereInput'
+    cursor: 'SettingWhereUniqueInput'
+    distinct: List['SettingScalarFieldKeys']
+    
+    
+
+class LogIncludeFromFirmwareSet(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    execution: Union[bool, 'TestExecutionArgsFromFirmwareSetRecursive1']
+
+
+class LogIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    execution: Union[bool, 'TestExecutionArgsFromFirmwareSetRecursive2']
+
+
+class LogIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    execution: Union[bool, 'TestExecutionArgsFromFirmwareSetRecursive3']
+
+
+class LogIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+    execution: Union[bool, 'TestExecutionArgsFromFirmwareSetRecursive4']
+
+
+class LogIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareSet"""
+
+    
+
+class LogArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'LogIncludeFromLogRecursive1'
+
+
+class LogArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'LogIncludeFromLogRecursive2'
+
+
+class LogArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'LogIncludeFromLogRecursive3'
+
+
+class LogArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    include: 'LogIncludeFromLogRecursive4'
+
+
+class LogArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    
+    
+
+class FindManyLogArgsFromFirmwareSet(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
+    where: 'LogWhereInput'
+    cursor: 'LogWhereUniqueInput'
+    distinct: List['LogScalarFieldKeys']
+    include: 'LogIncludeFromLogRecursive1'
+
+
+class FindManyLogArgsFromFirmwareSetRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
+    where: 'LogWhereInput'
+    cursor: 'LogWhereUniqueInput'
+    distinct: List['LogScalarFieldKeys']
+    include: 'LogIncludeFromLogRecursive2'
+
+
+class FindManyLogArgsFromFirmwareSetRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
+    where: 'LogWhereInput'
+    cursor: 'LogWhereUniqueInput'
+    distinct: List['LogScalarFieldKeys']
+    include: 'LogIncludeFromLogRecursive3'
+
+
+class FindManyLogArgsFromFirmwareSetRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
+    where: 'LogWhereInput'
+    cursor: 'LogWhereUniqueInput'
+    distinct: List['LogScalarFieldKeys']
+    include: 'LogIncludeFromLogRecursive4'
+
+
+class FindManyLogArgsFromFirmwareSetRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareSet"""
+    take: int
+    skip: int
+    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
+    where: 'LogWhereInput'
+    cursor: 'LogWhereUniqueInput'
+    distinct: List['LogScalarFieldKeys']
+    
+
+
+FindManyFirmwareSetArgs = FindManyFirmwareSetArgsFromFirmwareSet
+FindFirstFirmwareSetArgs = FindManyFirmwareSetArgsFromFirmwareSet
+
+
+    
+
+class FirmwareSetWhereInput(TypedDict, total=False):
+    """FirmwareSet arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    productId: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
+    version: Union[_str, 'types.StringFilter']
+    releaseTrack: Union[_str, 'types.StringFilter']
+    isManufacturing: Union[_bool, 'types.BooleanFilter']
+    isDebug: Union[_bool, 'types.BooleanFilter']
+    source: Union[_str, 'types.StringFilter']
+    buildJobId: Union[None, _str, 'types.StringFilter']
+    externalBuildId: Union[None, _str, 'types.StringFilter']
+    modemVersion: Union[None, _str, 'types.StringFilter']
+    modemStorageKey: Union[None, _str, 'types.StringFilter']
+    buildFingerprint: Union[None, _str, 'types.StringFilter']
+    status: Union[_str, 'types.StringFilter']
+    notes: Union[None, _str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
+    builds: 'FirmwareBuildListRelationFilter'
+
+    # should be noted that AND and NOT should be Union['FirmwareSetWhereInputRecursive1', List['FirmwareSetWhereInputRecursive1']]
+    # but this causes mypy to hang :/
+    AND: List['FirmwareSetWhereInputRecursive1']
+    OR: List['FirmwareSetWhereInputRecursive1']
+    NOT: List['FirmwareSetWhereInputRecursive1']
+
+
+class FirmwareSetWhereInputRecursive1(TypedDict, total=False):
+    """FirmwareSet arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    productId: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
+    version: Union[_str, 'types.StringFilter']
+    releaseTrack: Union[_str, 'types.StringFilter']
+    isManufacturing: Union[_bool, 'types.BooleanFilter']
+    isDebug: Union[_bool, 'types.BooleanFilter']
+    source: Union[_str, 'types.StringFilter']
+    buildJobId: Union[None, _str, 'types.StringFilter']
+    externalBuildId: Union[None, _str, 'types.StringFilter']
+    modemVersion: Union[None, _str, 'types.StringFilter']
+    modemStorageKey: Union[None, _str, 'types.StringFilter']
+    buildFingerprint: Union[None, _str, 'types.StringFilter']
+    status: Union[_str, 'types.StringFilter']
+    notes: Union[None, _str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
+    builds: 'FirmwareBuildListRelationFilter'
+
+    # should be noted that AND and NOT should be Union['FirmwareSetWhereInputRecursive2', List['FirmwareSetWhereInputRecursive2']]
+    # but this causes mypy to hang :/
+    AND: List['FirmwareSetWhereInputRecursive2']
+    OR: List['FirmwareSetWhereInputRecursive2']
+    NOT: List['FirmwareSetWhereInputRecursive2']
+
+
+class FirmwareSetWhereInputRecursive2(TypedDict, total=False):
+    """FirmwareSet arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    productId: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
+    version: Union[_str, 'types.StringFilter']
+    releaseTrack: Union[_str, 'types.StringFilter']
+    isManufacturing: Union[_bool, 'types.BooleanFilter']
+    isDebug: Union[_bool, 'types.BooleanFilter']
+    source: Union[_str, 'types.StringFilter']
+    buildJobId: Union[None, _str, 'types.StringFilter']
+    externalBuildId: Union[None, _str, 'types.StringFilter']
+    modemVersion: Union[None, _str, 'types.StringFilter']
+    modemStorageKey: Union[None, _str, 'types.StringFilter']
+    buildFingerprint: Union[None, _str, 'types.StringFilter']
+    status: Union[_str, 'types.StringFilter']
+    notes: Union[None, _str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
+    builds: 'FirmwareBuildListRelationFilter'
+
+    # should be noted that AND and NOT should be Union['FirmwareSetWhereInputRecursive3', List['FirmwareSetWhereInputRecursive3']]
+    # but this causes mypy to hang :/
+    AND: List['FirmwareSetWhereInputRecursive3']
+    OR: List['FirmwareSetWhereInputRecursive3']
+    NOT: List['FirmwareSetWhereInputRecursive3']
+
+
+class FirmwareSetWhereInputRecursive3(TypedDict, total=False):
+    """FirmwareSet arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    productId: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
+    version: Union[_str, 'types.StringFilter']
+    releaseTrack: Union[_str, 'types.StringFilter']
+    isManufacturing: Union[_bool, 'types.BooleanFilter']
+    isDebug: Union[_bool, 'types.BooleanFilter']
+    source: Union[_str, 'types.StringFilter']
+    buildJobId: Union[None, _str, 'types.StringFilter']
+    externalBuildId: Union[None, _str, 'types.StringFilter']
+    modemVersion: Union[None, _str, 'types.StringFilter']
+    modemStorageKey: Union[None, _str, 'types.StringFilter']
+    buildFingerprint: Union[None, _str, 'types.StringFilter']
+    status: Union[_str, 'types.StringFilter']
+    notes: Union[None, _str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
+    builds: 'FirmwareBuildListRelationFilter'
+
+    # should be noted that AND and NOT should be Union['FirmwareSetWhereInputRecursive4', List['FirmwareSetWhereInputRecursive4']]
+    # but this causes mypy to hang :/
+    AND: List['FirmwareSetWhereInputRecursive4']
+    OR: List['FirmwareSetWhereInputRecursive4']
+    NOT: List['FirmwareSetWhereInputRecursive4']
+
+
+class FirmwareSetWhereInputRecursive4(TypedDict, total=False):
+    """FirmwareSet arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    productId: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
+    version: Union[_str, 'types.StringFilter']
+    releaseTrack: Union[_str, 'types.StringFilter']
+    isManufacturing: Union[_bool, 'types.BooleanFilter']
+    isDebug: Union[_bool, 'types.BooleanFilter']
+    source: Union[_str, 'types.StringFilter']
+    buildJobId: Union[None, _str, 'types.StringFilter']
+    externalBuildId: Union[None, _str, 'types.StringFilter']
+    modemVersion: Union[None, _str, 'types.StringFilter']
+    modemStorageKey: Union[None, _str, 'types.StringFilter']
+    buildFingerprint: Union[None, _str, 'types.StringFilter']
+    status: Union[_str, 'types.StringFilter']
+    notes: Union[None, _str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
+    builds: 'FirmwareBuildListRelationFilter'
+
+
+
+# aggregate FirmwareSet types
+
+
+    
+
+class FirmwareSetScalarWhereWithAggregatesInput(TypedDict, total=False):
+    """FirmwareSet arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    productId: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
+    version: Union[_str, 'types.StringWithAggregatesFilter']
+    releaseTrack: Union[_str, 'types.StringWithAggregatesFilter']
+    isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    isDebug: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    source: Union[_str, 'types.StringWithAggregatesFilter']
+    buildJobId: Union[_str, 'types.StringWithAggregatesFilter']
+    externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
+    modemVersion: Union[_str, 'types.StringWithAggregatesFilter']
+    modemStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    buildFingerprint: Union[_str, 'types.StringWithAggregatesFilter']
+    status: Union[_str, 'types.StringWithAggregatesFilter']
+    notes: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['FirmwareSetScalarWhereWithAggregatesInputRecursive1']
+    OR: List['FirmwareSetScalarWhereWithAggregatesInputRecursive1']
+    NOT: List['FirmwareSetScalarWhereWithAggregatesInputRecursive1']
+
+
+class FirmwareSetScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
+    """FirmwareSet arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    productId: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
+    version: Union[_str, 'types.StringWithAggregatesFilter']
+    releaseTrack: Union[_str, 'types.StringWithAggregatesFilter']
+    isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    isDebug: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    source: Union[_str, 'types.StringWithAggregatesFilter']
+    buildJobId: Union[_str, 'types.StringWithAggregatesFilter']
+    externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
+    modemVersion: Union[_str, 'types.StringWithAggregatesFilter']
+    modemStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    buildFingerprint: Union[_str, 'types.StringWithAggregatesFilter']
+    status: Union[_str, 'types.StringWithAggregatesFilter']
+    notes: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['FirmwareSetScalarWhereWithAggregatesInputRecursive2']
+    OR: List['FirmwareSetScalarWhereWithAggregatesInputRecursive2']
+    NOT: List['FirmwareSetScalarWhereWithAggregatesInputRecursive2']
+
+
+class FirmwareSetScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
+    """FirmwareSet arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    productId: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
+    version: Union[_str, 'types.StringWithAggregatesFilter']
+    releaseTrack: Union[_str, 'types.StringWithAggregatesFilter']
+    isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    isDebug: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    source: Union[_str, 'types.StringWithAggregatesFilter']
+    buildJobId: Union[_str, 'types.StringWithAggregatesFilter']
+    externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
+    modemVersion: Union[_str, 'types.StringWithAggregatesFilter']
+    modemStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    buildFingerprint: Union[_str, 'types.StringWithAggregatesFilter']
+    status: Union[_str, 'types.StringWithAggregatesFilter']
+    notes: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['FirmwareSetScalarWhereWithAggregatesInputRecursive3']
+    OR: List['FirmwareSetScalarWhereWithAggregatesInputRecursive3']
+    NOT: List['FirmwareSetScalarWhereWithAggregatesInputRecursive3']
+
+
+class FirmwareSetScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
+    """FirmwareSet arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    productId: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
+    version: Union[_str, 'types.StringWithAggregatesFilter']
+    releaseTrack: Union[_str, 'types.StringWithAggregatesFilter']
+    isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    isDebug: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    source: Union[_str, 'types.StringWithAggregatesFilter']
+    buildJobId: Union[_str, 'types.StringWithAggregatesFilter']
+    externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
+    modemVersion: Union[_str, 'types.StringWithAggregatesFilter']
+    modemStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    buildFingerprint: Union[_str, 'types.StringWithAggregatesFilter']
+    status: Union[_str, 'types.StringWithAggregatesFilter']
+    notes: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['FirmwareSetScalarWhereWithAggregatesInputRecursive4']
+    OR: List['FirmwareSetScalarWhereWithAggregatesInputRecursive4']
+    NOT: List['FirmwareSetScalarWhereWithAggregatesInputRecursive4']
+
+
+class FirmwareSetScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
+    """FirmwareSet arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    productId: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
+    version: Union[_str, 'types.StringWithAggregatesFilter']
+    releaseTrack: Union[_str, 'types.StringWithAggregatesFilter']
+    isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    isDebug: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    source: Union[_str, 'types.StringWithAggregatesFilter']
+    buildJobId: Union[_str, 'types.StringWithAggregatesFilter']
+    externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
+    modemVersion: Union[_str, 'types.StringWithAggregatesFilter']
+    modemStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    buildFingerprint: Union[_str, 'types.StringWithAggregatesFilter']
+    status: Union[_str, 'types.StringWithAggregatesFilter']
+    notes: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+
+
+class FirmwareSetGroupByOutput(TypedDict, total=False):
+    id: _str
+    productId: _str
+    boardRevisionId: _str
+    version: _str
+    releaseTrack: _str
+    isManufacturing: _bool
+    isDebug: _bool
+    source: _str
+    buildJobId: _str
+    externalBuildId: _str
+    modemVersion: _str
+    modemStorageKey: _str
+    buildFingerprint: _str
+    status: _str
+    notes: _str
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    _sum: 'FirmwareSetSumAggregateOutput'
+    _avg: 'FirmwareSetAvgAggregateOutput'
+    _min: 'FirmwareSetMinAggregateOutput'
+    _max: 'FirmwareSetMaxAggregateOutput'
+    _count: 'FirmwareSetCountAggregateOutput'
+
+
+class FirmwareSetAvgAggregateOutput(TypedDict, total=False):
+    """FirmwareSet output for aggregating averages"""
+
+
+class FirmwareSetSumAggregateOutput(TypedDict, total=False):
+    """FirmwareSet output for aggregating sums"""
+
+
+class FirmwareSetScalarAggregateOutput(TypedDict, total=False):
+    """FirmwareSet output including scalar fields"""
+    id: _str
+    productId: _str
+    boardRevisionId: _str
+    version: _str
+    releaseTrack: _str
+    isManufacturing: _bool
+    isDebug: _bool
+    source: _str
+    buildJobId: _str
+    externalBuildId: _str
+    modemVersion: _str
+    modemStorageKey: _str
+    buildFingerprint: _str
+    status: _str
+    notes: _str
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+
+
+FirmwareSetMinAggregateOutput = FirmwareSetScalarAggregateOutput
+FirmwareSetMaxAggregateOutput = FirmwareSetScalarAggregateOutput
+
+
+class FirmwareSetMaxAggregateInput(TypedDict, total=False):
+    """FirmwareSet input for aggregating by max"""
+    id: bool
+    productId: bool
+    boardRevisionId: bool
+    version: bool
+    releaseTrack: bool
+    isManufacturing: bool
+    isDebug: bool
+    source: bool
+    buildJobId: bool
+    externalBuildId: bool
+    modemVersion: bool
+    modemStorageKey: bool
+    buildFingerprint: bool
+    status: bool
+    notes: bool
+    createdAt: bool
+    updatedAt: bool
+
+
+class FirmwareSetMinAggregateInput(TypedDict, total=False):
+    """FirmwareSet input for aggregating by min"""
+    id: bool
+    productId: bool
+    boardRevisionId: bool
+    version: bool
+    releaseTrack: bool
+    isManufacturing: bool
+    isDebug: bool
+    source: bool
+    buildJobId: bool
+    externalBuildId: bool
+    modemVersion: bool
+    modemStorageKey: bool
+    buildFingerprint: bool
+    status: bool
+    notes: bool
+    createdAt: bool
+    updatedAt: bool
+
+
+class FirmwareSetNumberAggregateInput(TypedDict, total=False):
+    """FirmwareSet input for aggregating numbers"""
+
+
+FirmwareSetAvgAggregateInput = FirmwareSetNumberAggregateInput
+FirmwareSetSumAggregateInput = FirmwareSetNumberAggregateInput
+
+
+FirmwareSetCountAggregateInput = TypedDict(
+    'FirmwareSetCountAggregateInput',
+    {
+        'id': bool,
+        'productId': bool,
+        'boardRevisionId': bool,
+        'version': bool,
+        'releaseTrack': bool,
+        'isManufacturing': bool,
+        'isDebug': bool,
+        'source': bool,
+        'buildJobId': bool,
+        'externalBuildId': bool,
+        'modemVersion': bool,
+        'modemStorageKey': bool,
+        'buildFingerprint': bool,
+        'status': bool,
+        'notes': bool,
+        'createdAt': bool,
+        'updatedAt': bool,
+        '_all': bool,
+    },
+    total=False,
+)
+
+FirmwareSetCountAggregateOutput = TypedDict(
+    'FirmwareSetCountAggregateOutput',
+    {
+        'id': int,
+        'productId': int,
+        'boardRevisionId': int,
+        'version': int,
+        'releaseTrack': int,
+        'isManufacturing': int,
+        'isDebug': int,
+        'source': int,
+        'buildJobId': int,
+        'externalBuildId': int,
+        'modemVersion': int,
+        'modemStorageKey': int,
+        'buildFingerprint': int,
+        'status': int,
+        'notes': int,
+        'createdAt': int,
+        'updatedAt': int,
+        '_all': int,
+    },
+    total=False,
+)
+
+
+FirmwareSetKeys = Literal[
+    'id',
+    'productId',
+    'boardRevisionId',
+    'version',
+    'releaseTrack',
+    'isManufacturing',
+    'isDebug',
+    'source',
+    'buildJobId',
+    'externalBuildId',
+    'modemVersion',
+    'modemStorageKey',
+    'buildFingerprint',
+    'status',
+    'notes',
+    'createdAt',
+    'updatedAt',
+    'product',
+    'boardRevision',
+    'builds',
+]
+FirmwareSetScalarFieldKeys = Literal[
+    'id',
+    'productId',
+    'boardRevisionId',
+    'version',
+    'releaseTrack',
+    'isManufacturing',
+    'isDebug',
+    'source',
+    'buildJobId',
+    'externalBuildId',
+    'modemVersion',
+    'modemStorageKey',
+    'buildFingerprint',
+    'status',
+    'notes',
+    'createdAt',
+    'updatedAt',
+]
+FirmwareSetScalarFieldKeysT = TypeVar('FirmwareSetScalarFieldKeysT', bound=FirmwareSetScalarFieldKeys)
+
+FirmwareSetRelationalFieldKeys = Literal[
+        'product',
+        'boardRevision',
+        'builds',
     ]
 
 # FirmwareBuild types
@@ -17349,26 +22045,22 @@ BoardRevisionRelationalFieldKeys = Literal[
 class FirmwareBuildOptionalCreateInput(TypedDict, total=False):
     """Optional arguments to the FirmwareBuild create method"""
     id: _str
-    productId: _str
+    firmwareSetId: _str
     targetId: Optional[_str]
-    isManufacturing: _bool
-    status: 'enums.LifecycleStatus'
+    versionString: Optional[_str]
+    hexStorageKey: Optional[_str]
+    hexEncStorageKey: Optional[_str]
+    cfwStorageKey: Optional[_str]
+    manifestKey: Optional[_str]
     contentType: Optional[_str]
-    modemStorageKey: Optional[_str]
-    modemFilename: Optional[_str]
-    modemSizeBytes: Optional[_int]
-    modemChecksum: Optional[_str]
     notes: Optional[_str]
     createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    product: 'ProductCreateNestedWithoutRelationsInput'
+    firmwareSet: 'FirmwareSetCreateNestedWithoutRelationsInput'
     target: 'ProductTargetCreateNestedWithoutRelationsInput'
 
 
 class FirmwareBuildCreateInput(FirmwareBuildOptionalCreateInput):
     """Required arguments to the FirmwareBuild create method"""
-    version: _str
-    storageKey: _str
     filename: _str
     sizeBytes: _int
     checksum: _str
@@ -17380,24 +22072,20 @@ class FirmwareBuildCreateInput(FirmwareBuildOptionalCreateInput):
 class FirmwareBuildOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     """Optional arguments to the FirmwareBuild create method, without relations"""
     id: _str
-    productId: _str
+    firmwareSetId: _str
     targetId: Optional[_str]
-    isManufacturing: _bool
-    status: 'enums.LifecycleStatus'
+    versionString: Optional[_str]
+    hexStorageKey: Optional[_str]
+    hexEncStorageKey: Optional[_str]
+    cfwStorageKey: Optional[_str]
+    manifestKey: Optional[_str]
     contentType: Optional[_str]
-    modemStorageKey: Optional[_str]
-    modemFilename: Optional[_str]
-    modemSizeBytes: Optional[_int]
-    modemChecksum: Optional[_str]
     notes: Optional[_str]
     createdAt: datetime.datetime
-    updatedAt: datetime.datetime
 
 
 class FirmwareBuildCreateWithoutRelationsInput(FirmwareBuildOptionalCreateWithoutRelationsInput):
     """Required arguments to the FirmwareBuild create method, without relations"""
-    version: _str
-    storageKey: _str
     filename: _str
     sizeBytes: _int
     checksum: _str
@@ -17425,70 +22113,41 @@ _FirmwareBuildWhereUnique_id_Input = TypedDict(
     total=True
 )
 
-_FirmwareBuildCompoundproductId_targetId_versionKeyInner = TypedDict(
-    '_FirmwareBuildCompoundproductId_targetId_versionKeyInner',
-    {
-        'productId': '_str',
-        'targetId': '_str',
-        'version': '_str',
-    },
-    total=True
-)
-
-_FirmwareBuildCompoundproductId_targetId_versionKey = TypedDict(
-    '_FirmwareBuildCompoundproductId_targetId_versionKey',
-    {
-        'productId_targetId_version': '_FirmwareBuildCompoundproductId_targetId_versionKeyInner',
-    },
-    total=True
-)
-
-FirmwareBuildWhereUniqueInput = Union[
-    '_FirmwareBuildWhereUnique_id_Input',
-    '_FirmwareBuildCompoundproductId_targetId_versionKey',
-]
+FirmwareBuildWhereUniqueInput = _FirmwareBuildWhereUnique_id_Input
 
 
 class FirmwareBuildUpdateInput(TypedDict, total=False):
     """Optional arguments for updating a record"""
     id: _str
-    version: _str
-    isManufacturing: _bool
-    status: 'enums.LifecycleStatus'
-    storageKey: _str
+    versionString: Optional[_str]
+    hexStorageKey: Optional[_str]
+    hexEncStorageKey: Optional[_str]
+    cfwStorageKey: Optional[_str]
+    manifestKey: Optional[_str]
     filename: _str
     sizeBytes: Union[AtomicBigIntInput, _int]
     checksum: _str
     contentType: Optional[_str]
-    modemStorageKey: Optional[_str]
-    modemFilename: Optional[_str]
-    modemSizeBytes: Optional[Union[AtomicBigIntInput, _int]]
-    modemChecksum: Optional[_str]
     notes: Optional[_str]
     createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    product: 'ProductUpdateOneWithoutRelationsInput'
+    firmwareSet: 'FirmwareSetUpdateOneWithoutRelationsInput'
     target: 'ProductTargetUpdateOneWithoutRelationsInput'
 
 
 class FirmwareBuildUpdateManyMutationInput(TypedDict, total=False):
     """Arguments for updating many records"""
     id: _str
-    version: _str
-    isManufacturing: _bool
-    status: 'enums.LifecycleStatus'
-    storageKey: _str
+    versionString: Optional[_str]
+    hexStorageKey: Optional[_str]
+    hexEncStorageKey: Optional[_str]
+    cfwStorageKey: Optional[_str]
+    manifestKey: Optional[_str]
     filename: _str
     sizeBytes: Union[AtomicBigIntInput, _int]
     checksum: _str
     contentType: Optional[_str]
-    modemStorageKey: Optional[_str]
-    modemFilename: Optional[_str]
-    modemSizeBytes: Optional[Union[AtomicBigIntInput, _int]]
-    modemChecksum: Optional[_str]
     notes: Optional[_str]
     createdAt: datetime.datetime
-    updatedAt: datetime.datetime
 
 
 class FirmwareBuildUpdateManyWithoutRelationsInput(TypedDict, total=False):
@@ -17531,10 +22190,10 @@ _FirmwareBuild_id_OrderByInput = TypedDict(
     total=True
 )
 
-_FirmwareBuild_productId_OrderByInput = TypedDict(
-    '_FirmwareBuild_productId_OrderByInput',
+_FirmwareBuild_firmwareSetId_OrderByInput = TypedDict(
+    '_FirmwareBuild_firmwareSetId_OrderByInput',
     {
-        'productId': 'SortOrder',
+        'firmwareSetId': 'SortOrder',
     },
     total=True
 )
@@ -17547,34 +22206,42 @@ _FirmwareBuild_targetId_OrderByInput = TypedDict(
     total=True
 )
 
-_FirmwareBuild_version_OrderByInput = TypedDict(
-    '_FirmwareBuild_version_OrderByInput',
+_FirmwareBuild_versionString_OrderByInput = TypedDict(
+    '_FirmwareBuild_versionString_OrderByInput',
     {
-        'version': 'SortOrder',
+        'versionString': 'SortOrder',
     },
     total=True
 )
 
-_FirmwareBuild_isManufacturing_OrderByInput = TypedDict(
-    '_FirmwareBuild_isManufacturing_OrderByInput',
+_FirmwareBuild_hexStorageKey_OrderByInput = TypedDict(
+    '_FirmwareBuild_hexStorageKey_OrderByInput',
     {
-        'isManufacturing': 'SortOrder',
+        'hexStorageKey': 'SortOrder',
     },
     total=True
 )
 
-_FirmwareBuild_status_OrderByInput = TypedDict(
-    '_FirmwareBuild_status_OrderByInput',
+_FirmwareBuild_hexEncStorageKey_OrderByInput = TypedDict(
+    '_FirmwareBuild_hexEncStorageKey_OrderByInput',
     {
-        'status': 'SortOrder',
+        'hexEncStorageKey': 'SortOrder',
     },
     total=True
 )
 
-_FirmwareBuild_storageKey_OrderByInput = TypedDict(
-    '_FirmwareBuild_storageKey_OrderByInput',
+_FirmwareBuild_cfwStorageKey_OrderByInput = TypedDict(
+    '_FirmwareBuild_cfwStorageKey_OrderByInput',
     {
-        'storageKey': 'SortOrder',
+        'cfwStorageKey': 'SortOrder',
+    },
+    total=True
+)
+
+_FirmwareBuild_manifestKey_OrderByInput = TypedDict(
+    '_FirmwareBuild_manifestKey_OrderByInput',
+    {
+        'manifestKey': 'SortOrder',
     },
     total=True
 )
@@ -17611,38 +22278,6 @@ _FirmwareBuild_contentType_OrderByInput = TypedDict(
     total=True
 )
 
-_FirmwareBuild_modemStorageKey_OrderByInput = TypedDict(
-    '_FirmwareBuild_modemStorageKey_OrderByInput',
-    {
-        'modemStorageKey': 'SortOrder',
-    },
-    total=True
-)
-
-_FirmwareBuild_modemFilename_OrderByInput = TypedDict(
-    '_FirmwareBuild_modemFilename_OrderByInput',
-    {
-        'modemFilename': 'SortOrder',
-    },
-    total=True
-)
-
-_FirmwareBuild_modemSizeBytes_OrderByInput = TypedDict(
-    '_FirmwareBuild_modemSizeBytes_OrderByInput',
-    {
-        'modemSizeBytes': 'SortOrder',
-    },
-    total=True
-)
-
-_FirmwareBuild_modemChecksum_OrderByInput = TypedDict(
-    '_FirmwareBuild_modemChecksum_OrderByInput',
-    {
-        'modemChecksum': 'SortOrder',
-    },
-    total=True
-)
-
 _FirmwareBuild_notes_OrderByInput = TypedDict(
     '_FirmwareBuild_notes_OrderByInput',
     {
@@ -17655,14 +22290,6 @@ _FirmwareBuild_createdAt_OrderByInput = TypedDict(
     '_FirmwareBuild_createdAt_OrderByInput',
     {
         'createdAt': 'SortOrder',
-    },
-    total=True
-)
-
-_FirmwareBuild_updatedAt_OrderByInput = TypedDict(
-    '_FirmwareBuild_updatedAt_OrderByInput',
-    {
-        'updatedAt': 'SortOrder',
     },
     total=True
 )
@@ -17687,23 +22314,19 @@ _FirmwareBuild_RelevanceOrderByInput = TypedDict(
 
 FirmwareBuildOrderByInput = Union[
     '_FirmwareBuild_id_OrderByInput',
-    '_FirmwareBuild_productId_OrderByInput',
+    '_FirmwareBuild_firmwareSetId_OrderByInput',
     '_FirmwareBuild_targetId_OrderByInput',
-    '_FirmwareBuild_version_OrderByInput',
-    '_FirmwareBuild_isManufacturing_OrderByInput',
-    '_FirmwareBuild_status_OrderByInput',
-    '_FirmwareBuild_storageKey_OrderByInput',
+    '_FirmwareBuild_versionString_OrderByInput',
+    '_FirmwareBuild_hexStorageKey_OrderByInput',
+    '_FirmwareBuild_hexEncStorageKey_OrderByInput',
+    '_FirmwareBuild_cfwStorageKey_OrderByInput',
+    '_FirmwareBuild_manifestKey_OrderByInput',
     '_FirmwareBuild_filename_OrderByInput',
     '_FirmwareBuild_sizeBytes_OrderByInput',
     '_FirmwareBuild_checksum_OrderByInput',
     '_FirmwareBuild_contentType_OrderByInput',
-    '_FirmwareBuild_modemStorageKey_OrderByInput',
-    '_FirmwareBuild_modemFilename_OrderByInput',
-    '_FirmwareBuild_modemSizeBytes_OrderByInput',
-    '_FirmwareBuild_modemChecksum_OrderByInput',
     '_FirmwareBuild_notes_OrderByInput',
     '_FirmwareBuild_createdAt_OrderByInput',
-    '_FirmwareBuild_updatedAt_OrderByInput',
     '_FirmwareBuild_RelevanceOrderByInput',
 ]
 
@@ -17735,7 +22358,7 @@ class FirmwareBuildListRelationFilter(TypedDict, total=False):
 
 class FirmwareBuildInclude(TypedDict, total=False):
     """FirmwareBuild relational arguments"""
-    product: Union[bool, 'ProductArgsFromFirmwareBuild']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFirmwareBuild']
     target: Union[bool, 'ProductTargetArgsFromFirmwareBuild']
 
 
@@ -17744,7 +22367,7 @@ class FirmwareBuildInclude(TypedDict, total=False):
 class ProductIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     boards: Union[bool, 'FindManyBoardArgsFromFirmwareBuildRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromFirmwareBuildRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive1']
@@ -17757,7 +22380,7 @@ class ProductIncludeFromFirmwareBuild(TypedDict, total=False):
 class ProductIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     boards: Union[bool, 'FindManyBoardArgsFromFirmwareBuildRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromFirmwareBuildRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive2']
@@ -17770,7 +22393,7 @@ class ProductIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
 class ProductIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     boards: Union[bool, 'FindManyBoardArgsFromFirmwareBuildRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromFirmwareBuildRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive3']
@@ -17783,7 +22406,7 @@ class ProductIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
 class ProductIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     boards: Union[bool, 'FindManyBoardArgsFromFirmwareBuildRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromFirmwareBuildRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive4']
@@ -18100,24 +22723,28 @@ class BoardRevisionIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareBuildRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive1']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareBuildRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive2']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareBuildRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive3']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareBuildRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive4']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
@@ -18205,27 +22832,140 @@ class FindManyBoardRevisionArgsFromFirmwareBuildRecursive4(TypedDict, total=Fals
     
     
 
-class FirmwareBuildIncludeFromFirmwareBuild(TypedDict, total=False):
+class FirmwareSetIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive1']
+
+
+class FirmwareSetIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
+    """Relational arguments for FirmwareBuild"""
+    product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive2']
+
+
+class FirmwareSetIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
+    """Relational arguments for FirmwareBuild"""
+    product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive3']
+
+
+class FirmwareSetIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
+    """Relational arguments for FirmwareBuild"""
+    product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive4']
+
+
+class FirmwareSetIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
+    """Relational arguments for FirmwareBuild"""
+
+    
+
+class FirmwareSetArgsFromFirmwareBuild(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromFirmwareBuildRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromFirmwareBuildRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromFirmwareBuildRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    
+    
+
+class FindManyFirmwareSetArgsFromFirmwareBuild(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromFirmwareBuildRecursive1(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromFirmwareBuildRecursive2(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromFirmwareBuildRecursive3(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
+    """Arguments for FirmwareBuild"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromFirmwareBuild(TypedDict, total=False):
+    """Relational arguments for FirmwareBuild"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFirmwareBuildRecursive1']
     target: Union[bool, 'ProductTargetArgsFromFirmwareBuildRecursive1']
 
 
 class FirmwareBuildIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
-    product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFirmwareBuildRecursive2']
     target: Union[bool, 'ProductTargetArgsFromFirmwareBuildRecursive2']
 
 
 class FirmwareBuildIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
-    product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFirmwareBuildRecursive3']
     target: Union[bool, 'ProductTargetArgsFromFirmwareBuildRecursive3']
 
 
 class FirmwareBuildIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
-    product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFirmwareBuildRecursive4']
     target: Union[bool, 'ProductTargetArgsFromFirmwareBuildRecursive4']
 
 
@@ -20999,24 +25739,20 @@ FindFirstFirmwareBuildArgs = FindManyFirmwareBuildArgsFromFirmwareBuild
 class FirmwareBuildWhereInput(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringFilter']
-    productId: Union[_str, 'types.StringFilter']
+    firmwareSetId: Union[_str, 'types.StringFilter']
     targetId: Union[None, _str, 'types.StringFilter']
-    version: Union[_str, 'types.StringFilter']
-    isManufacturing: Union[_bool, 'types.BooleanFilter']
-    status: 'enums.LifecycleStatus'
-    storageKey: Union[_str, 'types.StringFilter']
+    versionString: Union[None, _str, 'types.StringFilter']
+    hexStorageKey: Union[None, _str, 'types.StringFilter']
+    hexEncStorageKey: Union[None, _str, 'types.StringFilter']
+    cfwStorageKey: Union[None, _str, 'types.StringFilter']
+    manifestKey: Union[None, _str, 'types.StringFilter']
     filename: Union[_str, 'types.StringFilter']
     sizeBytes: Union[_int, 'types.BigIntFilter']
     checksum: Union[_str, 'types.StringFilter']
     contentType: Union[None, _str, 'types.StringFilter']
-    modemStorageKey: Union[None, _str, 'types.StringFilter']
-    modemFilename: Union[None, _str, 'types.StringFilter']
-    modemSizeBytes: Union[None, _int, 'types.BigIntFilter']
-    modemChecksum: Union[None, _str, 'types.StringFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    product: 'ProductRelationFilter'
+    firmwareSet: 'FirmwareSetRelationFilter'
     target: 'ProductTargetRelationFilter'
 
     # should be noted that AND and NOT should be Union['FirmwareBuildWhereInputRecursive1', List['FirmwareBuildWhereInputRecursive1']]
@@ -21029,24 +25765,20 @@ class FirmwareBuildWhereInput(TypedDict, total=False):
 class FirmwareBuildWhereInputRecursive1(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringFilter']
-    productId: Union[_str, 'types.StringFilter']
+    firmwareSetId: Union[_str, 'types.StringFilter']
     targetId: Union[None, _str, 'types.StringFilter']
-    version: Union[_str, 'types.StringFilter']
-    isManufacturing: Union[_bool, 'types.BooleanFilter']
-    status: 'enums.LifecycleStatus'
-    storageKey: Union[_str, 'types.StringFilter']
+    versionString: Union[None, _str, 'types.StringFilter']
+    hexStorageKey: Union[None, _str, 'types.StringFilter']
+    hexEncStorageKey: Union[None, _str, 'types.StringFilter']
+    cfwStorageKey: Union[None, _str, 'types.StringFilter']
+    manifestKey: Union[None, _str, 'types.StringFilter']
     filename: Union[_str, 'types.StringFilter']
     sizeBytes: Union[_int, 'types.BigIntFilter']
     checksum: Union[_str, 'types.StringFilter']
     contentType: Union[None, _str, 'types.StringFilter']
-    modemStorageKey: Union[None, _str, 'types.StringFilter']
-    modemFilename: Union[None, _str, 'types.StringFilter']
-    modemSizeBytes: Union[None, _int, 'types.BigIntFilter']
-    modemChecksum: Union[None, _str, 'types.StringFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    product: 'ProductRelationFilter'
+    firmwareSet: 'FirmwareSetRelationFilter'
     target: 'ProductTargetRelationFilter'
 
     # should be noted that AND and NOT should be Union['FirmwareBuildWhereInputRecursive2', List['FirmwareBuildWhereInputRecursive2']]
@@ -21059,24 +25791,20 @@ class FirmwareBuildWhereInputRecursive1(TypedDict, total=False):
 class FirmwareBuildWhereInputRecursive2(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringFilter']
-    productId: Union[_str, 'types.StringFilter']
+    firmwareSetId: Union[_str, 'types.StringFilter']
     targetId: Union[None, _str, 'types.StringFilter']
-    version: Union[_str, 'types.StringFilter']
-    isManufacturing: Union[_bool, 'types.BooleanFilter']
-    status: 'enums.LifecycleStatus'
-    storageKey: Union[_str, 'types.StringFilter']
+    versionString: Union[None, _str, 'types.StringFilter']
+    hexStorageKey: Union[None, _str, 'types.StringFilter']
+    hexEncStorageKey: Union[None, _str, 'types.StringFilter']
+    cfwStorageKey: Union[None, _str, 'types.StringFilter']
+    manifestKey: Union[None, _str, 'types.StringFilter']
     filename: Union[_str, 'types.StringFilter']
     sizeBytes: Union[_int, 'types.BigIntFilter']
     checksum: Union[_str, 'types.StringFilter']
     contentType: Union[None, _str, 'types.StringFilter']
-    modemStorageKey: Union[None, _str, 'types.StringFilter']
-    modemFilename: Union[None, _str, 'types.StringFilter']
-    modemSizeBytes: Union[None, _int, 'types.BigIntFilter']
-    modemChecksum: Union[None, _str, 'types.StringFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    product: 'ProductRelationFilter'
+    firmwareSet: 'FirmwareSetRelationFilter'
     target: 'ProductTargetRelationFilter'
 
     # should be noted that AND and NOT should be Union['FirmwareBuildWhereInputRecursive3', List['FirmwareBuildWhereInputRecursive3']]
@@ -21089,24 +25817,20 @@ class FirmwareBuildWhereInputRecursive2(TypedDict, total=False):
 class FirmwareBuildWhereInputRecursive3(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringFilter']
-    productId: Union[_str, 'types.StringFilter']
+    firmwareSetId: Union[_str, 'types.StringFilter']
     targetId: Union[None, _str, 'types.StringFilter']
-    version: Union[_str, 'types.StringFilter']
-    isManufacturing: Union[_bool, 'types.BooleanFilter']
-    status: 'enums.LifecycleStatus'
-    storageKey: Union[_str, 'types.StringFilter']
+    versionString: Union[None, _str, 'types.StringFilter']
+    hexStorageKey: Union[None, _str, 'types.StringFilter']
+    hexEncStorageKey: Union[None, _str, 'types.StringFilter']
+    cfwStorageKey: Union[None, _str, 'types.StringFilter']
+    manifestKey: Union[None, _str, 'types.StringFilter']
     filename: Union[_str, 'types.StringFilter']
     sizeBytes: Union[_int, 'types.BigIntFilter']
     checksum: Union[_str, 'types.StringFilter']
     contentType: Union[None, _str, 'types.StringFilter']
-    modemStorageKey: Union[None, _str, 'types.StringFilter']
-    modemFilename: Union[None, _str, 'types.StringFilter']
-    modemSizeBytes: Union[None, _int, 'types.BigIntFilter']
-    modemChecksum: Union[None, _str, 'types.StringFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    product: 'ProductRelationFilter'
+    firmwareSet: 'FirmwareSetRelationFilter'
     target: 'ProductTargetRelationFilter'
 
     # should be noted that AND and NOT should be Union['FirmwareBuildWhereInputRecursive4', List['FirmwareBuildWhereInputRecursive4']]
@@ -21119,24 +25843,20 @@ class FirmwareBuildWhereInputRecursive3(TypedDict, total=False):
 class FirmwareBuildWhereInputRecursive4(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringFilter']
-    productId: Union[_str, 'types.StringFilter']
+    firmwareSetId: Union[_str, 'types.StringFilter']
     targetId: Union[None, _str, 'types.StringFilter']
-    version: Union[_str, 'types.StringFilter']
-    isManufacturing: Union[_bool, 'types.BooleanFilter']
-    status: 'enums.LifecycleStatus'
-    storageKey: Union[_str, 'types.StringFilter']
+    versionString: Union[None, _str, 'types.StringFilter']
+    hexStorageKey: Union[None, _str, 'types.StringFilter']
+    hexEncStorageKey: Union[None, _str, 'types.StringFilter']
+    cfwStorageKey: Union[None, _str, 'types.StringFilter']
+    manifestKey: Union[None, _str, 'types.StringFilter']
     filename: Union[_str, 'types.StringFilter']
     sizeBytes: Union[_int, 'types.BigIntFilter']
     checksum: Union[_str, 'types.StringFilter']
     contentType: Union[None, _str, 'types.StringFilter']
-    modemStorageKey: Union[None, _str, 'types.StringFilter']
-    modemFilename: Union[None, _str, 'types.StringFilter']
-    modemSizeBytes: Union[None, _int, 'types.BigIntFilter']
-    modemChecksum: Union[None, _str, 'types.StringFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    product: 'ProductRelationFilter'
+    firmwareSet: 'FirmwareSetRelationFilter'
     target: 'ProductTargetRelationFilter'
 
 
@@ -21149,23 +25869,19 @@ class FirmwareBuildWhereInputRecursive4(TypedDict, total=False):
 class FirmwareBuildScalarWhereWithAggregatesInput(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
-    productId: Union[_str, 'types.StringWithAggregatesFilter']
+    firmwareSetId: Union[_str, 'types.StringWithAggregatesFilter']
     targetId: Union[_str, 'types.StringWithAggregatesFilter']
-    version: Union[_str, 'types.StringWithAggregatesFilter']
-    isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    status: 'enums.LifecycleStatus'
-    storageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    versionString: Union[_str, 'types.StringWithAggregatesFilter']
+    hexStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    hexEncStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    cfwStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    manifestKey: Union[_str, 'types.StringWithAggregatesFilter']
     filename: Union[_str, 'types.StringWithAggregatesFilter']
     sizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
     checksum: Union[_str, 'types.StringWithAggregatesFilter']
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
-    modemStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
-    modemFilename: Union[_str, 'types.StringWithAggregatesFilter']
-    modemSizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
-    modemChecksum: Union[_str, 'types.StringWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive1']
     OR: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive1']
@@ -21175,23 +25891,19 @@ class FirmwareBuildScalarWhereWithAggregatesInput(TypedDict, total=False):
 class FirmwareBuildScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
-    productId: Union[_str, 'types.StringWithAggregatesFilter']
+    firmwareSetId: Union[_str, 'types.StringWithAggregatesFilter']
     targetId: Union[_str, 'types.StringWithAggregatesFilter']
-    version: Union[_str, 'types.StringWithAggregatesFilter']
-    isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    status: 'enums.LifecycleStatus'
-    storageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    versionString: Union[_str, 'types.StringWithAggregatesFilter']
+    hexStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    hexEncStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    cfwStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    manifestKey: Union[_str, 'types.StringWithAggregatesFilter']
     filename: Union[_str, 'types.StringWithAggregatesFilter']
     sizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
     checksum: Union[_str, 'types.StringWithAggregatesFilter']
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
-    modemStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
-    modemFilename: Union[_str, 'types.StringWithAggregatesFilter']
-    modemSizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
-    modemChecksum: Union[_str, 'types.StringWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive2']
     OR: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive2']
@@ -21201,23 +25913,19 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive1(TypedDict, total=Fal
 class FirmwareBuildScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
-    productId: Union[_str, 'types.StringWithAggregatesFilter']
+    firmwareSetId: Union[_str, 'types.StringWithAggregatesFilter']
     targetId: Union[_str, 'types.StringWithAggregatesFilter']
-    version: Union[_str, 'types.StringWithAggregatesFilter']
-    isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    status: 'enums.LifecycleStatus'
-    storageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    versionString: Union[_str, 'types.StringWithAggregatesFilter']
+    hexStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    hexEncStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    cfwStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    manifestKey: Union[_str, 'types.StringWithAggregatesFilter']
     filename: Union[_str, 'types.StringWithAggregatesFilter']
     sizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
     checksum: Union[_str, 'types.StringWithAggregatesFilter']
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
-    modemStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
-    modemFilename: Union[_str, 'types.StringWithAggregatesFilter']
-    modemSizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
-    modemChecksum: Union[_str, 'types.StringWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive3']
     OR: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive3']
@@ -21227,23 +25935,19 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive2(TypedDict, total=Fal
 class FirmwareBuildScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
-    productId: Union[_str, 'types.StringWithAggregatesFilter']
+    firmwareSetId: Union[_str, 'types.StringWithAggregatesFilter']
     targetId: Union[_str, 'types.StringWithAggregatesFilter']
-    version: Union[_str, 'types.StringWithAggregatesFilter']
-    isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    status: 'enums.LifecycleStatus'
-    storageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    versionString: Union[_str, 'types.StringWithAggregatesFilter']
+    hexStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    hexEncStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    cfwStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    manifestKey: Union[_str, 'types.StringWithAggregatesFilter']
     filename: Union[_str, 'types.StringWithAggregatesFilter']
     sizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
     checksum: Union[_str, 'types.StringWithAggregatesFilter']
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
-    modemStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
-    modemFilename: Union[_str, 'types.StringWithAggregatesFilter']
-    modemSizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
-    modemChecksum: Union[_str, 'types.StringWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive4']
     OR: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive4']
@@ -21253,45 +25957,37 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive3(TypedDict, total=Fal
 class FirmwareBuildScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
-    productId: Union[_str, 'types.StringWithAggregatesFilter']
+    firmwareSetId: Union[_str, 'types.StringWithAggregatesFilter']
     targetId: Union[_str, 'types.StringWithAggregatesFilter']
-    version: Union[_str, 'types.StringWithAggregatesFilter']
-    isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    status: 'enums.LifecycleStatus'
-    storageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    versionString: Union[_str, 'types.StringWithAggregatesFilter']
+    hexStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    hexEncStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    cfwStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
+    manifestKey: Union[_str, 'types.StringWithAggregatesFilter']
     filename: Union[_str, 'types.StringWithAggregatesFilter']
     sizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
     checksum: Union[_str, 'types.StringWithAggregatesFilter']
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
-    modemStorageKey: Union[_str, 'types.StringWithAggregatesFilter']
-    modemFilename: Union[_str, 'types.StringWithAggregatesFilter']
-    modemSizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
-    modemChecksum: Union[_str, 'types.StringWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
 
 
 class FirmwareBuildGroupByOutput(TypedDict, total=False):
     id: _str
-    productId: _str
+    firmwareSetId: _str
     targetId: _str
-    version: _str
-    isManufacturing: _bool
-    status: 'enums.LifecycleStatus'
-    storageKey: _str
+    versionString: _str
+    hexStorageKey: _str
+    hexEncStorageKey: _str
+    cfwStorageKey: _str
+    manifestKey: _str
     filename: _str
     sizeBytes: _int
     checksum: _str
     contentType: _str
-    modemStorageKey: _str
-    modemFilename: _str
-    modemSizeBytes: _int
-    modemChecksum: _str
     notes: _str
     createdAt: datetime.datetime
-    updatedAt: datetime.datetime
     _sum: 'FirmwareBuildSumAggregateOutput'
     _avg: 'FirmwareBuildAvgAggregateOutput'
     _min: 'FirmwareBuildMinAggregateOutput'
@@ -21302,35 +25998,29 @@ class FirmwareBuildGroupByOutput(TypedDict, total=False):
 class FirmwareBuildAvgAggregateOutput(TypedDict, total=False):
     """FirmwareBuild output for aggregating averages"""
     sizeBytes: float
-    modemSizeBytes: float
 
 
 class FirmwareBuildSumAggregateOutput(TypedDict, total=False):
     """FirmwareBuild output for aggregating sums"""
     sizeBytes: _int
-    modemSizeBytes: _int
 
 
 class FirmwareBuildScalarAggregateOutput(TypedDict, total=False):
     """FirmwareBuild output including scalar fields"""
     id: _str
-    productId: _str
+    firmwareSetId: _str
     targetId: _str
-    version: _str
-    isManufacturing: _bool
-    status: 'enums.LifecycleStatus'
-    storageKey: _str
+    versionString: _str
+    hexStorageKey: _str
+    hexEncStorageKey: _str
+    cfwStorageKey: _str
+    manifestKey: _str
     filename: _str
     sizeBytes: _int
     checksum: _str
     contentType: _str
-    modemStorageKey: _str
-    modemFilename: _str
-    modemSizeBytes: _int
-    modemChecksum: _str
     notes: _str
     createdAt: datetime.datetime
-    updatedAt: datetime.datetime
 
 
 FirmwareBuildMinAggregateOutput = FirmwareBuildScalarAggregateOutput
@@ -21340,51 +26030,42 @@ FirmwareBuildMaxAggregateOutput = FirmwareBuildScalarAggregateOutput
 class FirmwareBuildMaxAggregateInput(TypedDict, total=False):
     """FirmwareBuild input for aggregating by max"""
     id: bool
-    productId: bool
+    firmwareSetId: bool
     targetId: bool
-    version: bool
-    isManufacturing: bool
-    status: bool
-    storageKey: bool
+    versionString: bool
+    hexStorageKey: bool
+    hexEncStorageKey: bool
+    cfwStorageKey: bool
+    manifestKey: bool
     filename: bool
     sizeBytes: bool
     checksum: bool
     contentType: bool
-    modemStorageKey: bool
-    modemFilename: bool
-    modemSizeBytes: bool
-    modemChecksum: bool
     notes: bool
     createdAt: bool
-    updatedAt: bool
 
 
 class FirmwareBuildMinAggregateInput(TypedDict, total=False):
     """FirmwareBuild input for aggregating by min"""
     id: bool
-    productId: bool
+    firmwareSetId: bool
     targetId: bool
-    version: bool
-    isManufacturing: bool
-    status: bool
-    storageKey: bool
+    versionString: bool
+    hexStorageKey: bool
+    hexEncStorageKey: bool
+    cfwStorageKey: bool
+    manifestKey: bool
     filename: bool
     sizeBytes: bool
     checksum: bool
     contentType: bool
-    modemStorageKey: bool
-    modemFilename: bool
-    modemSizeBytes: bool
-    modemChecksum: bool
     notes: bool
     createdAt: bool
-    updatedAt: bool
 
 
 class FirmwareBuildNumberAggregateInput(TypedDict, total=False):
     """FirmwareBuild input for aggregating numbers"""
     sizeBytes: bool
-    modemSizeBytes: bool
 
 
 FirmwareBuildAvgAggregateInput = FirmwareBuildNumberAggregateInput
@@ -21395,23 +26076,19 @@ FirmwareBuildCountAggregateInput = TypedDict(
     'FirmwareBuildCountAggregateInput',
     {
         'id': bool,
-        'productId': bool,
+        'firmwareSetId': bool,
         'targetId': bool,
-        'version': bool,
-        'isManufacturing': bool,
-        'status': bool,
-        'storageKey': bool,
+        'versionString': bool,
+        'hexStorageKey': bool,
+        'hexEncStorageKey': bool,
+        'cfwStorageKey': bool,
+        'manifestKey': bool,
         'filename': bool,
         'sizeBytes': bool,
         'checksum': bool,
         'contentType': bool,
-        'modemStorageKey': bool,
-        'modemFilename': bool,
-        'modemSizeBytes': bool,
-        'modemChecksum': bool,
         'notes': bool,
         'createdAt': bool,
-        'updatedAt': bool,
         '_all': bool,
     },
     total=False,
@@ -21421,23 +26098,19 @@ FirmwareBuildCountAggregateOutput = TypedDict(
     'FirmwareBuildCountAggregateOutput',
     {
         'id': int,
-        'productId': int,
+        'firmwareSetId': int,
         'targetId': int,
-        'version': int,
-        'isManufacturing': int,
-        'status': int,
-        'storageKey': int,
+        'versionString': int,
+        'hexStorageKey': int,
+        'hexEncStorageKey': int,
+        'cfwStorageKey': int,
+        'manifestKey': int,
         'filename': int,
         'sizeBytes': int,
         'checksum': int,
         'contentType': int,
-        'modemStorageKey': int,
-        'modemFilename': int,
-        'modemSizeBytes': int,
-        'modemChecksum': int,
         'notes': int,
         'createdAt': int,
-        'updatedAt': int,
         '_all': int,
     },
     total=False,
@@ -21446,50 +26119,42 @@ FirmwareBuildCountAggregateOutput = TypedDict(
 
 FirmwareBuildKeys = Literal[
     'id',
-    'productId',
+    'firmwareSetId',
     'targetId',
-    'version',
-    'isManufacturing',
-    'status',
-    'storageKey',
+    'versionString',
+    'hexStorageKey',
+    'hexEncStorageKey',
+    'cfwStorageKey',
+    'manifestKey',
     'filename',
     'sizeBytes',
     'checksum',
     'contentType',
-    'modemStorageKey',
-    'modemFilename',
-    'modemSizeBytes',
-    'modemChecksum',
     'notes',
     'createdAt',
-    'updatedAt',
-    'product',
+    'firmwareSet',
     'target',
 ]
 FirmwareBuildScalarFieldKeys = Literal[
     'id',
-    'productId',
+    'firmwareSetId',
     'targetId',
-    'version',
-    'isManufacturing',
-    'status',
-    'storageKey',
+    'versionString',
+    'hexStorageKey',
+    'hexEncStorageKey',
+    'cfwStorageKey',
+    'manifestKey',
     'filename',
     'sizeBytes',
     'checksum',
     'contentType',
-    'modemStorageKey',
-    'modemFilename',
-    'modemSizeBytes',
-    'modemChecksum',
     'notes',
     'createdAt',
-    'updatedAt',
 ]
 FirmwareBuildScalarFieldKeysT = TypeVar('FirmwareBuildScalarFieldKeysT', bound=FirmwareBuildScalarFieldKeys)
 
 FirmwareBuildRelationalFieldKeys = Literal[
-        'product',
+        'firmwareSet',
         'target',
     ]
 
@@ -21988,7 +26653,7 @@ class ProductStageConfigInclude(TypedDict, total=False):
 class ProductIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     boards: Union[bool, 'FindManyBoardArgsFromProductStageConfigRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromProductStageConfigRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive1']
@@ -22001,7 +26666,7 @@ class ProductIncludeFromProductStageConfig(TypedDict, total=False):
 class ProductIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     boards: Union[bool, 'FindManyBoardArgsFromProductStageConfigRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromProductStageConfigRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive2']
@@ -22014,7 +26679,7 @@ class ProductIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
 class ProductIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     boards: Union[bool, 'FindManyBoardArgsFromProductStageConfigRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromProductStageConfigRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive3']
@@ -22027,7 +26692,7 @@ class ProductIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
 class ProductIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     boards: Union[bool, 'FindManyBoardArgsFromProductStageConfigRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromProductStageConfigRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive4']
@@ -22344,24 +27009,28 @@ class BoardRevisionIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductStageConfigRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive1']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductStageConfigRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive2']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductStageConfigRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive3']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductStageConfigRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive4']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
@@ -22449,27 +27118,140 @@ class FindManyBoardRevisionArgsFromProductStageConfigRecursive4(TypedDict, total
     
     
 
-class FirmwareBuildIncludeFromProductStageConfig(TypedDict, total=False):
+class FirmwareSetIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive1']
+
+
+class FirmwareSetIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
+    """Relational arguments for ProductStageConfig"""
+    product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive2']
+
+
+class FirmwareSetIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
+    """Relational arguments for ProductStageConfig"""
+    product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive3']
+
+
+class FirmwareSetIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
+    """Relational arguments for ProductStageConfig"""
+    product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive4']
+
+
+class FirmwareSetIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
+    """Relational arguments for ProductStageConfig"""
+
+    
+
+class FirmwareSetArgsFromProductStageConfig(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromProductStageConfigRecursive1(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromProductStageConfigRecursive2(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromProductStageConfigRecursive3(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromProductStageConfigRecursive4(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    
+    
+
+class FindManyFirmwareSetArgsFromProductStageConfig(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromProductStageConfigRecursive1(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromProductStageConfigRecursive2(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromProductStageConfigRecursive3(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromProductStageConfigRecursive4(TypedDict, total=False):
+    """Arguments for ProductStageConfig"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromProductStageConfig(TypedDict, total=False):
+    """Relational arguments for ProductStageConfig"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductStageConfigRecursive1']
     target: Union[bool, 'ProductTargetArgsFromProductStageConfigRecursive1']
 
 
 class FirmwareBuildIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
-    product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductStageConfigRecursive2']
     target: Union[bool, 'ProductTargetArgsFromProductStageConfigRecursive2']
 
 
 class FirmwareBuildIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
-    product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductStageConfigRecursive3']
     target: Union[bool, 'ProductTargetArgsFromProductStageConfigRecursive3']
 
 
 class FirmwareBuildIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
-    product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromProductStageConfigRecursive4']
     target: Union[bool, 'ProductTargetArgsFromProductStageConfigRecursive4']
 
 
@@ -26255,7 +31037,7 @@ class ValidationQueueEntryInclude(TypedDict, total=False):
 class ProductIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     boards: Union[bool, 'FindManyBoardArgsFromValidationQueueEntryRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromValidationQueueEntryRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive1']
@@ -26268,7 +31050,7 @@ class ProductIncludeFromValidationQueueEntry(TypedDict, total=False):
 class ProductIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     boards: Union[bool, 'FindManyBoardArgsFromValidationQueueEntryRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromValidationQueueEntryRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive2']
@@ -26281,7 +31063,7 @@ class ProductIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
 class ProductIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     boards: Union[bool, 'FindManyBoardArgsFromValidationQueueEntryRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromValidationQueueEntryRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive3']
@@ -26294,7 +31076,7 @@ class ProductIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
 class ProductIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     boards: Union[bool, 'FindManyBoardArgsFromValidationQueueEntryRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromValidationQueueEntryRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive4']
@@ -26611,24 +31393,28 @@ class BoardRevisionIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromValidationQueueEntryRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive1']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromValidationQueueEntryRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive2']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromValidationQueueEntryRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive3']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromValidationQueueEntryRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive4']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
@@ -26716,27 +31502,140 @@ class FindManyBoardRevisionArgsFromValidationQueueEntryRecursive4(TypedDict, tot
     
     
 
-class FirmwareBuildIncludeFromValidationQueueEntry(TypedDict, total=False):
+class FirmwareSetIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive1']
+
+
+class FirmwareSetIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
+    """Relational arguments for ValidationQueueEntry"""
+    product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive2']
+
+
+class FirmwareSetIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
+    """Relational arguments for ValidationQueueEntry"""
+    product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive3']
+
+
+class FirmwareSetIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
+    """Relational arguments for ValidationQueueEntry"""
+    product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive4']
+
+
+class FirmwareSetIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
+    """Relational arguments for ValidationQueueEntry"""
+
+    
+
+class FirmwareSetArgsFromValidationQueueEntry(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromValidationQueueEntryRecursive1(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromValidationQueueEntryRecursive2(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromValidationQueueEntryRecursive3(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromValidationQueueEntryRecursive4(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    
+    
+
+class FindManyFirmwareSetArgsFromValidationQueueEntry(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromValidationQueueEntryRecursive1(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromValidationQueueEntryRecursive2(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromValidationQueueEntryRecursive3(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromValidationQueueEntryRecursive4(TypedDict, total=False):
+    """Arguments for ValidationQueueEntry"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromValidationQueueEntry(TypedDict, total=False):
+    """Relational arguments for ValidationQueueEntry"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromValidationQueueEntryRecursive1']
     target: Union[bool, 'ProductTargetArgsFromValidationQueueEntryRecursive1']
 
 
 class FirmwareBuildIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
-    product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromValidationQueueEntryRecursive2']
     target: Union[bool, 'ProductTargetArgsFromValidationQueueEntryRecursive2']
 
 
 class FirmwareBuildIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
-    product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromValidationQueueEntryRecursive3']
     target: Union[bool, 'ProductTargetArgsFromValidationQueueEntryRecursive3']
 
 
 class FirmwareBuildIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
-    product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromValidationQueueEntryRecursive4']
     target: Union[bool, 'ProductTargetArgsFromValidationQueueEntryRecursive4']
 
 
@@ -30427,7 +35326,7 @@ class PipelineRunInclude(TypedDict, total=False):
 class ProductIncludeFromPipelineRun(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     boards: Union[bool, 'FindManyBoardArgsFromPipelineRunRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPipelineRunRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPipelineRunRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromPipelineRunRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromPipelineRunRecursive1']
@@ -30440,7 +35339,7 @@ class ProductIncludeFromPipelineRun(TypedDict, total=False):
 class ProductIncludeFromPipelineRunRecursive1(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     boards: Union[bool, 'FindManyBoardArgsFromPipelineRunRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPipelineRunRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPipelineRunRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromPipelineRunRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromPipelineRunRecursive2']
@@ -30453,7 +35352,7 @@ class ProductIncludeFromPipelineRunRecursive1(TypedDict, total=False):
 class ProductIncludeFromPipelineRunRecursive2(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     boards: Union[bool, 'FindManyBoardArgsFromPipelineRunRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPipelineRunRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPipelineRunRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromPipelineRunRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromPipelineRunRecursive3']
@@ -30466,7 +35365,7 @@ class ProductIncludeFromPipelineRunRecursive2(TypedDict, total=False):
 class ProductIncludeFromPipelineRunRecursive3(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     boards: Union[bool, 'FindManyBoardArgsFromPipelineRunRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPipelineRunRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPipelineRunRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromPipelineRunRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromPipelineRunRecursive4']
@@ -30783,24 +35682,28 @@ class BoardRevisionIncludeFromPipelineRun(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     board: Union[bool, 'BoardArgsFromPipelineRunRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromPipelineRunRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPipelineRunRecursive1']
 
 
 class BoardRevisionIncludeFromPipelineRunRecursive1(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     board: Union[bool, 'BoardArgsFromPipelineRunRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromPipelineRunRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPipelineRunRecursive2']
 
 
 class BoardRevisionIncludeFromPipelineRunRecursive2(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     board: Union[bool, 'BoardArgsFromPipelineRunRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromPipelineRunRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPipelineRunRecursive3']
 
 
 class BoardRevisionIncludeFromPipelineRunRecursive3(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     board: Union[bool, 'BoardArgsFromPipelineRunRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromPipelineRunRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPipelineRunRecursive4']
 
 
 class BoardRevisionIncludeFromPipelineRunRecursive4(TypedDict, total=False):
@@ -30888,27 +35791,140 @@ class FindManyBoardRevisionArgsFromPipelineRunRecursive4(TypedDict, total=False)
     
     
 
-class FirmwareBuildIncludeFromPipelineRun(TypedDict, total=False):
+class FirmwareSetIncludeFromPipelineRun(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     product: Union[bool, 'ProductArgsFromPipelineRunRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPipelineRunRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive1']
+
+
+class FirmwareSetIncludeFromPipelineRunRecursive1(TypedDict, total=False):
+    """Relational arguments for PipelineRun"""
+    product: Union[bool, 'ProductArgsFromPipelineRunRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPipelineRunRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive2']
+
+
+class FirmwareSetIncludeFromPipelineRunRecursive2(TypedDict, total=False):
+    """Relational arguments for PipelineRun"""
+    product: Union[bool, 'ProductArgsFromPipelineRunRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPipelineRunRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive3']
+
+
+class FirmwareSetIncludeFromPipelineRunRecursive3(TypedDict, total=False):
+    """Relational arguments for PipelineRun"""
+    product: Union[bool, 'ProductArgsFromPipelineRunRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPipelineRunRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive4']
+
+
+class FirmwareSetIncludeFromPipelineRunRecursive4(TypedDict, total=False):
+    """Relational arguments for PipelineRun"""
+
+    
+
+class FirmwareSetArgsFromPipelineRun(TypedDict, total=False):
+    """Arguments for PipelineRun"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromPipelineRunRecursive1(TypedDict, total=False):
+    """Arguments for PipelineRun"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromPipelineRunRecursive2(TypedDict, total=False):
+    """Arguments for PipelineRun"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromPipelineRunRecursive3(TypedDict, total=False):
+    """Arguments for PipelineRun"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromPipelineRunRecursive4(TypedDict, total=False):
+    """Arguments for PipelineRun"""
+    
+    
+
+class FindManyFirmwareSetArgsFromPipelineRun(TypedDict, total=False):
+    """Arguments for PipelineRun"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromPipelineRunRecursive1(TypedDict, total=False):
+    """Arguments for PipelineRun"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromPipelineRunRecursive2(TypedDict, total=False):
+    """Arguments for PipelineRun"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromPipelineRunRecursive3(TypedDict, total=False):
+    """Arguments for PipelineRun"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromPipelineRunRecursive4(TypedDict, total=False):
+    """Arguments for PipelineRun"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromPipelineRun(TypedDict, total=False):
+    """Relational arguments for PipelineRun"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromPipelineRunRecursive1']
     target: Union[bool, 'ProductTargetArgsFromPipelineRunRecursive1']
 
 
 class FirmwareBuildIncludeFromPipelineRunRecursive1(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
-    product: Union[bool, 'ProductArgsFromPipelineRunRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromPipelineRunRecursive2']
     target: Union[bool, 'ProductTargetArgsFromPipelineRunRecursive2']
 
 
 class FirmwareBuildIncludeFromPipelineRunRecursive2(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
-    product: Union[bool, 'ProductArgsFromPipelineRunRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromPipelineRunRecursive3']
     target: Union[bool, 'ProductTargetArgsFromPipelineRunRecursive3']
 
 
 class FirmwareBuildIncludeFromPipelineRunRecursive3(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
-    product: Union[bool, 'ProductArgsFromPipelineRunRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromPipelineRunRecursive4']
     target: Union[bool, 'ProductTargetArgsFromPipelineRunRecursive4']
 
 
@@ -34796,7 +39812,7 @@ class BuildJobInclude(TypedDict, total=False):
 class ProductIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     boards: Union[bool, 'FindManyBoardArgsFromBuildJobRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromBuildJobRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive1']
@@ -34809,7 +39825,7 @@ class ProductIncludeFromBuildJob(TypedDict, total=False):
 class ProductIncludeFromBuildJobRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     boards: Union[bool, 'FindManyBoardArgsFromBuildJobRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromBuildJobRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive2']
@@ -34822,7 +39838,7 @@ class ProductIncludeFromBuildJobRecursive1(TypedDict, total=False):
 class ProductIncludeFromBuildJobRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     boards: Union[bool, 'FindManyBoardArgsFromBuildJobRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromBuildJobRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive3']
@@ -34835,7 +39851,7 @@ class ProductIncludeFromBuildJobRecursive2(TypedDict, total=False):
 class ProductIncludeFromBuildJobRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     boards: Union[bool, 'FindManyBoardArgsFromBuildJobRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromBuildJobRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive4']
@@ -35152,24 +40168,28 @@ class BoardRevisionIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     board: Union[bool, 'BoardArgsFromBuildJobRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive1']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     board: Union[bool, 'BoardArgsFromBuildJobRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive2']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     board: Union[bool, 'BoardArgsFromBuildJobRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive3']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     board: Union[bool, 'BoardArgsFromBuildJobRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive4']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive4(TypedDict, total=False):
@@ -35257,27 +40277,140 @@ class FindManyBoardRevisionArgsFromBuildJobRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromBuildJob(TypedDict, total=False):
+class FirmwareSetIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive1']
+
+
+class FirmwareSetIncludeFromBuildJobRecursive1(TypedDict, total=False):
+    """Relational arguments for BuildJob"""
+    product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive2']
+
+
+class FirmwareSetIncludeFromBuildJobRecursive2(TypedDict, total=False):
+    """Relational arguments for BuildJob"""
+    product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive3']
+
+
+class FirmwareSetIncludeFromBuildJobRecursive3(TypedDict, total=False):
+    """Relational arguments for BuildJob"""
+    product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive4']
+
+
+class FirmwareSetIncludeFromBuildJobRecursive4(TypedDict, total=False):
+    """Relational arguments for BuildJob"""
+
+    
+
+class FirmwareSetArgsFromBuildJob(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromBuildJobRecursive1(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromBuildJobRecursive2(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromBuildJobRecursive3(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromBuildJobRecursive4(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    
+    
+
+class FindManyFirmwareSetArgsFromBuildJob(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromBuildJobRecursive1(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromBuildJobRecursive2(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromBuildJobRecursive3(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromBuildJobRecursive4(TypedDict, total=False):
+    """Arguments for BuildJob"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromBuildJob(TypedDict, total=False):
+    """Relational arguments for BuildJob"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBuildJobRecursive1']
     target: Union[bool, 'ProductTargetArgsFromBuildJobRecursive1']
 
 
 class FirmwareBuildIncludeFromBuildJobRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJob"""
-    product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBuildJobRecursive2']
     target: Union[bool, 'ProductTargetArgsFromBuildJobRecursive2']
 
 
 class FirmwareBuildIncludeFromBuildJobRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJob"""
-    product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBuildJobRecursive3']
     target: Union[bool, 'ProductTargetArgsFromBuildJobRecursive3']
 
 
 class FirmwareBuildIncludeFromBuildJobRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJob"""
-    product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBuildJobRecursive4']
     target: Union[bool, 'ProductTargetArgsFromBuildJobRecursive4']
 
 
@@ -39065,7 +44198,7 @@ class BuildJobArtifactInclude(TypedDict, total=False):
 class ProductIncludeFromBuildJobArtifact(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     boards: Union[bool, 'FindManyBoardArgsFromBuildJobArtifactRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobArtifactRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobArtifactRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromBuildJobArtifactRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobArtifactRecursive1']
@@ -39078,7 +44211,7 @@ class ProductIncludeFromBuildJobArtifact(TypedDict, total=False):
 class ProductIncludeFromBuildJobArtifactRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     boards: Union[bool, 'FindManyBoardArgsFromBuildJobArtifactRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobArtifactRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobArtifactRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromBuildJobArtifactRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobArtifactRecursive2']
@@ -39091,7 +44224,7 @@ class ProductIncludeFromBuildJobArtifactRecursive1(TypedDict, total=False):
 class ProductIncludeFromBuildJobArtifactRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     boards: Union[bool, 'FindManyBoardArgsFromBuildJobArtifactRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobArtifactRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobArtifactRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromBuildJobArtifactRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobArtifactRecursive3']
@@ -39104,7 +44237,7 @@ class ProductIncludeFromBuildJobArtifactRecursive2(TypedDict, total=False):
 class ProductIncludeFromBuildJobArtifactRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     boards: Union[bool, 'FindManyBoardArgsFromBuildJobArtifactRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobArtifactRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobArtifactRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromBuildJobArtifactRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobArtifactRecursive4']
@@ -39421,24 +44554,28 @@ class BoardRevisionIncludeFromBuildJobArtifact(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     board: Union[bool, 'BoardArgsFromBuildJobArtifactRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobArtifactRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobArtifactRecursive1']
 
 
 class BoardRevisionIncludeFromBuildJobArtifactRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     board: Union[bool, 'BoardArgsFromBuildJobArtifactRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobArtifactRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobArtifactRecursive2']
 
 
 class BoardRevisionIncludeFromBuildJobArtifactRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     board: Union[bool, 'BoardArgsFromBuildJobArtifactRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobArtifactRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobArtifactRecursive3']
 
 
 class BoardRevisionIncludeFromBuildJobArtifactRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     board: Union[bool, 'BoardArgsFromBuildJobArtifactRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobArtifactRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobArtifactRecursive4']
 
 
 class BoardRevisionIncludeFromBuildJobArtifactRecursive4(TypedDict, total=False):
@@ -39526,27 +44663,140 @@ class FindManyBoardRevisionArgsFromBuildJobArtifactRecursive4(TypedDict, total=F
     
     
 
-class FirmwareBuildIncludeFromBuildJobArtifact(TypedDict, total=False):
+class FirmwareSetIncludeFromBuildJobArtifact(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobArtifactRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive1']
+
+
+class FirmwareSetIncludeFromBuildJobArtifactRecursive1(TypedDict, total=False):
+    """Relational arguments for BuildJobArtifact"""
+    product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobArtifactRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive2']
+
+
+class FirmwareSetIncludeFromBuildJobArtifactRecursive2(TypedDict, total=False):
+    """Relational arguments for BuildJobArtifact"""
+    product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobArtifactRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive3']
+
+
+class FirmwareSetIncludeFromBuildJobArtifactRecursive3(TypedDict, total=False):
+    """Relational arguments for BuildJobArtifact"""
+    product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobArtifactRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive4']
+
+
+class FirmwareSetIncludeFromBuildJobArtifactRecursive4(TypedDict, total=False):
+    """Relational arguments for BuildJobArtifact"""
+
+    
+
+class FirmwareSetArgsFromBuildJobArtifact(TypedDict, total=False):
+    """Arguments for BuildJobArtifact"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromBuildJobArtifactRecursive1(TypedDict, total=False):
+    """Arguments for BuildJobArtifact"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromBuildJobArtifactRecursive2(TypedDict, total=False):
+    """Arguments for BuildJobArtifact"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromBuildJobArtifactRecursive3(TypedDict, total=False):
+    """Arguments for BuildJobArtifact"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromBuildJobArtifactRecursive4(TypedDict, total=False):
+    """Arguments for BuildJobArtifact"""
+    
+    
+
+class FindManyFirmwareSetArgsFromBuildJobArtifact(TypedDict, total=False):
+    """Arguments for BuildJobArtifact"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromBuildJobArtifactRecursive1(TypedDict, total=False):
+    """Arguments for BuildJobArtifact"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromBuildJobArtifactRecursive2(TypedDict, total=False):
+    """Arguments for BuildJobArtifact"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromBuildJobArtifactRecursive3(TypedDict, total=False):
+    """Arguments for BuildJobArtifact"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromBuildJobArtifactRecursive4(TypedDict, total=False):
+    """Arguments for BuildJobArtifact"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromBuildJobArtifact(TypedDict, total=False):
+    """Relational arguments for BuildJobArtifact"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBuildJobArtifactRecursive1']
     target: Union[bool, 'ProductTargetArgsFromBuildJobArtifactRecursive1']
 
 
 class FirmwareBuildIncludeFromBuildJobArtifactRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
-    product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBuildJobArtifactRecursive2']
     target: Union[bool, 'ProductTargetArgsFromBuildJobArtifactRecursive2']
 
 
 class FirmwareBuildIncludeFromBuildJobArtifactRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
-    product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBuildJobArtifactRecursive3']
     target: Union[bool, 'ProductTargetArgsFromBuildJobArtifactRecursive3']
 
 
 class FirmwareBuildIncludeFromBuildJobArtifactRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
-    product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromBuildJobArtifactRecursive4']
     target: Union[bool, 'ProductTargetArgsFromBuildJobArtifactRecursive4']
 
 
@@ -43073,7 +48323,7 @@ class SessionInclude(TypedDict, total=False):
 class ProductIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
     boards: Union[bool, 'FindManyBoardArgsFromSessionRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromSessionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive1']
@@ -43086,7 +48336,7 @@ class ProductIncludeFromSession(TypedDict, total=False):
 class ProductIncludeFromSessionRecursive1(TypedDict, total=False):
     """Relational arguments for Session"""
     boards: Union[bool, 'FindManyBoardArgsFromSessionRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromSessionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive2']
@@ -43099,7 +48349,7 @@ class ProductIncludeFromSessionRecursive1(TypedDict, total=False):
 class ProductIncludeFromSessionRecursive2(TypedDict, total=False):
     """Relational arguments for Session"""
     boards: Union[bool, 'FindManyBoardArgsFromSessionRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromSessionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive3']
@@ -43112,7 +48362,7 @@ class ProductIncludeFromSessionRecursive2(TypedDict, total=False):
 class ProductIncludeFromSessionRecursive3(TypedDict, total=False):
     """Relational arguments for Session"""
     boards: Union[bool, 'FindManyBoardArgsFromSessionRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromSessionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive4']
@@ -43429,24 +48679,28 @@ class BoardRevisionIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
     board: Union[bool, 'BoardArgsFromSessionRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromSessionRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive1']
 
 
 class BoardRevisionIncludeFromSessionRecursive1(TypedDict, total=False):
     """Relational arguments for Session"""
     board: Union[bool, 'BoardArgsFromSessionRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromSessionRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive2']
 
 
 class BoardRevisionIncludeFromSessionRecursive2(TypedDict, total=False):
     """Relational arguments for Session"""
     board: Union[bool, 'BoardArgsFromSessionRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromSessionRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive3']
 
 
 class BoardRevisionIncludeFromSessionRecursive3(TypedDict, total=False):
     """Relational arguments for Session"""
     board: Union[bool, 'BoardArgsFromSessionRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromSessionRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive4']
 
 
 class BoardRevisionIncludeFromSessionRecursive4(TypedDict, total=False):
@@ -43534,27 +48788,140 @@ class FindManyBoardRevisionArgsFromSessionRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromSession(TypedDict, total=False):
+class FirmwareSetIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive1']
+
+
+class FirmwareSetIncludeFromSessionRecursive1(TypedDict, total=False):
+    """Relational arguments for Session"""
+    product: Union[bool, 'ProductArgsFromSessionRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive2']
+
+
+class FirmwareSetIncludeFromSessionRecursive2(TypedDict, total=False):
+    """Relational arguments for Session"""
+    product: Union[bool, 'ProductArgsFromSessionRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive3']
+
+
+class FirmwareSetIncludeFromSessionRecursive3(TypedDict, total=False):
+    """Relational arguments for Session"""
+    product: Union[bool, 'ProductArgsFromSessionRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive4']
+
+
+class FirmwareSetIncludeFromSessionRecursive4(TypedDict, total=False):
+    """Relational arguments for Session"""
+
+    
+
+class FirmwareSetArgsFromSession(TypedDict, total=False):
+    """Arguments for Session"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromSessionRecursive1(TypedDict, total=False):
+    """Arguments for Session"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromSessionRecursive2(TypedDict, total=False):
+    """Arguments for Session"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromSessionRecursive3(TypedDict, total=False):
+    """Arguments for Session"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromSessionRecursive4(TypedDict, total=False):
+    """Arguments for Session"""
+    
+    
+
+class FindManyFirmwareSetArgsFromSession(TypedDict, total=False):
+    """Arguments for Session"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromSessionRecursive1(TypedDict, total=False):
+    """Arguments for Session"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromSessionRecursive2(TypedDict, total=False):
+    """Arguments for Session"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromSessionRecursive3(TypedDict, total=False):
+    """Arguments for Session"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromSessionRecursive4(TypedDict, total=False):
+    """Arguments for Session"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromSession(TypedDict, total=False):
+    """Relational arguments for Session"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSessionRecursive1']
     target: Union[bool, 'ProductTargetArgsFromSessionRecursive1']
 
 
 class FirmwareBuildIncludeFromSessionRecursive1(TypedDict, total=False):
     """Relational arguments for Session"""
-    product: Union[bool, 'ProductArgsFromSessionRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSessionRecursive2']
     target: Union[bool, 'ProductTargetArgsFromSessionRecursive2']
 
 
 class FirmwareBuildIncludeFromSessionRecursive2(TypedDict, total=False):
     """Relational arguments for Session"""
-    product: Union[bool, 'ProductArgsFromSessionRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSessionRecursive3']
     target: Union[bool, 'ProductTargetArgsFromSessionRecursive3']
 
 
 class FirmwareBuildIncludeFromSessionRecursive3(TypedDict, total=False):
     """Relational arguments for Session"""
-    product: Union[bool, 'ProductArgsFromSessionRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSessionRecursive4']
     target: Union[bool, 'ProductTargetArgsFromSessionRecursive4']
 
 
@@ -47153,7 +52520,7 @@ class DeviceInclude(TypedDict, total=False):
 class ProductIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
     boards: Union[bool, 'FindManyBoardArgsFromDeviceRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromDeviceRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive1']
@@ -47166,7 +52533,7 @@ class ProductIncludeFromDevice(TypedDict, total=False):
 class ProductIncludeFromDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for Device"""
     boards: Union[bool, 'FindManyBoardArgsFromDeviceRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromDeviceRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive2']
@@ -47179,7 +52546,7 @@ class ProductIncludeFromDeviceRecursive1(TypedDict, total=False):
 class ProductIncludeFromDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for Device"""
     boards: Union[bool, 'FindManyBoardArgsFromDeviceRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromDeviceRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive3']
@@ -47192,7 +52559,7 @@ class ProductIncludeFromDeviceRecursive2(TypedDict, total=False):
 class ProductIncludeFromDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for Device"""
     boards: Union[bool, 'FindManyBoardArgsFromDeviceRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromDeviceRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive4']
@@ -47509,24 +52876,28 @@ class BoardRevisionIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
     board: Union[bool, 'BoardArgsFromDeviceRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeviceRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive1']
 
 
 class BoardRevisionIncludeFromDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for Device"""
     board: Union[bool, 'BoardArgsFromDeviceRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeviceRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive2']
 
 
 class BoardRevisionIncludeFromDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for Device"""
     board: Union[bool, 'BoardArgsFromDeviceRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeviceRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive3']
 
 
 class BoardRevisionIncludeFromDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for Device"""
     board: Union[bool, 'BoardArgsFromDeviceRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeviceRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive4']
 
 
 class BoardRevisionIncludeFromDeviceRecursive4(TypedDict, total=False):
@@ -47614,27 +52985,140 @@ class FindManyBoardRevisionArgsFromDeviceRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromDevice(TypedDict, total=False):
+class FirmwareSetIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive1']
+
+
+class FirmwareSetIncludeFromDeviceRecursive1(TypedDict, total=False):
+    """Relational arguments for Device"""
+    product: Union[bool, 'ProductArgsFromDeviceRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive2']
+
+
+class FirmwareSetIncludeFromDeviceRecursive2(TypedDict, total=False):
+    """Relational arguments for Device"""
+    product: Union[bool, 'ProductArgsFromDeviceRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive3']
+
+
+class FirmwareSetIncludeFromDeviceRecursive3(TypedDict, total=False):
+    """Relational arguments for Device"""
+    product: Union[bool, 'ProductArgsFromDeviceRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive4']
+
+
+class FirmwareSetIncludeFromDeviceRecursive4(TypedDict, total=False):
+    """Relational arguments for Device"""
+
+    
+
+class FirmwareSetArgsFromDevice(TypedDict, total=False):
+    """Arguments for Device"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromDeviceRecursive1(TypedDict, total=False):
+    """Arguments for Device"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromDeviceRecursive2(TypedDict, total=False):
+    """Arguments for Device"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromDeviceRecursive3(TypedDict, total=False):
+    """Arguments for Device"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromDeviceRecursive4(TypedDict, total=False):
+    """Arguments for Device"""
+    
+    
+
+class FindManyFirmwareSetArgsFromDevice(TypedDict, total=False):
+    """Arguments for Device"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromDeviceRecursive1(TypedDict, total=False):
+    """Arguments for Device"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromDeviceRecursive2(TypedDict, total=False):
+    """Arguments for Device"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromDeviceRecursive3(TypedDict, total=False):
+    """Arguments for Device"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromDeviceRecursive4(TypedDict, total=False):
+    """Arguments for Device"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromDevice(TypedDict, total=False):
+    """Relational arguments for Device"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeviceRecursive1']
     target: Union[bool, 'ProductTargetArgsFromDeviceRecursive1']
 
 
 class FirmwareBuildIncludeFromDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for Device"""
-    product: Union[bool, 'ProductArgsFromDeviceRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeviceRecursive2']
     target: Union[bool, 'ProductTargetArgsFromDeviceRecursive2']
 
 
 class FirmwareBuildIncludeFromDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for Device"""
-    product: Union[bool, 'ProductArgsFromDeviceRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeviceRecursive3']
     target: Union[bool, 'ProductTargetArgsFromDeviceRecursive3']
 
 
 class FirmwareBuildIncludeFromDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for Device"""
-    product: Union[bool, 'ProductArgsFromDeviceRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeviceRecursive4']
     target: Union[bool, 'ProductTargetArgsFromDeviceRecursive4']
 
 
@@ -51011,7 +56495,7 @@ class FixtureDesignInclude(TypedDict, total=False):
 class ProductIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureDesignRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromFixtureDesignRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive1']
@@ -51024,7 +56508,7 @@ class ProductIncludeFromFixtureDesign(TypedDict, total=False):
 class ProductIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureDesignRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromFixtureDesignRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive2']
@@ -51037,7 +56521,7 @@ class ProductIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
 class ProductIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureDesignRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromFixtureDesignRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive3']
@@ -51050,7 +56534,7 @@ class ProductIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
 class ProductIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureDesignRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromFixtureDesignRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive4']
@@ -51367,24 +56851,28 @@ class BoardRevisionIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureDesignRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureDesignRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureDesignRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureDesignRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
@@ -51472,27 +56960,140 @@ class FindManyBoardRevisionArgsFromFixtureDesignRecursive4(TypedDict, total=Fals
     
     
 
-class FirmwareBuildIncludeFromFixtureDesign(TypedDict, total=False):
+class FirmwareSetIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive1']
+
+
+class FirmwareSetIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
+    """Relational arguments for FixtureDesign"""
+    product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive2']
+
+
+class FirmwareSetIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
+    """Relational arguments for FixtureDesign"""
+    product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive3']
+
+
+class FirmwareSetIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
+    """Relational arguments for FixtureDesign"""
+    product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive4']
+
+
+class FirmwareSetIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
+    """Relational arguments for FixtureDesign"""
+
+    
+
+class FirmwareSetArgsFromFixtureDesign(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromFixtureDesignRecursive1(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromFixtureDesignRecursive2(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromFixtureDesignRecursive3(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromFixtureDesignRecursive4(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    
+    
+
+class FindManyFirmwareSetArgsFromFixtureDesign(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromFixtureDesignRecursive1(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromFixtureDesignRecursive2(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromFixtureDesignRecursive3(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromFixtureDesignRecursive4(TypedDict, total=False):
+    """Arguments for FixtureDesign"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromFixtureDesign(TypedDict, total=False):
+    """Relational arguments for FixtureDesign"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureDesignRecursive1']
     target: Union[bool, 'ProductTargetArgsFromFixtureDesignRecursive1']
 
 
 class FirmwareBuildIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
-    product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureDesignRecursive2']
     target: Union[bool, 'ProductTargetArgsFromFixtureDesignRecursive2']
 
 
 class FirmwareBuildIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
-    product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureDesignRecursive3']
     target: Union[bool, 'ProductTargetArgsFromFixtureDesignRecursive3']
 
 
 class FirmwareBuildIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
-    product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureDesignRecursive4']
     target: Union[bool, 'ProductTargetArgsFromFixtureDesignRecursive4']
 
 
@@ -55012,7 +60613,7 @@ class FixtureInclude(TypedDict, total=False):
 class ProductIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromFixtureRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive1']
@@ -55025,7 +60626,7 @@ class ProductIncludeFromFixture(TypedDict, total=False):
 class ProductIncludeFromFixtureRecursive1(TypedDict, total=False):
     """Relational arguments for Fixture"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromFixtureRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive2']
@@ -55038,7 +60639,7 @@ class ProductIncludeFromFixtureRecursive1(TypedDict, total=False):
 class ProductIncludeFromFixtureRecursive2(TypedDict, total=False):
     """Relational arguments for Fixture"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromFixtureRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive3']
@@ -55051,7 +60652,7 @@ class ProductIncludeFromFixtureRecursive2(TypedDict, total=False):
 class ProductIncludeFromFixtureRecursive3(TypedDict, total=False):
     """Relational arguments for Fixture"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromFixtureRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive4']
@@ -55368,24 +60969,28 @@ class BoardRevisionIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
     board: Union[bool, 'BoardArgsFromFixtureRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureRecursive1(TypedDict, total=False):
     """Relational arguments for Fixture"""
     board: Union[bool, 'BoardArgsFromFixtureRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureRecursive2(TypedDict, total=False):
     """Relational arguments for Fixture"""
     board: Union[bool, 'BoardArgsFromFixtureRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureRecursive3(TypedDict, total=False):
     """Relational arguments for Fixture"""
     board: Union[bool, 'BoardArgsFromFixtureRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureRecursive4(TypedDict, total=False):
@@ -55473,27 +61078,140 @@ class FindManyBoardRevisionArgsFromFixtureRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromFixture(TypedDict, total=False):
+class FirmwareSetIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive1']
+
+
+class FirmwareSetIncludeFromFixtureRecursive1(TypedDict, total=False):
+    """Relational arguments for Fixture"""
+    product: Union[bool, 'ProductArgsFromFixtureRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive2']
+
+
+class FirmwareSetIncludeFromFixtureRecursive2(TypedDict, total=False):
+    """Relational arguments for Fixture"""
+    product: Union[bool, 'ProductArgsFromFixtureRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive3']
+
+
+class FirmwareSetIncludeFromFixtureRecursive3(TypedDict, total=False):
+    """Relational arguments for Fixture"""
+    product: Union[bool, 'ProductArgsFromFixtureRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive4']
+
+
+class FirmwareSetIncludeFromFixtureRecursive4(TypedDict, total=False):
+    """Relational arguments for Fixture"""
+
+    
+
+class FirmwareSetArgsFromFixture(TypedDict, total=False):
+    """Arguments for Fixture"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromFixtureRecursive1(TypedDict, total=False):
+    """Arguments for Fixture"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromFixtureRecursive2(TypedDict, total=False):
+    """Arguments for Fixture"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromFixtureRecursive3(TypedDict, total=False):
+    """Arguments for Fixture"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromFixtureRecursive4(TypedDict, total=False):
+    """Arguments for Fixture"""
+    
+    
+
+class FindManyFirmwareSetArgsFromFixture(TypedDict, total=False):
+    """Arguments for Fixture"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromFixtureRecursive1(TypedDict, total=False):
+    """Arguments for Fixture"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromFixtureRecursive2(TypedDict, total=False):
+    """Arguments for Fixture"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromFixtureRecursive3(TypedDict, total=False):
+    """Arguments for Fixture"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromFixtureRecursive4(TypedDict, total=False):
+    """Arguments for Fixture"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromFixture(TypedDict, total=False):
+    """Relational arguments for Fixture"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureRecursive1']
     target: Union[bool, 'ProductTargetArgsFromFixtureRecursive1']
 
 
 class FirmwareBuildIncludeFromFixtureRecursive1(TypedDict, total=False):
     """Relational arguments for Fixture"""
-    product: Union[bool, 'ProductArgsFromFixtureRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureRecursive2']
     target: Union[bool, 'ProductTargetArgsFromFixtureRecursive2']
 
 
 class FirmwareBuildIncludeFromFixtureRecursive2(TypedDict, total=False):
     """Relational arguments for Fixture"""
-    product: Union[bool, 'ProductArgsFromFixtureRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureRecursive3']
     target: Union[bool, 'ProductTargetArgsFromFixtureRecursive3']
 
 
 class FirmwareBuildIncludeFromFixtureRecursive3(TypedDict, total=False):
     """Relational arguments for Fixture"""
-    product: Union[bool, 'ProductArgsFromFixtureRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureRecursive4']
     target: Union[bool, 'ProductTargetArgsFromFixtureRecursive4']
 
 
@@ -59125,7 +64843,7 @@ class FixtureSlotInclude(TypedDict, total=False):
 class ProductIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureSlotRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromFixtureSlotRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive1']
@@ -59138,7 +64856,7 @@ class ProductIncludeFromFixtureSlot(TypedDict, total=False):
 class ProductIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureSlotRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromFixtureSlotRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive2']
@@ -59151,7 +64869,7 @@ class ProductIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
 class ProductIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureSlotRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromFixtureSlotRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive3']
@@ -59164,7 +64882,7 @@ class ProductIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
 class ProductIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     boards: Union[bool, 'FindManyBoardArgsFromFixtureSlotRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromFixtureSlotRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive4']
@@ -59481,24 +65199,28 @@ class BoardRevisionIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureSlotRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureSlotRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureSlotRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureSlotRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
@@ -59586,27 +65308,140 @@ class FindManyBoardRevisionArgsFromFixtureSlotRecursive4(TypedDict, total=False)
     
     
 
-class FirmwareBuildIncludeFromFixtureSlot(TypedDict, total=False):
+class FirmwareSetIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive1']
+
+
+class FirmwareSetIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
+    """Relational arguments for FixtureSlot"""
+    product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive2']
+
+
+class FirmwareSetIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
+    """Relational arguments for FixtureSlot"""
+    product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive3']
+
+
+class FirmwareSetIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
+    """Relational arguments for FixtureSlot"""
+    product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive4']
+
+
+class FirmwareSetIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
+    """Relational arguments for FixtureSlot"""
+
+    
+
+class FirmwareSetArgsFromFixtureSlot(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromFixtureSlotRecursive1(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromFixtureSlotRecursive2(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromFixtureSlotRecursive3(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromFixtureSlotRecursive4(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    
+    
+
+class FindManyFirmwareSetArgsFromFixtureSlot(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromFixtureSlotRecursive1(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromFixtureSlotRecursive2(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromFixtureSlotRecursive3(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromFixtureSlotRecursive4(TypedDict, total=False):
+    """Arguments for FixtureSlot"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromFixtureSlot(TypedDict, total=False):
+    """Relational arguments for FixtureSlot"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureSlotRecursive1']
     target: Union[bool, 'ProductTargetArgsFromFixtureSlotRecursive1']
 
 
 class FirmwareBuildIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
-    product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureSlotRecursive2']
     target: Union[bool, 'ProductTargetArgsFromFixtureSlotRecursive2']
 
 
 class FirmwareBuildIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
-    product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureSlotRecursive3']
     target: Union[bool, 'ProductTargetArgsFromFixtureSlotRecursive3']
 
 
 class FirmwareBuildIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
-    product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromFixtureSlotRecursive4']
     target: Union[bool, 'ProductTargetArgsFromFixtureSlotRecursive4']
 
 
@@ -63132,7 +68967,7 @@ class NodeInclude(TypedDict, total=False):
 class ProductIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
     boards: Union[bool, 'FindManyBoardArgsFromNodeRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromNodeRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive1']
@@ -63145,7 +68980,7 @@ class ProductIncludeFromNode(TypedDict, total=False):
 class ProductIncludeFromNodeRecursive1(TypedDict, total=False):
     """Relational arguments for Node"""
     boards: Union[bool, 'FindManyBoardArgsFromNodeRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromNodeRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive2']
@@ -63158,7 +68993,7 @@ class ProductIncludeFromNodeRecursive1(TypedDict, total=False):
 class ProductIncludeFromNodeRecursive2(TypedDict, total=False):
     """Relational arguments for Node"""
     boards: Union[bool, 'FindManyBoardArgsFromNodeRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromNodeRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive3']
@@ -63171,7 +69006,7 @@ class ProductIncludeFromNodeRecursive2(TypedDict, total=False):
 class ProductIncludeFromNodeRecursive3(TypedDict, total=False):
     """Relational arguments for Node"""
     boards: Union[bool, 'FindManyBoardArgsFromNodeRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromNodeRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive4']
@@ -63488,24 +69323,28 @@ class BoardRevisionIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
     board: Union[bool, 'BoardArgsFromNodeRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromNodeRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive1']
 
 
 class BoardRevisionIncludeFromNodeRecursive1(TypedDict, total=False):
     """Relational arguments for Node"""
     board: Union[bool, 'BoardArgsFromNodeRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromNodeRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive2']
 
 
 class BoardRevisionIncludeFromNodeRecursive2(TypedDict, total=False):
     """Relational arguments for Node"""
     board: Union[bool, 'BoardArgsFromNodeRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromNodeRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive3']
 
 
 class BoardRevisionIncludeFromNodeRecursive3(TypedDict, total=False):
     """Relational arguments for Node"""
     board: Union[bool, 'BoardArgsFromNodeRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromNodeRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive4']
 
 
 class BoardRevisionIncludeFromNodeRecursive4(TypedDict, total=False):
@@ -63593,27 +69432,140 @@ class FindManyBoardRevisionArgsFromNodeRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromNode(TypedDict, total=False):
+class FirmwareSetIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive1']
+
+
+class FirmwareSetIncludeFromNodeRecursive1(TypedDict, total=False):
+    """Relational arguments for Node"""
+    product: Union[bool, 'ProductArgsFromNodeRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive2']
+
+
+class FirmwareSetIncludeFromNodeRecursive2(TypedDict, total=False):
+    """Relational arguments for Node"""
+    product: Union[bool, 'ProductArgsFromNodeRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive3']
+
+
+class FirmwareSetIncludeFromNodeRecursive3(TypedDict, total=False):
+    """Relational arguments for Node"""
+    product: Union[bool, 'ProductArgsFromNodeRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive4']
+
+
+class FirmwareSetIncludeFromNodeRecursive4(TypedDict, total=False):
+    """Relational arguments for Node"""
+
+    
+
+class FirmwareSetArgsFromNode(TypedDict, total=False):
+    """Arguments for Node"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromNodeRecursive1(TypedDict, total=False):
+    """Arguments for Node"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromNodeRecursive2(TypedDict, total=False):
+    """Arguments for Node"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromNodeRecursive3(TypedDict, total=False):
+    """Arguments for Node"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromNodeRecursive4(TypedDict, total=False):
+    """Arguments for Node"""
+    
+    
+
+class FindManyFirmwareSetArgsFromNode(TypedDict, total=False):
+    """Arguments for Node"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromNodeRecursive1(TypedDict, total=False):
+    """Arguments for Node"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromNodeRecursive2(TypedDict, total=False):
+    """Arguments for Node"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromNodeRecursive3(TypedDict, total=False):
+    """Arguments for Node"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromNodeRecursive4(TypedDict, total=False):
+    """Arguments for Node"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromNode(TypedDict, total=False):
+    """Relational arguments for Node"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromNodeRecursive1']
     target: Union[bool, 'ProductTargetArgsFromNodeRecursive1']
 
 
 class FirmwareBuildIncludeFromNodeRecursive1(TypedDict, total=False):
     """Relational arguments for Node"""
-    product: Union[bool, 'ProductArgsFromNodeRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromNodeRecursive2']
     target: Union[bool, 'ProductTargetArgsFromNodeRecursive2']
 
 
 class FirmwareBuildIncludeFromNodeRecursive2(TypedDict, total=False):
     """Relational arguments for Node"""
-    product: Union[bool, 'ProductArgsFromNodeRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromNodeRecursive3']
     target: Union[bool, 'ProductTargetArgsFromNodeRecursive3']
 
 
 class FirmwareBuildIncludeFromNodeRecursive3(TypedDict, total=False):
     """Relational arguments for Node"""
-    product: Union[bool, 'ProductArgsFromNodeRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromNodeRecursive4']
     target: Union[bool, 'ProductTargetArgsFromNodeRecursive4']
 
 
@@ -67073,7 +73025,7 @@ class IcleDeviceInclude(TypedDict, total=False):
 class ProductIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     boards: Union[bool, 'FindManyBoardArgsFromIcleDeviceRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromIcleDeviceRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive1']
@@ -67086,7 +73038,7 @@ class ProductIncludeFromIcleDevice(TypedDict, total=False):
 class ProductIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     boards: Union[bool, 'FindManyBoardArgsFromIcleDeviceRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromIcleDeviceRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive2']
@@ -67099,7 +73051,7 @@ class ProductIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
 class ProductIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     boards: Union[bool, 'FindManyBoardArgsFromIcleDeviceRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromIcleDeviceRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive3']
@@ -67112,7 +73064,7 @@ class ProductIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
 class ProductIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     boards: Union[bool, 'FindManyBoardArgsFromIcleDeviceRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromIcleDeviceRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive4']
@@ -67429,24 +73381,28 @@ class BoardRevisionIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleDeviceRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive1']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleDeviceRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive2']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleDeviceRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive3']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleDeviceRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive4']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
@@ -67534,27 +73490,140 @@ class FindManyBoardRevisionArgsFromIcleDeviceRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromIcleDevice(TypedDict, total=False):
+class FirmwareSetIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive1']
+
+
+class FirmwareSetIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
+    """Relational arguments for IcleDevice"""
+    product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive2']
+
+
+class FirmwareSetIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
+    """Relational arguments for IcleDevice"""
+    product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive3']
+
+
+class FirmwareSetIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
+    """Relational arguments for IcleDevice"""
+    product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive4']
+
+
+class FirmwareSetIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
+    """Relational arguments for IcleDevice"""
+
+    
+
+class FirmwareSetArgsFromIcleDevice(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromIcleDeviceRecursive1(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromIcleDeviceRecursive2(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromIcleDeviceRecursive3(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromIcleDeviceRecursive4(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    
+    
+
+class FindManyFirmwareSetArgsFromIcleDevice(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromIcleDeviceRecursive1(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromIcleDeviceRecursive2(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromIcleDeviceRecursive3(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromIcleDeviceRecursive4(TypedDict, total=False):
+    """Arguments for IcleDevice"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromIcleDevice(TypedDict, total=False):
+    """Relational arguments for IcleDevice"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIcleDeviceRecursive1']
     target: Union[bool, 'ProductTargetArgsFromIcleDeviceRecursive1']
 
 
 class FirmwareBuildIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
-    product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIcleDeviceRecursive2']
     target: Union[bool, 'ProductTargetArgsFromIcleDeviceRecursive2']
 
 
 class FirmwareBuildIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
-    product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIcleDeviceRecursive3']
     target: Union[bool, 'ProductTargetArgsFromIcleDeviceRecursive3']
 
 
 class FirmwareBuildIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
-    product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIcleDeviceRecursive4']
     target: Union[bool, 'ProductTargetArgsFromIcleDeviceRecursive4']
 
 
@@ -70992,7 +77061,7 @@ class IclePendingCommandInclude(TypedDict, total=False):
 class ProductIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     boards: Union[bool, 'FindManyBoardArgsFromIclePendingCommandRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromIclePendingCommandRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive1']
@@ -71005,7 +77074,7 @@ class ProductIncludeFromIclePendingCommand(TypedDict, total=False):
 class ProductIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     boards: Union[bool, 'FindManyBoardArgsFromIclePendingCommandRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromIclePendingCommandRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive2']
@@ -71018,7 +77087,7 @@ class ProductIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
 class ProductIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     boards: Union[bool, 'FindManyBoardArgsFromIclePendingCommandRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromIclePendingCommandRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive3']
@@ -71031,7 +77100,7 @@ class ProductIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
 class ProductIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     boards: Union[bool, 'FindManyBoardArgsFromIclePendingCommandRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromIclePendingCommandRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive4']
@@ -71348,24 +77417,28 @@ class BoardRevisionIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromIclePendingCommandRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive1']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromIclePendingCommandRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive2']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromIclePendingCommandRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive3']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromIclePendingCommandRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive4']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
@@ -71453,27 +77526,140 @@ class FindManyBoardRevisionArgsFromIclePendingCommandRecursive4(TypedDict, total
     
     
 
-class FirmwareBuildIncludeFromIclePendingCommand(TypedDict, total=False):
+class FirmwareSetIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive1']
+
+
+class FirmwareSetIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
+    """Relational arguments for IclePendingCommand"""
+    product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive2']
+
+
+class FirmwareSetIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
+    """Relational arguments for IclePendingCommand"""
+    product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive3']
+
+
+class FirmwareSetIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
+    """Relational arguments for IclePendingCommand"""
+    product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive4']
+
+
+class FirmwareSetIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
+    """Relational arguments for IclePendingCommand"""
+
+    
+
+class FirmwareSetArgsFromIclePendingCommand(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromIclePendingCommandRecursive1(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromIclePendingCommandRecursive2(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromIclePendingCommandRecursive3(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    
+    
+
+class FindManyFirmwareSetArgsFromIclePendingCommand(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromIclePendingCommandRecursive1(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromIclePendingCommandRecursive2(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromIclePendingCommandRecursive3(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
+    """Arguments for IclePendingCommand"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromIclePendingCommand(TypedDict, total=False):
+    """Relational arguments for IclePendingCommand"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIclePendingCommandRecursive1']
     target: Union[bool, 'ProductTargetArgsFromIclePendingCommandRecursive1']
 
 
 class FirmwareBuildIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
-    product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIclePendingCommandRecursive2']
     target: Union[bool, 'ProductTargetArgsFromIclePendingCommandRecursive2']
 
 
 class FirmwareBuildIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
-    product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIclePendingCommandRecursive3']
     target: Union[bool, 'ProductTargetArgsFromIclePendingCommandRecursive3']
 
 
 class FirmwareBuildIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
-    product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIclePendingCommandRecursive4']
     target: Union[bool, 'ProductTargetArgsFromIclePendingCommandRecursive4']
 
 
@@ -74806,7 +80992,7 @@ class IcleLogInclude(TypedDict, total=False):
 class ProductIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     boards: Union[bool, 'FindManyBoardArgsFromIcleLogRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromIcleLogRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive1']
@@ -74819,7 +81005,7 @@ class ProductIncludeFromIcleLog(TypedDict, total=False):
 class ProductIncludeFromIcleLogRecursive1(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     boards: Union[bool, 'FindManyBoardArgsFromIcleLogRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromIcleLogRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive2']
@@ -74832,7 +81018,7 @@ class ProductIncludeFromIcleLogRecursive1(TypedDict, total=False):
 class ProductIncludeFromIcleLogRecursive2(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     boards: Union[bool, 'FindManyBoardArgsFromIcleLogRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromIcleLogRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive3']
@@ -74845,7 +81031,7 @@ class ProductIncludeFromIcleLogRecursive2(TypedDict, total=False):
 class ProductIncludeFromIcleLogRecursive3(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     boards: Union[bool, 'FindManyBoardArgsFromIcleLogRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromIcleLogRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive4']
@@ -75162,24 +81348,28 @@ class BoardRevisionIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     board: Union[bool, 'BoardArgsFromIcleLogRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleLogRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive1']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive1(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     board: Union[bool, 'BoardArgsFromIcleLogRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleLogRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive2']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive2(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     board: Union[bool, 'BoardArgsFromIcleLogRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleLogRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive3']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive3(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     board: Union[bool, 'BoardArgsFromIcleLogRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleLogRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive4']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive4(TypedDict, total=False):
@@ -75267,27 +81457,140 @@ class FindManyBoardRevisionArgsFromIcleLogRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromIcleLog(TypedDict, total=False):
+class FirmwareSetIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive1']
+
+
+class FirmwareSetIncludeFromIcleLogRecursive1(TypedDict, total=False):
+    """Relational arguments for IcleLog"""
+    product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive2']
+
+
+class FirmwareSetIncludeFromIcleLogRecursive2(TypedDict, total=False):
+    """Relational arguments for IcleLog"""
+    product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive3']
+
+
+class FirmwareSetIncludeFromIcleLogRecursive3(TypedDict, total=False):
+    """Relational arguments for IcleLog"""
+    product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive4']
+
+
+class FirmwareSetIncludeFromIcleLogRecursive4(TypedDict, total=False):
+    """Relational arguments for IcleLog"""
+
+    
+
+class FirmwareSetArgsFromIcleLog(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromIcleLogRecursive1(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromIcleLogRecursive2(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromIcleLogRecursive3(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromIcleLogRecursive4(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    
+    
+
+class FindManyFirmwareSetArgsFromIcleLog(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromIcleLogRecursive1(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromIcleLogRecursive2(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromIcleLogRecursive3(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromIcleLogRecursive4(TypedDict, total=False):
+    """Arguments for IcleLog"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromIcleLog(TypedDict, total=False):
+    """Relational arguments for IcleLog"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIcleLogRecursive1']
     target: Union[bool, 'ProductTargetArgsFromIcleLogRecursive1']
 
 
 class FirmwareBuildIncludeFromIcleLogRecursive1(TypedDict, total=False):
     """Relational arguments for IcleLog"""
-    product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIcleLogRecursive2']
     target: Union[bool, 'ProductTargetArgsFromIcleLogRecursive2']
 
 
 class FirmwareBuildIncludeFromIcleLogRecursive2(TypedDict, total=False):
     """Relational arguments for IcleLog"""
-    product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIcleLogRecursive3']
     target: Union[bool, 'ProductTargetArgsFromIcleLogRecursive3']
 
 
 class FirmwareBuildIncludeFromIcleLogRecursive3(TypedDict, total=False):
     """Relational arguments for IcleLog"""
-    product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromIcleLogRecursive4']
     target: Union[bool, 'ProductTargetArgsFromIcleLogRecursive4']
 
 
@@ -78609,7 +84912,7 @@ class DeploymentInclude(TypedDict, total=False):
 class ProductIncludeFromDeployment(TypedDict, total=False):
     """Relational arguments for Deployment"""
     boards: Union[bool, 'FindManyBoardArgsFromDeploymentRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromDeploymentRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive1']
@@ -78622,7 +84925,7 @@ class ProductIncludeFromDeployment(TypedDict, total=False):
 class ProductIncludeFromDeploymentRecursive1(TypedDict, total=False):
     """Relational arguments for Deployment"""
     boards: Union[bool, 'FindManyBoardArgsFromDeploymentRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromDeploymentRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive2']
@@ -78635,7 +84938,7 @@ class ProductIncludeFromDeploymentRecursive1(TypedDict, total=False):
 class ProductIncludeFromDeploymentRecursive2(TypedDict, total=False):
     """Relational arguments for Deployment"""
     boards: Union[bool, 'FindManyBoardArgsFromDeploymentRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromDeploymentRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive3']
@@ -78648,7 +84951,7 @@ class ProductIncludeFromDeploymentRecursive2(TypedDict, total=False):
 class ProductIncludeFromDeploymentRecursive3(TypedDict, total=False):
     """Relational arguments for Deployment"""
     boards: Union[bool, 'FindManyBoardArgsFromDeploymentRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromDeploymentRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive4']
@@ -78965,24 +85268,28 @@ class BoardRevisionIncludeFromDeployment(TypedDict, total=False):
     """Relational arguments for Deployment"""
     board: Union[bool, 'BoardArgsFromDeploymentRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive1']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive1(TypedDict, total=False):
     """Relational arguments for Deployment"""
     board: Union[bool, 'BoardArgsFromDeploymentRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive2']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive2(TypedDict, total=False):
     """Relational arguments for Deployment"""
     board: Union[bool, 'BoardArgsFromDeploymentRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive3']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive3(TypedDict, total=False):
     """Relational arguments for Deployment"""
     board: Union[bool, 'BoardArgsFromDeploymentRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive4']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive4(TypedDict, total=False):
@@ -79070,27 +85377,140 @@ class FindManyBoardRevisionArgsFromDeploymentRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromDeployment(TypedDict, total=False):
+class FirmwareSetIncludeFromDeployment(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive1']
+
+
+class FirmwareSetIncludeFromDeploymentRecursive1(TypedDict, total=False):
+    """Relational arguments for Deployment"""
+    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive2']
+
+
+class FirmwareSetIncludeFromDeploymentRecursive2(TypedDict, total=False):
+    """Relational arguments for Deployment"""
+    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive3']
+
+
+class FirmwareSetIncludeFromDeploymentRecursive3(TypedDict, total=False):
+    """Relational arguments for Deployment"""
+    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive4']
+
+
+class FirmwareSetIncludeFromDeploymentRecursive4(TypedDict, total=False):
+    """Relational arguments for Deployment"""
+
+    
+
+class FirmwareSetArgsFromDeployment(TypedDict, total=False):
+    """Arguments for Deployment"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromDeploymentRecursive1(TypedDict, total=False):
+    """Arguments for Deployment"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromDeploymentRecursive2(TypedDict, total=False):
+    """Arguments for Deployment"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromDeploymentRecursive3(TypedDict, total=False):
+    """Arguments for Deployment"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromDeploymentRecursive4(TypedDict, total=False):
+    """Arguments for Deployment"""
+    
+    
+
+class FindManyFirmwareSetArgsFromDeployment(TypedDict, total=False):
+    """Arguments for Deployment"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromDeploymentRecursive1(TypedDict, total=False):
+    """Arguments for Deployment"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromDeploymentRecursive2(TypedDict, total=False):
+    """Arguments for Deployment"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromDeploymentRecursive3(TypedDict, total=False):
+    """Arguments for Deployment"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromDeploymentRecursive4(TypedDict, total=False):
+    """Arguments for Deployment"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromDeployment(TypedDict, total=False):
+    """Relational arguments for Deployment"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeploymentRecursive1']
     target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive1']
 
 
 class FirmwareBuildIncludeFromDeploymentRecursive1(TypedDict, total=False):
     """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeploymentRecursive2']
     target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive2']
 
 
 class FirmwareBuildIncludeFromDeploymentRecursive2(TypedDict, total=False):
     """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeploymentRecursive3']
     target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive3']
 
 
 class FirmwareBuildIncludeFromDeploymentRecursive3(TypedDict, total=False):
     """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeploymentRecursive4']
     target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive4']
 
 
@@ -82488,7 +88908,7 @@ class TestInclude(TypedDict, total=False):
 class ProductIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
     boards: Union[bool, 'FindManyBoardArgsFromTestRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromTestRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive1']
@@ -82501,7 +88921,7 @@ class ProductIncludeFromTest(TypedDict, total=False):
 class ProductIncludeFromTestRecursive1(TypedDict, total=False):
     """Relational arguments for Test"""
     boards: Union[bool, 'FindManyBoardArgsFromTestRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromTestRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive2']
@@ -82514,7 +88934,7 @@ class ProductIncludeFromTestRecursive1(TypedDict, total=False):
 class ProductIncludeFromTestRecursive2(TypedDict, total=False):
     """Relational arguments for Test"""
     boards: Union[bool, 'FindManyBoardArgsFromTestRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromTestRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive3']
@@ -82527,7 +88947,7 @@ class ProductIncludeFromTestRecursive2(TypedDict, total=False):
 class ProductIncludeFromTestRecursive3(TypedDict, total=False):
     """Relational arguments for Test"""
     boards: Union[bool, 'FindManyBoardArgsFromTestRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromTestRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive4']
@@ -82844,24 +89264,28 @@ class BoardRevisionIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
     board: Union[bool, 'BoardArgsFromTestRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive1']
 
 
 class BoardRevisionIncludeFromTestRecursive1(TypedDict, total=False):
     """Relational arguments for Test"""
     board: Union[bool, 'BoardArgsFromTestRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive2']
 
 
 class BoardRevisionIncludeFromTestRecursive2(TypedDict, total=False):
     """Relational arguments for Test"""
     board: Union[bool, 'BoardArgsFromTestRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive3']
 
 
 class BoardRevisionIncludeFromTestRecursive3(TypedDict, total=False):
     """Relational arguments for Test"""
     board: Union[bool, 'BoardArgsFromTestRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive4']
 
 
 class BoardRevisionIncludeFromTestRecursive4(TypedDict, total=False):
@@ -82949,27 +89373,140 @@ class FindManyBoardRevisionArgsFromTestRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromTest(TypedDict, total=False):
+class FirmwareSetIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive1']
+
+
+class FirmwareSetIncludeFromTestRecursive1(TypedDict, total=False):
+    """Relational arguments for Test"""
+    product: Union[bool, 'ProductArgsFromTestRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive2']
+
+
+class FirmwareSetIncludeFromTestRecursive2(TypedDict, total=False):
+    """Relational arguments for Test"""
+    product: Union[bool, 'ProductArgsFromTestRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive3']
+
+
+class FirmwareSetIncludeFromTestRecursive3(TypedDict, total=False):
+    """Relational arguments for Test"""
+    product: Union[bool, 'ProductArgsFromTestRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive4']
+
+
+class FirmwareSetIncludeFromTestRecursive4(TypedDict, total=False):
+    """Relational arguments for Test"""
+
+    
+
+class FirmwareSetArgsFromTest(TypedDict, total=False):
+    """Arguments for Test"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromTestRecursive1(TypedDict, total=False):
+    """Arguments for Test"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromTestRecursive2(TypedDict, total=False):
+    """Arguments for Test"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromTestRecursive3(TypedDict, total=False):
+    """Arguments for Test"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromTestRecursive4(TypedDict, total=False):
+    """Arguments for Test"""
+    
+    
+
+class FindManyFirmwareSetArgsFromTest(TypedDict, total=False):
+    """Arguments for Test"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromTestRecursive1(TypedDict, total=False):
+    """Arguments for Test"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromTestRecursive2(TypedDict, total=False):
+    """Arguments for Test"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromTestRecursive3(TypedDict, total=False):
+    """Arguments for Test"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromTestRecursive4(TypedDict, total=False):
+    """Arguments for Test"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromTest(TypedDict, total=False):
+    """Relational arguments for Test"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestRecursive1']
     target: Union[bool, 'ProductTargetArgsFromTestRecursive1']
 
 
 class FirmwareBuildIncludeFromTestRecursive1(TypedDict, total=False):
     """Relational arguments for Test"""
-    product: Union[bool, 'ProductArgsFromTestRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestRecursive2']
     target: Union[bool, 'ProductTargetArgsFromTestRecursive2']
 
 
 class FirmwareBuildIncludeFromTestRecursive2(TypedDict, total=False):
     """Relational arguments for Test"""
-    product: Union[bool, 'ProductArgsFromTestRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestRecursive3']
     target: Union[bool, 'ProductTargetArgsFromTestRecursive3']
 
 
 class FirmwareBuildIncludeFromTestRecursive3(TypedDict, total=False):
     """Relational arguments for Test"""
-    product: Union[bool, 'ProductArgsFromTestRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestRecursive4']
     target: Union[bool, 'ProductTargetArgsFromTestRecursive4']
 
 
@@ -86400,7 +92937,7 @@ class TestExecutionInclude(TypedDict, total=False):
 class ProductIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     boards: Union[bool, 'FindManyBoardArgsFromTestExecutionRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromTestExecutionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive1']
@@ -86413,7 +92950,7 @@ class ProductIncludeFromTestExecution(TypedDict, total=False):
 class ProductIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     boards: Union[bool, 'FindManyBoardArgsFromTestExecutionRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromTestExecutionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive2']
@@ -86426,7 +92963,7 @@ class ProductIncludeFromTestExecutionRecursive1(TypedDict, total=False):
 class ProductIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     boards: Union[bool, 'FindManyBoardArgsFromTestExecutionRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromTestExecutionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive3']
@@ -86439,7 +92976,7 @@ class ProductIncludeFromTestExecutionRecursive2(TypedDict, total=False):
 class ProductIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     boards: Union[bool, 'FindManyBoardArgsFromTestExecutionRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromTestExecutionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive4']
@@ -86756,24 +93293,28 @@ class BoardRevisionIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestExecutionRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive1']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestExecutionRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive2']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestExecutionRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive3']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestExecutionRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive4']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive4(TypedDict, total=False):
@@ -86861,27 +93402,140 @@ class FindManyBoardRevisionArgsFromTestExecutionRecursive4(TypedDict, total=Fals
     
     
 
-class FirmwareBuildIncludeFromTestExecution(TypedDict, total=False):
+class FirmwareSetIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive1']
+
+
+class FirmwareSetIncludeFromTestExecutionRecursive1(TypedDict, total=False):
+    """Relational arguments for TestExecution"""
+    product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive2']
+
+
+class FirmwareSetIncludeFromTestExecutionRecursive2(TypedDict, total=False):
+    """Relational arguments for TestExecution"""
+    product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive3']
+
+
+class FirmwareSetIncludeFromTestExecutionRecursive3(TypedDict, total=False):
+    """Relational arguments for TestExecution"""
+    product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive4']
+
+
+class FirmwareSetIncludeFromTestExecutionRecursive4(TypedDict, total=False):
+    """Relational arguments for TestExecution"""
+
+    
+
+class FirmwareSetArgsFromTestExecution(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromTestExecutionRecursive1(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromTestExecutionRecursive2(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromTestExecutionRecursive3(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromTestExecutionRecursive4(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    
+    
+
+class FindManyFirmwareSetArgsFromTestExecution(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromTestExecutionRecursive1(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromTestExecutionRecursive2(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromTestExecutionRecursive3(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromTestExecutionRecursive4(TypedDict, total=False):
+    """Arguments for TestExecution"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromTestExecution(TypedDict, total=False):
+    """Relational arguments for TestExecution"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestExecutionRecursive1']
     target: Union[bool, 'ProductTargetArgsFromTestExecutionRecursive1']
 
 
 class FirmwareBuildIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     """Relational arguments for TestExecution"""
-    product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestExecutionRecursive2']
     target: Union[bool, 'ProductTargetArgsFromTestExecutionRecursive2']
 
 
 class FirmwareBuildIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     """Relational arguments for TestExecution"""
-    product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestExecutionRecursive3']
     target: Union[bool, 'ProductTargetArgsFromTestExecutionRecursive3']
 
 
 class FirmwareBuildIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     """Relational arguments for TestExecution"""
-    product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestExecutionRecursive4']
     target: Union[bool, 'ProductTargetArgsFromTestExecutionRecursive4']
 
 
@@ -90396,7 +97050,7 @@ class TestStepInclude(TypedDict, total=False):
 class ProductIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
     boards: Union[bool, 'FindManyBoardArgsFromTestStepRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromTestStepRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive1']
@@ -90409,7 +97063,7 @@ class ProductIncludeFromTestStep(TypedDict, total=False):
 class ProductIncludeFromTestStepRecursive1(TypedDict, total=False):
     """Relational arguments for TestStep"""
     boards: Union[bool, 'FindManyBoardArgsFromTestStepRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromTestStepRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive2']
@@ -90422,7 +97076,7 @@ class ProductIncludeFromTestStepRecursive1(TypedDict, total=False):
 class ProductIncludeFromTestStepRecursive2(TypedDict, total=False):
     """Relational arguments for TestStep"""
     boards: Union[bool, 'FindManyBoardArgsFromTestStepRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromTestStepRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive3']
@@ -90435,7 +97089,7 @@ class ProductIncludeFromTestStepRecursive2(TypedDict, total=False):
 class ProductIncludeFromTestStepRecursive3(TypedDict, total=False):
     """Relational arguments for TestStep"""
     boards: Union[bool, 'FindManyBoardArgsFromTestStepRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromTestStepRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive4']
@@ -90752,24 +97406,28 @@ class BoardRevisionIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
     board: Union[bool, 'BoardArgsFromTestStepRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestStepRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive1']
 
 
 class BoardRevisionIncludeFromTestStepRecursive1(TypedDict, total=False):
     """Relational arguments for TestStep"""
     board: Union[bool, 'BoardArgsFromTestStepRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestStepRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive2']
 
 
 class BoardRevisionIncludeFromTestStepRecursive2(TypedDict, total=False):
     """Relational arguments for TestStep"""
     board: Union[bool, 'BoardArgsFromTestStepRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestStepRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive3']
 
 
 class BoardRevisionIncludeFromTestStepRecursive3(TypedDict, total=False):
     """Relational arguments for TestStep"""
     board: Union[bool, 'BoardArgsFromTestStepRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestStepRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive4']
 
 
 class BoardRevisionIncludeFromTestStepRecursive4(TypedDict, total=False):
@@ -90857,27 +97515,140 @@ class FindManyBoardRevisionArgsFromTestStepRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromTestStep(TypedDict, total=False):
+class FirmwareSetIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive1']
+
+
+class FirmwareSetIncludeFromTestStepRecursive1(TypedDict, total=False):
+    """Relational arguments for TestStep"""
+    product: Union[bool, 'ProductArgsFromTestStepRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive2']
+
+
+class FirmwareSetIncludeFromTestStepRecursive2(TypedDict, total=False):
+    """Relational arguments for TestStep"""
+    product: Union[bool, 'ProductArgsFromTestStepRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive3']
+
+
+class FirmwareSetIncludeFromTestStepRecursive3(TypedDict, total=False):
+    """Relational arguments for TestStep"""
+    product: Union[bool, 'ProductArgsFromTestStepRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive4']
+
+
+class FirmwareSetIncludeFromTestStepRecursive4(TypedDict, total=False):
+    """Relational arguments for TestStep"""
+
+    
+
+class FirmwareSetArgsFromTestStep(TypedDict, total=False):
+    """Arguments for TestStep"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromTestStepRecursive1(TypedDict, total=False):
+    """Arguments for TestStep"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromTestStepRecursive2(TypedDict, total=False):
+    """Arguments for TestStep"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromTestStepRecursive3(TypedDict, total=False):
+    """Arguments for TestStep"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromTestStepRecursive4(TypedDict, total=False):
+    """Arguments for TestStep"""
+    
+    
+
+class FindManyFirmwareSetArgsFromTestStep(TypedDict, total=False):
+    """Arguments for TestStep"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromTestStepRecursive1(TypedDict, total=False):
+    """Arguments for TestStep"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromTestStepRecursive2(TypedDict, total=False):
+    """Arguments for TestStep"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromTestStepRecursive3(TypedDict, total=False):
+    """Arguments for TestStep"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromTestStepRecursive4(TypedDict, total=False):
+    """Arguments for TestStep"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromTestStep(TypedDict, total=False):
+    """Relational arguments for TestStep"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestStepRecursive1']
     target: Union[bool, 'ProductTargetArgsFromTestStepRecursive1']
 
 
 class FirmwareBuildIncludeFromTestStepRecursive1(TypedDict, total=False):
     """Relational arguments for TestStep"""
-    product: Union[bool, 'ProductArgsFromTestStepRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestStepRecursive2']
     target: Union[bool, 'ProductTargetArgsFromTestStepRecursive2']
 
 
 class FirmwareBuildIncludeFromTestStepRecursive2(TypedDict, total=False):
     """Relational arguments for TestStep"""
-    product: Union[bool, 'ProductArgsFromTestStepRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestStepRecursive3']
     target: Union[bool, 'ProductTargetArgsFromTestStepRecursive3']
 
 
 class FirmwareBuildIncludeFromTestStepRecursive3(TypedDict, total=False):
     """Relational arguments for TestStep"""
-    product: Union[bool, 'ProductArgsFromTestStepRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromTestStepRecursive4']
     target: Union[bool, 'ProductTargetArgsFromTestStepRecursive4']
 
 
@@ -94362,7 +101133,7 @@ class UserInclude(TypedDict, total=False):
 class ProductIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
     boards: Union[bool, 'FindManyBoardArgsFromUserRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromUserRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive1']
@@ -94375,7 +101146,7 @@ class ProductIncludeFromUser(TypedDict, total=False):
 class ProductIncludeFromUserRecursive1(TypedDict, total=False):
     """Relational arguments for User"""
     boards: Union[bool, 'FindManyBoardArgsFromUserRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromUserRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive2']
@@ -94388,7 +101159,7 @@ class ProductIncludeFromUserRecursive1(TypedDict, total=False):
 class ProductIncludeFromUserRecursive2(TypedDict, total=False):
     """Relational arguments for User"""
     boards: Union[bool, 'FindManyBoardArgsFromUserRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromUserRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive3']
@@ -94401,7 +101172,7 @@ class ProductIncludeFromUserRecursive2(TypedDict, total=False):
 class ProductIncludeFromUserRecursive3(TypedDict, total=False):
     """Relational arguments for User"""
     boards: Union[bool, 'FindManyBoardArgsFromUserRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromUserRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive4']
@@ -94718,24 +101489,28 @@ class BoardRevisionIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
     board: Union[bool, 'BoardArgsFromUserRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromUserRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive1']
 
 
 class BoardRevisionIncludeFromUserRecursive1(TypedDict, total=False):
     """Relational arguments for User"""
     board: Union[bool, 'BoardArgsFromUserRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromUserRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive2']
 
 
 class BoardRevisionIncludeFromUserRecursive2(TypedDict, total=False):
     """Relational arguments for User"""
     board: Union[bool, 'BoardArgsFromUserRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromUserRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive3']
 
 
 class BoardRevisionIncludeFromUserRecursive3(TypedDict, total=False):
     """Relational arguments for User"""
     board: Union[bool, 'BoardArgsFromUserRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromUserRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive4']
 
 
 class BoardRevisionIncludeFromUserRecursive4(TypedDict, total=False):
@@ -94823,27 +101598,140 @@ class FindManyBoardRevisionArgsFromUserRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromUser(TypedDict, total=False):
+class FirmwareSetIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive1']
+
+
+class FirmwareSetIncludeFromUserRecursive1(TypedDict, total=False):
+    """Relational arguments for User"""
+    product: Union[bool, 'ProductArgsFromUserRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive2']
+
+
+class FirmwareSetIncludeFromUserRecursive2(TypedDict, total=False):
+    """Relational arguments for User"""
+    product: Union[bool, 'ProductArgsFromUserRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive3']
+
+
+class FirmwareSetIncludeFromUserRecursive3(TypedDict, total=False):
+    """Relational arguments for User"""
+    product: Union[bool, 'ProductArgsFromUserRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive4']
+
+
+class FirmwareSetIncludeFromUserRecursive4(TypedDict, total=False):
+    """Relational arguments for User"""
+
+    
+
+class FirmwareSetArgsFromUser(TypedDict, total=False):
+    """Arguments for User"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromUserRecursive1(TypedDict, total=False):
+    """Arguments for User"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromUserRecursive2(TypedDict, total=False):
+    """Arguments for User"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromUserRecursive3(TypedDict, total=False):
+    """Arguments for User"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromUserRecursive4(TypedDict, total=False):
+    """Arguments for User"""
+    
+    
+
+class FindManyFirmwareSetArgsFromUser(TypedDict, total=False):
+    """Arguments for User"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromUserRecursive1(TypedDict, total=False):
+    """Arguments for User"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromUserRecursive2(TypedDict, total=False):
+    """Arguments for User"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromUserRecursive3(TypedDict, total=False):
+    """Arguments for User"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromUserRecursive4(TypedDict, total=False):
+    """Arguments for User"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromUser(TypedDict, total=False):
+    """Relational arguments for User"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromUserRecursive1']
     target: Union[bool, 'ProductTargetArgsFromUserRecursive1']
 
 
 class FirmwareBuildIncludeFromUserRecursive1(TypedDict, total=False):
     """Relational arguments for User"""
-    product: Union[bool, 'ProductArgsFromUserRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromUserRecursive2']
     target: Union[bool, 'ProductTargetArgsFromUserRecursive2']
 
 
 class FirmwareBuildIncludeFromUserRecursive2(TypedDict, total=False):
     """Relational arguments for User"""
-    product: Union[bool, 'ProductArgsFromUserRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromUserRecursive3']
     target: Union[bool, 'ProductTargetArgsFromUserRecursive3']
 
 
 class FirmwareBuildIncludeFromUserRecursive3(TypedDict, total=False):
     """Relational arguments for User"""
-    product: Union[bool, 'ProductArgsFromUserRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromUserRecursive4']
     target: Union[bool, 'ProductTargetArgsFromUserRecursive4']
 
 
@@ -98206,7 +105094,7 @@ class PermissionSetInclude(TypedDict, total=False):
 class ProductIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     boards: Union[bool, 'FindManyBoardArgsFromPermissionSetRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromPermissionSetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive1']
@@ -98219,7 +105107,7 @@ class ProductIncludeFromPermissionSet(TypedDict, total=False):
 class ProductIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     boards: Union[bool, 'FindManyBoardArgsFromPermissionSetRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromPermissionSetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive2']
@@ -98232,7 +105120,7 @@ class ProductIncludeFromPermissionSetRecursive1(TypedDict, total=False):
 class ProductIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     boards: Union[bool, 'FindManyBoardArgsFromPermissionSetRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromPermissionSetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive3']
@@ -98245,7 +105133,7 @@ class ProductIncludeFromPermissionSetRecursive2(TypedDict, total=False):
 class ProductIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     boards: Union[bool, 'FindManyBoardArgsFromPermissionSetRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromPermissionSetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive4']
@@ -98562,24 +105450,28 @@ class BoardRevisionIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromPermissionSetRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive1']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromPermissionSetRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive2']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromPermissionSetRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive3']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromPermissionSetRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive4']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive4(TypedDict, total=False):
@@ -98667,27 +105559,140 @@ class FindManyBoardRevisionArgsFromPermissionSetRecursive4(TypedDict, total=Fals
     
     
 
-class FirmwareBuildIncludeFromPermissionSet(TypedDict, total=False):
+class FirmwareSetIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive1']
+
+
+class FirmwareSetIncludeFromPermissionSetRecursive1(TypedDict, total=False):
+    """Relational arguments for PermissionSet"""
+    product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive2']
+
+
+class FirmwareSetIncludeFromPermissionSetRecursive2(TypedDict, total=False):
+    """Relational arguments for PermissionSet"""
+    product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive3']
+
+
+class FirmwareSetIncludeFromPermissionSetRecursive3(TypedDict, total=False):
+    """Relational arguments for PermissionSet"""
+    product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive4']
+
+
+class FirmwareSetIncludeFromPermissionSetRecursive4(TypedDict, total=False):
+    """Relational arguments for PermissionSet"""
+
+    
+
+class FirmwareSetArgsFromPermissionSet(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromPermissionSetRecursive1(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromPermissionSetRecursive2(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromPermissionSetRecursive3(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromPermissionSetRecursive4(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    
+    
+
+class FindManyFirmwareSetArgsFromPermissionSet(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromPermissionSetRecursive1(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromPermissionSetRecursive2(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromPermissionSetRecursive3(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromPermissionSetRecursive4(TypedDict, total=False):
+    """Arguments for PermissionSet"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromPermissionSet(TypedDict, total=False):
+    """Relational arguments for PermissionSet"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromPermissionSetRecursive1']
     target: Union[bool, 'ProductTargetArgsFromPermissionSetRecursive1']
 
 
 class FirmwareBuildIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
-    product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromPermissionSetRecursive2']
     target: Union[bool, 'ProductTargetArgsFromPermissionSetRecursive2']
 
 
 class FirmwareBuildIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
-    product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromPermissionSetRecursive3']
     target: Union[bool, 'ProductTargetArgsFromPermissionSetRecursive3']
 
 
 class FirmwareBuildIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
-    product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromPermissionSetRecursive4']
     target: Union[bool, 'ProductTargetArgsFromPermissionSetRecursive4']
 
 
@@ -101985,7 +108990,7 @@ class ApiKeyInclude(TypedDict, total=False):
 class ProductIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     boards: Union[bool, 'FindManyBoardArgsFromApiKeyRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromApiKeyRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive1']
@@ -101998,7 +109003,7 @@ class ProductIncludeFromApiKey(TypedDict, total=False):
 class ProductIncludeFromApiKeyRecursive1(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     boards: Union[bool, 'FindManyBoardArgsFromApiKeyRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromApiKeyRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive2']
@@ -102011,7 +109016,7 @@ class ProductIncludeFromApiKeyRecursive1(TypedDict, total=False):
 class ProductIncludeFromApiKeyRecursive2(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     boards: Union[bool, 'FindManyBoardArgsFromApiKeyRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromApiKeyRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive3']
@@ -102024,7 +109029,7 @@ class ProductIncludeFromApiKeyRecursive2(TypedDict, total=False):
 class ProductIncludeFromApiKeyRecursive3(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     boards: Union[bool, 'FindManyBoardArgsFromApiKeyRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromApiKeyRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive4']
@@ -102341,24 +109346,28 @@ class BoardRevisionIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     board: Union[bool, 'BoardArgsFromApiKeyRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromApiKeyRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive1']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive1(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     board: Union[bool, 'BoardArgsFromApiKeyRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromApiKeyRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive2']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive2(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     board: Union[bool, 'BoardArgsFromApiKeyRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromApiKeyRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive3']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive3(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     board: Union[bool, 'BoardArgsFromApiKeyRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromApiKeyRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive4']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive4(TypedDict, total=False):
@@ -102446,27 +109455,140 @@ class FindManyBoardRevisionArgsFromApiKeyRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromApiKey(TypedDict, total=False):
+class FirmwareSetIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive1']
+
+
+class FirmwareSetIncludeFromApiKeyRecursive1(TypedDict, total=False):
+    """Relational arguments for ApiKey"""
+    product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive2']
+
+
+class FirmwareSetIncludeFromApiKeyRecursive2(TypedDict, total=False):
+    """Relational arguments for ApiKey"""
+    product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive3']
+
+
+class FirmwareSetIncludeFromApiKeyRecursive3(TypedDict, total=False):
+    """Relational arguments for ApiKey"""
+    product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive4']
+
+
+class FirmwareSetIncludeFromApiKeyRecursive4(TypedDict, total=False):
+    """Relational arguments for ApiKey"""
+
+    
+
+class FirmwareSetArgsFromApiKey(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromApiKeyRecursive1(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromApiKeyRecursive2(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromApiKeyRecursive3(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromApiKeyRecursive4(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    
+    
+
+class FindManyFirmwareSetArgsFromApiKey(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromApiKeyRecursive1(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromApiKeyRecursive2(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromApiKeyRecursive3(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromApiKeyRecursive4(TypedDict, total=False):
+    """Arguments for ApiKey"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromApiKey(TypedDict, total=False):
+    """Relational arguments for ApiKey"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromApiKeyRecursive1']
     target: Union[bool, 'ProductTargetArgsFromApiKeyRecursive1']
 
 
 class FirmwareBuildIncludeFromApiKeyRecursive1(TypedDict, total=False):
     """Relational arguments for ApiKey"""
-    product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromApiKeyRecursive2']
     target: Union[bool, 'ProductTargetArgsFromApiKeyRecursive2']
 
 
 class FirmwareBuildIncludeFromApiKeyRecursive2(TypedDict, total=False):
     """Relational arguments for ApiKey"""
-    product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromApiKeyRecursive3']
     target: Union[bool, 'ProductTargetArgsFromApiKeyRecursive3']
 
 
 class FirmwareBuildIncludeFromApiKeyRecursive3(TypedDict, total=False):
     """Relational arguments for ApiKey"""
-    product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromApiKeyRecursive4']
     target: Union[bool, 'ProductTargetArgsFromApiKeyRecursive4']
 
 
@@ -105789,7 +112911,7 @@ class AuditLogInclude(TypedDict, total=False):
 class ProductIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     boards: Union[bool, 'FindManyBoardArgsFromAuditLogRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromAuditLogRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive1']
@@ -105802,7 +112924,7 @@ class ProductIncludeFromAuditLog(TypedDict, total=False):
 class ProductIncludeFromAuditLogRecursive1(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     boards: Union[bool, 'FindManyBoardArgsFromAuditLogRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromAuditLogRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive2']
@@ -105815,7 +112937,7 @@ class ProductIncludeFromAuditLogRecursive1(TypedDict, total=False):
 class ProductIncludeFromAuditLogRecursive2(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     boards: Union[bool, 'FindManyBoardArgsFromAuditLogRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromAuditLogRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive3']
@@ -105828,7 +112950,7 @@ class ProductIncludeFromAuditLogRecursive2(TypedDict, total=False):
 class ProductIncludeFromAuditLogRecursive3(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     boards: Union[bool, 'FindManyBoardArgsFromAuditLogRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromAuditLogRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive4']
@@ -106145,24 +113267,28 @@ class BoardRevisionIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     board: Union[bool, 'BoardArgsFromAuditLogRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromAuditLogRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive1']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive1(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     board: Union[bool, 'BoardArgsFromAuditLogRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromAuditLogRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive2']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive2(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     board: Union[bool, 'BoardArgsFromAuditLogRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromAuditLogRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive3']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive3(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     board: Union[bool, 'BoardArgsFromAuditLogRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromAuditLogRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive4']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive4(TypedDict, total=False):
@@ -106250,27 +113376,140 @@ class FindManyBoardRevisionArgsFromAuditLogRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromAuditLog(TypedDict, total=False):
+class FirmwareSetIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive1']
+
+
+class FirmwareSetIncludeFromAuditLogRecursive1(TypedDict, total=False):
+    """Relational arguments for AuditLog"""
+    product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive2']
+
+
+class FirmwareSetIncludeFromAuditLogRecursive2(TypedDict, total=False):
+    """Relational arguments for AuditLog"""
+    product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive3']
+
+
+class FirmwareSetIncludeFromAuditLogRecursive3(TypedDict, total=False):
+    """Relational arguments for AuditLog"""
+    product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive4']
+
+
+class FirmwareSetIncludeFromAuditLogRecursive4(TypedDict, total=False):
+    """Relational arguments for AuditLog"""
+
+    
+
+class FirmwareSetArgsFromAuditLog(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromAuditLogRecursive1(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromAuditLogRecursive2(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromAuditLogRecursive3(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromAuditLogRecursive4(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    
+    
+
+class FindManyFirmwareSetArgsFromAuditLog(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromAuditLogRecursive1(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromAuditLogRecursive2(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromAuditLogRecursive3(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromAuditLogRecursive4(TypedDict, total=False):
+    """Arguments for AuditLog"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromAuditLog(TypedDict, total=False):
+    """Relational arguments for AuditLog"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromAuditLogRecursive1']
     target: Union[bool, 'ProductTargetArgsFromAuditLogRecursive1']
 
 
 class FirmwareBuildIncludeFromAuditLogRecursive1(TypedDict, total=False):
     """Relational arguments for AuditLog"""
-    product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromAuditLogRecursive2']
     target: Union[bool, 'ProductTargetArgsFromAuditLogRecursive2']
 
 
 class FirmwareBuildIncludeFromAuditLogRecursive2(TypedDict, total=False):
     """Relational arguments for AuditLog"""
-    product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromAuditLogRecursive3']
     target: Union[bool, 'ProductTargetArgsFromAuditLogRecursive3']
 
 
 class FirmwareBuildIncludeFromAuditLogRecursive3(TypedDict, total=False):
     """Relational arguments for AuditLog"""
-    product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromAuditLogRecursive4']
     target: Union[bool, 'ProductTargetArgsFromAuditLogRecursive4']
 
 
@@ -109553,7 +116792,7 @@ class SettingInclude(TypedDict, total=False):
 class ProductIncludeFromSetting(TypedDict, total=False):
     """Relational arguments for Setting"""
     boards: Union[bool, 'FindManyBoardArgsFromSettingRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSettingRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromSettingRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromSettingRecursive1']
@@ -109566,7 +116805,7 @@ class ProductIncludeFromSetting(TypedDict, total=False):
 class ProductIncludeFromSettingRecursive1(TypedDict, total=False):
     """Relational arguments for Setting"""
     boards: Union[bool, 'FindManyBoardArgsFromSettingRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSettingRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromSettingRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromSettingRecursive2']
@@ -109579,7 +116818,7 @@ class ProductIncludeFromSettingRecursive1(TypedDict, total=False):
 class ProductIncludeFromSettingRecursive2(TypedDict, total=False):
     """Relational arguments for Setting"""
     boards: Union[bool, 'FindManyBoardArgsFromSettingRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSettingRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromSettingRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromSettingRecursive3']
@@ -109592,7 +116831,7 @@ class ProductIncludeFromSettingRecursive2(TypedDict, total=False):
 class ProductIncludeFromSettingRecursive3(TypedDict, total=False):
     """Relational arguments for Setting"""
     boards: Union[bool, 'FindManyBoardArgsFromSettingRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSettingRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromSettingRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromSettingRecursive4']
@@ -109909,24 +117148,28 @@ class BoardRevisionIncludeFromSetting(TypedDict, total=False):
     """Relational arguments for Setting"""
     board: Union[bool, 'BoardArgsFromSettingRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromSettingRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive1']
 
 
 class BoardRevisionIncludeFromSettingRecursive1(TypedDict, total=False):
     """Relational arguments for Setting"""
     board: Union[bool, 'BoardArgsFromSettingRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromSettingRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive2']
 
 
 class BoardRevisionIncludeFromSettingRecursive2(TypedDict, total=False):
     """Relational arguments for Setting"""
     board: Union[bool, 'BoardArgsFromSettingRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromSettingRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive3']
 
 
 class BoardRevisionIncludeFromSettingRecursive3(TypedDict, total=False):
     """Relational arguments for Setting"""
     board: Union[bool, 'BoardArgsFromSettingRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromSettingRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive4']
 
 
 class BoardRevisionIncludeFromSettingRecursive4(TypedDict, total=False):
@@ -110014,27 +117257,140 @@ class FindManyBoardRevisionArgsFromSettingRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromSetting(TypedDict, total=False):
+class FirmwareSetIncludeFromSetting(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive1']
+
+
+class FirmwareSetIncludeFromSettingRecursive1(TypedDict, total=False):
+    """Relational arguments for Setting"""
+    product: Union[bool, 'ProductArgsFromSettingRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive2']
+
+
+class FirmwareSetIncludeFromSettingRecursive2(TypedDict, total=False):
+    """Relational arguments for Setting"""
+    product: Union[bool, 'ProductArgsFromSettingRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive3']
+
+
+class FirmwareSetIncludeFromSettingRecursive3(TypedDict, total=False):
+    """Relational arguments for Setting"""
+    product: Union[bool, 'ProductArgsFromSettingRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive4']
+
+
+class FirmwareSetIncludeFromSettingRecursive4(TypedDict, total=False):
+    """Relational arguments for Setting"""
+
+    
+
+class FirmwareSetArgsFromSetting(TypedDict, total=False):
+    """Arguments for Setting"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromSettingRecursive1(TypedDict, total=False):
+    """Arguments for Setting"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromSettingRecursive2(TypedDict, total=False):
+    """Arguments for Setting"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromSettingRecursive3(TypedDict, total=False):
+    """Arguments for Setting"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromSettingRecursive4(TypedDict, total=False):
+    """Arguments for Setting"""
+    
+    
+
+class FindManyFirmwareSetArgsFromSetting(TypedDict, total=False):
+    """Arguments for Setting"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromSettingRecursive1(TypedDict, total=False):
+    """Arguments for Setting"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromSettingRecursive2(TypedDict, total=False):
+    """Arguments for Setting"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromSettingRecursive3(TypedDict, total=False):
+    """Arguments for Setting"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromSettingRecursive4(TypedDict, total=False):
+    """Arguments for Setting"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromSetting(TypedDict, total=False):
+    """Relational arguments for Setting"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSettingRecursive1']
     target: Union[bool, 'ProductTargetArgsFromSettingRecursive1']
 
 
 class FirmwareBuildIncludeFromSettingRecursive1(TypedDict, total=False):
     """Relational arguments for Setting"""
-    product: Union[bool, 'ProductArgsFromSettingRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSettingRecursive2']
     target: Union[bool, 'ProductTargetArgsFromSettingRecursive2']
 
 
 class FirmwareBuildIncludeFromSettingRecursive2(TypedDict, total=False):
     """Relational arguments for Setting"""
-    product: Union[bool, 'ProductArgsFromSettingRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSettingRecursive3']
     target: Union[bool, 'ProductTargetArgsFromSettingRecursive3']
 
 
 class FirmwareBuildIncludeFromSettingRecursive3(TypedDict, total=False):
     """Relational arguments for Setting"""
-    product: Union[bool, 'ProductArgsFromSettingRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromSettingRecursive4']
     target: Union[bool, 'ProductTargetArgsFromSettingRecursive4']
 
 
@@ -113269,7 +120625,7 @@ class LogInclude(TypedDict, total=False):
 class ProductIncludeFromLog(TypedDict, total=False):
     """Relational arguments for Log"""
     boards: Union[bool, 'FindManyBoardArgsFromLogRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromLogRecursive1']
     tests: Union[bool, 'FindManyTestArgsFromLogRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromLogRecursive1']
@@ -113282,7 +120638,7 @@ class ProductIncludeFromLog(TypedDict, total=False):
 class ProductIncludeFromLogRecursive1(TypedDict, total=False):
     """Relational arguments for Log"""
     boards: Union[bool, 'FindManyBoardArgsFromLogRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromLogRecursive2']
     tests: Union[bool, 'FindManyTestArgsFromLogRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromLogRecursive2']
@@ -113295,7 +120651,7 @@ class ProductIncludeFromLogRecursive1(TypedDict, total=False):
 class ProductIncludeFromLogRecursive2(TypedDict, total=False):
     """Relational arguments for Log"""
     boards: Union[bool, 'FindManyBoardArgsFromLogRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromLogRecursive3']
     tests: Union[bool, 'FindManyTestArgsFromLogRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromLogRecursive3']
@@ -113308,7 +120664,7 @@ class ProductIncludeFromLogRecursive2(TypedDict, total=False):
 class ProductIncludeFromLogRecursive3(TypedDict, total=False):
     """Relational arguments for Log"""
     boards: Union[bool, 'FindManyBoardArgsFromLogRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromLogRecursive4']
     tests: Union[bool, 'FindManyTestArgsFromLogRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromLogRecursive4']
@@ -113625,24 +120981,28 @@ class BoardRevisionIncludeFromLog(TypedDict, total=False):
     """Relational arguments for Log"""
     board: Union[bool, 'BoardArgsFromLogRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromLogRecursive1']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive1']
 
 
 class BoardRevisionIncludeFromLogRecursive1(TypedDict, total=False):
     """Relational arguments for Log"""
     board: Union[bool, 'BoardArgsFromLogRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromLogRecursive2']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive2']
 
 
 class BoardRevisionIncludeFromLogRecursive2(TypedDict, total=False):
     """Relational arguments for Log"""
     board: Union[bool, 'BoardArgsFromLogRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromLogRecursive3']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive3']
 
 
 class BoardRevisionIncludeFromLogRecursive3(TypedDict, total=False):
     """Relational arguments for Log"""
     board: Union[bool, 'BoardArgsFromLogRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromLogRecursive4']
+    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive4']
 
 
 class BoardRevisionIncludeFromLogRecursive4(TypedDict, total=False):
@@ -113730,27 +121090,140 @@ class FindManyBoardRevisionArgsFromLogRecursive4(TypedDict, total=False):
     
     
 
-class FirmwareBuildIncludeFromLog(TypedDict, total=False):
+class FirmwareSetIncludeFromLog(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive1']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive1']
+
+
+class FirmwareSetIncludeFromLogRecursive1(TypedDict, total=False):
+    """Relational arguments for Log"""
+    product: Union[bool, 'ProductArgsFromLogRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive2']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive2']
+
+
+class FirmwareSetIncludeFromLogRecursive2(TypedDict, total=False):
+    """Relational arguments for Log"""
+    product: Union[bool, 'ProductArgsFromLogRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive3']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive3']
+
+
+class FirmwareSetIncludeFromLogRecursive3(TypedDict, total=False):
+    """Relational arguments for Log"""
+    product: Union[bool, 'ProductArgsFromLogRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive4']
+    builds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive4']
+
+
+class FirmwareSetIncludeFromLogRecursive4(TypedDict, total=False):
+    """Relational arguments for Log"""
+
+    
+
+class FirmwareSetArgsFromLog(TypedDict, total=False):
+    """Arguments for Log"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FirmwareSetArgsFromLogRecursive1(TypedDict, total=False):
+    """Arguments for Log"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FirmwareSetArgsFromLogRecursive2(TypedDict, total=False):
+    """Arguments for Log"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FirmwareSetArgsFromLogRecursive3(TypedDict, total=False):
+    """Arguments for Log"""
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FirmwareSetArgsFromLogRecursive4(TypedDict, total=False):
+    """Arguments for Log"""
+    
+    
+
+class FindManyFirmwareSetArgsFromLog(TypedDict, total=False):
+    """Arguments for Log"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
+
+
+class FindManyFirmwareSetArgsFromLogRecursive1(TypedDict, total=False):
+    """Arguments for Log"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
+
+
+class FindManyFirmwareSetArgsFromLogRecursive2(TypedDict, total=False):
+    """Arguments for Log"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
+
+
+class FindManyFirmwareSetArgsFromLogRecursive3(TypedDict, total=False):
+    """Arguments for Log"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
+
+
+class FindManyFirmwareSetArgsFromLogRecursive4(TypedDict, total=False):
+    """Arguments for Log"""
+    take: int
+    skip: int
+    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
+    where: 'FirmwareSetWhereInput'
+    cursor: 'FirmwareSetWhereUniqueInput'
+    distinct: List['FirmwareSetScalarFieldKeys']
+    
+    
+
+class FirmwareBuildIncludeFromLog(TypedDict, total=False):
+    """Relational arguments for Log"""
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromLogRecursive1']
     target: Union[bool, 'ProductTargetArgsFromLogRecursive1']
 
 
 class FirmwareBuildIncludeFromLogRecursive1(TypedDict, total=False):
     """Relational arguments for Log"""
-    product: Union[bool, 'ProductArgsFromLogRecursive2']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromLogRecursive2']
     target: Union[bool, 'ProductTargetArgsFromLogRecursive2']
 
 
 class FirmwareBuildIncludeFromLogRecursive2(TypedDict, total=False):
     """Relational arguments for Log"""
-    product: Union[bool, 'ProductArgsFromLogRecursive3']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromLogRecursive3']
     target: Union[bool, 'ProductTargetArgsFromLogRecursive3']
 
 
 class FirmwareBuildIncludeFromLogRecursive3(TypedDict, total=False):
     """Relational arguments for Log"""
-    product: Union[bool, 'ProductArgsFromLogRecursive4']
+    firmwareSet: Union[bool, 'FirmwareSetArgsFromLogRecursive4']
     target: Union[bool, 'ProductTargetArgsFromLogRecursive4']
 
 

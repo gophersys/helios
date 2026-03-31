@@ -12,74 +12,32 @@ FUOTA-specific fixtures (defined here):
     device_config:    Device identity (SNR, device_id, IMEI, ICCIDs)
 
 Utilities:
-    parse_cfw_header:        Parse CFW binary header
+    parse_cfw_header:        CFW binary header parsing (from framework)
     register_fuota_cleanup:  atexit handler to disable FUOTA on exit
 """
 
 import atexit
 import os
-import struct
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import pytest
 
 from corekinect.utils import Logger
 
+# CFW parsing — re-export from framework for backward compat
+from corekinect.test.cfw import parse_cfw_header  # noqa: F401
+
 log = Logger(log_name="fuota")
 
 
-# =============================================================================
-# PYTEST HOOKS
-# =============================================================================
-
-
-_failed_classes = set()  # Track which test classes have failures
-_preflight_failed = False  # If preflight fails, block everything
-
-
-def pytest_runtest_makereport(item, call):
-    """Track test failures per class for sequential dependency skipping."""
-    global _preflight_failed
-    if call.when == "call" and call.excinfo is not None:
-        cls = item.cls
-        if cls:
-            _failed_classes.add(cls.__name__)
-            if cls.__name__ == "TestPreflight":
-                _preflight_failed = True
-
-
-def pytest_runtest_setup(item):
-    """Skip tests based on failure hierarchy:
-
-    1. If preflight failed → skip ALL remaining tests (environment is broken)
-    2. If a class has a failure → skip remaining tests in that class only
-
-    This gives us fail-fast WITHIN a class (sequential test steps) while
-    allowing different test files/classes to continue independently —
-    unless preflight failed, in which case nothing should run.
-    """
-    cls = item.cls
-
-    # Preflight failure blocks everything
-    if _preflight_failed and cls and cls.__name__ != "TestPreflight":
-        pytest.skip("Skipped — preflight failed")
-
-    # Class-level fail-fast
-    if cls and cls.__name__ in _failed_classes:
-        pytest.skip(f"Skipped — earlier step in {cls.__name__} failed")
-
-
 def pytest_configure(config):
-    """Amend -k expression to always include preflight tests.
+    """Register sequential test plugin for fail-fast within test classes."""
+    from corekinect.test.sequential import SequentialTestPlugin
 
-    Preflight checks (test_00_preflight.py) validate the environment before
-    any hardware interaction. They must always run regardless of -k filtering.
-    """
-    keyword = config.option.keyword
-    if keyword and "test_00_preflight" not in keyword:
-        config.option.keyword = f"(test_00_preflight) or ({keyword})"
+    if not config.pluginmanager.has_plugin("sequential_tests"):
+        plugin = SequentialTestPlugin()
+        config.pluginmanager.register(plugin, "sequential_tests")
 
 
 # =============================================================================
@@ -176,62 +134,6 @@ def fuota_client():
     """CoreCloud FUOTA API client (lazy-init on first use)."""
     from corekinect.test.fuota_client import FuotaClient
     return FuotaClient(api_env="VAL_1_0")
-
-
-# =============================================================================
-# CFW PARSING
-# =============================================================================
-
-
-def parse_cfw_header(cfw_path: Path) -> Dict[str, Any]:
-    """Parse CFW header (23 bytes) and return metadata.
-
-    Returns:
-        Dict with: app_id, major, minor, build, flags, target_string,
-                   is_mfg, is_debug, version_string
-    """
-    with open(cfw_path, "rb") as f:
-        header = f.read(23)
-
-    if len(header) < 23:
-        raise ValueError(f"CFW header too short: {len(header)} bytes")
-
-    # Unpack: FileVersion(2) + TimeCreated(8) + AppId(2) + Flags(1)
-    #         + Major(2) + Minor(2) + Build(2) + ImageLen(4)
-    file_ver, _, app_id, flags, major, minor, build, image_len = struct.unpack(
-        ">HQHBHHHi", header
-    )
-
-    release_track = (flags >> 1) & 0x03  # bits 2:1 (0=Bench, 1=Eng, 2=Prod)
-    is_mfg = bool(flags & 0x01)
-    is_debug = bool(flags & 0x08)
-
-    tracks = {0: "B", 1: "E", 2: "P"}
-    track_char = tracks.get(release_track, "?")
-
-    suffix = track_char
-    if is_mfg:
-        suffix += "M"
-    if is_debug:
-        suffix += "D"
-
-    target_string = f"{app_id}.{major}.{minor}.{build}-{suffix}"
-    version_string = f"{major}.{minor}.{build}"
-
-    return {
-        "file_version": file_ver,
-        "app_id": app_id,
-        "flags": flags,
-        "major": major,
-        "minor": minor,
-        "build": build,
-        "image_len": image_len,
-        "target_string": target_string,
-        "version_string": version_string,
-        "track": track_char,
-        "is_mfg": is_mfg,
-        "is_debug": is_debug,
-    }
 
 
 # =============================================================================

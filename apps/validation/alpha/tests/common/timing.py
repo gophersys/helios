@@ -1,29 +1,33 @@
-"""Timing constants and helpers for validation tests.
+"""Timing constants and helpers for Alpha validation tests.
 
 All timeouts are defined here to ensure consistency across stages
 and make timing budgets visible and adjustable.
 
+Base utilities (CommonTiming, timeout, wait_with_progress) are
+imported from the corekinect.test framework. Alpha-specific timing
+constants are defined here.
+
 Usage:
     from tests.common import Timing
 
-    @pytest.mark.timeout(Timing.GATE_FLASH)
+    @pytest.mark.timeout(Timing.FUOTA.FLASH_ALL)
     def test_flash_firmware():
         ...
 """
 
-import functools
-import time
 from dataclasses import dataclass
-from typing import Callable, TypeVar
 
-import pytest
-
-F = TypeVar("F", bound=Callable)
+# Re-export framework utilities so existing imports work
+from corekinect.test.timing import (  # noqa: F401
+    CommonTiming,
+    timeout,
+    wait_with_progress,
+)
 
 
 @dataclass(frozen=True)
-class _GateTiming:
-    """Gate (Stage 5) timing budget - TOTAL < 15 min."""
+class _FuotaTiming:
+    """FUOTA (Stage 5) timing budget - TOTAL < 15 min."""
 
     TOTAL: int = 900  # 15 min hard limit
 
@@ -96,72 +100,21 @@ class _IntegrationTiming:
     IPC_MESSAGE: int = 10  # IPC message round-trip
 
 
-@dataclass(frozen=True)
-class _CommonTiming:
-    """Common timing constants used across all stages."""
-
-    POWER_CYCLE_OFF: float = 2.0  # Time to stay powered off
-    POWER_CYCLE_ON: float = 10.0  # Time to wait after power-on
-    UART_SETTLE: float = 0.5  # UART buffer settle time
-    MTIB_CONNECT: int = 10  # MTIB gRPC connection
-
-
 class Timing:
-    """All timing constants for validation tests.
+    """All timing constants for Alpha validation tests.
 
     Usage:
         from tests.common import Timing
 
-        @pytest.mark.timeout(Timing.GATE.FLASH_ALL)
+        @pytest.mark.timeout(Timing.FUOTA.FLASH_ALL)
         def test_flash():
             ...
 
         time.sleep(Timing.COMMON.POWER_CYCLE_OFF)
     """
 
-    GATE = _GateTiming()
+    FUOTA = _FuotaTiming()
+    GATE = _FuotaTiming()  # Backward compat alias
     NIGHTLY = _NightlyTiming()
     INTEGRATION = _IntegrationTiming()
-    COMMON = _CommonTiming()
-
-
-def timeout(seconds: int) -> Callable[[F], F]:
-    """Decorator to set pytest timeout on a test function.
-
-    Usage:
-        @timeout(Timing.GATE.FLASH_ALL)
-        def test_flash():
-            ...
-    """
-
-    def decorator(func: F) -> F:
-        return pytest.mark.timeout(seconds)(func)
-
-    return decorator
-
-
-def wait_with_progress(
-    duration_s: float,
-    message: str = "Waiting",
-    interval_s: float = 10.0,
-    logger=None,
-) -> None:
-    """Wait with progress logging.
-
-    Args:
-        duration_s: Total wait time in seconds.
-        message: Log message prefix.
-        interval_s: Log interval.
-        logger: Logger instance (uses print if None).
-    """
-    log = logger.info if logger else print
-    start = time.time()
-    elapsed = 0.0
-
-    while elapsed < duration_s:
-        remaining = duration_s - elapsed
-        log(f"{message}: {elapsed:.0f}s / {duration_s:.0f}s ({remaining:.0f}s remaining)")
-        time.sleep(min(interval_s, remaining))
-        elapsed = time.time() - start
-
-    log(f"{message}: complete ({elapsed:.1f}s)")
+    COMMON = CommonTiming()  # From framework

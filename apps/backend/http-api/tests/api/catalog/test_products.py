@@ -29,7 +29,7 @@ def test_list_products(authed_client, mock_db):
             createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
             updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
             boards=[],
-            firmwareBuilds=[],
+            firmwareSets=[],
             **_product_defaults(),
         ),
         make_obj(
@@ -41,7 +41,7 @@ def test_list_products(authed_client, mock_db):
             createdAt=datetime(2025, 1, 2, tzinfo=timezone.utc),
             updatedAt=datetime(2025, 1, 2, tzinfo=timezone.utc),
             boards=[],
-            firmwareBuilds=[],
+            firmwareSets=[],
             **_product_defaults(),
         ),
     ]
@@ -81,7 +81,7 @@ def test_create_product(authed_client, mock_db):
         createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
         boards=[],
-        firmwareBuilds=[],
+        firmwareSets=[],
         **_product_defaults(),
     )
 
@@ -171,7 +171,7 @@ def test_get_product(authed_client, mock_db):
                 ],
             ),
         ],
-        firmwareBuilds=[],
+        firmwareSets=[],
         **_product_defaults(),
     )
 
@@ -183,7 +183,7 @@ def test_get_product(authed_client, mock_db):
     assert data["data"]["name"] == "Test Product"
     assert "boards" in data["data"]
     assert len(data["data"]["boards"]) == 1
-    assert "firmwareBuilds" in data["data"]
+    assert "firmwareSets" in data["data"]
 
 
 def test_get_product_not_found(authed_client, mock_db):
@@ -217,7 +217,7 @@ def test_update_product(authed_client, mock_db):
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
         boards=[],
-        firmwareBuilds=[],
+        firmwareSets=[],
         **_product_defaults(),
     )
 
@@ -370,7 +370,7 @@ def test_create_product_no_targets_in_product_create(authed_client, mock_db):
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         boards=[],
-        firmwareBuilds=[],
+        firmwareSets=[],
     )
     mock_db.product.create.return_value = created
 
@@ -423,7 +423,7 @@ def test_get_product_includes_targets_in_response(authed_client, mock_db):
                 ],
             ),
         ],
-        firmwareBuilds=[],
+        firmwareSets=[],
     )
 
     response = authed_client.get("/v2/products/prod-with-targets")
@@ -450,7 +450,7 @@ def test_get_product_empty_targets_returns_empty_list(authed_client, mock_db):
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         boards=[],
-        firmwareBuilds=[],
+        firmwareSets=[],
     )
 
     response = authed_client.get("/v2/products/prod-no-targets")

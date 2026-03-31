@@ -12,5 +12,5 @@ Five-stage firmware validation system. Start with [Stages Overview](stages-overv
 | [Stage 4: Product Tests](stage4-product-tests.md) | Black-box product validation, nightly |
 | [Stage 4: FUOTA Flow](stage4-fuota-flow.md) | FUOTA validation lifecycle (12-step) |
 | [Stage 4: PR Flow](stage4-pr-flow.md) | PR validation firmware build matrix |
-| [Stage 5: Gate Tests](stage5-gate-tests.md) | PR validation + FUOTA (< 15 min) |
+| [Stage 5: FUOTA Tests](stage5-fuota-tests.md) | PR validation + OTA verification (< 15 min) |
 | [Test Runner](test-runner.md) | Test runner architecture + execution stack |

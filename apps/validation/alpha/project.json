@@ -122,6 +122,13 @@
         "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/fuota/ -v -s --timeout=7200"
       }
     },
+    "test:fuota-fast": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/validation/alpha",
+        "command": "PYTHONPATH=$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/fuota/ -m 'not fuota_full' -v -s --timeout=900"
+      }
+    },
     "preflight": {
       "executor": "nx:run-commands",
       "options": {

@@ -71,25 +71,38 @@ export interface Board {
   updatedAt: string;
 }
 
-export interface FirmwareBuild {
+export interface FirmwareSet {
   id: string;
   productId: string;
+  boardRevisionId: string | null;
+  version: string;
+  releaseTrack: string;
+  isManufacturing: boolean;
+  isDebug: boolean;
+  source: string;
+  modemVersion: string | null;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  boardRevision?: { id: string; version: string; ckBoardsName: string } | null;
+  builds?: FirmwareBuild[];
+}
+
+export interface FirmwareBuild {
+  id: string;
+  firmwareSetId: string;
   targetId: string | null;
   target: { id: string; role: string; soc: string; appId: number } | null;
-  version: string;
-  isManufacturing: boolean;
-  storageKey: string;
+  versionString: string | null;
+  hexStorageKey: string | null;
+  cfwStorageKey: string | null;
   filename: string;
   sizeBytes: string | null;
   checksum: string;
   contentType: string | null;
-  status: string;
   notes: string | null;
-  modemFilename?: string | null;
-  modemSizeBytes?: string | null;
-  modemChecksum?: string | null;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface ProductTarget {
@@ -111,11 +124,11 @@ export interface Product {
   buildConfig: BuildConfig | null;
   targets: ProductTarget[];
   boardCount?: number;
-  firmwareBuildCount?: number;
+  firmwareSetCount?: number;
   sessionCount?: number;
   testCount?: number;
   boards?: Board[];
-  firmwareBuilds?: FirmwareBuild[];
+  firmwareSets?: FirmwareSet[];
   createdAt: string;
   updatedAt: string;
 }

@@ -50,7 +50,7 @@ def test_create_product_with_build_config(authed_client, mock_db):
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         boards=[],
-        firmwareBuilds=[],
+        firmwareSets=[],
         **{k: v for k, v in _product_defaults().items() if k != "buildConfig"},
     )
 
@@ -81,7 +81,7 @@ def test_create_product_without_build_config(authed_client, mock_db):
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         boards=[],
-        firmwareBuilds=[],
+        firmwareSets=[],
         **_product_defaults(),
     )
 
@@ -129,7 +129,7 @@ def test_update_product_build_config(authed_client, mock_db):
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
         boards=[],
-        firmwareBuilds=[],
+        firmwareSets=[],
         **{k: v for k, v in _product_defaults().items() if k != "buildConfig"},
     )
 
@@ -162,7 +162,7 @@ def test_update_product_build_config_to_null(authed_client, mock_db):
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
         boards=[],
-        firmwareBuilds=[],
+        firmwareSets=[],
         **{k: v for k, v in _product_defaults().items() if k != "buildConfig"},
     )
 
@@ -189,7 +189,7 @@ def test_get_product_includes_build_config(authed_client, mock_db):
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         boards=[],
-        firmwareBuilds=[],
+        firmwareSets=[],
         **{k: v for k, v in _product_defaults().items() if k != "buildConfig"},
     )
 
@@ -214,7 +214,7 @@ def test_list_products_includes_build_config(authed_client, mock_db):
             createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
             updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
             boards=[],
-            firmwareBuilds=[],
+            firmwareSets=[],
             **{k: v for k, v in _product_defaults().items() if k != "buildConfig"},
         ),
     ]

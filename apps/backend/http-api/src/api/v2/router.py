@@ -52,11 +52,12 @@ from .products.board_revisions import (
     update_target,
 )
 from .products.firmware_builds import (
-    delete_firmware_build,
-    download_firmware_build,
-    list_firmware_builds,
-    update_firmware_build,
+    list_firmware_sets,
+    get_firmware_set,
+    create_firmware_set,
+    delete_firmware_set,
     upload_firmware_build,
+    download_firmware_build,
 )
 
 # System handlers
@@ -363,12 +364,13 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/targets/<target_id>",  view_func=update_target,  methods=["PUT"])
     v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/targets/<target_id>",  view_func=delete_target,  methods=["DELETE"])
 
-    # Products - Firmware
-    v2.add_url_rule("/products/<product_id>/firmware",                                             view_func=list_firmware_builds,   methods=["GET"])
-    v2.add_url_rule("/products/<product_id>/firmware/upload",                                      view_func=upload_firmware_build,  methods=["POST"])
-    v2.add_url_rule("/products/<product_id>/firmware/<build_id>",                                  view_func=update_firmware_build,  methods=["PUT"])
-    v2.add_url_rule("/products/<product_id>/firmware/<build_id>",                                  view_func=delete_firmware_build,  methods=["DELETE"])
-    v2.add_url_rule("/products/firmware/<build_id>/download",                                      view_func=download_firmware_build, methods=["GET"])
+    # Products - Firmware Sets + Builds
+    v2.add_url_rule("/products/<product_id>/firmware",                                             view_func=list_firmware_sets,      methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/firmware",                                             view_func=create_firmware_set,     methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/firmware/<set_id>",                                    view_func=get_firmware_set,        methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/firmware/<set_id>",                                    view_func=delete_firmware_set,     methods=["DELETE"])
+    v2.add_url_rule("/products/<product_id>/firmware/<set_id>/builds",                             view_func=upload_firmware_build,   methods=["POST"])
+    v2.add_url_rule("/firmware/builds/<build_id>/download",                                        view_func=download_firmware_build, methods=["GET"])
 
     # Products - Stage Configs (validation stage configuration per product)
     v2.add_url_rule("/products/<product_id>/stages",                                            endpoint="list_stage_configs",       view_func=list_stage_configs,    methods=["GET"])

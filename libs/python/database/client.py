@@ -98,6 +98,7 @@ class Prisma(SyncBasePrisma):
     producttarget: 'actions.ProductTargetActions[models.ProductTarget]'
     board: 'actions.BoardActions[models.Board]'
     boardrevision: 'actions.BoardRevisionActions[models.BoardRevision]'
+    firmwareset: 'actions.FirmwareSetActions[models.FirmwareSet]'
     firmwarebuild: 'actions.FirmwareBuildActions[models.FirmwareBuild]'
     productstageconfig: 'actions.ProductStageConfigActions[models.ProductStageConfig]'
     validationqueueentry: 'actions.ValidationQueueEntryActions[models.ValidationQueueEntry]'
@@ -129,6 +130,7 @@ class Prisma(SyncBasePrisma):
         'producttarget',
         'board',
         'boardrevision',
+        'firmwareset',
         'firmwarebuild',
         'productstageconfig',
         'validationqueueentry',
@@ -188,6 +190,7 @@ class Prisma(SyncBasePrisma):
         self.producttarget = actions.ProductTargetActions[models.ProductTarget](self, models.ProductTarget)
         self.board = actions.BoardActions[models.Board](self, models.Board)
         self.boardrevision = actions.BoardRevisionActions[models.BoardRevision](self, models.BoardRevision)
+        self.firmwareset = actions.FirmwareSetActions[models.FirmwareSet](self, models.FirmwareSet)
         self.firmwarebuild = actions.FirmwareBuildActions[models.FirmwareBuild](self, models.FirmwareBuild)
         self.productstageconfig = actions.ProductStageConfigActions[models.ProductStageConfig](self, models.ProductStageConfig)
         self.validationqueueentry = actions.ValidationQueueEntryActions[models.ValidationQueueEntry](self, models.ValidationQueueEntry)
@@ -367,6 +370,7 @@ class Batch:
     producttarget: 'ProductTargetBatchActions'
     board: 'BoardBatchActions'
     boardrevision: 'BoardRevisionBatchActions'
+    firmwareset: 'FirmwareSetBatchActions'
     firmwarebuild: 'FirmwareBuildBatchActions'
     productstageconfig: 'ProductStageConfigBatchActions'
     validationqueueentry: 'ValidationQueueEntryBatchActions'
@@ -401,6 +405,7 @@ class Batch:
         self.producttarget = ProductTargetBatchActions(self)
         self.board = BoardBatchActions(self)
         self.boardrevision = BoardRevisionBatchActions(self)
+        self.firmwareset = FirmwareSetBatchActions(self)
         self.firmwarebuild = FirmwareBuildBatchActions(self)
         self.productstageconfig = ProductStageConfigBatchActions(self)
         self.validationqueueentry = ValidationQueueEntryBatchActions(self)
@@ -916,6 +921,117 @@ class BoardRevisionBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.BoardRevision,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class FirmwareSetBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.FirmwareSetCreateInput,
+        include: Optional[types.FirmwareSetInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.FirmwareSet,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.FirmwareSetCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.FirmwareSet,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.FirmwareSetWhereUniqueInput,
+        include: Optional[types.FirmwareSetInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.FirmwareSet,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.FirmwareSetUpdateInput,
+        where: types.FirmwareSetWhereUniqueInput,
+        include: Optional[types.FirmwareSetInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.FirmwareSet,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.FirmwareSetWhereUniqueInput,
+        data: types.FirmwareSetUpsertInput,
+        include: Optional[types.FirmwareSetInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.FirmwareSet,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.FirmwareSetUpdateManyMutationInput,
+        where: types.FirmwareSetWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.FirmwareSet,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.FirmwareSetWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.FirmwareSet,
             arguments={'where': where},
             root_selection=['count'],
         )

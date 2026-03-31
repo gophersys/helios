@@ -57,10 +57,10 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         data["boardCount"] = len(p.boards)
         if include_children:
             data["boards"] = [_serialize_board_summary(b) for b in p.boards]
-    if hasattr(p, "firmwareBuilds") and p.firmwareBuilds is not None:
-        data["firmwareBuildCount"] = len(p.firmwareBuilds)
+    if hasattr(p, "firmwareSets") and p.firmwareSets is not None:
+        data["firmwareSetCount"] = len(p.firmwareSets)
         if include_children:
-            data["firmwareBuilds"] = [_serialize_firmware_build(b) for b in p.firmwareBuilds]
+            data["firmwareSets"] = [_serialize_firmware_set(s) for s in p.firmwareSets]
     if hasattr(p, "_count") and p._count is not None:
         data["sessionCount"] = getattr(p._count, "sessions", 0)
         data["testCount"] = getattr(p._count, "tests", 0)
@@ -106,36 +106,18 @@ def _serialize_board_revision(r: Any) -> dict:
     return result
 
 
-def _serialize_firmware_build(b: Any) -> dict:
+def _serialize_firmware_set(s: Any) -> dict:
     data = {
-        "id": b.id,
-        "productId": b.productId,
-        "targetId": b.targetId,
-        "version": b.version,
-        "isManufacturing": b.isManufacturing,
-        "storageKey": b.storageKey,
-        "filename": b.filename,
-        "sizeBytes": str(b.sizeBytes) if b.sizeBytes is not None else None,
-        "checksum": b.checksum,
-        "contentType": b.contentType,
-        "status": b.status,
-        "notes": b.notes,
-        "createdAt": b.createdAt.isoformat(),
-        "updatedAt": b.updatedAt.isoformat(),
+        "id": s.id,
+        "productId": s.productId,
+        "version": s.version,
+        "releaseTrack": getattr(s, "releaseTrack", "bench"),
+        "isManufacturing": getattr(s, "isManufacturing", False),
+        "source": getattr(s, "source", "upload"),
+        "status": getattr(s, "status", "active"),
+        "createdAt": s.createdAt.isoformat(),
+        "updatedAt": s.updatedAt.isoformat(),
     }
-    if hasattr(b, "target") and b.target is not None:
-        data["target"] = {
-            "id": b.target.id,
-            "role": b.target.role,
-            "soc": b.target.soc,
-            "appId": b.target.appId,
-        }
-    else:
-        data["target"] = None
-    if hasattr(b, "modemFilename") and b.modemFilename:
-        data["modemFilename"] = b.modemFilename
-        data["modemSizeBytes"] = str(b.modemSizeBytes) if b.modemSizeBytes is not None else None
-        data["modemChecksum"] = b.modemChecksum
     return data
 
 
@@ -157,7 +139,7 @@ def list_products():
         order={"name": "asc"},
         include={
             "boards": {"include": {"revisions": {"include": {"targets": True}}}},
-            "firmwareBuilds": {"include": {"target": True}},
+            "firmwareSets": True,
         },
     )
     return jsonify(ApiResponse.ok({
@@ -241,7 +223,7 @@ def create_product():
         data=create_data,
         include={
             "boards": {"include": {"revisions": {"include": {"targets": True}}}},
-            "firmwareBuilds": {"include": {"target": True}},
+            "firmwareSets": True,
         },
     )
     log_audit("product.create", "Product", product.id, {
@@ -265,10 +247,11 @@ def get_product(product_id: str):
                     },
                 },
             },
-            "firmwareBuilds": {
+            "firmwareSets": {
                 "order_by": {"createdAt": "desc"},
                 "include": {
-                    "target": True,
+                    "builds": {"include": {"target": True}},
+                    "boardRevision": True,
                 },
             },
         },
@@ -307,7 +290,7 @@ def update_product(product_id: str):
         data=update_data,
         include={
             "boards": {"include": {"revisions": {"include": {"targets": True}}}},
-            "firmwareBuilds": {"include": {"target": True}},
+            "firmwareSets": True,
         },
     )
     log_audit("product.update", "Product", product_id, {"name": existing.name, "changes": data.to_update_data()})

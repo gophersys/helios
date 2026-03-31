@@ -1,0 +1,88 @@
+"""Base timing utilities for validation tests.
+
+Provides common timing constants and helpers that all products share.
+Products define their own stage-specific timing by creating frozen
+dataclasses and composing them with CommonTiming.
+
+Framework usage:
+    from corekinect.test.timing import CommonTiming, timeout, wait_with_progress
+
+Product pattern (in apps/validation/{product}/tests/common/timing.py):
+
+    from corekinect.test.timing import CommonTiming, timeout, wait_with_progress
+
+    @dataclass(frozen=True)
+    class FuotaTiming:
+        TOTAL: int = 900
+        FLASH_ALL: int = 150
+        ...
+
+    class Timing:
+        FUOTA = FuotaTiming()
+        NIGHTLY = NightlyTiming()
+        COMMON = CommonTiming()  # From framework
+"""
+
+import time
+from dataclasses import dataclass
+from typing import Callable, TypeVar
+
+import pytest
+
+F = TypeVar("F", bound=Callable)
+
+
+@dataclass(frozen=True)
+class CommonTiming:
+    """Timing constants common to all products and stages."""
+
+    POWER_CYCLE_OFF: float = 2.0  # Time to stay powered off
+    POWER_CYCLE_ON: float = 10.0  # Time to wait after power-on
+    UART_SETTLE: float = 0.5  # UART buffer settle time
+    MTIB_CONNECT: int = 10  # MTIB gRPC connection timeout
+
+
+# Singleton instance for direct import
+COMMON = CommonTiming()
+
+
+def timeout(seconds: int) -> Callable[[F], F]:
+    """Decorator to set pytest timeout on a test function.
+
+    Usage:
+        @timeout(300)
+        def test_power_profile():
+            ...
+    """
+
+    def decorator(func: F) -> F:
+        return pytest.mark.timeout(seconds)(func)
+
+    return decorator
+
+
+def wait_with_progress(
+    duration_s: float,
+    message: str = "Waiting",
+    interval_s: float = 10.0,
+    logger=None,
+) -> None:
+    """Wait with progress logging.
+
+    Args:
+        duration_s: Total wait time in seconds.
+        message: Log message prefix.
+        interval_s: Log interval.
+        logger: Logger instance (uses print if None).
+    """
+    log = logger.info if logger else print
+    start = time.time()
+    elapsed = 0.0
+
+    while elapsed < duration_s:
+        remaining = duration_s - elapsed
+        log(f"{message}: {elapsed:.0f}s / {duration_s:.0f}s ({remaining:.0f}s remaining)")
+        time.sleep(min(interval_s, remaining))
+        elapsed = time.time() - start
+
+    log(f"{message}: complete ({elapsed:.1f}s)")

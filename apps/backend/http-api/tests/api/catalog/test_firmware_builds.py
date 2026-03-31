@@ -1,588 +1,111 @@
-"""Integration tests for Firmware Builds API."""
+"""Tests for FirmwareSet endpoints (GET/POST/DELETE /v2/products/<id>/firmware)."""
 
 import json
 from datetime import datetime, timezone
-from io import BytesIO
-from unittest.mock import MagicMock, patch
-
-import pytest
-
-from tests.conftest import make_obj
+from types import SimpleNamespace
 
 
-@pytest.fixture(autouse=True)
-def _mock_presigned_url():
-    """Mock presigned_url in catalog.shared so no real storage connection is made."""
-    with patch("api.v2.products.shared.presigned_get_url", return_value=None):
-        yield
+def make_obj(**kwargs):
+    return SimpleNamespace(**kwargs)
 
 
-def _make_target_obj(id="tgt-1", role="app", soc="nrf52840", appId=109):
-    return make_obj(id=id, role=role, soc=soc, appId=appId)
+def _set_defaults(**overrides):
+    defaults = {
+        "id": "set-1",
+        "productId": "prod-1",
+        "boardRevisionId": None,
+        "version": "0.5.2",
+        "releaseTrack": "bench",
+        "isManufacturing": False,
+        "isDebug": False,
+        "source": "upload",
+        "modemVersion": None,
+        "modemStorageKey": None,
+        "buildFingerprint": None,
+        "status": "active",
+        "notes": None,
+        "createdAt": datetime(2026, 3, 1, tzinfo=timezone.utc),
+        "updatedAt": datetime(2026, 3, 1, tzinfo=timezone.utc),
+        "builds": [],
+        "boardRevision": None,
+    }
+    defaults.update(overrides)
+    return defaults
 
 
-def test_list_firmware_builds(authed_client, mock_db):
-    """Test listing firmware builds with pagination."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-        description="",
-        active=True,
-        metadata={},
-        createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
-    )
+class TestListFirmwareSets:
+    def test_success(self, authed_client, mock_db):
+        mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
+        mock_db.firmwareset.count.return_value = 1
+        mock_db.firmwareset.find_many.return_value = [
+            make_obj(**_set_defaults()),
+        ]
 
-    target_obj = _make_target_obj()
+        response = authed_client.get("/v2/products/prod-1/firmware")
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert len(data["data"]["data"]) == 1
+        assert data["data"]["data"][0]["version"] == "0.5.2"
+        assert data["data"]["pagination"]["total"] == 1
 
-    mock_db.firmwarebuild.count.return_value = 2
-    mock_db.firmwarebuild.find_many.return_value = [
-        make_obj(
-            id="build-1",
-            productId="prod-1",
-            targetId="tgt-1",
-            version="1.0.0",
-            isManufacturing=False,
-            storageKey="firmware/prod-1/build-1/app.bin",
-            filename="app.bin",
-            sizeBytes=12345,
-            checksum="abc123",
-            contentType="application/octet-stream",
-            status="RELEASED",
-            notes=None,
-            createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-            updatedAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-            target=target_obj,
-        ),
-        make_obj(
-            id="build-2",
-            productId="prod-1",
-            targetId="tgt-1",
-            version="1.0.1",
-            isManufacturing=True,
-            storageKey="firmware/prod-1/build-2/app.bin",
-            filename="app.bin",
-            sizeBytes=12346,
-            checksum="abc124",
-            contentType="application/octet-stream",
-            status="DRAFT",
-            notes="Manufacturing build",
-            createdAt=datetime(2025, 1, 11, tzinfo=timezone.utc),
-            updatedAt=datetime(2025, 1, 11, tzinfo=timezone.utc),
-            target=target_obj,
-        ),
-    ]
+    def test_empty(self, authed_client, mock_db):
+        mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
+        mock_db.firmwareset.count.return_value = 0
+        mock_db.firmwareset.find_many.return_value = []
 
-    response = authed_client.get("/v2/products/prod-1/firmware")
-    assert response.status_code == 200
+        response = authed_client.get("/v2/products/prod-1/firmware")
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["data"]["data"] == []
 
-    data = json.loads(response.data)
-    assert "data" in data
-    assert "data" in data["data"]
-    assert "pagination" in data["data"]
-    assert len(data["data"]["data"]) == 2
-    assert data["data"]["pagination"]["total"] == 2
+    def test_product_not_found(self, authed_client, mock_db):
+        mock_db.product.find_unique.return_value = None
+        response = authed_client.get("/v2/products/nope/firmware")
+        assert response.status_code == 404
 
 
-def test_update_firmware_build(authed_client, mock_db):
-    """Test updating a firmware build."""
-    target_obj = _make_target_obj()
+class TestCreateFirmwareSet:
+    def test_success(self, authed_client, mock_db):
+        mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
+        mock_db.firmwareset.create.return_value = make_obj(**_set_defaults())
 
-    existing = make_obj(
-        id="build-1",
-        productId="prod-1",
-        targetId="tgt-1",
-        version="1.0.0",
-        isManufacturing=False,
-        storageKey="firmware/prod-1/build-1/app.bin",
-        filename="app.bin",
-        sizeBytes=12345,
-        checksum="abc123",
-        contentType="application/octet-stream",
-        status="DRAFT",
-        notes="Old notes",
-        createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-    )
-    mock_db.firmwarebuild.find_first.return_value = existing
-
-    mock_db.firmwarebuild.update.return_value = make_obj(
-        id="build-1",
-        productId="prod-1",
-        targetId="tgt-1",
-        version="1.0.0",
-        isManufacturing=False,
-        storageKey="firmware/prod-1/build-1/app.bin",
-        filename="app.bin",
-        sizeBytes=12345,
-        checksum="abc123",
-        contentType="application/octet-stream",
-        status="RELEASED",
-        notes="Updated notes",
-        createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-        target=target_obj,
-    )
-
-    with patch("api.v2.products.firmware_builds.log_audit"):
-        response = authed_client.put(
-            "/v2/products/prod-1/firmware/build-1",
-            data=json.dumps({
-                "status": "RELEASED",
-                "notes": "Updated notes",
-            }),
+        response = authed_client.post(
+            "/v2/products/prod-1/firmware",
+            data=json.dumps({"version": "0.5.2", "releaseTrack": "bench"}),
+            content_type="application/json",
         )
-
-    assert response.status_code == 200
-    data = json.loads(response.data)
-    assert data["data"]["status"] == "RELEASED"
-    assert data["data"]["notes"] == "Updated notes"
-
-
-def test_update_firmware_build_not_found(authed_client, mock_db):
-    """Test updating a non-existent firmware build returns 404."""
-    mock_db.firmwarebuild.find_first.return_value = None
-
-    response = authed_client.put(
-        "/v2/products/prod-1/firmware/nonexistent",
-        data=json.dumps({"status": "RELEASED"}),
-    )
-
-    assert response.status_code == 404
-
-
-def test_delete_firmware_build(authed_client, mock_db):
-    """Test deleting a firmware build."""
-    mock_db.firmwarebuild.find_first.return_value = make_obj(
-        id="build-delete",
-        productId="prod-1",
-        targetId="tgt-1",
-        version="1.0.0",
-        storageKey="firmware/prod-1/build-delete/app.bin",
-        filename="app.bin",
-        createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-    )
-
-    mock_storage = MagicMock()
-    mock_storage.remove_object = MagicMock()
-
-    with patch("api.v2.products.firmware_builds.get_storage_client", return_value=mock_storage):
-        with patch("api.v2.products.firmware_builds.get_bucket_name", return_value="test-bucket"):
-            with patch("api.v2.products.firmware_builds.log_audit"):
-                response = authed_client.delete("/v2/products/prod-1/firmware/build-delete")
-
-    assert response.status_code == 200
-    data = json.loads(response.data)
-    assert data["data"]["deleted"] is True
-
-    mock_storage.remove_object.assert_called_once_with("test-bucket", "firmware/prod-1/build-delete/app.bin")
-
-
-def test_upload_firmware_build(authed_client, mock_db):
-    """Test successful firmware build upload."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    mock_db.producttarget.find_first.return_value = _make_target_obj()
-    mock_db.firmwarebuild.find_first.return_value = None
-
-    mock_db.firmwarebuild.create.return_value = make_obj(
-        id="build-new",
-        productId="prod-1",
-        targetId="tgt-1",
-        version="1.0.0",
-        isManufacturing=False,
-        storageKey="firmware/prod-1/pending/app.hex",
-        filename="app.hex",
-        sizeBytes=13,
-        checksum="abc",
-        contentType="application/octet-stream",
-        status="DRAFT",
-        notes=None,
-        createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-    )
-
-    mock_db.firmwarebuild.update.return_value = make_obj(
-        id="build-new",
-        productId="prod-1",
-        targetId="tgt-1",
-        version="1.0.0",
-        isManufacturing=False,
-        storageKey="firmware/prod-1/build-new/app.hex",
-        filename="app.hex",
-        sizeBytes=13,
-        checksum="abc",
-        contentType="application/octet-stream",
-        status="DRAFT",
-        notes=None,
-        createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-        target=_make_target_obj(),
-    )
-
-    mock_storage = MagicMock()
-    auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
-
-    with patch("api.v2.products.firmware_builds.get_storage_client", return_value=mock_storage):
-        with patch("api.v2.products.firmware_builds.get_bucket_name", return_value="test-bucket"):
-            with patch("api.v2.products.firmware_builds.log_audit"):
-                response = authed_client._client.post(
-                    "/v2/products/prod-1/firmware/upload",
-                    data={
-                        "file": (BytesIO(b"fake firmware"), "app.hex"),
-                        "targetId": "tgt-1",
-                        "version": "1.0.0",
-                    },
-                    headers=auth_headers_no_ct,
-                    content_type="multipart/form-data",
-                )
-
-    assert response.status_code == 201
-    data = json.loads(response.data)
-    assert data["data"]["id"] == "build-new"
-    assert data["data"]["version"] == "1.0.0"
-
-
-def test_upload_firmware_build_no_file(authed_client, mock_db):
-    """Test uploading firmware build without file returns 400."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
-
-    response = authed_client._client.post(
-        "/v2/products/prod-1/firmware/upload",
-        data={"targetId": "tgt-1", "version": "1.0.0"},
-        headers=auth_headers_no_ct,
-        content_type="multipart/form-data",
-    )
-
-    assert response.status_code == 400
-
-
-def test_upload_firmware_build_invalid_extension(authed_client, mock_db):
-    """Test uploading firmware build with invalid extension returns 400."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
-
-    response = authed_client._client.post(
-        "/v2/products/prod-1/firmware/upload",
-        data={
-            "file": (BytesIO(b"bad file"), "malware.exe"),
-            "targetId": "tgt-1",
-            "version": "1.0.0",
-        },
-        headers=auth_headers_no_ct,
-        content_type="multipart/form-data",
-    )
-
-    assert response.status_code == 400
-
-
-def test_upload_firmware_build_missing_target(authed_client, mock_db):
-    """Test uploading firmware build without targetId returns 400."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
-
-    response = authed_client._client.post(
-        "/v2/products/prod-1/firmware/upload",
-        data={
-            "file": (BytesIO(b"fake firmware"), "app.hex"),
-            "version": "1.0.0",
-        },
-        headers=auth_headers_no_ct,
-        content_type="multipart/form-data",
-    )
-
-    assert response.status_code == 400
-
-
-def test_upload_firmware_build_invalid_target(authed_client, mock_db):
-    """Test uploading firmware build with non-existent target returns 400."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    mock_db.producttarget.find_first.return_value = None
-
-    auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
-
-    response = authed_client._client.post(
-        "/v2/products/prod-1/firmware/upload",
-        data={
-            "file": (BytesIO(b"fake firmware"), "app.hex"),
-            "targetId": "bad",
-            "version": "1.0.0",
-        },
-        headers=auth_headers_no_ct,
-        content_type="multipart/form-data",
-    )
-
-    assert response.status_code == 400
-
-
-def test_upload_firmware_build_missing_version(authed_client, mock_db):
-    """Test uploading firmware build without version returns 400."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    mock_db.producttarget.find_first.return_value = _make_target_obj()
-
-    auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
-
-    response = authed_client._client.post(
-        "/v2/products/prod-1/firmware/upload",
-        data={
-            "file": (BytesIO(b"fake firmware"), "app.hex"),
-            "targetId": "tgt-1",
-        },
-        headers=auth_headers_no_ct,
-        content_type="multipart/form-data",
-    )
-
-    assert response.status_code == 400
-
-
-def test_upload_firmware_build_duplicate_version(authed_client, mock_db):
-    """Test uploading firmware build with duplicate version returns 409."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    mock_db.producttarget.find_first.return_value = _make_target_obj()
-    mock_db.firmwarebuild.find_first.return_value = make_obj(
-        id="build-existing",
-        version="1.0.0",
-    )
-
-    auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
-
-    response = authed_client._client.post(
-        "/v2/products/prod-1/firmware/upload",
-        data={
-            "file": (BytesIO(b"fake firmware"), "app.hex"),
-            "targetId": "tgt-1",
-            "version": "1.0.0",
-        },
-        headers=auth_headers_no_ct,
-        content_type="multipart/form-data",
-    )
-
-    assert response.status_code == 409
-
-
-def test_upload_firmware_build_with_modem(authed_client, mock_db):
-    """Test successful firmware build upload with modem file."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    target = _make_target_obj(id="tgt-comms", role="comms", soc="nrf9151", appId=108)
-    mock_db.producttarget.find_first.return_value = target
-    mock_db.firmwarebuild.find_first.return_value = None
-
-    mock_db.firmwarebuild.create.return_value = make_obj(
-        id="build-modem",
-        productId="prod-1",
-        targetId="tgt-comms",
-        version="1.0.0",
-        isManufacturing=False,
-        storageKey="firmware/prod-1/pending/app.hex",
-        filename="app.hex",
-        sizeBytes=13,
-        checksum="abc",
-        contentType="application/octet-stream",
-        status="DRAFT",
-        notes=None,
-        modemFilename="modem.zip",
-        modemSizeBytes=10,
-        modemChecksum="def",
-        createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-    )
-
-    mock_db.firmwarebuild.update.return_value = make_obj(
-        id="build-modem",
-        productId="prod-1",
-        targetId="tgt-comms",
-        version="1.0.0",
-        isManufacturing=False,
-        storageKey="firmware/prod-1/build-modem/app.hex",
-        filename="app.hex",
-        sizeBytes=13,
-        checksum="abc",
-        contentType="application/octet-stream",
-        status="DRAFT",
-        notes=None,
-        modemFilename="modem.zip",
-        modemSizeBytes=10,
-        modemChecksum="def",
-        createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-        target=target,
-    )
-
-    mock_storage = MagicMock()
-    auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
-
-    with patch("api.v2.products.firmware_builds.get_storage_client", return_value=mock_storage):
-        with patch("api.v2.products.firmware_builds.get_bucket_name", return_value="test-bucket"):
-            with patch("api.v2.products.firmware_builds.log_audit"):
-                response = authed_client._client.post(
-                    "/v2/products/prod-1/firmware/upload",
-                    data={
-                        "file": (BytesIO(b"fake firmware"), "app.hex"),
-                        "modemFile": (BytesIO(b"modem data"), "modem.zip"),
-                        "targetId": "tgt-comms",
-                        "version": "1.0.0",
-                    },
-                    headers=auth_headers_no_ct,
-                    content_type="multipart/form-data",
-                )
-
-    assert response.status_code == 201
-    data = json.loads(response.data)
-    assert data["data"]["id"] == "build-modem"
-    assert data["data"]["modemFilename"] == "modem.zip"
-
-
-def test_upload_firmware_build_modem_invalid_ext(authed_client, mock_db):
-    """Test uploading firmware with modem file having invalid extension returns 400."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    mock_db.producttarget.find_first.return_value = _make_target_obj()
-    mock_db.firmwarebuild.find_first.return_value = None
-
-    auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
-
-    response = authed_client._client.post(
-        "/v2/products/prod-1/firmware/upload",
-        data={
-            "file": (BytesIO(b"fake firmware"), "app.hex"),
-            "modemFile": (BytesIO(b"modem data"), "modem.bin"),
-            "targetId": "tgt-1",
-            "version": "1.0.0",
-        },
-        headers=auth_headers_no_ct,
-        content_type="multipart/form-data",
-    )
-
-    assert response.status_code == 400
-
-
-def test_download_firmware_build(authed_client, mock_db):
-    """Test downloading a firmware build returns presigned URL."""
-    mock_db.firmwarebuild.find_unique.return_value = make_obj(
-        id="build-1",
-        storageKey="firmware/prod-1/build-1/app.hex",
-        filename="app.hex",
-    )
-
-    with patch("api.v2.products.shared.presigned_get_url", return_value="https://storage.example.com/firmware/app.hex"):
-        response = authed_client.get("/v2/products/firmware/build-1/download")
-
-    assert response.status_code == 200
-    data = json.loads(response.data)
-    assert "url" in data["data"]
-    assert data["data"]["filename"] == "app.hex"
-
-
-def test_download_firmware_build_not_found(authed_client, mock_db):
-    """Test downloading a non-existent firmware build returns 404."""
-    mock_db.firmwarebuild.find_unique.return_value = None
-
-    response = authed_client.get("/v2/products/firmware/nonexistent/download")
-
-    assert response.status_code == 404
-
-
-def test_list_firmware_builds_with_filters(authed_client, mock_db):
-    """Test listing firmware builds with query filters."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    target_obj = _make_target_obj()
-
-    mock_db.firmwarebuild.count.return_value = 1
-    mock_db.firmwarebuild.find_many.return_value = [
-        make_obj(
-            id="build-filtered",
-            productId="prod-1",
-            targetId="tgt-1",
-            version="2.0.0",
-            isManufacturing=True,
-            storageKey="firmware/prod-1/build-filtered/app.bin",
-            filename="app.bin",
-            sizeBytes=5000,
-            checksum="xyz",
-            contentType="application/octet-stream",
-            status="RELEASED",
-            notes=None,
-            createdAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
-            updatedAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
-            target=target_obj,
-        ),
-    ]
-
-    response = authed_client.get(
-        "/v2/products/prod-1/firmware?targetId=tgt-1&status=RELEASED&isManufacturing=true"
-    )
-
-    assert response.status_code == 200
-    data = json.loads(response.data)
-    assert len(data["data"]["data"]) == 1
-    assert data["data"]["data"][0]["status"] == "RELEASED"
-    assert data["data"]["pagination"]["total"] == 1
-
-
-def test_delete_firmware_build_with_modem(authed_client, mock_db):
-    """Test deleting a firmware build with modem file removes both objects."""
-    mock_db.firmwarebuild.find_first.return_value = make_obj(
-        id="build-modem-del",
-        productId="prod-1",
-        targetId="tgt-1",
-        version="1.0.0",
-        storageKey="firmware/prod-1/build-modem-del/app.hex",
-        modemStorageKey="firmware/prod-1/build-modem-del/modem.zip",
-        filename="app.hex",
-        createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-    )
-
-    mock_storage = MagicMock()
-    mock_storage.remove_object = MagicMock()
-
-    with patch("api.v2.products.firmware_builds.get_storage_client", return_value=mock_storage):
-        with patch("api.v2.products.firmware_builds.get_bucket_name", return_value="test-bucket"):
-            with patch("api.v2.products.firmware_builds.log_audit"):
-                response = authed_client.delete("/v2/products/prod-1/firmware/build-modem-del")
-
-    assert response.status_code == 200
-    data = json.loads(response.data)
-    assert data["data"]["deleted"] is True
-
-    assert mock_storage.remove_object.call_count == 2
+        assert response.status_code == 201
+        data = json.loads(response.data)
+        assert data["data"]["version"] == "0.5.2"
+
+    def test_missing_version(self, authed_client, mock_db):
+        mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
+        response = authed_client.post(
+            "/v2/products/prod-1/firmware",
+            data=json.dumps({"releaseTrack": "bench"}),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
+    def test_invalid_track(self, authed_client, mock_db):
+        mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
+        response = authed_client.post(
+            "/v2/products/prod-1/firmware",
+            data=json.dumps({"version": "1.0.0", "releaseTrack": "invalid"}),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
+
+class TestDeleteFirmwareSet:
+    def test_success(self, authed_client, mock_db):
+        mock_db.firmwareset.find_first.return_value = make_obj(**_set_defaults())
+        mock_db.firmwareset.delete.return_value = None
+
+        response = authed_client.delete("/v2/products/prod-1/firmware/set-1")
+        assert response.status_code == 200
+
+    def test_not_found(self, authed_client, mock_db):
+        mock_db.firmwareset.find_first.return_value = None
+        response = authed_client.delete("/v2/products/prod-1/firmware/set-999")
+        assert response.status_code == 404

@@ -10,6 +10,7 @@ PRISMA_MODELS: set[str] = {
     'ProductTarget',
     'Board',
     'BoardRevision',
+    'FirmwareSet',
     'FirmwareBuild',
     'ProductStageConfig',
     'ValidationQueueEntry',
@@ -40,7 +41,7 @@ PRISMA_MODELS: set[str] = {
 RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     'Product': {
         'boards': 'Board',
-        'firmwareBuilds': 'FirmwareBuild',
+        'firmwareSets': 'FirmwareSet',
         'fixtures': 'Fixture',
         'tests': 'Test',
         'sessions': 'Session',
@@ -60,9 +61,15 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     'BoardRevision': {
         'board': 'Board',
         'targets': 'ProductTarget',
+        'firmwareSets': 'FirmwareSet',
+    },
+    'FirmwareSet': {
+        'product': 'Product',
+        'boardRevision': 'BoardRevision',
+        'builds': 'FirmwareBuild',
     },
     'FirmwareBuild': {
-        'product': 'Product',
+        'firmwareSet': 'FirmwareSet',
         'target': 'ProductTarget',
     },
     'ProductStageConfig': {

@@ -91,7 +91,7 @@ class Product(bases.BaseProduct):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     boards: Optional[List['models.Board']] = None
-    firmwareBuilds: Optional[List['models.FirmwareBuild']] = None
+    firmwareSets: Optional[List['models.FirmwareSet']] = None
     fixtures: Optional[List['models.Fixture']] = None
     tests: Optional[List['models.Test']] = None
     sessions: Optional[List['models.Session']] = None
@@ -548,6 +548,7 @@ class BoardRevision(bases.BaseBoardRevision):
     updatedAt: datetime.datetime
     board: Optional['models.Board'] = None
     targets: Optional[List['models.ProductTarget']] = None
+    firmwareSets: Optional[List['models.FirmwareSet']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -685,47 +686,228 @@ class BoardRevision(bases.BaseBoardRevision):
         _created_partial_types.add(name)
 
 
-class FirmwareBuild(bases.BaseFirmwareBuild):
+class FirmwareSet(bases.BaseFirmwareSet):
     """An uploaded firmware build file with version metadata.
+    A complete firmware release for a specific board revision.
+    Groups all per-target builds produced in one build run.
+    Example: Alpha B0 v0.5.2-BM contains builds for both target 108 + 109.
     """
 
     id: _str
     productId: _str
-    targetId: Optional[_str] = None
-    """FK to ProductTarget (optional for legacy builds)
+    boardRevisionId: Optional[_str] = None
+    """Which HW revision this targets
     """
 
     version: _str
-    """Semantic version string "1.0.0"
+    """"0.5.2" (major.minor.build)
+    """
+
+    releaseTrack: _str
+    """"bench", "engineering", "production"
     """
 
     isManufacturing: _bool
-    status: 'enums.LifecycleStatus'
-    storageKey: _str
-    """MinIO object key
+    isDebug: _bool
+    source: _str
+    """"upload", "build-service", "teamcity"
     """
 
-    filename: _str
-    sizeBytes: _int
-    checksum: _str
-    """SHA-256 hex digest
+    buildJobId: Optional[_str] = None
+    """FK to BuildJob if built by Concord CI
     """
 
-    contentType: Optional[_str] = None
+    externalBuildId: Optional[_str] = None
+    """External build system ID
+    """
+
+    modemVersion: Optional[_str] = None
+    """"2.0.2"
+    """
+
     modemStorageKey: Optional[_str] = None
-    """MinIO key for modem firmware zip (modem targets only)
+    """MinIO key for modem firmware zip
     """
 
-    modemFilename: Optional[_str] = None
-    modemSizeBytes: Optional[_int] = None
-    modemChecksum: Optional[_str] = None
-    """SHA-256 hex digest of modem file
+    buildFingerprint: Optional[_str] = None
+    """SHA-256 of source + config — enables build reuse
+    """
+
+    status: _str
+    """"active", "deprecated", "recalled"
     """
 
     notes: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: Optional['models.Product'] = None
+    boardRevision: Optional['models.BoardRevision'] = None
+    builds: Optional[List['models.FirmwareBuild']] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.FirmwareSetKeys']] = None,
+        exclude: Optional[Iterable['types.FirmwareSetKeys']] = None,
+        required: Optional[Iterable['types.FirmwareSetKeys']] = None,
+        optional: Optional[Iterable['types.FirmwareSetKeys']] = None,
+        relations: Optional[Mapping['types.FirmwareSetRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.FirmwareSetKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _FirmwareSet_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _FirmwareSet_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _FirmwareSet_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _FirmwareSet_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _FirmwareSet_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _FirmwareSet_relational_fields:
+                        raise errors.UnknownRelationalFieldError('FirmwareSet', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid FirmwareSet / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'FirmwareSet',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class FirmwareBuild(bases.BaseFirmwareBuild):
+    """A single firmware artifact for one target (one AppID) within a FirmwareSet.
+    Per CK spec: version string = {AppId}.{Major}.{Minor}.{Build}-{Flags}
+    """
+
+    id: _str
+    firmwareSetId: _str
+    targetId: Optional[_str] = None
+    """FK to ProductTarget (appId + soc + role)
+    """
+
+    versionString: Optional[_str] = None
+    """Full CK version: "109.0.5.2-BM"
+    """
+
+    hexStorageKey: Optional[_str] = None
+    """Plaintext hex (bootloader + app merged) — for J-Link
+    """
+
+    hexEncStorageKey: Optional[_str] = None
+    """Encrypted hex (bootloader + encrypted app)
+    """
+
+    cfwStorageKey: Optional[_str] = None
+    """Encrypted CFW binary — for FUOTA/OTA
+    """
+
+    manifestKey: Optional[_str] = None
+    """Build manifest JSON
+    """
+
+    filename: _str
+    sizeBytes: _int
+    checksum: _str
+    """SHA-256
+    """
+
+    contentType: Optional[_str] = None
+    notes: Optional[_str] = None
+    createdAt: datetime.datetime
+    firmwareSet: Optional['models.FirmwareSet'] = None
     target: Optional['models.ProductTarget'] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
@@ -4658,7 +4840,7 @@ class Log(bases.BaseLog):
 
 _Product_relational_fields: Set[str] = {
         'boards',
-        'firmwareBuilds',
+        'firmwareSets',
         'fixtures',
         'tests',
         'sessions',
@@ -4765,11 +4947,11 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
-        ('firmwareBuilds', {
-            'name': 'firmwareBuilds',
+        ('firmwareSets', {
+            'name': 'firmwareSets',
             'is_list': True,
             'optional': True,
-            'type': 'List[\'models.FirmwareBuild\']',
+            'type': 'List[\'models.FirmwareSet\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -4997,6 +5179,7 @@ _Board_fields: Dict['types.BoardKeys', PartialModelField] = OrderedDict(
 _BoardRevision_relational_fields: Set[str] = {
         'board',
         'targets',
+        'firmwareSets',
     }
 _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = OrderedDict(
     [
@@ -5104,14 +5287,23 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_relational': True,
             'documentation': None,
         }),
+        ('firmwareSets', {
+            'name': 'firmwareSets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.FirmwareSet\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
     ],
 )
 
-_FirmwareBuild_relational_fields: Set[str] = {
+_FirmwareSet_relational_fields: Set[str] = {
         'product',
-        'target',
+        'boardRevision',
+        'builds',
     }
-_FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = OrderedDict(
+_FirmwareSet_fields: Dict['types.FirmwareSetKeys', PartialModelField] = OrderedDict(
     [
         ('id', {
             'name': 'id',
@@ -5129,13 +5321,13 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': None,
         }),
-        ('targetId', {
-            'name': 'targetId',
+        ('boardRevisionId', {
+            'name': 'boardRevisionId',
             'is_list': False,
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''FK to ProductTarget (optional for legacy builds)''',
+            'documentation': '''Which HW revision this targets''',
         }),
         ('version', {
             'name': 'version',
@@ -5143,7 +5335,15 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''Semantic version string "1.0.0"''',
+            'documentation': '''"0.5.2" (major.minor.build)''',
+        }),
+        ('releaseTrack', {
+            'name': 'releaseTrack',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"bench", "engineering", "production"''',
         }),
         ('isManufacturing', {
             'name': 'isManufacturing',
@@ -5153,53 +5353,45 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': None,
         }),
-        ('status', {
-            'name': 'status',
+        ('isDebug', {
+            'name': 'isDebug',
             'is_list': False,
             'optional': False,
-            'type': 'enums.LifecycleStatus',
+            'type': '_bool',
             'is_relational': False,
             'documentation': None,
         }),
-        ('storageKey', {
-            'name': 'storageKey',
+        ('source', {
+            'name': 'source',
             'is_list': False,
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''MinIO object key''',
+            'documentation': '''"upload", "build-service", "teamcity"''',
         }),
-        ('filename', {
-            'name': 'filename',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('sizeBytes', {
-            'name': 'sizeBytes',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('checksum', {
-            'name': 'checksum',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''SHA-256 hex digest''',
-        }),
-        ('contentType', {
-            'name': 'contentType',
+        ('buildJobId', {
+            'name': 'buildJobId',
             'is_list': False,
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': None,
+            'documentation': '''FK to BuildJob if built by Concord CI''',
+        }),
+        ('externalBuildId', {
+            'name': 'externalBuildId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''External build system ID''',
+        }),
+        ('modemVersion', {
+            'name': 'modemVersion',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"2.0.2"''',
         }),
         ('modemStorageKey', {
             'name': 'modemStorageKey',
@@ -5207,31 +5399,23 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''MinIO key for modem firmware zip (modem targets only)''',
+            'documentation': '''MinIO key for modem firmware zip''',
         }),
-        ('modemFilename', {
-            'name': 'modemFilename',
+        ('buildFingerprint', {
+            'name': 'buildFingerprint',
             'is_list': False,
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': None,
+            'documentation': '''SHA-256 of source + config — enables build reuse''',
         }),
-        ('modemSizeBytes', {
-            'name': 'modemSizeBytes',
+        ('status', {
+            'name': 'status',
             'is_list': False,
-            'optional': True,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('modemChecksum', {
-            'name': 'modemChecksum',
-            'is_list': False,
-            'optional': True,
+            'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''SHA-256 hex digest of modem file''',
+            'documentation': '''"active", "deprecated", "recalled"''',
         }),
         ('notes', {
             'name': 'notes',
@@ -5262,6 +5446,151 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
             'is_list': False,
             'optional': True,
             'type': 'models.Product',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('boardRevision', {
+            'name': 'boardRevision',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BoardRevision',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('builds', {
+            'name': 'builds',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.FirmwareBuild\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_FirmwareBuild_relational_fields: Set[str] = {
+        'firmwareSet',
+        'target',
+    }
+_FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('firmwareSetId', {
+            'name': 'firmwareSetId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('targetId', {
+            'name': 'targetId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''FK to ProductTarget (appId + soc + role)''',
+        }),
+        ('versionString', {
+            'name': 'versionString',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Full CK version: "109.0.5.2-BM"''',
+        }),
+        ('hexStorageKey', {
+            'name': 'hexStorageKey',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Plaintext hex (bootloader + app merged) — for J-Link''',
+        }),
+        ('hexEncStorageKey', {
+            'name': 'hexEncStorageKey',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Encrypted hex (bootloader + encrypted app)''',
+        }),
+        ('cfwStorageKey', {
+            'name': 'cfwStorageKey',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Encrypted CFW binary — for FUOTA/OTA''',
+        }),
+        ('manifestKey', {
+            'name': 'manifestKey',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Build manifest JSON''',
+        }),
+        ('filename', {
+            'name': 'filename',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('sizeBytes', {
+            'name': 'sizeBytes',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('checksum', {
+            'name': 'checksum',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''SHA-256''',
+        }),
+        ('contentType', {
+            'name': 'contentType',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('notes', {
+            'name': 'notes',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('firmwareSet', {
+            'name': 'firmwareSet',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.FirmwareSet',
             'is_relational': True,
             'documentation': None,
         }),
@@ -8421,6 +8750,7 @@ model_rebuild(Product)
 model_rebuild(ProductTarget)
 model_rebuild(Board)
 model_rebuild(BoardRevision)
+model_rebuild(FirmwareSet)
 model_rebuild(FirmwareBuild)
 model_rebuild(ProductStageConfig)
 model_rebuild(ValidationQueueEntry)

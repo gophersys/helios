@@ -363,6 +363,6 @@ pytest tests/stage4/ -v --timeout=3600
 ## 7. Related Documents
 
 - [Stages Overview](../../architecture/validation/stages-overview.md) — All 5 stages
-- [Stage 5 Gate](../../architecture/validation/stage5-gate-tests.md) — PR validation + FUOTA
+- [Stage 5 FUOTA](../../architecture/validation/stage5-fuota-tests.md) — PR validation + OTA verification
 - [Stage 4 Implementation](../../architecture/validation/stage4-product-tests.md) — Full spec
 - [PRDTST Reference](../../reference/alpha-test-cases.md) — Test case catalog

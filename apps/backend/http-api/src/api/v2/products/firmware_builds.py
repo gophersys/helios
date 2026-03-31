@@ -1,3 +1,9 @@
+"""Firmware endpoints — FirmwareSet CRUD, build uploads, artifact downloads.
+
+A FirmwareSet groups all per-target builds from one build run.
+Each FirmwareBuild within a set targets one AppID (one processor).
+"""
+
 import hashlib
 import logging
 from io import BytesIO
@@ -16,65 +22,90 @@ from src.services.storage.client import get_bucket_name, get_storage_client, Sto
 from werkzeug.utils import secure_filename as _secure_filename
 
 from .shared import ALLOWED_FIRMWARE_EXTENSIONS, MIME_TYPES, presigned_url
-from .types import FirmwareBuildUpdateRequest
 
 logger = logging.getLogger(__name__)
 
-_BUILD_INCLUDE = {
-    "target": True,
+_SET_INCLUDE = {
+    "builds": {"include": {"target": True}},
+    "boardRevision": True,
 }
+
+
+def _serialize_target(t: Any) -> dict:
+    return {"id": t.id, "role": t.role, "soc": t.soc, "appId": t.appId}
 
 
 def _serialize_build(b: Any) -> dict:
     data = {
         "id": b.id,
-        "productId": b.productId,
+        "firmwareSetId": b.firmwareSetId,
         "targetId": b.targetId,
-        "version": b.version,
-        "isManufacturing": b.isManufacturing,
-        "storageKey": b.storageKey,
+        "versionString": b.versionString,
+        "hexStorageKey": b.hexStorageKey,
+        "cfwStorageKey": b.cfwStorageKey,
         "filename": b.filename,
         "sizeBytes": str(b.sizeBytes) if b.sizeBytes is not None else None,
         "checksum": b.checksum,
         "contentType": b.contentType,
-        "status": b.status,
         "notes": b.notes,
         "createdAt": b.createdAt.isoformat(),
-        "updatedAt": b.updatedAt.isoformat(),
     }
-    if hasattr(b, "target") and b.target is not None:
-        data["target"] = {
-            "id": b.target.id,
-            "role": b.target.role,
-            "soc": b.target.soc,
-            "appId": b.target.appId,
-        }
+    if hasattr(b, "target") and b.target:
+        data["target"] = _serialize_target(b.target)
     else:
         data["target"] = None
-    if hasattr(b, "modemFilename") and b.modemFilename:
-        data["modemFilename"] = b.modemFilename
-        data["modemSizeBytes"] = str(b.modemSizeBytes) if b.modemSizeBytes is not None else None
-        data["modemChecksum"] = b.modemChecksum
     return data
 
 
-# ── Firmware Builds ─────────────────────────────────────────
+def _serialize_firmware_set(s: Any) -> dict:
+    data = {
+        "id": s.id,
+        "productId": s.productId,
+        "boardRevisionId": s.boardRevisionId,
+        "version": s.version,
+        "releaseTrack": s.releaseTrack,
+        "isManufacturing": s.isManufacturing,
+        "isDebug": s.isDebug,
+        "source": s.source,
+        "modemVersion": s.modemVersion,
+        "status": s.status,
+        "notes": s.notes,
+        "createdAt": s.createdAt.isoformat(),
+        "updatedAt": s.updatedAt.isoformat(),
+    }
+    if hasattr(s, "boardRevision") and s.boardRevision:
+        data["boardRevision"] = {
+            "id": s.boardRevision.id,
+            "version": s.boardRevision.version,
+            "ckBoardsName": s.boardRevision.ckBoardsName,
+        }
+    else:
+        data["boardRevision"] = None
+    if hasattr(s, "builds") and s.builds:
+        data["builds"] = [_serialize_build(b) for b in s.builds]
+    else:
+        data["builds"] = []
+    return data
+
+
+# ── FirmwareSet CRUD ────────────────────────────────────────
 
 
 @require_permissions(Permissions.PRODUCTS_VIEW)
-def list_firmware_builds(product_id: str):
+def list_firmware_sets(product_id: str):
+    """GET /v2/products/<id>/firmware — list firmware sets for a product."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
 
     where: dict = {"productId": product_id}
-    target_id = request.args.get("targetId")
-    if target_id:
-        where["targetId"] = target_id
-    status = request.args.get("status")
-    if status:
-        where["status"] = status
+    revision_id = request.args.get("boardRevisionId")
+    if revision_id:
+        where["boardRevisionId"] = revision_id
+    track = request.args.get("releaseTrack")
+    if track:
+        where["releaseTrack"] = track
     is_mfg = request.args.get("isManufacturing")
     if is_mfg is not None:
         where["isManufacturing"] = is_mfg.lower() == "true"
@@ -83,31 +114,134 @@ def list_firmware_builds(product_id: str):
     limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
     skip = (page - 1) * limit
 
-    total = db.firmwarebuild.count(where=where)
-    builds = db.firmwarebuild.find_many(
+    total = db.firmwareset.count(where=where)
+    sets = db.firmwareset.find_many(
         where=where,
         skip=skip,
         take=limit,
         order={"createdAt": "desc"},
-        include=_BUILD_INCLUDE,
+        include=_SET_INCLUDE,
     )
     return jsonify(ApiResponse.ok({
-        "data": [_serialize_build(b) for b in builds],
+        "data": [_serialize_firmware_set(s) for s in sets],
         "pagination": {
-            "page": page,
-            "limit": limit,
-            "total": total,
+            "page": page, "limit": limit, "total": total,
             "pages": (total + limit - 1) // limit if limit > 0 else 0,
         },
     }).to_dict()), 200
 
 
+@require_permissions(Permissions.PRODUCTS_VIEW)
+def get_firmware_set(product_id: str, set_id: str):
+    """GET /v2/products/<id>/firmware/<set_id>"""
+    db = get_db_client()
+    fw_set = db.firmwareset.find_first(
+        where={"id": set_id, "productId": product_id},
+        include=_SET_INCLUDE,
+    )
+    if not fw_set:
+        return not_found("Firmware set not found")
+    return jsonify(ApiResponse.ok(_serialize_firmware_set(fw_set)).to_dict()), 200
+
+
 @require_permissions(Permissions.PRODUCTS_MANAGE)
-def upload_firmware_build(product_id: str):
+def create_firmware_set(product_id: str):
+    """POST /v2/products/<id>/firmware — create a firmware set (metadata only)."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
+
+    data = request.get_json()
+    if not data:
+        return bad_request("Request body required")
+
+    version = (data.get("version") or "").strip()
+    if not version:
+        return bad_request("version is required")
+
+    release_track = (data.get("releaseTrack") or "bench").strip()
+    if release_track not in ("bench", "engineering", "production"):
+        return bad_request("releaseTrack must be bench, engineering, or production")
+
+    board_revision_id = data.get("boardRevisionId")
+    if board_revision_id:
+        rev = db.boardrevision.find_first(
+            where={"id": board_revision_id, "board": {"productId": product_id}},
+        )
+        if not rev:
+            return bad_request("Board revision not found for this product")
+
+    fw_set = db.firmwareset.create(
+        data={
+            "productId": product_id,
+            "boardRevisionId": board_revision_id,
+            "version": version,
+            "releaseTrack": release_track,
+            "isManufacturing": data.get("isManufacturing", False),
+            "isDebug": data.get("isDebug", False),
+            "source": data.get("source", "upload"),
+            "modemVersion": data.get("modemVersion"),
+            "notes": data.get("notes"),
+        },
+        include=_SET_INCLUDE,
+    )
+
+    log_audit("firmwareSet.create", "FirmwareSet", fw_set.id, {
+        "productName": product.name, "version": version, "releaseTrack": release_track,
+    })
+    return jsonify(ApiResponse.ok(_serialize_firmware_set(fw_set)).to_dict()), 201
+
+
+@require_permissions(Permissions.PRODUCTS_MANAGE)
+def delete_firmware_set(product_id: str, set_id: str):
+    """DELETE /v2/products/<id>/firmware/<set_id> — delete set + all builds."""
+    db = get_db_client()
+    fw_set = db.firmwareset.find_first(
+        where={"id": set_id, "productId": product_id},
+        include={"builds": True},
+    )
+    if not fw_set:
+        return not_found("Firmware set not found")
+
+    # Clean up storage
+    try:
+        client = get_storage_client()
+        bucket = get_bucket_name()
+        for build in (fw_set.builds or []):
+            for key in [build.hexStorageKey, build.hexEncStorageKey, build.cfwStorageKey]:
+                if key:
+                    try:
+                        client.remove_object(bucket, key)
+                    except Exception:
+                        pass
+        if fw_set.modemStorageKey:
+            try:
+                client.remove_object(bucket, fw_set.modemStorageKey)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning("Failed to clean storage for firmware set %s: %s", set_id, e)
+
+    db.firmwareset.delete(where={"id": set_id})
+    log_audit("firmwareSet.delete", "FirmwareSet", set_id, {
+        "version": fw_set.version, "buildCount": len(fw_set.builds or []),
+    })
+    return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
+
+
+# ── Build Upload (into a FirmwareSet) ──────────────────────
+
+
+@require_permissions(Permissions.PRODUCTS_MANAGE)
+def upload_firmware_build(product_id: str, set_id: str):
+    """POST /v2/products/<id>/firmware/<set_id>/builds — upload a build artifact."""
+    db = get_db_client()
+    fw_set = db.firmwareset.find_first(
+        where={"id": set_id, "productId": product_id},
+    )
+    if not fw_set:
+        return not_found("Firmware set not found")
 
     if "file" not in request.files:
         return bad_request("No file provided")
@@ -120,54 +254,20 @@ def upload_firmware_build(product_id: str):
     if ext not in ALLOWED_FIRMWARE_EXTENSIONS:
         return bad_request(f"Invalid file type. Allowed: {', '.join(ALLOWED_FIRMWARE_EXTENSIONS)}")
 
-    # Read form metadata
-    target_id = request.form.get("targetId", "").strip()
-    if not target_id:
-        return bad_request("Target ID is required")
-
-    # Validate target exists and belongs to a board revision under this product
-    target_record = db.producttarget.find_first(
-        where={
-            "id": target_id,
-            "boardRevision": {"board": {"productId": product_id}},
-        },
-    )
-    if not target_record:
-        return bad_request(f"Target '{target_id}' not found for this product")
-
-    version = request.form.get("version", "").strip()
-    if not version:
-        return bad_request("Version is required")
-
-    is_manufacturing = request.form.get("isManufacturing", "false").lower() == "true"
-    status = request.form.get("status", "DRAFT").strip()
-    if status not in ("DRAFT", "RELEASED", "DEPRECATED"):
-        return bad_request("Status must be DRAFT, RELEASED, or DEPRECATED")
+    target_id = request.form.get("targetId", "").strip() or None
+    version_string = request.form.get("versionString", "").strip() or None
+    artifact_type = request.form.get("artifactType", "hex").strip()  # hex, cfw, hexEncrypted
     notes = request.form.get("notes", "").strip() or None
 
-    # Check version uniqueness per (product, targetId, version)
-    existing = db.firmwarebuild.find_first(
-        where={
-            "productId": product_id,
-            "targetId": target_id,
-            "version": version,
-        }
-    )
-    if existing:
-        return conflict(f"Build version '{version}' already exists for target {target_record.role}")
+    # Validate target if provided
+    if target_id:
+        target = db.producttarget.find_first(
+            where={"id": target_id, "boardRevision": {"board": {"productId": product_id}}},
+        )
+        if not target:
+            return bad_request("Target not found for this product")
 
-    # Modem firmware file
-    modem_file = request.files.get("modemFile")
-    modem_data = None
-    modem_checksum = None
-    if modem_file and modem_file.filename:
-        modem_ext = modem_file.filename.rsplit(".", 1)[-1].lower() if "." in modem_file.filename else ""
-        if modem_ext != "zip":
-            return bad_request("Modem firmware file must be a .zip")
-        modem_data = modem_file.read()
-        modem_checksum = hashlib.sha256(modem_data).hexdigest()
-
-    # Read file data and compute checksum
+    # Read + hash
     file_data = file.read()
     size_bytes = len(file_data)
     checksum = hashlib.sha256(file_data).hexdigest()
@@ -176,72 +276,41 @@ def upload_firmware_build(product_id: str):
     try:
         client = get_storage_client()
         bucket = get_bucket_name()
-
         safe_filename = _secure_filename(file.filename)
-        placeholder_key = storage_key(
-            StoragePrefixes.FIRMWARE_BUILDS,
-            f"{product_id}/pending/{safe_filename}"
-        )
-
-        create_data = {
-            "productId": product_id,
-            "targetId": target_id,
-            "version": version,
-            "isManufacturing": is_manufacturing,
-            "storageKey": placeholder_key,
-            "filename": file.filename,
-            "sizeBytes": size_bytes,
-            "checksum": checksum,
-            "contentType": content_type,
-            "status": status,
-            "notes": notes,
-        }
-        if modem_data is not None:
-            create_data["modemFilename"] = modem_file.filename
-            create_data["modemSizeBytes"] = len(modem_data)
-            create_data["modemChecksum"] = modem_checksum
-
-        build = db.firmwarebuild.create(data=create_data)
-
         object_key = storage_key(
             StoragePrefixes.FIRMWARE_BUILDS,
-            f"{product_id}/{build.id}/{safe_filename}"
+            f"{product_id}/{set_id}/{safe_filename}"
         )
 
-        client.put_object(
-            bucket,
-            object_key,
-            BytesIO(file_data),
-            length=size_bytes,
-            content_type=content_type,
-        )
+        client.put_object(bucket, object_key, BytesIO(file_data), length=size_bytes, content_type=content_type)
 
-        update_data = {"storageKey": object_key}
-        if modem_data is not None:
-            safe_modem_filename = _secure_filename(modem_file.filename)
-            modem_key = storage_key(
-                StoragePrefixes.FIRMWARE_BUILDS,
-                f"{product_id}/{build.id}/{safe_modem_filename}"
-            )
-            client.put_object(
-                bucket,
-                modem_key,
-                BytesIO(modem_data),
-                length=len(modem_data),
-                content_type="application/zip",
-            )
-            update_data["modemStorageKey"] = modem_key
+        # Determine which storage key field to set
+        storage_fields = {}
+        if artifact_type == "cfw":
+            storage_fields["cfwStorageKey"] = object_key
+        elif artifact_type == "hexEncrypted":
+            storage_fields["hexEncStorageKey"] = object_key
+        else:
+            storage_fields["hexStorageKey"] = object_key
 
-        build = db.firmwarebuild.update(
-            where={"id": build.id},
-            data=update_data,
-            include=_BUILD_INCLUDE,
+        build = db.firmwarebuild.create(
+            data={
+                "firmwareSetId": set_id,
+                "targetId": target_id,
+                "versionString": version_string,
+                "filename": file.filename,
+                "sizeBytes": size_bytes,
+                "checksum": checksum,
+                "contentType": content_type,
+                "notes": notes,
+                **storage_fields,
+            },
+            include={"target": True},
         )
 
         log_audit("firmwareBuild.upload", "FirmwareBuild", build.id, {
-            "productName": product.name, "version": version,
-            "targetId": target_id, "targetRole": target_record.role,
-            "filename": file.filename, "sizeBytes": size_bytes,
+            "firmwareSetId": set_id, "filename": file.filename,
+            "artifactType": artifact_type, "sizeBytes": size_bytes,
         })
         return jsonify(ApiResponse.ok(_serialize_build(build)).to_dict()), 201
     except Exception as e:
@@ -249,67 +318,23 @@ def upload_firmware_build(product_id: str):
         return internal_error("Failed to upload firmware build")
 
 
-@require_permissions(Permissions.PRODUCTS_MANAGE)
-def update_firmware_build(product_id: str, build_id: str):
-    db = get_db_client()
-    build = db.firmwarebuild.find_first(
-        where={"id": build_id, "productId": product_id}
-    )
-    if not build:
-        return not_found("Firmware build not found")
-
-    data, error = FirmwareBuildUpdateRequest.from_json(request.get_json())
-    if error:
-        return bad_request(error)
-
-    updated = db.firmwarebuild.update(
-        where={"id": build_id},
-        data=data.to_update_data(),
-        include=_BUILD_INCLUDE,
-    )
-    log_audit("firmwareBuild.update", "FirmwareBuild", build_id, {
-        "version": build.version, "changes": data.to_update_data(),
-    })
-    return jsonify(ApiResponse.ok(_serialize_build(updated)).to_dict()), 200
-
-
-@require_permissions(Permissions.PRODUCTS_MANAGE)
-def delete_firmware_build(product_id: str, build_id: str):
-    db = get_db_client()
-    build = db.firmwarebuild.find_first(
-        where={"id": build_id, "productId": product_id}
-    )
-    if not build:
-        return not_found("Firmware build not found")
-
-    try:
-        client = get_storage_client()
-        bucket = get_bucket_name()
-        if build.storageKey:
-            client.remove_object(bucket, build.storageKey)
-        if hasattr(build, "modemStorageKey") and build.modemStorageKey:
-            client.remove_object(bucket, build.modemStorageKey)
-    except Exception as e:
-        logger.warning("Failed to remove firmware build object(s): %s", e)
-
-    db.firmwarebuild.delete(where={"id": build_id})
-    log_audit("firmwareBuild.delete", "FirmwareBuild", build_id, {
-        "version": build.version, "filename": build.filename,
-    })
-    return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
+# ── Download ────────────────────────────────────────────────
 
 
 @require_permissions(Permissions.PRODUCTS_VIEW)
 def download_firmware_build(build_id: str):
+    """GET /v2/firmware/builds/<build_id>/download"""
     db = get_db_client()
     build = db.firmwarebuild.find_unique(where={"id": build_id})
     if not build:
         return not_found("Firmware build not found")
 
-    if build.storageKey:
-        url = presigned_url(build.storageKey, download_filename=build.filename)
-        if url:
-            return jsonify(ApiResponse.ok({"url": url, "filename": build.filename}).to_dict()), 200
-        return not_found("Firmware build file not found in storage")
+    # Try hex first, then cfw, then encrypted hex
+    for key_attr in ["hexStorageKey", "cfwStorageKey", "hexEncStorageKey"]:
+        key = getattr(build, key_attr, None)
+        if key:
+            url = presigned_url(key, download_filename=build.filename)
+            if url:
+                return jsonify(ApiResponse.ok({"url": url, "filename": build.filename}).to_dict()), 200
 
-    return not_found("Firmware build has no storage key")
+    return not_found("No downloadable artifact found")

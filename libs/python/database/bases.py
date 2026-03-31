@@ -114,6 +114,16 @@ class BaseBoardRevision(_PrismaModel):
         return actions.BoardRevisionActions[_PrismaModelT](client or get_client(), cls)
 
 
+class BaseFirmwareSet(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['FirmwareSet']] = 'FirmwareSet'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.FirmwareSetActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.FirmwareSetActions[_PrismaModelT](client or get_client(), cls)
+
+
 class BaseFirmwareBuild(_PrismaModel):
     __prisma_model__: ClassVar[Literal['FirmwareBuild']] = 'FirmwareBuild'  # pyright: ignore[reportIncompatibleVariableOverride]
 
