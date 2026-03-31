@@ -4,17 +4,15 @@
   import Modal from '$lib/components/ui/modal.svelte';
   import Select from '$lib/components/ui/select.svelte';
   import TextInput from '$lib/components/ui/text-input.svelte';
-  import BoardList from './board-list.svelte';
-  import FirmwareBuildManager from './firmware-app-list.svelte';
+  import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import ProductStages from './product-stages.svelte';
-  import BuildConfigCard from './build-config-card.svelte';
-  import { Cpu, Layers, Upload, Pencil, Check, X, CircuitBoard } from 'lucide-svelte';
+  import { Cpu, Pencil, Check, X, CircuitBoard, ExternalLink, Upload, Package, FlaskConical, Factory } from 'lucide-svelte';
   import type { Product, BoardRevision, ProductTarget } from '$lib/types/models';
   import type { BuildJobArtifact } from '$lib/types/ci';
   import { api } from '$lib/api';
   import { createManualBuild, uploadBuildArtifact } from '$lib/services/ci';
 
-  type Tab = 'stages' | 'boards' | 'firmware' | 'build-config' | 'usage';
+  type Tab = 'firmware' | 'validation' | 'manufacturing';
 
   interface Props {
     product: Product;
@@ -25,7 +23,7 @@
 
   let { product, canManage, onBack, onRefresh }: Props = $props();
 
-  let activeTab = $state<Tab>('stages');
+  let activeTab = $state<Tab>('firmware');
   let error = $state<string | null>(null);
 
   // ── Product info editing ────────────────────────────────
@@ -113,13 +111,11 @@
     }
 
     try {
-      // Update revision fields (deviceType, deviceVariant)
       await api.put(
         `/v2/products/${product.id}/boards/${ctx.boardId}/revisions/${editingRevisionId}`,
         { deviceType: editRevDeviceType, deviceVariant: editRevDeviceVariant }
       );
 
-      // Update each target individually
       for (const target of editRevTargets) {
         await api.put(
           `/v2/products/${product.id}/boards/${ctx.boardId}/revisions/${editingRevisionId}/targets/${target.id}`,
@@ -217,18 +213,14 @@
     }
   }
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'stages', label: 'Build & Test Stages' },
-    { key: 'boards', label: 'Boards' },
-    { key: 'firmware', label: 'Firmware' },
-    { key: 'build-config', label: 'Build Config' },
-    { key: 'usage', label: 'Usage' },
+  const tabs: { key: Tab; label: string; icon: typeof Package }[] = [
+    { key: 'firmware', label: 'Firmware', icon: Package },
+    { key: 'validation', label: 'Validation', icon: FlaskConical },
+    { key: 'manufacturing', label: 'Manufacturing', icon: Factory },
   ];
 
   const boards = $derived(product.boards || []);
-  const firmwareBuilds = $derived(product.firmwareBuilds || []);
 
-  // Collect all revisions across boards for the revision config section
   const allRevisions = $derived(
     boards.flatMap((b) =>
       (b.revisions || []).map((r) => ({ ...r, boardId: b.id, boardName: b.name }))
@@ -238,6 +230,10 @@
   function sortedTargets(targets: ProductTarget[]): ProductTarget[] {
     return [...targets].sort((a, b) => (a.role === 'app' ? -1 : b.role === 'app' ? 1 : 0));
   }
+
+  function bitbucketUrl(slug: string): string {
+    return `https://bitbucket.org/corekinect/${slug}`;
+  }
 </script>
 
 <div class="animate-fade-in">
@@ -246,9 +242,8 @@
   <ErrorAlert message={error} />
 
   <div class="card card-md">
-    <!-- Header -->
+    <!-- ═══ HEADER ═══ -->
     {#if editingProduct}
-      <!-- Inline edit mode for product info -->
       <div class="space-y-3">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold text-text-primary">Edit Product</h3>
@@ -320,13 +315,10 @@
         </div>
       </div>
     {:else}
-      <!-- Read-only header -->
       <div class="flex items-start gap-4">
-        <div class="flex-1">
+        <div class="flex-1 min-w-0">
           <div class="flex items-center gap-3">
-            <h2 class="text-lg font-semibold text-text-primary">
-              {product.name}
-            </h2>
+            <h2 class="text-lg font-semibold text-text-primary">{product.name}</h2>
             <span
               class={[
                 'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium',
@@ -352,34 +344,32 @@
             <p class="mt-1 text-sm text-text-secondary">{product.description}</p>
           {/if}
 
-          <!-- Metadata row -->
-          <div class="mt-3 flex flex-wrap gap-4 text-2xs text-text-tertiary">
-            {#if product.slug}
-              <span class="font-mono bg-surface-2 px-2 py-0.5 rounded">{product.slug}</span>
-            {/if}
+          <!-- Repo links -->
+          <div class="mt-3 flex flex-wrap items-center gap-3 text-2xs">
             {#if product.fwRepoSlug}
-              <span class="font-mono bg-surface-2 px-2 py-0.5 rounded" title="Firmware repo">fw: {product.fwRepoSlug}</span>
+              <a
+                href={bitbucketUrl(product.fwRepoSlug)}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 font-mono text-text-secondary hover:text-accent transition-colors"
+              >
+                {product.fwRepoSlug}
+                <Check size={10} class="text-success" />
+                <ExternalLink size={10} class="opacity-60" />
+              </a>
             {/if}
             {#if product.mfgFwRepoSlug}
-              <span class="font-mono bg-surface-2 px-2 py-0.5 rounded" title="Mfg firmware repo">mfg: {product.mfgFwRepoSlug}</span>
+              <a
+                href={bitbucketUrl(product.mfgFwRepoSlug)}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 font-mono text-text-secondary hover:text-accent transition-colors"
+              >
+                {product.mfgFwRepoSlug}
+                <Check size={10} class="text-success" />
+                <ExternalLink size={10} class="opacity-60" />
+              </a>
             {/if}
-            {#if product.targets && product.targets.length > 0}
-              {#each product.targets as target}
-                <span class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-2xs font-mono text-accent">
-                  <Cpu size={10} />
-                  {target.soc}
-                  <span class="text-accent/60">#{target.appId}</span>
-                </span>
-              {/each}
-            {/if}
-            <span class="flex items-center gap-1">
-              <Layers size={12} />
-              <strong class="text-text-secondary">{boards.length}</strong> board{boards.length !== 1 ? 's' : ''}
-            </span>
-            <span class="flex items-center gap-1">
-              <Cpu size={12} />
-              <strong class="text-text-secondary">{firmwareBuilds.length}</strong> build{firmwareBuilds.length !== 1 ? 's' : ''}
-            </span>
           </div>
         </div>
         {#if canManage}
@@ -395,47 +385,49 @@
         {/if}
       </div>
 
-      <!-- Revision config cards (always visible below header when revisions exist) -->
+      <!-- ═══ HARDWARE REVISION CARDS ═══ -->
       {#if allRevisions.length > 0}
-        <div class="mt-4 space-y-3">
+        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {#each allRevisions as rev}
-            <div class="rounded-lg border border-border bg-surface-0 p-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <CircuitBoard size={14} class="text-accent" />
-                  <span class="text-xs font-semibold text-text-primary">
-                    Revision {rev.version.toUpperCase()}
-                  </span>
-                  {#if rev.ckBoardsName}
-                    <span class="font-mono text-2xs text-text-tertiary">({rev.ckBoardsName})</span>
-                  {/if}
-                  <span class="font-mono text-2xs text-text-secondary">
-                    Type {rev.deviceType ?? '—'} &middot; Variant {rev.deviceVariant ?? '—'}
-                  </span>
-                </div>
-                {#if canManage && editingRevisionId !== rev.id}
-                  <button
-                    onclick={() => startEditRevision(rev)}
-                    title="Edit revision config"
-                    aria-label="Edit revision config"
-                    class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                {/if}
-              </div>
-
+            <div class="rounded-lg border border-border bg-surface-0 p-3">
               {#if editingRevisionId === rev.id}
                 <!-- Inline edit for revision -->
-                <div class="mt-3 space-y-3">
-                  <div class="grid gap-3 sm:grid-cols-2">
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <CircuitBoard size={14} class="text-accent" />
+                      <span class="text-xs font-semibold text-text-primary">
+                        {rev.version.toUpperCase()}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <button
+                        onclick={cancelEditRevision}
+                        class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
+                        title="Cancel"
+                        aria-label="Cancel editing revision"
+                      >
+                        <X size={14} />
+                      </button>
+                      <button
+                        onclick={saveRevision}
+                        disabled={savingRevision}
+                        class="rounded p-1 text-accent hover:bg-accent/10 disabled:opacity-50"
+                        title="Save"
+                        aria-label="Save revision"
+                      >
+                        <Check size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <div class="grid gap-2 grid-cols-2">
                     <label class="block">
                       <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Type</span>
                       <input
                         type="number"
                         min="0"
                         bind:value={editRevDeviceType}
-                        class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                        class="w-full rounded-lg border border-border bg-surface-1 px-2 py-1.5 text-xs font-mono text-text-primary focus:border-accent focus:outline-none"
                       />
                     </label>
                     <label class="block">
@@ -444,59 +436,66 @@
                         type="number"
                         min="0"
                         bind:value={editRevDeviceVariant}
-                        class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                        class="w-full rounded-lg border border-border bg-surface-1 px-2 py-1.5 text-xs font-mono text-text-primary focus:border-accent focus:outline-none"
                       />
                     </label>
                   </div>
-
-                  <div class="grid gap-3 sm:grid-cols-2">
-                    {#each editRevTargets.sort((a, b) => a.role === 'app' ? -1 : b.role === 'app' ? 1 : 0) as target}
-                      <div class="rounded-lg border border-border-subtle bg-surface-1 p-3">
-                        <div class="mb-2 flex items-center gap-2">
-                          <Cpu size={14} class="text-accent" />
-                          <span class="text-xs font-semibold capitalize text-text-primary">{target.role}</span>
-                          <span class="font-mono text-2xs text-text-tertiary">({target.soc})</span>
-                        </div>
-                        <label class="block">
-                          <span class="mb-1 block text-2xs text-text-tertiary">AppID</span>
-                          <input
-                            type="number"
-                            min="0"
-                            bind:value={target.appId}
-                            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-1.5 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
-                          />
-                        </label>
+                  {#each editRevTargets.sort((a, b) => a.role === 'app' ? -1 : b.role === 'app' ? 1 : 0) as target}
+                    <div class="rounded border border-border-subtle bg-surface-1 p-2">
+                      <div class="mb-1.5 flex items-center gap-1.5">
+                        <Cpu size={12} class="text-accent" />
+                        <span class="text-2xs font-semibold capitalize text-text-primary">{target.role}</span>
+                        <span class="font-mono text-2xs text-text-tertiary">({target.soc})</span>
                       </div>
-                    {/each}
-                  </div>
-
-                  <div class="flex items-center justify-end gap-2">
-                    <button
-                      onclick={cancelEditRevision}
-                      class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-2"
-                    >
-                      <X size={14} />
-                      Cancel
-                    </button>
-                    <button
-                      onclick={saveRevision}
-                      disabled={savingRevision}
-                      class="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-                    >
-                      <Check size={14} />
-                      {savingRevision ? 'Saving...' : 'Save'}
-                    </button>
-                  </div>
+                      <label class="block">
+                        <span class="mb-0.5 block text-2xs text-text-tertiary">AppID</span>
+                        <input
+                          type="number"
+                          min="0"
+                          bind:value={target.appId}
+                          class="w-full rounded border border-border bg-surface-0 px-2 py-1 text-xs font-mono text-text-primary focus:border-accent focus:outline-none"
+                        />
+                      </label>
+                    </div>
+                  {/each}
                 </div>
               {:else}
-                <!-- Read-only targets -->
+                <!-- Read-only revision card -->
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <CircuitBoard size={14} class="text-accent" />
+                    <span class="text-xs font-semibold text-text-primary">
+                      {rev.version.toUpperCase()}
+                    </span>
+                    <StatusBadge status={rev.status} />
+                  </div>
+                  {#if canManage}
+                    <button
+                      onclick={() => startEditRevision(rev)}
+                      title="Edit revision config"
+                      aria-label="Edit revision config"
+                      class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  {/if}
+                </div>
+                {#if rev.ckBoardsName}
+                  <div class="mt-1.5 font-mono text-2xs text-text-tertiary">{rev.ckBoardsName}</div>
+                {/if}
+                <div class="mt-1 font-mono text-2xs text-text-secondary">
+                  DeviceType {rev.deviceType ?? '—'} / Variant {rev.deviceVariant ?? '—'}
+                </div>
                 {#if rev.targets && rev.targets.length > 0}
-                  <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div class="mt-2 space-y-1">
                     {#each sortedTargets(rev.targets) as target}
-                      <div class="flex items-center justify-between rounded border border-border-subtle bg-surface-1 px-3 py-2">
-                        <span class="text-xs font-medium capitalize text-text-primary">{target.role}</span>
+                      <div class="flex items-center justify-between rounded border border-border-subtle bg-surface-1 px-2 py-1.5">
+                        <div class="flex items-center gap-1.5">
+                          <Cpu size={12} class="text-accent" />
+                          <span class="text-2xs font-medium capitalize text-text-primary">{target.role}</span>
+                        </div>
                         <span class="font-mono text-2xs text-text-secondary">
-                          {target.soc} &middot; AppID {target.appId}
+                          {target.soc} &middot; {target.appId}
                         </span>
                       </div>
                     {/each}
@@ -511,61 +510,44 @@
       {/if}
     {/if}
 
-    <!-- Tabs -->
+    <!-- ═══ TABS ═══ -->
     <div class="mt-5 flex gap-1 border-b border-border">
       {#each tabs as tab}
         <button
           onclick={() => (activeTab = tab.key)}
           class={[
-            'px-4 py-2 text-sm font-medium transition-colors',
+            'flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors',
             activeTab === tab.key
               ? 'border-b-2 border-accent text-accent'
               : 'text-text-tertiary hover:text-text-secondary'
           ].join(' ')}
         >
+          <svelte:component this={tab.icon} size={14} />
           {tab.label}
         </button>
       {/each}
     </div>
 
-    <!-- Tab content -->
+    <!-- ═══ TAB CONTENT ═══ -->
     <div class="mt-5">
-      {#if activeTab === 'stages'}
+      {#if activeTab === 'firmware'}
+        <div class="py-8 text-center">
+          <Package size={32} class="mx-auto mb-3 text-text-tertiary opacity-40" />
+          <p class="text-sm text-text-secondary">No firmware builds yet.</p>
+          <p class="mt-1 text-2xs text-text-tertiary">
+            Builds from the CI pipeline and manual uploads will appear here.
+          </p>
+        </div>
+      {/if}
+
+      {#if activeTab === 'validation'}
         <ProductStages productId={product.id} productName={product.name} />
       {/if}
 
-      {#if activeTab === 'boards'}
-        <BoardList
-          productId={product.id}
-          {boards}
-          {canManage}
-          {onRefresh}
-        />
-      {/if}
-
-      {#if activeTab === 'firmware'}
-        <FirmwareBuildManager
-          productId={product.id}
-          builds={firmwareBuilds}
-          targets={product.targets || []}
-          {canManage}
-          {onRefresh}
-        />
-      {/if}
-
-      {#if activeTab === 'build-config'}
-        {#if product.buildConfig}
-          <BuildConfigCard config={product.buildConfig} />
-        {:else}
-          <div class="py-8 text-center text-sm text-text-tertiary">
-            No build configuration set. Use the product creation wizard to auto-populate from ck_boards.
-          </div>
-        {/if}
-      {/if}
-
-      {#if activeTab === 'usage'}
-        <div class="py-8 text-center text-sm text-text-tertiary">
-          Session and test usage statistics coming soon.
+      {#if activeTab === 'manufacturing'}
+        <div class="py-8 text-center">
+          <Factory size={32} class="mx-auto mb-3 text-text-tertiary opacity-40" />
+          <p class="text-sm text-text-secondary">Manufacturing configuration coming soon.</p>
         </div>
       {/if}
     </div>
