@@ -40,10 +40,17 @@
   let productSlug = $state('');
   let productDescription = $state('');
   let ncsVersion = $state('v2.9.0');
-  let targets = $state<Record<string, { soc: string; appId: number; role: string }>>({});
-  let deviceType = $state(0);
-  let deviceVariant = $state(0);
+  let revisionConfigs = $state<Record<string, {
+    deviceType: number;
+    deviceVariant: number;
+    targets: Record<string, { soc: string; appId: number; role: string }>;
+  }>>({});
   let triggerBranches = $state('main');
+
+  function getSocRole(soc: string): string {
+    if (soc.includes('9151') || soc.includes('9160') || soc.includes('9161')) return 'comms';
+    return 'app';
+  }
 
   // Step 5: Submitting
   let submitting = $state(false);
@@ -58,7 +65,17 @@
     switch (step) {
       case 1: return selectedBranch !== '';
       case 2: return selectedFamily !== '';
-      case 3: return productName.trim() !== '' && Object.keys(targets).length > 0;
+      case 3: {
+        if (productName.trim() === '') return false;
+        const revs = Object.values(revisionConfigs);
+        if (revs.length === 0) return false;
+        return revs.every((rev) =>
+          rev.deviceType > 0 &&
+          rev.deviceVariant > 0 &&
+          Object.values(rev.targets).length > 0 &&
+          Object.values(rev.targets).every((t) => t.appId > 0)
+        );
+      }
       default: return false;
     }
   });
@@ -105,22 +122,17 @@
       // Auto-populate step 4 fields from discovery
       productName = boardDetail.family.charAt(0).toUpperCase() + boardDetail.family.slice(1);
       productSlug = boardDetail.family;
-      // Collect unique SoCs across all revisions
-      const allSocs = [...new Set(boardDetail.revisions.flatMap((r) => r.socs))];
-      // Build targets from SoCs
-      const newTargets: Record<string, { soc: string; appId: number; role: string }> = {};
-      if (allSocs.length === 1) {
-        newTargets['app'] = { soc: allSocs[0], appId: 0, role: 'application' };
-      } else if (allSocs.length >= 2) {
-        // Convention: nrf52840 = app, nrf9151 = comms
-        const appSoc = allSocs.find((s) => s.includes('52840')) || allSocs[0];
-        const commsSoc = allSocs.find((s) => s.includes('9151') || s.includes('9161')) || allSocs[1];
-        newTargets['app'] = { soc: appSoc, appId: 0, role: 'application' };
-        if (commsSoc !== appSoc) {
-          newTargets['comms'] = { soc: commsSoc, appId: 0, role: 'communications' };
+      // Build per-revision configs
+      const newConfigs: typeof revisionConfigs = {};
+      for (const rev of boardDetail.revisions) {
+        const targets: Record<string, { soc: string; appId: number; role: string }> = {};
+        for (const soc of rev.socs) {
+          const role = getSocRole(soc);
+          targets[role] = { soc, appId: 0, role };
         }
+        newConfigs[rev.version] = { deviceType: 0, deviceVariant: 0, targets };
       }
-      targets = newTargets;
+      revisionConfigs = newConfigs;
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load board details';
     } finally {
@@ -150,21 +162,22 @@
     submitting = true;
     error = null;
 
+    // Collect all unique roles across revisions for confFiles/overlays
+    const allRoles = [...new Set(
+      Object.values(revisionConfigs).flatMap((rev) => Object.keys(rev.targets))
+    )];
+
     const buildConfig: BuildConfig = {
       board: productSlug,
       ncsVersion,
       boardRoot: 'ck_boards',
       hasVsmMerge: false,
       hasFips: false,
-      confFiles: Object.fromEntries(Object.keys(targets).map((k) => [k, ['prj.conf']])),
-      overlays: Object.fromEntries(Object.keys(targets).map((k) => [k, []])),
+      confFiles: Object.fromEntries(allRoles.map((k) => [k, ['prj.conf']])),
+      overlays: Object.fromEntries(allRoles.map((k) => [k, []])),
       postBuild: ['sign_mcuboot'],
-      cfw: { deviceType, deviceVariant },
+      cfw: { deviceType: 0, deviceVariant: 0 },
     };
-
-    // Build per-revision targets: each revision gets targets based on its SoCs
-    // matched against the user-configured targets (which map SoC → role/appId)
-    const targetBySoc = new Map(Object.values(targets).map((t) => [t.soc, t]));
 
     try {
       await api.post('/v2/products', {
@@ -174,15 +187,19 @@
         board: boardDetail
           ? {
               ckBoardsFamily: selectedFamily,
-              revisions: boardDetail.revisions.map((r) => ({
-                version: r.version,
-                ckBoardsName: r.ckBoardsName,
-                socs: r.socs,
-                targets: r.socs
-                  .map((soc) => targetBySoc.get(soc))
-                  .filter((t): t is NonNullable<typeof t> => t != null)
-                  .map((t) => ({ role: t.role, soc: t.soc, appId: t.appId })),
-              })),
+              revisions: boardDetail.revisions.map((r) => {
+                const cfg = revisionConfigs[r.version];
+                return {
+                  version: r.version,
+                  ckBoardsName: r.ckBoardsName,
+                  socs: r.socs,
+                  deviceType: cfg?.deviceType ?? 0,
+                  deviceVariant: cfg?.deviceVariant ?? 0,
+                  targets: cfg
+                    ? Object.values(cfg.targets).map((t) => ({ role: t.role, soc: t.soc, appId: t.appId }))
+                    : [],
+                };
+              }),
             }
           : null,
         buildConfig,
@@ -379,53 +396,64 @@
             />
           </label>
 
-          <!-- Targets (AppIDs) -->
-          <div>
-            <span class="mb-2 block text-xs font-medium text-text-primary">Build Targets (AppIDs)</span>
-            <div class="grid gap-3 sm:grid-cols-2">
-              {#each Object.entries(targets) as [role, target]}
-                <div class="rounded-lg border border-border bg-surface-0 p-3">
-                  <div class="mb-2 flex items-center gap-2">
-                    <Cpu size={14} class="text-accent" />
-                    <span class="text-xs font-semibold capitalize text-text-primary">{role}</span>
-                    <span class="font-mono text-2xs text-text-tertiary">({target.soc})</span>
-                  </div>
-                  <label class="block">
-                    <span class="mb-1 block text-2xs text-text-tertiary">AppID *</span>
-                    <input
-                      type="number"
-                      min="0"
-                      bind:value={target.appId}
-                      placeholder="e.g. 109"
-                      class="w-full rounded-lg border border-border bg-surface-1 px-3 py-1.5 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
-                    />
-                  </label>
-                </div>
-              {/each}
-            </div>
-          </div>
+          <!-- Per-Revision Configuration -->
+          {#each Object.entries(revisionConfigs) as [version, cfg]}
+            {@const rev = boardDetail?.revisions.find((r) => r.version === version)}
+            <div class="rounded-lg border border-border bg-surface-0 p-4">
+              <div class="mb-3 flex items-center gap-2">
+                <CircuitBoard size={14} class="text-accent" />
+                <span class="text-xs font-semibold text-text-primary">
+                  Revision {version.toUpperCase()}
+                </span>
+                {#if rev}
+                  <span class="font-mono text-2xs text-text-tertiary">({rev.ckBoardsName})</span>
+                {/if}
+              </div>
 
-          <!-- CFW Config -->
-          <div class="grid gap-3 sm:grid-cols-2">
-            <label class="block">
-              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Type *</span>
-              <input
-                type="number"
-                min="0"
-                bind:value={deviceType}
-                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
-              />
-            </label>
-            <label class="block">
-              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Variant *</span>
-              <input
-                type="number"
-                min="0"
-                bind:value={deviceVariant}
-                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
-              />
-            </label>
-          </div>
+              <div class="mb-3 grid gap-3 sm:grid-cols-2">
+                <label class="block">
+                  <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Type *</span>
+                  <input
+                    type="number"
+                    min="0"
+                    bind:value={cfg.deviceType}
+                    class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                  />
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Variant *</span>
+                  <input
+                    type="number"
+                    min="0"
+                    bind:value={cfg.deviceVariant}
+                    class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                  />
+                </label>
+              </div>
+
+              <div class="grid gap-3 sm:grid-cols-2">
+                {#each Object.entries(cfg.targets) as [role, target]}
+                  <div class="rounded-lg border border-border-subtle bg-surface-1 p-3">
+                    <div class="mb-2 flex items-center gap-2">
+                      <Cpu size={14} class="text-accent" />
+                      <span class="text-xs font-semibold capitalize text-text-primary">{role}</span>
+                      <span class="font-mono text-2xs text-text-tertiary">({target.soc})</span>
+                    </div>
+                    <label class="block">
+                      <span class="mb-1 block text-2xs text-text-tertiary">AppID *</span>
+                      <input
+                        type="number"
+                        min="0"
+                        bind:value={target.appId}
+                        placeholder="e.g. 109"
+                        class="w-full rounded-lg border border-border bg-surface-0 px-3 py-1.5 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                      />
+                    </label>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/each}
 
           <!-- Trigger branches -->
           <label class="block">
@@ -457,8 +485,6 @@
                 ['Board Family', selectedFamily],
                 ['Branch', selectedBranch],
                 ['NCS Version', ncsVersion],
-                ['Device Type', String(deviceType)],
-                ['Device Variant', String(deviceVariant)],
                 ['Trigger Branches', triggerBranches || '(none)'],
               ] as [label, value]}
                 <div class="flex items-baseline justify-between border-b border-border-subtle py-1 last:border-0">
@@ -469,20 +495,34 @@
             </dl>
           </div>
 
-          <!-- Targets summary -->
-          <div class="rounded-lg border border-border bg-surface-0 p-4">
-            <span class="mb-2 block text-xs font-medium text-text-tertiary">Build Targets</span>
-            <div class="grid gap-2 sm:grid-cols-2">
-              {#each Object.entries(targets) as [role, target]}
-                <div class="flex items-center justify-between rounded border border-border-subtle bg-surface-1 px-3 py-2">
-                  <span class="text-xs font-medium capitalize text-text-primary">{role}</span>
-                  <span class="font-mono text-2xs text-text-secondary">
-                    {target.soc} &middot; AppID {target.appId}
-                  </span>
-                </div>
-              {/each}
+          <!-- Per-revision summary -->
+          {#each Object.entries(revisionConfigs) as [version, cfg]}
+            {@const rev = boardDetail?.revisions.find((r) => r.version === version)}
+            <div class="rounded-lg border border-border bg-surface-0 p-4">
+              <div class="mb-2 flex items-center gap-2">
+                <CircuitBoard size={14} class="text-text-tertiary" />
+                <span class="text-xs font-medium text-text-primary">
+                  Revision {version.toUpperCase()}
+                </span>
+                {#if rev}
+                  <span class="font-mono text-2xs text-text-tertiary">({rev.ckBoardsName})</span>
+                {/if}
+                <span class="font-mono text-2xs text-text-secondary">
+                  Type {cfg.deviceType} &middot; Variant {cfg.deviceVariant}
+                </span>
+              </div>
+              <div class="grid gap-2 sm:grid-cols-2">
+                {#each Object.entries(cfg.targets) as [role, target]}
+                  <div class="flex items-center justify-between rounded border border-border-subtle bg-surface-1 px-3 py-2">
+                    <span class="text-xs font-medium capitalize text-text-primary">{role}</span>
+                    <span class="font-mono text-2xs text-text-secondary">
+                      {target.soc} &middot; AppID {target.appId}
+                    </span>
+                  </div>
+                {/each}
+              </div>
             </div>
-          </div>
+          {/each}
         </div>
       </div>
     {/if}
