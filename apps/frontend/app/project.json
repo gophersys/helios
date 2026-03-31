@@ -22,9 +22,21 @@
     },
     "serve": {
       "executor": "nx:run-commands",
+      "dependsOn": ["typecheck"],
       "options": {
         "cwd": "apps/frontend/app",
         "command": "npx vite dev --port 4200"
+      }
+    },
+    "check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          { "command": "nx typecheck app" },
+          { "command": "nx test app" }
+        ]
       }
     },
     "build": {
