@@ -20,6 +20,9 @@ from typing import List, Optional
 
 from corekinect.shells.alpha_app import AlphaAppShell
 from corekinect.shells.comms_coproc import CommsCoprocShell
+from corekinect.utils import Logger
+
+log = Logger(log_name="post")
 
 
 @dataclass
@@ -60,7 +63,7 @@ def _step(result: PostResult, name: str, passed: bool, message: str, duration_ms
     step = PostStepResult(name=name, passed=passed, message=message, duration_ms=duration_ms)
     result.steps.append(step)
     status = "PASS" if passed else "FAIL"
-    print(f"[{status}] {name}: {message} ({duration_ms}ms)")
+    log.info("[%s] %s: %s (%dms)", status, name, message, duration_ms)
     return passed
 
 
@@ -105,13 +108,13 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
         from corekinect.mtib_client.v1.client.types import (
             PowerChannel, GpioDirection, GpioResistorConfig,
         )
-        print("Power cycling DUT for fresh shell window...")
+        log.info("Power cycling DUT for fresh shell window...")
         mtib_client.PowerDisable(channel=PowerChannel.DUT)
         mtib_client.PowerDisable(channel=PowerChannel.CHARGER)
         time.sleep(2)
 
         # Start UART streams BEFORE power-on (capture boot output from byte 0)
-        print("Starting UART streams...")
+        log.info("Starting UART streams...")
         comms.start()
         app.start()
         time.sleep(0.5)  # Let gRPC streams initialize
@@ -124,7 +127,7 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
         mtib_client.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
         time.sleep(5)  # Wait for boot + shell activation (APP may take longer after FUOTA swap)
 
-        print("Locking manufacturing shells...")
+        log.info("Locking manufacturing shells...")
         comms_locked = comms.lock(timeout_s=10)
         app_locked = app.lock(timeout_s=10)
 
@@ -222,7 +225,7 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
                 sim_err = None
                 break
             if attempt < 2:
-                print(f"IMEI/ICCID retry {attempt + 1}/3 (modem warming up)...")
+                log.info("IMEI/ICCID retry %d/3 (modem warming up)...", attempt + 1)
                 time.sleep(3)
 
         if sim_err:
@@ -284,11 +287,11 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
         # Always stop streams
         try:
             comms.stop()
-        except Exception:
-            pass
+        except Exception as exc:
+            log.warning("Failed to stop comms stream: %s", exc)
         try:
             app.stop()
-        except Exception:
-            pass
+        except Exception as exc:
+            log.warning("Failed to stop app stream: %s", exc)
 
     return result

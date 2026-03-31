@@ -25,6 +25,7 @@ Configuration:
 """
 
 import os
+from typing import Set
 
 import pytest
 
@@ -33,7 +34,12 @@ class SequentialTestPlugin:
     """Pytest plugin for fail-fast sequential test execution within classes."""
 
     def __init__(self, preflight_class: str = "TestPreflight"):
-        self._failed_classes: set = set()
+        """
+        Args:
+            preflight_class: Name of the preflight test class whose failure
+                blocks all subsequent tests globally.
+        """
+        self._failed_classes: Set[str] = set()
         self._preflight_failed: bool = False
         self._preflight_class = preflight_class
 
@@ -75,7 +81,12 @@ class SequentialTestPlugin:
 
 
 def pytest_configure(config):
-    """Auto-register when listed in pytest_plugins."""
+    """Auto-register the sequential plugin when this module is loaded.
+
+    Called by pytest when this module appears in ``pytest_plugins``.
+    Registers a SequentialTestPlugin instance, which then receives its
+    own ``pytest_configure`` hook call for -k expression amendment.
+    """
     preflight_class = os.environ.get("SEQUENTIAL_PREFLIGHT_CLASS", "TestPreflight")
     plugin = SequentialTestPlugin(preflight_class=preflight_class)
     config.pluginmanager.register(plugin, "sequential_tests")

@@ -76,8 +76,7 @@ except ImportError:
     APP_TARGET = 3    # HOST_TYPE_NRF52840
 
 # Allow overriding personalization target via env var when COMMS UART is dead
-import os as _os
-if _os.environ.get("PERSONALIZE_VIA_APP") == "1":
+if os.environ.get("PERSONALIZE_VIA_APP") == "1":
     COMMS_TARGET = APP_TARGET
 
 

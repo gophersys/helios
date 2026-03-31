@@ -1,11 +1,20 @@
-"""Product stage configuration endpoints — CRUD for validation stage configs."""
+"""Product stage configuration endpoints — CRUD for validation stage configs.
+
+Each stage config defines:
+- Which revision to build/test against
+- Test configuration (directory, markers, timeout)
+- Scheduling rules (priority, auto-progress, merge blocking)
+
+Build recipes are convention-driven via StageBuildDef (stage_builds.py).
+The system derives what to build from the product's repos + revision + stage.
+"""
 
 import logging
 from flask import jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
-from src.lib.errors import bad_request, conflict, internal_error, not_found
+from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
@@ -14,58 +23,61 @@ from .stage_config_types import StageConfigCreateRequest, StageConfigUpdateReque
 
 logger = logging.getLogger(__name__)
 
-
-# Default stage definitions for initialization
+# Default stage definitions — test config only, no build config
 DEFAULT_STAGES = [
-    {"stage": 1, "name": "Smoke", "priority": 10, "blocksMerge": True, "maxDurationSec": 300,
-     "testTimeout": 120, "requiresFuota": False, "requiresBench": False},
-    {"stage": 2, "name": "Silicon", "priority": 20, "blocksMerge": True, "maxDurationSec": 600,
-     "testTimeout": 300, "requiresFuota": False, "requiresBench": False},
-    {"stage": 3, "name": "Integration", "priority": 30, "blocksMerge": True, "maxDurationSec": 1200,
-     "testTimeout": 600, "requiresFuota": False, "requiresBench": True},
-    {"stage": 4, "name": "Nightly", "priority": 40, "blocksMerge": False, "maxDurationSec": 3600,
-     "testTimeout": 1800, "requiresFuota": False, "requiresBench": True},
-    {"stage": 5, "name": "FUOTA", "priority": 100, "blocksMerge": True, "maxDurationSec": 900,
-     "testTimeout": 600, "requiresFuota": True, "requiresBench": True},
+    {"stage": 1, "name": "Smoke", "priority": 10, "blocksMerge": True,
+     "testDirectory": "tests/smoke/", "testMarker": "-m smoke",
+     "testTimeout": 120, "requiresBench": False, "maxDurationSec": 300},
+    {"stage": 2, "name": "Silicon", "priority": 20, "blocksMerge": True,
+     "testDirectory": "tests/silicon/", "testMarker": "-m silicon",
+     "testTimeout": 300, "requiresBench": True, "maxDurationSec": 600},
+    {"stage": 3, "name": "Integration", "priority": 30, "blocksMerge": True,
+     "testDirectory": "tests/integration/", "testMarker": "-m integration",
+     "testTimeout": 600, "requiresBench": True, "maxDurationSec": 1200},
+    {"stage": 4, "name": "Nightly", "priority": 40, "blocksMerge": False,
+     "testDirectory": "tests/nightly/", "testMarker": "-m nightly",
+     "testTimeout": 1800, "requiresBench": True, "maxDurationSec": 3600},
+    {"stage": 5, "name": "FUOTA", "priority": 100, "blocksMerge": True,
+     "testDirectory": "tests/fuota/", "testMarker": "-m fuota",
+     "testTimeout": 600, "requiresBench": True, "maxDurationSec": 900},
 ]
 
 
 def _serialize_stage_config(cfg) -> dict:
-    """Serialize a ProductStageConfig to JSON-friendly dict."""
-    return {
+    data = {
         "id": cfg.id,
         "productId": cfg.productId,
         "stage": cfg.stage,
         "name": cfg.name,
         "enabled": cfg.enabled,
-        "buildScript": cfg.buildScript,
-        "buildTarget": cfg.buildTarget,
-        "fwRepoUrl": cfg.fwRepoUrl,
-        "fwRepoBranch": cfg.fwRepoBranch,
-        "mfgRepoUrl": cfg.mfgRepoUrl,
-        "mfgRepoBranch": cfg.mfgRepoBranch,
-        "buildVariant": cfg.buildVariant,
-        "configFlags": cfg.configFlags,
-        "buildMatrix": cfg.buildMatrix,
+        "boardRevisionId": cfg.boardRevisionId,
         "testDirectory": cfg.testDirectory,
         "testMarker": cfg.testMarker,
         "testTimeout": cfg.testTimeout,
         "priority": cfg.priority,
         "blocksMerge": cfg.blocksMerge,
-        "requiresFuota": cfg.requiresFuota,
+        "autoProgress": cfg.autoProgress,
         "requiresBench": cfg.requiresBench,
         "maxDurationSec": cfg.maxDurationSec,
         "description": cfg.description,
         "createdAt": cfg.createdAt.isoformat() if hasattr(cfg.createdAt, 'isoformat') else cfg.createdAt,
         "updatedAt": cfg.updatedAt.isoformat() if hasattr(cfg.updatedAt, 'isoformat') else cfg.updatedAt,
     }
+    if hasattr(cfg, "boardRevision") and cfg.boardRevision:
+        data["boardRevision"] = {
+            "id": cfg.boardRevision.id,
+            "version": cfg.boardRevision.version,
+            "ckBoardsName": cfg.boardRevision.ckBoardsName,
+        }
+    return data
+
+
+_INCLUDE = {"boardRevision": True}
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_stage_configs(product_id: str):
-    """GET /v2/products/<product_id>/stages — List stage configs for a product."""
     db = get_db_client()
-
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
@@ -73,15 +85,14 @@ def list_stage_configs(product_id: str):
     configs = db.productstageconfig.find_many(
         where={"productId": product_id},
         order={"stage": "asc"},
+        include=_INCLUDE,
     )
     return jsonify(ApiResponse.ok([_serialize_stage_config(c) for c in configs]).to_dict()), 200
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def get_stage_config(product_id: str, stage: str):
-    """GET /v2/products/<product_id>/stages/<stage> — Get a specific stage config."""
     db = get_db_client()
-
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
@@ -92,7 +103,8 @@ def get_stage_config(product_id: str, stage: str):
         return bad_request("Stage must be a number")
 
     config = db.productstageconfig.find_first(
-        where={"productId": product_id, "stage": stage_num}
+        where={"productId": product_id, "stage": stage_num},
+        include=_INCLUDE,
     )
     if not config:
         return not_found(f"Stage {stage} config not found")
@@ -102,9 +114,7 @@ def get_stage_config(product_id: str, stage: str):
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def create_stage_config(product_id: str):
-    """POST /v2/products/<product_id>/stages — Create a new stage config."""
     db = get_db_client()
-
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
@@ -113,7 +123,6 @@ def create_stage_config(product_id: str):
     if err:
         return bad_request(err)
 
-    # Check for duplicate stage
     existing = db.productstageconfig.find_first(
         where={"productId": product_id, "stage": req.stage}
     )
@@ -126,36 +135,27 @@ def create_stage_config(product_id: str):
             "stage": req.stage,
             "name": req.name,
             "enabled": req.enabled,
+            "boardRevisionId": req.boardRevisionId,
             "priority": req.priority,
             "blocksMerge": req.blocksMerge,
-            "requiresFuota": req.requiresFuota,
+            "autoProgress": getattr(req, "autoProgress", False),
             "requiresBench": req.requiresBench,
             "testTimeout": req.testTimeout,
-            "maxDurationSec": req.maxDurationSec,
-            "buildScript": req.buildScript,
-            "buildTarget": req.buildTarget,
-            "buildVariant": req.buildVariant,
-            "fwRepoUrl": req.fwRepoUrl,
-            "fwRepoBranch": req.fwRepoBranch,
-            "mfgRepoUrl": req.mfgRepoUrl,
-            "mfgRepoBranch": req.mfgRepoBranch,
-            "configFlags": req.configFlags,
-            "buildMatrix": req.buildMatrix,
             "testDirectory": req.testDirectory,
             "testMarker": req.testMarker,
+            "maxDurationSec": req.maxDurationSec,
             "description": req.description,
-        }
+        },
+        include=_INCLUDE,
     )
 
-    log_audit("create", "ProductStageConfig", config.id, {"stage": req.stage, "productId": product_id})
+    log_audit("stageConfig.create", "ProductStageConfig", config.id, {"stage": req.stage})
     return jsonify(ApiResponse.ok(_serialize_stage_config(config)).to_dict()), 201
 
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def update_stage_config(product_id: str, stage: str):
-    """PUT /v2/products/<product_id>/stages/<stage> — Update a stage config."""
     db = get_db_client()
-
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
@@ -182,17 +182,16 @@ def update_stage_config(product_id: str, stage: str):
     updated = db.productstageconfig.update(
         where={"id": config.id},
         data=update_data,
+        include=_INCLUDE,
     )
 
-    log_audit("update", "ProductStageConfig", config.id, update_data)
+    log_audit("stageConfig.update", "ProductStageConfig", config.id, update_data)
     return jsonify(ApiResponse.ok(_serialize_stage_config(updated)).to_dict()), 200
 
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def delete_stage_config(product_id: str, stage: str):
-    """DELETE /v2/products/<product_id>/stages/<stage> — Delete a stage config."""
     db = get_db_client()
-
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
@@ -209,8 +208,7 @@ def delete_stage_config(product_id: str, stage: str):
         return not_found(f"Stage {stage} config not found")
 
     db.productstageconfig.delete(where={"id": config.id})
-
-    log_audit("delete", "ProductStageConfig", config.id, {"stage": stage_num, "productId": product_id})
+    log_audit("stageConfig.delete", "ProductStageConfig", config.id, {"stage": stage_num})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
@@ -218,12 +216,10 @@ def delete_stage_config(product_id: str, stage: str):
 def initialize_stages(product_id: str):
     """POST /v2/products/<product_id>/stages/initialize — Create default stage configs."""
     db = get_db_client()
-
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
 
-    # Check for existing configs
     existing = db.productstageconfig.find_many(where={"productId": product_id})
     if existing:
         return conflict("Product already has stage configurations. Delete them first to reinitialize.")
@@ -233,18 +229,11 @@ def initialize_stages(product_id: str):
         config = db.productstageconfig.create(
             data={
                 "productId": product_id,
-                "stage": stage_def["stage"],
-                "name": stage_def["name"],
-                "enabled": True,
-                "priority": stage_def["priority"],
-                "blocksMerge": stage_def["blocksMerge"],
-                "requiresFuota": stage_def["requiresFuota"],
-                "requiresBench": stage_def["requiresBench"],
-                "testTimeout": stage_def["testTimeout"],
-                "maxDurationSec": stage_def["maxDurationSec"],
-            }
+                **stage_def,
+            },
+            include=_INCLUDE,
         )
         created.append(_serialize_stage_config(config))
 
-    log_audit("initialize", "ProductStageConfig", product_id, {"stages": len(created)})
+    log_audit("stageConfig.initialize", "ProductStageConfig", product_id, {"stages": len(created)})
     return jsonify(ApiResponse.ok(created).to_dict()), 201

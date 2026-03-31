@@ -2432,6 +2432,7 @@ class BoardRevisionIncludeFromProduct(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromProductRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive1']
 
 
 class BoardRevisionIncludeFromProductRecursive1(TypedDict, total=False):
@@ -2439,6 +2440,7 @@ class BoardRevisionIncludeFromProductRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromProductRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive2']
 
 
 class BoardRevisionIncludeFromProductRecursive2(TypedDict, total=False):
@@ -2446,6 +2448,7 @@ class BoardRevisionIncludeFromProductRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromProductRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive3']
 
 
 class BoardRevisionIncludeFromProductRecursive3(TypedDict, total=False):
@@ -2453,6 +2456,7 @@ class BoardRevisionIncludeFromProductRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromProductRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive4']
 
 
 class BoardRevisionIncludeFromProductRecursive4(TypedDict, total=False):
@@ -2765,6 +2769,7 @@ class FindManyFirmwareBuildArgsFromProductRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive1']
 
@@ -2772,6 +2777,7 @@ class ProductStageConfigIncludeFromProduct(TypedDict, total=False):
 class ProductStageConfigIncludeFromProductRecursive1(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive2']
 
@@ -2779,6 +2785,7 @@ class ProductStageConfigIncludeFromProductRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromProductRecursive2(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive3']
 
@@ -2786,6 +2793,7 @@ class ProductStageConfigIncludeFromProductRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromProductRecursive3(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive4']
 
@@ -6465,6 +6473,7 @@ class BoardRevisionIncludeFromProductTarget(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromProductTargetRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductTargetRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive1']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive1(TypedDict, total=False):
@@ -6472,6 +6481,7 @@ class BoardRevisionIncludeFromProductTargetRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromProductTargetRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductTargetRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive2']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive2(TypedDict, total=False):
@@ -6479,6 +6489,7 @@ class BoardRevisionIncludeFromProductTargetRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromProductTargetRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductTargetRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive3']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive3(TypedDict, total=False):
@@ -6486,6 +6497,7 @@ class BoardRevisionIncludeFromProductTargetRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromProductTargetRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductTargetRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive4']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive4(TypedDict, total=False):
@@ -6798,6 +6810,7 @@ class FindManyFirmwareBuildArgsFromProductTargetRecursive4(TypedDict, total=Fals
 class ProductStageConfigIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive1']
 
@@ -6805,6 +6818,7 @@ class ProductStageConfigIncludeFromProductTarget(TypedDict, total=False):
 class ProductStageConfigIncludeFromProductTargetRecursive1(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive2']
 
@@ -6812,6 +6826,7 @@ class ProductStageConfigIncludeFromProductTargetRecursive1(TypedDict, total=Fals
 class ProductStageConfigIncludeFromProductTargetRecursive2(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive3']
 
@@ -6819,6 +6834,7 @@ class ProductStageConfigIncludeFromProductTargetRecursive2(TypedDict, total=Fals
 class ProductStageConfigIncludeFromProductTargetRecursive3(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive4']
 
@@ -10395,6 +10411,7 @@ class BoardRevisionIncludeFromBoard(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBoardRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive1']
 
 
 class BoardRevisionIncludeFromBoardRecursive1(TypedDict, total=False):
@@ -10402,6 +10419,7 @@ class BoardRevisionIncludeFromBoardRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBoardRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive2']
 
 
 class BoardRevisionIncludeFromBoardRecursive2(TypedDict, total=False):
@@ -10409,6 +10427,7 @@ class BoardRevisionIncludeFromBoardRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBoardRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive3']
 
 
 class BoardRevisionIncludeFromBoardRecursive3(TypedDict, total=False):
@@ -10416,6 +10435,7 @@ class BoardRevisionIncludeFromBoardRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBoardRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive4']
 
 
 class BoardRevisionIncludeFromBoardRecursive4(TypedDict, total=False):
@@ -10728,6 +10748,7 @@ class FindManyFirmwareBuildArgsFromBoardRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive1']
 
@@ -10735,6 +10756,7 @@ class ProductStageConfigIncludeFromBoard(TypedDict, total=False):
 class ProductStageConfigIncludeFromBoardRecursive1(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive2']
 
@@ -10742,6 +10764,7 @@ class ProductStageConfigIncludeFromBoardRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromBoardRecursive2(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive3']
 
@@ -10749,6 +10772,7 @@ class ProductStageConfigIncludeFromBoardRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromBoardRecursive3(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive4']
 
@@ -13754,6 +13778,7 @@ class BoardRevisionOptionalCreateInput(TypedDict, total=False):
     board: 'BoardCreateNestedWithoutRelationsInput'
     targets: 'ProductTargetCreateManyNestedWithoutRelationsInput'
     firmwareSets: 'FirmwareSetCreateManyNestedWithoutRelationsInput'
+    stageConfigs: 'ProductStageConfigCreateManyNestedWithoutRelationsInput'
 
 
 class BoardRevisionCreateInput(BoardRevisionOptionalCreateInput):
@@ -13874,6 +13899,7 @@ class BoardRevisionUpdateInput(TypedDict, total=False):
     board: 'BoardUpdateOneWithoutRelationsInput'
     targets: 'ProductTargetUpdateManyWithoutRelationsInput'
     firmwareSets: 'FirmwareSetUpdateManyWithoutRelationsInput'
+    stageConfigs: 'ProductStageConfigUpdateManyWithoutRelationsInput'
 
 
 class BoardRevisionUpdateManyMutationInput(TypedDict, total=False):
@@ -14094,6 +14120,7 @@ class BoardRevisionInclude(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBoardRevision']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevision']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevision']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevision']
 
 
     
@@ -14458,6 +14485,7 @@ class BoardRevisionIncludeFromBoardRevision(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive1']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
@@ -14465,6 +14493,7 @@ class BoardRevisionIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive2']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
@@ -14472,6 +14501,7 @@ class BoardRevisionIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive3']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
@@ -14479,6 +14509,7 @@ class BoardRevisionIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive4']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
@@ -14791,6 +14822,7 @@ class FindManyFirmwareBuildArgsFromBoardRevisionRecursive4(TypedDict, total=Fals
 class ProductStageConfigIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive1']
 
@@ -14798,6 +14830,7 @@ class ProductStageConfigIncludeFromBoardRevision(TypedDict, total=False):
 class ProductStageConfigIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive2']
 
@@ -14805,6 +14838,7 @@ class ProductStageConfigIncludeFromBoardRevisionRecursive1(TypedDict, total=Fals
 class ProductStageConfigIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive3']
 
@@ -14812,6 +14846,7 @@ class ProductStageConfigIncludeFromBoardRevisionRecursive2(TypedDict, total=Fals
 class ProductStageConfigIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive4']
 
@@ -17488,6 +17523,7 @@ class BoardRevisionWhereInput(TypedDict, total=False):
     board: 'BoardRelationFilter'
     targets: 'ProductTargetListRelationFilter'
     firmwareSets: 'FirmwareSetListRelationFilter'
+    stageConfigs: 'ProductStageConfigListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive1', List['BoardRevisionWhereInputRecursive1']]
     # but this causes mypy to hang :/
@@ -17514,6 +17550,7 @@ class BoardRevisionWhereInputRecursive1(TypedDict, total=False):
     board: 'BoardRelationFilter'
     targets: 'ProductTargetListRelationFilter'
     firmwareSets: 'FirmwareSetListRelationFilter'
+    stageConfigs: 'ProductStageConfigListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive2', List['BoardRevisionWhereInputRecursive2']]
     # but this causes mypy to hang :/
@@ -17540,6 +17577,7 @@ class BoardRevisionWhereInputRecursive2(TypedDict, total=False):
     board: 'BoardRelationFilter'
     targets: 'ProductTargetListRelationFilter'
     firmwareSets: 'FirmwareSetListRelationFilter'
+    stageConfigs: 'ProductStageConfigListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive3', List['BoardRevisionWhereInputRecursive3']]
     # but this causes mypy to hang :/
@@ -17566,6 +17604,7 @@ class BoardRevisionWhereInputRecursive3(TypedDict, total=False):
     board: 'BoardRelationFilter'
     targets: 'ProductTargetListRelationFilter'
     firmwareSets: 'FirmwareSetListRelationFilter'
+    stageConfigs: 'ProductStageConfigListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive4', List['BoardRevisionWhereInputRecursive4']]
     # but this causes mypy to hang :/
@@ -17592,6 +17631,7 @@ class BoardRevisionWhereInputRecursive4(TypedDict, total=False):
     board: 'BoardRelationFilter'
     targets: 'ProductTargetListRelationFilter'
     firmwareSets: 'FirmwareSetListRelationFilter'
+    stageConfigs: 'ProductStageConfigListRelationFilter'
 
 
 
@@ -17860,6 +17900,7 @@ BoardRevisionKeys = Literal[
     'board',
     'targets',
     'firmwareSets',
+    'stageConfigs',
 ]
 BoardRevisionScalarFieldKeys = Literal[
     'id',
@@ -17882,6 +17923,7 @@ BoardRevisionRelationalFieldKeys = Literal[
         'board',
         'targets',
         'firmwareSets',
+        'stageConfigs',
     ]
 
 # FirmwareSet types
@@ -18597,6 +18639,7 @@ class BoardRevisionIncludeFromFirmwareSet(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFirmwareSetRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareSetRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive1']
 
 
 class BoardRevisionIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
@@ -18604,6 +18647,7 @@ class BoardRevisionIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFirmwareSetRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareSetRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive2']
 
 
 class BoardRevisionIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
@@ -18611,6 +18655,7 @@ class BoardRevisionIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFirmwareSetRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareSetRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive3']
 
 
 class BoardRevisionIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
@@ -18618,6 +18663,7 @@ class BoardRevisionIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFirmwareSetRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareSetRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive4']
 
 
 class BoardRevisionIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
@@ -18930,6 +18976,7 @@ class FindManyFirmwareBuildArgsFromFirmwareSetRecursive4(TypedDict, total=False)
 class ProductStageConfigIncludeFromFirmwareSet(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive1']
 
@@ -18937,6 +18984,7 @@ class ProductStageConfigIncludeFromFirmwareSet(TypedDict, total=False):
 class ProductStageConfigIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive2']
 
@@ -18944,6 +18992,7 @@ class ProductStageConfigIncludeFromFirmwareSetRecursive1(TypedDict, total=False)
 class ProductStageConfigIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive3']
 
@@ -18951,6 +19000,7 @@ class ProductStageConfigIncludeFromFirmwareSetRecursive2(TypedDict, total=False)
 class ProductStageConfigIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive4']
 
@@ -22755,6 +22805,7 @@ class BoardRevisionIncludeFromFirmwareBuild(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareBuildRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive1']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
@@ -22762,6 +22813,7 @@ class BoardRevisionIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareBuildRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive2']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
@@ -22769,6 +22821,7 @@ class BoardRevisionIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareBuildRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive3']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
@@ -22776,6 +22829,7 @@ class BoardRevisionIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromFirmwareBuildRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive4']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
@@ -23088,6 +23142,7 @@ class FindManyFirmwareBuildArgsFromFirmwareBuildRecursive4(TypedDict, total=Fals
 class ProductStageConfigIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive1']
 
@@ -23095,6 +23150,7 @@ class ProductStageConfigIncludeFromFirmwareBuild(TypedDict, total=False):
 class ProductStageConfigIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive2']
 
@@ -23102,6 +23158,7 @@ class ProductStageConfigIncludeFromFirmwareBuildRecursive1(TypedDict, total=Fals
 class ProductStageConfigIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive3']
 
@@ -23109,6 +23166,7 @@ class ProductStageConfigIncludeFromFirmwareBuildRecursive2(TypedDict, total=Fals
 class ProductStageConfigIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive4']
 
@@ -26196,27 +26254,20 @@ class ProductStageConfigOptionalCreateInput(TypedDict, total=False):
     id: _str
     productId: _str
     enabled: _bool
-    buildScript: Optional[_str]
-    buildTarget: Optional[_str]
-    fwRepoUrl: Optional[_str]
-    fwRepoBranch: Optional[_str]
-    mfgRepoUrl: Optional[_str]
-    mfgRepoBranch: Optional[_str]
-    buildVariant: Optional[_str]
-    configFlags: Optional['fields.Json']
-    buildMatrix: Optional['fields.Json']
+    boardRevisionId: Optional[_str]
     testDirectory: Optional[_str]
     testMarker: Optional[_str]
     testTimeout: _int
     priority: _int
     blocksMerge: _bool
-    requiresFuota: _bool
+    autoProgress: _bool
     requiresBench: _bool
     maxDurationSec: _int
     description: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: 'ProductCreateNestedWithoutRelationsInput'
+    boardRevision: 'BoardRevisionCreateNestedWithoutRelationsInput'
     buildRuns: 'BuildRunCreateManyNestedWithoutRelationsInput'
     queueEntries: 'ValidationQueueEntryCreateManyNestedWithoutRelationsInput'
 
@@ -26235,21 +26286,13 @@ class ProductStageConfigOptionalCreateWithoutRelationsInput(TypedDict, total=Fal
     id: _str
     productId: _str
     enabled: _bool
-    buildScript: Optional[_str]
-    buildTarget: Optional[_str]
-    fwRepoUrl: Optional[_str]
-    fwRepoBranch: Optional[_str]
-    mfgRepoUrl: Optional[_str]
-    mfgRepoBranch: Optional[_str]
-    buildVariant: Optional[_str]
-    configFlags: Optional['fields.Json']
-    buildMatrix: Optional['fields.Json']
+    boardRevisionId: Optional[_str]
     testDirectory: Optional[_str]
     testMarker: Optional[_str]
     testTimeout: _int
     priority: _int
     blocksMerge: _bool
-    requiresFuota: _bool
+    autoProgress: _bool
     requiresBench: _bool
     maxDurationSec: _int
     description: Optional[_str]
@@ -26314,27 +26357,19 @@ class ProductStageConfigUpdateInput(TypedDict, total=False):
     stage: Union[AtomicIntInput, _int]
     name: _str
     enabled: _bool
-    buildScript: Optional[_str]
-    buildTarget: Optional[_str]
-    fwRepoUrl: Optional[_str]
-    fwRepoBranch: Optional[_str]
-    mfgRepoUrl: Optional[_str]
-    mfgRepoBranch: Optional[_str]
-    buildVariant: Optional[_str]
-    configFlags: Optional['fields.Json']
-    buildMatrix: Optional['fields.Json']
     testDirectory: Optional[_str]
     testMarker: Optional[_str]
     testTimeout: Union[AtomicIntInput, _int]
     priority: Union[AtomicIntInput, _int]
     blocksMerge: _bool
-    requiresFuota: _bool
+    autoProgress: _bool
     requiresBench: _bool
     maxDurationSec: Union[AtomicIntInput, _int]
     description: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: 'ProductUpdateOneWithoutRelationsInput'
+    boardRevision: 'BoardRevisionUpdateOneWithoutRelationsInput'
     buildRuns: 'BuildRunUpdateManyWithoutRelationsInput'
     queueEntries: 'ValidationQueueEntryUpdateManyWithoutRelationsInput'
 
@@ -26345,21 +26380,12 @@ class ProductStageConfigUpdateManyMutationInput(TypedDict, total=False):
     stage: Union[AtomicIntInput, _int]
     name: _str
     enabled: _bool
-    buildScript: Optional[_str]
-    buildTarget: Optional[_str]
-    fwRepoUrl: Optional[_str]
-    fwRepoBranch: Optional[_str]
-    mfgRepoUrl: Optional[_str]
-    mfgRepoBranch: Optional[_str]
-    buildVariant: Optional[_str]
-    configFlags: Optional['fields.Json']
-    buildMatrix: Optional['fields.Json']
     testDirectory: Optional[_str]
     testMarker: Optional[_str]
     testTimeout: Union[AtomicIntInput, _int]
     priority: Union[AtomicIntInput, _int]
     blocksMerge: _bool
-    requiresFuota: _bool
+    autoProgress: _bool
     requiresBench: _bool
     maxDurationSec: Union[AtomicIntInput, _int]
     description: Optional[_str]
@@ -26439,74 +26465,10 @@ _ProductStageConfig_enabled_OrderByInput = TypedDict(
     total=True
 )
 
-_ProductStageConfig_buildScript_OrderByInput = TypedDict(
-    '_ProductStageConfig_buildScript_OrderByInput',
+_ProductStageConfig_boardRevisionId_OrderByInput = TypedDict(
+    '_ProductStageConfig_boardRevisionId_OrderByInput',
     {
-        'buildScript': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_buildTarget_OrderByInput = TypedDict(
-    '_ProductStageConfig_buildTarget_OrderByInput',
-    {
-        'buildTarget': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_fwRepoUrl_OrderByInput = TypedDict(
-    '_ProductStageConfig_fwRepoUrl_OrderByInput',
-    {
-        'fwRepoUrl': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_fwRepoBranch_OrderByInput = TypedDict(
-    '_ProductStageConfig_fwRepoBranch_OrderByInput',
-    {
-        'fwRepoBranch': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_mfgRepoUrl_OrderByInput = TypedDict(
-    '_ProductStageConfig_mfgRepoUrl_OrderByInput',
-    {
-        'mfgRepoUrl': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_mfgRepoBranch_OrderByInput = TypedDict(
-    '_ProductStageConfig_mfgRepoBranch_OrderByInput',
-    {
-        'mfgRepoBranch': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_buildVariant_OrderByInput = TypedDict(
-    '_ProductStageConfig_buildVariant_OrderByInput',
-    {
-        'buildVariant': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_configFlags_OrderByInput = TypedDict(
-    '_ProductStageConfig_configFlags_OrderByInput',
-    {
-        'configFlags': 'SortOrder',
-    },
-    total=True
-)
-
-_ProductStageConfig_buildMatrix_OrderByInput = TypedDict(
-    '_ProductStageConfig_buildMatrix_OrderByInput',
-    {
-        'buildMatrix': 'SortOrder',
+        'boardRevisionId': 'SortOrder',
     },
     total=True
 )
@@ -26551,10 +26513,10 @@ _ProductStageConfig_blocksMerge_OrderByInput = TypedDict(
     total=True
 )
 
-_ProductStageConfig_requiresFuota_OrderByInput = TypedDict(
-    '_ProductStageConfig_requiresFuota_OrderByInput',
+_ProductStageConfig_autoProgress_OrderByInput = TypedDict(
+    '_ProductStageConfig_autoProgress_OrderByInput',
     {
-        'requiresFuota': 'SortOrder',
+        'autoProgress': 'SortOrder',
     },
     total=True
 )
@@ -26623,21 +26585,13 @@ ProductStageConfigOrderByInput = Union[
     '_ProductStageConfig_stage_OrderByInput',
     '_ProductStageConfig_name_OrderByInput',
     '_ProductStageConfig_enabled_OrderByInput',
-    '_ProductStageConfig_buildScript_OrderByInput',
-    '_ProductStageConfig_buildTarget_OrderByInput',
-    '_ProductStageConfig_fwRepoUrl_OrderByInput',
-    '_ProductStageConfig_fwRepoBranch_OrderByInput',
-    '_ProductStageConfig_mfgRepoUrl_OrderByInput',
-    '_ProductStageConfig_mfgRepoBranch_OrderByInput',
-    '_ProductStageConfig_buildVariant_OrderByInput',
-    '_ProductStageConfig_configFlags_OrderByInput',
-    '_ProductStageConfig_buildMatrix_OrderByInput',
+    '_ProductStageConfig_boardRevisionId_OrderByInput',
     '_ProductStageConfig_testDirectory_OrderByInput',
     '_ProductStageConfig_testMarker_OrderByInput',
     '_ProductStageConfig_testTimeout_OrderByInput',
     '_ProductStageConfig_priority_OrderByInput',
     '_ProductStageConfig_blocksMerge_OrderByInput',
-    '_ProductStageConfig_requiresFuota_OrderByInput',
+    '_ProductStageConfig_autoProgress_OrderByInput',
     '_ProductStageConfig_requiresBench_OrderByInput',
     '_ProductStageConfig_maxDurationSec_OrderByInput',
     '_ProductStageConfig_description_OrderByInput',
@@ -26675,6 +26629,7 @@ class ProductStageConfigListRelationFilter(TypedDict, total=False):
 class ProductStageConfigInclude(TypedDict, total=False):
     """ProductStageConfig relational arguments"""
     product: Union[bool, 'ProductArgsFromProductStageConfig']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfig']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfig']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfig']
 
@@ -27041,6 +26996,7 @@ class BoardRevisionIncludeFromProductStageConfig(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductStageConfigRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive1']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
@@ -27048,6 +27004,7 @@ class BoardRevisionIncludeFromProductStageConfigRecursive1(TypedDict, total=Fals
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductStageConfigRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive2']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
@@ -27055,6 +27012,7 @@ class BoardRevisionIncludeFromProductStageConfigRecursive2(TypedDict, total=Fals
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductStageConfigRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive3']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
@@ -27062,6 +27020,7 @@ class BoardRevisionIncludeFromProductStageConfigRecursive3(TypedDict, total=Fals
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromProductStageConfigRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive4']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
@@ -27374,6 +27333,7 @@ class FindManyFirmwareBuildArgsFromProductStageConfigRecursive4(TypedDict, total
 class ProductStageConfigIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive1']
 
@@ -27381,6 +27341,7 @@ class ProductStageConfigIncludeFromProductStageConfig(TypedDict, total=False):
 class ProductStageConfigIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive2']
 
@@ -27388,6 +27349,7 @@ class ProductStageConfigIncludeFromProductStageConfigRecursive1(TypedDict, total
 class ProductStageConfigIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive3']
 
@@ -27395,6 +27357,7 @@ class ProductStageConfigIncludeFromProductStageConfigRecursive2(TypedDict, total
 class ProductStageConfigIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive4']
 
@@ -30060,27 +30023,20 @@ class ProductStageConfigWhereInput(TypedDict, total=False):
     stage: Union[_int, 'types.IntFilter']
     name: Union[_str, 'types.StringFilter']
     enabled: Union[_bool, 'types.BooleanFilter']
-    buildScript: Union[None, _str, 'types.StringFilter']
-    buildTarget: Union[None, _str, 'types.StringFilter']
-    fwRepoUrl: Union[None, _str, 'types.StringFilter']
-    fwRepoBranch: Union[None, _str, 'types.StringFilter']
-    mfgRepoUrl: Union[None, _str, 'types.StringFilter']
-    mfgRepoBranch: Union[None, _str, 'types.StringFilter']
-    buildVariant: Union[None, _str, 'types.StringFilter']
-    configFlags: Union[None, 'fields.Json', 'types.JsonFilter']
-    buildMatrix: Union[None, 'fields.Json', 'types.JsonFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
     testDirectory: Union[None, _str, 'types.StringFilter']
     testMarker: Union[None, _str, 'types.StringFilter']
     testTimeout: Union[_int, 'types.IntFilter']
     priority: Union[_int, 'types.IntFilter']
     blocksMerge: Union[_bool, 'types.BooleanFilter']
-    requiresFuota: Union[_bool, 'types.BooleanFilter']
+    autoProgress: Union[_bool, 'types.BooleanFilter']
     requiresBench: Union[_bool, 'types.BooleanFilter']
     maxDurationSec: Union[_int, 'types.IntFilter']
     description: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
 
@@ -30098,27 +30054,20 @@ class ProductStageConfigWhereInputRecursive1(TypedDict, total=False):
     stage: Union[_int, 'types.IntFilter']
     name: Union[_str, 'types.StringFilter']
     enabled: Union[_bool, 'types.BooleanFilter']
-    buildScript: Union[None, _str, 'types.StringFilter']
-    buildTarget: Union[None, _str, 'types.StringFilter']
-    fwRepoUrl: Union[None, _str, 'types.StringFilter']
-    fwRepoBranch: Union[None, _str, 'types.StringFilter']
-    mfgRepoUrl: Union[None, _str, 'types.StringFilter']
-    mfgRepoBranch: Union[None, _str, 'types.StringFilter']
-    buildVariant: Union[None, _str, 'types.StringFilter']
-    configFlags: Union[None, 'fields.Json', 'types.JsonFilter']
-    buildMatrix: Union[None, 'fields.Json', 'types.JsonFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
     testDirectory: Union[None, _str, 'types.StringFilter']
     testMarker: Union[None, _str, 'types.StringFilter']
     testTimeout: Union[_int, 'types.IntFilter']
     priority: Union[_int, 'types.IntFilter']
     blocksMerge: Union[_bool, 'types.BooleanFilter']
-    requiresFuota: Union[_bool, 'types.BooleanFilter']
+    autoProgress: Union[_bool, 'types.BooleanFilter']
     requiresBench: Union[_bool, 'types.BooleanFilter']
     maxDurationSec: Union[_int, 'types.IntFilter']
     description: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
 
@@ -30136,27 +30085,20 @@ class ProductStageConfigWhereInputRecursive2(TypedDict, total=False):
     stage: Union[_int, 'types.IntFilter']
     name: Union[_str, 'types.StringFilter']
     enabled: Union[_bool, 'types.BooleanFilter']
-    buildScript: Union[None, _str, 'types.StringFilter']
-    buildTarget: Union[None, _str, 'types.StringFilter']
-    fwRepoUrl: Union[None, _str, 'types.StringFilter']
-    fwRepoBranch: Union[None, _str, 'types.StringFilter']
-    mfgRepoUrl: Union[None, _str, 'types.StringFilter']
-    mfgRepoBranch: Union[None, _str, 'types.StringFilter']
-    buildVariant: Union[None, _str, 'types.StringFilter']
-    configFlags: Union[None, 'fields.Json', 'types.JsonFilter']
-    buildMatrix: Union[None, 'fields.Json', 'types.JsonFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
     testDirectory: Union[None, _str, 'types.StringFilter']
     testMarker: Union[None, _str, 'types.StringFilter']
     testTimeout: Union[_int, 'types.IntFilter']
     priority: Union[_int, 'types.IntFilter']
     blocksMerge: Union[_bool, 'types.BooleanFilter']
-    requiresFuota: Union[_bool, 'types.BooleanFilter']
+    autoProgress: Union[_bool, 'types.BooleanFilter']
     requiresBench: Union[_bool, 'types.BooleanFilter']
     maxDurationSec: Union[_int, 'types.IntFilter']
     description: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
 
@@ -30174,27 +30116,20 @@ class ProductStageConfigWhereInputRecursive3(TypedDict, total=False):
     stage: Union[_int, 'types.IntFilter']
     name: Union[_str, 'types.StringFilter']
     enabled: Union[_bool, 'types.BooleanFilter']
-    buildScript: Union[None, _str, 'types.StringFilter']
-    buildTarget: Union[None, _str, 'types.StringFilter']
-    fwRepoUrl: Union[None, _str, 'types.StringFilter']
-    fwRepoBranch: Union[None, _str, 'types.StringFilter']
-    mfgRepoUrl: Union[None, _str, 'types.StringFilter']
-    mfgRepoBranch: Union[None, _str, 'types.StringFilter']
-    buildVariant: Union[None, _str, 'types.StringFilter']
-    configFlags: Union[None, 'fields.Json', 'types.JsonFilter']
-    buildMatrix: Union[None, 'fields.Json', 'types.JsonFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
     testDirectory: Union[None, _str, 'types.StringFilter']
     testMarker: Union[None, _str, 'types.StringFilter']
     testTimeout: Union[_int, 'types.IntFilter']
     priority: Union[_int, 'types.IntFilter']
     blocksMerge: Union[_bool, 'types.BooleanFilter']
-    requiresFuota: Union[_bool, 'types.BooleanFilter']
+    autoProgress: Union[_bool, 'types.BooleanFilter']
     requiresBench: Union[_bool, 'types.BooleanFilter']
     maxDurationSec: Union[_int, 'types.IntFilter']
     description: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
 
@@ -30212,27 +30147,20 @@ class ProductStageConfigWhereInputRecursive4(TypedDict, total=False):
     stage: Union[_int, 'types.IntFilter']
     name: Union[_str, 'types.StringFilter']
     enabled: Union[_bool, 'types.BooleanFilter']
-    buildScript: Union[None, _str, 'types.StringFilter']
-    buildTarget: Union[None, _str, 'types.StringFilter']
-    fwRepoUrl: Union[None, _str, 'types.StringFilter']
-    fwRepoBranch: Union[None, _str, 'types.StringFilter']
-    mfgRepoUrl: Union[None, _str, 'types.StringFilter']
-    mfgRepoBranch: Union[None, _str, 'types.StringFilter']
-    buildVariant: Union[None, _str, 'types.StringFilter']
-    configFlags: Union[None, 'fields.Json', 'types.JsonFilter']
-    buildMatrix: Union[None, 'fields.Json', 'types.JsonFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
     testDirectory: Union[None, _str, 'types.StringFilter']
     testMarker: Union[None, _str, 'types.StringFilter']
     testTimeout: Union[_int, 'types.IntFilter']
     priority: Union[_int, 'types.IntFilter']
     blocksMerge: Union[_bool, 'types.BooleanFilter']
-    requiresFuota: Union[_bool, 'types.BooleanFilter']
+    autoProgress: Union[_bool, 'types.BooleanFilter']
     requiresBench: Union[_bool, 'types.BooleanFilter']
     maxDurationSec: Union[_int, 'types.IntFilter']
     description: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
 
@@ -30250,21 +30178,13 @@ class ProductStageConfigScalarWhereWithAggregatesInput(TypedDict, total=False):
     stage: Union[_int, 'types.IntWithAggregatesFilter']
     name: Union[_str, 'types.StringWithAggregatesFilter']
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    buildScript: Union[_str, 'types.StringWithAggregatesFilter']
-    buildTarget: Union[_str, 'types.StringWithAggregatesFilter']
-    fwRepoUrl: Union[_str, 'types.StringWithAggregatesFilter']
-    fwRepoBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    mfgRepoUrl: Union[_str, 'types.StringWithAggregatesFilter']
-    mfgRepoBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    buildVariant: Union[_str, 'types.StringWithAggregatesFilter']
-    configFlags: Union['fields.Json', 'types.JsonWithAggregatesFilter']
-    buildMatrix: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     testDirectory: Union[_str, 'types.StringWithAggregatesFilter']
     testMarker: Union[_str, 'types.StringWithAggregatesFilter']
     testTimeout: Union[_int, 'types.IntWithAggregatesFilter']
     priority: Union[_int, 'types.IntWithAggregatesFilter']
     blocksMerge: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    requiresFuota: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    autoProgress: Union[_bool, 'types.BooleanWithAggregatesFilter']
     requiresBench: Union[_bool, 'types.BooleanWithAggregatesFilter']
     maxDurationSec: Union[_int, 'types.IntWithAggregatesFilter']
     description: Union[_str, 'types.StringWithAggregatesFilter']
@@ -30283,21 +30203,13 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive1(TypedDict, tota
     stage: Union[_int, 'types.IntWithAggregatesFilter']
     name: Union[_str, 'types.StringWithAggregatesFilter']
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    buildScript: Union[_str, 'types.StringWithAggregatesFilter']
-    buildTarget: Union[_str, 'types.StringWithAggregatesFilter']
-    fwRepoUrl: Union[_str, 'types.StringWithAggregatesFilter']
-    fwRepoBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    mfgRepoUrl: Union[_str, 'types.StringWithAggregatesFilter']
-    mfgRepoBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    buildVariant: Union[_str, 'types.StringWithAggregatesFilter']
-    configFlags: Union['fields.Json', 'types.JsonWithAggregatesFilter']
-    buildMatrix: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     testDirectory: Union[_str, 'types.StringWithAggregatesFilter']
     testMarker: Union[_str, 'types.StringWithAggregatesFilter']
     testTimeout: Union[_int, 'types.IntWithAggregatesFilter']
     priority: Union[_int, 'types.IntWithAggregatesFilter']
     blocksMerge: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    requiresFuota: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    autoProgress: Union[_bool, 'types.BooleanWithAggregatesFilter']
     requiresBench: Union[_bool, 'types.BooleanWithAggregatesFilter']
     maxDurationSec: Union[_int, 'types.IntWithAggregatesFilter']
     description: Union[_str, 'types.StringWithAggregatesFilter']
@@ -30316,21 +30228,13 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive2(TypedDict, tota
     stage: Union[_int, 'types.IntWithAggregatesFilter']
     name: Union[_str, 'types.StringWithAggregatesFilter']
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    buildScript: Union[_str, 'types.StringWithAggregatesFilter']
-    buildTarget: Union[_str, 'types.StringWithAggregatesFilter']
-    fwRepoUrl: Union[_str, 'types.StringWithAggregatesFilter']
-    fwRepoBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    mfgRepoUrl: Union[_str, 'types.StringWithAggregatesFilter']
-    mfgRepoBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    buildVariant: Union[_str, 'types.StringWithAggregatesFilter']
-    configFlags: Union['fields.Json', 'types.JsonWithAggregatesFilter']
-    buildMatrix: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     testDirectory: Union[_str, 'types.StringWithAggregatesFilter']
     testMarker: Union[_str, 'types.StringWithAggregatesFilter']
     testTimeout: Union[_int, 'types.IntWithAggregatesFilter']
     priority: Union[_int, 'types.IntWithAggregatesFilter']
     blocksMerge: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    requiresFuota: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    autoProgress: Union[_bool, 'types.BooleanWithAggregatesFilter']
     requiresBench: Union[_bool, 'types.BooleanWithAggregatesFilter']
     maxDurationSec: Union[_int, 'types.IntWithAggregatesFilter']
     description: Union[_str, 'types.StringWithAggregatesFilter']
@@ -30349,21 +30253,13 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive3(TypedDict, tota
     stage: Union[_int, 'types.IntWithAggregatesFilter']
     name: Union[_str, 'types.StringWithAggregatesFilter']
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    buildScript: Union[_str, 'types.StringWithAggregatesFilter']
-    buildTarget: Union[_str, 'types.StringWithAggregatesFilter']
-    fwRepoUrl: Union[_str, 'types.StringWithAggregatesFilter']
-    fwRepoBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    mfgRepoUrl: Union[_str, 'types.StringWithAggregatesFilter']
-    mfgRepoBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    buildVariant: Union[_str, 'types.StringWithAggregatesFilter']
-    configFlags: Union['fields.Json', 'types.JsonWithAggregatesFilter']
-    buildMatrix: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     testDirectory: Union[_str, 'types.StringWithAggregatesFilter']
     testMarker: Union[_str, 'types.StringWithAggregatesFilter']
     testTimeout: Union[_int, 'types.IntWithAggregatesFilter']
     priority: Union[_int, 'types.IntWithAggregatesFilter']
     blocksMerge: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    requiresFuota: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    autoProgress: Union[_bool, 'types.BooleanWithAggregatesFilter']
     requiresBench: Union[_bool, 'types.BooleanWithAggregatesFilter']
     maxDurationSec: Union[_int, 'types.IntWithAggregatesFilter']
     description: Union[_str, 'types.StringWithAggregatesFilter']
@@ -30382,21 +30278,13 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive4(TypedDict, tota
     stage: Union[_int, 'types.IntWithAggregatesFilter']
     name: Union[_str, 'types.StringWithAggregatesFilter']
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    buildScript: Union[_str, 'types.StringWithAggregatesFilter']
-    buildTarget: Union[_str, 'types.StringWithAggregatesFilter']
-    fwRepoUrl: Union[_str, 'types.StringWithAggregatesFilter']
-    fwRepoBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    mfgRepoUrl: Union[_str, 'types.StringWithAggregatesFilter']
-    mfgRepoBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    buildVariant: Union[_str, 'types.StringWithAggregatesFilter']
-    configFlags: Union['fields.Json', 'types.JsonWithAggregatesFilter']
-    buildMatrix: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     testDirectory: Union[_str, 'types.StringWithAggregatesFilter']
     testMarker: Union[_str, 'types.StringWithAggregatesFilter']
     testTimeout: Union[_int, 'types.IntWithAggregatesFilter']
     priority: Union[_int, 'types.IntWithAggregatesFilter']
     blocksMerge: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    requiresFuota: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    autoProgress: Union[_bool, 'types.BooleanWithAggregatesFilter']
     requiresBench: Union[_bool, 'types.BooleanWithAggregatesFilter']
     maxDurationSec: Union[_int, 'types.IntWithAggregatesFilter']
     description: Union[_str, 'types.StringWithAggregatesFilter']
@@ -30411,21 +30299,13 @@ class ProductStageConfigGroupByOutput(TypedDict, total=False):
     stage: _int
     name: _str
     enabled: _bool
-    buildScript: _str
-    buildTarget: _str
-    fwRepoUrl: _str
-    fwRepoBranch: _str
-    mfgRepoUrl: _str
-    mfgRepoBranch: _str
-    buildVariant: _str
-    configFlags: 'fields.Json'
-    buildMatrix: 'fields.Json'
+    boardRevisionId: _str
     testDirectory: _str
     testMarker: _str
     testTimeout: _int
     priority: _int
     blocksMerge: _bool
-    requiresFuota: _bool
+    autoProgress: _bool
     requiresBench: _bool
     maxDurationSec: _int
     description: _str
@@ -30461,21 +30341,13 @@ class ProductStageConfigScalarAggregateOutput(TypedDict, total=False):
     stage: _int
     name: _str
     enabled: _bool
-    buildScript: _str
-    buildTarget: _str
-    fwRepoUrl: _str
-    fwRepoBranch: _str
-    mfgRepoUrl: _str
-    mfgRepoBranch: _str
-    buildVariant: _str
-    configFlags: 'fields.Json'
-    buildMatrix: 'fields.Json'
+    boardRevisionId: _str
     testDirectory: _str
     testMarker: _str
     testTimeout: _int
     priority: _int
     blocksMerge: _bool
-    requiresFuota: _bool
+    autoProgress: _bool
     requiresBench: _bool
     maxDurationSec: _int
     description: _str
@@ -30494,21 +30366,13 @@ class ProductStageConfigMaxAggregateInput(TypedDict, total=False):
     stage: bool
     name: bool
     enabled: bool
-    buildScript: bool
-    buildTarget: bool
-    fwRepoUrl: bool
-    fwRepoBranch: bool
-    mfgRepoUrl: bool
-    mfgRepoBranch: bool
-    buildVariant: bool
-    configFlags: bool
-    buildMatrix: bool
+    boardRevisionId: bool
     testDirectory: bool
     testMarker: bool
     testTimeout: bool
     priority: bool
     blocksMerge: bool
-    requiresFuota: bool
+    autoProgress: bool
     requiresBench: bool
     maxDurationSec: bool
     description: bool
@@ -30523,21 +30387,13 @@ class ProductStageConfigMinAggregateInput(TypedDict, total=False):
     stage: bool
     name: bool
     enabled: bool
-    buildScript: bool
-    buildTarget: bool
-    fwRepoUrl: bool
-    fwRepoBranch: bool
-    mfgRepoUrl: bool
-    mfgRepoBranch: bool
-    buildVariant: bool
-    configFlags: bool
-    buildMatrix: bool
+    boardRevisionId: bool
     testDirectory: bool
     testMarker: bool
     testTimeout: bool
     priority: bool
     blocksMerge: bool
-    requiresFuota: bool
+    autoProgress: bool
     requiresBench: bool
     maxDurationSec: bool
     description: bool
@@ -30565,21 +30421,13 @@ ProductStageConfigCountAggregateInput = TypedDict(
         'stage': bool,
         'name': bool,
         'enabled': bool,
-        'buildScript': bool,
-        'buildTarget': bool,
-        'fwRepoUrl': bool,
-        'fwRepoBranch': bool,
-        'mfgRepoUrl': bool,
-        'mfgRepoBranch': bool,
-        'buildVariant': bool,
-        'configFlags': bool,
-        'buildMatrix': bool,
+        'boardRevisionId': bool,
         'testDirectory': bool,
         'testMarker': bool,
         'testTimeout': bool,
         'priority': bool,
         'blocksMerge': bool,
-        'requiresFuota': bool,
+        'autoProgress': bool,
         'requiresBench': bool,
         'maxDurationSec': bool,
         'description': bool,
@@ -30598,21 +30446,13 @@ ProductStageConfigCountAggregateOutput = TypedDict(
         'stage': int,
         'name': int,
         'enabled': int,
-        'buildScript': int,
-        'buildTarget': int,
-        'fwRepoUrl': int,
-        'fwRepoBranch': int,
-        'mfgRepoUrl': int,
-        'mfgRepoBranch': int,
-        'buildVariant': int,
-        'configFlags': int,
-        'buildMatrix': int,
+        'boardRevisionId': int,
         'testDirectory': int,
         'testMarker': int,
         'testTimeout': int,
         'priority': int,
         'blocksMerge': int,
-        'requiresFuota': int,
+        'autoProgress': int,
         'requiresBench': int,
         'maxDurationSec': int,
         'description': int,
@@ -30630,27 +30470,20 @@ ProductStageConfigKeys = Literal[
     'stage',
     'name',
     'enabled',
-    'buildScript',
-    'buildTarget',
-    'fwRepoUrl',
-    'fwRepoBranch',
-    'mfgRepoUrl',
-    'mfgRepoBranch',
-    'buildVariant',
-    'configFlags',
-    'buildMatrix',
+    'boardRevisionId',
     'testDirectory',
     'testMarker',
     'testTimeout',
     'priority',
     'blocksMerge',
-    'requiresFuota',
+    'autoProgress',
     'requiresBench',
     'maxDurationSec',
     'description',
     'createdAt',
     'updatedAt',
     'product',
+    'boardRevision',
     'buildRuns',
     'queueEntries',
 ]
@@ -30660,21 +30493,13 @@ ProductStageConfigScalarFieldKeys = Literal[
     'stage',
     'name',
     'enabled',
-    'buildScript',
-    'buildTarget',
-    'fwRepoUrl',
-    'fwRepoBranch',
-    'mfgRepoUrl',
-    'mfgRepoBranch',
-    'buildVariant',
-    'configFlags',
-    'buildMatrix',
+    'boardRevisionId',
     'testDirectory',
     'testMarker',
     'testTimeout',
     'priority',
     'blocksMerge',
-    'requiresFuota',
+    'autoProgress',
     'requiresBench',
     'maxDurationSec',
     'description',
@@ -30685,6 +30510,7 @@ ProductStageConfigScalarFieldKeysT = TypeVar('ProductStageConfigScalarFieldKeysT
 
 ProductStageConfigRelationalFieldKeys = Literal[
         'product',
+        'boardRevision',
         'buildRuns',
         'queueEntries',
     ]
@@ -31425,6 +31251,7 @@ class BoardRevisionIncludeFromValidationQueueEntry(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromValidationQueueEntryRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive1']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
@@ -31432,6 +31259,7 @@ class BoardRevisionIncludeFromValidationQueueEntryRecursive1(TypedDict, total=Fa
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromValidationQueueEntryRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive2']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
@@ -31439,6 +31267,7 @@ class BoardRevisionIncludeFromValidationQueueEntryRecursive2(TypedDict, total=Fa
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromValidationQueueEntryRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive3']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
@@ -31446,6 +31275,7 @@ class BoardRevisionIncludeFromValidationQueueEntryRecursive3(TypedDict, total=Fa
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromValidationQueueEntryRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive4']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
@@ -31758,6 +31588,7 @@ class FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive4(TypedDict, tot
 class ProductStageConfigIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive1']
 
@@ -31765,6 +31596,7 @@ class ProductStageConfigIncludeFromValidationQueueEntry(TypedDict, total=False):
 class ProductStageConfigIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive2']
 
@@ -31772,6 +31604,7 @@ class ProductStageConfigIncludeFromValidationQueueEntryRecursive1(TypedDict, tot
 class ProductStageConfigIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive3']
 
@@ -31779,6 +31612,7 @@ class ProductStageConfigIncludeFromValidationQueueEntryRecursive2(TypedDict, tot
 class ProductStageConfigIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive4']
 
@@ -35714,6 +35548,7 @@ class BoardRevisionIncludeFromBuildRun(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildRunRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildRunRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildRunRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive1']
 
 
 class BoardRevisionIncludeFromBuildRunRecursive1(TypedDict, total=False):
@@ -35721,6 +35556,7 @@ class BoardRevisionIncludeFromBuildRunRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildRunRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildRunRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildRunRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive2']
 
 
 class BoardRevisionIncludeFromBuildRunRecursive2(TypedDict, total=False):
@@ -35728,6 +35564,7 @@ class BoardRevisionIncludeFromBuildRunRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildRunRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildRunRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildRunRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive3']
 
 
 class BoardRevisionIncludeFromBuildRunRecursive3(TypedDict, total=False):
@@ -35735,6 +35572,7 @@ class BoardRevisionIncludeFromBuildRunRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildRunRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildRunRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildRunRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive4']
 
 
 class BoardRevisionIncludeFromBuildRunRecursive4(TypedDict, total=False):
@@ -36047,6 +35885,7 @@ class FindManyFirmwareBuildArgsFromBuildRunRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromBuildRun(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive1']
 
@@ -36054,6 +35893,7 @@ class ProductStageConfigIncludeFromBuildRun(TypedDict, total=False):
 class ProductStageConfigIncludeFromBuildRunRecursive1(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive2']
 
@@ -36061,6 +35901,7 @@ class ProductStageConfigIncludeFromBuildRunRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromBuildRunRecursive2(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive3']
 
@@ -36068,6 +35909,7 @@ class ProductStageConfigIncludeFromBuildRunRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromBuildRunRecursive3(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive4']
 
@@ -40200,6 +40042,7 @@ class BoardRevisionIncludeFromBuildJob(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildJobRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive1']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive1(TypedDict, total=False):
@@ -40207,6 +40050,7 @@ class BoardRevisionIncludeFromBuildJobRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildJobRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive2']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive2(TypedDict, total=False):
@@ -40214,6 +40058,7 @@ class BoardRevisionIncludeFromBuildJobRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildJobRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive3']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive3(TypedDict, total=False):
@@ -40221,6 +40066,7 @@ class BoardRevisionIncludeFromBuildJobRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildJobRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildJobRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive4']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive4(TypedDict, total=False):
@@ -40533,6 +40379,7 @@ class FindManyFirmwareBuildArgsFromBuildJobRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive1']
 
@@ -40540,6 +40387,7 @@ class ProductStageConfigIncludeFromBuildJob(TypedDict, total=False):
 class ProductStageConfigIncludeFromBuildJobRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive2']
 
@@ -40547,6 +40395,7 @@ class ProductStageConfigIncludeFromBuildJobRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromBuildJobRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive3']
 
@@ -40554,6 +40403,7 @@ class ProductStageConfigIncludeFromBuildJobRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromBuildJobRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive4']
 
@@ -44586,6 +44436,7 @@ class BoardRevisionIncludeFromBuildArtifact(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildArtifactRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildArtifactRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildArtifactRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive1']
 
 
 class BoardRevisionIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
@@ -44593,6 +44444,7 @@ class BoardRevisionIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildArtifactRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildArtifactRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildArtifactRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive2']
 
 
 class BoardRevisionIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
@@ -44600,6 +44452,7 @@ class BoardRevisionIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildArtifactRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildArtifactRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildArtifactRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive3']
 
 
 class BoardRevisionIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
@@ -44607,6 +44460,7 @@ class BoardRevisionIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromBuildArtifactRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromBuildArtifactRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildArtifactRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive4']
 
 
 class BoardRevisionIncludeFromBuildArtifactRecursive4(TypedDict, total=False):
@@ -44919,6 +44773,7 @@ class FindManyFirmwareBuildArgsFromBuildArtifactRecursive4(TypedDict, total=Fals
 class ProductStageConfigIncludeFromBuildArtifact(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive1']
 
@@ -44926,6 +44781,7 @@ class ProductStageConfigIncludeFromBuildArtifact(TypedDict, total=False):
 class ProductStageConfigIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive2']
 
@@ -44933,6 +44789,7 @@ class ProductStageConfigIncludeFromBuildArtifactRecursive1(TypedDict, total=Fals
 class ProductStageConfigIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive3']
 
@@ -44940,6 +44797,7 @@ class ProductStageConfigIncludeFromBuildArtifactRecursive2(TypedDict, total=Fals
 class ProductStageConfigIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive4']
 
@@ -48711,6 +48569,7 @@ class BoardRevisionIncludeFromSession(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromSessionRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromSessionRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive1']
 
 
 class BoardRevisionIncludeFromSessionRecursive1(TypedDict, total=False):
@@ -48718,6 +48577,7 @@ class BoardRevisionIncludeFromSessionRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromSessionRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromSessionRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive2']
 
 
 class BoardRevisionIncludeFromSessionRecursive2(TypedDict, total=False):
@@ -48725,6 +48585,7 @@ class BoardRevisionIncludeFromSessionRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromSessionRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromSessionRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive3']
 
 
 class BoardRevisionIncludeFromSessionRecursive3(TypedDict, total=False):
@@ -48732,6 +48593,7 @@ class BoardRevisionIncludeFromSessionRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromSessionRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromSessionRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive4']
 
 
 class BoardRevisionIncludeFromSessionRecursive4(TypedDict, total=False):
@@ -49044,6 +48906,7 @@ class FindManyFirmwareBuildArgsFromSessionRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive1']
 
@@ -49051,6 +48914,7 @@ class ProductStageConfigIncludeFromSession(TypedDict, total=False):
 class ProductStageConfigIncludeFromSessionRecursive1(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive2']
 
@@ -49058,6 +48922,7 @@ class ProductStageConfigIncludeFromSessionRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromSessionRecursive2(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive3']
 
@@ -49065,6 +48930,7 @@ class ProductStageConfigIncludeFromSessionRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromSessionRecursive3(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive4']
 
@@ -52908,6 +52774,7 @@ class BoardRevisionIncludeFromDevice(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromDeviceRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeviceRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive1']
 
 
 class BoardRevisionIncludeFromDeviceRecursive1(TypedDict, total=False):
@@ -52915,6 +52782,7 @@ class BoardRevisionIncludeFromDeviceRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromDeviceRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeviceRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive2']
 
 
 class BoardRevisionIncludeFromDeviceRecursive2(TypedDict, total=False):
@@ -52922,6 +52790,7 @@ class BoardRevisionIncludeFromDeviceRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromDeviceRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeviceRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive3']
 
 
 class BoardRevisionIncludeFromDeviceRecursive3(TypedDict, total=False):
@@ -52929,6 +52798,7 @@ class BoardRevisionIncludeFromDeviceRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromDeviceRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeviceRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive4']
 
 
 class BoardRevisionIncludeFromDeviceRecursive4(TypedDict, total=False):
@@ -53241,6 +53111,7 @@ class FindManyFirmwareBuildArgsFromDeviceRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive1']
 
@@ -53248,6 +53119,7 @@ class ProductStageConfigIncludeFromDevice(TypedDict, total=False):
 class ProductStageConfigIncludeFromDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive2']
 
@@ -53255,6 +53127,7 @@ class ProductStageConfigIncludeFromDeviceRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive3']
 
@@ -53262,6 +53135,7 @@ class ProductStageConfigIncludeFromDeviceRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive4']
 
@@ -56883,6 +56757,7 @@ class BoardRevisionIncludeFromFixtureDesign(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureDesignRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
@@ -56890,6 +56765,7 @@ class BoardRevisionIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureDesignRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
@@ -56897,6 +56773,7 @@ class BoardRevisionIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureDesignRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
@@ -56904,6 +56781,7 @@ class BoardRevisionIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureDesignRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
@@ -57216,6 +57094,7 @@ class FindManyFirmwareBuildArgsFromFixtureDesignRecursive4(TypedDict, total=Fals
 class ProductStageConfigIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive1']
 
@@ -57223,6 +57102,7 @@ class ProductStageConfigIncludeFromFixtureDesign(TypedDict, total=False):
 class ProductStageConfigIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive2']
 
@@ -57230,6 +57110,7 @@ class ProductStageConfigIncludeFromFixtureDesignRecursive1(TypedDict, total=Fals
 class ProductStageConfigIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive3']
 
@@ -57237,6 +57118,7 @@ class ProductStageConfigIncludeFromFixtureDesignRecursive2(TypedDict, total=Fals
 class ProductStageConfigIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive4']
 
@@ -61001,6 +60883,7 @@ class BoardRevisionIncludeFromFixture(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureRecursive1(TypedDict, total=False):
@@ -61008,6 +60891,7 @@ class BoardRevisionIncludeFromFixtureRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureRecursive2(TypedDict, total=False):
@@ -61015,6 +60899,7 @@ class BoardRevisionIncludeFromFixtureRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureRecursive3(TypedDict, total=False):
@@ -61022,6 +60907,7 @@ class BoardRevisionIncludeFromFixtureRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureRecursive4(TypedDict, total=False):
@@ -61334,6 +61220,7 @@ class FindManyFirmwareBuildArgsFromFixtureRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive1']
 
@@ -61341,6 +61228,7 @@ class ProductStageConfigIncludeFromFixture(TypedDict, total=False):
 class ProductStageConfigIncludeFromFixtureRecursive1(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive2']
 
@@ -61348,6 +61236,7 @@ class ProductStageConfigIncludeFromFixtureRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromFixtureRecursive2(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive3']
 
@@ -61355,6 +61244,7 @@ class ProductStageConfigIncludeFromFixtureRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromFixtureRecursive3(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive4']
 
@@ -65231,6 +65121,7 @@ class BoardRevisionIncludeFromFixtureSlot(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureSlotRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
@@ -65238,6 +65129,7 @@ class BoardRevisionIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureSlotRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
@@ -65245,6 +65137,7 @@ class BoardRevisionIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureSlotRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
@@ -65252,6 +65145,7 @@ class BoardRevisionIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromFixtureSlotRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
@@ -65564,6 +65458,7 @@ class FindManyFirmwareBuildArgsFromFixtureSlotRecursive4(TypedDict, total=False)
 class ProductStageConfigIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive1']
 
@@ -65571,6 +65466,7 @@ class ProductStageConfigIncludeFromFixtureSlot(TypedDict, total=False):
 class ProductStageConfigIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive2']
 
@@ -65578,6 +65474,7 @@ class ProductStageConfigIncludeFromFixtureSlotRecursive1(TypedDict, total=False)
 class ProductStageConfigIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive3']
 
@@ -65585,6 +65482,7 @@ class ProductStageConfigIncludeFromFixtureSlotRecursive2(TypedDict, total=False)
 class ProductStageConfigIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive4']
 
@@ -69355,6 +69253,7 @@ class BoardRevisionIncludeFromNode(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromNodeRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromNodeRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive1']
 
 
 class BoardRevisionIncludeFromNodeRecursive1(TypedDict, total=False):
@@ -69362,6 +69261,7 @@ class BoardRevisionIncludeFromNodeRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromNodeRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromNodeRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive2']
 
 
 class BoardRevisionIncludeFromNodeRecursive2(TypedDict, total=False):
@@ -69369,6 +69269,7 @@ class BoardRevisionIncludeFromNodeRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromNodeRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromNodeRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive3']
 
 
 class BoardRevisionIncludeFromNodeRecursive3(TypedDict, total=False):
@@ -69376,6 +69277,7 @@ class BoardRevisionIncludeFromNodeRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromNodeRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromNodeRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive4']
 
 
 class BoardRevisionIncludeFromNodeRecursive4(TypedDict, total=False):
@@ -69688,6 +69590,7 @@ class FindManyFirmwareBuildArgsFromNodeRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive1']
 
@@ -69695,6 +69598,7 @@ class ProductStageConfigIncludeFromNode(TypedDict, total=False):
 class ProductStageConfigIncludeFromNodeRecursive1(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive2']
 
@@ -69702,6 +69606,7 @@ class ProductStageConfigIncludeFromNodeRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromNodeRecursive2(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive3']
 
@@ -69709,6 +69614,7 @@ class ProductStageConfigIncludeFromNodeRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromNodeRecursive3(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive4']
 
@@ -73413,6 +73319,7 @@ class BoardRevisionIncludeFromIcleDevice(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleDeviceRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive1']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
@@ -73420,6 +73327,7 @@ class BoardRevisionIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleDeviceRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive2']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
@@ -73427,6 +73335,7 @@ class BoardRevisionIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleDeviceRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive3']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
@@ -73434,6 +73343,7 @@ class BoardRevisionIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleDeviceRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive4']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
@@ -73746,6 +73656,7 @@ class FindManyFirmwareBuildArgsFromIcleDeviceRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive1']
 
@@ -73753,6 +73664,7 @@ class ProductStageConfigIncludeFromIcleDevice(TypedDict, total=False):
 class ProductStageConfigIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive2']
 
@@ -73760,6 +73672,7 @@ class ProductStageConfigIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive3']
 
@@ -73767,6 +73680,7 @@ class ProductStageConfigIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive4']
 
@@ -77449,6 +77363,7 @@ class BoardRevisionIncludeFromIclePendingCommand(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromIclePendingCommandRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive1']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
@@ -77456,6 +77371,7 @@ class BoardRevisionIncludeFromIclePendingCommandRecursive1(TypedDict, total=Fals
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromIclePendingCommandRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive2']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
@@ -77463,6 +77379,7 @@ class BoardRevisionIncludeFromIclePendingCommandRecursive2(TypedDict, total=Fals
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromIclePendingCommandRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive3']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
@@ -77470,6 +77387,7 @@ class BoardRevisionIncludeFromIclePendingCommandRecursive3(TypedDict, total=Fals
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromIclePendingCommandRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive4']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
@@ -77782,6 +77700,7 @@ class FindManyFirmwareBuildArgsFromIclePendingCommandRecursive4(TypedDict, total
 class ProductStageConfigIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive1']
 
@@ -77789,6 +77708,7 @@ class ProductStageConfigIncludeFromIclePendingCommand(TypedDict, total=False):
 class ProductStageConfigIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive2']
 
@@ -77796,6 +77716,7 @@ class ProductStageConfigIncludeFromIclePendingCommandRecursive1(TypedDict, total
 class ProductStageConfigIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive3']
 
@@ -77803,6 +77724,7 @@ class ProductStageConfigIncludeFromIclePendingCommandRecursive2(TypedDict, total
 class ProductStageConfigIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive4']
 
@@ -81380,6 +81302,7 @@ class BoardRevisionIncludeFromIcleLog(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromIcleLogRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleLogRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive1']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive1(TypedDict, total=False):
@@ -81387,6 +81310,7 @@ class BoardRevisionIncludeFromIcleLogRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromIcleLogRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleLogRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive2']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive2(TypedDict, total=False):
@@ -81394,6 +81318,7 @@ class BoardRevisionIncludeFromIcleLogRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromIcleLogRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleLogRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive3']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive3(TypedDict, total=False):
@@ -81401,6 +81326,7 @@ class BoardRevisionIncludeFromIcleLogRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromIcleLogRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromIcleLogRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive4']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive4(TypedDict, total=False):
@@ -81713,6 +81639,7 @@ class FindManyFirmwareBuildArgsFromIcleLogRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive1']
 
@@ -81720,6 +81647,7 @@ class ProductStageConfigIncludeFromIcleLog(TypedDict, total=False):
 class ProductStageConfigIncludeFromIcleLogRecursive1(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive2']
 
@@ -81727,6 +81655,7 @@ class ProductStageConfigIncludeFromIcleLogRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromIcleLogRecursive2(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive3']
 
@@ -81734,6 +81663,7 @@ class ProductStageConfigIncludeFromIcleLogRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromIcleLogRecursive3(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive4']
 
@@ -85300,6 +85230,7 @@ class BoardRevisionIncludeFromDeployment(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromDeploymentRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive1']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive1(TypedDict, total=False):
@@ -85307,6 +85238,7 @@ class BoardRevisionIncludeFromDeploymentRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromDeploymentRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive2']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive2(TypedDict, total=False):
@@ -85314,6 +85246,7 @@ class BoardRevisionIncludeFromDeploymentRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromDeploymentRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive3']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive3(TypedDict, total=False):
@@ -85321,6 +85254,7 @@ class BoardRevisionIncludeFromDeploymentRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromDeploymentRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive4']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive4(TypedDict, total=False):
@@ -85633,6 +85567,7 @@ class FindManyFirmwareBuildArgsFromDeploymentRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromDeployment(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive1']
 
@@ -85640,6 +85575,7 @@ class ProductStageConfigIncludeFromDeployment(TypedDict, total=False):
 class ProductStageConfigIncludeFromDeploymentRecursive1(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive2']
 
@@ -85647,6 +85583,7 @@ class ProductStageConfigIncludeFromDeploymentRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromDeploymentRecursive2(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive3']
 
@@ -85654,6 +85591,7 @@ class ProductStageConfigIncludeFromDeploymentRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromDeploymentRecursive3(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive4']
 
@@ -89296,6 +89234,7 @@ class BoardRevisionIncludeFromTest(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive1']
 
 
 class BoardRevisionIncludeFromTestRecursive1(TypedDict, total=False):
@@ -89303,6 +89242,7 @@ class BoardRevisionIncludeFromTestRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive2']
 
 
 class BoardRevisionIncludeFromTestRecursive2(TypedDict, total=False):
@@ -89310,6 +89250,7 @@ class BoardRevisionIncludeFromTestRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive3']
 
 
 class BoardRevisionIncludeFromTestRecursive3(TypedDict, total=False):
@@ -89317,6 +89258,7 @@ class BoardRevisionIncludeFromTestRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive4']
 
 
 class BoardRevisionIncludeFromTestRecursive4(TypedDict, total=False):
@@ -89629,6 +89571,7 @@ class FindManyFirmwareBuildArgsFromTestRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive1']
 
@@ -89636,6 +89579,7 @@ class ProductStageConfigIncludeFromTest(TypedDict, total=False):
 class ProductStageConfigIncludeFromTestRecursive1(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive2']
 
@@ -89643,6 +89587,7 @@ class ProductStageConfigIncludeFromTestRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromTestRecursive2(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive3']
 
@@ -89650,6 +89595,7 @@ class ProductStageConfigIncludeFromTestRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromTestRecursive3(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive4']
 
@@ -93325,6 +93271,7 @@ class BoardRevisionIncludeFromTestExecution(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestExecutionRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive1']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive1(TypedDict, total=False):
@@ -93332,6 +93279,7 @@ class BoardRevisionIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestExecutionRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive2']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive2(TypedDict, total=False):
@@ -93339,6 +93287,7 @@ class BoardRevisionIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestExecutionRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive3']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive3(TypedDict, total=False):
@@ -93346,6 +93295,7 @@ class BoardRevisionIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestExecutionRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive4']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive4(TypedDict, total=False):
@@ -93658,6 +93608,7 @@ class FindManyFirmwareBuildArgsFromTestExecutionRecursive4(TypedDict, total=Fals
 class ProductStageConfigIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive1']
 
@@ -93665,6 +93616,7 @@ class ProductStageConfigIncludeFromTestExecution(TypedDict, total=False):
 class ProductStageConfigIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive2']
 
@@ -93672,6 +93624,7 @@ class ProductStageConfigIncludeFromTestExecutionRecursive1(TypedDict, total=Fals
 class ProductStageConfigIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive3']
 
@@ -93679,6 +93632,7 @@ class ProductStageConfigIncludeFromTestExecutionRecursive2(TypedDict, total=Fals
 class ProductStageConfigIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive4']
 
@@ -97438,6 +97392,7 @@ class BoardRevisionIncludeFromTestStep(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestStepRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestStepRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive1']
 
 
 class BoardRevisionIncludeFromTestStepRecursive1(TypedDict, total=False):
@@ -97445,6 +97400,7 @@ class BoardRevisionIncludeFromTestStepRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestStepRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestStepRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive2']
 
 
 class BoardRevisionIncludeFromTestStepRecursive2(TypedDict, total=False):
@@ -97452,6 +97408,7 @@ class BoardRevisionIncludeFromTestStepRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestStepRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestStepRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive3']
 
 
 class BoardRevisionIncludeFromTestStepRecursive3(TypedDict, total=False):
@@ -97459,6 +97416,7 @@ class BoardRevisionIncludeFromTestStepRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromTestStepRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromTestStepRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive4']
 
 
 class BoardRevisionIncludeFromTestStepRecursive4(TypedDict, total=False):
@@ -97771,6 +97729,7 @@ class FindManyFirmwareBuildArgsFromTestStepRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive1']
 
@@ -97778,6 +97737,7 @@ class ProductStageConfigIncludeFromTestStep(TypedDict, total=False):
 class ProductStageConfigIncludeFromTestStepRecursive1(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive2']
 
@@ -97785,6 +97745,7 @@ class ProductStageConfigIncludeFromTestStepRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromTestStepRecursive2(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive3']
 
@@ -97792,6 +97753,7 @@ class ProductStageConfigIncludeFromTestStepRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromTestStepRecursive3(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive4']
 
@@ -101521,6 +101483,7 @@ class BoardRevisionIncludeFromUser(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromUserRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromUserRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive1']
 
 
 class BoardRevisionIncludeFromUserRecursive1(TypedDict, total=False):
@@ -101528,6 +101491,7 @@ class BoardRevisionIncludeFromUserRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromUserRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromUserRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive2']
 
 
 class BoardRevisionIncludeFromUserRecursive2(TypedDict, total=False):
@@ -101535,6 +101499,7 @@ class BoardRevisionIncludeFromUserRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromUserRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromUserRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive3']
 
 
 class BoardRevisionIncludeFromUserRecursive3(TypedDict, total=False):
@@ -101542,6 +101507,7 @@ class BoardRevisionIncludeFromUserRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromUserRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromUserRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive4']
 
 
 class BoardRevisionIncludeFromUserRecursive4(TypedDict, total=False):
@@ -101854,6 +101820,7 @@ class FindManyFirmwareBuildArgsFromUserRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive1']
 
@@ -101861,6 +101828,7 @@ class ProductStageConfigIncludeFromUser(TypedDict, total=False):
 class ProductStageConfigIncludeFromUserRecursive1(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive2']
 
@@ -101868,6 +101836,7 @@ class ProductStageConfigIncludeFromUserRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromUserRecursive2(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive3']
 
@@ -101875,6 +101844,7 @@ class ProductStageConfigIncludeFromUserRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromUserRecursive3(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive4']
 
@@ -105482,6 +105452,7 @@ class BoardRevisionIncludeFromPermissionSet(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromPermissionSetRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive1']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive1(TypedDict, total=False):
@@ -105489,6 +105460,7 @@ class BoardRevisionIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromPermissionSetRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive2']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive2(TypedDict, total=False):
@@ -105496,6 +105468,7 @@ class BoardRevisionIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromPermissionSetRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive3']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive3(TypedDict, total=False):
@@ -105503,6 +105476,7 @@ class BoardRevisionIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromPermissionSetRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive4']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive4(TypedDict, total=False):
@@ -105815,6 +105789,7 @@ class FindManyFirmwareBuildArgsFromPermissionSetRecursive4(TypedDict, total=Fals
 class ProductStageConfigIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive1']
 
@@ -105822,6 +105797,7 @@ class ProductStageConfigIncludeFromPermissionSet(TypedDict, total=False):
 class ProductStageConfigIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive2']
 
@@ -105829,6 +105805,7 @@ class ProductStageConfigIncludeFromPermissionSetRecursive1(TypedDict, total=Fals
 class ProductStageConfigIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive3']
 
@@ -105836,6 +105813,7 @@ class ProductStageConfigIncludeFromPermissionSetRecursive2(TypedDict, total=Fals
 class ProductStageConfigIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive4']
 
@@ -109378,6 +109356,7 @@ class BoardRevisionIncludeFromApiKey(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromApiKeyRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromApiKeyRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive1']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive1(TypedDict, total=False):
@@ -109385,6 +109364,7 @@ class BoardRevisionIncludeFromApiKeyRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromApiKeyRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromApiKeyRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive2']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive2(TypedDict, total=False):
@@ -109392,6 +109372,7 @@ class BoardRevisionIncludeFromApiKeyRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromApiKeyRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromApiKeyRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive3']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive3(TypedDict, total=False):
@@ -109399,6 +109380,7 @@ class BoardRevisionIncludeFromApiKeyRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromApiKeyRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromApiKeyRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive4']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive4(TypedDict, total=False):
@@ -109711,6 +109693,7 @@ class FindManyFirmwareBuildArgsFromApiKeyRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive1']
 
@@ -109718,6 +109701,7 @@ class ProductStageConfigIncludeFromApiKey(TypedDict, total=False):
 class ProductStageConfigIncludeFromApiKeyRecursive1(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive2']
 
@@ -109725,6 +109709,7 @@ class ProductStageConfigIncludeFromApiKeyRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromApiKeyRecursive2(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive3']
 
@@ -109732,6 +109717,7 @@ class ProductStageConfigIncludeFromApiKeyRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromApiKeyRecursive3(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive4']
 
@@ -113299,6 +113285,7 @@ class BoardRevisionIncludeFromAuditLog(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromAuditLogRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromAuditLogRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive1']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive1(TypedDict, total=False):
@@ -113306,6 +113293,7 @@ class BoardRevisionIncludeFromAuditLogRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromAuditLogRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromAuditLogRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive2']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive2(TypedDict, total=False):
@@ -113313,6 +113301,7 @@ class BoardRevisionIncludeFromAuditLogRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromAuditLogRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromAuditLogRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive3']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive3(TypedDict, total=False):
@@ -113320,6 +113309,7 @@ class BoardRevisionIncludeFromAuditLogRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromAuditLogRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromAuditLogRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive4']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive4(TypedDict, total=False):
@@ -113632,6 +113622,7 @@ class FindManyFirmwareBuildArgsFromAuditLogRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive1']
 
@@ -113639,6 +113630,7 @@ class ProductStageConfigIncludeFromAuditLog(TypedDict, total=False):
 class ProductStageConfigIncludeFromAuditLogRecursive1(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive2']
 
@@ -113646,6 +113638,7 @@ class ProductStageConfigIncludeFromAuditLogRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromAuditLogRecursive2(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive3']
 
@@ -113653,6 +113646,7 @@ class ProductStageConfigIncludeFromAuditLogRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromAuditLogRecursive3(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive4']
 
@@ -117180,6 +117174,7 @@ class BoardRevisionIncludeFromSetting(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromSettingRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromSettingRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSettingRecursive1']
 
 
 class BoardRevisionIncludeFromSettingRecursive1(TypedDict, total=False):
@@ -117187,6 +117182,7 @@ class BoardRevisionIncludeFromSettingRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromSettingRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromSettingRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSettingRecursive2']
 
 
 class BoardRevisionIncludeFromSettingRecursive2(TypedDict, total=False):
@@ -117194,6 +117190,7 @@ class BoardRevisionIncludeFromSettingRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromSettingRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromSettingRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSettingRecursive3']
 
 
 class BoardRevisionIncludeFromSettingRecursive3(TypedDict, total=False):
@@ -117201,6 +117198,7 @@ class BoardRevisionIncludeFromSettingRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromSettingRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromSettingRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSettingRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSettingRecursive4']
 
 
 class BoardRevisionIncludeFromSettingRecursive4(TypedDict, total=False):
@@ -117513,6 +117511,7 @@ class FindManyFirmwareBuildArgsFromSettingRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromSetting(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSettingRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSettingRecursive1']
 
@@ -117520,6 +117519,7 @@ class ProductStageConfigIncludeFromSetting(TypedDict, total=False):
 class ProductStageConfigIncludeFromSettingRecursive1(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSettingRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSettingRecursive2']
 
@@ -117527,6 +117527,7 @@ class ProductStageConfigIncludeFromSettingRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromSettingRecursive2(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSettingRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSettingRecursive3']
 
@@ -117534,6 +117535,7 @@ class ProductStageConfigIncludeFromSettingRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromSettingRecursive3(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSettingRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSettingRecursive4']
 
@@ -121013,6 +121015,7 @@ class BoardRevisionIncludeFromLog(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromLogRecursive1']
     targets: Union[bool, 'FindManyProductTargetArgsFromLogRecursive1']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive1']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromLogRecursive1']
 
 
 class BoardRevisionIncludeFromLogRecursive1(TypedDict, total=False):
@@ -121020,6 +121023,7 @@ class BoardRevisionIncludeFromLogRecursive1(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromLogRecursive2']
     targets: Union[bool, 'FindManyProductTargetArgsFromLogRecursive2']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive2']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromLogRecursive2']
 
 
 class BoardRevisionIncludeFromLogRecursive2(TypedDict, total=False):
@@ -121027,6 +121031,7 @@ class BoardRevisionIncludeFromLogRecursive2(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromLogRecursive3']
     targets: Union[bool, 'FindManyProductTargetArgsFromLogRecursive3']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive3']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromLogRecursive3']
 
 
 class BoardRevisionIncludeFromLogRecursive3(TypedDict, total=False):
@@ -121034,6 +121039,7 @@ class BoardRevisionIncludeFromLogRecursive3(TypedDict, total=False):
     board: Union[bool, 'BoardArgsFromLogRecursive4']
     targets: Union[bool, 'FindManyProductTargetArgsFromLogRecursive4']
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromLogRecursive4']
+    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromLogRecursive4']
 
 
 class BoardRevisionIncludeFromLogRecursive4(TypedDict, total=False):
@@ -121346,6 +121352,7 @@ class FindManyFirmwareBuildArgsFromLogRecursive4(TypedDict, total=False):
 class ProductStageConfigIncludeFromLog(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromLogRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromLogRecursive1']
 
@@ -121353,6 +121360,7 @@ class ProductStageConfigIncludeFromLog(TypedDict, total=False):
 class ProductStageConfigIncludeFromLogRecursive1(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromLogRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromLogRecursive2']
 
@@ -121360,6 +121368,7 @@ class ProductStageConfigIncludeFromLogRecursive1(TypedDict, total=False):
 class ProductStageConfigIncludeFromLogRecursive2(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromLogRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromLogRecursive3']
 
@@ -121367,6 +121376,7 @@ class ProductStageConfigIncludeFromLogRecursive2(TypedDict, total=False):
 class ProductStageConfigIncludeFromLogRecursive3(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromLogRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromLogRecursive4']
 

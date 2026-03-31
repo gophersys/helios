@@ -658,7 +658,7 @@ def main():
         result = runner.preflight.check_all()
         for check in result.checks:
             status = "PASS" if check.passed else "FAIL"
-            print(f"[{status}] {check.check_id}: {check.message}")
+            log.info("[%s] %s: %s", status, check.check_id, check.message)
         sys.exit(0 if result.passed else 1)
 
     exit_code = runner.run()

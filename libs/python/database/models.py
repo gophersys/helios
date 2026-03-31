@@ -557,6 +557,7 @@ class BoardRevision(bases.BaseBoardRevision):
     board: Optional['models.Board'] = None
     targets: Optional[List['models.ProductTarget']] = None
     firmwareSets: Optional[List['models.FirmwareSet']] = None
+    stageConfigs: Optional[List['models.ProductStageConfig']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -1038,8 +1039,10 @@ class FirmwareBuild(bases.BaseFirmwareBuild):
 
 
 class ProductStageConfig(bases.BaseProductStageConfig):
-    """Configuration for a single validation stage (1-5) within a product.
-    Defines what firmware to build, what tests to run, and queue priority.
+    """Configuration for a single validation stage within a product.
+    Defines which revision to test, what tests to run, and scheduling rules.
+    Build recipes are convention-driven via StageBuildDef (stage_builds.py) —
+    the system derives what to build from the product's repos + revision + stage.
     """
 
     id: _str
@@ -1053,48 +1056,16 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     """
 
     enabled: _bool
-    buildScript: Optional[_str] = None
-    """Bash build script content
-    """
-
-    buildTarget: Optional[_str] = None
-    """West board name ("alpha_b0") or "native_sim"
-    """
-
-    fwRepoUrl: Optional[_str] = None
-    """Firmware repo SSH URL
-    """
-
-    fwRepoBranch: Optional[_str] = None
-    """Branch to build from
-    """
-
-    mfgRepoUrl: Optional[_str] = None
-    """Manufacturing firmware repo (stages 4-6)
-    """
-
-    mfgRepoBranch: Optional[_str] = None
-    """Manufacturing firmware branch
-    """
-
-    buildVariant: Optional[_str] = None
-    """Default variant: "debug", "release", "mfg", "test"
-    """
-
-    configFlags: Optional['fields.Json'] = None
-    """Build-time flags: {"harness": true, "debug": false}
-    """
-
-    buildMatrix: Optional['fields.Json'] = None
-    """Stage-specific build definitions (array of BuildDef)
+    boardRevisionId: Optional[_str] = None
+    """FK to BoardRevision (e.g., Alpha B0)
     """
 
     testDirectory: Optional[_str] = None
-    """Pytest path: "tests/stage5/"
+    """Pytest path: "tests/smoke/", "tests/fuota/"
     """
 
     testMarker: Optional[_str] = None
-    """Pytest marker: "-m fuota"
+    """Pytest marker: "-m smoke", "-m fuota"
     """
 
     testTimeout: _int
@@ -1102,13 +1073,19 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     """
 
     priority: _int
-    """Higher = more urgent (FUOTA=100, Nightly=50)
+    """Higher = more urgent
     """
 
     blocksMerge: _bool
-    requiresFuota: _bool
+    """Passing this stage is required before merge
+    """
+
+    autoProgress: _bool
+    """Auto-trigger next stage on pass
+    """
+
     requiresBench: _bool
-    """Stage 1 doesn't need hardware
+    """Needs physical hardware (false for native_sim)
     """
 
     maxDurationSec: _int
@@ -1119,6 +1096,7 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: Optional['models.Product'] = None
+    boardRevision: Optional['models.BoardRevision'] = None
     buildRuns: Optional[List['models.BuildRun']] = None
     queueEntries: Optional[List['models.ValidationQueueEntry']] = None
 
@@ -5184,6 +5162,7 @@ _BoardRevision_relational_fields: Set[str] = {
         'board',
         'targets',
         'firmwareSets',
+        'stageConfigs',
     }
 _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = OrderedDict(
     [
@@ -5312,6 +5291,14 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.FirmwareSet\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('stageConfigs', {
+            'name': 'stageConfigs',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ProductStageConfig\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -5619,6 +5606,7 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
 
 _ProductStageConfig_relational_fields: Set[str] = {
         'product',
+        'boardRevision',
         'buildRuns',
         'queueEntries',
     }
@@ -5664,77 +5652,13 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_relational': False,
             'documentation': None,
         }),
-        ('buildScript', {
-            'name': 'buildScript',
+        ('boardRevisionId', {
+            'name': 'boardRevisionId',
             'is_list': False,
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''Bash build script content''',
-        }),
-        ('buildTarget', {
-            'name': 'buildTarget',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''West board name ("alpha_b0") or "native_sim"''',
-        }),
-        ('fwRepoUrl', {
-            'name': 'fwRepoUrl',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''Firmware repo SSH URL''',
-        }),
-        ('fwRepoBranch', {
-            'name': 'fwRepoBranch',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''Branch to build from''',
-        }),
-        ('mfgRepoUrl', {
-            'name': 'mfgRepoUrl',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''Manufacturing firmware repo (stages 4-6)''',
-        }),
-        ('mfgRepoBranch', {
-            'name': 'mfgRepoBranch',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''Manufacturing firmware branch''',
-        }),
-        ('buildVariant', {
-            'name': 'buildVariant',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''Default variant: "debug", "release", "mfg", "test"''',
-        }),
-        ('configFlags', {
-            'name': 'configFlags',
-            'is_list': False,
-            'optional': True,
-            'type': 'fields.Json',
-            'is_relational': False,
-            'documentation': '''Build-time flags: {"harness": true, "debug": false}''',
-        }),
-        ('buildMatrix', {
-            'name': 'buildMatrix',
-            'is_list': False,
-            'optional': True,
-            'type': 'fields.Json',
-            'is_relational': False,
-            'documentation': '''Stage-specific build definitions (array of BuildDef)''',
+            'documentation': '''FK to BoardRevision (e.g., Alpha B0)''',
         }),
         ('testDirectory', {
             'name': 'testDirectory',
@@ -5742,7 +5666,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''Pytest path: "tests/stage5/"''',
+            'documentation': '''Pytest path: "tests/smoke/", "tests/fuota/"''',
         }),
         ('testMarker', {
             'name': 'testMarker',
@@ -5750,7 +5674,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''Pytest marker: "-m fuota"''',
+            'documentation': '''Pytest marker: "-m smoke", "-m fuota"''',
         }),
         ('testTimeout', {
             'name': 'testTimeout',
@@ -5766,7 +5690,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_int',
             'is_relational': False,
-            'documentation': '''Higher = more urgent (FUOTA=100, Nightly=50)''',
+            'documentation': '''Higher = more urgent''',
         }),
         ('blocksMerge', {
             'name': 'blocksMerge',
@@ -5774,15 +5698,15 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_bool',
             'is_relational': False,
-            'documentation': None,
+            'documentation': '''Passing this stage is required before merge''',
         }),
-        ('requiresFuota', {
-            'name': 'requiresFuota',
+        ('autoProgress', {
+            'name': 'autoProgress',
             'is_list': False,
             'optional': False,
             'type': '_bool',
             'is_relational': False,
-            'documentation': None,
+            'documentation': '''Auto-trigger next stage on pass''',
         }),
         ('requiresBench', {
             'name': 'requiresBench',
@@ -5790,7 +5714,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_bool',
             'is_relational': False,
-            'documentation': '''Stage 1 doesn't need hardware''',
+            'documentation': '''Needs physical hardware (false for native_sim)''',
         }),
         ('maxDurationSec', {
             'name': 'maxDurationSec',
@@ -5829,6 +5753,14 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_list': False,
             'optional': True,
             'type': 'models.Product',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('boardRevision', {
+            'name': 'boardRevision',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BoardRevision',
             'is_relational': True,
             'documentation': None,
         }),

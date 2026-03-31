@@ -144,8 +144,8 @@ class UartDemuxer:
         for f in self._log_files.values():
             try:
                 f.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("Failed to close UART log file: %s", exc)
         self._log_files.clear()
 
         log.info("UART capture stopped")
@@ -370,8 +370,8 @@ class UartDemuxer:
             try:
                 self._log_files[target].write(f"[{posix_us}] {line}\n")
                 self._log_files[target].flush()
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("Failed to write UART line to log file: %s", exc)
 
         # 3. Callback (for ArtifactWriter / MinIO / WebSocket pipeline)
         if self.on_line:
@@ -379,5 +379,5 @@ class UartDemuxer:
             posix_us = int((self._posix_start + elapsed) * 1_000_000)
             try:
                 self.on_line(target_name, posix_us, line)
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("UART on_line callback failed: %s", exc)

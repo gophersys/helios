@@ -77,10 +77,12 @@ class BootVersionDetector:
         stop = threading.Event()
         found = {"comms": threading.Event(), "app": threading.Event()}
 
-        def _capture(target, key):
+        def _capture(target: int, key: str) -> None:
+            """Capture UART output on a single target in a background thread."""
             partial = ""
 
             def req_gen():
+                """Generate UART stream requests at 20Hz."""
                 yield UartStreamRequest(target=target, data=b"")
                 while not stop.is_set():
                     time.sleep(0.05)
@@ -101,8 +103,8 @@ class BootVersionDetector:
                                         versions[key] = m.group(2)
                                         found[key].set()
                                         break
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("UART capture error on %s: %s", key, exc)
 
         # Start UART capture threads BEFORE power-on
         threads = []
@@ -131,6 +133,7 @@ class BootVersionDetector:
         self._client.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
 
         # Wait for BOTH versions
+        PROGRESS_LOG_INTERVAL = 10  # Log progress every N seconds
         deadline = time.time() + timeout_s
         while time.time() < deadline:
             if found["comms"].is_set() and found["app"].is_set():
@@ -138,7 +141,7 @@ class BootVersionDetector:
                 break
             if found["comms"].is_set() and not found["app"].is_set():
                 elapsed = int(time.time() - (deadline - timeout_s))
-                if elapsed % 10 == 0 and elapsed > 0:
+                if elapsed % PROGRESS_LOG_INTERVAL == 0 and elapsed > 0:
                     log.info(
                         "COMMS version detected, waiting for APP "
                         "(MCUboot swap may be in progress)... %ds", elapsed,
@@ -178,7 +181,7 @@ class BootVersionDetector:
             Detected versions dict.
 
         Raises:
-            AssertionError: If versions don't match after all retries.
+            RuntimeError: If versions don't match after all retries.
         """
         log.info("Verifying firmware version (expecting v%s)...", expected_version)
         log.info(
@@ -233,23 +236,52 @@ class BootVersionDetector:
         log.info("    COMMS: %s", best_versions["comms"] or "NOT DETECTED")
         log.info("    APP:   %s", best_versions["app"] or "NOT DETECTED")
 
-        assert best_versions["comms"] is not None, (
-            f"COMMS version not detected after {max_boot_cycles} boot cycles"
-        )
-        assert best_versions["comms"] == expected_version, (
-            f"COMMS version mismatch: expected {expected_version}, "
-            f"got {best_versions['comms']} after {max_boot_cycles} boot cycles. "
-            f"The COMMS MCUboot may not have swapped the secondary image."
-        )
+        if best_versions["comms"] is None:
+            raise RuntimeError(
+                f"COMMS version not detected after {max_boot_cycles} boot cycles"
+            )
+        if best_versions["comms"] != expected_version:
+            raise RuntimeError(
+                f"COMMS version mismatch: expected {expected_version}, "
+                f"got {best_versions['comms']} after {max_boot_cycles} boot cycles. "
+                f"The COMMS MCUboot may not have swapped the secondary image."
+            )
 
         if require_both:
-            assert best_versions["app"] is not None, (
-                f"APP version not detected after {max_boot_cycles} boot cycles. "
-                f"The APP processor may be in a boot loop."
-            )
-            assert best_versions["app"] == expected_version, (
-                f"APP version mismatch: expected {expected_version}, "
-                f"got {best_versions['app']} after {max_boot_cycles} boot cycles."
-            )
+            if best_versions["app"] is None:
+                raise RuntimeError(
+                    f"APP version not detected after {max_boot_cycles} boot cycles. "
+                    f"The APP processor may be in a boot loop."
+                )
+            if best_versions["app"] != expected_version:
+                raise RuntimeError(
+                    f"APP version mismatch: expected {expected_version}, "
+                    f"got {best_versions['app']} after {max_boot_cycles} boot cycles."
+                )
 
         return best_versions
+
+    def verify_build_asset(
+        self,
+        expected,
+        timeout_s: float = 180.0,
+        max_boot_cycles: int = 3,
+    ) -> Dict[str, Optional[str]]:
+        """Verify firmware version matches a BuildAsset.
+
+        Convenience method that extracts the version from a BuildAsset
+        and delegates to verify_firmware_version().
+
+        Args:
+            expected: BuildAsset whose version to verify against.
+            timeout_s: Max seconds per boot cycle.
+            max_boot_cycles: Max power cycles before failing.
+
+        Returns:
+            Detected versions dict.
+        """
+        return self.verify_firmware_version(
+            expected_version=expected.version(),
+            timeout_s=timeout_s,
+            max_boot_cycles=max_boot_cycles,
+        )

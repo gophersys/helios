@@ -6959,7 +6959,7 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         # update all ProductStageConfig records
         total = ProductStageConfig.prisma().update_many(
             data={
-                'buildScript': 'jcehcdchh'
+                'boardRevisionId': 'jcehcdchh'
             },
             where={}
         )
@@ -7023,7 +7023,7 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         results = ProductStageConfig.prisma().count(
             select={
                 '_all': True,
-                'buildTarget': True,
+                'testDirectory': True,
             },
         )
         ```
@@ -7090,7 +7090,7 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         results = ProductStageConfig.prisma().count(
             select={
                 '_all': True,
-                'fwRepoUrl': True,
+                'testMarker': True,
             },
         )
         ```
@@ -7230,10 +7230,10 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group ProductStageConfig records by fwRepoBranch values
+        # group ProductStageConfig records by testTimeout values
         # and count how many records are in each group
         results = ProductStageConfig.prisma().group_by(
-            ['fwRepoBranch'],
+            ['testTimeout'],
             count=True,
         )
         ```

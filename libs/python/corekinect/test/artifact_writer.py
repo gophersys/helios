@@ -242,8 +242,9 @@ class ArtifactWriter:
             response.close()
             response.release_conn()
             return data
-        except Exception:
+        except Exception as exc:
             # Object may not exist yet
+            log.warning("Failed to read object %s: %s", object_name, exc)
             return None
 
     def _append_to_object(self, object_name: str, data: bytes) -> bool:
@@ -442,7 +443,8 @@ class ArtifactWriter:
         # Convert to printable representation
         try:
             text = data.decode("utf-8", errors="replace")
-        except Exception:
+        except Exception as exc:
+            log.warning("Failed to decode UART bytes as UTF-8: %s", exc)
             text = data.hex()
 
         return self.append_uart(target, posix_timestamp_us, text, test_name)

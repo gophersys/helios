@@ -12,7 +12,7 @@ Usage:
 """
 
 import time
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple
 
 
 def assert_powered(
@@ -20,7 +20,7 @@ def assert_powered(
     min_current_ma: float = 5.0,
     samples: int = 10,
     interval_s: float = 0.5,
-    channel: int = None,
+    channel: Optional[int] = None,
 ) -> float:
     """Assert device is drawing current (powered on).
 
@@ -127,7 +127,7 @@ def assert_cloud_message(
 
 
 def assert_flash_success(
-    result: tuple,
+    result: Tuple[Optional[int], Optional[str]],
     target: str,
 ) -> int:
     """Assert flash operation succeeded.

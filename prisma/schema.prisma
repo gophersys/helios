@@ -218,9 +218,10 @@ model BoardRevision {
     createdAt    DateTime        @default(now())
     updatedAt    DateTime        @updatedAt
 
-    board        Board           @relation(fields: [boardId], references: [id], onDelete: Cascade)
+    board        Board                @relation(fields: [boardId], references: [id], onDelete: Cascade)
     targets      ProductTarget[]
     firmwareSets FirmwareSet[]
+    stageConfigs ProductStageConfig[]
 
     @@unique([boardId, version])
     @@unique([ckBoardsName])
@@ -307,8 +308,10 @@ model FirmwareBuild {
 //
 // =============================================================================
 
-/// Configuration for a single validation stage (1-5) within a product.
-/// Defines what firmware to build, what tests to run, and queue priority.
+/// Configuration for a single validation stage within a product.
+/// Defines which revision to test, what tests to run, and scheduling rules.
+/// Build recipes are convention-driven via StageBuildDef (stage_builds.py) —
+/// the system derives what to build from the product's repos + revision + stage.
 model ProductStageConfig {
     id        String  @id @default(cuid())
     productId String
@@ -316,36 +319,29 @@ model ProductStageConfig {
     name      String  /// Display name: "Smoke", "Silicon", "Integration", "Nightly", "FUOTA"
     enabled   Boolean @default(true)
 
-    // Build configuration
-    buildScript    String?  @db.Text /// Bash build script content
-    buildTarget    String?  /// West board name ("alpha_b0") or "native_sim"
-    fwRepoUrl      String?  /// Firmware repo SSH URL
-    fwRepoBranch   String?  /// Branch to build from
-    mfgRepoUrl     String?  /// Manufacturing firmware repo (stages 4-6)
-    mfgRepoBranch  String?  /// Manufacturing firmware branch
-    buildVariant   String?  /// Default variant: "debug", "release", "mfg", "test"
-    configFlags    Json?    /// Build-time flags: {"harness": true, "debug": false}
-    buildMatrix    Json?    /// Stage-specific build definitions (array of BuildDef)
+    // Target — which hardware revision to build and test against
+    boardRevisionId String? /// FK to BoardRevision (e.g., Alpha B0)
 
     // Test configuration
-    testDirectory  String?  /// Pytest path: "tests/stage5/"
-    testMarker     String?  /// Pytest marker: "-m fuota"
+    testDirectory  String?  /// Pytest path: "tests/smoke/", "tests/fuota/"
+    testMarker     String?  /// Pytest marker: "-m smoke", "-m fuota"
     testTimeout    Int      @default(900) /// Max seconds for test execution
 
-    // Queue / scheduling
-    priority       Int      @default(50)  /// Higher = more urgent (FUOTA=100, Nightly=50)
-    blocksMerge    Boolean  @default(false)
-    requiresFuota  Boolean  @default(false)
-    requiresBench  Boolean  @default(true) /// Stage 1 doesn't need hardware
-    maxDurationSec Int      @default(3600) /// Hard timeout for entire stage
+    // Scheduling / progression
+    priority       Int      @default(50)  /// Higher = more urgent
+    blocksMerge    Boolean  @default(false) /// Passing this stage is required before merge
+    autoProgress   Boolean  @default(false) /// Auto-trigger next stage on pass
+    requiresBench  Boolean  @default(true)  /// Needs physical hardware (false for native_sim)
+    maxDurationSec Int      @default(3600)  /// Hard timeout for entire stage
 
     description String?
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
-    product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
-    buildRuns BuildRun[]
-    queueEntries ValidationQueueEntry[]
+    product       Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+    boardRevision BoardRevision?       @relation(fields: [boardRevisionId], references: [id])
+    buildRuns     BuildRun[]
+    queueEntries  ValidationQueueEntry[]
 
     @@unique([productId, stage])
     @@index([productId])

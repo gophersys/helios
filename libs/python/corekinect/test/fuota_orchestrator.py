@@ -19,8 +19,6 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-import pytest
-
 from corekinect.utils import Logger
 
 log = Logger(log_name="fuota.orchestrator")
@@ -34,7 +32,7 @@ class FuotaOrchestrator:
     uses CoreCloud FUOTA delivery.
     """
 
-    def __init__(self, fuota_client, fixture_controller=None, logger=None):
+    def __init__(self, fuota_client: Any, fixture_controller: Optional[Any] = None, logger: Optional[Any] = None):
         """
         Args:
             fuota_client: FuotaClient instance (authenticated).
@@ -66,8 +64,8 @@ class FuotaOrchestrator:
                     "GET", f"firmwareimages?name={name}",
                 )
                 self._log.info("  Upload verify: %s -> HTTP %d", name, resp.status_code)
-            except Exception:
-                pass
+            except Exception as exc:
+                self._log.warning("Upload verification failed for %s: %s", name, exc)
 
     def create_and_assign_plan(
         self,
@@ -91,7 +89,7 @@ class FuotaOrchestrator:
 
         Raises:
             RuntimeError: On plan creation or assignment failure.
-            AssertionError: If post-assignment verification fails.
+            AssertionError: If post-assignment verification fails (assert checks).
         """
         # Ensure device is registered (FUOTA fails on unregistered devices)
         self._log.info("Ensuring device %s is registered...", device_id)
@@ -142,7 +140,7 @@ class FuotaOrchestrator:
                 stored_targets = sorted(stage.get("targets", []))
                 submitted = sorted(stages[i]["targets"]) if i < len(stages) else []
                 if stored_targets != submitted:
-                    pytest.fail(
+                    raise RuntimeError(
                         f"FUOTA plan target MISMATCH — CoreCloud modified our targets!\n"
                         f"  Submitted: {submitted}\n"
                         f"  Stored:    {stored_targets}\n"
@@ -216,7 +214,7 @@ class FuotaOrchestrator:
             max_stale_minutes: Fail after this many minutes of no real progress.
 
         Raises:
-            pytest.fail: If timeout or stale limit is reached.
+            TimeoutError: If timeout or stale limit is reached.
         """
         expected_strs = {str(aid) for aid in expected_app_ids}
 
@@ -236,7 +234,8 @@ class FuotaOrchestrator:
             timeout_s // 60, max_stale_minutes,
         )
 
-        def _force_power_cycle(reason: str):
+        def _force_power_cycle(reason: str) -> None:
+            """Power cycle the DUT to force CoreCloud re-check-in."""
             nonlocal last_progress_time, stall_cycles
             if not self._fixture:
                 return
@@ -343,7 +342,7 @@ class FuotaOrchestrator:
 
             # Hard fail on never-started
             if not seen_active and stall_duration > max_stale_s:
-                pytest.fail(
+                raise TimeoutError(
                     f"FUOTA delivery never started after {elapsed_min:.1f} min. "
                     f"CoreCloud progress endpoint only returns stale data. "
                     f"Completed: {completed or 'none'}"
@@ -355,7 +354,7 @@ class FuotaOrchestrator:
         if self._all_completed(completed, expected_strs):
             return
 
-        pytest.fail(
+        raise TimeoutError(
             f"FUOTA did not complete within {timeout_s / 60:.0f} min. "
             f"Completed: {completed or 'none'}"
         )
@@ -374,7 +373,7 @@ class FuotaOrchestrator:
             New recordId.
 
         Raises:
-            AssertionError: If timeout expires without check-in.
+            TimeoutError: If timeout expires without check-in.
         """
         # Get baseline recordId
         initial_record_id = 0
@@ -420,9 +419,75 @@ class FuotaOrchestrator:
 
             time.sleep(poll_interval_s)
 
-        pytest.fail(
+        raise TimeoutError(
             f"Device {device_id} did not check into CoreCloud within {timeout_s}s "
             f"(last recordId={initial_record_id})"
+        )
+
+    # ── BuildAsset-aware methods ──
+
+    def upload_transition(self, source, target) -> None:
+        """Upload CFW files for a FUOTA transition (source -> target).
+
+        Uploads all CFW artifacts from both the source and target builds.
+        CoreCloud needs both so it can identify the current firmware (source)
+        and deliver the new firmware (target).
+
+        Args:
+            source: BuildAsset for the currently-installed firmware.
+            target: BuildAsset for the firmware to deliver via FUOTA.
+        """
+        all_cfws = source.cfws() + target.cfws()
+        if not all_cfws:
+            raise ValueError(
+                f"No CFW files found for transition "
+                f"{source.label} -> {target.label}"
+            )
+        self.upload_cfw_files(all_cfws)
+
+    def create_transition_plan(
+        self,
+        device_id: str,
+        source,
+        target,
+        description: str,
+        device_type_id: int,
+        device_variant_id: int,
+    ) -> int:
+        """Create a FUOTA plan for a firmware version transition.
+
+        Extracts target version strings from the BuildAsset metadata
+        and delegates to create_and_assign_plan().
+
+        Args:
+            device_id: CoreCloud device ID.
+            source: BuildAsset for current firmware (used for description).
+            target: BuildAsset for target firmware (version strings extracted).
+            description: Plan description.
+            device_type_id: CoreCloud device type ID.
+            device_variant_id: CoreCloud device variant ID.
+
+        Returns:
+            Plan ID.
+        """
+        target_strings = target.target_strings()
+        if not target_strings:
+            raise ValueError(
+                f"No CFW target strings found in {target.label}. "
+                f"Build may not produce CFW artifacts."
+            )
+
+        full_desc = (
+            f"{description} ({source.label} v{source.version()} "
+            f"-> {target.label} v{target.version()})"
+        )
+
+        return self.create_and_assign_plan(
+            device_id=device_id,
+            target_strings=target_strings,
+            description=full_desc,
+            device_type_id=device_type_id,
+            device_variant_id=device_variant_id,
         )
 
     @staticmethod
@@ -455,7 +520,7 @@ def personalize_with_retry(
         Dict with "device_id" and "public_key" on success.
 
     Raises:
-        AssertionError: On personalization failure after all retries.
+        RuntimeError: On personalization failure after all retries.
     """
     from corekinect.test.device_personalizer import DevicePersonalizer
 
@@ -497,6 +562,6 @@ def personalize_with_retry(
             continue
         break  # Non-timeout error, don't retry
 
-    assert False, (
+    raise RuntimeError(
         f"Personalization failed after {max_retries} attempts: {last_err}"
     )

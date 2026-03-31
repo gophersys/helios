@@ -388,8 +388,8 @@ class TelemetryStreamer:
                 timeout=2,
                 verify=_TLS_VERIFY,
             )
-        except Exception:
-            pass  # Fire-and-forget — never fail tests on telemetry errors
+        except Exception as exc:
+            log.warning("Telemetry flush to API failed: %s", exc)
 
     def _flush_test_to_storage(self, test_name: str) -> None:
         """Write a test's accumulated telemetry to per-test JSONL (backward compat)."""

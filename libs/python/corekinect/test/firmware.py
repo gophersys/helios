@@ -102,8 +102,8 @@ class FirmwareAssetManager:
         if self._auto_cleanup:
             try:
                 self.cleanup()
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("Error during firmware asset cleanup: %s", exc)
 
     # ─────────────────────────────────────────────────────────────────────────
     # MinIO Client

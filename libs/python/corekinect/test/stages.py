@@ -32,5 +32,10 @@ STAGE_NUMBERS: Dict[Stage, int] = {
     Stage.FUOTA: 5,
 }
 
-STAGE_NAMES: Dict[int, str] = {v: k.value.title() for k, v in STAGE_NUMBERS.items()}
-STAGE_NAMES[5] = "FUOTA"  # Keep uppercase for stage 5
+STAGE_NAMES: Dict[int, str] = {
+    1: "Smoke",
+    2: "Silicon",
+    3: "Integration",
+    4: "Nightly",
+    5: "FUOTA",
+}

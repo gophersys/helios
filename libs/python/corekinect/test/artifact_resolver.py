@@ -759,8 +759,8 @@ class ArtifactResolver:
                 modem = trigger_data.get("modemFirmware")
                 if modem:
                     return modem
-        except Exception:
-            pass
+        except Exception as exc:
+            self._log.warning("Failed to fetch modem firmware info from pipeline: %s", exc)
 
         # Fall back to build manifests
         for label in self._builds:
@@ -837,20 +837,20 @@ class ArtifactResolver:
             try:
                 if os.path.isdir(path):
                     shutil.rmtree(path, ignore_errors=True)
-            except Exception:
-                pass
+            except Exception as exc:
+                self._log.warning("Failed to remove temp dir %s: %s", path, exc)
         self._temp_dirs.clear()
 
         for path in list(self._temp_files):
             try:
                 if os.path.exists(path):
                     os.unlink(path)
-            except Exception:
-                pass
+            except Exception as exc:
+                self._log.warning("Failed to remove temp file %s: %s", path, exc)
         self._temp_files.clear()
 
     def __del__(self):
         try:
             self.cleanup()
-        except Exception:
-            pass
+        except Exception as exc:
+            self._log.warning("Error during artifact resolver cleanup: %s", exc)

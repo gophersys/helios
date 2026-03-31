@@ -62,6 +62,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'board': 'Board',
         'targets': 'ProductTarget',
         'firmwareSets': 'FirmwareSet',
+        'stageConfigs': 'ProductStageConfig',
     },
     'FirmwareSet': {
         'product': 'Product',
@@ -74,6 +75,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     },
     'ProductStageConfig': {
         'product': 'Product',
+        'boardRevision': 'BoardRevision',
         'buildRuns': 'BuildRun',
         'queueEntries': 'ValidationQueueEntry',
     },

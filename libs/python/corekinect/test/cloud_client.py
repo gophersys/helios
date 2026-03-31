@@ -9,7 +9,7 @@ All queries return status changes detected after mark_test_start() was called.
 
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, List, Optional
 
 from corekinect.utils import Logger
 from corekinect.utils.timeutil.formaters import auto_format_time_elapsed
@@ -33,9 +33,6 @@ def validate_device_id(device_id: str) -> bool:
 
 # Default poll interval (CoreCloud uplink ~60s, no need to poll faster)
 DEFAULT_POLL_INTERVAL_S = 2.0
-
-T = TypeVar("T")
-
 
 class CloudClient:
     """CoreCloud device status polling for Stage 4 verification.
@@ -257,8 +254,7 @@ class CloudClient:
         MockCloudClient provides this via injected scenarios.
         Hardware mode requires direct DB access (not yet on REST API).
         """
-        import pytest
-        pytest.skip("Biometric polling not available via REST API — use mock mode")
+        raise NotImplementedError("Biometric polling not available via REST API — use mock mode")
 
     def wait_for_network_status(self, timeout_s: float = 120) -> Dict[str, Any]:
         """Poll for network status — not available via REST API.
@@ -266,13 +262,11 @@ class CloudClient:
         MockCloudClient provides this via injected scenarios.
         Hardware mode requires direct DB access (not yet on REST API).
         """
-        import pytest
-        pytest.skip("Network status polling not available via REST API — use mock mode")
+        raise NotImplementedError("Network status polling not available via REST API — use mock mode")
 
     def query_messages(self, *args, **kwargs) -> List:
         """Query messages — not available via REST API."""
-        import pytest
-        pytest.skip("Message queries not available via REST API — use mock mode")
+        raise NotImplementedError("Message queries not available via REST API — use mock mode")
 
     def get_status(self) -> Optional[Dict[str, Any]]:
         """Get full device status snapshot."""

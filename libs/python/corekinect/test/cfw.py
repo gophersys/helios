@@ -16,6 +16,13 @@ import struct
 from pathlib import Path
 from typing import Any, Dict, Union
 
+# Release track encoding in CFW flags bits 2:1
+RELEASE_TRACKS: Dict[int, str] = {
+    0: "B",  # Bench
+    1: "E",  # Engineering
+    2: "P",  # Production
+}
+
 
 def parse_cfw_header(cfw_path: Union[str, Path]) -> Dict[str, Any]:
     """Parse CFW header (23 bytes) and return metadata.
@@ -54,8 +61,7 @@ def parse_cfw_header(cfw_path: Union[str, Path]) -> Dict[str, Any]:
     is_mfg = bool(flags & 0x01)
     is_debug = bool(flags & 0x08)
 
-    tracks = {0: "B", 1: "E", 2: "P"}
-    track_char = tracks.get(release_track, "?")
+    track_char = RELEASE_TRACKS.get(release_track, "?")
 
     suffix = track_char
     if is_mfg:

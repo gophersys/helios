@@ -25,11 +25,15 @@ Product pattern (in apps/validation/{product}/tests/common/timing.py):
 
 import time
 from dataclasses import dataclass
-from typing import Callable, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 import pytest
 
+from corekinect.utils import Logger
+
 F = TypeVar("F", bound=Callable)
+
+_log = Logger(log_name="timing")
 
 
 @dataclass(frozen=True)
@@ -65,7 +69,7 @@ def wait_with_progress(
     duration_s: float,
     message: str = "Waiting",
     interval_s: float = 10.0,
-    logger=None,
+    logger: Optional[Any] = None,
 ) -> None:
     """Wait with progress logging.
 
@@ -73,16 +77,19 @@ def wait_with_progress(
         duration_s: Total wait time in seconds.
         message: Log message prefix.
         interval_s: Log interval.
-        logger: Logger instance (uses print if None).
+        logger: Logger instance. Defaults to module logger.
     """
-    log = logger.info if logger else print
+    out = logger or _log
     start = time.time()
     elapsed = 0.0
 
     while elapsed < duration_s:
         remaining = duration_s - elapsed
-        log(f"{message}: {elapsed:.0f}s / {duration_s:.0f}s ({remaining:.0f}s remaining)")
+        out.info(
+            "%s: %.0fs / %.0fs (%.0fs remaining)",
+            message, elapsed, duration_s, remaining,
+        )
         time.sleep(min(interval_s, remaining))
         elapsed = time.time() - start
 
-    log(f"{message}: complete ({elapsed:.1f}s)")
+    out.info("%s: complete (%.1fs)", message, elapsed)

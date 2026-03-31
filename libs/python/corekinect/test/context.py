@@ -274,8 +274,8 @@ class TestContext:
                     self.telemetry.push(
                         "power_chg", {"mA": round(ch1.current_ma, 2), "mV": round(ch1.voltage_v * 1000, 1)},
                     )
-            except Exception:
-                pass  # Don't fail on power read errors
+            except Exception as exc:
+                log.debug("Power poll read error: %s", exc)
 
     def setup_test(self, test_name: Optional[str] = None, module: Optional[str] = None) -> None:
         """Per-test setup: mark test start time, clear UART buffer, reset fixture state."""
