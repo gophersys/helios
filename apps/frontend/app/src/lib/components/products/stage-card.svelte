@@ -139,7 +139,7 @@
       {:else}
         <button
           class="px-2 py-1 text-xs rounded font-medium bg-accent text-white hover:bg-accent-hover"
-          onclick|stopPropagation={startConfiguring}
+          onclick={(e) => { e.stopPropagation(); startConfiguring(); }}
         >
           Enable
         </button>
