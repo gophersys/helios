@@ -245,10 +245,18 @@ class BoardCreateRequest:
                         seen_roles.add(role)
                         seen_app_ids.add(app_id)
                         rev_targets.append(TargetInput(role=role, soc=soc, appId=app_id))
+                rev_device_type = r.get("deviceType")
+                if rev_device_type is not None and not isinstance(rev_device_type, int):
+                    return None, f"revisions[{i}].deviceType must be an integer"
+                rev_device_variant = r.get("deviceVariant")
+                if rev_device_variant is not None and not isinstance(rev_device_variant, int):
+                    return None, f"revisions[{i}].deviceVariant must be an integer"
                 revisions.append({
                     "version": rev_version,
                     "ckBoardsName": rev_ck_name,
                     "socs": rev_socs,
+                    "deviceType": rev_device_type,
+                    "deviceVariant": rev_device_variant,
                     "targets": rev_targets,
                 })
 

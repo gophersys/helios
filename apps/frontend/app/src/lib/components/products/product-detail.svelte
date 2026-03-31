@@ -8,9 +8,10 @@
   import FirmwareBuildManager from './firmware-app-list.svelte';
   import ProductStages from './product-stages.svelte';
   import BuildConfigCard from './build-config-card.svelte';
-  import { Cpu, Layers, Upload, Wrench } from 'lucide-svelte';
-  import type { Product } from '$lib/types/models';
+  import { Cpu, Layers, Upload, Pencil, Check, X, CircuitBoard } from 'lucide-svelte';
+  import type { Product, BoardRevision, ProductTarget } from '$lib/types/models';
   import type { BuildJobArtifact } from '$lib/types/ci';
+  import { api } from '$lib/api';
   import { createManualBuild, uploadBuildArtifact } from '$lib/services/ci';
 
   type Tab = 'stages' | 'boards' | 'firmware' | 'build-config' | 'usage';
@@ -27,7 +28,115 @@
   let activeTab = $state<Tab>('stages');
   let error = $state<string | null>(null);
 
-  // Upload modal state
+  // ── Product info editing ────────────────────────────────
+  let editingProduct = $state(false);
+  let editName = $state('');
+  let editSlug = $state('');
+  let editDescription = $state('');
+  let editFwRepoSlug = $state('');
+  let editMfgFwRepoSlug = $state('');
+  let savingProduct = $state(false);
+
+  function startEditProduct(): void {
+    editName = product.name;
+    editSlug = product.slug || '';
+    editDescription = product.description || '';
+    editFwRepoSlug = product.fwRepoSlug || '';
+    editMfgFwRepoSlug = product.mfgFwRepoSlug || '';
+    editingProduct = true;
+  }
+
+  function cancelEditProduct(): void {
+    editingProduct = false;
+    error = null;
+  }
+
+  async function saveProduct(): Promise<void> {
+    savingProduct = true;
+    error = null;
+    try {
+      await api.put(`/v2/products/${product.id}`, {
+        name: editName.trim(),
+        slug: editSlug.trim() || null,
+        description: editDescription.trim() || null,
+        fwRepoSlug: editFwRepoSlug.trim() || null,
+        mfgFwRepoSlug: editMfgFwRepoSlug.trim() || null,
+      });
+      editingProduct = false;
+      onRefresh();
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to update product';
+    } finally {
+      savingProduct = false;
+    }
+  }
+
+  // ── Revision config editing ─────────────────────────────
+  let editingRevisionId = $state<string | null>(null);
+  let editRevDeviceType = $state<number>(0);
+  let editRevDeviceVariant = $state<number>(0);
+  let editRevTargets = $state<{ id: string; role: string; soc: string; appId: number }[]>([]);
+  let savingRevision = $state(false);
+
+  function startEditRevision(rev: BoardRevision): void {
+    editingRevisionId = rev.id;
+    editRevDeviceType = rev.deviceType ?? 0;
+    editRevDeviceVariant = rev.deviceVariant ?? 0;
+    editRevTargets = (rev.targets || []).map((t) => ({ ...t }));
+    error = null;
+  }
+
+  function cancelEditRevision(): void {
+    editingRevisionId = null;
+    error = null;
+  }
+
+  function findBoardForRevision(revisionId: string): { boardId: string } | null {
+    for (const board of (product.boards || [])) {
+      for (const rev of (board.revisions || [])) {
+        if (rev.id === revisionId) return { boardId: board.id };
+      }
+    }
+    return null;
+  }
+
+  async function saveRevision(): Promise<void> {
+    if (!editingRevisionId) return;
+    savingRevision = true;
+    error = null;
+
+    const ctx = findBoardForRevision(editingRevisionId);
+    if (!ctx) {
+      error = 'Could not find board for revision';
+      savingRevision = false;
+      return;
+    }
+
+    try {
+      // Update revision fields (deviceType, deviceVariant)
+      await api.put(
+        `/v2/products/${product.id}/boards/${ctx.boardId}/revisions/${editingRevisionId}`,
+        { deviceType: editRevDeviceType, deviceVariant: editRevDeviceVariant }
+      );
+
+      // Update each target individually
+      for (const target of editRevTargets) {
+        await api.put(
+          `/v2/products/${product.id}/boards/${ctx.boardId}/revisions/${editingRevisionId}/targets/${target.id}`,
+          { role: target.role, soc: target.soc, appId: target.appId }
+        );
+      }
+
+      editingRevisionId = null;
+      onRefresh();
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to update revision config';
+    } finally {
+      savingRevision = false;
+    }
+  }
+
+  // ── Upload modal state ──────────────────────────────────
   let showUploadModal = $state(false);
   let uploadStep = $state<'details' | 'artifacts'>('details');
   let uploadBoard = $state('');
@@ -118,6 +227,17 @@
 
   const boards = $derived(product.boards || []);
   const firmwareBuilds = $derived(product.firmwareBuilds || []);
+
+  // Collect all revisions across boards for the revision config section
+  const allRevisions = $derived(
+    boards.flatMap((b) =>
+      (b.revisions || []).map((r) => ({ ...r, boardId: b.id, boardName: b.name }))
+    )
+  );
+
+  function sortedTargets(targets: ProductTarget[]): ProductTarget[] {
+    return [...targets].sort((a, b) => (a.role === 'app' ? -1 : b.role === 'app' ? 1 : 0));
+  }
 </script>
 
 <div class="animate-fade-in">
@@ -127,63 +247,269 @@
 
   <div class="card card-md">
     <!-- Header -->
-    <div class="flex items-start gap-4">
-      <div class="flex-1">
-        <div class="flex items-center gap-3">
-          <h2 class="text-lg font-semibold text-text-primary">
-            {product.name}
-          </h2>
-          <span
-            class={[
-              'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium',
-              product.active
-                ? 'bg-success-muted text-success'
-                : 'bg-surface-2 text-text-tertiary'
-            ].join(' ')}
-          >
-            {product.active ? 'Active' : 'Inactive'}
-          </span>
+    {#if editingProduct}
+      <!-- Inline edit mode for product info -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-text-primary">Edit Product</h3>
+          <div class="flex items-center gap-2">
+            <button
+              onclick={cancelEditProduct}
+              class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-2"
+            >
+              <X size={14} />
+              Cancel
+            </button>
+            <button
+              onclick={saveProduct}
+              disabled={savingProduct || !editName.trim()}
+              class="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+            >
+              <Check size={14} />
+              {savingProduct ? 'Saving...' : 'Save'}
+            </button>
+          </div>
         </div>
-        {#if product.description}
-          <p class="mt-1 text-sm text-text-secondary">{product.description}</p>
-        {/if}
-
-        <!-- Metadata row -->
-        <div class="mt-3 flex flex-wrap gap-4 text-2xs text-text-tertiary">
-          {#if product.slug}
-            <span class="font-mono bg-surface-2 px-2 py-0.5 rounded">{product.slug}</span>
-          {/if}
-          {#if product.targets && product.targets.length > 0}
-            {#each product.targets as target}
-              <span class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-2xs font-mono text-accent">
-                <Cpu size={10} />
-                {target.soc}
-                <span class="text-accent/60">#{target.appId}</span>
-              </span>
-            {/each}
-          {/if}
-          <span class="flex items-center gap-1">
-            <Layers size={12} />
-            <strong class="text-text-secondary">{boards.length}</strong> board{boards.length !== 1 ? 's' : ''}
-          </span>
-          <span class="flex items-center gap-1">
-            <Cpu size={12} />
-            <strong class="text-text-secondary">{firmwareBuilds.length}</strong> build{firmwareBuilds.length !== 1 ? 's' : ''}
-          </span>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="block">
+            <span class="mb-1 block text-2xs font-medium text-text-tertiary">Product Name *</span>
+            <input
+              type="text"
+              bind:value={editName}
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+            />
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-2xs font-medium text-text-tertiary">Slug</span>
+            <input
+              type="text"
+              bind:value={editSlug}
+              placeholder="URL-safe identifier"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            />
+          </label>
+        </div>
+        <label class="block">
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Description</span>
+          <input
+            type="text"
+            bind:value={editDescription}
+            placeholder="Optional description"
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          />
+        </label>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label class="block">
+            <span class="mb-1 block text-2xs font-medium text-text-tertiary">Firmware Repo Slug</span>
+            <input
+              type="text"
+              bind:value={editFwRepoSlug}
+              placeholder="e.g. alpha_fw"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            />
+          </label>
+          <label class="block">
+            <span class="mb-1 block text-2xs font-medium text-text-tertiary">Mfg Firmware Repo Slug</span>
+            <input
+              type="text"
+              bind:value={editMfgFwRepoSlug}
+              placeholder="e.g. alpha_mfg_fw"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            />
+          </label>
         </div>
       </div>
-      {#if canManage}
-        <div class="flex-shrink-0">
-          <button
-            onclick={openUploadModal}
-            class="btn btn-sm flex items-center gap-1.5"
-          >
-            <Upload size={14} />
-            Upload Build
-          </button>
+    {:else}
+      <!-- Read-only header -->
+      <div class="flex items-start gap-4">
+        <div class="flex-1">
+          <div class="flex items-center gap-3">
+            <h2 class="text-lg font-semibold text-text-primary">
+              {product.name}
+            </h2>
+            <span
+              class={[
+                'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium',
+                product.active
+                  ? 'bg-success-muted text-success'
+                  : 'bg-surface-2 text-text-tertiary'
+              ].join(' ')}
+            >
+              {product.active ? 'Active' : 'Inactive'}
+            </span>
+            {#if canManage}
+              <button
+                onclick={startEditProduct}
+                title="Edit product"
+                aria-label="Edit product"
+                class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
+              >
+                <Pencil size={14} />
+              </button>
+            {/if}
+          </div>
+          {#if product.description}
+            <p class="mt-1 text-sm text-text-secondary">{product.description}</p>
+          {/if}
+
+          <!-- Metadata row -->
+          <div class="mt-3 flex flex-wrap gap-4 text-2xs text-text-tertiary">
+            {#if product.slug}
+              <span class="font-mono bg-surface-2 px-2 py-0.5 rounded">{product.slug}</span>
+            {/if}
+            {#if product.fwRepoSlug}
+              <span class="font-mono bg-surface-2 px-2 py-0.5 rounded" title="Firmware repo">fw: {product.fwRepoSlug}</span>
+            {/if}
+            {#if product.mfgFwRepoSlug}
+              <span class="font-mono bg-surface-2 px-2 py-0.5 rounded" title="Mfg firmware repo">mfg: {product.mfgFwRepoSlug}</span>
+            {/if}
+            {#if product.targets && product.targets.length > 0}
+              {#each product.targets as target}
+                <span class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-2xs font-mono text-accent">
+                  <Cpu size={10} />
+                  {target.soc}
+                  <span class="text-accent/60">#{target.appId}</span>
+                </span>
+              {/each}
+            {/if}
+            <span class="flex items-center gap-1">
+              <Layers size={12} />
+              <strong class="text-text-secondary">{boards.length}</strong> board{boards.length !== 1 ? 's' : ''}
+            </span>
+            <span class="flex items-center gap-1">
+              <Cpu size={12} />
+              <strong class="text-text-secondary">{firmwareBuilds.length}</strong> build{firmwareBuilds.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+        {#if canManage}
+          <div class="flex-shrink-0">
+            <button
+              onclick={openUploadModal}
+              class="btn btn-sm flex items-center gap-1.5"
+            >
+              <Upload size={14} />
+              Upload Build
+            </button>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Revision config cards (always visible below header when revisions exist) -->
+      {#if allRevisions.length > 0}
+        <div class="mt-4 space-y-3">
+          {#each allRevisions as rev}
+            <div class="rounded-lg border border-border bg-surface-0 p-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <CircuitBoard size={14} class="text-accent" />
+                  <span class="text-xs font-semibold text-text-primary">
+                    Revision {rev.version.toUpperCase()}
+                  </span>
+                  {#if rev.ckBoardsName}
+                    <span class="font-mono text-2xs text-text-tertiary">({rev.ckBoardsName})</span>
+                  {/if}
+                  <span class="font-mono text-2xs text-text-secondary">
+                    Type {rev.deviceType ?? '—'} &middot; Variant {rev.deviceVariant ?? '—'}
+                  </span>
+                </div>
+                {#if canManage && editingRevisionId !== rev.id}
+                  <button
+                    onclick={() => startEditRevision(rev)}
+                    title="Edit revision config"
+                    aria-label="Edit revision config"
+                    class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                {/if}
+              </div>
+
+              {#if editingRevisionId === rev.id}
+                <!-- Inline edit for revision -->
+                <div class="mt-3 space-y-3">
+                  <div class="grid gap-3 sm:grid-cols-2">
+                    <label class="block">
+                      <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Type</span>
+                      <input
+                        type="number"
+                        min="0"
+                        bind:value={editRevDeviceType}
+                        class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                      />
+                    </label>
+                    <label class="block">
+                      <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Variant</span>
+                      <input
+                        type="number"
+                        min="0"
+                        bind:value={editRevDeviceVariant}
+                        class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                      />
+                    </label>
+                  </div>
+
+                  <div class="grid gap-3 sm:grid-cols-2">
+                    {#each editRevTargets.sort((a, b) => a.role === 'app' ? -1 : b.role === 'app' ? 1 : 0) as target}
+                      <div class="rounded-lg border border-border-subtle bg-surface-1 p-3">
+                        <div class="mb-2 flex items-center gap-2">
+                          <Cpu size={14} class="text-accent" />
+                          <span class="text-xs font-semibold capitalize text-text-primary">{target.role}</span>
+                          <span class="font-mono text-2xs text-text-tertiary">({target.soc})</span>
+                        </div>
+                        <label class="block">
+                          <span class="mb-1 block text-2xs text-text-tertiary">AppID</span>
+                          <input
+                            type="number"
+                            min="0"
+                            bind:value={target.appId}
+                            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-1.5 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                          />
+                        </label>
+                      </div>
+                    {/each}
+                  </div>
+
+                  <div class="flex items-center justify-end gap-2">
+                    <button
+                      onclick={cancelEditRevision}
+                      class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-2"
+                    >
+                      <X size={14} />
+                      Cancel
+                    </button>
+                    <button
+                      onclick={saveRevision}
+                      disabled={savingRevision}
+                      class="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+                    >
+                      <Check size={14} />
+                      {savingRevision ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              {:else}
+                <!-- Read-only targets -->
+                {#if rev.targets && rev.targets.length > 0}
+                  <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                    {#each sortedTargets(rev.targets) as target}
+                      <div class="flex items-center justify-between rounded border border-border-subtle bg-surface-1 px-3 py-2">
+                        <span class="text-xs font-medium capitalize text-text-primary">{target.role}</span>
+                        <span class="font-mono text-2xs text-text-secondary">
+                          {target.soc} &middot; AppID {target.appId}
+                        </span>
+                      </div>
+                    {/each}
+                  </div>
+                {:else}
+                  <p class="mt-2 text-2xs text-text-tertiary">No targets configured.</p>
+                {/if}
+              {/if}
+            </div>
+          {/each}
         </div>
       {/if}
-    </div>
+    {/if}
 
     <!-- Tabs -->
     <div class="mt-5 flex gap-1 border-b border-border">

@@ -48,6 +48,8 @@ export interface BoardRevision {
   version: string;
   ckBoardsName: string | null;
   socs: string[];
+  deviceType: number | null;
+  deviceVariant: number | null;
   status: string;
   notes: string | null;
   targets?: ProductTarget[];
