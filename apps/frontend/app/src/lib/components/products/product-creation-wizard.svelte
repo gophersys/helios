@@ -6,7 +6,6 @@
     BoardBranchesResponse,
     BoardSummary,
     BoardDetail,
-    BuildConfig,
   } from '$lib/types/models';
 
   interface Props {
@@ -39,13 +38,13 @@
   let productName = $state('');
   let productSlug = $state('');
   let productDescription = $state('');
-  let ncsVersion = $state('v2.9.0');
+  let fwRepoSlug = $state('');
+  let mfgFwRepoSlug = $state('');
   let revisionConfigs = $state<Record<string, {
     deviceType: number;
     deviceVariant: number;
     targets: Record<string, { soc: string; appId: number; role: string }>;
   }>>({});
-  let triggerBranches = $state('main');
 
   function getSocRole(soc: string): string {
     if (soc.includes('9151') || soc.includes('9160') || soc.includes('9161')) return 'comms';
@@ -67,6 +66,8 @@
       case 2: return selectedFamily !== '';
       case 3: {
         if (productName.trim() === '') return false;
+        if (fwRepoSlug.trim() === '') return false;
+        if (mfgFwRepoSlug.trim() === '') return false;
         const revs = Object.values(revisionConfigs);
         if (revs.length === 0) return false;
         return revs.every((rev) =>
@@ -122,6 +123,8 @@
       // Auto-populate step 4 fields from discovery
       productName = boardDetail.family.charAt(0).toUpperCase() + boardDetail.family.slice(1);
       productSlug = boardDetail.family;
+      fwRepoSlug = `${boardDetail.family}_fw`;
+      mfgFwRepoSlug = `${boardDetail.family}_mfg_fw`;
       // Build per-revision configs
       const newConfigs: typeof revisionConfigs = {};
       for (const rev of boardDetail.revisions) {
@@ -162,28 +165,13 @@
     submitting = true;
     error = null;
 
-    // Collect all unique roles across revisions for confFiles/overlays
-    const allRoles = [...new Set(
-      Object.values(revisionConfigs).flatMap((rev) => Object.keys(rev.targets))
-    )];
-
-    const buildConfig: BuildConfig = {
-      board: productSlug,
-      ncsVersion,
-      boardRoot: 'ck_boards',
-      hasVsmMerge: false,
-      hasFips: false,
-      confFiles: Object.fromEntries(allRoles.map((k) => [k, ['prj.conf']])),
-      overlays: Object.fromEntries(allRoles.map((k) => [k, []])),
-      postBuild: ['sign_mcuboot'],
-      cfw: { deviceType: 0, deviceVariant: 0 },
-    };
-
     try {
       await api.post('/v2/products', {
         name: productName.trim(),
         slug: productSlug.trim() || null,
         description: productDescription.trim() || null,
+        fwRepoSlug: fwRepoSlug.trim(),
+        mfgFwRepoSlug: mfgFwRepoSlug.trim(),
         board: boardDetail
           ? {
               ckBoardsFamily: selectedFamily,
@@ -202,8 +190,6 @@
               }),
             }
           : null,
-        buildConfig,
-        triggerBranches: triggerBranches.split(',').map((b) => b.trim()).filter(Boolean),
       });
       onCreated();
     } catch (e) {
@@ -386,16 +372,6 @@
             />
           </label>
 
-          <!-- NCS Version -->
-          <label class="block max-w-xs">
-            <span class="mb-1 block text-2xs font-medium text-text-tertiary">NCS Version</span>
-            <input
-              type="text"
-              bind:value={ncsVersion}
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
-            />
-          </label>
-
           <!-- Per-Revision Configuration -->
           {#each Object.entries(revisionConfigs) as [version, cfg]}
             {@const rev = boardDetail?.revisions.find((r) => r.version === version)}
@@ -455,16 +431,27 @@
             </div>
           {/each}
 
-          <!-- Trigger branches -->
-          <label class="block">
-            <span class="mb-1 block text-2xs font-medium text-text-tertiary">Trigger Branches (comma-separated)</span>
-            <input
-              type="text"
-              bind:value={triggerBranches}
-              placeholder="main, release/*"
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
-            />
-          </label>
+          <!-- Firmware Repositories -->
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block">
+              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Firmware Repository (Bitbucket slug) *</span>
+              <input
+                type="text"
+                bind:value={fwRepoSlug}
+                placeholder="e.g. alpha_fw"
+                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+              />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Manufacturing Firmware Repository (Bitbucket slug) *</span>
+              <input
+                type="text"
+                bind:value={mfgFwRepoSlug}
+                placeholder="e.g. alpha_mfg_fw"
+                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+              />
+            </label>
+          </div>
         </div>
       </div>
     {/if}
@@ -482,10 +469,10 @@
               {#each [
                 ['Product', productName],
                 ['Slug', productSlug || '(auto)'],
+                ['Description', productDescription || '(none)'],
                 ['Board Family', selectedFamily],
-                ['Branch', selectedBranch],
-                ['NCS Version', ncsVersion],
-                ['Trigger Branches', triggerBranches || '(none)'],
+                ['Firmware Repo', fwRepoSlug],
+                ['Mfg Firmware Repo', mfgFwRepoSlug],
               ] as [label, value]}
                 <div class="flex items-baseline justify-between border-b border-border-subtle py-1 last:border-0">
                   <dt class="text-xs text-text-tertiary">{label}</dt>

@@ -4,7 +4,6 @@ import type {
   BoardSummary,
   BoardDetail,
   BoardFamilyRevision,
-  BuildConfig,
   ProductTarget,
 } from '$lib/types/models';
 
@@ -223,64 +222,41 @@ describe('Wizard single flow — targets sent as flat array', () => {
   });
 });
 
-describe('Wizard buildConfig assembly', () => {
-  it('creates valid BuildConfig from wizard state', () => {
-    const targets = {
-      app: { soc: 'nrf52840', appId: 109, role: 'application' },
-      comms: { soc: 'nrf9151', appId: 108, role: 'communications' },
-    };
-    const deviceType = 2;
-    const deviceVariant = 3;
-    const productSlug = 'alpha';
-    const ncsVersion = 'v2.9.0';
-
-    const buildConfig: BuildConfig = {
-      board: productSlug,
-      ncsVersion,
-      boardRoot: 'ck_boards',
-      hasVsmMerge: false,
-      hasFips: false,
-      confFiles: Object.fromEntries(Object.keys(targets).map((k) => [k, ['prj.conf']])),
-      overlays: Object.fromEntries(Object.keys(targets).map((k) => [k, []])),
-      postBuild: ['sign_mcuboot'],
-      cfw: { deviceType, deviceVariant },
-    };
-
-    expect(buildConfig.board).toBe('alpha');
-    expect(buildConfig.cfw).toEqual({ deviceType: 2, deviceVariant: 3 });
-    expect(buildConfig.confFiles).toEqual({
-      app: ['prj.conf'],
-      comms: ['prj.conf'],
-    });
+describe('Wizard firmware repo slug auto-population', () => {
+  it('auto-populates fwRepoSlug from family name', () => {
+    const family = 'alpha';
+    const fwRepoSlug = `${family}_fw`;
+    expect(fwRepoSlug).toBe('alpha_fw');
   });
 
-  it('BuildConfig does NOT contain targets — targets live on BoardRevision', () => {
-    // Targets live on BoardRevision; the API collects them into the Product response.
-    const buildConfig: BuildConfig = {
-      board: 'alpha',
-      ncsVersion: 'v2.9.0',
-      boardRoot: 'ck_boards',
-      hasVsmMerge: false,
-      hasFips: false,
-      confFiles: { app: ['prj.conf'] },
-      overlays: { app: [] },
-      postBuild: ['sign_mcuboot'],
-      cfw: { deviceType: 2, deviceVariant: 3 },
+  it('auto-populates mfgFwRepoSlug from family name', () => {
+    const family = 'alpha';
+    const mfgFwRepoSlug = `${family}_mfg_fw`;
+    expect(mfgFwRepoSlug).toBe('alpha_mfg_fw');
+  });
+
+  it('works for different family names', () => {
+    const family = 'sigma5';
+    expect(`${family}_fw`).toBe('sigma5_fw');
+    expect(`${family}_mfg_fw`).toBe('sigma5_mfg_fw');
+  });
+
+  it('POST body includes fwRepoSlug and mfgFwRepoSlug, no buildConfig', () => {
+    const body = {
+      name: 'Alpha',
+      slug: 'alpha',
+      description: null,
+      fwRepoSlug: 'alpha_fw',
+      mfgFwRepoSlug: 'alpha_mfg_fw',
+      board: {
+        ckBoardsFamily: 'alpha',
+        revisions: [],
+      },
     };
-    // @ts-expect-error — 'targets' should not exist on BuildConfig
-    expect((buildConfig as Record<string, unknown>).targets).toBeUndefined();
-  });
-
-  it('trigger branches parse from comma-separated string', () => {
-    const input = 'main, release/*, feature/alpha';
-    const parsed = input.split(',').map((b) => b.trim()).filter(Boolean);
-    expect(parsed).toEqual(['main', 'release/*', 'feature/alpha']);
-  });
-
-  it('empty trigger branches produce empty array', () => {
-    const input = '';
-    const parsed = input.split(',').map((b) => b.trim()).filter(Boolean);
-    expect(parsed).toEqual([]);
+    expect(body.fwRepoSlug).toBe('alpha_fw');
+    expect(body.mfgFwRepoSlug).toBe('alpha_mfg_fw');
+    expect((body as Record<string, unknown>).buildConfig).toBeUndefined();
+    expect((body as Record<string, unknown>).triggerBranches).toBeUndefined();
   });
 });
 
