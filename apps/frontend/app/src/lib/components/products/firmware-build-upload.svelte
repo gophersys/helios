@@ -6,13 +6,12 @@
 
   interface Props {
     productId: string;
-    chipsetId: string;
-    isModem: boolean;
+    targetId: string;
     onSuccess: () => void;
     onCancel: () => void;
   }
 
-  let { productId, chipsetId, isModem, onSuccess, onCancel }: Props = $props();
+  let { productId, targetId, onSuccess, onCancel }: Props = $props();
 
   let error = $state<string | null>(null);
   let dragOver = $state(false);
@@ -60,17 +59,13 @@
       error = 'Please select a firmware file to upload';
       return;
     }
-    if (isModem && !modemFile) {
-      error = 'Modem firmware (.zip) is required for this chipset';
-      return;
-    }
 
     error = null;
     uploading = true;
 
     const formData = new FormData();
     formData.append('file', selectedFile);
-    formData.append('chipsetId', chipsetId);
+    formData.append('targetId', targetId);
     formData.append('version', formVersion);
     formData.append('isManufacturing', String(formIsManufacturing));
     formData.append('status', formStatus);
@@ -119,35 +114,33 @@
       </label>
     </div>
 
-    {#if isModem}
-      <!-- Modem firmware drop zone (required for modem chipsets) -->
-      <div
-        role="button"
-        tabindex="0"
-        ondragover={(e) => { e.preventDefault(); modemDragOver = true; }}
-        ondragleave={() => (modemDragOver = false)}
-        ondrop={handleModemDrop}
-        class={[
-          'mb-3 flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-3 transition-colors',
-          modemDragOver ? 'border-accent bg-accent-muted' : 'border-border bg-surface-1 hover:border-text-tertiary'
-        ].join(' ')}
-      >
-        <label class="flex cursor-pointer flex-col items-center gap-2">
-          <input
-            type="file"
-            accept=".zip"
-            onchange={handleModemFileChange}
-            class="hidden"
-          />
-          <Upload size={16} class="text-text-tertiary" strokeWidth={1.5} />
-          {#if modemFile}
-            <span class="text-xs font-medium text-text-primary">{modemFile.name}</span>
-          {:else}
-            <span class="text-2xs text-text-tertiary">Modem firmware (.zip) — required</span>
-          {/if}
-        </label>
-      </div>
-    {/if}
+    <!-- Optional modem firmware drop zone -->
+    <div
+      role="button"
+      tabindex="0"
+      ondragover={(e) => { e.preventDefault(); modemDragOver = true; }}
+      ondragleave={() => (modemDragOver = false)}
+      ondrop={handleModemDrop}
+      class={[
+        'mb-3 flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-3 transition-colors',
+        modemDragOver ? 'border-accent bg-accent-muted' : 'border-border bg-surface-1 hover:border-text-tertiary'
+      ].join(' ')}
+    >
+      <label class="flex cursor-pointer flex-col items-center gap-2">
+        <input
+          type="file"
+          accept=".zip"
+          onchange={handleModemFileChange}
+          class="hidden"
+        />
+        <Upload size={16} class="text-text-tertiary" strokeWidth={1.5} />
+        {#if modemFile}
+          <span class="text-xs font-medium text-text-primary">{modemFile.name}</span>
+        {:else}
+          <span class="text-2xs text-text-tertiary">Modem firmware (.zip) — optional</span>
+        {/if}
+      </label>
+    </div>
 
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <label>

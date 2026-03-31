@@ -2193,21 +2193,25 @@ class FindManyProductArgsFromProductRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive1']
 
 
 class ProductTargetIncludeFromProductRecursive1(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive2']
 
 
 class ProductTargetIncludeFromProductRecursive2(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive3']
 
 
 class ProductTargetIncludeFromProductRecursive3(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive4']
 
 
 class ProductTargetIncludeFromProductRecursive4(TypedDict, total=False):
@@ -2407,25 +2411,21 @@ class FindManyBoardArgsFromProductRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
     board: Union[bool, 'BoardArgsFromProductRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductRecursive1']
 
 
 class BoardRevisionIncludeFromProductRecursive1(TypedDict, total=False):
     """Relational arguments for Product"""
     board: Union[bool, 'BoardArgsFromProductRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductRecursive2']
 
 
 class BoardRevisionIncludeFromProductRecursive2(TypedDict, total=False):
     """Relational arguments for Product"""
     board: Union[bool, 'BoardArgsFromProductRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductRecursive3']
 
 
 class BoardRevisionIncludeFromProductRecursive3(TypedDict, total=False):
     """Relational arguments for Product"""
     board: Union[bool, 'BoardArgsFromProductRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductRecursive4']
 
 
 class BoardRevisionIncludeFromProductRecursive4(TypedDict, total=False):
@@ -2513,246 +2513,28 @@ class FindManyBoardRevisionArgsFromProductRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromProduct(TypedDict, total=False):
-    """Relational arguments for Product"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromProductRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromProductRecursive1(TypedDict, total=False):
-    """Relational arguments for Product"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromProductRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromProductRecursive2(TypedDict, total=False):
-    """Relational arguments for Product"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromProductRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromProductRecursive3(TypedDict, total=False):
-    """Relational arguments for Product"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromProductRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromProductRecursive4(TypedDict, total=False):
-    """Relational arguments for Product"""
-
-    
-
-class BoardRevisionChipsetArgsFromProduct(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromProductRecursive1(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromProductRecursive2(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromProductRecursive3(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromProductRecursive4(TypedDict, total=False):
-    """Arguments for Product"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromProduct(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductRecursive1(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductRecursive2(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductRecursive3(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductRecursive4(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromProduct(TypedDict, total=False):
-    """Relational arguments for Product"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive1']
-
-
-class ChipsetIncludeFromProductRecursive1(TypedDict, total=False):
-    """Relational arguments for Product"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive2']
-
-
-class ChipsetIncludeFromProductRecursive2(TypedDict, total=False):
-    """Relational arguments for Product"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive3']
-
-
-class ChipsetIncludeFromProductRecursive3(TypedDict, total=False):
-    """Relational arguments for Product"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductRecursive4']
-
-
-class ChipsetIncludeFromProductRecursive4(TypedDict, total=False):
-    """Relational arguments for Product"""
-
-    
-
-class ChipsetArgsFromProduct(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromProductRecursive1(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromProductRecursive2(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromProductRecursive3(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromProductRecursive4(TypedDict, total=False):
-    """Arguments for Product"""
-    
-    
-
-class FindManyChipsetArgsFromProduct(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromProductRecursive1(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromProductRecursive2(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromProductRecursive3(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromProductRecursive4(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromProductRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromProductRecursive1']
 
 
 class FirmwareBuildIncludeFromProductRecursive1(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromProductRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromProductRecursive2']
 
 
 class FirmwareBuildIncludeFromProductRecursive2(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromProductRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromProductRecursive3']
 
 
 class FirmwareBuildIncludeFromProductRecursive3(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromProductRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromProductRecursive4']
 
 
 class FirmwareBuildIncludeFromProductRecursive4(TypedDict, total=False):
@@ -5914,6 +5696,7 @@ class ProductTargetOptionalCreateInput(TypedDict, total=False):
     id: _str
     productId: _str
     product: 'ProductCreateNestedWithoutRelationsInput'
+    firmwareBuilds: 'FirmwareBuildCreateManyNestedWithoutRelationsInput'
 
 
 class ProductTargetCreateInput(ProductTargetOptionalCreateInput):
@@ -6009,6 +5792,7 @@ class ProductTargetUpdateInput(TypedDict, total=False):
     soc: _str
     appId: Union[AtomicIntInput, _int]
     product: 'ProductUpdateOneWithoutRelationsInput'
+    firmwareBuilds: 'FirmwareBuildUpdateManyWithoutRelationsInput'
 
 
 class ProductTargetUpdateManyMutationInput(TypedDict, total=False):
@@ -6147,6 +5931,7 @@ class ProductTargetListRelationFilter(TypedDict, total=False):
 class ProductTargetInclude(TypedDict, total=False):
     """ProductTarget relational arguments"""
     product: Union[bool, 'ProductArgsFromProductTarget']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTarget']
 
 
     
@@ -6295,21 +6080,25 @@ class FindManyProductArgsFromProductTargetRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive1']
 
 
 class ProductTargetIncludeFromProductTargetRecursive1(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive2']
 
 
 class ProductTargetIncludeFromProductTargetRecursive2(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive3']
 
 
 class ProductTargetIncludeFromProductTargetRecursive3(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive4']
 
 
 class ProductTargetIncludeFromProductTargetRecursive4(TypedDict, total=False):
@@ -6509,25 +6298,21 @@ class FindManyBoardArgsFromProductTargetRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     board: Union[bool, 'BoardArgsFromProductTargetRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductTargetRecursive1']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive1(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     board: Union[bool, 'BoardArgsFromProductTargetRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductTargetRecursive2']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive2(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     board: Union[bool, 'BoardArgsFromProductTargetRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductTargetRecursive3']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive3(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     board: Union[bool, 'BoardArgsFromProductTargetRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductTargetRecursive4']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive4(TypedDict, total=False):
@@ -6615,246 +6400,28 @@ class FindManyBoardRevisionArgsFromProductTargetRecursive4(TypedDict, total=Fals
     
     
 
-class BoardRevisionChipsetIncludeFromProductTarget(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromProductTargetRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromProductTargetRecursive1(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromProductTargetRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromProductTargetRecursive2(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromProductTargetRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromProductTargetRecursive3(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromProductTargetRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromProductTargetRecursive4(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-
-    
-
-class BoardRevisionChipsetArgsFromProductTarget(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromProductTargetRecursive1(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromProductTargetRecursive2(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromProductTargetRecursive3(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromProductTargetRecursive4(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromProductTarget(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductTargetRecursive1(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductTargetRecursive2(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductTargetRecursive3(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductTargetRecursive4(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromProductTarget(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductTargetRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive1']
-
-
-class ChipsetIncludeFromProductTargetRecursive1(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductTargetRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive2']
-
-
-class ChipsetIncludeFromProductTargetRecursive2(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductTargetRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive3']
-
-
-class ChipsetIncludeFromProductTargetRecursive3(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductTargetRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductTargetRecursive4']
-
-
-class ChipsetIncludeFromProductTargetRecursive4(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-
-    
-
-class ChipsetArgsFromProductTarget(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromProductTargetRecursive1(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromProductTargetRecursive2(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromProductTargetRecursive3(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromProductTargetRecursive4(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    
-    
-
-class FindManyChipsetArgsFromProductTarget(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromProductTargetRecursive1(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromProductTargetRecursive2(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromProductTargetRecursive3(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromProductTargetRecursive4(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromProductTargetRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromProductTargetRecursive1']
 
 
 class FirmwareBuildIncludeFromProductTargetRecursive1(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromProductTargetRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromProductTargetRecursive2']
 
 
 class FirmwareBuildIncludeFromProductTargetRecursive2(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromProductTargetRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromProductTargetRecursive3']
 
 
 class FirmwareBuildIncludeFromProductTargetRecursive3(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromProductTargetRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromProductTargetRecursive4']
 
 
 class FirmwareBuildIncludeFromProductTargetRecursive4(TypedDict, total=False):
@@ -9632,6 +9199,7 @@ class ProductTargetWhereInput(TypedDict, total=False):
     soc: Union[_str, 'types.StringFilter']
     appId: Union[_int, 'types.IntFilter']
     product: 'ProductRelationFilter'
+    firmwareBuilds: 'FirmwareBuildListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ProductTargetWhereInputRecursive1', List['ProductTargetWhereInputRecursive1']]
     # but this causes mypy to hang :/
@@ -9648,6 +9216,7 @@ class ProductTargetWhereInputRecursive1(TypedDict, total=False):
     soc: Union[_str, 'types.StringFilter']
     appId: Union[_int, 'types.IntFilter']
     product: 'ProductRelationFilter'
+    firmwareBuilds: 'FirmwareBuildListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ProductTargetWhereInputRecursive2', List['ProductTargetWhereInputRecursive2']]
     # but this causes mypy to hang :/
@@ -9664,6 +9233,7 @@ class ProductTargetWhereInputRecursive2(TypedDict, total=False):
     soc: Union[_str, 'types.StringFilter']
     appId: Union[_int, 'types.IntFilter']
     product: 'ProductRelationFilter'
+    firmwareBuilds: 'FirmwareBuildListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ProductTargetWhereInputRecursive3', List['ProductTargetWhereInputRecursive3']]
     # but this causes mypy to hang :/
@@ -9680,6 +9250,7 @@ class ProductTargetWhereInputRecursive3(TypedDict, total=False):
     soc: Union[_str, 'types.StringFilter']
     appId: Union[_int, 'types.IntFilter']
     product: 'ProductRelationFilter'
+    firmwareBuilds: 'FirmwareBuildListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ProductTargetWhereInputRecursive4', List['ProductTargetWhereInputRecursive4']]
     # but this causes mypy to hang :/
@@ -9696,6 +9267,7 @@ class ProductTargetWhereInputRecursive4(TypedDict, total=False):
     soc: Union[_str, 'types.StringFilter']
     appId: Union[_int, 'types.IntFilter']
     product: 'ProductRelationFilter'
+    firmwareBuilds: 'FirmwareBuildListRelationFilter'
 
 
 
@@ -9863,6 +9435,7 @@ ProductTargetKeys = Literal[
     'soc',
     'appId',
     'product',
+    'firmwareBuilds',
 ]
 ProductTargetScalarFieldKeys = Literal[
     'id',
@@ -9875,6 +9448,7 @@ ProductTargetScalarFieldKeysT = TypeVar('ProductTargetScalarFieldKeysT', bound=P
 
 ProductTargetRelationalFieldKeys = Literal[
         'product',
+        'firmwareBuilds',
     ]
 
 # Board types
@@ -10332,21 +9906,25 @@ class FindManyProductArgsFromBoardRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive1']
 
 
 class ProductTargetIncludeFromBoardRecursive1(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive2']
 
 
 class ProductTargetIncludeFromBoardRecursive2(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive3']
 
 
 class ProductTargetIncludeFromBoardRecursive3(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive4']
 
 
 class ProductTargetIncludeFromBoardRecursive4(TypedDict, total=False):
@@ -10546,25 +10124,21 @@ class FindManyBoardArgsFromBoardRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
     board: Union[bool, 'BoardArgsFromBoardRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRecursive1']
 
 
 class BoardRevisionIncludeFromBoardRecursive1(TypedDict, total=False):
     """Relational arguments for Board"""
     board: Union[bool, 'BoardArgsFromBoardRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRecursive2']
 
 
 class BoardRevisionIncludeFromBoardRecursive2(TypedDict, total=False):
     """Relational arguments for Board"""
     board: Union[bool, 'BoardArgsFromBoardRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRecursive3']
 
 
 class BoardRevisionIncludeFromBoardRecursive3(TypedDict, total=False):
     """Relational arguments for Board"""
     board: Union[bool, 'BoardArgsFromBoardRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRecursive4']
 
 
 class BoardRevisionIncludeFromBoardRecursive4(TypedDict, total=False):
@@ -10652,246 +10226,28 @@ class FindManyBoardRevisionArgsFromBoardRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromBoard(TypedDict, total=False):
-    """Relational arguments for Board"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromBoardRecursive1(TypedDict, total=False):
-    """Relational arguments for Board"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromBoardRecursive2(TypedDict, total=False):
-    """Relational arguments for Board"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromBoardRecursive3(TypedDict, total=False):
-    """Relational arguments for Board"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromBoardRecursive4(TypedDict, total=False):
-    """Relational arguments for Board"""
-
-    
-
-class BoardRevisionChipsetArgsFromBoard(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromBoardRecursive1(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromBoardRecursive2(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromBoardRecursive3(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromBoardRecursive4(TypedDict, total=False):
-    """Arguments for Board"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromBoard(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRecursive1(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRecursive2(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRecursive3(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRecursive4(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromBoard(TypedDict, total=False):
-    """Relational arguments for Board"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive1']
-
-
-class ChipsetIncludeFromBoardRecursive1(TypedDict, total=False):
-    """Relational arguments for Board"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive2']
-
-
-class ChipsetIncludeFromBoardRecursive2(TypedDict, total=False):
-    """Relational arguments for Board"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive3']
-
-
-class ChipsetIncludeFromBoardRecursive3(TypedDict, total=False):
-    """Relational arguments for Board"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRecursive4']
-
-
-class ChipsetIncludeFromBoardRecursive4(TypedDict, total=False):
-    """Relational arguments for Board"""
-
-    
-
-class ChipsetArgsFromBoard(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromBoardRecursive1(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromBoardRecursive2(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromBoardRecursive3(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromBoardRecursive4(TypedDict, total=False):
-    """Arguments for Board"""
-    
-    
-
-class FindManyChipsetArgsFromBoard(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromBoardRecursive1(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromBoardRecursive2(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromBoardRecursive3(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromBoardRecursive4(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromBoardRecursive1']
 
 
 class FirmwareBuildIncludeFromBoardRecursive1(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromBoardRecursive2']
 
 
 class FirmwareBuildIncludeFromBoardRecursive2(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromBoardRecursive3']
 
 
 class FirmwareBuildIncludeFromBoardRecursive3(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromBoardRecursive4']
 
 
 class FirmwareBuildIncludeFromBoardRecursive4(TypedDict, total=False):
@@ -14015,12 +13371,10 @@ class BoardRevisionOptionalCreateInput(TypedDict, total=False):
     id: _str
     boardId: _str
     status: 'enums.LifecycleStatus'
-    peripherals: Optional['fields.Json']
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     board: 'BoardCreateNestedWithoutRelationsInput'
-    chipsets: 'BoardRevisionChipsetCreateManyNestedWithoutRelationsInput'
 
 
 class BoardRevisionCreateInput(BoardRevisionOptionalCreateInput):
@@ -14036,7 +13390,6 @@ class BoardRevisionOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     id: _str
     boardId: _str
     status: 'enums.LifecycleStatus'
-    peripherals: Optional['fields.Json']
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -14097,12 +13450,10 @@ class BoardRevisionUpdateInput(TypedDict, total=False):
     id: _str
     version: _str
     status: 'enums.LifecycleStatus'
-    peripherals: Optional['fields.Json']
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     board: 'BoardUpdateOneWithoutRelationsInput'
-    chipsets: 'BoardRevisionChipsetUpdateManyWithoutRelationsInput'
 
 
 class BoardRevisionUpdateManyMutationInput(TypedDict, total=False):
@@ -14110,7 +13461,6 @@ class BoardRevisionUpdateManyMutationInput(TypedDict, total=False):
     id: _str
     version: _str
     status: 'enums.LifecycleStatus'
-    peripherals: Optional['fields.Json']
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -14180,14 +13530,6 @@ _BoardRevision_status_OrderByInput = TypedDict(
     total=True
 )
 
-_BoardRevision_peripherals_OrderByInput = TypedDict(
-    '_BoardRevision_peripherals_OrderByInput',
-    {
-        'peripherals': 'SortOrder',
-    },
-    total=True
-)
-
 _BoardRevision_notes_OrderByInput = TypedDict(
     '_BoardRevision_notes_OrderByInput',
     {
@@ -14235,7 +13577,6 @@ BoardRevisionOrderByInput = Union[
     '_BoardRevision_boardId_OrderByInput',
     '_BoardRevision_version_OrderByInput',
     '_BoardRevision_status_OrderByInput',
-    '_BoardRevision_peripherals_OrderByInput',
     '_BoardRevision_notes_OrderByInput',
     '_BoardRevision_createdAt_OrderByInput',
     '_BoardRevision_updatedAt_OrderByInput',
@@ -14271,7 +13612,6 @@ class BoardRevisionListRelationFilter(TypedDict, total=False):
 class BoardRevisionInclude(TypedDict, total=False):
     """BoardRevision relational arguments"""
     board: Union[bool, 'BoardArgsFromBoardRevision']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevision']
 
 
     
@@ -14420,21 +13760,25 @@ class FindManyProductArgsFromBoardRevisionRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive1']
 
 
 class ProductTargetIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive2']
 
 
 class ProductTargetIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive3']
 
 
 class ProductTargetIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive4']
 
 
 class ProductTargetIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
@@ -14634,25 +13978,21 @@ class FindManyBoardArgsFromBoardRevisionRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive1']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive2']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive3']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     board: Union[bool, 'BoardArgsFromBoardRevisionRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive4']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
@@ -14740,246 +14080,28 @@ class FindManyBoardRevisionArgsFromBoardRevisionRecursive4(TypedDict, total=Fals
     
     
 
-class BoardRevisionChipsetIncludeFromBoardRevision(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-
-    
-
-class BoardRevisionChipsetArgsFromBoardRevision(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromBoardRevisionRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromBoardRevisionRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromBoardRevisionRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromBoardRevisionRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromBoardRevision(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromBoardRevision(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive1']
-
-
-class ChipsetIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive2']
-
-
-class ChipsetIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive3']
-
-
-class ChipsetIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionRecursive4']
-
-
-class ChipsetIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-
-    
-
-class ChipsetArgsFromBoardRevision(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromBoardRevisionRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromBoardRevisionRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromBoardRevisionRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromBoardRevisionRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    
-    
-
-class FindManyChipsetArgsFromBoardRevision(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromBoardRevisionRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromBoardRevisionRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromBoardRevisionRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromBoardRevisionRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromBoardRevisionRecursive1']
 
 
 class FirmwareBuildIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromBoardRevisionRecursive2']
 
 
 class FirmwareBuildIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromBoardRevisionRecursive3']
 
 
 class FirmwareBuildIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromBoardRevisionRecursive4']
 
 
 class FirmwareBuildIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
@@ -17755,12 +16877,10 @@ class BoardRevisionWhereInput(TypedDict, total=False):
     boardId: Union[_str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
     status: 'enums.LifecycleStatus'
-    peripherals: Union[None, 'fields.Json', 'types.JsonFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     board: 'BoardRelationFilter'
-    chipsets: 'BoardRevisionChipsetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive1', List['BoardRevisionWhereInputRecursive1']]
     # but this causes mypy to hang :/
@@ -17775,12 +16895,10 @@ class BoardRevisionWhereInputRecursive1(TypedDict, total=False):
     boardId: Union[_str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
     status: 'enums.LifecycleStatus'
-    peripherals: Union[None, 'fields.Json', 'types.JsonFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     board: 'BoardRelationFilter'
-    chipsets: 'BoardRevisionChipsetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive2', List['BoardRevisionWhereInputRecursive2']]
     # but this causes mypy to hang :/
@@ -17795,12 +16913,10 @@ class BoardRevisionWhereInputRecursive2(TypedDict, total=False):
     boardId: Union[_str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
     status: 'enums.LifecycleStatus'
-    peripherals: Union[None, 'fields.Json', 'types.JsonFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     board: 'BoardRelationFilter'
-    chipsets: 'BoardRevisionChipsetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive3', List['BoardRevisionWhereInputRecursive3']]
     # but this causes mypy to hang :/
@@ -17815,12 +16931,10 @@ class BoardRevisionWhereInputRecursive3(TypedDict, total=False):
     boardId: Union[_str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
     status: 'enums.LifecycleStatus'
-    peripherals: Union[None, 'fields.Json', 'types.JsonFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     board: 'BoardRelationFilter'
-    chipsets: 'BoardRevisionChipsetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive4', List['BoardRevisionWhereInputRecursive4']]
     # but this causes mypy to hang :/
@@ -17835,12 +16949,10 @@ class BoardRevisionWhereInputRecursive4(TypedDict, total=False):
     boardId: Union[_str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
     status: 'enums.LifecycleStatus'
-    peripherals: Union[None, 'fields.Json', 'types.JsonFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     board: 'BoardRelationFilter'
-    chipsets: 'BoardRevisionChipsetListRelationFilter'
 
 
 
@@ -17855,7 +16967,6 @@ class BoardRevisionScalarWhereWithAggregatesInput(TypedDict, total=False):
     boardId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
-    peripherals: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -17871,7 +16982,6 @@ class BoardRevisionScalarWhereWithAggregatesInputRecursive1(TypedDict, total=Fal
     boardId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
-    peripherals: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -17887,7 +16997,6 @@ class BoardRevisionScalarWhereWithAggregatesInputRecursive2(TypedDict, total=Fal
     boardId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
-    peripherals: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -17903,7 +17012,6 @@ class BoardRevisionScalarWhereWithAggregatesInputRecursive3(TypedDict, total=Fal
     boardId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
-    peripherals: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -17919,7 +17027,6 @@ class BoardRevisionScalarWhereWithAggregatesInputRecursive4(TypedDict, total=Fal
     boardId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
-    peripherals: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -17931,7 +17038,6 @@ class BoardRevisionGroupByOutput(TypedDict, total=False):
     boardId: _str
     version: _str
     status: 'enums.LifecycleStatus'
-    peripherals: 'fields.Json'
     notes: _str
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -17956,7 +17062,6 @@ class BoardRevisionScalarAggregateOutput(TypedDict, total=False):
     boardId: _str
     version: _str
     status: 'enums.LifecycleStatus'
-    peripherals: 'fields.Json'
     notes: _str
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -17972,7 +17077,6 @@ class BoardRevisionMaxAggregateInput(TypedDict, total=False):
     boardId: bool
     version: bool
     status: bool
-    peripherals: bool
     notes: bool
     createdAt: bool
     updatedAt: bool
@@ -17984,7 +17088,6 @@ class BoardRevisionMinAggregateInput(TypedDict, total=False):
     boardId: bool
     version: bool
     status: bool
-    peripherals: bool
     notes: bool
     createdAt: bool
     updatedAt: bool
@@ -18005,7 +17108,6 @@ BoardRevisionCountAggregateInput = TypedDict(
         'boardId': bool,
         'version': bool,
         'status': bool,
-        'peripherals': bool,
         'notes': bool,
         'createdAt': bool,
         'updatedAt': bool,
@@ -18021,7 +17123,6 @@ BoardRevisionCountAggregateOutput = TypedDict(
         'boardId': int,
         'version': int,
         'status': int,
-        'peripherals': int,
         'notes': int,
         'createdAt': int,
         'updatedAt': int,
@@ -18036,19 +17137,16 @@ BoardRevisionKeys = Literal[
     'boardId',
     'version',
     'status',
-    'peripherals',
     'notes',
     'createdAt',
     'updatedAt',
     'board',
-    'chipsets',
 ]
 BoardRevisionScalarFieldKeys = Literal[
     'id',
     'boardId',
     'version',
     'status',
-    'peripherals',
     'notes',
     'createdAt',
     'updatedAt',
@@ -18057,7947 +17155,6 @@ BoardRevisionScalarFieldKeysT = TypeVar('BoardRevisionScalarFieldKeysT', bound=B
 
 BoardRevisionRelationalFieldKeys = Literal[
         'board',
-        'chipsets',
-    ]
-
-# BoardRevisionChipset types
-
-class BoardRevisionChipsetOptionalCreateInput(TypedDict, total=False):
-    """Optional arguments to the BoardRevisionChipset create method"""
-    id: _str
-    boardRevisionId: _str
-    chipsetId: _str
-    boardRevision: 'BoardRevisionCreateNestedWithoutRelationsInput'
-    chipset: 'ChipsetCreateNestedWithoutRelationsInput'
-
-
-class BoardRevisionChipsetCreateInput(BoardRevisionChipsetOptionalCreateInput):
-    """Required arguments to the BoardRevisionChipset create method"""
-
-
-# TODO: remove this in favour of without explicit relations
-# e.g. PostCreateWithoutAuthorInput
-
-class BoardRevisionChipsetOptionalCreateWithoutRelationsInput(TypedDict, total=False):
-    """Optional arguments to the BoardRevisionChipset create method, without relations"""
-    id: _str
-    boardRevisionId: _str
-    chipsetId: _str
-
-
-class BoardRevisionChipsetCreateWithoutRelationsInput(BoardRevisionChipsetOptionalCreateWithoutRelationsInput):
-    """Required arguments to the BoardRevisionChipset create method, without relations"""
-
-class BoardRevisionChipsetConnectOrCreateWithoutRelationsInput(TypedDict):
-    create: 'BoardRevisionChipsetCreateWithoutRelationsInput'
-    where: 'BoardRevisionChipsetWhereUniqueInput'
-
-class BoardRevisionChipsetCreateNestedWithoutRelationsInput(TypedDict, total=False):
-    create: 'BoardRevisionChipsetCreateWithoutRelationsInput'
-    connect: 'BoardRevisionChipsetWhereUniqueInput'
-    connect_or_create: 'BoardRevisionChipsetConnectOrCreateWithoutRelationsInput'
-
-
-class BoardRevisionChipsetCreateManyNestedWithoutRelationsInput(TypedDict, total=False):
-    create: Union['BoardRevisionChipsetCreateWithoutRelationsInput', List['BoardRevisionChipsetCreateWithoutRelationsInput']]
-    connect: Union['BoardRevisionChipsetWhereUniqueInput', List['BoardRevisionChipsetWhereUniqueInput']]
-    connect_or_create: Union['BoardRevisionChipsetConnectOrCreateWithoutRelationsInput', List['BoardRevisionChipsetConnectOrCreateWithoutRelationsInput']]
-
-_BoardRevisionChipsetWhereUnique_id_Input = TypedDict(
-    '_BoardRevisionChipsetWhereUnique_id_Input',
-    {
-        'id': '_str',
-    },
-    total=True
-)
-
-_BoardRevisionChipsetCompoundboardRevisionId_chipsetIdKeyInner = TypedDict(
-    '_BoardRevisionChipsetCompoundboardRevisionId_chipsetIdKeyInner',
-    {
-        'boardRevisionId': '_str',
-        'chipsetId': '_str',
-    },
-    total=True
-)
-
-_BoardRevisionChipsetCompoundboardRevisionId_chipsetIdKey = TypedDict(
-    '_BoardRevisionChipsetCompoundboardRevisionId_chipsetIdKey',
-    {
-        'boardRevisionId_chipsetId': '_BoardRevisionChipsetCompoundboardRevisionId_chipsetIdKeyInner',
-    },
-    total=True
-)
-
-BoardRevisionChipsetWhereUniqueInput = Union[
-    '_BoardRevisionChipsetWhereUnique_id_Input',
-    '_BoardRevisionChipsetCompoundboardRevisionId_chipsetIdKey',
-]
-
-
-class BoardRevisionChipsetUpdateInput(TypedDict, total=False):
-    """Optional arguments for updating a record"""
-    id: _str
-    boardRevision: 'BoardRevisionUpdateOneWithoutRelationsInput'
-    chipset: 'ChipsetUpdateOneWithoutRelationsInput'
-
-
-class BoardRevisionChipsetUpdateManyMutationInput(TypedDict, total=False):
-    """Arguments for updating many records"""
-    id: _str
-
-
-class BoardRevisionChipsetUpdateManyWithoutRelationsInput(TypedDict, total=False):
-    create: List['BoardRevisionChipsetCreateWithoutRelationsInput']
-    connect: List['BoardRevisionChipsetWhereUniqueInput']
-    connect_or_create: List['BoardRevisionChipsetConnectOrCreateWithoutRelationsInput']
-    set: List['BoardRevisionChipsetWhereUniqueInput']
-    disconnect: List['BoardRevisionChipsetWhereUniqueInput']
-    delete: List['BoardRevisionChipsetWhereUniqueInput']
-
-    # TODO
-    # update: List['BoardRevisionChipsetUpdateWithWhereUniqueWithoutRelationsInput']
-    # updateMany: List['BoardRevisionChipsetUpdateManyWithWhereUniqueWithoutRelationsInput']
-    # deleteMany: List['BoardRevisionChipsetScalarWhereInput']
-    # upsert: List['BoardRevisionChipsetUpserteWithWhereUniqueWithoutRelationsInput']
-
-
-class BoardRevisionChipsetUpdateOneWithoutRelationsInput(TypedDict, total=False):
-    create: 'BoardRevisionChipsetCreateWithoutRelationsInput'
-    connect: 'BoardRevisionChipsetWhereUniqueInput'
-    connect_or_create: 'BoardRevisionChipsetConnectOrCreateWithoutRelationsInput'
-    disconnect: bool
-    delete: bool
-
-    # TODO
-    # update: 'BoardRevisionChipsetUpdateInput'
-    # upsert: 'BoardRevisionChipsetUpsertWithoutRelationsInput'
-
-
-class BoardRevisionChipsetUpsertInput(TypedDict):
-    create: 'BoardRevisionChipsetCreateInput'
-    update: 'BoardRevisionChipsetUpdateInput'  # pyright: ignore[reportIncompatibleMethodOverride]
-
-
-_BoardRevisionChipset_id_OrderByInput = TypedDict(
-    '_BoardRevisionChipset_id_OrderByInput',
-    {
-        'id': 'SortOrder',
-    },
-    total=True
-)
-
-_BoardRevisionChipset_boardRevisionId_OrderByInput = TypedDict(
-    '_BoardRevisionChipset_boardRevisionId_OrderByInput',
-    {
-        'boardRevisionId': 'SortOrder',
-    },
-    total=True
-)
-
-_BoardRevisionChipset_chipsetId_OrderByInput = TypedDict(
-    '_BoardRevisionChipset_chipsetId_OrderByInput',
-    {
-        'chipsetId': 'SortOrder',
-    },
-    total=True
-)
-
-_BoardRevisionChipset_RelevanceInner = TypedDict(
-    '_BoardRevisionChipset_RelevanceInner',
-    {
-        'fields': 'List[BoardRevisionChipsetScalarFieldKeys]',
-        'search': 'str',
-        'sort': 'SortOrder',
-    },
-    total=True
-)
-
-_BoardRevisionChipset_RelevanceOrderByInput = TypedDict(
-    '_BoardRevisionChipset_RelevanceOrderByInput',
-    {
-        '_relevance': '_BoardRevisionChipset_RelevanceInner',
-    },
-    total=True
-)
-
-BoardRevisionChipsetOrderByInput = Union[
-    '_BoardRevisionChipset_id_OrderByInput',
-    '_BoardRevisionChipset_boardRevisionId_OrderByInput',
-    '_BoardRevisionChipset_chipsetId_OrderByInput',
-    '_BoardRevisionChipset_RelevanceOrderByInput',
-]
-
-
-
-# recursive BoardRevisionChipset types
-# TODO: cleanup these types
-
-
-# Dict[str, Any] is a mypy limitation
-# see https://github.com/RobertCraigie/prisma-client-py/issues/45
-# switch to pyright for improved types, see https://prisma-client-py.readthedocs.io/en/stable/reference/limitations/
-
-BoardRevisionChipsetRelationFilter = TypedDict(
-    'BoardRevisionChipsetRelationFilter',
-    {
-        'is': 'Dict[str, Any]',
-        'is_not': 'Dict[str, Any]',
-    },
-    total=False,
-)
-
-
-class BoardRevisionChipsetListRelationFilter(TypedDict, total=False):
-    some: 'Dict[str, Any]'
-    none: 'Dict[str, Any]'
-    every: 'Dict[str, Any]'
-
-
-class BoardRevisionChipsetInclude(TypedDict, total=False):
-    """BoardRevisionChipset relational arguments"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionChipset']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionChipset']
-
-
-    
-
-class ProductIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionChipsetRecursive1']
-    boards: Union[bool, 'FindManyBoardArgsFromBoardRevisionChipsetRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive1']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionChipsetRecursive1']
-    tests: Union[bool, 'FindManyTestArgsFromBoardRevisionChipsetRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive1']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive1']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionChipsetRecursive1']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionChipsetRecursive1']
-
-
-class ProductIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionChipsetRecursive2']
-    boards: Union[bool, 'FindManyBoardArgsFromBoardRevisionChipsetRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive2']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionChipsetRecursive2']
-    tests: Union[bool, 'FindManyTestArgsFromBoardRevisionChipsetRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive2']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive2']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionChipsetRecursive2']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionChipsetRecursive2']
-
-
-class ProductIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionChipsetRecursive3']
-    boards: Union[bool, 'FindManyBoardArgsFromBoardRevisionChipsetRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive3']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionChipsetRecursive3']
-    tests: Union[bool, 'FindManyTestArgsFromBoardRevisionChipsetRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive3']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive3']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionChipsetRecursive3']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionChipsetRecursive3']
-
-
-class ProductIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    targets: Union[bool, 'FindManyProductTargetArgsFromBoardRevisionChipsetRecursive4']
-    boards: Union[bool, 'FindManyBoardArgsFromBoardRevisionChipsetRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive4']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionChipsetRecursive4']
-    tests: Union[bool, 'FindManyTestArgsFromBoardRevisionChipsetRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive4']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive4']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionChipsetRecursive4']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionChipsetRecursive4']
-
-
-class ProductIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class ProductArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductIncludeFromProductRecursive1'
-
-
-class ProductArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductIncludeFromProductRecursive2'
-
-
-class ProductArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductIncludeFromProductRecursive3'
-
-
-class ProductArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductIncludeFromProductRecursive4'
-
-
-class ProductArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyProductArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive1'
-
-
-class FindManyProductArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive2'
-
-
-class FindManyProductArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive3'
-
-
-class FindManyProductArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive4'
-
-
-class FindManyProductArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    
-    
-
-class ProductTargetIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive1']
-
-
-class ProductTargetIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive2']
-
-
-class ProductTargetIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive3']
-
-
-class ProductTargetIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive4']
-
-
-class ProductTargetIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class ProductTargetArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive1'
-
-
-class ProductTargetArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive2'
-
-
-class ProductTargetArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive3'
-
-
-class ProductTargetArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive4'
-
-
-class ProductTargetArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyProductTargetArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive1'
-
-
-class FindManyProductTargetArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive2'
-
-
-class FindManyProductTargetArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive3'
-
-
-class FindManyProductTargetArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive4'
-
-
-class FindManyProductTargetArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    
-    
-
-class BoardIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive1']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromBoardRevisionChipsetRecursive1']
-
-
-class BoardIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive2']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromBoardRevisionChipsetRecursive2']
-
-
-class BoardIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive3']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromBoardRevisionChipsetRecursive3']
-
-
-class BoardIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive4']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromBoardRevisionChipsetRecursive4']
-
-
-class BoardIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class BoardArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardIncludeFromBoardRecursive1'
-
-
-class BoardArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardIncludeFromBoardRecursive2'
-
-
-class BoardArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardIncludeFromBoardRecursive3'
-
-
-class BoardArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardIncludeFromBoardRecursive4'
-
-
-class BoardArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyBoardArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive1'
-
-
-class FindManyBoardArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive2'
-
-
-class FindManyBoardArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive3'
-
-
-class FindManyBoardArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive4'
-
-
-class FindManyBoardArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    
-    
-
-class BoardRevisionIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    board: Union[bool, 'BoardArgsFromBoardRevisionChipsetRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive1']
-
-
-class BoardRevisionIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    board: Union[bool, 'BoardArgsFromBoardRevisionChipsetRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive2']
-
-
-class BoardRevisionIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    board: Union[bool, 'BoardArgsFromBoardRevisionChipsetRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive3']
-
-
-class BoardRevisionIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    board: Union[bool, 'BoardArgsFromBoardRevisionChipsetRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive4']
-
-
-class BoardRevisionIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class BoardRevisionArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive1'
-
-
-class BoardRevisionArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive2'
-
-
-class BoardRevisionArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive3'
-
-
-class BoardRevisionArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive4'
-
-
-class BoardRevisionArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyBoardRevisionArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive1'
-
-
-class FindManyBoardRevisionArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive2'
-
-
-class FindManyBoardRevisionArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive3'
-
-
-class FindManyBoardRevisionArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive4'
-
-
-class FindManyBoardRevisionArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    
-    
-
-class BoardRevisionChipsetIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionChipsetRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionChipsetRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionChipsetRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionChipsetRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionChipsetRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionChipsetRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionChipsetRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionChipsetRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class BoardRevisionChipsetArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive1']
-
-
-class ChipsetIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive2']
-
-
-class ChipsetIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive3']
-
-
-class ChipsetIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBoardRevisionChipsetRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive4']
-
-
-class ChipsetIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class ChipsetArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyChipsetArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
-class FirmwareBuildIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionChipsetRecursive1']
-
-
-class FirmwareBuildIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionChipsetRecursive2']
-
-
-class FirmwareBuildIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionChipsetRecursive3']
-
-
-class FirmwareBuildIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromBoardRevisionChipsetRecursive4']
-
-
-class FirmwareBuildIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class FirmwareBuildArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive1'
-
-
-class FirmwareBuildArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive2'
-
-
-class FirmwareBuildArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive3'
-
-
-class FirmwareBuildArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive4'
-
-
-class FirmwareBuildArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyFirmwareBuildArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive1'
-
-
-class FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive2'
-
-
-class FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive3'
-
-
-class FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive4'
-
-
-class FindManyFirmwareBuildArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    
-    
-
-class ProductStageConfigIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive1']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive1']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive1']
-
-
-class ProductStageConfigIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive2']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive2']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive2']
-
-
-class ProductStageConfigIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive3']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive3']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive3']
-
-
-class ProductStageConfigIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive4']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive4']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive4']
-
-
-class ProductStageConfigIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class ProductStageConfigArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive1'
-
-
-class ProductStageConfigArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive2'
-
-
-class ProductStageConfigArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive3'
-
-
-class ProductStageConfigArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive4'
-
-
-class ProductStageConfigArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyProductStageConfigArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive1'
-
-
-class FindManyProductStageConfigArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive2'
-
-
-class FindManyProductStageConfigArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive3'
-
-
-class FindManyProductStageConfigArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive4'
-
-
-class FindManyProductStageConfigArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    
-    
-
-class ValidationQueueEntryIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionChipsetRecursive1']
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive1']
-    session: Union[bool, 'SessionArgsFromBoardRevisionChipsetRecursive1']
-
-
-class ValidationQueueEntryIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionChipsetRecursive2']
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive2']
-    session: Union[bool, 'SessionArgsFromBoardRevisionChipsetRecursive2']
-
-
-class ValidationQueueEntryIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionChipsetRecursive3']
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive3']
-    session: Union[bool, 'SessionArgsFromBoardRevisionChipsetRecursive3']
-
-
-class ValidationQueueEntryIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionChipsetRecursive4']
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive4']
-    session: Union[bool, 'SessionArgsFromBoardRevisionChipsetRecursive4']
-
-
-class ValidationQueueEntryIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class ValidationQueueEntryArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive1'
-
-
-class ValidationQueueEntryArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive2'
-
-
-class ValidationQueueEntryArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive3'
-
-
-class ValidationQueueEntryArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive4'
-
-
-class ValidationQueueEntryArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyValidationQueueEntryArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive1'
-
-
-class FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive2'
-
-
-class FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive3'
-
-
-class FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive4'
-
-
-class FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    
-    
-
-class PipelineRunIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionChipsetRecursive1']
-    builds: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive1']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive1']
-
-
-class PipelineRunIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionChipsetRecursive2']
-    builds: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive2']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive2']
-
-
-class PipelineRunIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionChipsetRecursive3']
-    builds: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive3']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive3']
-
-
-class PipelineRunIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionChipsetRecursive4']
-    builds: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive4']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive4']
-
-
-class PipelineRunIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class PipelineRunArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'PipelineRunIncludeFromPipelineRunRecursive1'
-
-
-class PipelineRunArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'PipelineRunIncludeFromPipelineRunRecursive2'
-
-
-class PipelineRunArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'PipelineRunIncludeFromPipelineRunRecursive3'
-
-
-class PipelineRunArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'PipelineRunIncludeFromPipelineRunRecursive4'
-
-
-class PipelineRunArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyPipelineRunArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
-    where: 'PipelineRunWhereInput'
-    cursor: 'PipelineRunWhereUniqueInput'
-    distinct: List['PipelineRunScalarFieldKeys']
-    include: 'PipelineRunIncludeFromPipelineRunRecursive1'
-
-
-class FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
-    where: 'PipelineRunWhereInput'
-    cursor: 'PipelineRunWhereUniqueInput'
-    distinct: List['PipelineRunScalarFieldKeys']
-    include: 'PipelineRunIncludeFromPipelineRunRecursive2'
-
-
-class FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
-    where: 'PipelineRunWhereInput'
-    cursor: 'PipelineRunWhereUniqueInput'
-    distinct: List['PipelineRunScalarFieldKeys']
-    include: 'PipelineRunIncludeFromPipelineRunRecursive3'
-
-
-class FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
-    where: 'PipelineRunWhereInput'
-    cursor: 'PipelineRunWhereUniqueInput'
-    distinct: List['PipelineRunScalarFieldKeys']
-    include: 'PipelineRunIncludeFromPipelineRunRecursive4'
-
-
-class FindManyPipelineRunArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
-    where: 'PipelineRunWhereInput'
-    cursor: 'PipelineRunWhereUniqueInput'
-    distinct: List['PipelineRunScalarFieldKeys']
-    
-    
-
-class BuildJobIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive1']
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive1']
-    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromBoardRevisionChipsetRecursive1']
-    reusedFrom: Union[bool, 'BuildJobArgsFromBoardRevisionChipsetRecursive1']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive1']
-
-
-class BuildJobIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive2']
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive2']
-    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromBoardRevisionChipsetRecursive2']
-    reusedFrom: Union[bool, 'BuildJobArgsFromBoardRevisionChipsetRecursive2']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive2']
-
-
-class BuildJobIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive3']
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive3']
-    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromBoardRevisionChipsetRecursive3']
-    reusedFrom: Union[bool, 'BuildJobArgsFromBoardRevisionChipsetRecursive3']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive3']
-
-
-class BuildJobIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive4']
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive4']
-    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromBoardRevisionChipsetRecursive4']
-    reusedFrom: Union[bool, 'BuildJobArgsFromBoardRevisionChipsetRecursive4']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionChipsetRecursive4']
-
-
-class BuildJobIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class BuildJobArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BuildJobIncludeFromBuildJobRecursive1'
-
-
-class BuildJobArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BuildJobIncludeFromBuildJobRecursive2'
-
-
-class BuildJobArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BuildJobIncludeFromBuildJobRecursive3'
-
-
-class BuildJobArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BuildJobIncludeFromBuildJobRecursive4'
-
-
-class BuildJobArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyBuildJobArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive1'
-
-
-class FindManyBuildJobArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive2'
-
-
-class FindManyBuildJobArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive3'
-
-
-class FindManyBuildJobArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive4'
-
-
-class FindManyBuildJobArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    
-    
-
-class BuildJobArtifactIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    buildJob: Union[bool, 'BuildJobArgsFromBoardRevisionChipsetRecursive1']
-
-
-class BuildJobArtifactIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    buildJob: Union[bool, 'BuildJobArgsFromBoardRevisionChipsetRecursive2']
-
-
-class BuildJobArtifactIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    buildJob: Union[bool, 'BuildJobArgsFromBoardRevisionChipsetRecursive3']
-
-
-class BuildJobArtifactIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    buildJob: Union[bool, 'BuildJobArgsFromBoardRevisionChipsetRecursive4']
-
-
-class BuildJobArtifactIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class BuildJobArtifactArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive1'
-
-
-class BuildJobArtifactArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive2'
-
-
-class BuildJobArtifactArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive3'
-
-
-class BuildJobArtifactArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive4'
-
-
-class BuildJobArtifactArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyBuildJobArtifactArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
-    where: 'BuildJobArtifactWhereInput'
-    cursor: 'BuildJobArtifactWhereUniqueInput'
-    distinct: List['BuildJobArtifactScalarFieldKeys']
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive1'
-
-
-class FindManyBuildJobArtifactArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
-    where: 'BuildJobArtifactWhereInput'
-    cursor: 'BuildJobArtifactWhereUniqueInput'
-    distinct: List['BuildJobArtifactScalarFieldKeys']
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive2'
-
-
-class FindManyBuildJobArtifactArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
-    where: 'BuildJobArtifactWhereInput'
-    cursor: 'BuildJobArtifactWhereUniqueInput'
-    distinct: List['BuildJobArtifactScalarFieldKeys']
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive3'
-
-
-class FindManyBuildJobArtifactArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
-    where: 'BuildJobArtifactWhereInput'
-    cursor: 'BuildJobArtifactWhereUniqueInput'
-    distinct: List['BuildJobArtifactScalarFieldKeys']
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive4'
-
-
-class FindManyBuildJobArtifactArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
-    where: 'BuildJobArtifactWhereInput'
-    cursor: 'BuildJobArtifactWhereUniqueInput'
-    distinct: List['BuildJobArtifactScalarFieldKeys']
-    
-    
-
-class SessionIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive1']
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive1']
-    pipeline: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive1']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive1']
-    devices: Union[bool, 'FindManyDeviceArgsFromBoardRevisionChipsetRecursive1']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromBoardRevisionChipsetRecursive1']
-
-
-class SessionIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive2']
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive2']
-    pipeline: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive2']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive2']
-    devices: Union[bool, 'FindManyDeviceArgsFromBoardRevisionChipsetRecursive2']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromBoardRevisionChipsetRecursive2']
-
-
-class SessionIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive3']
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive3']
-    pipeline: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive3']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive3']
-    devices: Union[bool, 'FindManyDeviceArgsFromBoardRevisionChipsetRecursive3']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromBoardRevisionChipsetRecursive3']
-
-
-class SessionIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive4']
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive4']
-    pipeline: Union[bool, 'PipelineRunArgsFromBoardRevisionChipsetRecursive4']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive4']
-    devices: Union[bool, 'FindManyDeviceArgsFromBoardRevisionChipsetRecursive4']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromBoardRevisionChipsetRecursive4']
-
-
-class SessionIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class SessionArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'SessionIncludeFromSessionRecursive1'
-
-
-class SessionArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'SessionIncludeFromSessionRecursive2'
-
-
-class SessionArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'SessionIncludeFromSessionRecursive3'
-
-
-class SessionArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'SessionIncludeFromSessionRecursive4'
-
-
-class SessionArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManySessionArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive1'
-
-
-class FindManySessionArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive2'
-
-
-class FindManySessionArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive3'
-
-
-class FindManySessionArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive4'
-
-
-class FindManySessionArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    
-    
-
-class DeviceIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    session: Union[bool, 'SessionArgsFromBoardRevisionChipsetRecursive1']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive1']
-
-
-class DeviceIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    session: Union[bool, 'SessionArgsFromBoardRevisionChipsetRecursive2']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive2']
-
-
-class DeviceIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    session: Union[bool, 'SessionArgsFromBoardRevisionChipsetRecursive3']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive3']
-
-
-class DeviceIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    session: Union[bool, 'SessionArgsFromBoardRevisionChipsetRecursive4']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive4']
-
-
-class DeviceIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class DeviceArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'DeviceIncludeFromDeviceRecursive1'
-
-
-class DeviceArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'DeviceIncludeFromDeviceRecursive2'
-
-
-class DeviceArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'DeviceIncludeFromDeviceRecursive3'
-
-
-class DeviceArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'DeviceIncludeFromDeviceRecursive4'
-
-
-class DeviceArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyDeviceArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive1'
-
-
-class FindManyDeviceArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive2'
-
-
-class FindManyDeviceArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive3'
-
-
-class FindManyDeviceArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive4'
-
-
-class FindManyDeviceArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    
-    
-
-class FixtureDesignIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionChipsetRecursive1']
-
-
-class FixtureDesignIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionChipsetRecursive2']
-
-
-class FixtureDesignIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionChipsetRecursive3']
-
-
-class FixtureDesignIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionChipsetRecursive4']
-
-
-class FixtureDesignIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class FixtureDesignArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive1'
-
-
-class FixtureDesignArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive2'
-
-
-class FixtureDesignArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive3'
-
-
-class FixtureDesignArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive4'
-
-
-class FixtureDesignArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyFixtureDesignArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive1'
-
-
-class FindManyFixtureDesignArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive2'
-
-
-class FindManyFixtureDesignArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive3'
-
-
-class FindManyFixtureDesignArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive4'
-
-
-class FindManyFixtureDesignArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    
-    
-
-class FixtureIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive1']
-    design: Union[bool, 'FixtureDesignArgsFromBoardRevisionChipsetRecursive1']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRevisionChipsetRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive1']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive1']
-
-
-class FixtureIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive2']
-    design: Union[bool, 'FixtureDesignArgsFromBoardRevisionChipsetRecursive2']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRevisionChipsetRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive2']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive2']
-
-
-class FixtureIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive3']
-    design: Union[bool, 'FixtureDesignArgsFromBoardRevisionChipsetRecursive3']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRevisionChipsetRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive3']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive3']
-
-
-class FixtureIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive4']
-    design: Union[bool, 'FixtureDesignArgsFromBoardRevisionChipsetRecursive4']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRevisionChipsetRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive4']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionChipsetRecursive4']
-
-
-class FixtureIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class FixtureArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureIncludeFromFixtureRecursive1'
-
-
-class FixtureArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureIncludeFromFixtureRecursive2'
-
-
-class FixtureArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureIncludeFromFixtureRecursive3'
-
-
-class FixtureArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureIncludeFromFixtureRecursive4'
-
-
-class FixtureArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyFixtureArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive1'
-
-
-class FindManyFixtureArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive2'
-
-
-class FindManyFixtureArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive3'
-
-
-class FindManyFixtureArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive4'
-
-
-class FindManyFixtureArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    
-    
-
-class FixtureSlotIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive1']
-    node: Union[bool, 'NodeArgsFromBoardRevisionChipsetRecursive1']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive1']
-
-
-class FixtureSlotIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive2']
-    node: Union[bool, 'NodeArgsFromBoardRevisionChipsetRecursive2']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive2']
-
-
-class FixtureSlotIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive3']
-    node: Union[bool, 'NodeArgsFromBoardRevisionChipsetRecursive3']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive3']
-
-
-class FixtureSlotIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixture: Union[bool, 'FixtureArgsFromBoardRevisionChipsetRecursive4']
-    node: Union[bool, 'NodeArgsFromBoardRevisionChipsetRecursive4']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive4']
-
-
-class FixtureSlotIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class FixtureSlotArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive1'
-
-
-class FixtureSlotArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive2'
-
-
-class FixtureSlotArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive3'
-
-
-class FixtureSlotArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive4'
-
-
-class FixtureSlotArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyFixtureSlotArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive1'
-
-
-class FindManyFixtureSlotArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive2'
-
-
-class FindManyFixtureSlotArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive3'
-
-
-class FindManyFixtureSlotArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive4'
-
-
-class FindManyFixtureSlotArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    
-    
-
-class NodeIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromBoardRevisionChipsetRecursive1']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive1']
-
-
-class NodeIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromBoardRevisionChipsetRecursive2']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive2']
-
-
-class NodeIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromBoardRevisionChipsetRecursive3']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive3']
-
-
-class NodeIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromBoardRevisionChipsetRecursive4']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive4']
-
-
-class NodeIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class NodeArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'NodeIncludeFromNodeRecursive1'
-
-
-class NodeArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'NodeIncludeFromNodeRecursive2'
-
-
-class NodeArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'NodeIncludeFromNodeRecursive3'
-
-
-class NodeArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'NodeIncludeFromNodeRecursive4'
-
-
-class NodeArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyNodeArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive1'
-
-
-class FindManyNodeArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive2'
-
-
-class FindManyNodeArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive3'
-
-
-class FindManyNodeArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive4'
-
-
-class FindManyNodeArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    
-    
-
-class IcleDeviceIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromBoardRevisionChipsetRecursive1']
-    logs: Union[bool, 'FindManyIcleLogArgsFromBoardRevisionChipsetRecursive1']
-
-
-class IcleDeviceIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromBoardRevisionChipsetRecursive2']
-    logs: Union[bool, 'FindManyIcleLogArgsFromBoardRevisionChipsetRecursive2']
-
-
-class IcleDeviceIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromBoardRevisionChipsetRecursive3']
-    logs: Union[bool, 'FindManyIcleLogArgsFromBoardRevisionChipsetRecursive3']
-
-
-class IcleDeviceIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromBoardRevisionChipsetRecursive4']
-    logs: Union[bool, 'FindManyIcleLogArgsFromBoardRevisionChipsetRecursive4']
-
-
-class IcleDeviceIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class IcleDeviceArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive1'
-
-
-class IcleDeviceArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive2'
-
-
-class IcleDeviceArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive3'
-
-
-class IcleDeviceArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive4'
-
-
-class IcleDeviceArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyIcleDeviceArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive1'
-
-
-class FindManyIcleDeviceArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive2'
-
-
-class FindManyIcleDeviceArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive3'
-
-
-class FindManyIcleDeviceArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive4'
-
-
-class FindManyIcleDeviceArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    
-    
-
-class IclePendingCommandIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    device: Union[bool, 'IcleDeviceArgsFromBoardRevisionChipsetRecursive1']
-
-
-class IclePendingCommandIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    device: Union[bool, 'IcleDeviceArgsFromBoardRevisionChipsetRecursive2']
-
-
-class IclePendingCommandIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    device: Union[bool, 'IcleDeviceArgsFromBoardRevisionChipsetRecursive3']
-
-
-class IclePendingCommandIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    device: Union[bool, 'IcleDeviceArgsFromBoardRevisionChipsetRecursive4']
-
-
-class IclePendingCommandIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class IclePendingCommandArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive1'
-
-
-class IclePendingCommandArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive2'
-
-
-class IclePendingCommandArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive3'
-
-
-class IclePendingCommandArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive4'
-
-
-class IclePendingCommandArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyIclePendingCommandArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive1'
-
-
-class FindManyIclePendingCommandArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive2'
-
-
-class FindManyIclePendingCommandArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive3'
-
-
-class FindManyIclePendingCommandArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive4'
-
-
-class FindManyIclePendingCommandArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    
-    
-
-class IcleLogIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    device: Union[bool, 'IcleDeviceArgsFromBoardRevisionChipsetRecursive1']
-
-
-class IcleLogIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    device: Union[bool, 'IcleDeviceArgsFromBoardRevisionChipsetRecursive2']
-
-
-class IcleLogIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    device: Union[bool, 'IcleDeviceArgsFromBoardRevisionChipsetRecursive3']
-
-
-class IcleLogIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    device: Union[bool, 'IcleDeviceArgsFromBoardRevisionChipsetRecursive4']
-
-
-class IcleLogIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class IcleLogArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IcleLogIncludeFromIcleLogRecursive1'
-
-
-class IcleLogArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IcleLogIncludeFromIcleLogRecursive2'
-
-
-class IcleLogArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IcleLogIncludeFromIcleLogRecursive3'
-
-
-class IcleLogArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'IcleLogIncludeFromIcleLogRecursive4'
-
-
-class IcleLogArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyIcleLogArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive1'
-
-
-class FindManyIcleLogArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive2'
-
-
-class FindManyIcleLogArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive3'
-
-
-class FindManyIcleLogArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive4'
-
-
-class FindManyIcleLogArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    
-    
-
-class DeploymentIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive1']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive1']
-
-
-class DeploymentIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive2']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive2']
-
-
-class DeploymentIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive3']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive3']
-
-
-class DeploymentIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive4']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive4']
-
-
-class DeploymentIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class DeploymentArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyDeploymentArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
-class TestIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive1']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive1']
-
-
-class TestIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive2']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive2']
-
-
-class TestIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive3']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive3']
-
-
-class TestIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionChipsetRecursive4']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive4']
-
-
-class TestIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class TestArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestIncludeFromTestRecursive1'
-
-
-class TestArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestIncludeFromTestRecursive2'
-
-
-class TestArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestIncludeFromTestRecursive3'
-
-
-class TestArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestIncludeFromTestRecursive4'
-
-
-class TestArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyTestArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive1'
-
-
-class FindManyTestArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive2'
-
-
-class FindManyTestArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive3'
-
-
-class FindManyTestArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive4'
-
-
-class FindManyTestArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    
-    
-
-class TestExecutionIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    test: Union[bool, 'TestArgsFromBoardRevisionChipsetRecursive1']
-    node: Union[bool, 'NodeArgsFromBoardRevisionChipsetRecursive1']
-    device: Union[bool, 'DeviceArgsFromBoardRevisionChipsetRecursive1']
-    slot: Union[bool, 'FixtureSlotArgsFromBoardRevisionChipsetRecursive1']
-    triggeredBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive1']
-    steps: Union[bool, 'FindManyTestStepArgsFromBoardRevisionChipsetRecursive1']
-    logs: Union[bool, 'FindManyLogArgsFromBoardRevisionChipsetRecursive1']
-
-
-class TestExecutionIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    test: Union[bool, 'TestArgsFromBoardRevisionChipsetRecursive2']
-    node: Union[bool, 'NodeArgsFromBoardRevisionChipsetRecursive2']
-    device: Union[bool, 'DeviceArgsFromBoardRevisionChipsetRecursive2']
-    slot: Union[bool, 'FixtureSlotArgsFromBoardRevisionChipsetRecursive2']
-    triggeredBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive2']
-    steps: Union[bool, 'FindManyTestStepArgsFromBoardRevisionChipsetRecursive2']
-    logs: Union[bool, 'FindManyLogArgsFromBoardRevisionChipsetRecursive2']
-
-
-class TestExecutionIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    test: Union[bool, 'TestArgsFromBoardRevisionChipsetRecursive3']
-    node: Union[bool, 'NodeArgsFromBoardRevisionChipsetRecursive3']
-    device: Union[bool, 'DeviceArgsFromBoardRevisionChipsetRecursive3']
-    slot: Union[bool, 'FixtureSlotArgsFromBoardRevisionChipsetRecursive3']
-    triggeredBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive3']
-    steps: Union[bool, 'FindManyTestStepArgsFromBoardRevisionChipsetRecursive3']
-    logs: Union[bool, 'FindManyLogArgsFromBoardRevisionChipsetRecursive3']
-
-
-class TestExecutionIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    test: Union[bool, 'TestArgsFromBoardRevisionChipsetRecursive4']
-    node: Union[bool, 'NodeArgsFromBoardRevisionChipsetRecursive4']
-    device: Union[bool, 'DeviceArgsFromBoardRevisionChipsetRecursive4']
-    slot: Union[bool, 'FixtureSlotArgsFromBoardRevisionChipsetRecursive4']
-    triggeredBy: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive4']
-    steps: Union[bool, 'FindManyTestStepArgsFromBoardRevisionChipsetRecursive4']
-    logs: Union[bool, 'FindManyLogArgsFromBoardRevisionChipsetRecursive4']
-
-
-class TestExecutionIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class TestExecutionArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive1'
-
-
-class TestExecutionArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive2'
-
-
-class TestExecutionArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive3'
-
-
-class TestExecutionArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive4'
-
-
-class TestExecutionArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyTestExecutionArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive1'
-
-
-class FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive2'
-
-
-class FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive3'
-
-
-class FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive4'
-
-
-class FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    
-    
-
-class TestStepIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    execution: Union[bool, 'TestExecutionArgsFromBoardRevisionChipsetRecursive1']
-
-
-class TestStepIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    execution: Union[bool, 'TestExecutionArgsFromBoardRevisionChipsetRecursive2']
-
-
-class TestStepIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    execution: Union[bool, 'TestExecutionArgsFromBoardRevisionChipsetRecursive3']
-
-
-class TestStepIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    execution: Union[bool, 'TestExecutionArgsFromBoardRevisionChipsetRecursive4']
-
-
-class TestStepIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class TestStepArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestStepIncludeFromTestStepRecursive1'
-
-
-class TestStepArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestStepIncludeFromTestStepRecursive2'
-
-
-class TestStepArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestStepIncludeFromTestStepRecursive3'
-
-
-class TestStepArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'TestStepIncludeFromTestStepRecursive4'
-
-
-class TestStepArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyTestStepArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive1'
-
-
-class FindManyTestStepArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive2'
-
-
-class FindManyTestStepArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive3'
-
-
-class FindManyTestStepArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive4'
-
-
-class FindManyTestStepArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    
-    
-
-class UserIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromBoardRevisionChipsetRecursive1']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRevisionChipsetRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionChipsetRecursive1']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive1']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionChipsetRecursive1']
-
-
-class UserIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromBoardRevisionChipsetRecursive2']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRevisionChipsetRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionChipsetRecursive2']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive2']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionChipsetRecursive2']
-
-
-class UserIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromBoardRevisionChipsetRecursive3']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRevisionChipsetRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionChipsetRecursive3']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive3']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionChipsetRecursive3']
-
-
-class UserIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromBoardRevisionChipsetRecursive4']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRevisionChipsetRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionChipsetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionChipsetRecursive4']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionChipsetRecursive4']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionChipsetRecursive4']
-
-
-class UserIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class UserArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'UserIncludeFromUserRecursive1'
-
-
-class UserArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'UserIncludeFromUserRecursive2'
-
-
-class UserArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'UserIncludeFromUserRecursive3'
-
-
-class UserArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'UserIncludeFromUserRecursive4'
-
-
-class UserArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyUserArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive1'
-
-
-class FindManyUserArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive2'
-
-
-class FindManyUserArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive3'
-
-
-class FindManyUserArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive4'
-
-
-class FindManyUserArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    
-    
-
-class PermissionSetIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    users: Union[bool, 'FindManyUserArgsFromBoardRevisionChipsetRecursive1']
-
-
-class PermissionSetIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    users: Union[bool, 'FindManyUserArgsFromBoardRevisionChipsetRecursive2']
-
-
-class PermissionSetIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    users: Union[bool, 'FindManyUserArgsFromBoardRevisionChipsetRecursive3']
-
-
-class PermissionSetIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    users: Union[bool, 'FindManyUserArgsFromBoardRevisionChipsetRecursive4']
-
-
-class PermissionSetIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class PermissionSetArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive1'
-
-
-class PermissionSetArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive2'
-
-
-class PermissionSetArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive3'
-
-
-class PermissionSetArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive4'
-
-
-class PermissionSetArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyPermissionSetArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive1'
-
-
-class FindManyPermissionSetArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive2'
-
-
-class FindManyPermissionSetArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive3'
-
-
-class FindManyPermissionSetArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive4'
-
-
-class FindManyPermissionSetArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    
-    
-
-class ApiKeyIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    user: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive1']
-
-
-class ApiKeyIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    user: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive2']
-
-
-class ApiKeyIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    user: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive3']
-
-
-class ApiKeyIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    user: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive4']
-
-
-class ApiKeyIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class ApiKeyArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive1'
-
-
-class ApiKeyArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive2'
-
-
-class ApiKeyArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive3'
-
-
-class ApiKeyArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive4'
-
-
-class ApiKeyArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyApiKeyArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive1'
-
-
-class FindManyApiKeyArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive2'
-
-
-class FindManyApiKeyArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive3'
-
-
-class FindManyApiKeyArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive4'
-
-
-class FindManyApiKeyArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    
-    
-
-class AuditLogIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    user: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive1']
-
-
-class AuditLogIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    user: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive2']
-
-
-class AuditLogIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    user: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive3']
-
-
-class AuditLogIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    user: Union[bool, 'UserArgsFromBoardRevisionChipsetRecursive4']
-
-
-class AuditLogIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class AuditLogArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'AuditLogIncludeFromAuditLogRecursive1'
-
-
-class AuditLogArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'AuditLogIncludeFromAuditLogRecursive2'
-
-
-class AuditLogArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'AuditLogIncludeFromAuditLogRecursive3'
-
-
-class AuditLogArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'AuditLogIncludeFromAuditLogRecursive4'
-
-
-class AuditLogArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyAuditLogArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive1'
-
-
-class FindManyAuditLogArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive2'
-
-
-class FindManyAuditLogArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive3'
-
-
-class FindManyAuditLogArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive4'
-
-
-class FindManyAuditLogArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    
-    
-
-class SettingIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-
-class SettingIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-
-class SettingIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-
-class SettingIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-
-class SettingIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class SettingArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'SettingIncludeFromSettingRecursive1'
-
-
-class SettingArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'SettingIncludeFromSettingRecursive2'
-
-
-class SettingArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'SettingIncludeFromSettingRecursive3'
-
-
-class SettingArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'SettingIncludeFromSettingRecursive4'
-
-
-class SettingArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManySettingArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
-    where: 'SettingWhereInput'
-    cursor: 'SettingWhereUniqueInput'
-    distinct: List['SettingScalarFieldKeys']
-    include: 'SettingIncludeFromSettingRecursive1'
-
-
-class FindManySettingArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
-    where: 'SettingWhereInput'
-    cursor: 'SettingWhereUniqueInput'
-    distinct: List['SettingScalarFieldKeys']
-    include: 'SettingIncludeFromSettingRecursive2'
-
-
-class FindManySettingArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
-    where: 'SettingWhereInput'
-    cursor: 'SettingWhereUniqueInput'
-    distinct: List['SettingScalarFieldKeys']
-    include: 'SettingIncludeFromSettingRecursive3'
-
-
-class FindManySettingArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
-    where: 'SettingWhereInput'
-    cursor: 'SettingWhereUniqueInput'
-    distinct: List['SettingScalarFieldKeys']
-    include: 'SettingIncludeFromSettingRecursive4'
-
-
-class FindManySettingArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
-    where: 'SettingWhereInput'
-    cursor: 'SettingWhereUniqueInput'
-    distinct: List['SettingScalarFieldKeys']
-    
-    
-
-class LogIncludeFromBoardRevisionChipset(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    execution: Union[bool, 'TestExecutionArgsFromBoardRevisionChipsetRecursive1']
-
-
-class LogIncludeFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    execution: Union[bool, 'TestExecutionArgsFromBoardRevisionChipsetRecursive2']
-
-
-class LogIncludeFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    execution: Union[bool, 'TestExecutionArgsFromBoardRevisionChipsetRecursive3']
-
-
-class LogIncludeFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-    execution: Union[bool, 'TestExecutionArgsFromBoardRevisionChipsetRecursive4']
-
-
-class LogIncludeFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevisionChipset"""
-
-    
-
-class LogArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'LogIncludeFromLogRecursive1'
-
-
-class LogArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'LogIncludeFromLogRecursive2'
-
-
-class LogArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'LogIncludeFromLogRecursive3'
-
-
-class LogArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    include: 'LogIncludeFromLogRecursive4'
-
-
-class LogArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    
-    
-
-class FindManyLogArgsFromBoardRevisionChipset(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
-    where: 'LogWhereInput'
-    cursor: 'LogWhereUniqueInput'
-    distinct: List['LogScalarFieldKeys']
-    include: 'LogIncludeFromLogRecursive1'
-
-
-class FindManyLogArgsFromBoardRevisionChipsetRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
-    where: 'LogWhereInput'
-    cursor: 'LogWhereUniqueInput'
-    distinct: List['LogScalarFieldKeys']
-    include: 'LogIncludeFromLogRecursive2'
-
-
-class FindManyLogArgsFromBoardRevisionChipsetRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
-    where: 'LogWhereInput'
-    cursor: 'LogWhereUniqueInput'
-    distinct: List['LogScalarFieldKeys']
-    include: 'LogIncludeFromLogRecursive3'
-
-
-class FindManyLogArgsFromBoardRevisionChipsetRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
-    where: 'LogWhereInput'
-    cursor: 'LogWhereUniqueInput'
-    distinct: List['LogScalarFieldKeys']
-    include: 'LogIncludeFromLogRecursive4'
-
-
-class FindManyLogArgsFromBoardRevisionChipsetRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevisionChipset"""
-    take: int
-    skip: int
-    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
-    where: 'LogWhereInput'
-    cursor: 'LogWhereUniqueInput'
-    distinct: List['LogScalarFieldKeys']
-    
-
-
-FindManyBoardRevisionChipsetArgs = FindManyBoardRevisionChipsetArgsFromBoardRevisionChipset
-FindFirstBoardRevisionChipsetArgs = FindManyBoardRevisionChipsetArgsFromBoardRevisionChipset
-
-
-    
-
-class BoardRevisionChipsetWhereInput(TypedDict, total=False):
-    """BoardRevisionChipset arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    boardRevisionId: Union[_str, 'types.StringFilter']
-    chipsetId: Union[_str, 'types.StringFilter']
-    boardRevision: 'BoardRevisionRelationFilter'
-    chipset: 'ChipsetRelationFilter'
-
-    # should be noted that AND and NOT should be Union['BoardRevisionChipsetWhereInputRecursive1', List['BoardRevisionChipsetWhereInputRecursive1']]
-    # but this causes mypy to hang :/
-    AND: List['BoardRevisionChipsetWhereInputRecursive1']
-    OR: List['BoardRevisionChipsetWhereInputRecursive1']
-    NOT: List['BoardRevisionChipsetWhereInputRecursive1']
-
-
-class BoardRevisionChipsetWhereInputRecursive1(TypedDict, total=False):
-    """BoardRevisionChipset arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    boardRevisionId: Union[_str, 'types.StringFilter']
-    chipsetId: Union[_str, 'types.StringFilter']
-    boardRevision: 'BoardRevisionRelationFilter'
-    chipset: 'ChipsetRelationFilter'
-
-    # should be noted that AND and NOT should be Union['BoardRevisionChipsetWhereInputRecursive2', List['BoardRevisionChipsetWhereInputRecursive2']]
-    # but this causes mypy to hang :/
-    AND: List['BoardRevisionChipsetWhereInputRecursive2']
-    OR: List['BoardRevisionChipsetWhereInputRecursive2']
-    NOT: List['BoardRevisionChipsetWhereInputRecursive2']
-
-
-class BoardRevisionChipsetWhereInputRecursive2(TypedDict, total=False):
-    """BoardRevisionChipset arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    boardRevisionId: Union[_str, 'types.StringFilter']
-    chipsetId: Union[_str, 'types.StringFilter']
-    boardRevision: 'BoardRevisionRelationFilter'
-    chipset: 'ChipsetRelationFilter'
-
-    # should be noted that AND and NOT should be Union['BoardRevisionChipsetWhereInputRecursive3', List['BoardRevisionChipsetWhereInputRecursive3']]
-    # but this causes mypy to hang :/
-    AND: List['BoardRevisionChipsetWhereInputRecursive3']
-    OR: List['BoardRevisionChipsetWhereInputRecursive3']
-    NOT: List['BoardRevisionChipsetWhereInputRecursive3']
-
-
-class BoardRevisionChipsetWhereInputRecursive3(TypedDict, total=False):
-    """BoardRevisionChipset arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    boardRevisionId: Union[_str, 'types.StringFilter']
-    chipsetId: Union[_str, 'types.StringFilter']
-    boardRevision: 'BoardRevisionRelationFilter'
-    chipset: 'ChipsetRelationFilter'
-
-    # should be noted that AND and NOT should be Union['BoardRevisionChipsetWhereInputRecursive4', List['BoardRevisionChipsetWhereInputRecursive4']]
-    # but this causes mypy to hang :/
-    AND: List['BoardRevisionChipsetWhereInputRecursive4']
-    OR: List['BoardRevisionChipsetWhereInputRecursive4']
-    NOT: List['BoardRevisionChipsetWhereInputRecursive4']
-
-
-class BoardRevisionChipsetWhereInputRecursive4(TypedDict, total=False):
-    """BoardRevisionChipset arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    boardRevisionId: Union[_str, 'types.StringFilter']
-    chipsetId: Union[_str, 'types.StringFilter']
-    boardRevision: 'BoardRevisionRelationFilter'
-    chipset: 'ChipsetRelationFilter'
-
-
-
-# aggregate BoardRevisionChipset types
-
-
-    
-
-class BoardRevisionChipsetScalarWhereWithAggregatesInput(TypedDict, total=False):
-    """BoardRevisionChipset arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
-    chipsetId: Union[_str, 'types.StringWithAggregatesFilter']
-
-    AND: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive1']
-    OR: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive1']
-    NOT: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive1']
-
-
-class BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
-    """BoardRevisionChipset arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
-    chipsetId: Union[_str, 'types.StringWithAggregatesFilter']
-
-    AND: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive2']
-    OR: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive2']
-    NOT: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive2']
-
-
-class BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
-    """BoardRevisionChipset arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
-    chipsetId: Union[_str, 'types.StringWithAggregatesFilter']
-
-    AND: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive3']
-    OR: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive3']
-    NOT: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive3']
-
-
-class BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
-    """BoardRevisionChipset arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
-    chipsetId: Union[_str, 'types.StringWithAggregatesFilter']
-
-    AND: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive4']
-    OR: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive4']
-    NOT: List['BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive4']
-
-
-class BoardRevisionChipsetScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
-    """BoardRevisionChipset arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
-    chipsetId: Union[_str, 'types.StringWithAggregatesFilter']
-
-
-
-class BoardRevisionChipsetGroupByOutput(TypedDict, total=False):
-    id: _str
-    boardRevisionId: _str
-    chipsetId: _str
-    _sum: 'BoardRevisionChipsetSumAggregateOutput'
-    _avg: 'BoardRevisionChipsetAvgAggregateOutput'
-    _min: 'BoardRevisionChipsetMinAggregateOutput'
-    _max: 'BoardRevisionChipsetMaxAggregateOutput'
-    _count: 'BoardRevisionChipsetCountAggregateOutput'
-
-
-class BoardRevisionChipsetAvgAggregateOutput(TypedDict, total=False):
-    """BoardRevisionChipset output for aggregating averages"""
-
-
-class BoardRevisionChipsetSumAggregateOutput(TypedDict, total=False):
-    """BoardRevisionChipset output for aggregating sums"""
-
-
-class BoardRevisionChipsetScalarAggregateOutput(TypedDict, total=False):
-    """BoardRevisionChipset output including scalar fields"""
-    id: _str
-    boardRevisionId: _str
-    chipsetId: _str
-
-
-BoardRevisionChipsetMinAggregateOutput = BoardRevisionChipsetScalarAggregateOutput
-BoardRevisionChipsetMaxAggregateOutput = BoardRevisionChipsetScalarAggregateOutput
-
-
-class BoardRevisionChipsetMaxAggregateInput(TypedDict, total=False):
-    """BoardRevisionChipset input for aggregating by max"""
-    id: bool
-    boardRevisionId: bool
-    chipsetId: bool
-
-
-class BoardRevisionChipsetMinAggregateInput(TypedDict, total=False):
-    """BoardRevisionChipset input for aggregating by min"""
-    id: bool
-    boardRevisionId: bool
-    chipsetId: bool
-
-
-class BoardRevisionChipsetNumberAggregateInput(TypedDict, total=False):
-    """BoardRevisionChipset input for aggregating numbers"""
-
-
-BoardRevisionChipsetAvgAggregateInput = BoardRevisionChipsetNumberAggregateInput
-BoardRevisionChipsetSumAggregateInput = BoardRevisionChipsetNumberAggregateInput
-
-
-BoardRevisionChipsetCountAggregateInput = TypedDict(
-    'BoardRevisionChipsetCountAggregateInput',
-    {
-        'id': bool,
-        'boardRevisionId': bool,
-        'chipsetId': bool,
-        '_all': bool,
-    },
-    total=False,
-)
-
-BoardRevisionChipsetCountAggregateOutput = TypedDict(
-    'BoardRevisionChipsetCountAggregateOutput',
-    {
-        'id': int,
-        'boardRevisionId': int,
-        'chipsetId': int,
-        '_all': int,
-    },
-    total=False,
-)
-
-
-BoardRevisionChipsetKeys = Literal[
-    'id',
-    'boardRevisionId',
-    'chipsetId',
-    'boardRevision',
-    'chipset',
-]
-BoardRevisionChipsetScalarFieldKeys = Literal[
-    'id',
-    'boardRevisionId',
-    'chipsetId',
-]
-BoardRevisionChipsetScalarFieldKeysT = TypeVar('BoardRevisionChipsetScalarFieldKeysT', bound=BoardRevisionChipsetScalarFieldKeys)
-
-BoardRevisionChipsetRelationalFieldKeys = Literal[
-        'boardRevision',
-        'chipset',
-    ]
-
-# Chipset types
-
-class ChipsetOptionalCreateInput(TypedDict, total=False):
-    """Optional arguments to the Chipset create method"""
-    id: _str
-    manufacturer: Optional[_str]
-    isModem: _bool
-    description: Optional[_str]
-    active: _bool
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    boardRevisionChipsets: 'BoardRevisionChipsetCreateManyNestedWithoutRelationsInput'
-    firmwareBuilds: 'FirmwareBuildCreateManyNestedWithoutRelationsInput'
-
-
-class ChipsetCreateInput(ChipsetOptionalCreateInput):
-    """Required arguments to the Chipset create method"""
-    name: _str
-
-
-# TODO: remove this in favour of without explicit relations
-# e.g. PostCreateWithoutAuthorInput
-
-class ChipsetOptionalCreateWithoutRelationsInput(TypedDict, total=False):
-    """Optional arguments to the Chipset create method, without relations"""
-    id: _str
-    manufacturer: Optional[_str]
-    isModem: _bool
-    description: Optional[_str]
-    active: _bool
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-
-
-class ChipsetCreateWithoutRelationsInput(ChipsetOptionalCreateWithoutRelationsInput):
-    """Required arguments to the Chipset create method, without relations"""
-    name: _str
-
-class ChipsetConnectOrCreateWithoutRelationsInput(TypedDict):
-    create: 'ChipsetCreateWithoutRelationsInput'
-    where: 'ChipsetWhereUniqueInput'
-
-class ChipsetCreateNestedWithoutRelationsInput(TypedDict, total=False):
-    create: 'ChipsetCreateWithoutRelationsInput'
-    connect: 'ChipsetWhereUniqueInput'
-    connect_or_create: 'ChipsetConnectOrCreateWithoutRelationsInput'
-
-
-class ChipsetCreateManyNestedWithoutRelationsInput(TypedDict, total=False):
-    create: Union['ChipsetCreateWithoutRelationsInput', List['ChipsetCreateWithoutRelationsInput']]
-    connect: Union['ChipsetWhereUniqueInput', List['ChipsetWhereUniqueInput']]
-    connect_or_create: Union['ChipsetConnectOrCreateWithoutRelationsInput', List['ChipsetConnectOrCreateWithoutRelationsInput']]
-
-_ChipsetWhereUnique_id_Input = TypedDict(
-    '_ChipsetWhereUnique_id_Input',
-    {
-        'id': '_str',
-    },
-    total=True
-)
-
-_ChipsetWhereUnique_name_Input = TypedDict(
-    '_ChipsetWhereUnique_name_Input',
-    {
-        'name': '_str',
-    },
-    total=True
-)
-
-ChipsetWhereUniqueInput = Union[
-    '_ChipsetWhereUnique_id_Input',
-    '_ChipsetWhereUnique_name_Input',
-]
-
-
-class ChipsetUpdateInput(TypedDict, total=False):
-    """Optional arguments for updating a record"""
-    id: _str
-    name: _str
-    manufacturer: Optional[_str]
-    isModem: _bool
-    description: Optional[_str]
-    active: _bool
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    boardRevisionChipsets: 'BoardRevisionChipsetUpdateManyWithoutRelationsInput'
-    firmwareBuilds: 'FirmwareBuildUpdateManyWithoutRelationsInput'
-
-
-class ChipsetUpdateManyMutationInput(TypedDict, total=False):
-    """Arguments for updating many records"""
-    id: _str
-    name: _str
-    manufacturer: Optional[_str]
-    isModem: _bool
-    description: Optional[_str]
-    active: _bool
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-
-
-class ChipsetUpdateManyWithoutRelationsInput(TypedDict, total=False):
-    create: List['ChipsetCreateWithoutRelationsInput']
-    connect: List['ChipsetWhereUniqueInput']
-    connect_or_create: List['ChipsetConnectOrCreateWithoutRelationsInput']
-    set: List['ChipsetWhereUniqueInput']
-    disconnect: List['ChipsetWhereUniqueInput']
-    delete: List['ChipsetWhereUniqueInput']
-
-    # TODO
-    # update: List['ChipsetUpdateWithWhereUniqueWithoutRelationsInput']
-    # updateMany: List['ChipsetUpdateManyWithWhereUniqueWithoutRelationsInput']
-    # deleteMany: List['ChipsetScalarWhereInput']
-    # upsert: List['ChipsetUpserteWithWhereUniqueWithoutRelationsInput']
-
-
-class ChipsetUpdateOneWithoutRelationsInput(TypedDict, total=False):
-    create: 'ChipsetCreateWithoutRelationsInput'
-    connect: 'ChipsetWhereUniqueInput'
-    connect_or_create: 'ChipsetConnectOrCreateWithoutRelationsInput'
-    disconnect: bool
-    delete: bool
-
-    # TODO
-    # update: 'ChipsetUpdateInput'
-    # upsert: 'ChipsetUpsertWithoutRelationsInput'
-
-
-class ChipsetUpsertInput(TypedDict):
-    create: 'ChipsetCreateInput'
-    update: 'ChipsetUpdateInput'  # pyright: ignore[reportIncompatibleMethodOverride]
-
-
-_Chipset_id_OrderByInput = TypedDict(
-    '_Chipset_id_OrderByInput',
-    {
-        'id': 'SortOrder',
-    },
-    total=True
-)
-
-_Chipset_name_OrderByInput = TypedDict(
-    '_Chipset_name_OrderByInput',
-    {
-        'name': 'SortOrder',
-    },
-    total=True
-)
-
-_Chipset_manufacturer_OrderByInput = TypedDict(
-    '_Chipset_manufacturer_OrderByInput',
-    {
-        'manufacturer': 'SortOrder',
-    },
-    total=True
-)
-
-_Chipset_isModem_OrderByInput = TypedDict(
-    '_Chipset_isModem_OrderByInput',
-    {
-        'isModem': 'SortOrder',
-    },
-    total=True
-)
-
-_Chipset_description_OrderByInput = TypedDict(
-    '_Chipset_description_OrderByInput',
-    {
-        'description': 'SortOrder',
-    },
-    total=True
-)
-
-_Chipset_active_OrderByInput = TypedDict(
-    '_Chipset_active_OrderByInput',
-    {
-        'active': 'SortOrder',
-    },
-    total=True
-)
-
-_Chipset_createdAt_OrderByInput = TypedDict(
-    '_Chipset_createdAt_OrderByInput',
-    {
-        'createdAt': 'SortOrder',
-    },
-    total=True
-)
-
-_Chipset_updatedAt_OrderByInput = TypedDict(
-    '_Chipset_updatedAt_OrderByInput',
-    {
-        'updatedAt': 'SortOrder',
-    },
-    total=True
-)
-
-_Chipset_RelevanceInner = TypedDict(
-    '_Chipset_RelevanceInner',
-    {
-        'fields': 'List[ChipsetScalarFieldKeys]',
-        'search': 'str',
-        'sort': 'SortOrder',
-    },
-    total=True
-)
-
-_Chipset_RelevanceOrderByInput = TypedDict(
-    '_Chipset_RelevanceOrderByInput',
-    {
-        '_relevance': '_Chipset_RelevanceInner',
-    },
-    total=True
-)
-
-ChipsetOrderByInput = Union[
-    '_Chipset_id_OrderByInput',
-    '_Chipset_name_OrderByInput',
-    '_Chipset_manufacturer_OrderByInput',
-    '_Chipset_isModem_OrderByInput',
-    '_Chipset_description_OrderByInput',
-    '_Chipset_active_OrderByInput',
-    '_Chipset_createdAt_OrderByInput',
-    '_Chipset_updatedAt_OrderByInput',
-    '_Chipset_RelevanceOrderByInput',
-]
-
-
-
-# recursive Chipset types
-# TODO: cleanup these types
-
-
-# Dict[str, Any] is a mypy limitation
-# see https://github.com/RobertCraigie/prisma-client-py/issues/45
-# switch to pyright for improved types, see https://prisma-client-py.readthedocs.io/en/stable/reference/limitations/
-
-ChipsetRelationFilter = TypedDict(
-    'ChipsetRelationFilter',
-    {
-        'is': 'Dict[str, Any]',
-        'is_not': 'Dict[str, Any]',
-    },
-    total=False,
-)
-
-
-class ChipsetListRelationFilter(TypedDict, total=False):
-    some: 'Dict[str, Any]'
-    none: 'Dict[str, Any]'
-    every: 'Dict[str, Any]'
-
-
-class ChipsetInclude(TypedDict, total=False):
-    """Chipset relational arguments"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromChipset']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromChipset']
-
-
-    
-
-class ProductIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    targets: Union[bool, 'FindManyProductTargetArgsFromChipsetRecursive1']
-    boards: Union[bool, 'FindManyBoardArgsFromChipsetRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromChipsetRecursive1']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromChipsetRecursive1']
-    tests: Union[bool, 'FindManyTestArgsFromChipsetRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive1']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive1']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromChipsetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromChipsetRecursive1']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromChipsetRecursive1']
-
-
-class ProductIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    targets: Union[bool, 'FindManyProductTargetArgsFromChipsetRecursive2']
-    boards: Union[bool, 'FindManyBoardArgsFromChipsetRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromChipsetRecursive2']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromChipsetRecursive2']
-    tests: Union[bool, 'FindManyTestArgsFromChipsetRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive2']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive2']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromChipsetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromChipsetRecursive2']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromChipsetRecursive2']
-
-
-class ProductIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    targets: Union[bool, 'FindManyProductTargetArgsFromChipsetRecursive3']
-    boards: Union[bool, 'FindManyBoardArgsFromChipsetRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromChipsetRecursive3']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromChipsetRecursive3']
-    tests: Union[bool, 'FindManyTestArgsFromChipsetRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive3']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive3']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromChipsetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromChipsetRecursive3']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromChipsetRecursive3']
-
-
-class ProductIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    targets: Union[bool, 'FindManyProductTargetArgsFromChipsetRecursive4']
-    boards: Union[bool, 'FindManyBoardArgsFromChipsetRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromChipsetRecursive4']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromChipsetRecursive4']
-    tests: Union[bool, 'FindManyTestArgsFromChipsetRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive4']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive4']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromChipsetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromChipsetRecursive4']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromChipsetRecursive4']
-
-
-class ProductIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class ProductArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductIncludeFromProductRecursive1'
-
-
-class ProductArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductIncludeFromProductRecursive2'
-
-
-class ProductArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductIncludeFromProductRecursive3'
-
-
-class ProductArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductIncludeFromProductRecursive4'
-
-
-class ProductArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyProductArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive1'
-
-
-class FindManyProductArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive2'
-
-
-class FindManyProductArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive3'
-
-
-class FindManyProductArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive4'
-
-
-class FindManyProductArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    
-    
-
-class ProductTargetIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive1']
-
-
-class ProductTargetIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive2']
-
-
-class ProductTargetIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive3']
-
-
-class ProductTargetIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive4']
-
-
-class ProductTargetIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class ProductTargetArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive1'
-
-
-class ProductTargetArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive2'
-
-
-class ProductTargetArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive3'
-
-
-class ProductTargetArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive4'
-
-
-class ProductTargetArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyProductTargetArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive1'
-
-
-class FindManyProductTargetArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive2'
-
-
-class FindManyProductTargetArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive3'
-
-
-class FindManyProductTargetArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive4'
-
-
-class FindManyProductTargetArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    
-    
-
-class BoardIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive1']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromChipsetRecursive1']
-
-
-class BoardIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive2']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromChipsetRecursive2']
-
-
-class BoardIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive3']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromChipsetRecursive3']
-
-
-class BoardIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive4']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromChipsetRecursive4']
-
-
-class BoardIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class BoardArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardIncludeFromBoardRecursive1'
-
-
-class BoardArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardIncludeFromBoardRecursive2'
-
-
-class BoardArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardIncludeFromBoardRecursive3'
-
-
-class BoardArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardIncludeFromBoardRecursive4'
-
-
-class BoardArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyBoardArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive1'
-
-
-class FindManyBoardArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive2'
-
-
-class FindManyBoardArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive3'
-
-
-class FindManyBoardArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive4'
-
-
-class FindManyBoardArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    
-    
-
-class BoardRevisionIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    board: Union[bool, 'BoardArgsFromChipsetRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromChipsetRecursive1']
-
-
-class BoardRevisionIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    board: Union[bool, 'BoardArgsFromChipsetRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromChipsetRecursive2']
-
-
-class BoardRevisionIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    board: Union[bool, 'BoardArgsFromChipsetRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromChipsetRecursive3']
-
-
-class BoardRevisionIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    board: Union[bool, 'BoardArgsFromChipsetRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromChipsetRecursive4']
-
-
-class BoardRevisionIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class BoardRevisionArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive1'
-
-
-class BoardRevisionArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive2'
-
-
-class BoardRevisionArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive3'
-
-
-class BoardRevisionArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive4'
-
-
-class BoardRevisionArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyBoardRevisionArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive1'
-
-
-class FindManyBoardRevisionArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive2'
-
-
-class FindManyBoardRevisionArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive3'
-
-
-class FindManyBoardRevisionArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive4'
-
-
-class FindManyBoardRevisionArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    
-    
-
-class BoardRevisionChipsetIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromChipsetRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromChipsetRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromChipsetRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromChipsetRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromChipsetRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromChipsetRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromChipsetRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromChipsetRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class BoardRevisionChipsetArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromChipsetRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromChipsetRecursive1']
-
-
-class ChipsetIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromChipsetRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromChipsetRecursive2']
-
-
-class ChipsetIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromChipsetRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromChipsetRecursive3']
-
-
-class ChipsetIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromChipsetRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromChipsetRecursive4']
-
-
-class ChipsetIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class ChipsetArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyChipsetArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
-class FirmwareBuildIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromChipsetRecursive1']
-
-
-class FirmwareBuildIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromChipsetRecursive2']
-
-
-class FirmwareBuildIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromChipsetRecursive3']
-
-
-class FirmwareBuildIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromChipsetRecursive4']
-
-
-class FirmwareBuildIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class FirmwareBuildArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive1'
-
-
-class FirmwareBuildArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive2'
-
-
-class FirmwareBuildArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive3'
-
-
-class FirmwareBuildArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive4'
-
-
-class FirmwareBuildArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyFirmwareBuildArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive1'
-
-
-class FindManyFirmwareBuildArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive2'
-
-
-class FindManyFirmwareBuildArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive3'
-
-
-class FindManyFirmwareBuildArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive4'
-
-
-class FindManyFirmwareBuildArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    
-    
-
-class ProductStageConfigIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive1']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromChipsetRecursive1']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive1']
-
-
-class ProductStageConfigIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive2']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromChipsetRecursive2']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive2']
-
-
-class ProductStageConfigIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive3']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromChipsetRecursive3']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive3']
-
-
-class ProductStageConfigIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive4']
-    pipelineRuns: Union[bool, 'FindManyPipelineRunArgsFromChipsetRecursive4']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive4']
-
-
-class ProductStageConfigIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class ProductStageConfigArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive1'
-
-
-class ProductStageConfigArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive2'
-
-
-class ProductStageConfigArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive3'
-
-
-class ProductStageConfigArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive4'
-
-
-class ProductStageConfigArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyProductStageConfigArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive1'
-
-
-class FindManyProductStageConfigArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive2'
-
-
-class FindManyProductStageConfigArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive3'
-
-
-class FindManyProductStageConfigArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive4'
-
-
-class FindManyProductStageConfigArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    
-    
-
-class ValidationQueueEntryIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromChipsetRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromChipsetRecursive1']
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive1']
-    session: Union[bool, 'SessionArgsFromChipsetRecursive1']
-
-
-class ValidationQueueEntryIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromChipsetRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromChipsetRecursive2']
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive2']
-    session: Union[bool, 'SessionArgsFromChipsetRecursive2']
-
-
-class ValidationQueueEntryIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromChipsetRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromChipsetRecursive3']
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive3']
-    session: Union[bool, 'SessionArgsFromChipsetRecursive3']
-
-
-class ValidationQueueEntryIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromChipsetRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromChipsetRecursive4']
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive4']
-    session: Union[bool, 'SessionArgsFromChipsetRecursive4']
-
-
-class ValidationQueueEntryIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class ValidationQueueEntryArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive1'
-
-
-class ValidationQueueEntryArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive2'
-
-
-class ValidationQueueEntryArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive3'
-
-
-class ValidationQueueEntryArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive4'
-
-
-class ValidationQueueEntryArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyValidationQueueEntryArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive1'
-
-
-class FindManyValidationQueueEntryArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive2'
-
-
-class FindManyValidationQueueEntryArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive3'
-
-
-class FindManyValidationQueueEntryArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive4'
-
-
-class FindManyValidationQueueEntryArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    
-    
-
-class PipelineRunIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromChipsetRecursive1']
-    builds: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive1']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive1']
-
-
-class PipelineRunIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromChipsetRecursive2']
-    builds: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive2']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive2']
-
-
-class PipelineRunIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromChipsetRecursive3']
-    builds: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive3']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive3']
-
-
-class PipelineRunIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromChipsetRecursive4']
-    builds: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive4']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive4']
-
-
-class PipelineRunIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class PipelineRunArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'PipelineRunIncludeFromPipelineRunRecursive1'
-
-
-class PipelineRunArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'PipelineRunIncludeFromPipelineRunRecursive2'
-
-
-class PipelineRunArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'PipelineRunIncludeFromPipelineRunRecursive3'
-
-
-class PipelineRunArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'PipelineRunIncludeFromPipelineRunRecursive4'
-
-
-class PipelineRunArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyPipelineRunArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
-    where: 'PipelineRunWhereInput'
-    cursor: 'PipelineRunWhereUniqueInput'
-    distinct: List['PipelineRunScalarFieldKeys']
-    include: 'PipelineRunIncludeFromPipelineRunRecursive1'
-
-
-class FindManyPipelineRunArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
-    where: 'PipelineRunWhereInput'
-    cursor: 'PipelineRunWhereUniqueInput'
-    distinct: List['PipelineRunScalarFieldKeys']
-    include: 'PipelineRunIncludeFromPipelineRunRecursive2'
-
-
-class FindManyPipelineRunArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
-    where: 'PipelineRunWhereInput'
-    cursor: 'PipelineRunWhereUniqueInput'
-    distinct: List['PipelineRunScalarFieldKeys']
-    include: 'PipelineRunIncludeFromPipelineRunRecursive3'
-
-
-class FindManyPipelineRunArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
-    where: 'PipelineRunWhereInput'
-    cursor: 'PipelineRunWhereUniqueInput'
-    distinct: List['PipelineRunScalarFieldKeys']
-    include: 'PipelineRunIncludeFromPipelineRunRecursive4'
-
-
-class FindManyPipelineRunArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['PipelineRunOrderByInput', List['PipelineRunOrderByInput']]
-    where: 'PipelineRunWhereInput'
-    cursor: 'PipelineRunWhereUniqueInput'
-    distinct: List['PipelineRunScalarFieldKeys']
-    
-    
-
-class BuildJobIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromChipsetRecursive1']
-    product: Union[bool, 'ProductArgsFromChipsetRecursive1']
-    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromChipsetRecursive1']
-    reusedFrom: Union[bool, 'BuildJobArgsFromChipsetRecursive1']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive1']
-
-
-class BuildJobIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromChipsetRecursive2']
-    product: Union[bool, 'ProductArgsFromChipsetRecursive2']
-    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromChipsetRecursive2']
-    reusedFrom: Union[bool, 'BuildJobArgsFromChipsetRecursive2']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive2']
-
-
-class BuildJobIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromChipsetRecursive3']
-    product: Union[bool, 'ProductArgsFromChipsetRecursive3']
-    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromChipsetRecursive3']
-    reusedFrom: Union[bool, 'BuildJobArgsFromChipsetRecursive3']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive3']
-
-
-class BuildJobIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    pipelineRun: Union[bool, 'PipelineRunArgsFromChipsetRecursive4']
-    product: Union[bool, 'ProductArgsFromChipsetRecursive4']
-    artifacts: Union[bool, 'FindManyBuildJobArtifactArgsFromChipsetRecursive4']
-    reusedFrom: Union[bool, 'BuildJobArgsFromChipsetRecursive4']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromChipsetRecursive4']
-
-
-class BuildJobIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class BuildJobArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BuildJobIncludeFromBuildJobRecursive1'
-
-
-class BuildJobArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BuildJobIncludeFromBuildJobRecursive2'
-
-
-class BuildJobArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BuildJobIncludeFromBuildJobRecursive3'
-
-
-class BuildJobArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BuildJobIncludeFromBuildJobRecursive4'
-
-
-class BuildJobArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyBuildJobArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive1'
-
-
-class FindManyBuildJobArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive2'
-
-
-class FindManyBuildJobArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive3'
-
-
-class FindManyBuildJobArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive4'
-
-
-class FindManyBuildJobArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    
-    
-
-class BuildJobArtifactIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    buildJob: Union[bool, 'BuildJobArgsFromChipsetRecursive1']
-
-
-class BuildJobArtifactIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    buildJob: Union[bool, 'BuildJobArgsFromChipsetRecursive2']
-
-
-class BuildJobArtifactIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    buildJob: Union[bool, 'BuildJobArgsFromChipsetRecursive3']
-
-
-class BuildJobArtifactIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    buildJob: Union[bool, 'BuildJobArgsFromChipsetRecursive4']
-
-
-class BuildJobArtifactIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class BuildJobArtifactArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive1'
-
-
-class BuildJobArtifactArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive2'
-
-
-class BuildJobArtifactArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive3'
-
-
-class BuildJobArtifactArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive4'
-
-
-class BuildJobArtifactArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyBuildJobArtifactArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
-    where: 'BuildJobArtifactWhereInput'
-    cursor: 'BuildJobArtifactWhereUniqueInput'
-    distinct: List['BuildJobArtifactScalarFieldKeys']
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive1'
-
-
-class FindManyBuildJobArtifactArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
-    where: 'BuildJobArtifactWhereInput'
-    cursor: 'BuildJobArtifactWhereUniqueInput'
-    distinct: List['BuildJobArtifactScalarFieldKeys']
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive2'
-
-
-class FindManyBuildJobArtifactArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
-    where: 'BuildJobArtifactWhereInput'
-    cursor: 'BuildJobArtifactWhereUniqueInput'
-    distinct: List['BuildJobArtifactScalarFieldKeys']
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive3'
-
-
-class FindManyBuildJobArtifactArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
-    where: 'BuildJobArtifactWhereInput'
-    cursor: 'BuildJobArtifactWhereUniqueInput'
-    distinct: List['BuildJobArtifactScalarFieldKeys']
-    include: 'BuildJobArtifactIncludeFromBuildJobArtifactRecursive4'
-
-
-class FindManyBuildJobArtifactArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobArtifactOrderByInput', List['BuildJobArtifactOrderByInput']]
-    where: 'BuildJobArtifactWhereInput'
-    cursor: 'BuildJobArtifactWhereUniqueInput'
-    distinct: List['BuildJobArtifactScalarFieldKeys']
-    
-    
-
-class SessionIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive1']
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive1']
-    pipeline: Union[bool, 'PipelineRunArgsFromChipsetRecursive1']
-    createdBy: Union[bool, 'UserArgsFromChipsetRecursive1']
-    devices: Union[bool, 'FindManyDeviceArgsFromChipsetRecursive1']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromChipsetRecursive1']
-
-
-class SessionIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive2']
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive2']
-    pipeline: Union[bool, 'PipelineRunArgsFromChipsetRecursive2']
-    createdBy: Union[bool, 'UserArgsFromChipsetRecursive2']
-    devices: Union[bool, 'FindManyDeviceArgsFromChipsetRecursive2']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromChipsetRecursive2']
-
-
-class SessionIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive3']
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive3']
-    pipeline: Union[bool, 'PipelineRunArgsFromChipsetRecursive3']
-    createdBy: Union[bool, 'UserArgsFromChipsetRecursive3']
-    devices: Union[bool, 'FindManyDeviceArgsFromChipsetRecursive3']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromChipsetRecursive3']
-
-
-class SessionIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive4']
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive4']
-    pipeline: Union[bool, 'PipelineRunArgsFromChipsetRecursive4']
-    createdBy: Union[bool, 'UserArgsFromChipsetRecursive4']
-    devices: Union[bool, 'FindManyDeviceArgsFromChipsetRecursive4']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromChipsetRecursive4']
-
-
-class SessionIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class SessionArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'SessionIncludeFromSessionRecursive1'
-
-
-class SessionArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'SessionIncludeFromSessionRecursive2'
-
-
-class SessionArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'SessionIncludeFromSessionRecursive3'
-
-
-class SessionArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'SessionIncludeFromSessionRecursive4'
-
-
-class SessionArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManySessionArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive1'
-
-
-class FindManySessionArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive2'
-
-
-class FindManySessionArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive3'
-
-
-class FindManySessionArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive4'
-
-
-class FindManySessionArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    
-    
-
-class DeviceIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    session: Union[bool, 'SessionArgsFromChipsetRecursive1']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive1']
-
-
-class DeviceIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    session: Union[bool, 'SessionArgsFromChipsetRecursive2']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive2']
-
-
-class DeviceIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    session: Union[bool, 'SessionArgsFromChipsetRecursive3']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive3']
-
-
-class DeviceIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    session: Union[bool, 'SessionArgsFromChipsetRecursive4']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive4']
-
-
-class DeviceIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class DeviceArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'DeviceIncludeFromDeviceRecursive1'
-
-
-class DeviceArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'DeviceIncludeFromDeviceRecursive2'
-
-
-class DeviceArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'DeviceIncludeFromDeviceRecursive3'
-
-
-class DeviceArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'DeviceIncludeFromDeviceRecursive4'
-
-
-class DeviceArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyDeviceArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive1'
-
-
-class FindManyDeviceArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive2'
-
-
-class FindManyDeviceArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive3'
-
-
-class FindManyDeviceArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive4'
-
-
-class FindManyDeviceArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    
-    
-
-class FixtureDesignIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromChipsetRecursive1']
-
-
-class FixtureDesignIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromChipsetRecursive2']
-
-
-class FixtureDesignIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromChipsetRecursive3']
-
-
-class FixtureDesignIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromChipsetRecursive4']
-
-
-class FixtureDesignIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class FixtureDesignArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive1'
-
-
-class FixtureDesignArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive2'
-
-
-class FixtureDesignArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive3'
-
-
-class FixtureDesignArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive4'
-
-
-class FixtureDesignArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyFixtureDesignArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive1'
-
-
-class FindManyFixtureDesignArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive2'
-
-
-class FindManyFixtureDesignArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive3'
-
-
-class FindManyFixtureDesignArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive4'
-
-
-class FindManyFixtureDesignArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    
-    
-
-class FixtureIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive1']
-    design: Union[bool, 'FixtureDesignArgsFromChipsetRecursive1']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromChipsetRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive1']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive1']
-
-
-class FixtureIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive2']
-    design: Union[bool, 'FixtureDesignArgsFromChipsetRecursive2']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromChipsetRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive2']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive2']
-
-
-class FixtureIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive3']
-    design: Union[bool, 'FixtureDesignArgsFromChipsetRecursive3']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromChipsetRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive3']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive3']
-
-
-class FixtureIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive4']
-    design: Union[bool, 'FixtureDesignArgsFromChipsetRecursive4']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromChipsetRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive4']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromChipsetRecursive4']
-
-
-class FixtureIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class FixtureArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureIncludeFromFixtureRecursive1'
-
-
-class FixtureArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureIncludeFromFixtureRecursive2'
-
-
-class FixtureArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureIncludeFromFixtureRecursive3'
-
-
-class FixtureArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureIncludeFromFixtureRecursive4'
-
-
-class FixtureArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyFixtureArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive1'
-
-
-class FindManyFixtureArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive2'
-
-
-class FindManyFixtureArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive3'
-
-
-class FindManyFixtureArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive4'
-
-
-class FindManyFixtureArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    
-    
-
-class FixtureSlotIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive1']
-    node: Union[bool, 'NodeArgsFromChipsetRecursive1']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive1']
-
-
-class FixtureSlotIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive2']
-    node: Union[bool, 'NodeArgsFromChipsetRecursive2']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive2']
-
-
-class FixtureSlotIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive3']
-    node: Union[bool, 'NodeArgsFromChipsetRecursive3']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive3']
-
-
-class FixtureSlotIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixture: Union[bool, 'FixtureArgsFromChipsetRecursive4']
-    node: Union[bool, 'NodeArgsFromChipsetRecursive4']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive4']
-
-
-class FixtureSlotIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class FixtureSlotArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive1'
-
-
-class FixtureSlotArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive2'
-
-
-class FixtureSlotArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive3'
-
-
-class FixtureSlotArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive4'
-
-
-class FixtureSlotArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyFixtureSlotArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive1'
-
-
-class FindManyFixtureSlotArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive2'
-
-
-class FindManyFixtureSlotArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive3'
-
-
-class FindManyFixtureSlotArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive4'
-
-
-class FindManyFixtureSlotArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    
-    
-
-class NodeIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromChipsetRecursive1']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive1']
-
-
-class NodeIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromChipsetRecursive2']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive2']
-
-
-class NodeIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromChipsetRecursive3']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive3']
-
-
-class NodeIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromChipsetRecursive4']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive4']
-
-
-class NodeIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class NodeArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'NodeIncludeFromNodeRecursive1'
-
-
-class NodeArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'NodeIncludeFromNodeRecursive2'
-
-
-class NodeArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'NodeIncludeFromNodeRecursive3'
-
-
-class NodeArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'NodeIncludeFromNodeRecursive4'
-
-
-class NodeArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyNodeArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive1'
-
-
-class FindManyNodeArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive2'
-
-
-class FindManyNodeArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive3'
-
-
-class FindManyNodeArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive4'
-
-
-class FindManyNodeArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    
-    
-
-class IcleDeviceIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromChipsetRecursive1']
-    logs: Union[bool, 'FindManyIcleLogArgsFromChipsetRecursive1']
-
-
-class IcleDeviceIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromChipsetRecursive2']
-    logs: Union[bool, 'FindManyIcleLogArgsFromChipsetRecursive2']
-
-
-class IcleDeviceIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromChipsetRecursive3']
-    logs: Union[bool, 'FindManyIcleLogArgsFromChipsetRecursive3']
-
-
-class IcleDeviceIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromChipsetRecursive4']
-    logs: Union[bool, 'FindManyIcleLogArgsFromChipsetRecursive4']
-
-
-class IcleDeviceIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class IcleDeviceArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive1'
-
-
-class IcleDeviceArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive2'
-
-
-class IcleDeviceArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive3'
-
-
-class IcleDeviceArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive4'
-
-
-class IcleDeviceArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyIcleDeviceArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive1'
-
-
-class FindManyIcleDeviceArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive2'
-
-
-class FindManyIcleDeviceArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive3'
-
-
-class FindManyIcleDeviceArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive4'
-
-
-class FindManyIcleDeviceArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    
-    
-
-class IclePendingCommandIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    device: Union[bool, 'IcleDeviceArgsFromChipsetRecursive1']
-
-
-class IclePendingCommandIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    device: Union[bool, 'IcleDeviceArgsFromChipsetRecursive2']
-
-
-class IclePendingCommandIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    device: Union[bool, 'IcleDeviceArgsFromChipsetRecursive3']
-
-
-class IclePendingCommandIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    device: Union[bool, 'IcleDeviceArgsFromChipsetRecursive4']
-
-
-class IclePendingCommandIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class IclePendingCommandArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive1'
-
-
-class IclePendingCommandArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive2'
-
-
-class IclePendingCommandArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive3'
-
-
-class IclePendingCommandArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive4'
-
-
-class IclePendingCommandArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyIclePendingCommandArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive1'
-
-
-class FindManyIclePendingCommandArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive2'
-
-
-class FindManyIclePendingCommandArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive3'
-
-
-class FindManyIclePendingCommandArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive4'
-
-
-class FindManyIclePendingCommandArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    
-    
-
-class IcleLogIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    device: Union[bool, 'IcleDeviceArgsFromChipsetRecursive1']
-
-
-class IcleLogIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    device: Union[bool, 'IcleDeviceArgsFromChipsetRecursive2']
-
-
-class IcleLogIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    device: Union[bool, 'IcleDeviceArgsFromChipsetRecursive3']
-
-
-class IcleLogIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    device: Union[bool, 'IcleDeviceArgsFromChipsetRecursive4']
-
-
-class IcleLogIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class IcleLogArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IcleLogIncludeFromIcleLogRecursive1'
-
-
-class IcleLogArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IcleLogIncludeFromIcleLogRecursive2'
-
-
-class IcleLogArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IcleLogIncludeFromIcleLogRecursive3'
-
-
-class IcleLogArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'IcleLogIncludeFromIcleLogRecursive4'
-
-
-class IcleLogArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyIcleLogArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive1'
-
-
-class FindManyIcleLogArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive2'
-
-
-class FindManyIcleLogArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive3'
-
-
-class FindManyIcleLogArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive4'
-
-
-class FindManyIcleLogArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    
-    
-
-class DeploymentIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive1']
-    createdBy: Union[bool, 'UserArgsFromChipsetRecursive1']
-
-
-class DeploymentIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive2']
-    createdBy: Union[bool, 'UserArgsFromChipsetRecursive2']
-
-
-class DeploymentIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive3']
-    createdBy: Union[bool, 'UserArgsFromChipsetRecursive3']
-
-
-class DeploymentIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive4']
-    createdBy: Union[bool, 'UserArgsFromChipsetRecursive4']
-
-
-class DeploymentIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class DeploymentArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyDeploymentArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
-class TestIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive1']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive1']
-
-
-class TestIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive2']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive2']
-
-
-class TestIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive3']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive3']
-
-
-class TestIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    product: Union[bool, 'ProductArgsFromChipsetRecursive4']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive4']
-
-
-class TestIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class TestArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestIncludeFromTestRecursive1'
-
-
-class TestArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestIncludeFromTestRecursive2'
-
-
-class TestArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestIncludeFromTestRecursive3'
-
-
-class TestArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestIncludeFromTestRecursive4'
-
-
-class TestArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyTestArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive1'
-
-
-class FindManyTestArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive2'
-
-
-class FindManyTestArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive3'
-
-
-class FindManyTestArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive4'
-
-
-class FindManyTestArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    
-    
-
-class TestExecutionIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    test: Union[bool, 'TestArgsFromChipsetRecursive1']
-    node: Union[bool, 'NodeArgsFromChipsetRecursive1']
-    device: Union[bool, 'DeviceArgsFromChipsetRecursive1']
-    slot: Union[bool, 'FixtureSlotArgsFromChipsetRecursive1']
-    triggeredBy: Union[bool, 'UserArgsFromChipsetRecursive1']
-    steps: Union[bool, 'FindManyTestStepArgsFromChipsetRecursive1']
-    logs: Union[bool, 'FindManyLogArgsFromChipsetRecursive1']
-
-
-class TestExecutionIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    test: Union[bool, 'TestArgsFromChipsetRecursive2']
-    node: Union[bool, 'NodeArgsFromChipsetRecursive2']
-    device: Union[bool, 'DeviceArgsFromChipsetRecursive2']
-    slot: Union[bool, 'FixtureSlotArgsFromChipsetRecursive2']
-    triggeredBy: Union[bool, 'UserArgsFromChipsetRecursive2']
-    steps: Union[bool, 'FindManyTestStepArgsFromChipsetRecursive2']
-    logs: Union[bool, 'FindManyLogArgsFromChipsetRecursive2']
-
-
-class TestExecutionIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    test: Union[bool, 'TestArgsFromChipsetRecursive3']
-    node: Union[bool, 'NodeArgsFromChipsetRecursive3']
-    device: Union[bool, 'DeviceArgsFromChipsetRecursive3']
-    slot: Union[bool, 'FixtureSlotArgsFromChipsetRecursive3']
-    triggeredBy: Union[bool, 'UserArgsFromChipsetRecursive3']
-    steps: Union[bool, 'FindManyTestStepArgsFromChipsetRecursive3']
-    logs: Union[bool, 'FindManyLogArgsFromChipsetRecursive3']
-
-
-class TestExecutionIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    test: Union[bool, 'TestArgsFromChipsetRecursive4']
-    node: Union[bool, 'NodeArgsFromChipsetRecursive4']
-    device: Union[bool, 'DeviceArgsFromChipsetRecursive4']
-    slot: Union[bool, 'FixtureSlotArgsFromChipsetRecursive4']
-    triggeredBy: Union[bool, 'UserArgsFromChipsetRecursive4']
-    steps: Union[bool, 'FindManyTestStepArgsFromChipsetRecursive4']
-    logs: Union[bool, 'FindManyLogArgsFromChipsetRecursive4']
-
-
-class TestExecutionIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class TestExecutionArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive1'
-
-
-class TestExecutionArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive2'
-
-
-class TestExecutionArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive3'
-
-
-class TestExecutionArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive4'
-
-
-class TestExecutionArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyTestExecutionArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive1'
-
-
-class FindManyTestExecutionArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive2'
-
-
-class FindManyTestExecutionArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive3'
-
-
-class FindManyTestExecutionArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive4'
-
-
-class FindManyTestExecutionArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    
-    
-
-class TestStepIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    execution: Union[bool, 'TestExecutionArgsFromChipsetRecursive1']
-
-
-class TestStepIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    execution: Union[bool, 'TestExecutionArgsFromChipsetRecursive2']
-
-
-class TestStepIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    execution: Union[bool, 'TestExecutionArgsFromChipsetRecursive3']
-
-
-class TestStepIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    execution: Union[bool, 'TestExecutionArgsFromChipsetRecursive4']
-
-
-class TestStepIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class TestStepArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestStepIncludeFromTestStepRecursive1'
-
-
-class TestStepArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestStepIncludeFromTestStepRecursive2'
-
-
-class TestStepArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestStepIncludeFromTestStepRecursive3'
-
-
-class TestStepArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'TestStepIncludeFromTestStepRecursive4'
-
-
-class TestStepArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyTestStepArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive1'
-
-
-class FindManyTestStepArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive2'
-
-
-class FindManyTestStepArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive3'
-
-
-class FindManyTestStepArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive4'
-
-
-class FindManyTestStepArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    
-    
-
-class UserIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromChipsetRecursive1']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromChipsetRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromChipsetRecursive1']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive1']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromChipsetRecursive1']
-
-
-class UserIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromChipsetRecursive2']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromChipsetRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromChipsetRecursive2']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive2']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromChipsetRecursive2']
-
-
-class UserIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromChipsetRecursive3']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromChipsetRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromChipsetRecursive3']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive3']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromChipsetRecursive3']
-
-
-class UserIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromChipsetRecursive4']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromChipsetRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromChipsetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromChipsetRecursive4']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromChipsetRecursive4']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromChipsetRecursive4']
-
-
-class UserIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class UserArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'UserIncludeFromUserRecursive1'
-
-
-class UserArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'UserIncludeFromUserRecursive2'
-
-
-class UserArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'UserIncludeFromUserRecursive3'
-
-
-class UserArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'UserIncludeFromUserRecursive4'
-
-
-class UserArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyUserArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive1'
-
-
-class FindManyUserArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive2'
-
-
-class FindManyUserArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive3'
-
-
-class FindManyUserArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive4'
-
-
-class FindManyUserArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    
-    
-
-class PermissionSetIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    users: Union[bool, 'FindManyUserArgsFromChipsetRecursive1']
-
-
-class PermissionSetIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    users: Union[bool, 'FindManyUserArgsFromChipsetRecursive2']
-
-
-class PermissionSetIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    users: Union[bool, 'FindManyUserArgsFromChipsetRecursive3']
-
-
-class PermissionSetIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    users: Union[bool, 'FindManyUserArgsFromChipsetRecursive4']
-
-
-class PermissionSetIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class PermissionSetArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive1'
-
-
-class PermissionSetArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive2'
-
-
-class PermissionSetArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive3'
-
-
-class PermissionSetArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive4'
-
-
-class PermissionSetArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyPermissionSetArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive1'
-
-
-class FindManyPermissionSetArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive2'
-
-
-class FindManyPermissionSetArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive3'
-
-
-class FindManyPermissionSetArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive4'
-
-
-class FindManyPermissionSetArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    
-    
-
-class ApiKeyIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    user: Union[bool, 'UserArgsFromChipsetRecursive1']
-
-
-class ApiKeyIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    user: Union[bool, 'UserArgsFromChipsetRecursive2']
-
-
-class ApiKeyIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    user: Union[bool, 'UserArgsFromChipsetRecursive3']
-
-
-class ApiKeyIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    user: Union[bool, 'UserArgsFromChipsetRecursive4']
-
-
-class ApiKeyIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class ApiKeyArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive1'
-
-
-class ApiKeyArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive2'
-
-
-class ApiKeyArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive3'
-
-
-class ApiKeyArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive4'
-
-
-class ApiKeyArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyApiKeyArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive1'
-
-
-class FindManyApiKeyArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive2'
-
-
-class FindManyApiKeyArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive3'
-
-
-class FindManyApiKeyArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive4'
-
-
-class FindManyApiKeyArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    
-    
-
-class AuditLogIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    user: Union[bool, 'UserArgsFromChipsetRecursive1']
-
-
-class AuditLogIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    user: Union[bool, 'UserArgsFromChipsetRecursive2']
-
-
-class AuditLogIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    user: Union[bool, 'UserArgsFromChipsetRecursive3']
-
-
-class AuditLogIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    user: Union[bool, 'UserArgsFromChipsetRecursive4']
-
-
-class AuditLogIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class AuditLogArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'AuditLogIncludeFromAuditLogRecursive1'
-
-
-class AuditLogArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'AuditLogIncludeFromAuditLogRecursive2'
-
-
-class AuditLogArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'AuditLogIncludeFromAuditLogRecursive3'
-
-
-class AuditLogArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'AuditLogIncludeFromAuditLogRecursive4'
-
-
-class AuditLogArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyAuditLogArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive1'
-
-
-class FindManyAuditLogArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive2'
-
-
-class FindManyAuditLogArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive3'
-
-
-class FindManyAuditLogArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive4'
-
-
-class FindManyAuditLogArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    
-    
-
-class SettingIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-
-class SettingIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-
-class SettingIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-
-class SettingIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-
-class SettingIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class SettingArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'SettingIncludeFromSettingRecursive1'
-
-
-class SettingArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'SettingIncludeFromSettingRecursive2'
-
-
-class SettingArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'SettingIncludeFromSettingRecursive3'
-
-
-class SettingArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'SettingIncludeFromSettingRecursive4'
-
-
-class SettingArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManySettingArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
-    where: 'SettingWhereInput'
-    cursor: 'SettingWhereUniqueInput'
-    distinct: List['SettingScalarFieldKeys']
-    include: 'SettingIncludeFromSettingRecursive1'
-
-
-class FindManySettingArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
-    where: 'SettingWhereInput'
-    cursor: 'SettingWhereUniqueInput'
-    distinct: List['SettingScalarFieldKeys']
-    include: 'SettingIncludeFromSettingRecursive2'
-
-
-class FindManySettingArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
-    where: 'SettingWhereInput'
-    cursor: 'SettingWhereUniqueInput'
-    distinct: List['SettingScalarFieldKeys']
-    include: 'SettingIncludeFromSettingRecursive3'
-
-
-class FindManySettingArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
-    where: 'SettingWhereInput'
-    cursor: 'SettingWhereUniqueInput'
-    distinct: List['SettingScalarFieldKeys']
-    include: 'SettingIncludeFromSettingRecursive4'
-
-
-class FindManySettingArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['SettingOrderByInput', List['SettingOrderByInput']]
-    where: 'SettingWhereInput'
-    cursor: 'SettingWhereUniqueInput'
-    distinct: List['SettingScalarFieldKeys']
-    
-    
-
-class LogIncludeFromChipset(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    execution: Union[bool, 'TestExecutionArgsFromChipsetRecursive1']
-
-
-class LogIncludeFromChipsetRecursive1(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    execution: Union[bool, 'TestExecutionArgsFromChipsetRecursive2']
-
-
-class LogIncludeFromChipsetRecursive2(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    execution: Union[bool, 'TestExecutionArgsFromChipsetRecursive3']
-
-
-class LogIncludeFromChipsetRecursive3(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-    execution: Union[bool, 'TestExecutionArgsFromChipsetRecursive4']
-
-
-class LogIncludeFromChipsetRecursive4(TypedDict, total=False):
-    """Relational arguments for Chipset"""
-
-    
-
-class LogArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'LogIncludeFromLogRecursive1'
-
-
-class LogArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'LogIncludeFromLogRecursive2'
-
-
-class LogArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'LogIncludeFromLogRecursive3'
-
-
-class LogArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    include: 'LogIncludeFromLogRecursive4'
-
-
-class LogArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    
-    
-
-class FindManyLogArgsFromChipset(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
-    where: 'LogWhereInput'
-    cursor: 'LogWhereUniqueInput'
-    distinct: List['LogScalarFieldKeys']
-    include: 'LogIncludeFromLogRecursive1'
-
-
-class FindManyLogArgsFromChipsetRecursive1(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
-    where: 'LogWhereInput'
-    cursor: 'LogWhereUniqueInput'
-    distinct: List['LogScalarFieldKeys']
-    include: 'LogIncludeFromLogRecursive2'
-
-
-class FindManyLogArgsFromChipsetRecursive2(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
-    where: 'LogWhereInput'
-    cursor: 'LogWhereUniqueInput'
-    distinct: List['LogScalarFieldKeys']
-    include: 'LogIncludeFromLogRecursive3'
-
-
-class FindManyLogArgsFromChipsetRecursive3(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
-    where: 'LogWhereInput'
-    cursor: 'LogWhereUniqueInput'
-    distinct: List['LogScalarFieldKeys']
-    include: 'LogIncludeFromLogRecursive4'
-
-
-class FindManyLogArgsFromChipsetRecursive4(TypedDict, total=False):
-    """Arguments for Chipset"""
-    take: int
-    skip: int
-    order_by: Union['LogOrderByInput', List['LogOrderByInput']]
-    where: 'LogWhereInput'
-    cursor: 'LogWhereUniqueInput'
-    distinct: List['LogScalarFieldKeys']
-    
-
-
-FindManyChipsetArgs = FindManyChipsetArgsFromChipset
-FindFirstChipsetArgs = FindManyChipsetArgsFromChipset
-
-
-    
-
-class ChipsetWhereInput(TypedDict, total=False):
-    """Chipset arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    name: Union[_str, 'types.StringFilter']
-    manufacturer: Union[None, _str, 'types.StringFilter']
-    isModem: Union[_bool, 'types.BooleanFilter']
-    description: Union[None, _str, 'types.StringFilter']
-    active: Union[_bool, 'types.BooleanFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    boardRevisionChipsets: 'BoardRevisionChipsetListRelationFilter'
-    firmwareBuilds: 'FirmwareBuildListRelationFilter'
-
-    # should be noted that AND and NOT should be Union['ChipsetWhereInputRecursive1', List['ChipsetWhereInputRecursive1']]
-    # but this causes mypy to hang :/
-    AND: List['ChipsetWhereInputRecursive1']
-    OR: List['ChipsetWhereInputRecursive1']
-    NOT: List['ChipsetWhereInputRecursive1']
-
-
-class ChipsetWhereInputRecursive1(TypedDict, total=False):
-    """Chipset arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    name: Union[_str, 'types.StringFilter']
-    manufacturer: Union[None, _str, 'types.StringFilter']
-    isModem: Union[_bool, 'types.BooleanFilter']
-    description: Union[None, _str, 'types.StringFilter']
-    active: Union[_bool, 'types.BooleanFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    boardRevisionChipsets: 'BoardRevisionChipsetListRelationFilter'
-    firmwareBuilds: 'FirmwareBuildListRelationFilter'
-
-    # should be noted that AND and NOT should be Union['ChipsetWhereInputRecursive2', List['ChipsetWhereInputRecursive2']]
-    # but this causes mypy to hang :/
-    AND: List['ChipsetWhereInputRecursive2']
-    OR: List['ChipsetWhereInputRecursive2']
-    NOT: List['ChipsetWhereInputRecursive2']
-
-
-class ChipsetWhereInputRecursive2(TypedDict, total=False):
-    """Chipset arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    name: Union[_str, 'types.StringFilter']
-    manufacturer: Union[None, _str, 'types.StringFilter']
-    isModem: Union[_bool, 'types.BooleanFilter']
-    description: Union[None, _str, 'types.StringFilter']
-    active: Union[_bool, 'types.BooleanFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    boardRevisionChipsets: 'BoardRevisionChipsetListRelationFilter'
-    firmwareBuilds: 'FirmwareBuildListRelationFilter'
-
-    # should be noted that AND and NOT should be Union['ChipsetWhereInputRecursive3', List['ChipsetWhereInputRecursive3']]
-    # but this causes mypy to hang :/
-    AND: List['ChipsetWhereInputRecursive3']
-    OR: List['ChipsetWhereInputRecursive3']
-    NOT: List['ChipsetWhereInputRecursive3']
-
-
-class ChipsetWhereInputRecursive3(TypedDict, total=False):
-    """Chipset arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    name: Union[_str, 'types.StringFilter']
-    manufacturer: Union[None, _str, 'types.StringFilter']
-    isModem: Union[_bool, 'types.BooleanFilter']
-    description: Union[None, _str, 'types.StringFilter']
-    active: Union[_bool, 'types.BooleanFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    boardRevisionChipsets: 'BoardRevisionChipsetListRelationFilter'
-    firmwareBuilds: 'FirmwareBuildListRelationFilter'
-
-    # should be noted that AND and NOT should be Union['ChipsetWhereInputRecursive4', List['ChipsetWhereInputRecursive4']]
-    # but this causes mypy to hang :/
-    AND: List['ChipsetWhereInputRecursive4']
-    OR: List['ChipsetWhereInputRecursive4']
-    NOT: List['ChipsetWhereInputRecursive4']
-
-
-class ChipsetWhereInputRecursive4(TypedDict, total=False):
-    """Chipset arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    name: Union[_str, 'types.StringFilter']
-    manufacturer: Union[None, _str, 'types.StringFilter']
-    isModem: Union[_bool, 'types.BooleanFilter']
-    description: Union[None, _str, 'types.StringFilter']
-    active: Union[_bool, 'types.BooleanFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    boardRevisionChipsets: 'BoardRevisionChipsetListRelationFilter'
-    firmwareBuilds: 'FirmwareBuildListRelationFilter'
-
-
-
-# aggregate Chipset types
-
-
-    
-
-class ChipsetScalarWhereWithAggregatesInput(TypedDict, total=False):
-    """Chipset arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    name: Union[_str, 'types.StringWithAggregatesFilter']
-    manufacturer: Union[_str, 'types.StringWithAggregatesFilter']
-    isModem: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    description: Union[_str, 'types.StringWithAggregatesFilter']
-    active: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-
-    AND: List['ChipsetScalarWhereWithAggregatesInputRecursive1']
-    OR: List['ChipsetScalarWhereWithAggregatesInputRecursive1']
-    NOT: List['ChipsetScalarWhereWithAggregatesInputRecursive1']
-
-
-class ChipsetScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
-    """Chipset arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    name: Union[_str, 'types.StringWithAggregatesFilter']
-    manufacturer: Union[_str, 'types.StringWithAggregatesFilter']
-    isModem: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    description: Union[_str, 'types.StringWithAggregatesFilter']
-    active: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-
-    AND: List['ChipsetScalarWhereWithAggregatesInputRecursive2']
-    OR: List['ChipsetScalarWhereWithAggregatesInputRecursive2']
-    NOT: List['ChipsetScalarWhereWithAggregatesInputRecursive2']
-
-
-class ChipsetScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
-    """Chipset arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    name: Union[_str, 'types.StringWithAggregatesFilter']
-    manufacturer: Union[_str, 'types.StringWithAggregatesFilter']
-    isModem: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    description: Union[_str, 'types.StringWithAggregatesFilter']
-    active: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-
-    AND: List['ChipsetScalarWhereWithAggregatesInputRecursive3']
-    OR: List['ChipsetScalarWhereWithAggregatesInputRecursive3']
-    NOT: List['ChipsetScalarWhereWithAggregatesInputRecursive3']
-
-
-class ChipsetScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
-    """Chipset arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    name: Union[_str, 'types.StringWithAggregatesFilter']
-    manufacturer: Union[_str, 'types.StringWithAggregatesFilter']
-    isModem: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    description: Union[_str, 'types.StringWithAggregatesFilter']
-    active: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-
-    AND: List['ChipsetScalarWhereWithAggregatesInputRecursive4']
-    OR: List['ChipsetScalarWhereWithAggregatesInputRecursive4']
-    NOT: List['ChipsetScalarWhereWithAggregatesInputRecursive4']
-
-
-class ChipsetScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
-    """Chipset arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    name: Union[_str, 'types.StringWithAggregatesFilter']
-    manufacturer: Union[_str, 'types.StringWithAggregatesFilter']
-    isModem: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    description: Union[_str, 'types.StringWithAggregatesFilter']
-    active: Union[_bool, 'types.BooleanWithAggregatesFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-
-
-
-class ChipsetGroupByOutput(TypedDict, total=False):
-    id: _str
-    name: _str
-    manufacturer: _str
-    isModem: _bool
-    description: _str
-    active: _bool
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    _sum: 'ChipsetSumAggregateOutput'
-    _avg: 'ChipsetAvgAggregateOutput'
-    _min: 'ChipsetMinAggregateOutput'
-    _max: 'ChipsetMaxAggregateOutput'
-    _count: 'ChipsetCountAggregateOutput'
-
-
-class ChipsetAvgAggregateOutput(TypedDict, total=False):
-    """Chipset output for aggregating averages"""
-
-
-class ChipsetSumAggregateOutput(TypedDict, total=False):
-    """Chipset output for aggregating sums"""
-
-
-class ChipsetScalarAggregateOutput(TypedDict, total=False):
-    """Chipset output including scalar fields"""
-    id: _str
-    name: _str
-    manufacturer: _str
-    isModem: _bool
-    description: _str
-    active: _bool
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-
-
-ChipsetMinAggregateOutput = ChipsetScalarAggregateOutput
-ChipsetMaxAggregateOutput = ChipsetScalarAggregateOutput
-
-
-class ChipsetMaxAggregateInput(TypedDict, total=False):
-    """Chipset input for aggregating by max"""
-    id: bool
-    name: bool
-    manufacturer: bool
-    isModem: bool
-    description: bool
-    active: bool
-    createdAt: bool
-    updatedAt: bool
-
-
-class ChipsetMinAggregateInput(TypedDict, total=False):
-    """Chipset input for aggregating by min"""
-    id: bool
-    name: bool
-    manufacturer: bool
-    isModem: bool
-    description: bool
-    active: bool
-    createdAt: bool
-    updatedAt: bool
-
-
-class ChipsetNumberAggregateInput(TypedDict, total=False):
-    """Chipset input for aggregating numbers"""
-
-
-ChipsetAvgAggregateInput = ChipsetNumberAggregateInput
-ChipsetSumAggregateInput = ChipsetNumberAggregateInput
-
-
-ChipsetCountAggregateInput = TypedDict(
-    'ChipsetCountAggregateInput',
-    {
-        'id': bool,
-        'name': bool,
-        'manufacturer': bool,
-        'isModem': bool,
-        'description': bool,
-        'active': bool,
-        'createdAt': bool,
-        'updatedAt': bool,
-        '_all': bool,
-    },
-    total=False,
-)
-
-ChipsetCountAggregateOutput = TypedDict(
-    'ChipsetCountAggregateOutput',
-    {
-        'id': int,
-        'name': int,
-        'manufacturer': int,
-        'isModem': int,
-        'description': int,
-        'active': int,
-        'createdAt': int,
-        'updatedAt': int,
-        '_all': int,
-    },
-    total=False,
-)
-
-
-ChipsetKeys = Literal[
-    'id',
-    'name',
-    'manufacturer',
-    'isModem',
-    'description',
-    'active',
-    'createdAt',
-    'updatedAt',
-    'boardRevisionChipsets',
-    'firmwareBuilds',
-]
-ChipsetScalarFieldKeys = Literal[
-    'id',
-    'name',
-    'manufacturer',
-    'isModem',
-    'description',
-    'active',
-    'createdAt',
-    'updatedAt',
-]
-ChipsetScalarFieldKeysT = TypeVar('ChipsetScalarFieldKeysT', bound=ChipsetScalarFieldKeys)
-
-ChipsetRelationalFieldKeys = Literal[
-        'boardRevisionChipsets',
-        'firmwareBuilds',
     ]
 
 # FirmwareBuild types
@@ -26006,7 +17163,7 @@ class FirmwareBuildOptionalCreateInput(TypedDict, total=False):
     """Optional arguments to the FirmwareBuild create method"""
     id: _str
     productId: _str
-    chipsetId: _str
+    targetId: Optional[_str]
     isManufacturing: _bool
     status: 'enums.LifecycleStatus'
     contentType: Optional[_str]
@@ -26018,7 +17175,7 @@ class FirmwareBuildOptionalCreateInput(TypedDict, total=False):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: 'ProductCreateNestedWithoutRelationsInput'
-    chipset: 'ChipsetCreateNestedWithoutRelationsInput'
+    target: 'ProductTargetCreateNestedWithoutRelationsInput'
 
 
 class FirmwareBuildCreateInput(FirmwareBuildOptionalCreateInput):
@@ -26037,7 +17194,7 @@ class FirmwareBuildOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     """Optional arguments to the FirmwareBuild create method, without relations"""
     id: _str
     productId: _str
-    chipsetId: _str
+    targetId: Optional[_str]
     isManufacturing: _bool
     status: 'enums.LifecycleStatus'
     contentType: Optional[_str]
@@ -26081,27 +17238,27 @@ _FirmwareBuildWhereUnique_id_Input = TypedDict(
     total=True
 )
 
-_FirmwareBuildCompoundproductId_chipsetId_versionKeyInner = TypedDict(
-    '_FirmwareBuildCompoundproductId_chipsetId_versionKeyInner',
+_FirmwareBuildCompoundproductId_targetId_versionKeyInner = TypedDict(
+    '_FirmwareBuildCompoundproductId_targetId_versionKeyInner',
     {
         'productId': '_str',
-        'chipsetId': '_str',
+        'targetId': '_str',
         'version': '_str',
     },
     total=True
 )
 
-_FirmwareBuildCompoundproductId_chipsetId_versionKey = TypedDict(
-    '_FirmwareBuildCompoundproductId_chipsetId_versionKey',
+_FirmwareBuildCompoundproductId_targetId_versionKey = TypedDict(
+    '_FirmwareBuildCompoundproductId_targetId_versionKey',
     {
-        'productId_chipsetId_version': '_FirmwareBuildCompoundproductId_chipsetId_versionKeyInner',
+        'productId_targetId_version': '_FirmwareBuildCompoundproductId_targetId_versionKeyInner',
     },
     total=True
 )
 
 FirmwareBuildWhereUniqueInput = Union[
     '_FirmwareBuildWhereUnique_id_Input',
-    '_FirmwareBuildCompoundproductId_chipsetId_versionKey',
+    '_FirmwareBuildCompoundproductId_targetId_versionKey',
 ]
 
 
@@ -26124,7 +17281,7 @@ class FirmwareBuildUpdateInput(TypedDict, total=False):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: 'ProductUpdateOneWithoutRelationsInput'
-    chipset: 'ChipsetUpdateOneWithoutRelationsInput'
+    target: 'ProductTargetUpdateOneWithoutRelationsInput'
 
 
 class FirmwareBuildUpdateManyMutationInput(TypedDict, total=False):
@@ -26195,10 +17352,10 @@ _FirmwareBuild_productId_OrderByInput = TypedDict(
     total=True
 )
 
-_FirmwareBuild_chipsetId_OrderByInput = TypedDict(
-    '_FirmwareBuild_chipsetId_OrderByInput',
+_FirmwareBuild_targetId_OrderByInput = TypedDict(
+    '_FirmwareBuild_targetId_OrderByInput',
     {
-        'chipsetId': 'SortOrder',
+        'targetId': 'SortOrder',
     },
     total=True
 )
@@ -26344,7 +17501,7 @@ _FirmwareBuild_RelevanceOrderByInput = TypedDict(
 FirmwareBuildOrderByInput = Union[
     '_FirmwareBuild_id_OrderByInput',
     '_FirmwareBuild_productId_OrderByInput',
-    '_FirmwareBuild_chipsetId_OrderByInput',
+    '_FirmwareBuild_targetId_OrderByInput',
     '_FirmwareBuild_version_OrderByInput',
     '_FirmwareBuild_isManufacturing_OrderByInput',
     '_FirmwareBuild_status_OrderByInput',
@@ -26392,7 +17549,7 @@ class FirmwareBuildListRelationFilter(TypedDict, total=False):
 class FirmwareBuildInclude(TypedDict, total=False):
     """FirmwareBuild relational arguments"""
     product: Union[bool, 'ProductArgsFromFirmwareBuild']
-    chipset: Union[bool, 'ChipsetArgsFromFirmwareBuild']
+    target: Union[bool, 'ProductTargetArgsFromFirmwareBuild']
 
 
     
@@ -26541,21 +17698,25 @@ class FindManyProductArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive1']
 
 
 class ProductTargetIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive2']
 
 
 class ProductTargetIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive3']
 
 
 class ProductTargetIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive4']
 
 
 class ProductTargetIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
@@ -26755,25 +17916,21 @@ class FindManyBoardArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive1']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive2']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive3']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     board: Union[bool, 'BoardArgsFromFirmwareBuildRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive4']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
@@ -26861,246 +18018,28 @@ class FindManyBoardRevisionArgsFromFirmwareBuildRecursive4(TypedDict, total=Fals
     
     
 
-class BoardRevisionChipsetIncludeFromFirmwareBuild(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromFirmwareBuildRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromFirmwareBuildRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromFirmwareBuildRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromFirmwareBuildRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-
-    
-
-class BoardRevisionChipsetArgsFromFirmwareBuild(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromFirmwareBuildRecursive1(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromFirmwareBuildRecursive2(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromFirmwareBuildRecursive3(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromFirmwareBuild(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive1(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive2(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive3(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromFirmwareBuild(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive1']
-
-
-class ChipsetIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive2']
-
-
-class ChipsetIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive3']
-
-
-class ChipsetIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFirmwareBuildRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFirmwareBuildRecursive4']
-
-
-class ChipsetIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-
-    
-
-class ChipsetArgsFromFirmwareBuild(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromFirmwareBuildRecursive1(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromFirmwareBuildRecursive2(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromFirmwareBuildRecursive3(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    
-    
-
-class FindManyChipsetArgsFromFirmwareBuild(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromFirmwareBuildRecursive1(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromFirmwareBuildRecursive2(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromFirmwareBuildRecursive3(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromFirmwareBuildRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromFirmwareBuildRecursive1']
 
 
 class FirmwareBuildIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromFirmwareBuildRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromFirmwareBuildRecursive2']
 
 
 class FirmwareBuildIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromFirmwareBuildRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromFirmwareBuildRecursive3']
 
 
 class FirmwareBuildIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromFirmwareBuildRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromFirmwareBuildRecursive4']
 
 
 class FirmwareBuildIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
@@ -29874,7 +20813,7 @@ class FirmwareBuildWhereInput(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
-    chipsetId: Union[_str, 'types.StringFilter']
+    targetId: Union[None, _str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
     isManufacturing: Union[_bool, 'types.BooleanFilter']
     status: 'enums.LifecycleStatus'
@@ -29891,7 +20830,7 @@ class FirmwareBuildWhereInput(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
-    chipset: 'ChipsetRelationFilter'
+    target: 'ProductTargetRelationFilter'
 
     # should be noted that AND and NOT should be Union['FirmwareBuildWhereInputRecursive1', List['FirmwareBuildWhereInputRecursive1']]
     # but this causes mypy to hang :/
@@ -29904,7 +20843,7 @@ class FirmwareBuildWhereInputRecursive1(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
-    chipsetId: Union[_str, 'types.StringFilter']
+    targetId: Union[None, _str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
     isManufacturing: Union[_bool, 'types.BooleanFilter']
     status: 'enums.LifecycleStatus'
@@ -29921,7 +20860,7 @@ class FirmwareBuildWhereInputRecursive1(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
-    chipset: 'ChipsetRelationFilter'
+    target: 'ProductTargetRelationFilter'
 
     # should be noted that AND and NOT should be Union['FirmwareBuildWhereInputRecursive2', List['FirmwareBuildWhereInputRecursive2']]
     # but this causes mypy to hang :/
@@ -29934,7 +20873,7 @@ class FirmwareBuildWhereInputRecursive2(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
-    chipsetId: Union[_str, 'types.StringFilter']
+    targetId: Union[None, _str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
     isManufacturing: Union[_bool, 'types.BooleanFilter']
     status: 'enums.LifecycleStatus'
@@ -29951,7 +20890,7 @@ class FirmwareBuildWhereInputRecursive2(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
-    chipset: 'ChipsetRelationFilter'
+    target: 'ProductTargetRelationFilter'
 
     # should be noted that AND and NOT should be Union['FirmwareBuildWhereInputRecursive3', List['FirmwareBuildWhereInputRecursive3']]
     # but this causes mypy to hang :/
@@ -29964,7 +20903,7 @@ class FirmwareBuildWhereInputRecursive3(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
-    chipsetId: Union[_str, 'types.StringFilter']
+    targetId: Union[None, _str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
     isManufacturing: Union[_bool, 'types.BooleanFilter']
     status: 'enums.LifecycleStatus'
@@ -29981,7 +20920,7 @@ class FirmwareBuildWhereInputRecursive3(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
-    chipset: 'ChipsetRelationFilter'
+    target: 'ProductTargetRelationFilter'
 
     # should be noted that AND and NOT should be Union['FirmwareBuildWhereInputRecursive4', List['FirmwareBuildWhereInputRecursive4']]
     # but this causes mypy to hang :/
@@ -29994,7 +20933,7 @@ class FirmwareBuildWhereInputRecursive4(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
-    chipsetId: Union[_str, 'types.StringFilter']
+    targetId: Union[None, _str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
     isManufacturing: Union[_bool, 'types.BooleanFilter']
     status: 'enums.LifecycleStatus'
@@ -30011,7 +20950,7 @@ class FirmwareBuildWhereInputRecursive4(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
-    chipset: 'ChipsetRelationFilter'
+    target: 'ProductTargetRelationFilter'
 
 
 
@@ -30024,7 +20963,7 @@ class FirmwareBuildScalarWhereWithAggregatesInput(TypedDict, total=False):
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
-    chipsetId: Union[_str, 'types.StringWithAggregatesFilter']
+    targetId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
     isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
@@ -30050,7 +20989,7 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive1(TypedDict, total=Fal
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
-    chipsetId: Union[_str, 'types.StringWithAggregatesFilter']
+    targetId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
     isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
@@ -30076,7 +21015,7 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive2(TypedDict, total=Fal
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
-    chipsetId: Union[_str, 'types.StringWithAggregatesFilter']
+    targetId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
     isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
@@ -30102,7 +21041,7 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive3(TypedDict, total=Fal
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
-    chipsetId: Union[_str, 'types.StringWithAggregatesFilter']
+    targetId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
     isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
@@ -30128,7 +21067,7 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive4(TypedDict, total=Fal
     """FirmwareBuild arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
-    chipsetId: Union[_str, 'types.StringWithAggregatesFilter']
+    targetId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
     isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
@@ -30150,7 +21089,7 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive4(TypedDict, total=Fal
 class FirmwareBuildGroupByOutput(TypedDict, total=False):
     id: _str
     productId: _str
-    chipsetId: _str
+    targetId: _str
     version: _str
     isManufacturing: _bool
     status: 'enums.LifecycleStatus'
@@ -30189,7 +21128,7 @@ class FirmwareBuildScalarAggregateOutput(TypedDict, total=False):
     """FirmwareBuild output including scalar fields"""
     id: _str
     productId: _str
-    chipsetId: _str
+    targetId: _str
     version: _str
     isManufacturing: _bool
     status: 'enums.LifecycleStatus'
@@ -30215,7 +21154,7 @@ class FirmwareBuildMaxAggregateInput(TypedDict, total=False):
     """FirmwareBuild input for aggregating by max"""
     id: bool
     productId: bool
-    chipsetId: bool
+    targetId: bool
     version: bool
     isManufacturing: bool
     status: bool
@@ -30237,7 +21176,7 @@ class FirmwareBuildMinAggregateInput(TypedDict, total=False):
     """FirmwareBuild input for aggregating by min"""
     id: bool
     productId: bool
-    chipsetId: bool
+    targetId: bool
     version: bool
     isManufacturing: bool
     status: bool
@@ -30270,7 +21209,7 @@ FirmwareBuildCountAggregateInput = TypedDict(
     {
         'id': bool,
         'productId': bool,
-        'chipsetId': bool,
+        'targetId': bool,
         'version': bool,
         'isManufacturing': bool,
         'status': bool,
@@ -30296,7 +21235,7 @@ FirmwareBuildCountAggregateOutput = TypedDict(
     {
         'id': int,
         'productId': int,
-        'chipsetId': int,
+        'targetId': int,
         'version': int,
         'isManufacturing': int,
         'status': int,
@@ -30321,7 +21260,7 @@ FirmwareBuildCountAggregateOutput = TypedDict(
 FirmwareBuildKeys = Literal[
     'id',
     'productId',
-    'chipsetId',
+    'targetId',
     'version',
     'isManufacturing',
     'status',
@@ -30338,12 +21277,12 @@ FirmwareBuildKeys = Literal[
     'createdAt',
     'updatedAt',
     'product',
-    'chipset',
+    'target',
 ]
 FirmwareBuildScalarFieldKeys = Literal[
     'id',
     'productId',
-    'chipsetId',
+    'targetId',
     'version',
     'isManufacturing',
     'status',
@@ -30364,7 +21303,7 @@ FirmwareBuildScalarFieldKeysT = TypeVar('FirmwareBuildScalarFieldKeysT', bound=F
 
 FirmwareBuildRelationalFieldKeys = Literal[
         'product',
-        'chipset',
+        'target',
     ]
 
 # ProductStageConfig types
@@ -31003,21 +21942,25 @@ class FindManyProductArgsFromProductStageConfigRecursive4(TypedDict, total=False
 class ProductTargetIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive1']
 
 
 class ProductTargetIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive2']
 
 
 class ProductTargetIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive3']
 
 
 class ProductTargetIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive4']
 
 
 class ProductTargetIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
@@ -31217,25 +22160,21 @@ class FindManyBoardArgsFromProductStageConfigRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive1']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive2']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive3']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     board: Union[bool, 'BoardArgsFromProductStageConfigRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive4']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
@@ -31323,246 +22262,28 @@ class FindManyBoardRevisionArgsFromProductStageConfigRecursive4(TypedDict, total
     
     
 
-class BoardRevisionChipsetIncludeFromProductStageConfig(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromProductStageConfigRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromProductStageConfigRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromProductStageConfigRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromProductStageConfigRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-
-    
-
-class BoardRevisionChipsetArgsFromProductStageConfig(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromProductStageConfigRecursive1(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromProductStageConfigRecursive2(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromProductStageConfigRecursive3(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromProductStageConfigRecursive4(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromProductStageConfig(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive1(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive2(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive3(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive4(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromProductStageConfig(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive1']
-
-
-class ChipsetIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive2']
-
-
-class ChipsetIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive3']
-
-
-class ChipsetIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromProductStageConfigRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromProductStageConfigRecursive4']
-
-
-class ChipsetIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-
-    
-
-class ChipsetArgsFromProductStageConfig(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromProductStageConfigRecursive1(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromProductStageConfigRecursive2(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromProductStageConfigRecursive3(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromProductStageConfigRecursive4(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    
-    
-
-class FindManyChipsetArgsFromProductStageConfig(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromProductStageConfigRecursive1(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromProductStageConfigRecursive2(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromProductStageConfigRecursive3(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromProductStageConfigRecursive4(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromProductStageConfigRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromProductStageConfigRecursive1']
 
 
 class FirmwareBuildIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromProductStageConfigRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromProductStageConfigRecursive2']
 
 
 class FirmwareBuildIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromProductStageConfigRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromProductStageConfigRecursive3']
 
 
 class FirmwareBuildIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromProductStageConfigRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromProductStageConfigRecursive4']
 
 
 class FirmwareBuildIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
@@ -35488,21 +26209,25 @@ class FindManyProductArgsFromValidationQueueEntryRecursive4(TypedDict, total=Fal
 class ProductTargetIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive1']
 
 
 class ProductTargetIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive2']
 
 
 class ProductTargetIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive3']
 
 
 class ProductTargetIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive4']
 
 
 class ProductTargetIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
@@ -35702,25 +26427,21 @@ class FindManyBoardArgsFromValidationQueueEntryRecursive4(TypedDict, total=False
 class BoardRevisionIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive1']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive2']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive3']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     board: Union[bool, 'BoardArgsFromValidationQueueEntryRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive4']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
@@ -35808,246 +26529,28 @@ class FindManyBoardRevisionArgsFromValidationQueueEntryRecursive4(TypedDict, tot
     
     
 
-class BoardRevisionChipsetIncludeFromValidationQueueEntry(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromValidationQueueEntryRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromValidationQueueEntryRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromValidationQueueEntryRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromValidationQueueEntryRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-
-    
-
-class BoardRevisionChipsetArgsFromValidationQueueEntry(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromValidationQueueEntryRecursive1(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromValidationQueueEntryRecursive2(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromValidationQueueEntryRecursive3(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromValidationQueueEntryRecursive4(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromValidationQueueEntry(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive1(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive2(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive3(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive4(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromValidationQueueEntry(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive1']
-
-
-class ChipsetIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive2']
-
-
-class ChipsetIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive3']
-
-
-class ChipsetIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromValidationQueueEntryRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromValidationQueueEntryRecursive4']
-
-
-class ChipsetIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-
-    
-
-class ChipsetArgsFromValidationQueueEntry(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromValidationQueueEntryRecursive1(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromValidationQueueEntryRecursive2(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromValidationQueueEntryRecursive3(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromValidationQueueEntryRecursive4(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    
-    
-
-class FindManyChipsetArgsFromValidationQueueEntry(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromValidationQueueEntryRecursive1(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromValidationQueueEntryRecursive2(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromValidationQueueEntryRecursive3(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromValidationQueueEntryRecursive4(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromValidationQueueEntryRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromValidationQueueEntryRecursive1']
 
 
 class FirmwareBuildIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromValidationQueueEntryRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromValidationQueueEntryRecursive2']
 
 
 class FirmwareBuildIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromValidationQueueEntryRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromValidationQueueEntryRecursive3']
 
 
 class FirmwareBuildIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromValidationQueueEntryRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromValidationQueueEntryRecursive4']
 
 
 class FirmwareBuildIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
@@ -39878,21 +30381,25 @@ class FindManyProductArgsFromPipelineRunRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromPipelineRun(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     product: Union[bool, 'ProductArgsFromPipelineRunRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive1']
 
 
 class ProductTargetIncludeFromPipelineRunRecursive1(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     product: Union[bool, 'ProductArgsFromPipelineRunRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive2']
 
 
 class ProductTargetIncludeFromPipelineRunRecursive2(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     product: Union[bool, 'ProductArgsFromPipelineRunRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive3']
 
 
 class ProductTargetIncludeFromPipelineRunRecursive3(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     product: Union[bool, 'ProductArgsFromPipelineRunRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive4']
 
 
 class ProductTargetIncludeFromPipelineRunRecursive4(TypedDict, total=False):
@@ -40092,25 +30599,21 @@ class FindManyBoardArgsFromPipelineRunRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromPipelineRun(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     board: Union[bool, 'BoardArgsFromPipelineRunRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive1']
 
 
 class BoardRevisionIncludeFromPipelineRunRecursive1(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     board: Union[bool, 'BoardArgsFromPipelineRunRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive2']
 
 
 class BoardRevisionIncludeFromPipelineRunRecursive2(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     board: Union[bool, 'BoardArgsFromPipelineRunRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive3']
 
 
 class BoardRevisionIncludeFromPipelineRunRecursive3(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     board: Union[bool, 'BoardArgsFromPipelineRunRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive4']
 
 
 class BoardRevisionIncludeFromPipelineRunRecursive4(TypedDict, total=False):
@@ -40198,246 +30701,28 @@ class FindManyBoardRevisionArgsFromPipelineRunRecursive4(TypedDict, total=False)
     
     
 
-class BoardRevisionChipsetIncludeFromPipelineRun(TypedDict, total=False):
-    """Relational arguments for PipelineRun"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromPipelineRunRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromPipelineRunRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromPipelineRunRecursive1(TypedDict, total=False):
-    """Relational arguments for PipelineRun"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromPipelineRunRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromPipelineRunRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromPipelineRunRecursive2(TypedDict, total=False):
-    """Relational arguments for PipelineRun"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromPipelineRunRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromPipelineRunRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromPipelineRunRecursive3(TypedDict, total=False):
-    """Relational arguments for PipelineRun"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromPipelineRunRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromPipelineRunRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromPipelineRunRecursive4(TypedDict, total=False):
-    """Relational arguments for PipelineRun"""
-
-    
-
-class BoardRevisionChipsetArgsFromPipelineRun(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromPipelineRunRecursive1(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromPipelineRunRecursive2(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromPipelineRunRecursive3(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromPipelineRunRecursive4(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromPipelineRun(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive1(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive2(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive3(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive4(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromPipelineRun(TypedDict, total=False):
-    """Relational arguments for PipelineRun"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive1']
-
-
-class ChipsetIncludeFromPipelineRunRecursive1(TypedDict, total=False):
-    """Relational arguments for PipelineRun"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive2']
-
-
-class ChipsetIncludeFromPipelineRunRecursive2(TypedDict, total=False):
-    """Relational arguments for PipelineRun"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive3']
-
-
-class ChipsetIncludeFromPipelineRunRecursive3(TypedDict, total=False):
-    """Relational arguments for PipelineRun"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPipelineRunRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPipelineRunRecursive4']
-
-
-class ChipsetIncludeFromPipelineRunRecursive4(TypedDict, total=False):
-    """Relational arguments for PipelineRun"""
-
-    
-
-class ChipsetArgsFromPipelineRun(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromPipelineRunRecursive1(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromPipelineRunRecursive2(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromPipelineRunRecursive3(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromPipelineRunRecursive4(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    
-    
-
-class FindManyChipsetArgsFromPipelineRun(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromPipelineRunRecursive1(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromPipelineRunRecursive2(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromPipelineRunRecursive3(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromPipelineRunRecursive4(TypedDict, total=False):
-    """Arguments for PipelineRun"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromPipelineRun(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     product: Union[bool, 'ProductArgsFromPipelineRunRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromPipelineRunRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromPipelineRunRecursive1']
 
 
 class FirmwareBuildIncludeFromPipelineRunRecursive1(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     product: Union[bool, 'ProductArgsFromPipelineRunRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromPipelineRunRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromPipelineRunRecursive2']
 
 
 class FirmwareBuildIncludeFromPipelineRunRecursive2(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     product: Union[bool, 'ProductArgsFromPipelineRunRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromPipelineRunRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromPipelineRunRecursive3']
 
 
 class FirmwareBuildIncludeFromPipelineRunRecursive3(TypedDict, total=False):
     """Relational arguments for PipelineRun"""
     product: Union[bool, 'ProductArgsFromPipelineRunRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromPipelineRunRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromPipelineRunRecursive4']
 
 
 class FirmwareBuildIncludeFromPipelineRunRecursive4(TypedDict, total=False):
@@ -44465,21 +34750,25 @@ class FindManyProductArgsFromBuildJobRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive1']
 
 
 class ProductTargetIncludeFromBuildJobRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive2']
 
 
 class ProductTargetIncludeFromBuildJobRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive3']
 
 
 class ProductTargetIncludeFromBuildJobRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive4']
 
 
 class ProductTargetIncludeFromBuildJobRecursive4(TypedDict, total=False):
@@ -44679,25 +34968,21 @@ class FindManyBoardArgsFromBuildJobRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     board: Union[bool, 'BoardArgsFromBuildJobRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobRecursive1']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     board: Union[bool, 'BoardArgsFromBuildJobRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobRecursive2']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     board: Union[bool, 'BoardArgsFromBuildJobRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobRecursive3']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     board: Union[bool, 'BoardArgsFromBuildJobRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobRecursive4']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive4(TypedDict, total=False):
@@ -44785,246 +35070,28 @@ class FindManyBoardRevisionArgsFromBuildJobRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromBuildJob(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromBuildJobRecursive1(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromBuildJobRecursive2(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromBuildJobRecursive3(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromBuildJobRecursive4(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-
-    
-
-class BoardRevisionChipsetArgsFromBuildJob(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromBuildJobRecursive1(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromBuildJobRecursive2(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromBuildJobRecursive3(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromBuildJobRecursive4(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromBuildJob(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromBuildJobRecursive1(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromBuildJobRecursive2(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromBuildJobRecursive3(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromBuildJobRecursive4(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromBuildJob(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive1']
-
-
-class ChipsetIncludeFromBuildJobRecursive1(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive2']
-
-
-class ChipsetIncludeFromBuildJobRecursive2(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive3']
-
-
-class ChipsetIncludeFromBuildJobRecursive3(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobRecursive4']
-
-
-class ChipsetIncludeFromBuildJobRecursive4(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-
-    
-
-class ChipsetArgsFromBuildJob(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromBuildJobRecursive1(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromBuildJobRecursive2(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromBuildJobRecursive3(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromBuildJobRecursive4(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    
-    
-
-class FindManyChipsetArgsFromBuildJob(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromBuildJobRecursive1(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromBuildJobRecursive2(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromBuildJobRecursive3(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromBuildJobRecursive4(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromBuildJobRecursive1']
 
 
 class FirmwareBuildIncludeFromBuildJobRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromBuildJobRecursive2']
 
 
 class FirmwareBuildIncludeFromBuildJobRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromBuildJobRecursive3']
 
 
 class FirmwareBuildIncludeFromBuildJobRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromBuildJobRecursive4']
 
 
 class FirmwareBuildIncludeFromBuildJobRecursive4(TypedDict, total=False):
@@ -48952,21 +39019,25 @@ class FindManyProductArgsFromBuildJobArtifactRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromBuildJobArtifact(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive1']
 
 
 class ProductTargetIncludeFromBuildJobArtifactRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive2']
 
 
 class ProductTargetIncludeFromBuildJobArtifactRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive3']
 
 
 class ProductTargetIncludeFromBuildJobArtifactRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive4']
 
 
 class ProductTargetIncludeFromBuildJobArtifactRecursive4(TypedDict, total=False):
@@ -49166,25 +39237,21 @@ class FindManyBoardArgsFromBuildJobArtifactRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromBuildJobArtifact(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     board: Union[bool, 'BoardArgsFromBuildJobArtifactRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive1']
 
 
 class BoardRevisionIncludeFromBuildJobArtifactRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     board: Union[bool, 'BoardArgsFromBuildJobArtifactRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive2']
 
 
 class BoardRevisionIncludeFromBuildJobArtifactRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     board: Union[bool, 'BoardArgsFromBuildJobArtifactRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive3']
 
 
 class BoardRevisionIncludeFromBuildJobArtifactRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     board: Union[bool, 'BoardArgsFromBuildJobArtifactRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive4']
 
 
 class BoardRevisionIncludeFromBuildJobArtifactRecursive4(TypedDict, total=False):
@@ -49272,246 +39339,28 @@ class FindManyBoardRevisionArgsFromBuildJobArtifactRecursive4(TypedDict, total=F
     
     
 
-class BoardRevisionChipsetIncludeFromBuildJobArtifact(TypedDict, total=False):
-    """Relational arguments for BuildJobArtifact"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobArtifactRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobArtifactRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromBuildJobArtifactRecursive1(TypedDict, total=False):
-    """Relational arguments for BuildJobArtifact"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobArtifactRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobArtifactRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromBuildJobArtifactRecursive2(TypedDict, total=False):
-    """Relational arguments for BuildJobArtifact"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobArtifactRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobArtifactRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromBuildJobArtifactRecursive3(TypedDict, total=False):
-    """Relational arguments for BuildJobArtifact"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobArtifactRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobArtifactRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromBuildJobArtifactRecursive4(TypedDict, total=False):
-    """Relational arguments for BuildJobArtifact"""
-
-    
-
-class BoardRevisionChipsetArgsFromBuildJobArtifact(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromBuildJobArtifactRecursive1(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromBuildJobArtifactRecursive2(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromBuildJobArtifactRecursive3(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromBuildJobArtifactRecursive4(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromBuildJobArtifact(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive1(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive2(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive3(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive4(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromBuildJobArtifact(TypedDict, total=False):
-    """Relational arguments for BuildJobArtifact"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive1']
-
-
-class ChipsetIncludeFromBuildJobArtifactRecursive1(TypedDict, total=False):
-    """Relational arguments for BuildJobArtifact"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive2']
-
-
-class ChipsetIncludeFromBuildJobArtifactRecursive2(TypedDict, total=False):
-    """Relational arguments for BuildJobArtifact"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive3']
-
-
-class ChipsetIncludeFromBuildJobArtifactRecursive3(TypedDict, total=False):
-    """Relational arguments for BuildJobArtifact"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromBuildJobArtifactRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromBuildJobArtifactRecursive4']
-
-
-class ChipsetIncludeFromBuildJobArtifactRecursive4(TypedDict, total=False):
-    """Relational arguments for BuildJobArtifact"""
-
-    
-
-class ChipsetArgsFromBuildJobArtifact(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromBuildJobArtifactRecursive1(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromBuildJobArtifactRecursive2(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromBuildJobArtifactRecursive3(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromBuildJobArtifactRecursive4(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    
-    
-
-class FindManyChipsetArgsFromBuildJobArtifact(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromBuildJobArtifactRecursive1(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromBuildJobArtifactRecursive2(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromBuildJobArtifactRecursive3(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromBuildJobArtifactRecursive4(TypedDict, total=False):
-    """Arguments for BuildJobArtifact"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromBuildJobArtifact(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobArtifactRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromBuildJobArtifactRecursive1']
 
 
 class FirmwareBuildIncludeFromBuildJobArtifactRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobArtifactRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromBuildJobArtifactRecursive2']
 
 
 class FirmwareBuildIncludeFromBuildJobArtifactRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobArtifactRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromBuildJobArtifactRecursive3']
 
 
 class FirmwareBuildIncludeFromBuildJobArtifactRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJobArtifact"""
     product: Union[bool, 'ProductArgsFromBuildJobArtifactRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromBuildJobArtifactRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromBuildJobArtifactRecursive4']
 
 
 class FirmwareBuildIncludeFromBuildJobArtifactRecursive4(TypedDict, total=False):
@@ -53178,21 +43027,25 @@ class FindManyProductArgsFromSessionRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive1']
 
 
 class ProductTargetIncludeFromSessionRecursive1(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive2']
 
 
 class ProductTargetIncludeFromSessionRecursive2(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive3']
 
 
 class ProductTargetIncludeFromSessionRecursive3(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive4']
 
 
 class ProductTargetIncludeFromSessionRecursive4(TypedDict, total=False):
@@ -53392,25 +43245,21 @@ class FindManyBoardArgsFromSessionRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
     board: Union[bool, 'BoardArgsFromSessionRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSessionRecursive1']
 
 
 class BoardRevisionIncludeFromSessionRecursive1(TypedDict, total=False):
     """Relational arguments for Session"""
     board: Union[bool, 'BoardArgsFromSessionRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSessionRecursive2']
 
 
 class BoardRevisionIncludeFromSessionRecursive2(TypedDict, total=False):
     """Relational arguments for Session"""
     board: Union[bool, 'BoardArgsFromSessionRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSessionRecursive3']
 
 
 class BoardRevisionIncludeFromSessionRecursive3(TypedDict, total=False):
     """Relational arguments for Session"""
     board: Union[bool, 'BoardArgsFromSessionRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSessionRecursive4']
 
 
 class BoardRevisionIncludeFromSessionRecursive4(TypedDict, total=False):
@@ -53498,246 +43347,28 @@ class FindManyBoardRevisionArgsFromSessionRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromSession(TypedDict, total=False):
-    """Relational arguments for Session"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromSessionRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromSessionRecursive1(TypedDict, total=False):
-    """Relational arguments for Session"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromSessionRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromSessionRecursive2(TypedDict, total=False):
-    """Relational arguments for Session"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromSessionRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromSessionRecursive3(TypedDict, total=False):
-    """Relational arguments for Session"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromSessionRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromSessionRecursive4(TypedDict, total=False):
-    """Relational arguments for Session"""
-
-    
-
-class BoardRevisionChipsetArgsFromSession(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromSessionRecursive1(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromSessionRecursive2(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromSessionRecursive3(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromSessionRecursive4(TypedDict, total=False):
-    """Arguments for Session"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromSession(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromSessionRecursive1(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromSessionRecursive2(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromSessionRecursive3(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromSessionRecursive4(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromSession(TypedDict, total=False):
-    """Relational arguments for Session"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSessionRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive1']
-
-
-class ChipsetIncludeFromSessionRecursive1(TypedDict, total=False):
-    """Relational arguments for Session"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSessionRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive2']
-
-
-class ChipsetIncludeFromSessionRecursive2(TypedDict, total=False):
-    """Relational arguments for Session"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSessionRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive3']
-
-
-class ChipsetIncludeFromSessionRecursive3(TypedDict, total=False):
-    """Relational arguments for Session"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSessionRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSessionRecursive4']
-
-
-class ChipsetIncludeFromSessionRecursive4(TypedDict, total=False):
-    """Relational arguments for Session"""
-
-    
-
-class ChipsetArgsFromSession(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromSessionRecursive1(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromSessionRecursive2(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromSessionRecursive3(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromSessionRecursive4(TypedDict, total=False):
-    """Arguments for Session"""
-    
-    
-
-class FindManyChipsetArgsFromSession(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromSessionRecursive1(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromSessionRecursive2(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromSessionRecursive3(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromSessionRecursive4(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromSessionRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromSessionRecursive1']
 
 
 class FirmwareBuildIncludeFromSessionRecursive1(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromSessionRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromSessionRecursive2']
 
 
 class FirmwareBuildIncludeFromSessionRecursive2(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromSessionRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromSessionRecursive3']
 
 
 class FirmwareBuildIncludeFromSessionRecursive3(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromSessionRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromSessionRecursive4']
 
 
 class FirmwareBuildIncludeFromSessionRecursive4(TypedDict, total=False):
@@ -57476,21 +47107,25 @@ class FindManyProductArgsFromDeviceRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive1']
 
 
 class ProductTargetIncludeFromDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive2']
 
 
 class ProductTargetIncludeFromDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive3']
 
 
 class ProductTargetIncludeFromDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive4']
 
 
 class ProductTargetIncludeFromDeviceRecursive4(TypedDict, total=False):
@@ -57690,25 +47325,21 @@ class FindManyBoardArgsFromDeviceRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
     board: Union[bool, 'BoardArgsFromDeviceRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeviceRecursive1']
 
 
 class BoardRevisionIncludeFromDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for Device"""
     board: Union[bool, 'BoardArgsFromDeviceRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeviceRecursive2']
 
 
 class BoardRevisionIncludeFromDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for Device"""
     board: Union[bool, 'BoardArgsFromDeviceRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeviceRecursive3']
 
 
 class BoardRevisionIncludeFromDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for Device"""
     board: Union[bool, 'BoardArgsFromDeviceRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeviceRecursive4']
 
 
 class BoardRevisionIncludeFromDeviceRecursive4(TypedDict, total=False):
@@ -57796,246 +47427,28 @@ class FindManyBoardRevisionArgsFromDeviceRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromDevice(TypedDict, total=False):
-    """Relational arguments for Device"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromDeviceRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromDeviceRecursive1(TypedDict, total=False):
-    """Relational arguments for Device"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromDeviceRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromDeviceRecursive2(TypedDict, total=False):
-    """Relational arguments for Device"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromDeviceRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromDeviceRecursive3(TypedDict, total=False):
-    """Relational arguments for Device"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromDeviceRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromDeviceRecursive4(TypedDict, total=False):
-    """Relational arguments for Device"""
-
-    
-
-class BoardRevisionChipsetArgsFromDevice(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromDeviceRecursive1(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromDeviceRecursive2(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromDeviceRecursive3(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromDeviceRecursive4(TypedDict, total=False):
-    """Arguments for Device"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromDevice(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromDeviceRecursive1(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromDeviceRecursive2(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromDeviceRecursive3(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromDeviceRecursive4(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromDevice(TypedDict, total=False):
-    """Relational arguments for Device"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeviceRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive1']
-
-
-class ChipsetIncludeFromDeviceRecursive1(TypedDict, total=False):
-    """Relational arguments for Device"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeviceRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive2']
-
-
-class ChipsetIncludeFromDeviceRecursive2(TypedDict, total=False):
-    """Relational arguments for Device"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeviceRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive3']
-
-
-class ChipsetIncludeFromDeviceRecursive3(TypedDict, total=False):
-    """Relational arguments for Device"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeviceRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeviceRecursive4']
-
-
-class ChipsetIncludeFromDeviceRecursive4(TypedDict, total=False):
-    """Relational arguments for Device"""
-
-    
-
-class ChipsetArgsFromDevice(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromDeviceRecursive1(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromDeviceRecursive2(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromDeviceRecursive3(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromDeviceRecursive4(TypedDict, total=False):
-    """Arguments for Device"""
-    
-    
-
-class FindManyChipsetArgsFromDevice(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromDeviceRecursive1(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromDeviceRecursive2(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromDeviceRecursive3(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromDeviceRecursive4(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromDeviceRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromDeviceRecursive1']
 
 
 class FirmwareBuildIncludeFromDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromDeviceRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromDeviceRecursive2']
 
 
 class FirmwareBuildIncludeFromDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromDeviceRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromDeviceRecursive3']
 
 
 class FirmwareBuildIncludeFromDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromDeviceRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromDeviceRecursive4']
 
 
 class FirmwareBuildIncludeFromDeviceRecursive4(TypedDict, total=False):
@@ -61552,21 +50965,25 @@ class FindManyProductArgsFromFixtureDesignRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive1']
 
 
 class ProductTargetIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive2']
 
 
 class ProductTargetIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive3']
 
 
 class ProductTargetIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive4']
 
 
 class ProductTargetIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
@@ -61766,25 +51183,21 @@ class FindManyBoardArgsFromFixtureDesignRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     board: Union[bool, 'BoardArgsFromFixtureDesignRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
@@ -61872,246 +51285,28 @@ class FindManyBoardRevisionArgsFromFixtureDesignRecursive4(TypedDict, total=Fals
     
     
 
-class BoardRevisionChipsetIncludeFromFixtureDesign(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureDesignRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureDesignRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureDesignRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureDesignRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-
-    
-
-class BoardRevisionChipsetArgsFromFixtureDesign(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromFixtureDesignRecursive1(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromFixtureDesignRecursive2(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromFixtureDesignRecursive3(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromFixtureDesignRecursive4(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromFixtureDesign(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive1(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive2(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive3(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive4(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromFixtureDesign(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive1']
-
-
-class ChipsetIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive2']
-
-
-class ChipsetIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive3']
-
-
-class ChipsetIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureDesignRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureDesignRecursive4']
-
-
-class ChipsetIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-
-    
-
-class ChipsetArgsFromFixtureDesign(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromFixtureDesignRecursive1(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromFixtureDesignRecursive2(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromFixtureDesignRecursive3(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromFixtureDesignRecursive4(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    
-    
-
-class FindManyChipsetArgsFromFixtureDesign(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromFixtureDesignRecursive1(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromFixtureDesignRecursive2(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromFixtureDesignRecursive3(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromFixtureDesignRecursive4(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureDesignRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromFixtureDesignRecursive1']
 
 
 class FirmwareBuildIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureDesignRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromFixtureDesignRecursive2']
 
 
 class FirmwareBuildIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureDesignRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromFixtureDesignRecursive3']
 
 
 class FirmwareBuildIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureDesignRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromFixtureDesignRecursive4']
 
 
 class FirmwareBuildIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
@@ -65771,21 +54966,25 @@ class FindManyProductArgsFromFixtureRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive1']
 
 
 class ProductTargetIncludeFromFixtureRecursive1(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive2']
 
 
 class ProductTargetIncludeFromFixtureRecursive2(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive3']
 
 
 class ProductTargetIncludeFromFixtureRecursive3(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive4']
 
 
 class ProductTargetIncludeFromFixtureRecursive4(TypedDict, total=False):
@@ -65985,25 +55184,21 @@ class FindManyBoardArgsFromFixtureRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
     board: Union[bool, 'BoardArgsFromFixtureRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureRecursive1(TypedDict, total=False):
     """Relational arguments for Fixture"""
     board: Union[bool, 'BoardArgsFromFixtureRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureRecursive2(TypedDict, total=False):
     """Relational arguments for Fixture"""
     board: Union[bool, 'BoardArgsFromFixtureRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureRecursive3(TypedDict, total=False):
     """Relational arguments for Fixture"""
     board: Union[bool, 'BoardArgsFromFixtureRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureRecursive4(TypedDict, total=False):
@@ -66091,246 +55286,28 @@ class FindManyBoardRevisionArgsFromFixtureRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromFixture(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromFixtureRecursive1(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromFixtureRecursive2(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromFixtureRecursive3(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromFixtureRecursive4(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-
-    
-
-class BoardRevisionChipsetArgsFromFixture(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromFixtureRecursive1(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromFixtureRecursive2(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromFixtureRecursive3(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromFixtureRecursive4(TypedDict, total=False):
-    """Arguments for Fixture"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromFixture(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureRecursive1(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureRecursive2(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureRecursive3(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureRecursive4(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromFixture(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive1']
-
-
-class ChipsetIncludeFromFixtureRecursive1(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive2']
-
-
-class ChipsetIncludeFromFixtureRecursive2(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive3']
-
-
-class ChipsetIncludeFromFixtureRecursive3(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureRecursive4']
-
-
-class ChipsetIncludeFromFixtureRecursive4(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-
-    
-
-class ChipsetArgsFromFixture(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromFixtureRecursive1(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromFixtureRecursive2(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromFixtureRecursive3(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromFixtureRecursive4(TypedDict, total=False):
-    """Arguments for Fixture"""
-    
-    
-
-class FindManyChipsetArgsFromFixture(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromFixtureRecursive1(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromFixtureRecursive2(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromFixtureRecursive3(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromFixtureRecursive4(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromFixtureRecursive1']
 
 
 class FirmwareBuildIncludeFromFixtureRecursive1(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromFixtureRecursive2']
 
 
 class FirmwareBuildIncludeFromFixtureRecursive2(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromFixtureRecursive3']
 
 
 class FirmwareBuildIncludeFromFixtureRecursive3(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromFixtureRecursive4']
 
 
 class FirmwareBuildIncludeFromFixtureRecursive4(TypedDict, total=False):
@@ -70102,21 +59079,25 @@ class FindManyProductArgsFromFixtureSlotRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive1']
 
 
 class ProductTargetIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive2']
 
 
 class ProductTargetIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive3']
 
 
 class ProductTargetIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive4']
 
 
 class ProductTargetIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
@@ -70316,25 +59297,21 @@ class FindManyBoardArgsFromFixtureSlotRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     board: Union[bool, 'BoardArgsFromFixtureSlotRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
@@ -70422,246 +59399,28 @@ class FindManyBoardRevisionArgsFromFixtureSlotRecursive4(TypedDict, total=False)
     
     
 
-class BoardRevisionChipsetIncludeFromFixtureSlot(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureSlotRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureSlotRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureSlotRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureSlotRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-
-    
-
-class BoardRevisionChipsetArgsFromFixtureSlot(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromFixtureSlotRecursive1(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromFixtureSlotRecursive2(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromFixtureSlotRecursive3(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromFixtureSlotRecursive4(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromFixtureSlot(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive1(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive2(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive3(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive4(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromFixtureSlot(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive1']
-
-
-class ChipsetIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive2']
-
-
-class ChipsetIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive3']
-
-
-class ChipsetIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromFixtureSlotRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromFixtureSlotRecursive4']
-
-
-class ChipsetIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-
-    
-
-class ChipsetArgsFromFixtureSlot(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromFixtureSlotRecursive1(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromFixtureSlotRecursive2(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromFixtureSlotRecursive3(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromFixtureSlotRecursive4(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    
-    
-
-class FindManyChipsetArgsFromFixtureSlot(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromFixtureSlotRecursive1(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromFixtureSlotRecursive2(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromFixtureSlotRecursive3(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromFixtureSlotRecursive4(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureSlotRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromFixtureSlotRecursive1']
 
 
 class FirmwareBuildIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureSlotRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromFixtureSlotRecursive2']
 
 
 class FirmwareBuildIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureSlotRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromFixtureSlotRecursive3']
 
 
 class FirmwareBuildIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromFixtureSlotRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromFixtureSlotRecursive4']
 
 
 class FirmwareBuildIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
@@ -74327,21 +63086,25 @@ class FindManyProductArgsFromNodeRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive1']
 
 
 class ProductTargetIncludeFromNodeRecursive1(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive2']
 
 
 class ProductTargetIncludeFromNodeRecursive2(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive3']
 
 
 class ProductTargetIncludeFromNodeRecursive3(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive4']
 
 
 class ProductTargetIncludeFromNodeRecursive4(TypedDict, total=False):
@@ -74541,25 +63304,21 @@ class FindManyBoardArgsFromNodeRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
     board: Union[bool, 'BoardArgsFromNodeRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromNodeRecursive1']
 
 
 class BoardRevisionIncludeFromNodeRecursive1(TypedDict, total=False):
     """Relational arguments for Node"""
     board: Union[bool, 'BoardArgsFromNodeRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromNodeRecursive2']
 
 
 class BoardRevisionIncludeFromNodeRecursive2(TypedDict, total=False):
     """Relational arguments for Node"""
     board: Union[bool, 'BoardArgsFromNodeRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromNodeRecursive3']
 
 
 class BoardRevisionIncludeFromNodeRecursive3(TypedDict, total=False):
     """Relational arguments for Node"""
     board: Union[bool, 'BoardArgsFromNodeRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromNodeRecursive4']
 
 
 class BoardRevisionIncludeFromNodeRecursive4(TypedDict, total=False):
@@ -74647,246 +63406,28 @@ class FindManyBoardRevisionArgsFromNodeRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromNode(TypedDict, total=False):
-    """Relational arguments for Node"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromNodeRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromNodeRecursive1(TypedDict, total=False):
-    """Relational arguments for Node"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromNodeRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromNodeRecursive2(TypedDict, total=False):
-    """Relational arguments for Node"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromNodeRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromNodeRecursive3(TypedDict, total=False):
-    """Relational arguments for Node"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromNodeRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromNodeRecursive4(TypedDict, total=False):
-    """Relational arguments for Node"""
-
-    
-
-class BoardRevisionChipsetArgsFromNode(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromNodeRecursive1(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromNodeRecursive2(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromNodeRecursive3(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromNodeRecursive4(TypedDict, total=False):
-    """Arguments for Node"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromNode(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromNodeRecursive1(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromNodeRecursive2(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromNodeRecursive3(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromNodeRecursive4(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromNode(TypedDict, total=False):
-    """Relational arguments for Node"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromNodeRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive1']
-
-
-class ChipsetIncludeFromNodeRecursive1(TypedDict, total=False):
-    """Relational arguments for Node"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromNodeRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive2']
-
-
-class ChipsetIncludeFromNodeRecursive2(TypedDict, total=False):
-    """Relational arguments for Node"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromNodeRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive3']
-
-
-class ChipsetIncludeFromNodeRecursive3(TypedDict, total=False):
-    """Relational arguments for Node"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromNodeRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromNodeRecursive4']
-
-
-class ChipsetIncludeFromNodeRecursive4(TypedDict, total=False):
-    """Relational arguments for Node"""
-
-    
-
-class ChipsetArgsFromNode(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromNodeRecursive1(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromNodeRecursive2(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromNodeRecursive3(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromNodeRecursive4(TypedDict, total=False):
-    """Arguments for Node"""
-    
-    
-
-class FindManyChipsetArgsFromNode(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromNodeRecursive1(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromNodeRecursive2(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromNodeRecursive3(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromNodeRecursive4(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromNodeRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromNodeRecursive1']
 
 
 class FirmwareBuildIncludeFromNodeRecursive1(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromNodeRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromNodeRecursive2']
 
 
 class FirmwareBuildIncludeFromNodeRecursive2(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromNodeRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromNodeRecursive3']
 
 
 class FirmwareBuildIncludeFromNodeRecursive3(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromNodeRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromNodeRecursive4']
 
 
 class FirmwareBuildIncludeFromNodeRecursive4(TypedDict, total=False):
@@ -78486,21 +67027,25 @@ class FindManyProductArgsFromIcleDeviceRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive1']
 
 
 class ProductTargetIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive2']
 
 
 class ProductTargetIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive3']
 
 
 class ProductTargetIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive4']
 
 
 class ProductTargetIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
@@ -78700,25 +67245,21 @@ class FindManyBoardArgsFromIcleDeviceRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive1']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive2']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive3']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     board: Union[bool, 'BoardArgsFromIcleDeviceRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive4']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
@@ -78806,246 +67347,28 @@ class FindManyBoardRevisionArgsFromIcleDeviceRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromIcleDevice(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromIcleDeviceRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromIcleDeviceRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromIcleDeviceRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromIcleDeviceRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-
-    
-
-class BoardRevisionChipsetArgsFromIcleDevice(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromIcleDeviceRecursive1(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromIcleDeviceRecursive2(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromIcleDeviceRecursive3(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromIcleDeviceRecursive4(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromIcleDevice(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive1(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive2(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive3(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive4(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromIcleDevice(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive1']
-
-
-class ChipsetIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive2']
-
-
-class ChipsetIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive3']
-
-
-class ChipsetIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleDeviceRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleDeviceRecursive4']
-
-
-class ChipsetIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-
-    
-
-class ChipsetArgsFromIcleDevice(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromIcleDeviceRecursive1(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromIcleDeviceRecursive2(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromIcleDeviceRecursive3(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromIcleDeviceRecursive4(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    
-    
-
-class FindManyChipsetArgsFromIcleDevice(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromIcleDeviceRecursive1(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromIcleDeviceRecursive2(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromIcleDeviceRecursive3(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromIcleDeviceRecursive4(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromIcleDeviceRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromIcleDeviceRecursive1']
 
 
 class FirmwareBuildIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromIcleDeviceRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromIcleDeviceRecursive2']
 
 
 class FirmwareBuildIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromIcleDeviceRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromIcleDeviceRecursive3']
 
 
 class FirmwareBuildIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromIcleDeviceRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromIcleDeviceRecursive4']
 
 
 class FirmwareBuildIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
@@ -82623,21 +70946,25 @@ class FindManyProductArgsFromIclePendingCommandRecursive4(TypedDict, total=False
 class ProductTargetIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive1']
 
 
 class ProductTargetIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive2']
 
 
 class ProductTargetIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive3']
 
 
 class ProductTargetIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive4']
 
 
 class ProductTargetIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
@@ -82837,25 +71164,21 @@ class FindManyBoardArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive1']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive2']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive3']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     board: Union[bool, 'BoardArgsFromIclePendingCommandRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive4']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
@@ -82943,246 +71266,28 @@ class FindManyBoardRevisionArgsFromIclePendingCommandRecursive4(TypedDict, total
     
     
 
-class BoardRevisionChipsetIncludeFromIclePendingCommand(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromIclePendingCommandRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromIclePendingCommandRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromIclePendingCommandRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromIclePendingCommandRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-
-    
-
-class BoardRevisionChipsetArgsFromIclePendingCommand(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromIclePendingCommandRecursive1(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromIclePendingCommandRecursive2(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromIclePendingCommandRecursive3(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromIclePendingCommand(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive1(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive2(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive3(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromIclePendingCommand(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive1']
-
-
-class ChipsetIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive2']
-
-
-class ChipsetIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive3']
-
-
-class ChipsetIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIclePendingCommandRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIclePendingCommandRecursive4']
-
-
-class ChipsetIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-
-    
-
-class ChipsetArgsFromIclePendingCommand(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromIclePendingCommandRecursive1(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromIclePendingCommandRecursive2(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromIclePendingCommandRecursive3(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    
-    
-
-class FindManyChipsetArgsFromIclePendingCommand(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromIclePendingCommandRecursive1(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromIclePendingCommandRecursive2(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromIclePendingCommandRecursive3(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromIclePendingCommandRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromIclePendingCommandRecursive1']
 
 
 class FirmwareBuildIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromIclePendingCommandRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromIclePendingCommandRecursive2']
 
 
 class FirmwareBuildIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromIclePendingCommandRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromIclePendingCommandRecursive3']
 
 
 class FirmwareBuildIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromIclePendingCommandRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromIclePendingCommandRecursive4']
 
 
 class FirmwareBuildIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
@@ -86655,21 +74760,25 @@ class FindManyProductArgsFromIcleLogRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive1']
 
 
 class ProductTargetIncludeFromIcleLogRecursive1(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive2']
 
 
 class ProductTargetIncludeFromIcleLogRecursive2(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive3']
 
 
 class ProductTargetIncludeFromIcleLogRecursive3(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive4']
 
 
 class ProductTargetIncludeFromIcleLogRecursive4(TypedDict, total=False):
@@ -86869,25 +74978,21 @@ class FindManyBoardArgsFromIcleLogRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     board: Union[bool, 'BoardArgsFromIcleLogRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleLogRecursive1']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive1(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     board: Union[bool, 'BoardArgsFromIcleLogRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleLogRecursive2']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive2(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     board: Union[bool, 'BoardArgsFromIcleLogRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleLogRecursive3']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive3(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     board: Union[bool, 'BoardArgsFromIcleLogRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleLogRecursive4']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive4(TypedDict, total=False):
@@ -86975,246 +75080,28 @@ class FindManyBoardRevisionArgsFromIcleLogRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromIcleLog(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromIcleLogRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromIcleLogRecursive1(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromIcleLogRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromIcleLogRecursive2(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromIcleLogRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromIcleLogRecursive3(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromIcleLogRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromIcleLogRecursive4(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-
-    
-
-class BoardRevisionChipsetArgsFromIcleLog(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromIcleLogRecursive1(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromIcleLogRecursive2(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromIcleLogRecursive3(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromIcleLogRecursive4(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromIcleLog(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromIcleLogRecursive1(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromIcleLogRecursive2(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromIcleLogRecursive3(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromIcleLogRecursive4(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromIcleLog(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleLogRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive1']
-
-
-class ChipsetIncludeFromIcleLogRecursive1(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleLogRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive2']
-
-
-class ChipsetIncludeFromIcleLogRecursive2(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleLogRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive3']
-
-
-class ChipsetIncludeFromIcleLogRecursive3(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromIcleLogRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromIcleLogRecursive4']
-
-
-class ChipsetIncludeFromIcleLogRecursive4(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-
-    
-
-class ChipsetArgsFromIcleLog(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromIcleLogRecursive1(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromIcleLogRecursive2(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromIcleLogRecursive3(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromIcleLogRecursive4(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    
-    
-
-class FindManyChipsetArgsFromIcleLog(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromIcleLogRecursive1(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromIcleLogRecursive2(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromIcleLogRecursive3(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromIcleLogRecursive4(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromIcleLogRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromIcleLogRecursive1']
 
 
 class FirmwareBuildIncludeFromIcleLogRecursive1(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromIcleLogRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromIcleLogRecursive2']
 
 
 class FirmwareBuildIncludeFromIcleLogRecursive2(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromIcleLogRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromIcleLogRecursive3']
 
 
 class FirmwareBuildIncludeFromIcleLogRecursive3(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromIcleLogRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromIcleLogRecursive4']
 
 
 class FirmwareBuildIncludeFromIcleLogRecursive4(TypedDict, total=False):
@@ -90676,21 +78563,25 @@ class FindManyProductArgsFromDeploymentRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromDeployment(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive1']
 
 
 class ProductTargetIncludeFromDeploymentRecursive1(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive2']
 
 
 class ProductTargetIncludeFromDeploymentRecursive2(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive3']
 
 
 class ProductTargetIncludeFromDeploymentRecursive3(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive4']
 
 
 class ProductTargetIncludeFromDeploymentRecursive4(TypedDict, total=False):
@@ -90890,25 +78781,21 @@ class FindManyBoardArgsFromDeploymentRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromDeployment(TypedDict, total=False):
     """Relational arguments for Deployment"""
     board: Union[bool, 'BoardArgsFromDeploymentRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeploymentRecursive1']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive1(TypedDict, total=False):
     """Relational arguments for Deployment"""
     board: Union[bool, 'BoardArgsFromDeploymentRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeploymentRecursive2']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive2(TypedDict, total=False):
     """Relational arguments for Deployment"""
     board: Union[bool, 'BoardArgsFromDeploymentRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeploymentRecursive3']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive3(TypedDict, total=False):
     """Relational arguments for Deployment"""
     board: Union[bool, 'BoardArgsFromDeploymentRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeploymentRecursive4']
 
 
 class BoardRevisionIncludeFromDeploymentRecursive4(TypedDict, total=False):
@@ -90996,246 +78883,28 @@ class FindManyBoardRevisionArgsFromDeploymentRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromDeploymentRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromDeploymentRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromDeploymentRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromDeploymentRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class BoardRevisionChipsetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeploymentRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive1']
-
-
-class ChipsetIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeploymentRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive2']
-
-
-class ChipsetIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeploymentRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive3']
-
-
-class ChipsetIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromDeploymentRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive4']
-
-
-class ChipsetIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class ChipsetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyChipsetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromDeployment(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromDeploymentRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive1']
 
 
 class FirmwareBuildIncludeFromDeploymentRecursive1(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromDeploymentRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive2']
 
 
 class FirmwareBuildIncludeFromDeploymentRecursive2(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromDeploymentRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive3']
 
 
 class FirmwareBuildIncludeFromDeploymentRecursive3(TypedDict, total=False):
     """Relational arguments for Deployment"""
     product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromDeploymentRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive4']
 
 
 class FirmwareBuildIncludeFromDeploymentRecursive4(TypedDict, total=False):
@@ -94773,21 +82442,25 @@ class FindManyProductArgsFromTestRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive1']
 
 
 class ProductTargetIncludeFromTestRecursive1(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive2']
 
 
 class ProductTargetIncludeFromTestRecursive2(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive3']
 
 
 class ProductTargetIncludeFromTestRecursive3(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive4']
 
 
 class ProductTargetIncludeFromTestRecursive4(TypedDict, total=False):
@@ -94987,25 +82660,21 @@ class FindManyBoardArgsFromTestRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
     board: Union[bool, 'BoardArgsFromTestRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestRecursive1']
 
 
 class BoardRevisionIncludeFromTestRecursive1(TypedDict, total=False):
     """Relational arguments for Test"""
     board: Union[bool, 'BoardArgsFromTestRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestRecursive2']
 
 
 class BoardRevisionIncludeFromTestRecursive2(TypedDict, total=False):
     """Relational arguments for Test"""
     board: Union[bool, 'BoardArgsFromTestRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestRecursive3']
 
 
 class BoardRevisionIncludeFromTestRecursive3(TypedDict, total=False):
     """Relational arguments for Test"""
     board: Union[bool, 'BoardArgsFromTestRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestRecursive4']
 
 
 class BoardRevisionIncludeFromTestRecursive4(TypedDict, total=False):
@@ -95093,246 +82762,28 @@ class FindManyBoardRevisionArgsFromTestRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromTest(TypedDict, total=False):
-    """Relational arguments for Test"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromTestRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromTestRecursive1(TypedDict, total=False):
-    """Relational arguments for Test"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromTestRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromTestRecursive2(TypedDict, total=False):
-    """Relational arguments for Test"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromTestRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromTestRecursive3(TypedDict, total=False):
-    """Relational arguments for Test"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromTestRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromTestRecursive4(TypedDict, total=False):
-    """Relational arguments for Test"""
-
-    
-
-class BoardRevisionChipsetArgsFromTest(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromTestRecursive1(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromTestRecursive2(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromTestRecursive3(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromTestRecursive4(TypedDict, total=False):
-    """Arguments for Test"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromTest(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestRecursive1(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestRecursive2(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestRecursive3(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestRecursive4(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromTest(TypedDict, total=False):
-    """Relational arguments for Test"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive1']
-
-
-class ChipsetIncludeFromTestRecursive1(TypedDict, total=False):
-    """Relational arguments for Test"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive2']
-
-
-class ChipsetIncludeFromTestRecursive2(TypedDict, total=False):
-    """Relational arguments for Test"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive3']
-
-
-class ChipsetIncludeFromTestRecursive3(TypedDict, total=False):
-    """Relational arguments for Test"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestRecursive4']
-
-
-class ChipsetIncludeFromTestRecursive4(TypedDict, total=False):
-    """Relational arguments for Test"""
-
-    
-
-class ChipsetArgsFromTest(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromTestRecursive1(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromTestRecursive2(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromTestRecursive3(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromTestRecursive4(TypedDict, total=False):
-    """Arguments for Test"""
-    
-    
-
-class FindManyChipsetArgsFromTest(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromTestRecursive1(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromTestRecursive2(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromTestRecursive3(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromTestRecursive4(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromTestRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromTestRecursive1']
 
 
 class FirmwareBuildIncludeFromTestRecursive1(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromTestRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromTestRecursive2']
 
 
 class FirmwareBuildIncludeFromTestRecursive2(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromTestRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromTestRecursive3']
 
 
 class FirmwareBuildIncludeFromTestRecursive3(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromTestRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromTestRecursive4']
 
 
 class FirmwareBuildIncludeFromTestRecursive4(TypedDict, total=False):
@@ -98903,21 +86354,25 @@ class FindManyProductArgsFromTestExecutionRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive1']
 
 
 class ProductTargetIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive2']
 
 
 class ProductTargetIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive3']
 
 
 class ProductTargetIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive4']
 
 
 class ProductTargetIncludeFromTestExecutionRecursive4(TypedDict, total=False):
@@ -99117,25 +86572,21 @@ class FindManyBoardArgsFromTestExecutionRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive1']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive2']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive3']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     board: Union[bool, 'BoardArgsFromTestExecutionRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive4']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive4(TypedDict, total=False):
@@ -99223,246 +86674,28 @@ class FindManyBoardRevisionArgsFromTestExecutionRecursive4(TypedDict, total=Fals
     
     
 
-class BoardRevisionChipsetIncludeFromTestExecution(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromTestExecutionRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromTestExecutionRecursive1(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromTestExecutionRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromTestExecutionRecursive2(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromTestExecutionRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromTestExecutionRecursive3(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromTestExecutionRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromTestExecutionRecursive4(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-
-    
-
-class BoardRevisionChipsetArgsFromTestExecution(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromTestExecutionRecursive1(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromTestExecutionRecursive2(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromTestExecutionRecursive3(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromTestExecutionRecursive4(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromTestExecution(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive1(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive2(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive3(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive4(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromTestExecution(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive1']
-
-
-class ChipsetIncludeFromTestExecutionRecursive1(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive2']
-
-
-class ChipsetIncludeFromTestExecutionRecursive2(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive3']
-
-
-class ChipsetIncludeFromTestExecutionRecursive3(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestExecutionRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestExecutionRecursive4']
-
-
-class ChipsetIncludeFromTestExecutionRecursive4(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-
-    
-
-class ChipsetArgsFromTestExecution(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromTestExecutionRecursive1(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromTestExecutionRecursive2(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromTestExecutionRecursive3(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromTestExecutionRecursive4(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    
-    
-
-class FindManyChipsetArgsFromTestExecution(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromTestExecutionRecursive1(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromTestExecutionRecursive2(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromTestExecutionRecursive3(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromTestExecutionRecursive4(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromTestExecutionRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromTestExecutionRecursive1']
 
 
 class FirmwareBuildIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromTestExecutionRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromTestExecutionRecursive2']
 
 
 class FirmwareBuildIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromTestExecutionRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromTestExecutionRecursive3']
 
 
 class FirmwareBuildIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromTestExecutionRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromTestExecutionRecursive4']
 
 
 class FirmwareBuildIncludeFromTestExecutionRecursive4(TypedDict, total=False):
@@ -103117,21 +90350,25 @@ class FindManyProductArgsFromTestStepRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive1']
 
 
 class ProductTargetIncludeFromTestStepRecursive1(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive2']
 
 
 class ProductTargetIncludeFromTestStepRecursive2(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive3']
 
 
 class ProductTargetIncludeFromTestStepRecursive3(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive4']
 
 
 class ProductTargetIncludeFromTestStepRecursive4(TypedDict, total=False):
@@ -103331,25 +90568,21 @@ class FindManyBoardArgsFromTestStepRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
     board: Union[bool, 'BoardArgsFromTestStepRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestStepRecursive1']
 
 
 class BoardRevisionIncludeFromTestStepRecursive1(TypedDict, total=False):
     """Relational arguments for TestStep"""
     board: Union[bool, 'BoardArgsFromTestStepRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestStepRecursive2']
 
 
 class BoardRevisionIncludeFromTestStepRecursive2(TypedDict, total=False):
     """Relational arguments for TestStep"""
     board: Union[bool, 'BoardArgsFromTestStepRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestStepRecursive3']
 
 
 class BoardRevisionIncludeFromTestStepRecursive3(TypedDict, total=False):
     """Relational arguments for TestStep"""
     board: Union[bool, 'BoardArgsFromTestStepRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestStepRecursive4']
 
 
 class BoardRevisionIncludeFromTestStepRecursive4(TypedDict, total=False):
@@ -103437,246 +90670,28 @@ class FindManyBoardRevisionArgsFromTestStepRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromTestStep(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromTestStepRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromTestStepRecursive1(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromTestStepRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromTestStepRecursive2(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromTestStepRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromTestStepRecursive3(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromTestStepRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromTestStepRecursive4(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-
-    
-
-class BoardRevisionChipsetArgsFromTestStep(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromTestStepRecursive1(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromTestStepRecursive2(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromTestStepRecursive3(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromTestStepRecursive4(TypedDict, total=False):
-    """Arguments for TestStep"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromTestStep(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestStepRecursive1(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestStepRecursive2(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestStepRecursive3(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromTestStepRecursive4(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromTestStep(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestStepRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive1']
-
-
-class ChipsetIncludeFromTestStepRecursive1(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestStepRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive2']
-
-
-class ChipsetIncludeFromTestStepRecursive2(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestStepRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive3']
-
-
-class ChipsetIncludeFromTestStepRecursive3(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromTestStepRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromTestStepRecursive4']
-
-
-class ChipsetIncludeFromTestStepRecursive4(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-
-    
-
-class ChipsetArgsFromTestStep(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromTestStepRecursive1(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromTestStepRecursive2(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromTestStepRecursive3(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromTestStepRecursive4(TypedDict, total=False):
-    """Arguments for TestStep"""
-    
-    
-
-class FindManyChipsetArgsFromTestStep(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromTestStepRecursive1(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromTestStepRecursive2(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromTestStepRecursive3(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromTestStepRecursive4(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromTestStepRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromTestStepRecursive1']
 
 
 class FirmwareBuildIncludeFromTestStepRecursive1(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromTestStepRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromTestStepRecursive2']
 
 
 class FirmwareBuildIncludeFromTestStepRecursive2(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromTestStepRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromTestStepRecursive3']
 
 
 class FirmwareBuildIncludeFromTestStepRecursive3(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromTestStepRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromTestStepRecursive4']
 
 
 class FirmwareBuildIncludeFromTestStepRecursive4(TypedDict, total=False):
@@ -107301,21 +94316,25 @@ class FindManyProductArgsFromUserRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive1']
 
 
 class ProductTargetIncludeFromUserRecursive1(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive2']
 
 
 class ProductTargetIncludeFromUserRecursive2(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive3']
 
 
 class ProductTargetIncludeFromUserRecursive3(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive4']
 
 
 class ProductTargetIncludeFromUserRecursive4(TypedDict, total=False):
@@ -107515,25 +94534,21 @@ class FindManyBoardArgsFromUserRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
     board: Union[bool, 'BoardArgsFromUserRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromUserRecursive1']
 
 
 class BoardRevisionIncludeFromUserRecursive1(TypedDict, total=False):
     """Relational arguments for User"""
     board: Union[bool, 'BoardArgsFromUserRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromUserRecursive2']
 
 
 class BoardRevisionIncludeFromUserRecursive2(TypedDict, total=False):
     """Relational arguments for User"""
     board: Union[bool, 'BoardArgsFromUserRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromUserRecursive3']
 
 
 class BoardRevisionIncludeFromUserRecursive3(TypedDict, total=False):
     """Relational arguments for User"""
     board: Union[bool, 'BoardArgsFromUserRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromUserRecursive4']
 
 
 class BoardRevisionIncludeFromUserRecursive4(TypedDict, total=False):
@@ -107621,246 +94636,28 @@ class FindManyBoardRevisionArgsFromUserRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromUser(TypedDict, total=False):
-    """Relational arguments for User"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromUserRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromUserRecursive1(TypedDict, total=False):
-    """Relational arguments for User"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromUserRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromUserRecursive2(TypedDict, total=False):
-    """Relational arguments for User"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromUserRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromUserRecursive3(TypedDict, total=False):
-    """Relational arguments for User"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromUserRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromUserRecursive4(TypedDict, total=False):
-    """Relational arguments for User"""
-
-    
-
-class BoardRevisionChipsetArgsFromUser(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromUserRecursive1(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromUserRecursive2(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromUserRecursive3(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromUserRecursive4(TypedDict, total=False):
-    """Arguments for User"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromUser(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromUserRecursive1(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromUserRecursive2(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromUserRecursive3(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromUserRecursive4(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromUser(TypedDict, total=False):
-    """Relational arguments for User"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromUserRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive1']
-
-
-class ChipsetIncludeFromUserRecursive1(TypedDict, total=False):
-    """Relational arguments for User"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromUserRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive2']
-
-
-class ChipsetIncludeFromUserRecursive2(TypedDict, total=False):
-    """Relational arguments for User"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromUserRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive3']
-
-
-class ChipsetIncludeFromUserRecursive3(TypedDict, total=False):
-    """Relational arguments for User"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromUserRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromUserRecursive4']
-
-
-class ChipsetIncludeFromUserRecursive4(TypedDict, total=False):
-    """Relational arguments for User"""
-
-    
-
-class ChipsetArgsFromUser(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromUserRecursive1(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromUserRecursive2(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromUserRecursive3(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromUserRecursive4(TypedDict, total=False):
-    """Arguments for User"""
-    
-    
-
-class FindManyChipsetArgsFromUser(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromUserRecursive1(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromUserRecursive2(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromUserRecursive3(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromUserRecursive4(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromUserRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromUserRecursive1']
 
 
 class FirmwareBuildIncludeFromUserRecursive1(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromUserRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromUserRecursive2']
 
 
 class FirmwareBuildIncludeFromUserRecursive2(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromUserRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromUserRecursive3']
 
 
 class FirmwareBuildIncludeFromUserRecursive3(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromUserRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromUserRecursive4']
 
 
 class FirmwareBuildIncludeFromUserRecursive4(TypedDict, total=False):
@@ -111363,21 +98160,25 @@ class FindManyProductArgsFromPermissionSetRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive1']
 
 
 class ProductTargetIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive2']
 
 
 class ProductTargetIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive3']
 
 
 class ProductTargetIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive4']
 
 
 class ProductTargetIncludeFromPermissionSetRecursive4(TypedDict, total=False):
@@ -111577,25 +98378,21 @@ class FindManyBoardArgsFromPermissionSetRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive1']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive2']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive3']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     board: Union[bool, 'BoardArgsFromPermissionSetRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive4']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive4(TypedDict, total=False):
@@ -111683,246 +98480,28 @@ class FindManyBoardRevisionArgsFromPermissionSetRecursive4(TypedDict, total=Fals
     
     
 
-class BoardRevisionChipsetIncludeFromPermissionSet(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromPermissionSetRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromPermissionSetRecursive1(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromPermissionSetRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromPermissionSetRecursive2(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromPermissionSetRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromPermissionSetRecursive3(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromPermissionSetRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromPermissionSetRecursive4(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-
-    
-
-class BoardRevisionChipsetArgsFromPermissionSet(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromPermissionSetRecursive1(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromPermissionSetRecursive2(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromPermissionSetRecursive3(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromPermissionSetRecursive4(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromPermissionSet(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive1(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive2(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive3(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive4(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromPermissionSet(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive1']
-
-
-class ChipsetIncludeFromPermissionSetRecursive1(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive2']
-
-
-class ChipsetIncludeFromPermissionSetRecursive2(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive3']
-
-
-class ChipsetIncludeFromPermissionSetRecursive3(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromPermissionSetRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromPermissionSetRecursive4']
-
-
-class ChipsetIncludeFromPermissionSetRecursive4(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-
-    
-
-class ChipsetArgsFromPermissionSet(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromPermissionSetRecursive1(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromPermissionSetRecursive2(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromPermissionSetRecursive3(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromPermissionSetRecursive4(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    
-    
-
-class FindManyChipsetArgsFromPermissionSet(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromPermissionSetRecursive1(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromPermissionSetRecursive2(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromPermissionSetRecursive3(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromPermissionSetRecursive4(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromPermissionSetRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromPermissionSetRecursive1']
 
 
 class FirmwareBuildIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromPermissionSetRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromPermissionSetRecursive2']
 
 
 class FirmwareBuildIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromPermissionSetRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromPermissionSetRecursive3']
 
 
 class FirmwareBuildIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromPermissionSetRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromPermissionSetRecursive4']
 
 
 class FirmwareBuildIncludeFromPermissionSetRecursive4(TypedDict, total=False):
@@ -115360,21 +101939,25 @@ class FindManyProductArgsFromApiKeyRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive1']
 
 
 class ProductTargetIncludeFromApiKeyRecursive1(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive2']
 
 
 class ProductTargetIncludeFromApiKeyRecursive2(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive3']
 
 
 class ProductTargetIncludeFromApiKeyRecursive3(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive4']
 
 
 class ProductTargetIncludeFromApiKeyRecursive4(TypedDict, total=False):
@@ -115574,25 +102157,21 @@ class FindManyBoardArgsFromApiKeyRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     board: Union[bool, 'BoardArgsFromApiKeyRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromApiKeyRecursive1']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive1(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     board: Union[bool, 'BoardArgsFromApiKeyRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromApiKeyRecursive2']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive2(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     board: Union[bool, 'BoardArgsFromApiKeyRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromApiKeyRecursive3']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive3(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     board: Union[bool, 'BoardArgsFromApiKeyRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromApiKeyRecursive4']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive4(TypedDict, total=False):
@@ -115680,246 +102259,28 @@ class FindManyBoardRevisionArgsFromApiKeyRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromApiKey(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromApiKeyRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromApiKeyRecursive1(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromApiKeyRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromApiKeyRecursive2(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromApiKeyRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromApiKeyRecursive3(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromApiKeyRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromApiKeyRecursive4(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-
-    
-
-class BoardRevisionChipsetArgsFromApiKey(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromApiKeyRecursive1(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromApiKeyRecursive2(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromApiKeyRecursive3(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromApiKeyRecursive4(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromApiKey(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromApiKeyRecursive1(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromApiKeyRecursive2(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromApiKeyRecursive3(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromApiKeyRecursive4(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromApiKey(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromApiKeyRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive1']
-
-
-class ChipsetIncludeFromApiKeyRecursive1(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromApiKeyRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive2']
-
-
-class ChipsetIncludeFromApiKeyRecursive2(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromApiKeyRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive3']
-
-
-class ChipsetIncludeFromApiKeyRecursive3(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromApiKeyRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromApiKeyRecursive4']
-
-
-class ChipsetIncludeFromApiKeyRecursive4(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-
-    
-
-class ChipsetArgsFromApiKey(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromApiKeyRecursive1(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromApiKeyRecursive2(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromApiKeyRecursive3(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromApiKeyRecursive4(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    
-    
-
-class FindManyChipsetArgsFromApiKey(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromApiKeyRecursive1(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromApiKeyRecursive2(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromApiKeyRecursive3(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromApiKeyRecursive4(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromApiKeyRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromApiKeyRecursive1']
 
 
 class FirmwareBuildIncludeFromApiKeyRecursive1(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromApiKeyRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromApiKeyRecursive2']
 
 
 class FirmwareBuildIncludeFromApiKeyRecursive2(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromApiKeyRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromApiKeyRecursive3']
 
 
 class FirmwareBuildIncludeFromApiKeyRecursive3(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromApiKeyRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromApiKeyRecursive4']
 
 
 class FirmwareBuildIncludeFromApiKeyRecursive4(TypedDict, total=False):
@@ -119382,21 +105743,25 @@ class FindManyProductArgsFromAuditLogRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive1']
 
 
 class ProductTargetIncludeFromAuditLogRecursive1(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive2']
 
 
 class ProductTargetIncludeFromAuditLogRecursive2(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive3']
 
 
 class ProductTargetIncludeFromAuditLogRecursive3(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive4']
 
 
 class ProductTargetIncludeFromAuditLogRecursive4(TypedDict, total=False):
@@ -119596,25 +105961,21 @@ class FindManyBoardArgsFromAuditLogRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     board: Union[bool, 'BoardArgsFromAuditLogRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromAuditLogRecursive1']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive1(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     board: Union[bool, 'BoardArgsFromAuditLogRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromAuditLogRecursive2']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive2(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     board: Union[bool, 'BoardArgsFromAuditLogRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromAuditLogRecursive3']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive3(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     board: Union[bool, 'BoardArgsFromAuditLogRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromAuditLogRecursive4']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive4(TypedDict, total=False):
@@ -119702,246 +106063,28 @@ class FindManyBoardRevisionArgsFromAuditLogRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromAuditLog(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromAuditLogRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromAuditLogRecursive1(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromAuditLogRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromAuditLogRecursive2(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromAuditLogRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromAuditLogRecursive3(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromAuditLogRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromAuditLogRecursive4(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-
-    
-
-class BoardRevisionChipsetArgsFromAuditLog(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromAuditLogRecursive1(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromAuditLogRecursive2(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromAuditLogRecursive3(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromAuditLogRecursive4(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromAuditLog(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromAuditLogRecursive1(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromAuditLogRecursive2(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromAuditLogRecursive3(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromAuditLogRecursive4(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromAuditLog(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromAuditLogRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive1']
-
-
-class ChipsetIncludeFromAuditLogRecursive1(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromAuditLogRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive2']
-
-
-class ChipsetIncludeFromAuditLogRecursive2(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromAuditLogRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive3']
-
-
-class ChipsetIncludeFromAuditLogRecursive3(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromAuditLogRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromAuditLogRecursive4']
-
-
-class ChipsetIncludeFromAuditLogRecursive4(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-
-    
-
-class ChipsetArgsFromAuditLog(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromAuditLogRecursive1(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromAuditLogRecursive2(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromAuditLogRecursive3(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromAuditLogRecursive4(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    
-    
-
-class FindManyChipsetArgsFromAuditLog(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromAuditLogRecursive1(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromAuditLogRecursive2(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromAuditLogRecursive3(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromAuditLogRecursive4(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromAuditLogRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromAuditLogRecursive1']
 
 
 class FirmwareBuildIncludeFromAuditLogRecursive1(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromAuditLogRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromAuditLogRecursive2']
 
 
 class FirmwareBuildIncludeFromAuditLogRecursive2(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromAuditLogRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromAuditLogRecursive3']
 
 
 class FirmwareBuildIncludeFromAuditLogRecursive3(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromAuditLogRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromAuditLogRecursive4']
 
 
 class FirmwareBuildIncludeFromAuditLogRecursive4(TypedDict, total=False):
@@ -123364,21 +109507,25 @@ class FindManyProductArgsFromSettingRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromSetting(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive1']
 
 
 class ProductTargetIncludeFromSettingRecursive1(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive2']
 
 
 class ProductTargetIncludeFromSettingRecursive2(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive3']
 
 
 class ProductTargetIncludeFromSettingRecursive3(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive4']
 
 
 class ProductTargetIncludeFromSettingRecursive4(TypedDict, total=False):
@@ -123578,25 +109725,21 @@ class FindManyBoardArgsFromSettingRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromSetting(TypedDict, total=False):
     """Relational arguments for Setting"""
     board: Union[bool, 'BoardArgsFromSettingRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSettingRecursive1']
 
 
 class BoardRevisionIncludeFromSettingRecursive1(TypedDict, total=False):
     """Relational arguments for Setting"""
     board: Union[bool, 'BoardArgsFromSettingRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSettingRecursive2']
 
 
 class BoardRevisionIncludeFromSettingRecursive2(TypedDict, total=False):
     """Relational arguments for Setting"""
     board: Union[bool, 'BoardArgsFromSettingRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSettingRecursive3']
 
 
 class BoardRevisionIncludeFromSettingRecursive3(TypedDict, total=False):
     """Relational arguments for Setting"""
     board: Union[bool, 'BoardArgsFromSettingRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSettingRecursive4']
 
 
 class BoardRevisionIncludeFromSettingRecursive4(TypedDict, total=False):
@@ -123684,246 +109827,28 @@ class FindManyBoardRevisionArgsFromSettingRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromSetting(TypedDict, total=False):
-    """Relational arguments for Setting"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromSettingRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromSettingRecursive1(TypedDict, total=False):
-    """Relational arguments for Setting"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromSettingRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromSettingRecursive2(TypedDict, total=False):
-    """Relational arguments for Setting"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromSettingRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromSettingRecursive3(TypedDict, total=False):
-    """Relational arguments for Setting"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromSettingRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromSettingRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromSettingRecursive4(TypedDict, total=False):
-    """Relational arguments for Setting"""
-
-    
-
-class BoardRevisionChipsetArgsFromSetting(TypedDict, total=False):
-    """Arguments for Setting"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromSettingRecursive1(TypedDict, total=False):
-    """Arguments for Setting"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromSettingRecursive2(TypedDict, total=False):
-    """Arguments for Setting"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromSettingRecursive3(TypedDict, total=False):
-    """Arguments for Setting"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromSettingRecursive4(TypedDict, total=False):
-    """Arguments for Setting"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromSetting(TypedDict, total=False):
-    """Arguments for Setting"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromSettingRecursive1(TypedDict, total=False):
-    """Arguments for Setting"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromSettingRecursive2(TypedDict, total=False):
-    """Arguments for Setting"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromSettingRecursive3(TypedDict, total=False):
-    """Arguments for Setting"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromSettingRecursive4(TypedDict, total=False):
-    """Arguments for Setting"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromSetting(TypedDict, total=False):
-    """Relational arguments for Setting"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSettingRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive1']
-
-
-class ChipsetIncludeFromSettingRecursive1(TypedDict, total=False):
-    """Relational arguments for Setting"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSettingRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive2']
-
-
-class ChipsetIncludeFromSettingRecursive2(TypedDict, total=False):
-    """Relational arguments for Setting"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSettingRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive3']
-
-
-class ChipsetIncludeFromSettingRecursive3(TypedDict, total=False):
-    """Relational arguments for Setting"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromSettingRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromSettingRecursive4']
-
-
-class ChipsetIncludeFromSettingRecursive4(TypedDict, total=False):
-    """Relational arguments for Setting"""
-
-    
-
-class ChipsetArgsFromSetting(TypedDict, total=False):
-    """Arguments for Setting"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromSettingRecursive1(TypedDict, total=False):
-    """Arguments for Setting"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromSettingRecursive2(TypedDict, total=False):
-    """Arguments for Setting"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromSettingRecursive3(TypedDict, total=False):
-    """Arguments for Setting"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromSettingRecursive4(TypedDict, total=False):
-    """Arguments for Setting"""
-    
-    
-
-class FindManyChipsetArgsFromSetting(TypedDict, total=False):
-    """Arguments for Setting"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromSettingRecursive1(TypedDict, total=False):
-    """Arguments for Setting"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromSettingRecursive2(TypedDict, total=False):
-    """Arguments for Setting"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromSettingRecursive3(TypedDict, total=False):
-    """Arguments for Setting"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromSettingRecursive4(TypedDict, total=False):
-    """Arguments for Setting"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromSetting(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromSettingRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromSettingRecursive1']
 
 
 class FirmwareBuildIncludeFromSettingRecursive1(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromSettingRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromSettingRecursive2']
 
 
 class FirmwareBuildIncludeFromSettingRecursive2(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromSettingRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromSettingRecursive3']
 
 
 class FirmwareBuildIncludeFromSettingRecursive3(TypedDict, total=False):
     """Relational arguments for Setting"""
     product: Union[bool, 'ProductArgsFromSettingRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromSettingRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromSettingRecursive4']
 
 
 class FirmwareBuildIncludeFromSettingRecursive4(TypedDict, total=False):
@@ -127298,21 +113223,25 @@ class FindManyProductArgsFromLogRecursive4(TypedDict, total=False):
 class ProductTargetIncludeFromLog(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive1']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive1']
 
 
 class ProductTargetIncludeFromLogRecursive1(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive2']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive2']
 
 
 class ProductTargetIncludeFromLogRecursive2(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive3']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive3']
 
 
 class ProductTargetIncludeFromLogRecursive3(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive4']
+    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive4']
 
 
 class ProductTargetIncludeFromLogRecursive4(TypedDict, total=False):
@@ -127512,25 +113441,21 @@ class FindManyBoardArgsFromLogRecursive4(TypedDict, total=False):
 class BoardRevisionIncludeFromLog(TypedDict, total=False):
     """Relational arguments for Log"""
     board: Union[bool, 'BoardArgsFromLogRecursive1']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromLogRecursive1']
 
 
 class BoardRevisionIncludeFromLogRecursive1(TypedDict, total=False):
     """Relational arguments for Log"""
     board: Union[bool, 'BoardArgsFromLogRecursive2']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromLogRecursive2']
 
 
 class BoardRevisionIncludeFromLogRecursive2(TypedDict, total=False):
     """Relational arguments for Log"""
     board: Union[bool, 'BoardArgsFromLogRecursive3']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromLogRecursive3']
 
 
 class BoardRevisionIncludeFromLogRecursive3(TypedDict, total=False):
     """Relational arguments for Log"""
     board: Union[bool, 'BoardArgsFromLogRecursive4']
-    chipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromLogRecursive4']
 
 
 class BoardRevisionIncludeFromLogRecursive4(TypedDict, total=False):
@@ -127618,246 +113543,28 @@ class FindManyBoardRevisionArgsFromLogRecursive4(TypedDict, total=False):
     
     
 
-class BoardRevisionChipsetIncludeFromLog(TypedDict, total=False):
-    """Relational arguments for Log"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromLogRecursive1']
-
-
-class BoardRevisionChipsetIncludeFromLogRecursive1(TypedDict, total=False):
-    """Relational arguments for Log"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromLogRecursive2']
-
-
-class BoardRevisionChipsetIncludeFromLogRecursive2(TypedDict, total=False):
-    """Relational arguments for Log"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromLogRecursive3']
-
-
-class BoardRevisionChipsetIncludeFromLogRecursive3(TypedDict, total=False):
-    """Relational arguments for Log"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromLogRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromLogRecursive4']
-
-
-class BoardRevisionChipsetIncludeFromLogRecursive4(TypedDict, total=False):
-    """Relational arguments for Log"""
-
-    
-
-class BoardRevisionChipsetArgsFromLog(TypedDict, total=False):
-    """Arguments for Log"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class BoardRevisionChipsetArgsFromLogRecursive1(TypedDict, total=False):
-    """Arguments for Log"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class BoardRevisionChipsetArgsFromLogRecursive2(TypedDict, total=False):
-    """Arguments for Log"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class BoardRevisionChipsetArgsFromLogRecursive3(TypedDict, total=False):
-    """Arguments for Log"""
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class BoardRevisionChipsetArgsFromLogRecursive4(TypedDict, total=False):
-    """Arguments for Log"""
-    
-    
-
-class FindManyBoardRevisionChipsetArgsFromLog(TypedDict, total=False):
-    """Arguments for Log"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive1'
-
-
-class FindManyBoardRevisionChipsetArgsFromLogRecursive1(TypedDict, total=False):
-    """Arguments for Log"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive2'
-
-
-class FindManyBoardRevisionChipsetArgsFromLogRecursive2(TypedDict, total=False):
-    """Arguments for Log"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive3'
-
-
-class FindManyBoardRevisionChipsetArgsFromLogRecursive3(TypedDict, total=False):
-    """Arguments for Log"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    include: 'BoardRevisionChipsetIncludeFromBoardRevisionChipsetRecursive4'
-
-
-class FindManyBoardRevisionChipsetArgsFromLogRecursive4(TypedDict, total=False):
-    """Arguments for Log"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionChipsetOrderByInput', List['BoardRevisionChipsetOrderByInput']]
-    where: 'BoardRevisionChipsetWhereInput'
-    cursor: 'BoardRevisionChipsetWhereUniqueInput'
-    distinct: List['BoardRevisionChipsetScalarFieldKeys']
-    
-    
-
-class ChipsetIncludeFromLog(TypedDict, total=False):
-    """Relational arguments for Log"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromLogRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive1']
-
-
-class ChipsetIncludeFromLogRecursive1(TypedDict, total=False):
-    """Relational arguments for Log"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromLogRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive2']
-
-
-class ChipsetIncludeFromLogRecursive2(TypedDict, total=False):
-    """Relational arguments for Log"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromLogRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive3']
-
-
-class ChipsetIncludeFromLogRecursive3(TypedDict, total=False):
-    """Relational arguments for Log"""
-    boardRevisionChipsets: Union[bool, 'FindManyBoardRevisionChipsetArgsFromLogRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromLogRecursive4']
-
-
-class ChipsetIncludeFromLogRecursive4(TypedDict, total=False):
-    """Relational arguments for Log"""
-
-    
-
-class ChipsetArgsFromLog(TypedDict, total=False):
-    """Arguments for Log"""
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class ChipsetArgsFromLogRecursive1(TypedDict, total=False):
-    """Arguments for Log"""
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class ChipsetArgsFromLogRecursive2(TypedDict, total=False):
-    """Arguments for Log"""
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class ChipsetArgsFromLogRecursive3(TypedDict, total=False):
-    """Arguments for Log"""
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class ChipsetArgsFromLogRecursive4(TypedDict, total=False):
-    """Arguments for Log"""
-    
-    
-
-class FindManyChipsetArgsFromLog(TypedDict, total=False):
-    """Arguments for Log"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive1'
-
-
-class FindManyChipsetArgsFromLogRecursive1(TypedDict, total=False):
-    """Arguments for Log"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive2'
-
-
-class FindManyChipsetArgsFromLogRecursive2(TypedDict, total=False):
-    """Arguments for Log"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive3'
-
-
-class FindManyChipsetArgsFromLogRecursive3(TypedDict, total=False):
-    """Arguments for Log"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    include: 'ChipsetIncludeFromChipsetRecursive4'
-
-
-class FindManyChipsetArgsFromLogRecursive4(TypedDict, total=False):
-    """Arguments for Log"""
-    take: int
-    skip: int
-    order_by: Union['ChipsetOrderByInput', List['ChipsetOrderByInput']]
-    where: 'ChipsetWhereInput'
-    cursor: 'ChipsetWhereUniqueInput'
-    distinct: List['ChipsetScalarFieldKeys']
-    
-    
-
 class FirmwareBuildIncludeFromLog(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive1']
-    chipset: Union[bool, 'ChipsetArgsFromLogRecursive1']
+    target: Union[bool, 'ProductTargetArgsFromLogRecursive1']
 
 
 class FirmwareBuildIncludeFromLogRecursive1(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive2']
-    chipset: Union[bool, 'ChipsetArgsFromLogRecursive2']
+    target: Union[bool, 'ProductTargetArgsFromLogRecursive2']
 
 
 class FirmwareBuildIncludeFromLogRecursive2(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive3']
-    chipset: Union[bool, 'ChipsetArgsFromLogRecursive3']
+    target: Union[bool, 'ProductTargetArgsFromLogRecursive3']
 
 
 class FirmwareBuildIncludeFromLogRecursive3(TypedDict, total=False):
     """Relational arguments for Log"""
     product: Union[bool, 'ProductArgsFromLogRecursive4']
-    chipset: Union[bool, 'ChipsetArgsFromLogRecursive4']
+    target: Union[bool, 'ProductTargetArgsFromLogRecursive4']
 
 
 class FirmwareBuildIncludeFromLogRecursive4(TypedDict, total=False):

@@ -96,9 +96,6 @@ def get_board(product_id: str, board_id: str):
         include={
             "revisions": {
                 "order_by": {"version": "asc"},
-                "include": {
-                    "chipsets": {"include": {"chipset": True}},
-                },
             },
         },
     )
@@ -112,7 +109,7 @@ def get_board(product_id: str, board_id: str):
 
 
 def _serialize_board_revision(r: Any) -> dict:
-    result = {
+    return {
         "id": r.id,
         "boardId": r.boardId,
         "version": r.version,
@@ -121,15 +118,6 @@ def _serialize_board_revision(r: Any) -> dict:
         "createdAt": r.createdAt.isoformat(),
         "updatedAt": r.updatedAt.isoformat(),
     }
-    if hasattr(r, "chipsets") and r.chipsets is not None:
-        result["chipsets"] = [
-            {"id": rc.chipset.id, "name": rc.chipset.name, "isModem": rc.chipset.isModem}
-            for rc in r.chipsets
-            if hasattr(rc, "chipset") and rc.chipset is not None
-        ]
-    else:
-        result["chipsets"] = []
-    return result
 
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)

@@ -7,10 +7,9 @@ from __future__ import annotations
 
 PRISMA_MODELS: set[str] = {
     'Product',
+    'ProductTarget',
     'Board',
     'BoardRevision',
-    'BoardRevisionChipset',
-    'Chipset',
     'FirmwareBuild',
     'ProductStageConfig',
     'ValidationQueueEntry',
@@ -40,6 +39,7 @@ PRISMA_MODELS: set[str] = {
 
 RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     'Product': {
+        'targets': 'ProductTarget',
         'boards': 'Board',
         'firmwareBuilds': 'FirmwareBuild',
         'fixtures': 'Fixture',
@@ -50,25 +50,20 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'deployments': 'Deployment',
         'stageConfigs': 'ProductStageConfig',
     },
+    'ProductTarget': {
+        'product': 'Product',
+        'firmwareBuilds': 'FirmwareBuild',
+    },
     'Board': {
         'product': 'Product',
         'revisions': 'BoardRevision',
     },
     'BoardRevision': {
         'board': 'Board',
-        'chipsets': 'BoardRevisionChipset',
-    },
-    'BoardRevisionChipset': {
-        'boardRevision': 'BoardRevision',
-        'chipset': 'Chipset',
-    },
-    'Chipset': {
-        'boardRevisionChipsets': 'BoardRevisionChipset',
-        'firmwareBuilds': 'FirmwareBuild',
     },
     'FirmwareBuild': {
         'product': 'Product',
-        'chipset': 'Chipset',
+        'target': 'ProductTarget',
     },
     'ProductStageConfig': {
         'product': 'Product',

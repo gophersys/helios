@@ -95,10 +95,9 @@ class Prisma(SyncBasePrisma):
     # Note: these property names can be customised using `/// @Python(instance_name: '...')`
     # https://prisma-client-py.readthedocs.io/en/stable/reference/schema-extensions/#instance_name
     product: 'actions.ProductActions[models.Product]'
+    producttarget: 'actions.ProductTargetActions[models.ProductTarget]'
     board: 'actions.BoardActions[models.Board]'
     boardrevision: 'actions.BoardRevisionActions[models.BoardRevision]'
-    boardrevisionchipset: 'actions.BoardRevisionChipsetActions[models.BoardRevisionChipset]'
-    chipset: 'actions.ChipsetActions[models.Chipset]'
     firmwarebuild: 'actions.FirmwareBuildActions[models.FirmwareBuild]'
     productstageconfig: 'actions.ProductStageConfigActions[models.ProductStageConfig]'
     validationqueueentry: 'actions.ValidationQueueEntryActions[models.ValidationQueueEntry]'
@@ -127,10 +126,9 @@ class Prisma(SyncBasePrisma):
 
     __slots__ = (
         'product',
+        'producttarget',
         'board',
         'boardrevision',
-        'boardrevisionchipset',
-        'chipset',
         'firmwarebuild',
         'productstageconfig',
         'validationqueueentry',
@@ -187,10 +185,9 @@ class Prisma(SyncBasePrisma):
         )
 
         self.product = actions.ProductActions[models.Product](self, models.Product)
+        self.producttarget = actions.ProductTargetActions[models.ProductTarget](self, models.ProductTarget)
         self.board = actions.BoardActions[models.Board](self, models.Board)
         self.boardrevision = actions.BoardRevisionActions[models.BoardRevision](self, models.BoardRevision)
-        self.boardrevisionchipset = actions.BoardRevisionChipsetActions[models.BoardRevisionChipset](self, models.BoardRevisionChipset)
-        self.chipset = actions.ChipsetActions[models.Chipset](self, models.Chipset)
         self.firmwarebuild = actions.FirmwareBuildActions[models.FirmwareBuild](self, models.FirmwareBuild)
         self.productstageconfig = actions.ProductStageConfigActions[models.ProductStageConfig](self, models.ProductStageConfig)
         self.validationqueueentry = actions.ValidationQueueEntryActions[models.ValidationQueueEntry](self, models.ValidationQueueEntry)
@@ -367,10 +364,9 @@ TransactionManager = SyncTransactionManager[Prisma]
 # TODO: don't require copy-pasting arguments between actions and batch actions
 class Batch:
     product: 'ProductBatchActions'
+    producttarget: 'ProductTargetBatchActions'
     board: 'BoardBatchActions'
     boardrevision: 'BoardRevisionBatchActions'
-    boardrevisionchipset: 'BoardRevisionChipsetBatchActions'
-    chipset: 'ChipsetBatchActions'
     firmwarebuild: 'FirmwareBuildBatchActions'
     productstageconfig: 'ProductStageConfigBatchActions'
     validationqueueentry: 'ValidationQueueEntryBatchActions'
@@ -402,10 +398,9 @@ class Batch:
         self.__queries: List[str] = []
         self._active_provider = client._active_provider
         self.product = ProductBatchActions(self)
+        self.producttarget = ProductTargetBatchActions(self)
         self.board = BoardBatchActions(self)
         self.boardrevision = BoardRevisionBatchActions(self)
-        self.boardrevisionchipset = BoardRevisionChipsetBatchActions(self)
-        self.chipset = ChipsetBatchActions(self)
         self.firmwarebuild = FirmwareBuildBatchActions(self)
         self.productstageconfig = ProductStageConfigBatchActions(self)
         self.validationqueueentry = ValidationQueueEntryBatchActions(self)
@@ -588,6 +583,117 @@ class ProductBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.Product,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class ProductTargetBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.ProductTargetCreateInput,
+        include: Optional[types.ProductTargetInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.ProductTarget,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.ProductTargetCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.ProductTarget,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.ProductTargetWhereUniqueInput,
+        include: Optional[types.ProductTargetInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.ProductTarget,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.ProductTargetUpdateInput,
+        where: types.ProductTargetWhereUniqueInput,
+        include: Optional[types.ProductTargetInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.ProductTarget,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.ProductTargetWhereUniqueInput,
+        data: types.ProductTargetUpsertInput,
+        include: Optional[types.ProductTargetInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.ProductTarget,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.ProductTargetUpdateManyMutationInput,
+        where: types.ProductTargetWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.ProductTarget,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.ProductTargetWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.ProductTarget,
             arguments={'where': where},
             root_selection=['count'],
         )
@@ -810,228 +916,6 @@ class BoardRevisionBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.BoardRevision,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-
-
-
-# NOTE: some arguments are meaningless in this context but are included
-# for completeness sake
-class BoardRevisionChipsetBatchActions:
-    def __init__(self, batcher: Batch) -> None:
-        self._batcher = batcher
-
-    def create(
-        self,
-        data: types.BoardRevisionChipsetCreateInput,
-        include: Optional[types.BoardRevisionChipsetInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='create',
-            model=models.BoardRevisionChipset,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-
-    def create_many(
-        self,
-        data: List[types.BoardRevisionChipsetCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> None:
-        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
-
-        self._batcher._add(
-            method='create_many',
-            model=models.BoardRevisionChipset,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-
-    def delete(
-        self,
-        where: types.BoardRevisionChipsetWhereUniqueInput,
-        include: Optional[types.BoardRevisionChipsetInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete',
-            model=models.BoardRevisionChipset,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def update(
-        self,
-        data: types.BoardRevisionChipsetUpdateInput,
-        where: types.BoardRevisionChipsetWhereUniqueInput,
-        include: Optional[types.BoardRevisionChipsetInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='update',
-            model=models.BoardRevisionChipset,
-            arguments={
-                'data': data,
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def upsert(
-        self,
-        where: types.BoardRevisionChipsetWhereUniqueInput,
-        data: types.BoardRevisionChipsetUpsertInput,
-        include: Optional[types.BoardRevisionChipsetInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='upsert',
-            model=models.BoardRevisionChipset,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-
-    def update_many(
-        self,
-        data: types.BoardRevisionChipsetUpdateManyMutationInput,
-        where: types.BoardRevisionChipsetWhereInput,
-    ) -> None:
-        self._batcher._add(
-            method='update_many',
-            model=models.BoardRevisionChipset,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-
-    def delete_many(
-        self,
-        where: Optional[types.BoardRevisionChipsetWhereInput] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete_many',
-            model=models.BoardRevisionChipset,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-
-
-
-# NOTE: some arguments are meaningless in this context but are included
-# for completeness sake
-class ChipsetBatchActions:
-    def __init__(self, batcher: Batch) -> None:
-        self._batcher = batcher
-
-    def create(
-        self,
-        data: types.ChipsetCreateInput,
-        include: Optional[types.ChipsetInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='create',
-            model=models.Chipset,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-
-    def create_many(
-        self,
-        data: List[types.ChipsetCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> None:
-        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
-
-        self._batcher._add(
-            method='create_many',
-            model=models.Chipset,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-
-    def delete(
-        self,
-        where: types.ChipsetWhereUniqueInput,
-        include: Optional[types.ChipsetInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete',
-            model=models.Chipset,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def update(
-        self,
-        data: types.ChipsetUpdateInput,
-        where: types.ChipsetWhereUniqueInput,
-        include: Optional[types.ChipsetInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='update',
-            model=models.Chipset,
-            arguments={
-                'data': data,
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def upsert(
-        self,
-        where: types.ChipsetWhereUniqueInput,
-        data: types.ChipsetUpsertInput,
-        include: Optional[types.ChipsetInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='upsert',
-            model=models.Chipset,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-
-    def update_many(
-        self,
-        data: types.ChipsetUpdateManyMutationInput,
-        where: types.ChipsetWhereInput,
-    ) -> None:
-        self._batcher._add(
-            method='update_many',
-            model=models.Chipset,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-
-    def delete_many(
-        self,
-        where: Optional[types.ChipsetWhereInput] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete_many',
-            model=models.Chipset,
             arguments={'where': where},
             root_selection=['count'],
         )

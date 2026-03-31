@@ -191,29 +191,6 @@ def seed():
         )
         print(f"Permission set 'Viewer' ready (id: {viewer_set.id})")
 
-        # Seed default chipsets
-        default_chipsets = [
-            {"name": "nRF52840", "manufacturer": "Nordic Semiconductor", "isModem": False},
-            {"name": "nRF9151", "manufacturer": "Nordic Semiconductor", "isModem": True},
-            {"name": "nRF9160", "manufacturer": "Nordic Semiconductor", "isModem": True},
-        ]
-        for chip in default_chipsets:
-            chipset = db.chipset.upsert(
-                where={"name": chip["name"]},
-                data={
-                    "create": {
-                        "name": chip["name"],
-                        "manufacturer": chip["manufacturer"],
-                        "isModem": chip["isModem"],
-                    },
-                    "update": {
-                        "manufacturer": chip["manufacturer"],
-                        "isModem": chip["isModem"],
-                    },
-                },
-            )
-            print(f"Chipset '{chip['name']}' ready (id: {chipset.id})")
-
         # Backfill existing users that have no permission set
         users_without_set = db.user.find_many(where={"permissionSetId": None})
         for user in users_without_set:
@@ -597,68 +574,6 @@ def seed():
             },
         )
         print(f"  Board: {iwsck_board.name} / A1")
-
-        # ── BoardRevision → Chipset Links ──
-        print("\n=== Linking Board Revisions to Chipsets ===")
-
-        # Get chipset IDs by name (created earlier in this script)
-        nrf52840 = db.chipset.find_unique(where={"name": "nRF52840"})
-        nrf9151 = db.chipset.find_unique(where={"name": "nRF9151"})
-        nrf9160 = db.chipset.find_unique(where={"name": "nRF9160"})
-
-        if not nrf52840 or not nrf9151 or not nrf9160:
-            raise RuntimeError("Chipsets not found - ensure chipsets are seeded first")
-
-        # Alpha B0 → nRF52840 + nRF9151
-        db.boardrevisionchipset.upsert(
-            where={"boardRevisionId_chipsetId": {"boardRevisionId": alpha_b0_rev.id, "chipsetId": nrf52840.id}},
-            data={"create": {"boardRevisionId": alpha_b0_rev.id, "chipsetId": nrf52840.id}, "update": {}},
-        )
-        db.boardrevisionchipset.upsert(
-            where={"boardRevisionId_chipsetId": {"boardRevisionId": alpha_b0_rev.id, "chipsetId": nrf9151.id}},
-            data={"create": {"boardRevisionId": alpha_b0_rev.id, "chipsetId": nrf9151.id}, "update": {}},
-        )
-        print(f"  Alpha B0 → nRF52840, nRF9151")
-
-        # Sigma5 B0 → nRF52840 + nRF9160
-        db.boardrevisionchipset.upsert(
-            where={"boardRevisionId_chipsetId": {"boardRevisionId": sigma5_b0_rev.id, "chipsetId": nrf52840.id}},
-            data={"create": {"boardRevisionId": sigma5_b0_rev.id, "chipsetId": nrf52840.id}, "update": {}},
-        )
-        db.boardrevisionchipset.upsert(
-            where={"boardRevisionId_chipsetId": {"boardRevisionId": sigma5_b0_rev.id, "chipsetId": nrf9160.id}},
-            data={"create": {"boardRevisionId": sigma5_b0_rev.id, "chipsetId": nrf9160.id}, "update": {}},
-        )
-        print(f"  Sigma5 B0 → nRF52840, nRF9160")
-
-        # Sigma5 C0 → nRF52840 + nRF9160
-        db.boardrevisionchipset.upsert(
-            where={"boardRevisionId_chipsetId": {"boardRevisionId": sigma5_c0_rev.id, "chipsetId": nrf52840.id}},
-            data={"create": {"boardRevisionId": sigma5_c0_rev.id, "chipsetId": nrf52840.id}, "update": {}},
-        )
-        db.boardrevisionchipset.upsert(
-            where={"boardRevisionId_chipsetId": {"boardRevisionId": sigma5_c0_rev.id, "chipsetId": nrf9160.id}},
-            data={"create": {"boardRevisionId": sigma5_c0_rev.id, "chipsetId": nrf9160.id}, "update": {}},
-        )
-        print(f"  Sigma5 C0 → nRF52840, nRF9160")
-
-        # Theta C0 → nRF52840 + nRF9160
-        db.boardrevisionchipset.upsert(
-            where={"boardRevisionId_chipsetId": {"boardRevisionId": theta_c0_rev.id, "chipsetId": nrf52840.id}},
-            data={"create": {"boardRevisionId": theta_c0_rev.id, "chipsetId": nrf52840.id}, "update": {}},
-        )
-        db.boardrevisionchipset.upsert(
-            where={"boardRevisionId_chipsetId": {"boardRevisionId": theta_c0_rev.id, "chipsetId": nrf9160.id}},
-            data={"create": {"boardRevisionId": theta_c0_rev.id, "chipsetId": nrf9160.id}, "update": {}},
-        )
-        print(f"  Theta C0 → nRF52840, nRF9160")
-
-        # IWSCK A1 → nRF52840 only (no modem)
-        db.boardrevisionchipset.upsert(
-            where={"boardRevisionId_chipsetId": {"boardRevisionId": iwsck_a1_rev.id, "chipsetId": nrf52840.id}},
-            data={"create": {"boardRevisionId": iwsck_a1_rev.id, "chipsetId": nrf52840.id}, "update": {}},
-        )
-        print(f"  IWSCK A1 → nRF52840")
 
         # ── Fixture Designs ──
         print("\n=== Seeding Fixture Designs ===")

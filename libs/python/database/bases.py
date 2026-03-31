@@ -84,6 +84,16 @@ class BaseProduct(_PrismaModel):
         return actions.ProductActions[_PrismaModelT](client or get_client(), cls)
 
 
+class BaseProductTarget(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['ProductTarget']] = 'ProductTarget'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.ProductTargetActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.ProductTargetActions[_PrismaModelT](client or get_client(), cls)
+
+
 class BaseBoard(_PrismaModel):
     __prisma_model__: ClassVar[Literal['Board']] = 'Board'  # pyright: ignore[reportIncompatibleVariableOverride]
 
@@ -102,26 +112,6 @@ class BaseBoardRevision(_PrismaModel):
         from .client import get_client
 
         return actions.BoardRevisionActions[_PrismaModelT](client or get_client(), cls)
-
-
-class BaseBoardRevisionChipset(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['BoardRevisionChipset']] = 'BoardRevisionChipset'  # pyright: ignore[reportIncompatibleVariableOverride]
-
-    @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.BoardRevisionChipsetActions[_PrismaModelT]':
-        from .client import get_client
-
-        return actions.BoardRevisionChipsetActions[_PrismaModelT](client or get_client(), cls)
-
-
-class BaseChipset(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['Chipset']] = 'Chipset'  # pyright: ignore[reportIncompatibleVariableOverride]
-
-    @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.ChipsetActions[_PrismaModelT]':
-        from .client import get_client
-
-        return actions.ChipsetActions[_PrismaModelT](client or get_client(), cls)
 
 
 class BaseFirmwareBuild(_PrismaModel):

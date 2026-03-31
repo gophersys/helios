@@ -129,7 +129,7 @@ enum PipelineStatus {
 // =============================================================================
 //
 //  PRODUCTS
-//  Hardware products, boards, chipsets, and firmware builds.
+//  Hardware products, boards, and firmware builds.
 //
 // =============================================================================
 
@@ -170,7 +170,8 @@ model ProductTarget {
     soc       String /// "nRF9151", "nRF52840" -- SoC identifier
     appId     Int    /// CoreCloud application ID (108, 109)
 
-    product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+    product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+    firmwareBuilds FirmwareBuild[]
 
     @@unique([productId, role])
     @@unique([productId, appId])
@@ -208,49 +209,17 @@ model BoardRevision {
     createdAt   DateTime        @default(now())
     updatedAt   DateTime        @updatedAt
 
-    board    Board                  @relation(fields: [boardId], references: [id], onDelete: Cascade)
-    chipsets BoardRevisionChipset[]
+    board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
 
     @@unique([boardId, version])
     @@map("board_revisions")
-}
-
-/// Join table linking board revisions to chipsets (many-to-many).
-model BoardRevisionChipset {
-    id              String @id @default(cuid())
-    boardRevisionId String
-    chipsetId       String
-
-    boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Cascade)
-    chipset       Chipset       @relation(fields: [chipsetId], references: [id], onDelete: Restrict)
-
-    @@unique([boardRevisionId, chipsetId])
-    @@map("board_revision_chipsets")
-}
-
-/// A chipset / SoC that can be placed on a board revision.
-/// First-class entity -- new chipsets can be added via UI without code changes.
-model Chipset {
-    id           String  @id @default(cuid())
-    name         String  @unique /// "nRF52840", "nRF9151", "ESP32"
-    manufacturer String? /// "Nordic Semiconductor"
-    isModem      Boolean @default(false)
-    description  String?
-    active       Boolean @default(true)
-    createdAt    DateTime @default(now())
-    updatedAt    DateTime @updatedAt
-
-    boardRevisionChipsets BoardRevisionChipset[]
-    firmwareBuilds        FirmwareBuild[]
-
-    @@map("chipsets")
 }
 
 /// An uploaded firmware build file with version metadata.
 model FirmwareBuild {
     id              String          @id @default(cuid())
     productId       String
-    chipsetId       String /// FK to Chipset
+    targetId        String? /// FK to ProductTarget (optional for legacy builds)
     version         String /// Semantic version string "1.0.0"
     isManufacturing Boolean         @default(false)
     status          LifecycleStatus @default(DRAFT)
@@ -267,10 +236,10 @@ model FirmwareBuild {
     createdAt       DateTime        @default(now())
     updatedAt       DateTime        @updatedAt
 
-    product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-    chipset Chipset @relation(fields: [chipsetId], references: [id], onDelete: Restrict)
+    product Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+    target  ProductTarget? @relation(fields: [targetId], references: [id])
 
-    @@unique([productId, chipsetId, version])
+    @@unique([productId, targetId, version])
     @@index([productId])
     @@map("firmware_builds")
 }

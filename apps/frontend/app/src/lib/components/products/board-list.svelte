@@ -5,19 +5,17 @@
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
   import BoardRevisionList from './board-revision-list.svelte';
-  import type { Board, FirmwareBuild, Chipset } from '$lib/types/models';
+  import type { Board } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
   interface Props {
     productId: string;
     boards: Board[];
-    builds: FirmwareBuild[];
-    chipsets: Chipset[];
     canManage: boolean;
     onRefresh: () => void;
   }
 
-  let { productId, boards, builds, chipsets, canManage, onRefresh }: Props = $props();
+  let { productId, boards, canManage, onRefresh }: Props = $props();
 
   let error = $state<string | null>(null);
   let showForm = $state(false);
@@ -258,8 +256,6 @@
                   {productId}
                   boardId={b.id}
                   revisions={detail.revisions || []}
-                  {builds}
-                  {chipsets}
                   {canManage}
                   onRefresh={() => handleRevisionRefresh(b.id)}
                 />

@@ -119,19 +119,6 @@ def _build_spec() -> APISpec:
             "createdAt": {"type": "string", "format": "date-time"},
         },
     })
-    spec.components.schema("Chipset", {
-        "type": "object",
-        "properties": {
-            "id": {"type": "string"},
-            "name": {"type": "string"},
-            "manufacturer": {"type": "string", "nullable": True},
-            "isModem": {"type": "boolean"},
-            "description": {"type": "string", "nullable": True},
-            "active": {"type": "boolean"},
-            "createdAt": {"type": "string", "format": "date-time"},
-            "updatedAt": {"type": "string", "format": "date-time"},
-        },
-    })
     spec.components.schema("Product", {
         "type": "object",
         "properties": {
@@ -165,9 +152,6 @@ def _build_spec() -> APISpec:
             "id": {"type": "string"},
             "boardId": {"type": "string"},
             "version": {"type": "string"},
-            "chipsets": {"type": "array", "items": {"type": "object", "properties": {
-                "id": {"type": "string"}, "name": {"type": "string"}, "isModem": {"type": "boolean"},
-            }}},
             "peripherals": {"type": "object", "nullable": True},
             "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"]},
             "notes": {"type": "string", "nullable": True},
@@ -180,9 +164,9 @@ def _build_spec() -> APISpec:
         "properties": {
             "id": {"type": "string"},
             "productId": {"type": "string"},
-            "chipsetId": {"type": "string"},
-            "chipset": {"type": "object", "nullable": True, "properties": {
-                "id": {"type": "string"}, "name": {"type": "string"}, "isModem": {"type": "boolean"},
+            "targetId": {"type": "string", "nullable": True},
+            "target": {"type": "object", "nullable": True, "properties": {
+                "id": {"type": "string"}, "role": {"type": "string"}, "soc": {"type": "string"}, "appId": {"type": "integer"},
             }},
             "version": {"type": "string"},
             "isManufacturing": {"type": "boolean"},
@@ -428,7 +412,7 @@ def _build_spec() -> APISpec:
     # ── Tags ────────────────────────────────────────────────────
     for tag in [
         "Auth", "Users", "Permissions", "API Keys",
-        "Products", "Chipsets", "Boards", "Board Revisions", "Firmware Builds",
+        "Products", "Boards", "Board Revisions", "Firmware Builds",
         "Builds", "Cluster", "Devices",
         "Benches", "Nodes", "Fixtures", "Fixture Slots", "Managed Deployments",
         "Validation", "System", "Dashboard", "Health",
@@ -579,49 +563,6 @@ def _build_spec() -> APISpec:
 
     # ── Products ─────────────────────────────────────────────────
 
-    # Chipsets CRUD
-    path("/products/chipsets",
-        get={
-            "tags": ["Chipsets"], "summary": "List all chipsets", "security": _auth_security,
-            "parameters": _pagination_params,
-            "responses": {"200": _paginated("Chipset")},
-        },
-        post={
-            "tags": ["Chipsets"], "summary": "Create a chipset", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "required": ["name"],
-                "properties": {
-                    "name": {"type": "string"}, "manufacturer": {"type": "string"},
-                    "isModem": {"type": "boolean", "default": False},
-                    "description": {"type": "string"}, "active": {"type": "boolean", "default": True},
-                },
-            }}}},
-            "responses": {"201": _ok("Chipset"), "400": _400, "409": _409},
-        },
-    )
-    path("/products/chipsets/{chipset_id}",
-        parameters=[{"name": "chipset_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        get={
-            "tags": ["Chipsets"], "summary": "Get a chipset", "security": _auth_security,
-            "responses": {"200": _ok("Chipset"), "404": _404},
-        },
-        put={
-            "tags": ["Chipsets"], "summary": "Update a chipset", "security": _auth_security,
-            "requestBody": {"required": True, "content": {"application/json": {"schema": {
-                "type": "object", "properties": {
-                    "name": {"type": "string"}, "manufacturer": {"type": "string"},
-                    "isModem": {"type": "boolean"}, "description": {"type": "string"},
-                    "active": {"type": "boolean"},
-                },
-            }}}},
-            "responses": {"200": _ok("Chipset"), "400": _400, "404": _404, "409": _409},
-        },
-        delete={
-            "tags": ["Chipsets"], "summary": "Delete a chipset", "security": _auth_security,
-            "responses": {"200": _deleted_resp, "404": _404, "409": _409},
-        },
-    )
-
     # Products
     path("/products",
         get={
@@ -730,7 +671,6 @@ def _build_spec() -> APISpec:
                 "type": "object", "required": ["version"],
                 "properties": {
                     "version": {"type": "string"},
-                    "chipsetIds": {"type": "array", "items": {"type": "string"}},
                     "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"], "default": "ACTIVE"},
                     "notes": {"type": "string"},
                 },
@@ -749,8 +689,6 @@ def _build_spec() -> APISpec:
             "requestBody": {"required": True, "content": {"application/json": {"schema": {
                 "type": "object", "properties": {
                     "version": {"type": "string"},
-                    "chipsetIds": {"type": "array", "items": {"type": "string"}},
-                    "peripherals": {"type": "object"},
                     "status": {"type": "string", "enum": ["ACTIVE", "DEPRECATED", "EOL"]},
                     "notes": {"type": "string"},
                 },
@@ -769,7 +707,7 @@ def _build_spec() -> APISpec:
         get={
             "tags": ["Firmware Builds"], "summary": "List firmware builds for a product", "security": _auth_security,
             "parameters": [
-                {"name": "chipsetId", "in": "query", "schema": {"type": "string"}},
+                {"name": "targetId", "in": "query", "schema": {"type": "string"}},
                 {"name": "status", "in": "query", "schema": {"type": "string", "enum": ["DRAFT", "RELEASED", "DEPRECATED"]}},
                 {"name": "isManufacturing", "in": "query", "schema": {"type": "boolean"}},
             ] + _pagination_params,
@@ -781,11 +719,11 @@ def _build_spec() -> APISpec:
         post={
             "tags": ["Firmware Builds"], "summary": "Upload a firmware build", "security": _auth_security,
             "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {
-                "type": "object", "required": ["file", "chipsetId", "version"],
+                "type": "object", "required": ["file", "targetId", "version"],
                 "properties": {
                     "file": {"type": "string", "format": "binary"},
                     "modemFile": {"type": "string", "format": "binary"},
-                    "chipsetId": {"type": "string"}, "version": {"type": "string"},
+                    "targetId": {"type": "string"}, "version": {"type": "string"},
                     "isManufacturing": {"type": "boolean"},
                     "status": {"type": "string", "enum": ["DRAFT", "RELEASED", "DEPRECATED"]},
                     "notes": {"type": "string"},

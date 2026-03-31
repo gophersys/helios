@@ -17,8 +17,8 @@ def _mock_presigned_url():
         yield
 
 
-def _make_chipset_obj(id="chip-1", name="nRF52840", isModem=False):
-    return make_obj(id=id, name=name, isModem=isModem)
+def _make_target_obj(id="tgt-1", role="app", soc="nrf52840", appId=109):
+    return make_obj(id=id, role=role, soc=soc, appId=appId)
 
 
 def test_list_firmware_builds(authed_client, mock_db):
@@ -33,14 +33,14 @@ def test_list_firmware_builds(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
-    chipset_obj = _make_chipset_obj()
+    target_obj = _make_target_obj()
 
     mock_db.firmwarebuild.count.return_value = 2
     mock_db.firmwarebuild.find_many.return_value = [
         make_obj(
             id="build-1",
             productId="prod-1",
-            chipsetId="chip-1",
+            targetId="tgt-1",
             version="1.0.0",
             isManufacturing=False,
             storageKey="firmware/prod-1/build-1/app.bin",
@@ -52,12 +52,12 @@ def test_list_firmware_builds(authed_client, mock_db):
             notes=None,
             createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
             updatedAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-            chipset=chipset_obj,
+            target=target_obj,
         ),
         make_obj(
             id="build-2",
             productId="prod-1",
-            chipsetId="chip-1",
+            targetId="tgt-1",
             version="1.0.1",
             isManufacturing=True,
             storageKey="firmware/prod-1/build-2/app.bin",
@@ -69,7 +69,7 @@ def test_list_firmware_builds(authed_client, mock_db):
             notes="Manufacturing build",
             createdAt=datetime(2025, 1, 11, tzinfo=timezone.utc),
             updatedAt=datetime(2025, 1, 11, tzinfo=timezone.utc),
-            chipset=chipset_obj,
+            target=target_obj,
         ),
     ]
 
@@ -86,12 +86,12 @@ def test_list_firmware_builds(authed_client, mock_db):
 
 def test_update_firmware_build(authed_client, mock_db):
     """Test updating a firmware build."""
-    chipset_obj = _make_chipset_obj()
+    target_obj = _make_target_obj()
 
     existing = make_obj(
         id="build-1",
         productId="prod-1",
-        chipsetId="chip-1",
+        targetId="tgt-1",
         version="1.0.0",
         isManufacturing=False,
         storageKey="firmware/prod-1/build-1/app.bin",
@@ -109,7 +109,7 @@ def test_update_firmware_build(authed_client, mock_db):
     mock_db.firmwarebuild.update.return_value = make_obj(
         id="build-1",
         productId="prod-1",
-        chipsetId="chip-1",
+        targetId="tgt-1",
         version="1.0.0",
         isManufacturing=False,
         storageKey="firmware/prod-1/build-1/app.bin",
@@ -121,7 +121,7 @@ def test_update_firmware_build(authed_client, mock_db):
         notes="Updated notes",
         createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-        chipset=chipset_obj,
+        target=target_obj,
     )
 
     with patch("api.v2.products.firmware_builds.log_audit"):
@@ -156,7 +156,7 @@ def test_delete_firmware_build(authed_client, mock_db):
     mock_db.firmwarebuild.find_first.return_value = make_obj(
         id="build-delete",
         productId="prod-1",
-        chipsetId="chip-1",
+        targetId="tgt-1",
         version="1.0.0",
         storageKey="firmware/prod-1/build-delete/app.bin",
         filename="app.bin",
@@ -186,13 +186,13 @@ def test_upload_firmware_build(authed_client, mock_db):
         name="Test Product",
     )
 
-    mock_db.chipset.find_unique.return_value = _make_chipset_obj()
+    mock_db.producttarget.find_first.return_value = _make_target_obj()
     mock_db.firmwarebuild.find_first.return_value = None
 
     mock_db.firmwarebuild.create.return_value = make_obj(
         id="build-new",
         productId="prod-1",
-        chipsetId="chip-1",
+        targetId="tgt-1",
         version="1.0.0",
         isManufacturing=False,
         storageKey="firmware/prod-1/pending/app.hex",
@@ -209,7 +209,7 @@ def test_upload_firmware_build(authed_client, mock_db):
     mock_db.firmwarebuild.update.return_value = make_obj(
         id="build-new",
         productId="prod-1",
-        chipsetId="chip-1",
+        targetId="tgt-1",
         version="1.0.0",
         isManufacturing=False,
         storageKey="firmware/prod-1/build-new/app.hex",
@@ -221,7 +221,7 @@ def test_upload_firmware_build(authed_client, mock_db):
         notes=None,
         createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-        chipset=_make_chipset_obj(),
+        target=_make_target_obj(),
     )
 
     mock_storage = MagicMock()
@@ -234,7 +234,7 @@ def test_upload_firmware_build(authed_client, mock_db):
                     "/v2/products/prod-1/firmware/upload",
                     data={
                         "file": (BytesIO(b"fake firmware"), "app.hex"),
-                        "chipsetId": "chip-1",
+                        "targetId": "tgt-1",
                         "version": "1.0.0",
                     },
                     headers=auth_headers_no_ct,
@@ -258,7 +258,7 @@ def test_upload_firmware_build_no_file(authed_client, mock_db):
 
     response = authed_client._client.post(
         "/v2/products/prod-1/firmware/upload",
-        data={"chipsetId": "chip-1", "version": "1.0.0"},
+        data={"targetId": "tgt-1", "version": "1.0.0"},
         headers=auth_headers_no_ct,
         content_type="multipart/form-data",
     )
@@ -279,7 +279,7 @@ def test_upload_firmware_build_invalid_extension(authed_client, mock_db):
         "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"bad file"), "malware.exe"),
-            "chipsetId": "chip-1",
+            "targetId": "tgt-1",
             "version": "1.0.0",
         },
         headers=auth_headers_no_ct,
@@ -289,8 +289,8 @@ def test_upload_firmware_build_invalid_extension(authed_client, mock_db):
     assert response.status_code == 400
 
 
-def test_upload_firmware_build_missing_chipset(authed_client, mock_db):
-    """Test uploading firmware build without chipsetId returns 400."""
+def test_upload_firmware_build_missing_target(authed_client, mock_db):
+    """Test uploading firmware build without targetId returns 400."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-1",
         name="Test Product",
@@ -311,14 +311,14 @@ def test_upload_firmware_build_missing_chipset(authed_client, mock_db):
     assert response.status_code == 400
 
 
-def test_upload_firmware_build_invalid_chipset(authed_client, mock_db):
-    """Test uploading firmware build with non-existent chipset returns 400."""
+def test_upload_firmware_build_invalid_target(authed_client, mock_db):
+    """Test uploading firmware build with non-existent target returns 400."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-1",
         name="Test Product",
     )
 
-    mock_db.chipset.find_unique.return_value = None
+    mock_db.producttarget.find_first.return_value = None
 
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
@@ -326,7 +326,7 @@ def test_upload_firmware_build_invalid_chipset(authed_client, mock_db):
         "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"fake firmware"), "app.hex"),
-            "chipsetId": "bad",
+            "targetId": "bad",
             "version": "1.0.0",
         },
         headers=auth_headers_no_ct,
@@ -343,7 +343,7 @@ def test_upload_firmware_build_missing_version(authed_client, mock_db):
         name="Test Product",
     )
 
-    mock_db.chipset.find_unique.return_value = _make_chipset_obj()
+    mock_db.producttarget.find_first.return_value = _make_target_obj()
 
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
 
@@ -351,7 +351,7 @@ def test_upload_firmware_build_missing_version(authed_client, mock_db):
         "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"fake firmware"), "app.hex"),
-            "chipsetId": "chip-1",
+            "targetId": "tgt-1",
         },
         headers=auth_headers_no_ct,
         content_type="multipart/form-data",
@@ -367,7 +367,7 @@ def test_upload_firmware_build_duplicate_version(authed_client, mock_db):
         name="Test Product",
     )
 
-    mock_db.chipset.find_unique.return_value = _make_chipset_obj()
+    mock_db.producttarget.find_first.return_value = _make_target_obj()
     mock_db.firmwarebuild.find_first.return_value = make_obj(
         id="build-existing",
         version="1.0.0",
@@ -379,7 +379,7 @@ def test_upload_firmware_build_duplicate_version(authed_client, mock_db):
         "/v2/products/prod-1/firmware/upload",
         data={
             "file": (BytesIO(b"fake firmware"), "app.hex"),
-            "chipsetId": "chip-1",
+            "targetId": "tgt-1",
             "version": "1.0.0",
         },
         headers=auth_headers_no_ct,
@@ -389,49 +389,21 @@ def test_upload_firmware_build_duplicate_version(authed_client, mock_db):
     assert response.status_code == 409
 
 
-def test_upload_firmware_build_modem_required(authed_client, mock_db):
-    """Test uploading firmware for modem chipset without modem file returns 400."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-1",
-        name="Test Product",
-    )
-
-    mock_db.chipset.find_unique.return_value = _make_chipset_obj(
-        id="chip-modem", name="nRF9160", isModem=True,
-    )
-    mock_db.firmwarebuild.find_first.return_value = None
-
-    auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
-
-    response = authed_client._client.post(
-        "/v2/products/prod-1/firmware/upload",
-        data={
-            "file": (BytesIO(b"fake firmware"), "app.hex"),
-            "chipsetId": "chip-modem",
-            "version": "1.0.0",
-        },
-        headers=auth_headers_no_ct,
-        content_type="multipart/form-data",
-    )
-
-    assert response.status_code == 400
-
-
-def test_upload_firmware_build_modem_success(authed_client, mock_db):
+def test_upload_firmware_build_with_modem(authed_client, mock_db):
     """Test successful firmware build upload with modem file."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-1",
         name="Test Product",
     )
 
-    modem_chipset = _make_chipset_obj(id="chip-modem", name="nRF9160", isModem=True)
-    mock_db.chipset.find_unique.return_value = modem_chipset
+    target = _make_target_obj(id="tgt-comms", role="comms", soc="nrf9151", appId=108)
+    mock_db.producttarget.find_first.return_value = target
     mock_db.firmwarebuild.find_first.return_value = None
 
     mock_db.firmwarebuild.create.return_value = make_obj(
         id="build-modem",
         productId="prod-1",
-        chipsetId="chip-modem",
+        targetId="tgt-comms",
         version="1.0.0",
         isManufacturing=False,
         storageKey="firmware/prod-1/pending/app.hex",
@@ -451,7 +423,7 @@ def test_upload_firmware_build_modem_success(authed_client, mock_db):
     mock_db.firmwarebuild.update.return_value = make_obj(
         id="build-modem",
         productId="prod-1",
-        chipsetId="chip-modem",
+        targetId="tgt-comms",
         version="1.0.0",
         isManufacturing=False,
         storageKey="firmware/prod-1/build-modem/app.hex",
@@ -466,7 +438,7 @@ def test_upload_firmware_build_modem_success(authed_client, mock_db):
         modemChecksum="def",
         createdAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 15, tzinfo=timezone.utc),
-        chipset=modem_chipset,
+        target=target,
     )
 
     mock_storage = MagicMock()
@@ -480,7 +452,7 @@ def test_upload_firmware_build_modem_success(authed_client, mock_db):
                     data={
                         "file": (BytesIO(b"fake firmware"), "app.hex"),
                         "modemFile": (BytesIO(b"modem data"), "modem.zip"),
-                        "chipsetId": "chip-modem",
+                        "targetId": "tgt-comms",
                         "version": "1.0.0",
                     },
                     headers=auth_headers_no_ct,
@@ -500,9 +472,7 @@ def test_upload_firmware_build_modem_invalid_ext(authed_client, mock_db):
         name="Test Product",
     )
 
-    mock_db.chipset.find_unique.return_value = _make_chipset_obj(
-        id="chip-modem", name="nRF9160", isModem=True,
-    )
+    mock_db.producttarget.find_first.return_value = _make_target_obj()
     mock_db.firmwarebuild.find_first.return_value = None
 
     auth_headers_no_ct = {k: v for k, v in authed_client._headers.items() if k != "Content-Type"}
@@ -512,7 +482,7 @@ def test_upload_firmware_build_modem_invalid_ext(authed_client, mock_db):
         data={
             "file": (BytesIO(b"fake firmware"), "app.hex"),
             "modemFile": (BytesIO(b"modem data"), "modem.bin"),
-            "chipsetId": "chip-modem",
+            "targetId": "tgt-1",
             "version": "1.0.0",
         },
         headers=auth_headers_no_ct,
@@ -555,14 +525,14 @@ def test_list_firmware_builds_with_filters(authed_client, mock_db):
         name="Test Product",
     )
 
-    chipset_obj = _make_chipset_obj()
+    target_obj = _make_target_obj()
 
     mock_db.firmwarebuild.count.return_value = 1
     mock_db.firmwarebuild.find_many.return_value = [
         make_obj(
             id="build-filtered",
             productId="prod-1",
-            chipsetId="chip-1",
+            targetId="tgt-1",
             version="2.0.0",
             isManufacturing=True,
             storageKey="firmware/prod-1/build-filtered/app.bin",
@@ -574,12 +544,12 @@ def test_list_firmware_builds_with_filters(authed_client, mock_db):
             notes=None,
             createdAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
             updatedAt=datetime(2025, 2, 1, tzinfo=timezone.utc),
-            chipset=chipset_obj,
+            target=target_obj,
         ),
     ]
 
     response = authed_client.get(
-        "/v2/products/prod-1/firmware?chipsetId=chip-1&status=RELEASED&isManufacturing=true"
+        "/v2/products/prod-1/firmware?targetId=tgt-1&status=RELEASED&isManufacturing=true"
     )
 
     assert response.status_code == 200
@@ -594,7 +564,7 @@ def test_delete_firmware_build_with_modem(authed_client, mock_db):
     mock_db.firmwarebuild.find_first.return_value = make_obj(
         id="build-modem-del",
         productId="prod-1",
-        chipsetId="chip-1",
+        targetId="tgt-1",
         version="1.0.0",
         storageKey="firmware/prod-1/build-modem-del/app.hex",
         modemStorageKey="firmware/prod-1/build-modem-del/modem.zip",

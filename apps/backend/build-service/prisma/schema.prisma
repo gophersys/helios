@@ -1,0 +1,86 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("BUILD_SERVICE_DATABASE_URL")
+  schemas  = ["build_service"]
+}
+
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+  previewFeatures      = ["multiSchema"]
+}
+
+model Worker {
+  id            String       @id @default(cuid())
+  name          String       @unique
+  ncsVersion    String
+  status        WorkerStatus @default(IDLE)
+  capabilities  Json?
+  lastHeartbeat DateTime     @default(now())
+  registeredAt  DateTime     @default(now())
+  currentJobId  String?
+  jobs          LocalJob[]
+
+  @@schema("build_service")
+}
+
+model LocalJob {
+  id              String         @id @default(cuid())
+  externalJobId   String         @unique
+  workerId        String
+  status          LocalJobStatus @default(CLAIMED)
+  step            String?
+  stepProgress    Int?
+  stepMessage     String?
+  claimedAt       DateTime       @default(now())
+  cloneStartedAt  DateTime?
+  buildStartedAt  DateTime?
+  uploadStartedAt DateTime?
+  completedAt     DateTime?
+  product         String
+  board           String
+  variant         String
+  branch          String
+  commitSha       String?
+  errorStep       String?
+  errorMessage    String?        @db.Text
+  retryCount      Int            @default(0)
+  worker          Worker         @relation(fields: [workerId], references: [id])
+
+  @@schema("build_service")
+}
+
+model RepoCache {
+  id            String   @id @default(cuid())
+  repoUrl       String
+  branch        String
+  lastCommitSha String
+  localPath     String
+  sizeBytes     BigInt?
+  lastUsedAt    DateTime @default(now())
+
+  @@unique([repoUrl, branch])
+  @@schema("build_service")
+}
+
+enum WorkerStatus {
+  IDLE
+  BUILDING
+  OFFLINE
+  DRAINING
+
+  @@schema("build_service")
+}
+
+enum LocalJobStatus {
+  CLAIMED
+  CLONING
+  CONFIGURING
+  COMPILING
+  PACKAGING
+  UPLOADING
+  SUCCESS
+  FAILED
+
+  @@schema("build_service")
+}

@@ -48,8 +48,8 @@ class Permissions:
 # Permission registry for UI grouping — defines display name & description for each permission
 PERMISSION_REGISTRY = {
     # Products & Builds
-    "products:view": {"module": "Products & Builds", "label": "View Products", "description": "View product catalog, boards, chipsets, firmware builds"},
-    "products:manage": {"module": "Products & Builds", "label": "Manage Products", "description": "Create, edit, delete products, boards, chipsets, firmware"},
+    "products:view": {"module": "Products & Builds", "label": "View Products", "description": "View product catalog, boards, firmware builds"},
+    "products:manage": {"module": "Products & Builds", "label": "Manage Products", "description": "Create, edit, delete products, boards, firmware"},
     "builds:view": {"module": "Products & Builds", "label": "View Builds", "description": "View CI pipelines, build jobs, artifacts"},
     "builds:trigger": {"module": "Products & Builds", "label": "Trigger Builds", "description": "Trigger CI pipelines and build jobs"},
     "builds:manage": {"module": "Products & Builds", "label": "Manage Builds", "description": "Configure build scripts, manage pipeline settings"},

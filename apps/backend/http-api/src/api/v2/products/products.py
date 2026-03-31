@@ -75,7 +75,7 @@ def _serialize_board_summary(b: Any) -> dict:
 
 
 def _serialize_board_revision(r: Any) -> dict:
-    result = {
+    return {
         "id": r.id,
         "boardId": r.boardId,
         "version": r.version,
@@ -84,22 +84,13 @@ def _serialize_board_revision(r: Any) -> dict:
         "createdAt": r.createdAt.isoformat(),
         "updatedAt": r.updatedAt.isoformat(),
     }
-    if hasattr(r, "chipsets") and r.chipsets is not None:
-        result["chipsets"] = [
-            {"id": rc.chipset.id, "name": rc.chipset.name, "isModem": rc.chipset.isModem}
-            for rc in r.chipsets
-            if hasattr(rc, "chipset") and rc.chipset is not None
-        ]
-    else:
-        result["chipsets"] = []
-    return result
 
 
 def _serialize_firmware_build(b: Any) -> dict:
     data = {
         "id": b.id,
         "productId": b.productId,
-        "chipsetId": b.chipsetId,
+        "targetId": b.targetId,
         "version": b.version,
         "isManufacturing": b.isManufacturing,
         "storageKey": b.storageKey,
@@ -112,14 +103,15 @@ def _serialize_firmware_build(b: Any) -> dict:
         "createdAt": b.createdAt.isoformat(),
         "updatedAt": b.updatedAt.isoformat(),
     }
-    if hasattr(b, "chipset") and b.chipset is not None:
-        data["chipset"] = {
-            "id": b.chipset.id,
-            "name": b.chipset.name,
-            "isModem": b.chipset.isModem,
+    if hasattr(b, "target") and b.target is not None:
+        data["target"] = {
+            "id": b.target.id,
+            "role": b.target.role,
+            "soc": b.target.soc,
+            "appId": b.target.appId,
         }
     else:
-        data["chipset"] = None
+        data["target"] = None
     if hasattr(b, "modemFilename") and b.modemFilename:
         data["modemFilename"] = b.modemFilename
         data["modemSizeBytes"] = str(b.modemSizeBytes) if b.modemSizeBytes is not None else None
@@ -146,7 +138,7 @@ def list_products():
         include={
             "targets": True,
             "boards": {"include": {"revisions": True}},
-            "firmwareBuilds": {"include": {"chipset": True}},
+            "firmwareBuilds": {"include": {"target": True}},
         },
     )
     return jsonify(ApiResponse.ok({
@@ -203,7 +195,7 @@ def create_product():
         include={
             "targets": True,
             "boards": {"include": {"revisions": True}},
-            "firmwareBuilds": {"include": {"chipset": True}},
+            "firmwareBuilds": {"include": {"target": True}},
         },
     )
     log_audit("product.create", "Product", product.id, {
@@ -225,16 +217,13 @@ def get_product(product_id: str):
                 "include": {
                     "revisions": {
                         "order_by": {"version": "asc"},
-                        "include": {
-                            "chipsets": {"include": {"chipset": True}},
-                        },
                     },
                 },
             },
             "firmwareBuilds": {
                 "order_by": {"createdAt": "desc"},
                 "include": {
-                    "chipset": True,
+                    "target": True,
                 },
             },
         },
@@ -284,7 +273,7 @@ def update_product(product_id: str):
         include={
             "targets": True,
             "boards": {"include": {"revisions": True}},
-            "firmwareBuilds": {"include": {"chipset": True}},
+            "firmwareBuilds": {"include": {"target": True}},
         },
     )
     log_audit("product.update", "Product", product_id, {"name": existing.name, "changes": data.to_update_data()})

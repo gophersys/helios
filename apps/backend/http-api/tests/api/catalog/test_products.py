@@ -172,11 +172,6 @@ def test_get_product(authed_client, mock_db):
                         notes="First revision",
                         createdAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
                         updatedAt=datetime(2025, 1, 10, tzinfo=timezone.utc),
-                        chipsets=[
-                            make_obj(
-                                chipset=make_obj(id="chip-1", name="nRF9160", isModem=True),
-                            ),
-                        ],
                     ),
                 ],
             ),

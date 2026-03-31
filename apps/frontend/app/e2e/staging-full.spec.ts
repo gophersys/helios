@@ -76,9 +76,8 @@ test.describe('Staging Full E2E Suite', () => {
       // Should see Catalog heading
       await expect(page.locator('text=Catalog').first()).toBeVisible({ timeout: 10000 });
 
-      // Should see Products and Chipsets tabs
+      // Should see Products
       await expect(page.locator('text=Products').first()).toBeVisible();
-      await expect(page.locator('text=Chipsets').first()).toBeVisible();
     });
 
     test('can view product detail with 6 tabs', async ({ page }) => {

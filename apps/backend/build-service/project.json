@@ -1,0 +1,64 @@
+{
+  "name": "build-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/backend/build-service/src",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python3 -m src.main",
+        "cwd": "apps/backend/build-service",
+        "env": {
+          "PYTHONPATH": "src:../../../libs/python:../../../libs/protocols:../../../libs"
+        }
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python3 -m pytest tests/ -v --tb=short",
+        "cwd": "apps/backend/build-service",
+        "env": {
+          "PYTHONPATH": "src:../../../libs/python:../../../libs/protocols:../../../libs"
+        }
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python3 -c \"import py_compile, glob; [py_compile.compile(f, doraise=True) for f in glob.glob('src/**/*.py', recursive=True)]\"",
+        "cwd": "apps/backend/build-service"
+      }
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "options": {
+        "file": "apps/backend/build-service/Dockerfile",
+        "context": "apps/backend/build-service"
+      },
+      "configurations": {
+        "staging": {
+          "tags": ["concord/build-service:staging", "containers.ad.corekinect.com/concord-build-service:staging"]
+        },
+        "production": {
+          "tags": ["concord/build-service:production", "containers.ad.corekinect.com/concord-build-service:production"]
+        }
+      }
+    },
+    "generate-client": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma generate --schema=prisma/schema.prisma",
+        "cwd": "apps/backend/build-service"
+      }
+    },
+    "migrate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma migrate dev --schema=prisma/schema.prisma",
+        "cwd": "apps/backend/build-service"
+      }
+    }
+  }
+}

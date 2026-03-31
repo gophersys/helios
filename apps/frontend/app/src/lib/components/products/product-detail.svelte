@@ -9,7 +9,7 @@
   import ProductStages from './product-stages.svelte';
   import BuildConfigCard from './build-config-card.svelte';
   import { Cpu, Layers, Upload, Wrench } from 'lucide-svelte';
-  import type { Product, Chipset } from '$lib/types/models';
+  import type { Product } from '$lib/types/models';
   import type { BuildJobArtifact } from '$lib/types/ci';
   import { createManualBuild, uploadBuildArtifact } from '$lib/services/ci';
 
@@ -17,13 +17,12 @@
 
   interface Props {
     product: Product;
-    chipsets: Chipset[];
     canManage: boolean;
     onBack: () => void;
     onRefresh: () => void;
   }
 
-  let { product, chipsets, canManage, onBack, onRefresh }: Props = $props();
+  let { product, canManage, onBack, onRefresh }: Props = $props();
 
   let activeTab = $state<Tab>('stages');
   let error = $state<string | null>(null);
@@ -213,8 +212,6 @@
         <BoardList
           productId={product.id}
           {boards}
-          builds={firmwareBuilds}
-          {chipsets}
           {canManage}
           {onRefresh}
         />
@@ -224,7 +221,7 @@
         <FirmwareBuildManager
           productId={product.id}
           builds={firmwareBuilds}
-          {chipsets}
+          targets={product.targets || []}
           {canManage}
           {onRefresh}
         />

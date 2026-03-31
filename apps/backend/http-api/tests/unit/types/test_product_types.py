@@ -125,98 +125,6 @@ def test_product_update_to_update_data():
     assert "name" not in update_data
 
 
-# ── Chipset Types ──────────────────────────────────────
-
-
-def test_chipset_create_valid():
-    from src.api.v2.products.types import ChipsetCreateRequest
-
-    data = {"name": "nRF52840", "manufacturer": "Nordic Semiconductor", "isModem": False}
-    req, err = ChipsetCreateRequest.from_json(data)
-
-    assert err is None
-    assert req is not None
-    assert req.name == "nRF52840"
-    assert req.manufacturer == "Nordic Semiconductor"
-    assert req.isModem is False
-    assert req.active is True
-
-
-def test_chipset_create_missing_name():
-    from src.api.v2.products.types import ChipsetCreateRequest
-
-    data = {"manufacturer": "Nordic"}
-    req, err = ChipsetCreateRequest.from_json(data)
-
-    assert req is None
-    assert err == "Name is required"
-
-
-def test_chipset_create_empty_body():
-    from src.api.v2.products.types import ChipsetCreateRequest
-
-    req, err = ChipsetCreateRequest.from_json(None)
-    assert req is None
-    assert err == "Request body must contain JSON data"
-
-
-def test_chipset_create_invalid_is_modem():
-    from src.api.v2.products.types import ChipsetCreateRequest
-
-    data = {"name": "nRF9160", "isModem": "yes"}
-    req, err = ChipsetCreateRequest.from_json(data)
-
-    assert req is None
-    assert err == "isModem must be a boolean"
-
-
-def test_chipset_update_valid():
-    from src.api.v2.products.types import ChipsetUpdateRequest
-
-    data = {"name": "nRF9151", "isModem": True}
-    req, err = ChipsetUpdateRequest.from_json(data)
-
-    assert err is None
-    assert req is not None
-    assert req.name == "nRF9151"
-    assert req.isModem is True
-
-    update_data = req.to_update_data()
-    assert update_data == {"name": "nRF9151", "isModem": True}
-
-
-def test_chipset_update_no_fields():
-    from src.api.v2.products.types import ChipsetUpdateRequest
-
-    req, err = ChipsetUpdateRequest.from_json({})
-    assert req is None
-    assert err == "Request body must contain JSON data"
-
-
-def test_chipset_update_empty_name():
-    from src.api.v2.products.types import ChipsetUpdateRequest
-
-    data = {"name": "   "}
-    req, err = ChipsetUpdateRequest.from_json(data)
-
-    assert req is None
-    assert err == "Name cannot be empty"
-
-
-def test_chipset_update_to_update_data_nullable():
-    from src.api.v2.products.types import ChipsetUpdateRequest
-
-    data = {"manufacturer": None, "description": None}
-    req, err = ChipsetUpdateRequest.from_json(data)
-
-    assert err is None
-    update_data = req.to_update_data()
-    assert "manufacturer" in update_data
-    assert update_data["manufacturer"] is None
-    assert "description" in update_data
-    assert update_data["description"] is None
-
-
 # ── Board Types ────────────────────────────────────────
 
 
@@ -293,20 +201,19 @@ def test_board_update_empty_name():
 def test_board_revision_create_valid():
     from src.api.v2.products.types import BoardRevisionCreateRequest
 
-    data = {"version": "v1.2", "chipsetIds": ["chip-1", "chip-2"], "status": "ACTIVE"}
+    data = {"version": "v1.2", "status": "ACTIVE"}
     req, err = BoardRevisionCreateRequest.from_json(data)
 
     assert err is None
     assert req is not None
     assert req.version == "v1.2"
-    assert req.chipsetIds == ["chip-1", "chip-2"]
     assert req.status == "ACTIVE"
 
 
 def test_board_revision_create_missing_version():
     from src.api.v2.products.types import BoardRevisionCreateRequest
 
-    data = {"chipsetIds": ["chip-1"]}
+    data = {"status": "ACTIVE"}
     req, err = BoardRevisionCreateRequest.from_json(data)
 
     assert req is None
@@ -321,16 +228,6 @@ def test_board_revision_create_invalid_status():
 
     assert req is None
     assert err == "Status must be ACTIVE, DEPRECATED, or EOL"
-
-
-def test_board_revision_create_invalid_chipset_ids():
-    from src.api.v2.products.types import BoardRevisionCreateRequest
-
-    data = {"version": "v1.0", "chipsetIds": "not-an-array"}
-    req, err = BoardRevisionCreateRequest.from_json(data)
-
-    assert req is None
-    assert err == "chipsetIds must be an array of strings"
 
 
 def test_board_revision_update_valid():
@@ -360,31 +257,6 @@ def test_board_revision_update_no_fields():
     req, err = BoardRevisionUpdateRequest.from_json({})
     assert req is None
     assert err == "Request body must contain JSON data"
-
-
-def test_board_revision_update_chipset_ids():
-    from src.api.v2.products.types import BoardRevisionUpdateRequest
-
-    data = {"chipsetIds": ["chip-1", "chip-2"]}
-    req, err = BoardRevisionUpdateRequest.from_json(data)
-
-    assert err is None
-    assert req._has_chipset_ids is True
-    assert req.chipsetIds == ["chip-1", "chip-2"]
-    # chipsetIds are handled separately, not in to_update_data()
-    update_data = req.to_update_data()
-    assert "chipsetIds" not in update_data
-
-
-def test_board_revision_update_peripherals():
-    from src.api.v2.products.types import BoardRevisionUpdateRequest
-
-    data = {"peripherals": {"ppg": True, "peltier": True}}
-    req, err = BoardRevisionUpdateRequest.from_json(data)
-
-    assert err is None
-    assert req._has_peripherals is True
-    assert req.peripherals == {"ppg": True, "peltier": True}
 
 
 def test_board_revision_update_to_update_data():

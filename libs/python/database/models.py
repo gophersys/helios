@@ -236,6 +236,7 @@ class ProductTarget(bases.BaseProductTarget):
     """
 
     product: Optional['models.Product'] = None
+    firmwareBuilds: Optional[List['models.FirmwareBuild']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -521,15 +522,10 @@ class BoardRevision(bases.BaseBoardRevision):
     """
 
     status: 'enums.LifecycleStatus'
-    peripherals: Optional['fields.Json'] = None
-    """Board peripherals config (sensors, connectors, etc.)
-    """
-
     notes: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     board: Optional['models.Board'] = None
-    chipsets: Optional[List['models.BoardRevisionChipset']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -654,292 +650,14 @@ class BoardRevision(bases.BaseBoardRevision):
         _created_partial_types.add(name)
 
 
-class BoardRevisionChipset(bases.BaseBoardRevisionChipset):
-    """Join table linking board revisions to chipsets (many-to-many).
-    """
-
-    id: _str
-    boardRevisionId: _str
-    chipsetId: _str
-    boardRevision: Optional['models.BoardRevision'] = None
-    chipset: Optional['models.Chipset'] = None
-
-    # take *args and **kwargs so that other metaclasses can define arguments
-    def __init_subclass__(
-        cls,
-        *args: Any,
-        warn_subclass: Optional[bool] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__()
-        if warn_subclass is not None:
-            warnings.warn(
-                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-
-    @staticmethod
-    def create_partial(
-        name: str,
-        include: Optional[Iterable['types.BoardRevisionChipsetKeys']] = None,
-        exclude: Optional[Iterable['types.BoardRevisionChipsetKeys']] = None,
-        required: Optional[Iterable['types.BoardRevisionChipsetKeys']] = None,
-        optional: Optional[Iterable['types.BoardRevisionChipsetKeys']] = None,
-        relations: Optional[Mapping['types.BoardRevisionChipsetRelationalFieldKeys', str]] = None,
-        exclude_relational_fields: bool = False,
-    ) -> None:
-        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
-            raise RuntimeError(
-                'Attempted to create a partial type outside of client generation.'
-            )
-
-        if name in _created_partial_types:
-            raise ValueError(f'Partial type "{name}" has already been created.')
-
-        if include is not None:
-            if exclude is not None:
-                raise TypeError('Exclude and include are mutually exclusive.')
-            if exclude_relational_fields is True:
-                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
-
-        if required and optional:
-            shared = set(required) & set(optional)
-            if shared:
-                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
-
-        if exclude_relational_fields and relations:
-            raise ValueError(
-                'exclude_relational_fields and relations are mutually exclusive'
-            )
-
-        fields: Dict['types.BoardRevisionChipsetKeys', PartialModelField] = OrderedDict()
-
-        try:
-            if include:
-                for field in include:
-                    fields[field] = _BoardRevisionChipset_fields[field].copy()
-            elif exclude:
-                for field in exclude:
-                    if field not in _BoardRevisionChipset_fields:
-                        raise KeyError(field)
-
-                fields = {
-                    key: data.copy()
-                    for key, data in _BoardRevisionChipset_fields.items()
-                    if key not in exclude
-                }
-            else:
-                fields = {
-                    key: data.copy()
-                    for key, data in _BoardRevisionChipset_fields.items()
-                }
-
-            if required:
-                for field in required:
-                    fields[field]['optional'] = False
-
-            if optional:
-                for field in optional:
-                    fields[field]['optional'] = True
-
-            if exclude_relational_fields:
-                fields = {
-                    key: data
-                    for key, data in fields.items()
-                    if key not in _BoardRevisionChipset_relational_fields
-                }
-
-            if relations:
-                for field, type_ in relations.items():
-                    if field not in _BoardRevisionChipset_relational_fields:
-                        raise errors.UnknownRelationalFieldError('BoardRevisionChipset', field)
-
-                    # TODO: this method of validating types is not ideal
-                    # as it means we cannot two create partial types that
-                    # reference each other
-                    if type_ not in _created_partial_types:
-                        raise ValueError(
-                            f'Unknown partial type: "{type_}". '
-                            f'Did you remember to generate the {type_} type before this one?'
-                        )
-
-                    # TODO: support non prisma.partials models
-                    info = fields[field]
-                    if info['is_list']:
-                        info['type'] = f'List[\'partials.{type_}\']'
-                    else:
-                        info['type'] = f'\'partials.{type_}\''
-        except KeyError as exc:
-            raise ValueError(
-                f'{exc.args[0]} is not a valid BoardRevisionChipset / {name} field.'
-            ) from None
-
-        models = partial_models_ctx.get()
-        models.append(
-            {
-                'name': name,
-                'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'BoardRevisionChipset',
-            }
-        )
-        _created_partial_types.add(name)
-
-
-class Chipset(bases.BaseChipset):
-    """A chipset / SoC that can be placed on a board revision.
-    First-class entity -- new chipsets can be added via UI without code changes.
-    """
-
-    id: _str
-    name: _str
-    """"nRF52840", "nRF9151", "ESP32"
-    """
-
-    manufacturer: Optional[_str] = None
-    """"Nordic Semiconductor"
-    """
-
-    isModem: _bool
-    description: Optional[_str] = None
-    active: _bool
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    boardRevisionChipsets: Optional[List['models.BoardRevisionChipset']] = None
-    firmwareBuilds: Optional[List['models.FirmwareBuild']] = None
-
-    # take *args and **kwargs so that other metaclasses can define arguments
-    def __init_subclass__(
-        cls,
-        *args: Any,
-        warn_subclass: Optional[bool] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__()
-        if warn_subclass is not None:
-            warnings.warn(
-                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-
-    @staticmethod
-    def create_partial(
-        name: str,
-        include: Optional[Iterable['types.ChipsetKeys']] = None,
-        exclude: Optional[Iterable['types.ChipsetKeys']] = None,
-        required: Optional[Iterable['types.ChipsetKeys']] = None,
-        optional: Optional[Iterable['types.ChipsetKeys']] = None,
-        relations: Optional[Mapping['types.ChipsetRelationalFieldKeys', str]] = None,
-        exclude_relational_fields: bool = False,
-    ) -> None:
-        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
-            raise RuntimeError(
-                'Attempted to create a partial type outside of client generation.'
-            )
-
-        if name in _created_partial_types:
-            raise ValueError(f'Partial type "{name}" has already been created.')
-
-        if include is not None:
-            if exclude is not None:
-                raise TypeError('Exclude and include are mutually exclusive.')
-            if exclude_relational_fields is True:
-                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
-
-        if required and optional:
-            shared = set(required) & set(optional)
-            if shared:
-                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
-
-        if exclude_relational_fields and relations:
-            raise ValueError(
-                'exclude_relational_fields and relations are mutually exclusive'
-            )
-
-        fields: Dict['types.ChipsetKeys', PartialModelField] = OrderedDict()
-
-        try:
-            if include:
-                for field in include:
-                    fields[field] = _Chipset_fields[field].copy()
-            elif exclude:
-                for field in exclude:
-                    if field not in _Chipset_fields:
-                        raise KeyError(field)
-
-                fields = {
-                    key: data.copy()
-                    for key, data in _Chipset_fields.items()
-                    if key not in exclude
-                }
-            else:
-                fields = {
-                    key: data.copy()
-                    for key, data in _Chipset_fields.items()
-                }
-
-            if required:
-                for field in required:
-                    fields[field]['optional'] = False
-
-            if optional:
-                for field in optional:
-                    fields[field]['optional'] = True
-
-            if exclude_relational_fields:
-                fields = {
-                    key: data
-                    for key, data in fields.items()
-                    if key not in _Chipset_relational_fields
-                }
-
-            if relations:
-                for field, type_ in relations.items():
-                    if field not in _Chipset_relational_fields:
-                        raise errors.UnknownRelationalFieldError('Chipset', field)
-
-                    # TODO: this method of validating types is not ideal
-                    # as it means we cannot two create partial types that
-                    # reference each other
-                    if type_ not in _created_partial_types:
-                        raise ValueError(
-                            f'Unknown partial type: "{type_}". '
-                            f'Did you remember to generate the {type_} type before this one?'
-                        )
-
-                    # TODO: support non prisma.partials models
-                    info = fields[field]
-                    if info['is_list']:
-                        info['type'] = f'List[\'partials.{type_}\']'
-                    else:
-                        info['type'] = f'\'partials.{type_}\''
-        except KeyError as exc:
-            raise ValueError(
-                f'{exc.args[0]} is not a valid Chipset / {name} field.'
-            ) from None
-
-        models = partial_models_ctx.get()
-        models.append(
-            {
-                'name': name,
-                'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'Chipset',
-            }
-        )
-        _created_partial_types.add(name)
-
-
 class FirmwareBuild(bases.BaseFirmwareBuild):
     """An uploaded firmware build file with version metadata.
     """
 
     id: _str
     productId: _str
-    chipsetId: _str
-    """FK to Chipset
+    targetId: Optional[_str] = None
+    """FK to ProductTarget (optional for legacy builds)
     """
 
     version: _str
@@ -973,7 +691,7 @@ class FirmwareBuild(bases.BaseFirmwareBuild):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: Optional['models.Product'] = None
-    chipset: Optional['models.Chipset'] = None
+    target: Optional['models.ProductTarget'] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -5074,6 +4792,7 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
 
 _ProductTarget_relational_fields: Set[str] = {
         'product',
+        'firmwareBuilds',
     }
 _ProductTarget_fields: Dict['types.ProductTargetKeys', PartialModelField] = OrderedDict(
     [
@@ -5122,6 +4841,14 @@ _ProductTarget_fields: Dict['types.ProductTargetKeys', PartialModelField] = Orde
             'is_list': False,
             'optional': True,
             'type': 'models.Product',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('firmwareBuilds', {
+            'name': 'firmwareBuilds',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.FirmwareBuild\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -5235,7 +4962,6 @@ _Board_fields: Dict['types.BoardKeys', PartialModelField] = OrderedDict(
 
 _BoardRevision_relational_fields: Set[str] = {
         'board',
-        'chipsets',
     }
 _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = OrderedDict(
     [
@@ -5271,14 +4997,6 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': None,
         }),
-        ('peripherals', {
-            'name': 'peripherals',
-            'is_list': False,
-            'optional': True,
-            'type': 'fields.Json',
-            'is_relational': False,
-            'documentation': '''Board peripherals config (sensors, connectors, etc.)''',
-        }),
         ('notes', {
             'name': 'notes',
             'is_list': False,
@@ -5311,158 +5029,12 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_relational': True,
             'documentation': None,
         }),
-        ('chipsets', {
-            'name': 'chipsets',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.BoardRevisionChipset\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-    ],
-)
-
-_BoardRevisionChipset_relational_fields: Set[str] = {
-        'boardRevision',
-        'chipset',
-    }
-_BoardRevisionChipset_fields: Dict['types.BoardRevisionChipsetKeys', PartialModelField] = OrderedDict(
-    [
-        ('id', {
-            'name': 'id',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('boardRevisionId', {
-            'name': 'boardRevisionId',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('chipsetId', {
-            'name': 'chipsetId',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('boardRevision', {
-            'name': 'boardRevision',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.BoardRevision',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('chipset', {
-            'name': 'chipset',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.Chipset',
-            'is_relational': True,
-            'documentation': None,
-        }),
-    ],
-)
-
-_Chipset_relational_fields: Set[str] = {
-        'boardRevisionChipsets',
-        'firmwareBuilds',
-    }
-_Chipset_fields: Dict['types.ChipsetKeys', PartialModelField] = OrderedDict(
-    [
-        ('id', {
-            'name': 'id',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('name', {
-            'name': 'name',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"nRF52840", "nRF9151", "ESP32"''',
-        }),
-        ('manufacturer', {
-            'name': 'manufacturer',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"Nordic Semiconductor"''',
-        }),
-        ('isModem', {
-            'name': 'isModem',
-            'is_list': False,
-            'optional': False,
-            'type': '_bool',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('description', {
-            'name': 'description',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('active', {
-            'name': 'active',
-            'is_list': False,
-            'optional': False,
-            'type': '_bool',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('createdAt', {
-            'name': 'createdAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('updatedAt', {
-            'name': 'updatedAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('boardRevisionChipsets', {
-            'name': 'boardRevisionChipsets',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.BoardRevisionChipset\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('firmwareBuilds', {
-            'name': 'firmwareBuilds',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.FirmwareBuild\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
     ],
 )
 
 _FirmwareBuild_relational_fields: Set[str] = {
         'product',
-        'chipset',
+        'target',
     }
 _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = OrderedDict(
     [
@@ -5482,13 +5054,13 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': None,
         }),
-        ('chipsetId', {
-            'name': 'chipsetId',
+        ('targetId', {
+            'name': 'targetId',
             'is_list': False,
-            'optional': False,
+            'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''FK to Chipset''',
+            'documentation': '''FK to ProductTarget (optional for legacy builds)''',
         }),
         ('version', {
             'name': 'version',
@@ -5618,11 +5190,11 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
             'is_relational': True,
             'documentation': None,
         }),
-        ('chipset', {
-            'name': 'chipset',
+        ('target', {
+            'name': 'target',
             'is_list': False,
             'optional': True,
-            'type': 'models.Chipset',
+            'type': 'models.ProductTarget',
             'is_relational': True,
             'documentation': None,
         }),
@@ -8774,8 +8346,6 @@ model_rebuild(Product)
 model_rebuild(ProductTarget)
 model_rebuild(Board)
 model_rebuild(BoardRevision)
-model_rebuild(BoardRevisionChipset)
-model_rebuild(Chipset)
 model_rebuild(FirmwareBuild)
 model_rebuild(ProductStageConfig)
 model_rebuild(ValidationQueueEntry)

@@ -5,20 +5,17 @@
   import Select from '$lib/components/ui/select.svelte';
   import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
-  import ChipsetTagInput from './chipset-tag-input.svelte';
-  import type { BoardRevision, FirmwareBuild, Chipset } from '$lib/types/models';
+  import type { BoardRevision } from '$lib/types/models';
 
   interface Props {
     productId: string;
     boardId: string;
     revisions: BoardRevision[];
-    builds: FirmwareBuild[];
-    chipsets: Chipset[];
     canManage: boolean;
     onRefresh: () => void;
   }
 
-  let { productId, boardId, revisions, builds, chipsets, canManage, onRefresh }: Props = $props();
+  let { productId, boardId, revisions, canManage, onRefresh }: Props = $props();
 
   let error = $state<string | null>(null);
   let showForm = $state(false);
@@ -26,49 +23,14 @@
   let submitting = $state(false);
 
   let formVersion = $state('');
-  let formChipsetIds = $state<string[]>([]);
   let formStatus = $state('ACTIVE');
-  let formSelectedBuilds = $state<Record<string, string>>({});
   let formNotes = $state('');
 
   let deleteTarget = $state<{ id: string; name: string } | null>(null);
 
-  /** Chipset options for the tag input */
-  const chipsetOptions = $derived(
-    chipsets.map((c) => ({ id: c.id, name: c.name }))
-  );
-
-  /** Get chipset name by ID */
-  function chipsetName(id: string): string {
-    return chipsets.find((c) => c.id === id)?.name || id;
-  }
-
-  /** Check if a chipset is a modem by ID */
-  function isModemChipset(id: string): boolean {
-    return chipsets.find((c) => c.id === id)?.isModem ?? false;
-  }
-
-  /** Get firmware build options filtered to a specific chipset ID */
-  function buildsForChipset(chipsetId: string) {
-    return builds
-      .filter((b) => b.chipsetId === chipsetId)
-      .map((b) => {
-        let label = `${b.version}`;
-        if (b.modemFilename) label += ' + modem';
-        return { value: b.id, label };
-      });
-  }
-
-  /** Look up a build by ID */
-  function getBuild(buildId: string): FirmwareBuild | undefined {
-    return builds.find((b) => b.id === buildId);
-  }
-
   function resetForm() {
     formVersion = '';
-    formChipsetIds = [];
     formStatus = 'ACTIVE';
-    formSelectedBuilds = {};
     formNotes = '';
     editingId = null;
     showForm = false;
@@ -76,9 +38,7 @@
 
   function startEdit(rev: BoardRevision) {
     formVersion = rev.version;
-    formChipsetIds = rev.chipsets.map((c) => c.id);
     formStatus = rev.status;
-    formSelectedBuilds = { ...(rev.selectedBuilds || {}) };
     formNotes = rev.notes || '';
     editingId = rev.id;
     showForm = true;
@@ -87,36 +47,13 @@
   async function handleSubmit(e: Event) {
     e.preventDefault();
     error = null;
-
-    // Validate: each chipset must have a firmware build selected
-    if (editingId && formChipsetIds.length > 0) {
-      const missing = formChipsetIds.filter(
-        (id) => buildsForChipset(id).length > 0 && !formSelectedBuilds[id]
-      );
-      if (missing.length > 0) {
-        error = `Select firmware for: ${missing.map(chipsetName).join(', ')}`;
-        return;
-      }
-    }
-
     submitting = true;
 
     const body: Record<string, unknown> = {
       version: formVersion,
-      chipsetIds: formChipsetIds,
       status: formStatus,
       notes: formNotes || null,
     };
-    if (editingId) {
-      // Only include chipsets that have a selection
-      const selected: Record<string, string> = {};
-      for (const id of formChipsetIds) {
-        if (formSelectedBuilds[id]) {
-          selected[id] = formSelectedBuilds[id];
-        }
-      }
-      body.selectedBuilds = Object.keys(selected).length > 0 ? selected : null;
-    }
 
     try {
       if (editingId) {
@@ -170,7 +107,7 @@
       onsubmit={handleSubmit}
       class="mb-4 rounded-lg border border-border bg-surface-0 p-3"
     >
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <label>
           <span class="mb-1 block text-2xs font-medium text-text-tertiary">Version</span>
           <input
@@ -181,14 +118,6 @@
             class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
           />
         </label>
-        <div>
-          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Chipsets</span>
-          <ChipsetTagInput
-            selected={formChipsetIds}
-            options={chipsetOptions}
-            onchange={(v) => (formChipsetIds = v)}
-          />
-        </div>
         <Select
           bind:value={formStatus}
           label="Status"
@@ -208,34 +137,6 @@
           />
         </label>
       </div>
-
-      <!-- Per-chipset firmware selection (edit mode only) -->
-      {#if editingId && formChipsetIds.length > 0}
-        {@const chipsWithBuilds = formChipsetIds.filter((id) => buildsForChipset(id).length > 0)}
-        {#if chipsWithBuilds.length > 0}
-          <div class="mt-3 border-t border-border-subtle pt-3">
-            <span class="mb-2 block text-2xs font-semibold text-text-secondary">Selected Firmware per Chipset</span>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {#each chipsWithBuilds as chipId}
-                {@const isModem = isModemChipset(chipId)}
-                {@const options = buildsForChipset(chipId)}
-                {@const selectedBuild = formSelectedBuilds[chipId] ? getBuild(formSelectedBuilds[chipId]) : null}
-                <div>
-                  <Select
-                    bind:value={formSelectedBuilds[chipId]}
-                    label={isModem ? `${chipsetName(chipId)} (modem)` : chipsetName(chipId)}
-                    placeholder="Select build..."
-                    {options}
-                  />
-                  {#if isModem && selectedBuild && !selectedBuild.modemFilename}
-                    <p class="mt-1 text-2xs text-warning">No modem firmware on this build — upload one in Firmware Releases.</p>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          </div>
-        {/if}
-      {/if}
 
       <div class="mt-3 flex gap-2">
         <button
@@ -263,8 +164,6 @@
         <thead>
           <tr class="border-b border-border">
             <th class="table-header">Version</th>
-            <th class="table-header">Chipsets</th>
-            <th class="table-header">Selected Firmware</th>
             <th class="table-header">Status</th>
             <th class="table-header">Notes</th>
             {#if canManage}
@@ -276,35 +175,6 @@
           {#each revisions as rev (rev.id)}
             <tr class="table-row">
               <td class="table-cell font-medium text-text-primary">{rev.version}</td>
-              <td class="table-cell">
-                <div class="flex flex-wrap gap-1">
-                  {#each rev.chipsets as chip}
-                    <span class="rounded-full bg-accent-muted px-2 py-0.5 text-2xs font-medium text-accent">
-                      {chip.name}
-                    </span>
-                  {/each}
-                </div>
-              </td>
-              <td class="table-cell">
-                {#if rev.selectedBuilds && Object.keys(rev.selectedBuilds).length > 0}
-                  <div class="flex flex-col gap-1">
-                    {#each Object.entries(rev.selectedBuilds) as [chipId, buildId]}
-                      {@const build = getBuild(buildId)}
-                      {#if build}
-                        <span class="inline-flex items-center gap-1 rounded-full bg-success-muted px-2 py-0.5 text-2xs font-medium text-success">
-                          <span class="text-success/70">{chipsetName(chipId)}:</span>
-                          {build.version}
-                          {#if build.modemFilename}
-                            <span class="rounded-full bg-surface-2 px-1.5 text-text-secondary">modem</span>
-                          {/if}
-                        </span>
-                      {/if}
-                    {/each}
-                  </div>
-                {:else}
-                  <span class="text-2xs text-text-tertiary">-</span>
-                {/if}
-              </td>
               <td class="table-cell">
                 <StatusBadge status={rev.status} />
               </td>

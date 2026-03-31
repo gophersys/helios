@@ -41,6 +41,7 @@ class Capability(str, Enum):
     NFC_READER = "nfc_reader"  # I2C NFC reader
     MOTION_ACTUATOR = "motion_actuator"  # FluidNC linear rail
     HAPTIC_SENSOR = "haptic_sensor"  # Vibration detection sensor
+    JLINK = "jlink"  # J-Link SWD debug probes for flashing
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

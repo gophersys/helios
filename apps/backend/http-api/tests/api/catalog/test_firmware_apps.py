@@ -1,2 +1,2 @@
 # FirmwareApplication model has been removed.
-# Firmware builds now use chipsetId (FK to Chipset) instead of applicationId.
+# Firmware builds now use targetId (FK to ProductTarget) instead of applicationId.

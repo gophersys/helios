@@ -8,17 +8,12 @@
   import ProductCard from '$lib/components/products/product-card.svelte';
   import ProductDetail from '$lib/components/products/product-detail.svelte';
   import ProductCreationWizard from '$lib/components/products/product-creation-wizard.svelte';
-  import ChipsetManagement from '$lib/components/products/chipset-management.svelte';
-  import { useChipsets } from '$lib/hooks/use-chipsets.svelte';
   import type { Product } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
-
-  type TopTab = 'products' | 'chipsets';
 
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('products:manage'));
 
-  let topTab = $state<TopTab>('products');
   let products = $state<Product[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -31,9 +26,6 @@
 
   // Wizard state
   let showWizard = $state(false);
-
-  // Chipset state
-  const chipsetState = useChipsets();
 
   async function fetchProducts() {
     try {
@@ -79,11 +71,6 @@
       error = err instanceof Error ? err.message : 'Failed to delete';
     }
   }
-
-  const topTabs: { key: TopTab; label: string }[] = [
-    { key: 'products', label: 'Products' },
-    { key: 'chipsets', label: 'Chipsets' },
-  ];
 </script>
 
 <svelte:head>
@@ -94,7 +81,7 @@
   <div class="mb-6">
     <PageHeader
       title="Products"
-      description="Manage products, firmware stages, and chipsets."
+      description="Manage products, firmware stages, and builds."
     />
   </div>
 
@@ -103,93 +90,57 @@
   {:else if selectedProduct}
     <ProductDetail
       product={selectedProduct}
-      chipsets={chipsetState.data}
       {canManage}
       onBack={() => (selectedProduct = null)}
       onRefresh={() => fetchDetail(selectedProduct!.id)}
     />
   {:else}
-    <!-- Top-level tabs -->
-    <div class="mb-5 flex gap-1 border-b border-border">
-      {#each topTabs as tab}
+    <ErrorAlert message={error} />
+
+    <!-- Add button -->
+    {#if canManage && !showWizard}
+      <div class="mb-4 flex justify-end">
         <button
-          onclick={() => (topTab = tab.key)}
-          class={[
-            'px-4 py-2 text-sm font-medium transition-colors',
-            topTab === tab.key
-              ? 'border-b-2 border-accent text-accent'
-              : 'text-text-tertiary hover:text-text-secondary'
-          ].join(' ')}
+          onclick={() => { showWizard = true; }}
+          class="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
         >
-          {tab.label}
+          <Plus size={16} />
+          New Product
         </button>
-      {/each}
-    </div>
-
-    {#if topTab === 'products'}
-      <ErrorAlert message={error} />
-
-      <!-- Add button -->
-      {#if canManage && !showWizard}
-        <div class="mb-4 flex justify-end">
-          <button
-            onclick={() => { showWizard = true; }}
-            class="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-          >
-            <Plus size={16} />
-            New Product
-          </button>
-        </div>
-      {/if}
-
-      {#if showWizard && canManage}
-        <div class="mb-4">
-          <ProductCreationWizard
-            onCreated={() => { showWizard = false; fetchProducts(); }}
-            onCancel={() => { showWizard = false; }}
-          />
-        </div>
-      {/if}
-
-      <!-- Grid -->
-      {#if products.length === 0}
-        <EmptyState message="No products yet" />
-      {:else}
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {#each products as p (p.id)}
-            <ProductCard
-              product={p}
-              {canManage}
-              onDelete={promptDelete}
-              onSelect={(prod) => fetchDetail(prod.id)}
-            />
-          {/each}
-        </div>
-      {/if}
-
-      <ConfirmDeleteDialog
-        open={!!deleteTarget}
-        entityType="product"
-        entityName={deleteTarget?.name || ''}
-        onConfirm={() => { handleDelete(deleteTarget!.id); deleteTarget = null; }}
-        onCancel={() => (deleteTarget = null)}
-      />
-    {/if}
-
-    {#if topTab === 'chipsets'}
-      <div class="card card-md">
-        {#if chipsetState.loading}
-          <LoadingState message="Loading chipsets..." />
-        {:else if chipsetState.error}
-          <ErrorAlert message={chipsetState.error} />
-        {:else}
-          <ChipsetManagement
-            chipsets={chipsetState.data}
-            {canManage}
-            onRefresh={() => chipsetState.fetch()}
-          />
-        {/if}
       </div>
     {/if}
+
+    {#if showWizard && canManage}
+      <div class="mb-4">
+        <ProductCreationWizard
+          onCreated={() => { showWizard = false; fetchProducts(); }}
+          onCancel={() => { showWizard = false; }}
+        />
+      </div>
+    {/if}
+
+    <!-- Grid -->
+    {#if products.length === 0}
+      <EmptyState message="No products yet" />
+    {:else}
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {#each products as p (p.id)}
+          <ProductCard
+            product={p}
+            {canManage}
+            onDelete={promptDelete}
+            onSelect={(prod) => fetchDetail(prod.id)}
+          />
+        {/each}
+      </div>
+    {/if}
+
+    <ConfirmDeleteDialog
+      open={!!deleteTarget}
+      entityType="product"
+      entityName={deleteTarget?.name || ''}
+      onConfirm={() => { handleDelete(deleteTarget!.id); deleteTarget = null; }}
+      onCancel={() => (deleteTarget = null)}
+    />
   {/if}
 </div>

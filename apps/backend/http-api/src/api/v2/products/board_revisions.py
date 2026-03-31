@@ -2,8 +2,6 @@ import logging
 
 from flask import jsonify, request
 
-from database import Json
-
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, not_found
@@ -17,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def _serialize_revision(r) -> dict:
-    data = {
+    return {
         "id": r.id,
         "boardId": r.boardId,
         "version": r.version,
@@ -26,20 +24,6 @@ def _serialize_revision(r) -> dict:
         "createdAt": r.createdAt.isoformat(),
         "updatedAt": r.updatedAt.isoformat(),
     }
-    if hasattr(r, "chipsets") and r.chipsets is not None:
-        data["chipsets"] = [
-            {"id": rc.chipset.id, "name": rc.chipset.name, "isModem": rc.chipset.isModem}
-            for rc in r.chipsets
-            if hasattr(rc, "chipset") and rc.chipset is not None
-        ]
-    else:
-        data["chipsets"] = []
-    return data
-
-
-_REVISION_INCLUDE = {
-    "chipsets": {"include": {"chipset": True}},
-}
 
 
 # ── Board Revisions CRUD ─────────────────────────────────
@@ -66,12 +50,6 @@ def create_board_revision(product_id: str, board_id: str):
     if existing:
         return conflict(f"Board revision '{data.version}' already exists for this board")
 
-    # Validate chipset IDs
-    for cid in data.chipsetIds:
-        chipset = db.chipset.find_unique(where={"id": cid})
-        if not chipset:
-            return bad_request(f"Chipset '{cid}' not found")
-
     revision = db.boardrevision.create(
         data={
             "boardId": board_id,
@@ -79,19 +57,6 @@ def create_board_revision(product_id: str, board_id: str):
             "status": data.status,
             "notes": data.notes,
         },
-        include=_REVISION_INCLUDE,
-    )
-
-    # Create chipset join entries
-    for cid in data.chipsetIds:
-        db.boardrevisionchipset.create(
-            data={"boardRevisionId": revision.id, "chipsetId": cid}
-        )
-
-    # Re-fetch with chipsets included
-    revision = db.boardrevision.find_unique(
-        where={"id": revision.id},
-        include=_REVISION_INCLUDE,
     )
 
     log_audit("boardRevision.create", "BoardRevision", revision.id, {
@@ -128,24 +93,6 @@ def update_board_revision(product_id: str, board_id: str, revision_id: str):
         if dup:
             return conflict(f"Board revision '{data.version}' already exists for this board")
 
-    # Update chipsets if provided
-    if data._has_chipset_ids:
-        # Validate chipset IDs
-        for cid in (data.chipsetIds or []):
-            chipset = db.chipset.find_unique(where={"id": cid})
-            if not chipset:
-                return bad_request(f"Chipset '{cid}' not found")
-
-        # Delete all existing chipset associations
-        db.boardrevisionchipset.delete_many(
-            where={"boardRevisionId": revision_id}
-        )
-        # Recreate
-        for cid in (data.chipsetIds or []):
-            db.boardrevisionchipset.create(
-                data={"boardRevisionId": revision_id, "chipsetId": cid}
-            )
-
     update_data = data.to_update_data()
     if update_data:
         db.boardrevision.update(
@@ -153,10 +100,9 @@ def update_board_revision(product_id: str, board_id: str, revision_id: str):
             data=update_data,
         )
 
-    # Re-fetch with all relations
+    # Re-fetch
     updated = db.boardrevision.find_unique(
         where={"id": revision_id},
-        include=_REVISION_INCLUDE,
     )
 
     log_audit("boardRevision.update", "BoardRevision", revision_id, {

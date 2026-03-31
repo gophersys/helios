@@ -42,24 +42,10 @@ export interface AvailablePermission {
 
 // ── Catalog types ────────────────────────────────────────────
 
-export interface Chipset {
-  id: string;
-  name: string;
-  manufacturer: string | null;
-  isModem: boolean;
-  description: string | null;
-  active: boolean;
-  productCount?: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface BoardRevision {
   id: string;
   boardId: string;
   version: string;
-  chipsets: { id: string; name: string; isModem: boolean }[];
-  selectedBuilds: Record<string, string>;
   status: string;
   notes: string | null;
   createdAt: string;
@@ -81,8 +67,8 @@ export interface Board {
 export interface FirmwareBuild {
   id: string;
   productId: string;
-  chipsetId: string;
-  chipset: { id: string; name: string; isModem: boolean };
+  targetId: string | null;
+  target: { id: string; role: string; soc: string; appId: number } | null;
   version: string;
   isManufacturing: boolean;
   storageKey: string;

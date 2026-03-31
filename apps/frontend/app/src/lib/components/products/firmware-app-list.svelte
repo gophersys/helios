@@ -5,66 +5,69 @@
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
   import FirmwareBuildUpload from './firmware-build-upload.svelte';
-  import type { FirmwareBuild, Chipset } from '$lib/types/models';
+  import type { FirmwareBuild, ProductTarget } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
   interface Props {
     productId: string;
     builds: FirmwareBuild[];
-    chipsets: Chipset[];
+    targets: ProductTarget[];
     canManage: boolean;
     onRefresh: () => void;
   }
 
-  let { productId, builds, chipsets, canManage, onRefresh }: Props = $props();
+  let { productId, builds, targets, canManage, onRefresh }: Props = $props();
 
   let error = $state<string | null>(null);
-  let expandedChipsets = $state(new Set<string>());
-  let uploadChipsetId = $state<string | null>(null);
+  let expandedTargets = $state(new Set<string>());
+  let uploadTargetId = $state<string | null>(null);
   let deleteTarget = $state<{ id: string; name: string } | null>(null);
 
-  interface ChipsetGroup {
-    chipsetId: string;
-    chipsetName: string;
+  interface TargetGroup {
+    targetId: string;
+    targetLabel: string;
     builds: FirmwareBuild[];
-    isModem: boolean;
   }
 
   const groupedBuilds = $derived.by(() => {
-    const groups: Record<string, { builds: FirmwareBuild[]; name: string; isModem: boolean }> = {};
-    // Initialize groups from available chipsets
-    for (const chip of chipsets) {
-      groups[chip.id] = { builds: [], name: chip.name, isModem: chip.isModem };
+    const groups: Record<string, { builds: FirmwareBuild[]; label: string }> = {};
+    // Initialize groups from available targets
+    for (const t of targets) {
+      groups[t.id] = { builds: [], label: `${t.soc} (${t.role})` };
     }
-    // Add builds to groups (may include chipsets not in chipsets list)
+    // Add builds to groups (may include targets not in targets list)
     for (const build of builds) {
-      if (!groups[build.chipsetId]) {
-        groups[build.chipsetId] = {
-          builds: [],
-          name: build.chipset.name,
-          isModem: build.chipset.isModem,
-        };
+      if (build.targetId) {
+        if (!groups[build.targetId]) {
+          const t = build.target;
+          groups[build.targetId] = {
+            builds: [],
+            label: t ? `${t.soc} (${t.role})` : build.targetId,
+          };
+        }
+        groups[build.targetId].builds.push(build);
       }
-      groups[build.chipsetId].builds.push(build);
     }
     return Object.entries(groups)
-      .map(([chipsetId, group]) => ({
-        chipsetId,
-        chipsetName: group.name,
+      .map(([targetId, group]) => ({
+        targetId,
+        targetLabel: group.label,
         builds: group.builds,
-        isModem: group.isModem,
       }))
-      .sort((a, b) => a.chipsetName.localeCompare(b.chipsetName));
+      .sort((a, b) => a.targetLabel.localeCompare(b.targetLabel));
   });
 
-  function toggleExpanded(chipsetId: string) {
-    const next = new Set(expandedChipsets);
-    if (next.has(chipsetId)) {
-      next.delete(chipsetId);
+  // Builds with no target
+  const untargetedBuilds = $derived(builds.filter((b) => !b.targetId));
+
+  function toggleExpanded(targetId: string) {
+    const next = new Set(expandedTargets);
+    if (next.has(targetId)) {
+      next.delete(targetId);
     } else {
-      next.add(chipsetId);
+      next.add(targetId);
     }
-    expandedChipsets = next;
+    expandedTargets = next;
   }
 
   async function handleDownload(buildId: string) {
@@ -78,7 +81,8 @@
 
   function promptDelete(buildId: string) {
     const build = builds.find((b) => b.id === buildId);
-    deleteTarget = { id: buildId, name: build ? `${build.chipset.name} v${build.version}` : '' };
+    const label = build?.target ? `${build.target.soc} v${build.version}` : `v${build?.version}`;
+    deleteTarget = { id: buildId, name: label };
   }
 
   async function handleDelete(buildId: string) {
@@ -99,21 +103,21 @@
     <h3 class="text-sm font-semibold text-text-primary">Firmware Builds</h3>
   </div>
 
-  {#if chipsets.length === 0}
+  {#if targets.length === 0}
     <div class="py-6 text-center text-sm text-text-tertiary">
-      Add chipsets first to manage firmware builds.
+      Add targets first to manage firmware builds.
     </div>
   {:else}
     <div class="space-y-2">
-      {#each groupedBuilds as group (group.chipsetId)}
-        {@const isExpanded = expandedChipsets.has(group.chipsetId)}
+      {#each groupedBuilds as group (group.targetId)}
+        {@const isExpanded = expandedTargets.has(group.targetId)}
         <div class="rounded-lg border border-border bg-surface-0">
-          <!-- Chipset header -->
+          <!-- Target header -->
           <div
             role="button"
             tabindex="0"
-            onclick={() => toggleExpanded(group.chipsetId)}
-            onkeydown={(e) => e.key === 'Enter' && toggleExpanded(group.chipsetId)}
+            onclick={() => toggleExpanded(group.targetId)}
+            onkeydown={(e) => e.key === 'Enter' && toggleExpanded(group.targetId)}
             class="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-surface-1"
           >
             {#if isExpanded}
@@ -121,10 +125,7 @@
             {:else}
               <ChevronRight size={16} class="shrink-0 text-text-tertiary" />
             {/if}
-            <span class="font-semibold text-text-primary text-sm">{group.chipsetName}</span>
-            {#if group.isModem}
-              <span class="rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary">Modem</span>
-            {/if}
+            <span class="font-semibold text-text-primary text-sm">{group.targetLabel}</span>
             <span class="ml-auto text-2xs text-text-tertiary">
               {group.builds.length} build{group.builds.length !== 1 ? 's' : ''}
             </span>
@@ -195,17 +196,16 @@
 
               {#if canManage}
                 <div class="mt-3">
-                  {#if uploadChipsetId === group.chipsetId}
+                  {#if uploadTargetId === group.targetId}
                     <FirmwareBuildUpload
                       {productId}
-                      chipsetId={group.chipsetId}
-                      isModem={group.isModem}
-                      onSuccess={() => { uploadChipsetId = null; onRefresh(); }}
-                      onCancel={() => (uploadChipsetId = null)}
+                      targetId={group.targetId}
+                      onSuccess={() => { uploadTargetId = null; onRefresh(); }}
+                      onCancel={() => (uploadTargetId = null)}
                     />
                   {:else}
                     <button
-                      onclick={() => (uploadChipsetId = group.chipsetId)}
+                      onclick={() => (uploadTargetId = group.targetId)}
                       class="flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1.5 text-2xs font-medium text-white hover:bg-accent-hover"
                     >
                       <Plus size={16} />

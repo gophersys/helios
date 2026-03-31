@@ -21,7 +21,7 @@ from .types import FirmwareBuildUpdateRequest
 logger = logging.getLogger(__name__)
 
 _BUILD_INCLUDE = {
-    "chipset": True,
+    "target": True,
 }
 
 
@@ -29,7 +29,7 @@ def _serialize_build(b: Any) -> dict:
     data = {
         "id": b.id,
         "productId": b.productId,
-        "chipsetId": b.chipsetId,
+        "targetId": b.targetId,
         "version": b.version,
         "isManufacturing": b.isManufacturing,
         "storageKey": b.storageKey,
@@ -42,14 +42,15 @@ def _serialize_build(b: Any) -> dict:
         "createdAt": b.createdAt.isoformat(),
         "updatedAt": b.updatedAt.isoformat(),
     }
-    if hasattr(b, "chipset") and b.chipset is not None:
-        data["chipset"] = {
-            "id": b.chipset.id,
-            "name": b.chipset.name,
-            "isModem": b.chipset.isModem,
+    if hasattr(b, "target") and b.target is not None:
+        data["target"] = {
+            "id": b.target.id,
+            "role": b.target.role,
+            "soc": b.target.soc,
+            "appId": b.target.appId,
         }
     else:
-        data["chipset"] = None
+        data["target"] = None
     if hasattr(b, "modemFilename") and b.modemFilename:
         data["modemFilename"] = b.modemFilename
         data["modemSizeBytes"] = str(b.modemSizeBytes) if b.modemSizeBytes is not None else None
@@ -68,9 +69,9 @@ def list_firmware_builds(product_id: str):
         return not_found("Product not found")
 
     where: dict = {"productId": product_id}
-    chipset_id = request.args.get("chipsetId")
-    if chipset_id:
-        where["chipsetId"] = chipset_id
+    target_id = request.args.get("targetId")
+    if target_id:
+        where["targetId"] = target_id
     status = request.args.get("status")
     if status:
         where["status"] = status
@@ -120,14 +121,16 @@ def upload_firmware_build(product_id: str):
         return bad_request(f"Invalid file type. Allowed: {', '.join(ALLOWED_FIRMWARE_EXTENSIONS)}")
 
     # Read form metadata
-    chipset_id = request.form.get("chipsetId", "").strip()
-    if not chipset_id:
-        return bad_request("Chipset ID is required")
+    target_id = request.form.get("targetId", "").strip()
+    if not target_id:
+        return bad_request("Target ID is required")
 
-    # Validate chipset exists
-    chipset_record = db.chipset.find_unique(where={"id": chipset_id})
-    if not chipset_record:
-        return bad_request(f"Chipset '{chipset_id}' not found")
+    # Validate target exists and belongs to product
+    target_record = db.producttarget.find_first(
+        where={"id": target_id, "productId": product_id}
+    )
+    if not target_record:
+        return bad_request(f"Target '{target_id}' not found for this product")
 
     version = request.form.get("version", "").strip()
     if not version:
@@ -139,19 +142,18 @@ def upload_firmware_build(product_id: str):
         return bad_request("Status must be DRAFT, RELEASED, or DEPRECATED")
     notes = request.form.get("notes", "").strip() or None
 
-    # Check version uniqueness per (product, chipsetId, version)
+    # Check version uniqueness per (product, targetId, version)
     existing = db.firmwarebuild.find_first(
         where={
             "productId": product_id,
-            "chipsetId": chipset_id,
+            "targetId": target_id,
             "version": version,
         }
     )
     if existing:
-        return conflict(f"Build version '{version}' already exists for chipset / {chipset_record.name}")
+        return conflict(f"Build version '{version}' already exists for target {target_record.role}")
 
-    # Modem firmware file (required for modem chipsets)
-    is_modem = chipset_record.isModem
+    # Modem firmware file
     modem_file = request.files.get("modemFile")
     modem_data = None
     modem_checksum = None
@@ -161,8 +163,6 @@ def upload_firmware_build(product_id: str):
             return bad_request("Modem firmware file must be a .zip")
         modem_data = modem_file.read()
         modem_checksum = hashlib.sha256(modem_data).hexdigest()
-    elif is_modem:
-        return bad_request(f"Modem firmware (.zip) is required for {chipset_record.name}")
 
     # Read file data and compute checksum
     file_data = file.read()
@@ -182,7 +182,7 @@ def upload_firmware_build(product_id: str):
 
         create_data = {
             "productId": product_id,
-            "chipsetId": chipset_id,
+            "targetId": target_id,
             "version": version,
             "isManufacturing": is_manufacturing,
             "storageKey": placeholder_key,
@@ -237,7 +237,7 @@ def upload_firmware_build(product_id: str):
 
         log_audit("firmwareBuild.upload", "FirmwareBuild", build.id, {
             "productName": product.name, "version": version,
-            "chipsetId": chipset_id, "chipsetName": chipset_record.name,
+            "targetId": target_id, "targetRole": target_record.role,
             "filename": file.filename, "sizeBytes": size_bytes,
         })
         return jsonify(ApiResponse.ok(_serialize_build(build)).to_dict()), 201

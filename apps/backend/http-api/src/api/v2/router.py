@@ -27,13 +27,6 @@ from .products.board_discovery import (
     discover_boards,
     list_board_branches,
 )
-from .products.chipsets import (
-    create_chipset,
-    delete_chipset,
-    get_chipset,
-    list_chipsets,
-    update_chipset,
-)
 from .products.products import (
     create_product,
     delete_product,
@@ -334,13 +327,6 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/api-keys",          view_func=list_api_keys,   methods=["GET"])
     v2.add_url_rule("/api-keys",          view_func=create_api_key,  methods=["POST"])
     v2.add_url_rule("/api-keys/<key_id>", view_func=delete_api_key,  methods=["DELETE"])
-
-    # Products - Chipsets
-    v2.add_url_rule("/products/chipsets",                                                          view_func=list_chipsets,           methods=["GET"])
-    v2.add_url_rule("/products/chipsets",                                                          view_func=create_chipset,          methods=["POST"])
-    v2.add_url_rule("/products/chipsets/<chipset_id>",                                             view_func=get_chipset,             methods=["GET"])
-    v2.add_url_rule("/products/chipsets/<chipset_id>",                                             view_func=update_chipset,          methods=["PUT"])
-    v2.add_url_rule("/products/chipsets/<chipset_id>",                                             view_func=delete_chipset,          methods=["DELETE"])
 
     # Products - Board Discovery (ck_boards)
     v2.add_url_rule("/products/boards/branches",                                                  endpoint="list_board_branches",    view_func=list_board_branches,    methods=["GET"])
