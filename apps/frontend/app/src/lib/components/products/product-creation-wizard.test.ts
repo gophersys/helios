@@ -25,12 +25,14 @@ function createMockBoardSummaries(): BoardSummary[] {
   return [
     {
       board: 'alpha',
+      vendor: 'corekinect',
       socs: ['nrf52840', 'nrf9151'],
       revisions: ['rev1.1', 'rev1.2'],
       variants: ['alpha_b0'],
     },
     {
       board: 'sigma5',
+      vendor: 'corekinect',
       socs: ['nrf52840'],
       revisions: ['rev1.0'],
       variants: ['sigma5_std'],
@@ -41,20 +43,9 @@ function createMockBoardSummaries(): BoardSummary[] {
 function createMockBoardDetail(): BoardDetail {
   return {
     board: 'alpha',
+    vendor: 'corekinect',
     socs: ['nrf52840', 'nrf9151'],
-    revisions: [
-      {
-        name: 'rev1.2',
-        peripherals: [
-          { compatible: 'bosch,bmi270', type: 'accelerometer', bus: 'spi' },
-          { compatible: 'ti,bq25180', type: 'charger', bus: 'i2c' },
-          { compatible: 'ti,bq35100', type: 'fuel-gauge', bus: 'i2c' },
-          { compatible: 'nxp,tca9534a', type: 'gpio-expander', bus: 'i2c' },
-          { compatible: 'pixart,pah8151', type: 'ppg', bus: 'spi' },
-          { compatible: 'melexis,mlx90614', type: 'ir-temp', bus: 'i2c' },
-        ],
-      },
-    ],
+    revisions: ['rev1.2'],
     variants: ['alpha_b0'],
   };
 }
@@ -162,14 +153,8 @@ describe('Wizard auto-populate from board detail', () => {
     expect(`${detail.board}_mfg_fw`).toBe('alpha_mfg_fw');
   });
 
-  it('parses peripherals from revision DTS', () => {
-    const rev = detail.revisions[0];
-    expect(rev.peripherals).toHaveLength(6);
-    expect(rev.peripherals[0]).toEqual({
-      compatible: 'bosch,bmi270',
-      type: 'accelerometer',
-      bus: 'spi',
-    });
+  it('revisions are string arrays from board.yml', () => {
+    expect(detail.revisions).toEqual(['rev1.2']);
   });
 });
 

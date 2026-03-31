@@ -593,8 +593,7 @@
           {/if}
           <!-- Trigger badge -->
           <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg {triggerDisplay.color} text-xs font-medium">
-            {@const TriggerIcon = triggerDisplay.icon}
-            <TriggerIcon size={14} />
+            {#if triggerDisplay.icon}{@const TriggerIcon = triggerDisplay.icon}<TriggerIcon size={14} />{/if}
             {triggerDisplay.label}
           </span>
         </div>

@@ -146,8 +146,7 @@
     {#if expanded}
       <div class="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-accent"></div>
     {/if}
-    {@const Icon = icon}
-    <Icon size={18} strokeWidth={1.75} class="shrink-0" />
+    {#if true}{@const Icon = icon}<Icon size={18} strokeWidth={1.75} class="shrink-0" />{/if}
     {#if !collapsed}
       <span class="flex-1 truncate">{label}</span>
       <ChevronUp
