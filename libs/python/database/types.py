@@ -1750,6 +1750,8 @@ class ProductOptionalCreateInput(TypedDict, total=False):
     slug: Optional[_str]
     description: Optional[_str]
     active: _bool
+    fwRepoSlug: Optional[_str]
+    mfgFwRepoSlug: Optional[_str]
     buildConfig: Optional['fields.Json']
     metadata: Optional['fields.Json']
     createdAt: datetime.datetime
@@ -1779,6 +1781,8 @@ class ProductOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     slug: Optional[_str]
     description: Optional[_str]
     active: _bool
+    fwRepoSlug: Optional[_str]
+    mfgFwRepoSlug: Optional[_str]
     buildConfig: Optional['fields.Json']
     metadata: Optional['fields.Json']
     createdAt: datetime.datetime
@@ -1842,6 +1846,8 @@ class ProductUpdateInput(TypedDict, total=False):
     slug: Optional[_str]
     description: Optional[_str]
     active: _bool
+    fwRepoSlug: Optional[_str]
+    mfgFwRepoSlug: Optional[_str]
     buildConfig: Optional['fields.Json']
     metadata: Optional['fields.Json']
     createdAt: datetime.datetime
@@ -1864,6 +1870,8 @@ class ProductUpdateManyMutationInput(TypedDict, total=False):
     slug: Optional[_str]
     description: Optional[_str]
     active: _bool
+    fwRepoSlug: Optional[_str]
+    mfgFwRepoSlug: Optional[_str]
     buildConfig: Optional['fields.Json']
     metadata: Optional['fields.Json']
     createdAt: datetime.datetime
@@ -1942,6 +1950,22 @@ _Product_active_OrderByInput = TypedDict(
     total=True
 )
 
+_Product_fwRepoSlug_OrderByInput = TypedDict(
+    '_Product_fwRepoSlug_OrderByInput',
+    {
+        'fwRepoSlug': 'SortOrder',
+    },
+    total=True
+)
+
+_Product_mfgFwRepoSlug_OrderByInput = TypedDict(
+    '_Product_mfgFwRepoSlug_OrderByInput',
+    {
+        'mfgFwRepoSlug': 'SortOrder',
+    },
+    total=True
+)
+
 _Product_buildConfig_OrderByInput = TypedDict(
     '_Product_buildConfig_OrderByInput',
     {
@@ -1998,6 +2022,8 @@ ProductOrderByInput = Union[
     '_Product_slug_OrderByInput',
     '_Product_description_OrderByInput',
     '_Product_active_OrderByInput',
+    '_Product_fwRepoSlug_OrderByInput',
+    '_Product_mfgFwRepoSlug_OrderByInput',
     '_Product_buildConfig_OrderByInput',
     '_Product_metadata_OrderByInput',
     '_Product_createdAt_OrderByInput',
@@ -5308,6 +5334,8 @@ class ProductWhereInput(TypedDict, total=False):
     slug: Union[None, _str, 'types.StringFilter']
     description: Union[None, _str, 'types.StringFilter']
     active: Union[_bool, 'types.BooleanFilter']
+    fwRepoSlug: Union[None, _str, 'types.StringFilter']
+    mfgFwRepoSlug: Union[None, _str, 'types.StringFilter']
     buildConfig: Union[None, 'fields.Json', 'types.JsonFilter']
     metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5336,6 +5364,8 @@ class ProductWhereInputRecursive1(TypedDict, total=False):
     slug: Union[None, _str, 'types.StringFilter']
     description: Union[None, _str, 'types.StringFilter']
     active: Union[_bool, 'types.BooleanFilter']
+    fwRepoSlug: Union[None, _str, 'types.StringFilter']
+    mfgFwRepoSlug: Union[None, _str, 'types.StringFilter']
     buildConfig: Union[None, 'fields.Json', 'types.JsonFilter']
     metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5364,6 +5394,8 @@ class ProductWhereInputRecursive2(TypedDict, total=False):
     slug: Union[None, _str, 'types.StringFilter']
     description: Union[None, _str, 'types.StringFilter']
     active: Union[_bool, 'types.BooleanFilter']
+    fwRepoSlug: Union[None, _str, 'types.StringFilter']
+    mfgFwRepoSlug: Union[None, _str, 'types.StringFilter']
     buildConfig: Union[None, 'fields.Json', 'types.JsonFilter']
     metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5392,6 +5424,8 @@ class ProductWhereInputRecursive3(TypedDict, total=False):
     slug: Union[None, _str, 'types.StringFilter']
     description: Union[None, _str, 'types.StringFilter']
     active: Union[_bool, 'types.BooleanFilter']
+    fwRepoSlug: Union[None, _str, 'types.StringFilter']
+    mfgFwRepoSlug: Union[None, _str, 'types.StringFilter']
     buildConfig: Union[None, 'fields.Json', 'types.JsonFilter']
     metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5420,6 +5454,8 @@ class ProductWhereInputRecursive4(TypedDict, total=False):
     slug: Union[None, _str, 'types.StringFilter']
     description: Union[None, _str, 'types.StringFilter']
     active: Union[_bool, 'types.BooleanFilter']
+    fwRepoSlug: Union[None, _str, 'types.StringFilter']
+    mfgFwRepoSlug: Union[None, _str, 'types.StringFilter']
     buildConfig: Union[None, 'fields.Json', 'types.JsonFilter']
     metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5448,6 +5484,8 @@ class ProductScalarWhereWithAggregatesInput(TypedDict, total=False):
     slug: Union[_str, 'types.StringWithAggregatesFilter']
     description: Union[_str, 'types.StringWithAggregatesFilter']
     active: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    fwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
+    mfgFwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     buildConfig: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5465,6 +5503,8 @@ class ProductScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
     slug: Union[_str, 'types.StringWithAggregatesFilter']
     description: Union[_str, 'types.StringWithAggregatesFilter']
     active: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    fwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
+    mfgFwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     buildConfig: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5482,6 +5522,8 @@ class ProductScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
     slug: Union[_str, 'types.StringWithAggregatesFilter']
     description: Union[_str, 'types.StringWithAggregatesFilter']
     active: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    fwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
+    mfgFwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     buildConfig: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5499,6 +5541,8 @@ class ProductScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
     slug: Union[_str, 'types.StringWithAggregatesFilter']
     description: Union[_str, 'types.StringWithAggregatesFilter']
     active: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    fwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
+    mfgFwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     buildConfig: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5516,6 +5560,8 @@ class ProductScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
     slug: Union[_str, 'types.StringWithAggregatesFilter']
     description: Union[_str, 'types.StringWithAggregatesFilter']
     active: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    fwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
+    mfgFwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     buildConfig: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5529,6 +5575,8 @@ class ProductGroupByOutput(TypedDict, total=False):
     slug: _str
     description: _str
     active: _bool
+    fwRepoSlug: _str
+    mfgFwRepoSlug: _str
     buildConfig: 'fields.Json'
     metadata: 'fields.Json'
     createdAt: datetime.datetime
@@ -5555,6 +5603,8 @@ class ProductScalarAggregateOutput(TypedDict, total=False):
     slug: _str
     description: _str
     active: _bool
+    fwRepoSlug: _str
+    mfgFwRepoSlug: _str
     buildConfig: 'fields.Json'
     metadata: 'fields.Json'
     createdAt: datetime.datetime
@@ -5572,6 +5622,8 @@ class ProductMaxAggregateInput(TypedDict, total=False):
     slug: bool
     description: bool
     active: bool
+    fwRepoSlug: bool
+    mfgFwRepoSlug: bool
     buildConfig: bool
     metadata: bool
     createdAt: bool
@@ -5585,6 +5637,8 @@ class ProductMinAggregateInput(TypedDict, total=False):
     slug: bool
     description: bool
     active: bool
+    fwRepoSlug: bool
+    mfgFwRepoSlug: bool
     buildConfig: bool
     metadata: bool
     createdAt: bool
@@ -5607,6 +5661,8 @@ ProductCountAggregateInput = TypedDict(
         'slug': bool,
         'description': bool,
         'active': bool,
+        'fwRepoSlug': bool,
+        'mfgFwRepoSlug': bool,
         'buildConfig': bool,
         'metadata': bool,
         'createdAt': bool,
@@ -5624,6 +5680,8 @@ ProductCountAggregateOutput = TypedDict(
         'slug': int,
         'description': int,
         'active': int,
+        'fwRepoSlug': int,
+        'mfgFwRepoSlug': int,
         'buildConfig': int,
         'metadata': int,
         'createdAt': int,
@@ -5640,6 +5698,8 @@ ProductKeys = Literal[
     'slug',
     'description',
     'active',
+    'fwRepoSlug',
+    'mfgFwRepoSlug',
     'buildConfig',
     'metadata',
     'createdAt',
@@ -5660,6 +5720,8 @@ ProductScalarFieldKeys = Literal[
     'slug',
     'description',
     'active',
+    'fwRepoSlug',
+    'mfgFwRepoSlug',
     'buildConfig',
     'metadata',
     'createdAt',
@@ -13330,6 +13392,8 @@ class BoardRevisionOptionalCreateInput(TypedDict, total=False):
     id: _str
     boardId: _str
     socs: List[_str]
+    deviceType: Optional[_int]
+    deviceVariant: Optional[_int]
     status: 'enums.LifecycleStatus'
     notes: Optional[_str]
     createdAt: datetime.datetime
@@ -13352,6 +13416,8 @@ class BoardRevisionOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     id: _str
     boardId: _str
     socs: List[_str]
+    deviceType: Optional[_int]
+    deviceVariant: Optional[_int]
     status: 'enums.LifecycleStatus'
     notes: Optional[_str]
     createdAt: datetime.datetime
@@ -13441,6 +13507,8 @@ class BoardRevisionUpdateInput(TypedDict, total=False):
     version: _str
     ckBoardsName: _str
     socs: 'types.StringListUpdate'
+    deviceType: Optional[Union[AtomicIntInput, _int]]
+    deviceVariant: Optional[Union[AtomicIntInput, _int]]
     status: 'enums.LifecycleStatus'
     notes: Optional[_str]
     createdAt: datetime.datetime
@@ -13455,6 +13523,8 @@ class BoardRevisionUpdateManyMutationInput(TypedDict, total=False):
     version: _str
     ckBoardsName: _str
     socs: 'types.StringListUpdate'
+    deviceType: Optional[Union[AtomicIntInput, _int]]
+    deviceVariant: Optional[Union[AtomicIntInput, _int]]
     status: 'enums.LifecycleStatus'
     notes: Optional[_str]
     createdAt: datetime.datetime
@@ -13533,6 +13603,22 @@ _BoardRevision_socs_OrderByInput = TypedDict(
     total=True
 )
 
+_BoardRevision_deviceType_OrderByInput = TypedDict(
+    '_BoardRevision_deviceType_OrderByInput',
+    {
+        'deviceType': 'SortOrder',
+    },
+    total=True
+)
+
+_BoardRevision_deviceVariant_OrderByInput = TypedDict(
+    '_BoardRevision_deviceVariant_OrderByInput',
+    {
+        'deviceVariant': 'SortOrder',
+    },
+    total=True
+)
+
 _BoardRevision_status_OrderByInput = TypedDict(
     '_BoardRevision_status_OrderByInput',
     {
@@ -13589,6 +13675,8 @@ BoardRevisionOrderByInput = Union[
     '_BoardRevision_version_OrderByInput',
     '_BoardRevision_ckBoardsName_OrderByInput',
     '_BoardRevision_socs_OrderByInput',
+    '_BoardRevision_deviceType_OrderByInput',
+    '_BoardRevision_deviceVariant_OrderByInput',
     '_BoardRevision_status_OrderByInput',
     '_BoardRevision_notes_OrderByInput',
     '_BoardRevision_createdAt_OrderByInput',
@@ -16892,6 +16980,8 @@ class BoardRevisionWhereInput(TypedDict, total=False):
     version: Union[_str, 'types.StringFilter']
     ckBoardsName: Union[_str, 'types.StringFilter']
     socs: 'types.StringListFilter'
+    deviceType: Union[None, _int, 'types.IntFilter']
+    deviceVariant: Union[None, _int, 'types.IntFilter']
     status: 'enums.LifecycleStatus'
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -16913,6 +17003,8 @@ class BoardRevisionWhereInputRecursive1(TypedDict, total=False):
     version: Union[_str, 'types.StringFilter']
     ckBoardsName: Union[_str, 'types.StringFilter']
     socs: 'types.StringListFilter'
+    deviceType: Union[None, _int, 'types.IntFilter']
+    deviceVariant: Union[None, _int, 'types.IntFilter']
     status: 'enums.LifecycleStatus'
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -16934,6 +17026,8 @@ class BoardRevisionWhereInputRecursive2(TypedDict, total=False):
     version: Union[_str, 'types.StringFilter']
     ckBoardsName: Union[_str, 'types.StringFilter']
     socs: 'types.StringListFilter'
+    deviceType: Union[None, _int, 'types.IntFilter']
+    deviceVariant: Union[None, _int, 'types.IntFilter']
     status: 'enums.LifecycleStatus'
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -16955,6 +17049,8 @@ class BoardRevisionWhereInputRecursive3(TypedDict, total=False):
     version: Union[_str, 'types.StringFilter']
     ckBoardsName: Union[_str, 'types.StringFilter']
     socs: 'types.StringListFilter'
+    deviceType: Union[None, _int, 'types.IntFilter']
+    deviceVariant: Union[None, _int, 'types.IntFilter']
     status: 'enums.LifecycleStatus'
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -16976,6 +17072,8 @@ class BoardRevisionWhereInputRecursive4(TypedDict, total=False):
     version: Union[_str, 'types.StringFilter']
     ckBoardsName: Union[_str, 'types.StringFilter']
     socs: 'types.StringListFilter'
+    deviceType: Union[None, _int, 'types.IntFilter']
+    deviceVariant: Union[None, _int, 'types.IntFilter']
     status: 'enums.LifecycleStatus'
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -16997,6 +17095,8 @@ class BoardRevisionScalarWhereWithAggregatesInput(TypedDict, total=False):
     version: Union[_str, 'types.StringWithAggregatesFilter']
     ckBoardsName: Union[_str, 'types.StringWithAggregatesFilter']
     socs: Union[_str, 'types.StringWithAggregatesFilter']
+    deviceType: Union[_int, 'types.IntWithAggregatesFilter']
+    deviceVariant: Union[_int, 'types.IntWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -17014,6 +17114,8 @@ class BoardRevisionScalarWhereWithAggregatesInputRecursive1(TypedDict, total=Fal
     version: Union[_str, 'types.StringWithAggregatesFilter']
     ckBoardsName: Union[_str, 'types.StringWithAggregatesFilter']
     socs: Union[_str, 'types.StringWithAggregatesFilter']
+    deviceType: Union[_int, 'types.IntWithAggregatesFilter']
+    deviceVariant: Union[_int, 'types.IntWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -17031,6 +17133,8 @@ class BoardRevisionScalarWhereWithAggregatesInputRecursive2(TypedDict, total=Fal
     version: Union[_str, 'types.StringWithAggregatesFilter']
     ckBoardsName: Union[_str, 'types.StringWithAggregatesFilter']
     socs: Union[_str, 'types.StringWithAggregatesFilter']
+    deviceType: Union[_int, 'types.IntWithAggregatesFilter']
+    deviceVariant: Union[_int, 'types.IntWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -17048,6 +17152,8 @@ class BoardRevisionScalarWhereWithAggregatesInputRecursive3(TypedDict, total=Fal
     version: Union[_str, 'types.StringWithAggregatesFilter']
     ckBoardsName: Union[_str, 'types.StringWithAggregatesFilter']
     socs: Union[_str, 'types.StringWithAggregatesFilter']
+    deviceType: Union[_int, 'types.IntWithAggregatesFilter']
+    deviceVariant: Union[_int, 'types.IntWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -17065,6 +17171,8 @@ class BoardRevisionScalarWhereWithAggregatesInputRecursive4(TypedDict, total=Fal
     version: Union[_str, 'types.StringWithAggregatesFilter']
     ckBoardsName: Union[_str, 'types.StringWithAggregatesFilter']
     socs: Union[_str, 'types.StringWithAggregatesFilter']
+    deviceType: Union[_int, 'types.IntWithAggregatesFilter']
+    deviceVariant: Union[_int, 'types.IntWithAggregatesFilter']
     status: 'enums.LifecycleStatus'
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -17078,6 +17186,8 @@ class BoardRevisionGroupByOutput(TypedDict, total=False):
     version: _str
     ckBoardsName: _str
     socs: List[_str]
+    deviceType: _int
+    deviceVariant: _int
     status: 'enums.LifecycleStatus'
     notes: _str
     createdAt: datetime.datetime
@@ -17091,10 +17201,14 @@ class BoardRevisionGroupByOutput(TypedDict, total=False):
 
 class BoardRevisionAvgAggregateOutput(TypedDict, total=False):
     """BoardRevision output for aggregating averages"""
+    deviceType: float
+    deviceVariant: float
 
 
 class BoardRevisionSumAggregateOutput(TypedDict, total=False):
     """BoardRevision output for aggregating sums"""
+    deviceType: _int
+    deviceVariant: _int
 
 
 class BoardRevisionScalarAggregateOutput(TypedDict, total=False):
@@ -17104,6 +17218,8 @@ class BoardRevisionScalarAggregateOutput(TypedDict, total=False):
     version: _str
     ckBoardsName: _str
     socs: List[_str]
+    deviceType: _int
+    deviceVariant: _int
     status: 'enums.LifecycleStatus'
     notes: _str
     createdAt: datetime.datetime
@@ -17121,6 +17237,8 @@ class BoardRevisionMaxAggregateInput(TypedDict, total=False):
     version: bool
     ckBoardsName: bool
     socs: bool
+    deviceType: bool
+    deviceVariant: bool
     status: bool
     notes: bool
     createdAt: bool
@@ -17134,6 +17252,8 @@ class BoardRevisionMinAggregateInput(TypedDict, total=False):
     version: bool
     ckBoardsName: bool
     socs: bool
+    deviceType: bool
+    deviceVariant: bool
     status: bool
     notes: bool
     createdAt: bool
@@ -17142,6 +17262,8 @@ class BoardRevisionMinAggregateInput(TypedDict, total=False):
 
 class BoardRevisionNumberAggregateInput(TypedDict, total=False):
     """BoardRevision input for aggregating numbers"""
+    deviceType: bool
+    deviceVariant: bool
 
 
 BoardRevisionAvgAggregateInput = BoardRevisionNumberAggregateInput
@@ -17156,6 +17278,8 @@ BoardRevisionCountAggregateInput = TypedDict(
         'version': bool,
         'ckBoardsName': bool,
         'socs': bool,
+        'deviceType': bool,
+        'deviceVariant': bool,
         'status': bool,
         'notes': bool,
         'createdAt': bool,
@@ -17173,6 +17297,8 @@ BoardRevisionCountAggregateOutput = TypedDict(
         'version': int,
         'ckBoardsName': int,
         'socs': int,
+        'deviceType': int,
+        'deviceVariant': int,
         'status': int,
         'notes': int,
         'createdAt': int,
@@ -17189,6 +17315,8 @@ BoardRevisionKeys = Literal[
     'version',
     'ckBoardsName',
     'socs',
+    'deviceType',
+    'deviceVariant',
     'status',
     'notes',
     'createdAt',
@@ -17202,6 +17330,8 @@ BoardRevisionScalarFieldKeys = Literal[
     'version',
     'ckBoardsName',
     'socs',
+    'deviceType',
+    'deviceVariant',
     'status',
     'notes',
     'createdAt',

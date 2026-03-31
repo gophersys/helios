@@ -139,8 +139,10 @@ model Product {
     id          String  @id @default(cuid())
     name        String  @unique /// "Alpha B0", "Sigma5 C0"
     slug        String? @unique /// "alpha_b0", "sigma5_c0" -- URL-safe identifier
-    description String?
-    active      Boolean @default(true)
+    description    String?
+    active         Boolean @default(true)
+    fwRepoSlug     String? /// Bitbucket slug for production firmware repo, e.g. "alpha_fw"
+    mfgFwRepoSlug  String? /// Bitbucket slug for manufacturing firmware repo, e.g. "alpha_mfg_fw"
 
     buildConfig Json? /// structured build configuration (overlays, post-build steps)
     metadata    Json? /// additional product-specific config
@@ -204,10 +206,12 @@ model Board {
 model BoardRevision {
     id           String          @id @default(cuid())
     boardId      String
-    version      String /// e.g. "A0", "B0", "B1"
-    ckBoardsName String /// full west build target name, e.g. "alpha_b0"
-    socs         String[] /// parsed from board.yml, e.g. ["nrf52840", "nrf9151"]
-    status       LifecycleStatus @default(ACTIVE)
+    version       String /// e.g. "A0", "B0", "B1"
+    ckBoardsName  String /// full west build target name, e.g. "alpha_b0"
+    socs          String[] /// parsed from board.yml, e.g. ["nrf52840", "nrf9151"]
+    deviceType    Int?   /// CoreCloud device type ID (e.g. 2 for Alpha)
+    deviceVariant Int?   /// CoreCloud device variant ID (e.g. 3 for B0)
+    status        LifecycleStatus @default(ACTIVE)
     notes        String?
     createdAt    DateTime        @default(now())
     updatedAt    DateTime        @updatedAt

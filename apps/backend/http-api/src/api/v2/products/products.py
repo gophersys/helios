@@ -44,6 +44,8 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         "slug": p.slug,
         "description": p.description,
         "active": p.active,
+        "fwRepoSlug": getattr(p, "fwRepoSlug", None),
+        "mfgFwRepoSlug": getattr(p, "mfgFwRepoSlug", None),
         "buildConfig": p.buildConfig,
         "metadata": p.metadata,
         "createdAt": p.createdAt.isoformat(),
@@ -90,6 +92,8 @@ def _serialize_board_revision(r: Any) -> dict:
         "version": r.version,
         "ckBoardsName": getattr(r, "ckBoardsName", None),
         "socs": getattr(r, "socs", []),
+        "deviceType": getattr(r, "deviceType", None),
+        "deviceVariant": getattr(r, "deviceVariant", None),
         "status": r.status,
         "notes": r.notes,
         "createdAt": r.createdAt.isoformat(),
@@ -194,6 +198,10 @@ def create_product():
     }
     if data.slug is not None:
         create_data["slug"] = data.slug
+    if data.fwRepoSlug is not None:
+        create_data["fwRepoSlug"] = data.fwRepoSlug
+    if data.mfgFwRepoSlug is not None:
+        create_data["mfgFwRepoSlug"] = data.mfgFwRepoSlug
     if data.buildConfig is not None:
         create_data["buildConfig"] = Json(data.buildConfig)
     if data.metadata is not None:

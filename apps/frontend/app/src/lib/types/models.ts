@@ -103,6 +103,8 @@ export interface Product {
   slug: string | null;
   description: string | null;
   active: boolean;
+  fwRepoSlug: string | null;
+  mfgFwRepoSlug: string | null;
   metadata: Record<string, unknown> | null;
   buildConfig: BuildConfig | null;
   targets: ProductTarget[];

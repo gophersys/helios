@@ -44,8 +44,11 @@ from .products.boards import (
 )
 from .products.board_revisions import (
     create_board_revision,
+    create_target,
     delete_board_revision,
+    delete_target,
     update_board_revision,
+    update_target,
 )
 from .products.firmware_builds import (
     delete_firmware_build,
@@ -352,6 +355,11 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions",                          view_func=create_board_revision,  methods=["POST"])
     v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=update_board_revision,  methods=["PUT"])
     v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=delete_board_revision,  methods=["DELETE"])
+
+    # Products - Revision Targets
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/targets",              view_func=create_target,  methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/targets/<target_id>",  view_func=update_target,  methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/targets/<target_id>",  view_func=delete_target,  methods=["DELETE"])
 
     # Products - Firmware
     v2.add_url_rule("/products/<product_id>/firmware",                                             view_func=list_firmware_builds,   methods=["GET"])

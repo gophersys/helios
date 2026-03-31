@@ -72,6 +72,14 @@ class Product(bases.BaseProduct):
 
     description: Optional[_str] = None
     active: _bool
+    fwRepoSlug: Optional[_str] = None
+    """Bitbucket slug for production firmware repo, e.g. "alpha_fw"
+    """
+
+    mfgFwRepoSlug: Optional[_str] = None
+    """Bitbucket slug for manufacturing firmware repo, e.g. "alpha_mfg_fw"
+    """
+
     buildConfig: Optional['fields.Json'] = None
     """structured build configuration (overlays, post-build steps)
     """
@@ -524,6 +532,14 @@ class BoardRevision(bases.BaseBoardRevision):
 
     socs: List[_str]
     """parsed from board.yml, e.g. ["nrf52840", "nrf9151"]
+    """
+
+    deviceType: Optional[_int] = None
+    """CoreCloud device type ID (e.g. 2 for Alpha)
+    """
+
+    deviceVariant: Optional[_int] = None
+    """CoreCloud device variant ID (e.g. 3 for B0)
     """
 
     status: 'enums.LifecycleStatus'
@@ -4693,6 +4709,22 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('fwRepoSlug', {
+            'name': 'fwRepoSlug',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Bitbucket slug for production firmware repo, e.g. "alpha_fw"''',
+        }),
+        ('mfgFwRepoSlug', {
+            'name': 'mfgFwRepoSlug',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Bitbucket slug for manufacturing firmware repo, e.g. "alpha_mfg_fw"''',
+        }),
         ('buildConfig', {
             'name': 'buildConfig',
             'is_list': False,
@@ -5007,6 +5039,22 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'type': 'List[_str]',
             'is_relational': False,
             'documentation': '''parsed from board.yml, e.g. ["nrf52840", "nrf9151"]''',
+        }),
+        ('deviceType', {
+            'name': 'deviceType',
+            'is_list': False,
+            'optional': True,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': '''CoreCloud device type ID (e.g. 2 for Alpha)''',
+        }),
+        ('deviceVariant', {
+            'name': 'deviceVariant',
+            'is_list': False,
+            'optional': True,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': '''CoreCloud device variant ID (e.g. 3 for B0)''',
         }),
         ('status', {
             'name': 'status',

@@ -117,6 +117,13 @@ export const api = {
     });
   },
 
+  async patch<T = unknown>(path: string, body?: unknown): Promise<T> {
+    return apiFetch<T>(path, {
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined
+    });
+  },
+
   async delete<T = unknown>(path: string): Promise<T> {
     return apiFetch<T>(path, { method: 'DELETE' });
   }

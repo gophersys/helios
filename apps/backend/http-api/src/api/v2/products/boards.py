@@ -87,6 +87,10 @@ def create_board(product_id: str):
                 "ckBoardsName": r["ckBoardsName"],
                 "socs": r["socs"],
             }
+            if r.get("deviceType") is not None:
+                rev_data["deviceType"] = r["deviceType"]
+            if r.get("deviceVariant") is not None:
+                rev_data["deviceVariant"] = r["deviceVariant"]
             if r.get("targets"):
                 rev_data["targets"] = {
                     "create": [
@@ -135,6 +139,8 @@ def _serialize_board_revision(r: Any) -> dict:
         "version": r.version,
         "ckBoardsName": getattr(r, "ckBoardsName", None),
         "socs": getattr(r, "socs", []),
+        "deviceType": getattr(r, "deviceType", None),
+        "deviceVariant": getattr(r, "deviceVariant", None),
         "status": r.status,
         "notes": r.notes,
         "createdAt": r.createdAt.isoformat(),

@@ -65,17 +65,7 @@
       case 1: return selectedBranch !== '';
       case 2: return selectedFamily !== '';
       case 3: {
-        if (productName.trim() === '') return false;
-        if (fwRepoSlug.trim() === '') return false;
-        if (mfgFwRepoSlug.trim() === '') return false;
-        const revs = Object.values(revisionConfigs);
-        if (revs.length === 0) return false;
-        return revs.every((rev) =>
-          rev.deviceType > 0 &&
-          rev.deviceVariant > 0 &&
-          Object.values(rev.targets).length > 0 &&
-          Object.values(rev.targets).every((t) => t.appId > 0)
-        );
+        return productName.trim() !== '';
       }
       default: return false;
     }
@@ -170,8 +160,8 @@
         name: productName.trim(),
         slug: productSlug.trim() || null,
         description: productDescription.trim() || null,
-        fwRepoSlug: fwRepoSlug.trim(),
-        mfgFwRepoSlug: mfgFwRepoSlug.trim(),
+        fwRepoSlug: fwRepoSlug.trim() || null,
+        mfgFwRepoSlug: mfgFwRepoSlug.trim() || null,
         board: boardDetail
           ? {
               ckBoardsFamily: selectedFamily,
@@ -388,7 +378,7 @@
 
               <div class="mb-3 grid gap-3 sm:grid-cols-2">
                 <label class="block">
-                  <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Type *</span>
+                  <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Type</span>
                   <input
                     type="number"
                     min="0"
@@ -397,7 +387,7 @@
                   />
                 </label>
                 <label class="block">
-                  <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Variant *</span>
+                  <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Variant</span>
                   <input
                     type="number"
                     min="0"
@@ -408,7 +398,7 @@
               </div>
 
               <div class="grid gap-3 sm:grid-cols-2">
-                {#each Object.entries(cfg.targets) as [role, target]}
+                {#each Object.entries(cfg.targets).sort(([a], [b]) => a === 'app' ? -1 : b === 'app' ? 1 : 0) as [role, target]}
                   <div class="rounded-lg border border-border-subtle bg-surface-1 p-3">
                     <div class="mb-2 flex items-center gap-2">
                       <Cpu size={14} class="text-accent" />
@@ -416,7 +406,7 @@
                       <span class="font-mono text-2xs text-text-tertiary">({target.soc})</span>
                     </div>
                     <label class="block">
-                      <span class="mb-1 block text-2xs text-text-tertiary">AppID *</span>
+                      <span class="mb-1 block text-2xs text-text-tertiary">AppID</span>
                       <input
                         type="number"
                         min="0"
@@ -434,7 +424,7 @@
           <!-- Firmware Repositories -->
           <div class="grid gap-3 sm:grid-cols-2">
             <label class="block">
-              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Firmware Repository (Bitbucket slug) *</span>
+              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Firmware Repository (Bitbucket slug)</span>
               <input
                 type="text"
                 bind:value={fwRepoSlug}
@@ -443,7 +433,7 @@
               />
             </label>
             <label class="block">
-              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Manufacturing Firmware Repository (Bitbucket slug) *</span>
+              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Manufacturing Firmware Repository (Bitbucket slug)</span>
               <input
                 type="text"
                 bind:value={mfgFwRepoSlug}
@@ -499,7 +489,7 @@
                 </span>
               </div>
               <div class="grid gap-2 sm:grid-cols-2">
-                {#each Object.entries(cfg.targets) as [role, target]}
+                {#each Object.entries(cfg.targets).sort(([a], [b]) => a === 'app' ? -1 : b === 'app' ? 1 : 0) as [role, target]}
                   <div class="flex items-center justify-between rounded border border-border-subtle bg-surface-1 px-3 py-2">
                     <span class="text-xs font-medium capitalize text-text-primary">{role}</span>
                     <span class="font-mono text-2xs text-text-secondary">
