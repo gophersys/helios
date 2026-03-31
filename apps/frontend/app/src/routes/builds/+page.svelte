@@ -640,8 +640,8 @@
             </span>
             <!-- Trigger source badge (only for non-manual triggers) -->
             {#if pipeline.triggerType && pipeline.triggerType !== 'manual'}
+              {@const TriggerIcon = trigger.icon}
               <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {trigger.color} font-medium">
-                {@const TriggerIcon = trigger.icon}
                 <TriggerIcon size={10} />
                 {trigger.label}
               </span>
