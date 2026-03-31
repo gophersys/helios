@@ -54,7 +54,7 @@ def login():
     if not user and is_dev_admin:
         # Auto-create dev admin with all permissions on first login
         from src.lib.permissions import Permissions
-        all_perms = [v for k, v in vars(Permissions).items() if not k.startswith("_")]
+        all_perms = [v for k, v in vars(Permissions).items() if not k.startswith("_") and isinstance(v, str)]
         perm_set = db.permissionset.upsert(
             where={"name": "Super Admin"},
             data={

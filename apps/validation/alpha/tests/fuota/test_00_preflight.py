@@ -83,14 +83,12 @@ class TestPreflight:
             print("J-Link probes will be verified during flash step")
             print("WARNING: If flash fails, check J-Link USB connections")
 
-    def test_modem_firmware(self, pipeline_assets):
+    def test_modem_firmware(self, stage_assets):
         """Verify modem firmware is available in pipeline triggerData."""
-        modem_info = pipeline_assets.modem_firmware_info
+        modem_zip = stage_assets.modem_zip()
 
-        if modem_info:
-            print(f"Modem FW:     {modem_info.get('name', '?')}")
-            print(f"Version:      {modem_info.get('version', '?')}")
-            print(f"Storage key:  {modem_info.get('storageKey', '?')}")
+        if modem_zip:
+            print(f"Modem FW:     {modem_zip}")
         else:
             print("WARNING: No modem firmware in pipeline triggerData")
             print("Modem flash will be skipped during test_02_flash_firmware")

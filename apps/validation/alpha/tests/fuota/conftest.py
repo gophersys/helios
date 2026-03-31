@@ -7,7 +7,7 @@ MTIB, UART, power, and artifact infrastructure come from the root conftest's
 access, and get background UART capture + artifact streaming for free.
 
 FUOTA-specific fixtures (defined here):
-    pipeline_assets:  ArtifactResolver — strict (fails if PIPELINE_ID missing)
+    stage_assets:     StageAssets — typed build access (fails if PIPELINE_ID missing)
     fuota_client:     CoreCloud FUOTA API client
     device_config:    Device identity (SNR, device_id, IMEI, ICCIDs)
 
@@ -99,16 +99,13 @@ def device_config(request) -> DeviceConfig:
 
 
 @pytest.fixture(scope="session")
-def pipeline_assets(request):
-    """Artifact resolver for FUOTA builds. Downloads hex/CFW on demand.
+def stage_assets(request):
+    """Stage-aware firmware assets for FUOTA tests.
 
-    Shadows the root conftest's pipeline_assets fixture with a stricter
-    version that fails immediately if PIPELINE_ID is not set (FUOTA stage
-    always requires a pipeline).
-
-    Returns an ArtifactResolver instance.
+    Wraps ArtifactResolver with typed access (BuildAsset) and validates
+    all required FUOTA build labels are present.
     """
-    from corekinect.test.artifact_resolver import ArtifactResolver
+    from corekinect.test.stage_assets import StageAssets
 
     pipeline_id = (
         request.config.getoption("--pipeline-id", default=None)
@@ -117,16 +114,18 @@ def pipeline_assets(request):
     if not pipeline_id:
         pytest.fail("PIPELINE_ID is required for FUOTA tests")
 
-    resolver = ArtifactResolver(
+    assets = StageAssets.from_pipeline(
         pipeline_id=pipeline_id,
+        stage="fuota",
         api_url=os.environ.get("CONCORD_API_URL", ""),
         api_key=os.environ.get("CONCORD_API_KEY", ""),
+        strict=False,  # Don't fail here — preflight test validates
     )
-    log.info("ArtifactResolver loaded: %s", pipeline_id)
+    log.info("StageAssets loaded: pipeline=%s, labels=%s", pipeline_id, assets.labels)
 
-    yield resolver
+    yield assets
 
-    resolver.cleanup()
+    assets.cleanup()
 
 
 @pytest.fixture(scope="session")
