@@ -2,7 +2,7 @@ import { apiFetch, api, apiDownload, apiUpload } from '$lib/api';
 import type { ApiResponse } from '$lib/types';
 import type {
   BuildJob,
-  BuildJobArtifact,
+  BuildArtifact,
   Pipeline,
   PipelineStageInfo,
   PipelineStageStatus,
@@ -31,7 +31,7 @@ interface PaginatedApiResponse<T> {
   resultsPerPage?: number;
 }
 
-export async function fetchPipelines(
+export async function fetchBuildRuns(
   params?: FetchPipelinesParams
 ): Promise<{ data: Pipeline[]; pagination: Pagination }> {
   const qs = new URLSearchParams();
@@ -43,7 +43,7 @@ export async function fetchPipelines(
   if (params?.matrixMode) qs.set('matrixMode', params.matrixMode);
 
   const res = await apiFetch<PaginatedApiResponse<Pipeline[]>>(
-    `/v2/builds/pipelines?${qs.toString()}`
+    `/v2/builds/runs?${qs.toString()}`
   );
   return {
     data: res.data,
@@ -56,8 +56,8 @@ export async function fetchPipelines(
   };
 }
 
-export async function fetchPipeline(id: string): Promise<Pipeline> {
-  const res = await apiFetch<ApiResponse<Pipeline>>(`/v2/builds/pipelines/${id}`);
+export async function fetchBuildRun(id: string): Promise<Pipeline> {
+  const res = await apiFetch<ApiResponse<Pipeline>>(`/v2/builds/runs/${id}`);
   const pipeline = res.data;
 
   // Compute stages from pipeline status and builds
@@ -180,8 +180,8 @@ export async function fetchBuildLog(id: string): Promise<string> {
   return res.data.log;
 }
 
-export async function fetchBuildArtifacts(id: string): Promise<BuildJobArtifact[]> {
-  const res = await apiFetch<ApiResponse<BuildJobArtifact[]>>(`/v2/builds/${id}/artifacts`);
+export async function fetchBuildArtifacts(id: string): Promise<BuildArtifact[]> {
+  const res = await apiFetch<ApiResponse<BuildArtifact[]>>(`/v2/builds/${id}/artifacts`);
   return res.data;
 }
 
@@ -221,7 +221,7 @@ export async function uploadBuildArtifact(
   buildId: string,
   file: File,
   metadata: { role?: string; processor?: string; artifactType?: string; contentType?: string }
-): Promise<BuildJobArtifact> {
+): Promise<BuildArtifact> {
   const formData = new FormData();
   formData.append('file', file);
   if (metadata.role) formData.append('role', metadata.role);
@@ -229,7 +229,7 @@ export async function uploadBuildArtifact(
   if (metadata.artifactType) formData.append('artifactType', metadata.artifactType);
   if (metadata.contentType) formData.append('contentType', metadata.contentType);
 
-  const res = await apiUpload<ApiResponse<BuildJobArtifact>>(`/v2/builds/${buildId}/artifacts`, formData);
+  const res = await apiUpload<ApiResponse<BuildArtifact>>(`/v2/builds/${buildId}/artifacts`, formData);
   return res.data;
 }
 
@@ -253,9 +253,9 @@ export interface ArtifactValidationReport {
   }>;
 }
 
-export async function validatePipelineArtifacts(pipelineId: string): Promise<ArtifactValidationReport> {
+export async function validatePipelineArtifacts(runId: string): Promise<ArtifactValidationReport> {
   const res = await api.post<ApiResponse<ArtifactValidationReport>>(
-    `/v2/builds/pipelines/${pipelineId}/validate-artifacts`
+    `/v2/builds/runs/${runId}/validate-artifacts`
   );
   return res.data;
 }
@@ -266,22 +266,22 @@ export async function resetBuild(id: string): Promise<BuildJob> {
 }
 
 export async function cancelPipeline(id: string): Promise<Pipeline> {
-  const res = await api.post<ApiResponse<Pipeline>>(`/v2/builds/pipelines/${id}/cancel`, {});
+  const res = await api.post<ApiResponse<Pipeline>>(`/v2/builds/runs/${id}/cancel`, {});
   return res.data;
 }
 
 export async function triggerPipelineValidation(
-  pipelineId: string
-): Promise<{ pipelineId: string; validationRunId: string; status: string }> {
-  const res = await api.post<ApiResponse<{ pipelineId: string; validationRunId: string; status: string }>>(
-    `/v2/builds/pipelines/${pipelineId}/validate`, {}
+  runId: string
+): Promise<{ runId: string; validationRunId: string; status: string }> {
+  const res = await api.post<ApiResponse<{ runId: string; validationRunId: string; status: string }>>(
+    `/v2/builds/runs/${runId}/validate`, {}
   );
   return res.data;
 }
 
 // ── Pipeline Sessions ──────────────────────────────────────────
 
-export interface PipelineSessionSummary {
+export interface BuildRunSessionSummary {
   id: string;
   name: string;
   status: string;
@@ -292,9 +292,9 @@ export interface PipelineSessionSummary {
   config: Record<string, unknown> | null;
 }
 
-export async function fetchPipelineSessions(pipelineId: string): Promise<PipelineSessionSummary[]> {
-  const res = await apiFetch<ApiResponse<PipelineSessionSummary[]>>(
-    `/v2/builds/pipelines/${pipelineId}/sessions`
+export async function fetchBuildRunSessions(runId: string): Promise<BuildRunSessionSummary[]> {
+  const res = await apiFetch<ApiResponse<BuildRunSessionSummary[]>>(
+    `/v2/builds/runs/${runId}/sessions`
   );
   return Array.isArray(res.data) ? res.data : [];
 }
@@ -317,14 +317,14 @@ export async function downloadBuildArtifacts(
 /**
  * Download all artifacts for a pipeline (all builds) as a ZIP.
  */
-export async function downloadPipelineArtifacts(
-  pipelineId: string,
+export async function downloadBuildRunArtifacts(
+  runId: string,
   product: string,
   branch: string
 ): Promise<void> {
   const safeBranch = branch.replace(/[^a-zA-Z0-9-_]/g, '_');
   const filename = `${product}_${safeBranch}_all.zip`;
-  await apiDownload(`/v2/builds/pipelines/${pipelineId}/artifacts/download`, filename);
+  await apiDownload(`/v2/builds/runs/${runId}/artifacts/download`, filename);
 }
 
 /**

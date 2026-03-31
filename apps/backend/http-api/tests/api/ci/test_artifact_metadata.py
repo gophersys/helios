@@ -1,4 +1,4 @@
-"""Tests for BuildJobArtifact role/processor/artifactType metadata.
+"""Tests for BuildArtifact role/processor/artifactType metadata.
 
 TDD tests written before implementation — verifies:
 1. Upload artifact with role/processor/artifactType metadata
@@ -45,7 +45,7 @@ def _build_obj(**overrides):
         "finishedAt": None,
         "durationSeconds": None,
         "buildLog": None,
-        "pipelineRunId": None,
+        "buildRunId": None,
         "webhookData": None,
         "matrixLabel": None,
         "matrixIndex": None,
@@ -98,7 +98,7 @@ class TestUploadArtifactMetadata:
             processor="nrf52840",
             artifactType="plaintextHex",
         )
-        mock_db.buildjobartifact.create.return_value = created_artifact
+        mock_db.buildartifact.create.return_value = created_artifact
 
         data = {
             "file": (io.BytesIO(b"\x00" * 100), "app_nrf52840.hex"),
@@ -120,7 +120,7 @@ class TestUploadArtifactMetadata:
         assert body["data"]["artifactType"] == "plaintextHex"
 
         # Verify the create call included metadata
-        create_call = mock_db.buildjobartifact.create.call_args
+        create_call = mock_db.buildartifact.create.call_args
         create_data = create_call.kwargs["data"]
         assert create_data["role"] == "app"
         assert create_data["processor"] == "nrf52840"
@@ -134,7 +134,7 @@ class TestUploadArtifactMetadata:
         mock_storage.return_value = MagicMock()
 
         created_artifact = _artifact_obj(role="comms")
-        mock_db.buildjobartifact.create.return_value = created_artifact
+        mock_db.buildartifact.create.return_value = created_artifact
 
         data = {
             "file": (io.BytesIO(b"\x00" * 50), "comms_nrf9151.hex"),
@@ -148,7 +148,7 @@ class TestUploadArtifactMetadata:
         )
 
         assert response.status_code == 201
-        create_data = mock_db.buildjobartifact.create.call_args.kwargs["data"]
+        create_data = mock_db.buildartifact.create.call_args.kwargs["data"]
         assert create_data["role"] == "comms"
         assert create_data.get("processor") is None
         assert create_data.get("artifactType") is None
@@ -161,7 +161,7 @@ class TestUploadArtifactMetadata:
         mock_storage.return_value = MagicMock()
 
         created_artifact = _artifact_obj()
-        mock_db.buildjobartifact.create.return_value = created_artifact
+        mock_db.buildartifact.create.return_value = created_artifact
 
         data = {
             "file": (io.BytesIO(b"\x00" * 50), "build.json"),
@@ -174,7 +174,7 @@ class TestUploadArtifactMetadata:
         )
 
         assert response.status_code == 201
-        create_data = mock_db.buildjobartifact.create.call_args.kwargs["data"]
+        create_data = mock_db.buildartifact.create.call_args.kwargs["data"]
         assert create_data.get("role") is None
         assert create_data.get("processor") is None
         assert create_data.get("artifactType") is None
@@ -190,7 +190,7 @@ class TestArtifactSerializerMetadata:
     def test_list_artifacts_includes_metadata_fields(self, authed_client, mock_db):
         """List artifacts response includes role, processor, artifactType."""
         mock_db.buildjob.find_unique.return_value = _build_obj()
-        mock_db.buildjobartifact.find_many.return_value = [
+        mock_db.buildartifact.find_many.return_value = [
             _artifact_obj(
                 id="a1",
                 name="app_nrf52840.hex",
@@ -226,7 +226,7 @@ class TestArtifactSerializerMetadata:
     def test_list_artifacts_null_metadata(self, authed_client, mock_db):
         """Artifacts without metadata have null for role/processor/artifactType."""
         mock_db.buildjob.find_unique.return_value = _build_obj()
-        mock_db.buildjobartifact.find_many.return_value = [
+        mock_db.buildartifact.find_many.return_value = [
             _artifact_obj(id="a3", role=None, processor=None, artifactType=None),
         ]
 
@@ -268,7 +268,7 @@ class TestArtifactFiltering:
     def test_filter_by_role(self, authed_client, mock_db):
         """Filter artifacts by role query parameter."""
         mock_db.buildjob.find_unique.return_value = _build_obj()
-        mock_db.buildjobartifact.find_many.return_value = [
+        mock_db.buildartifact.find_many.return_value = [
             _artifact_obj(id="a1", role="app"),
         ]
 
@@ -276,33 +276,33 @@ class TestArtifactFiltering:
         assert response.status_code == 200
 
         # Verify the where clause included role filter
-        call_args = mock_db.buildjobartifact.find_many.call_args
+        call_args = mock_db.buildartifact.find_many.call_args
         assert call_args.kwargs["where"]["role"] == "app"
 
     def test_filter_by_artifact_type(self, authed_client, mock_db):
         """Filter artifacts by type query parameter."""
         mock_db.buildjob.find_unique.return_value = _build_obj()
-        mock_db.buildjobartifact.find_many.return_value = [
+        mock_db.buildartifact.find_many.return_value = [
             _artifact_obj(id="a2", artifactType="encryptedCfw"),
         ]
 
         response = authed_client.get("/v2/builds/build-001/artifacts?type=encryptedCfw")
         assert response.status_code == 200
 
-        call_args = mock_db.buildjobartifact.find_many.call_args
+        call_args = mock_db.buildartifact.find_many.call_args
         assert call_args.kwargs["where"]["artifactType"] == "encryptedCfw"
 
     def test_filter_by_role_and_type(self, authed_client, mock_db):
         """Filter artifacts by both role and type."""
         mock_db.buildjob.find_unique.return_value = _build_obj()
-        mock_db.buildjobartifact.find_many.return_value = [
+        mock_db.buildartifact.find_many.return_value = [
             _artifact_obj(id="a3", role="app", artifactType="plaintextHex"),
         ]
 
         response = authed_client.get("/v2/builds/build-001/artifacts?role=app&type=plaintextHex")
         assert response.status_code == 200
 
-        call_args = mock_db.buildjobartifact.find_many.call_args
+        call_args = mock_db.buildartifact.find_many.call_args
         where = call_args.kwargs["where"]
         assert where["role"] == "app"
         assert where["artifactType"] == "plaintextHex"
@@ -310,20 +310,20 @@ class TestArtifactFiltering:
     def test_filter_by_processor(self, authed_client, mock_db):
         """Filter artifacts by processor query parameter."""
         mock_db.buildjob.find_unique.return_value = _build_obj()
-        mock_db.buildjobartifact.find_many.return_value = [
+        mock_db.buildartifact.find_many.return_value = [
             _artifact_obj(id="a4", processor="nrf52840"),
         ]
 
         response = authed_client.get("/v2/builds/build-001/artifacts?processor=nrf52840")
         assert response.status_code == 200
 
-        call_args = mock_db.buildjobartifact.find_many.call_args
+        call_args = mock_db.buildartifact.find_many.call_args
         assert call_args.kwargs["where"]["processor"] == "nrf52840"
 
     def test_no_filters_returns_all(self, authed_client, mock_db):
         """No filter parameters returns all artifacts for the build."""
         mock_db.buildjob.find_unique.return_value = _build_obj()
-        mock_db.buildjobartifact.find_many.return_value = [
+        mock_db.buildartifact.find_many.return_value = [
             _artifact_obj(id="a1"),
             _artifact_obj(id="a2"),
         ]
@@ -331,7 +331,7 @@ class TestArtifactFiltering:
         response = authed_client.get("/v2/builds/build-001/artifacts")
         assert response.status_code == 200
 
-        call_args = mock_db.buildjobartifact.find_many.call_args
+        call_args = mock_db.buildartifact.find_many.call_args
         where = call_args.kwargs["where"]
         # Only buildJobId should be in where, no metadata filters
         assert where == {"buildJobId": "build-001"}

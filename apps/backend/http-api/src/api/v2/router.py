@@ -228,7 +228,7 @@ from .nodes.observability import (
 from .docs import openapi_spec, swagger_ui
 
 # Builds handlers (was ci/)
-from .builds.webhook import webhook_bitbucket, trigger_pipeline, set_ci_socketio, list_ci_repos
+from .builds.webhook import webhook_bitbucket, trigger_build_run, set_ci_socketio, list_ci_repos
 from .builds.builds import (
     list_builds as list_ci_builds,
     get_build as get_ci_build,
@@ -242,15 +242,15 @@ from .builds.builds import (
     upload_build_artifact as upload_ci_build_artifact,
     reset_build as reset_ci_build,
 )
-from .builds.pipelines import (
-    list_pipelines as list_ci_pipelines,
-    get_pipeline as get_ci_pipeline,
-    create_pipeline as create_ci_pipeline,
-    cancel_pipeline as cancel_ci_pipeline,
-    download_pipeline_artifacts as download_ci_pipeline_artifacts,
-    validate_pipeline as validate_ci_pipeline,
-    validate_pipeline_artifacts_endpoint as validate_ci_pipeline_artifacts,
-    list_pipeline_sessions as list_ci_pipeline_sessions,
+from .builds.build_runs import (
+    list_build_runs as list_ci_build_runs,
+    get_build_run as get_ci_build_run,
+    create_build_run as create_ci_build_run,
+    cancel_build_run as cancel_ci_build_run,
+    download_build_run_artifacts as download_ci_build_run_artifacts,
+    validate_build_run as validate_ci_build_run,
+    validate_build_run_artifacts_endpoint as validate_ci_build_run_artifacts,
+    list_build_run_sessions as list_ci_build_run_sessions,
 )
 from .builds.scripts import (
     list_build_scripts,
@@ -579,7 +579,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
 
     # Builds - Webhooks & Triggers
     v2.add_url_rule("/builds/webhooks/bitbucket",                                               endpoint="ci_webhook_bitbucket",     view_func=webhook_bitbucket,     methods=["POST"])
-    v2.add_url_rule("/builds/trigger",                                                          endpoint="ci_trigger_pipeline",      view_func=trigger_pipeline,      methods=["POST"])
+    v2.add_url_rule("/builds/trigger",                                                          endpoint="ci_trigger_build_run",      view_func=trigger_build_run,      methods=["POST"])
 
     # Builds
     v2.add_url_rule("/builds",                                                                  endpoint="list_ci_builds",           view_func=list_ci_builds,        methods=["GET"])
@@ -595,14 +595,14 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/builds/<build_id>/reset",                                                 endpoint="reset_ci_build",           view_func=reset_ci_build,        methods=["POST"])
 
     # Builds - Pipelines
-    v2.add_url_rule("/builds/pipelines",                                                        endpoint="list_ci_pipelines",        view_func=list_ci_pipelines,     methods=["GET"])
-    v2.add_url_rule("/builds/pipelines",                                                        endpoint="create_ci_pipeline",       view_func=create_ci_pipeline,    methods=["POST"])
-    v2.add_url_rule("/builds/pipelines/<pipeline_id>",                                          endpoint="get_ci_pipeline",          view_func=get_ci_pipeline,       methods=["GET"])
-    v2.add_url_rule("/builds/pipelines/<pipeline_id>/cancel",                                   endpoint="cancel_ci_pipeline",       view_func=cancel_ci_pipeline,    methods=["POST"])
-    v2.add_url_rule("/builds/pipelines/<pipeline_id>/validate",                                endpoint="validate_ci_pipeline",     view_func=validate_ci_pipeline,  methods=["POST"])
-    v2.add_url_rule("/builds/pipelines/<pipeline_id>/artifacts/download",                       endpoint="download_ci_pipeline_artifacts", view_func=download_ci_pipeline_artifacts, methods=["GET"])
-    v2.add_url_rule("/builds/pipelines/<pipeline_id>/sessions",                               endpoint="list_ci_pipeline_sessions",view_func=list_ci_pipeline_sessions, methods=["GET"])
-    v2.add_url_rule("/builds/pipelines/<pipeline_id>/validate-artifacts",                     endpoint="validate_ci_pipeline_artifacts", view_func=validate_ci_pipeline_artifacts, methods=["POST"])
+    v2.add_url_rule("/builds/runs",                                                        endpoint="list_ci_pipelines",        view_func=list_ci_build_runs,     methods=["GET"])
+    v2.add_url_rule("/builds/runs",                                                        endpoint="create_ci_pipeline",       view_func=create_ci_build_run,    methods=["POST"])
+    v2.add_url_rule("/builds/runs/<run_id>",                                          endpoint="get_ci_pipeline",          view_func=get_ci_build_run,       methods=["GET"])
+    v2.add_url_rule("/builds/runs/<run_id>/cancel",                                   endpoint="cancel_ci_pipeline",       view_func=cancel_ci_build_run,    methods=["POST"])
+    v2.add_url_rule("/builds/runs/<run_id>/validate",                                endpoint="validate_ci_pipeline",     view_func=validate_ci_build_run,  methods=["POST"])
+    v2.add_url_rule("/builds/runs/<run_id>/artifacts/download",                       endpoint="download_ci_pipeline_artifacts", view_func=download_ci_build_run_artifacts, methods=["GET"])
+    v2.add_url_rule("/builds/runs/<run_id>/sessions",                               endpoint="list_ci_pipeline_sessions",view_func=list_ci_build_run_sessions, methods=["GET"])
+    v2.add_url_rule("/builds/runs/<run_id>/validate-artifacts",                     endpoint="validate_ci_pipeline_artifacts", view_func=validate_ci_build_run_artifacts, methods=["POST"])
 
     # Builds - Settings
     v2.add_url_rule("/builds/settings/repos",                                                   endpoint="list_ci_repos",            view_func=list_ci_repos,         methods=["GET"])

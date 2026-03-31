@@ -55,7 +55,7 @@ def _create_job_api_key(db, entry_id: str) -> str:
 def _create_validation_run(
     db,
     entry_id: str,
-    pipeline,
+    build_run,
     fixture,
     stage: int,
     stage_name: str,
@@ -65,9 +65,9 @@ def _create_validation_run(
     Returns the session ID if successful, None otherwise.
     """
     # Look up product by slug
-    product_obj = db.product.find_first(where={"slug": pipeline.product})
+    product_obj = db.product.find_first(where={"slug": build_run.product})
     if not product_obj:
-        logger.error(f"Product not found for slug: {pipeline.product}")
+        logger.error(f"Product not found for slug: {build_run.product}")
         return None
 
     # Get system user ID
@@ -99,7 +99,7 @@ def _create_validation_run(
             "type": "VALIDATION",
             "productId": product_obj.id,
             "fixtureId": fixture.id,
-            "pipelineRunId": pipeline.id,
+            "buildRunId": build_run.id,
             "createdById": system_user.id,
             "status": "ACTIVE",
             "targetCount": 1,
@@ -149,7 +149,7 @@ def _trigger_validation_job(
     entry = db.validationqueueentry.find_unique(
         where={"id": entry_id},
         include={
-            "pipelineRun": True,
+            "buildRun": True,
             "fixture": {
                 "include": {
                     "slots": {
@@ -163,8 +163,8 @@ def _trigger_validation_job(
         },
     )
 
-    if not entry or not entry.pipelineRun:
-        logger.error(f"Queue entry {entry_id} not found or missing pipeline")
+    if not entry or not entry.buildRun:
+        logger.error(f"Queue entry {entry_id} not found or missing build run")
         return None
 
     fixture = entry.fixture
@@ -172,7 +172,7 @@ def _trigger_validation_job(
         logger.error(f"Queue entry {entry_id} has no fixture assigned")
         return None
 
-    pipeline = entry.pipelineRun
+    build_run = entry.buildRun
 
     # Stage name for K8s job (needed for session creation too)
     stage_name = STAGE_NAMES.get(stage, "validation")
@@ -204,8 +204,8 @@ def _trigger_validation_job(
     dut_device_id = first_slot.dutDeviceId if first_slot else None
     dut_snr = first_slot.dutSnr if first_slot else None
 
-    # Product slug for catalog lookup (pipeline.product is a string like "alpha_b0")
-    product_slug = pipeline.product if hasattr(pipeline, "product") else None
+    # Product slug for catalog lookup (build_run.product is a string like "alpha_b0")
+    product_slug = build_run.product if hasattr(pipeline, "product") else None
 
     # Compute fixture profile path from design
     fixture_profile_path = None
@@ -228,7 +228,7 @@ def _trigger_validation_job(
         device_id=dut_device_id,
         device_snr=dut_snr,
         fixture_profile_path=fixture_profile_path,
-        pipeline_id=pipeline.id,
+        pipeline_id=build_run.id,
         product_slug=product_slug,
         stage=stage_name,
     )
@@ -253,7 +253,7 @@ def _trigger_validation_job(
         "queue.trigger",
         "ValidationQueueEntry",
         entry_id,
-        {"jobName": job_name, "stage": stage_name, "pipelineId": pipeline.id, "sessionId": run_id},
+        {"jobName": job_name, "stage": stage_name, "pipelineId": build_run.id, "sessionId": run_id},
     )
 
     return job_name
@@ -281,7 +281,7 @@ def schedule_queue() -> List[Dict[str, Any]]:
             {"requestedAt": "asc"},
         ],
         include={
-            "pipelineRun": True,
+            "buildRun": True,
             "stageConfig": True,
         },
     )
@@ -302,10 +302,10 @@ def schedule_queue() -> List[Dict[str, Any]]:
     assigned_fixture_ids: set = set()
 
     for entry in queued:
-        if not entry.pipelineRun:
+        if not entry.buildRun:
             continue
 
-        product = entry.pipelineRun.product
+        product = entry.buildRun.product
 
         # Find a compatible fixture (matches product, not already assigned this round)
         fixture = None
@@ -383,15 +383,15 @@ def schedule_queue() -> List[Dict[str, Any]]:
     return assignments
 
 
-def on_build_complete(pipeline_run_id: str) -> Optional[str]:
+def on_build_complete(build_run_id: str) -> Optional[str]:
     """Called when builds complete for a pipeline. Creates queue entry if ready.
 
     Returns the queue entry ID if created, None otherwise.
     """
     db = get_db_client()
 
-    pipeline = db.pipelinerun.find_unique(
-        where={"id": pipeline_run_id},
+    build_run = db.buildrun.find_unique(
+        where={"id": build_run_id},
         include={
             "builds": True,
             "stageConfig": True,
@@ -423,7 +423,7 @@ def on_build_complete(pipeline_run_id: str) -> Optional[str]:
     # Check if already queued
     existing = db.validationqueueentry.find_first(
         where={
-            "pipelineRunId": pipeline_run_id,
+            "buildRunId": build_run_id,
             "status": {"in": ["QUEUED", "ASSIGNED", "RUNNING"]},
         },
     )
@@ -437,11 +437,11 @@ def on_build_complete(pipeline_run_id: str) -> Optional[str]:
     try:
         entry = db.validationqueueentry.create(
             data={
-                "pipelineRunId": pipeline_run_id,
+                "buildRunId": build_run_id,
                 "stageConfigId": pipeline.stageConfigId,
                 "stage": stage,
                 "priority": priority,
-                "reason": f"Pipeline {pipeline.name or pipeline.id} builds complete",
+                "reason": f"Pipeline {pipeline.name or build_run.id} builds complete",
             },
         )
 
@@ -449,7 +449,7 @@ def on_build_complete(pipeline_run_id: str) -> Optional[str]:
             "queue.create",
             "ValidationQueueEntry",
             entry.id,
-            {"pipelineRunId": pipeline_run_id, "stage": stage, "priority": priority},
+            {"buildRunId": build_run_id, "stage": stage, "priority": priority},
         )
 
         # Try to immediately assign
@@ -458,7 +458,7 @@ def on_build_complete(pipeline_run_id: str) -> Optional[str]:
         return entry.id
 
     except Exception as e:
-        logger.error(f"Failed to create queue entry for pipeline {pipeline_run_id}: {e}")
+        logger.error(f"Failed to create queue entry for build run {build_run_id}: {e}")
         return None
 
 

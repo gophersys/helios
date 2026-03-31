@@ -7,7 +7,7 @@ VALID_SESSION_TYPES = ("VALIDATION", "MANUFACTURING")
 @dataclass
 class SessionRerunRequest:
     """Clone a session with optional different pipeline."""
-    pipeline_run_id: Optional[str] = None
+    build_run_id: Optional[str] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["SessionRerunRequest"], Optional[str]]:
@@ -15,11 +15,11 @@ class SessionRerunRequest:
             # Allow empty body — rerun with same pipeline
             return cls(), None
 
-        pipeline_run_id = data.get("pipelineRunId")
-        if pipeline_run_id is not None:
-            pipeline_run_id = str(pipeline_run_id).strip() or None
+        build_run_id = data.get("buildRunId")
+        if build_run_id is not None:
+            build_run_id = str(build_run_id).strip() or None
 
-        return cls(pipeline_run_id=pipeline_run_id), None
+        return cls(build_run_id=build_run_id), None
 
 
 @dataclass
@@ -479,7 +479,7 @@ class ValidationTestsRunRequest:
 
 @dataclass
 class QueueEntryCreateRequest:
-    pipelineRunId: str
+    buildRunId: str
     stage: int
     priority: Optional[int] = None  # Override stage config priority
     reason: Optional[str] = None
@@ -489,9 +489,9 @@ class QueueEntryCreateRequest:
     def from_json(cls, data: dict) -> Tuple[Optional["QueueEntryCreateRequest"], Optional[str]]:
         if not data:
             return None, "Request body must contain JSON data"
-        pipeline_run_id = (data.get("pipelineRunId") or "").strip()
-        if not pipeline_run_id:
-            return None, "pipelineRunId is required"
+        build_run_id = (data.get("buildRunId") or "").strip()
+        if not build_run_id:
+            return None, "buildRunId is required"
         stage = data.get("stage")
         if stage is None:
             return None, "stage is required"
@@ -504,7 +504,7 @@ class QueueEntryCreateRequest:
         reason = data.get("reason")
         stage_config_id = data.get("stageConfigId")
         return cls(
-            pipelineRunId=pipeline_run_id,
+            buildRunId=build_run_id,
             stage=stage,
             priority=priority,
             reason=reason.strip() if reason else None,

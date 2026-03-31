@@ -1899,10 +1899,10 @@ def _build_spec() -> APISpec:
             "finishedAt": {"type": "string", "format": "date-time", "nullable": True},
             "durationSeconds": {"type": "integer", "nullable": True},
             "createdAt": {"type": "string", "format": "date-time"},
-            "artifacts": {"type": "array", "items": {"$ref": "#/components/schemas/BuildJobArtifact"}},
+            "artifacts": {"type": "array", "items": {"$ref": "#/components/schemas/BuildArtifact"}},
         },
     })
-    spec.components.schema("BuildJobArtifact", {
+    spec.components.schema("BuildArtifact", {
         "type": "object",
         "properties": {
             "id": {"type": "string"},
@@ -1969,7 +1969,7 @@ def _build_spec() -> APISpec:
     path("/builds/{build_id}/artifacts", get={
         "tags": ["Builds"], "summary": "Build artifacts with download URLs",
         "parameters": [{"name": "build_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-        "responses": {"200": _ok({"type": "array", "items": {"$ref": "#/components/schemas/BuildJobArtifact"}}), "404": _404},
+        "responses": {"200": _ok({"type": "array", "items": {"$ref": "#/components/schemas/BuildArtifact"}}), "404": _404},
     })
     path("/builds/{build_id}/log", get={
         "tags": ["Builds"], "summary": "Build log content",

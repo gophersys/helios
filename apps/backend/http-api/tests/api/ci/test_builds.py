@@ -37,7 +37,7 @@ def _build_obj(**overrides):
         "finishedAt": None,
         "durationSeconds": None,
         "buildLog": None,
-        "pipelineRunId": None,
+        "buildRunId": None,
         "webhookData": None,
         "matrixLabel": None,
         "matrixIndex": None,
@@ -52,7 +52,7 @@ def _build_obj(**overrides):
 
 
 def _artifact_obj(**overrides):
-    """Return a mock BuildJobArtifact with sensible defaults."""
+    """Return a mock BuildArtifact with sensible defaults."""
     defaults = {
         "id": "artifact-001",
         "buildJobId": "build-001",
@@ -612,18 +612,18 @@ class TestUpdateBuild:
 
     def test_update_build_unblocks_dependents_on_success(self, authed_client, mock_db):
         """When a build succeeds, its BLOCKED dependents are moved to QUEUED."""
-        existing = _build_obj(id="build-base", status="BUILDING", pipelineRunId="pipe-1")
+        existing = _build_obj(id="build-base", status="BUILDING", buildRunId="pipe-1")
         mock_db.buildjob.find_unique.return_value = existing
 
-        updated = _build_obj(id="build-base", status="SUCCESS", pipelineRunId="pipe-1")
+        updated = _build_obj(id="build-base", status="SUCCESS", buildRunId="pipe-1")
         mock_db.buildjob.update.return_value = updated
 
         # Simulate a dependent blocked build
         dependent = _build_obj(id="build-dep", status="BLOCKED", baseJobId="build-base")
         mock_db.buildjob.find_many.return_value = [dependent]
 
-        # Mock pipeline completion check — the lazy import uses api.v2.builds.pipelines path
-        with patch("api.v2.builds.pipelines.check_pipeline_completion", return_value=None):
+        # Mock pipeline completion check — the lazy import uses api.v2.builds.build_runs path
+        with patch("api.v2.builds.build_runs.check_pipeline_completion", return_value=None):
             response = self._patch(authed_client, "/v2/builds/build-base", {
                 "status": "SUCCESS",
             })
@@ -671,7 +671,7 @@ class TestUpdateBuild:
         mock_db.buildjob.update.return_value = updated
 
         with patch("api.v2.builds.builds.log_audit") as mock_audit, \
-             patch("api.v2.builds.pipelines.check_pipeline_completion", return_value=None):
+             patch("api.v2.builds.build_runs.check_pipeline_completion", return_value=None):
             response = self._patch(authed_client, "/v2/builds/build-audit", {
                 "status": "SUCCESS",
             })
@@ -694,7 +694,7 @@ class TestListBuildArtifacts:
     def test_list_artifacts_success(self, authed_client, mock_db):
         """List artifacts returns all artifacts for a build."""
         mock_db.buildjob.find_unique.return_value = _build_obj(id="build-art")
-        mock_db.buildjobartifact.find_many.return_value = [
+        mock_db.buildartifact.find_many.return_value = [
             _artifact_obj(id="a1", name="app_nrf52840.hex"),
             _artifact_obj(id="a2", name="comms_nrf9151.hex"),
         ]
@@ -711,7 +711,7 @@ class TestListBuildArtifacts:
     def test_list_artifacts_empty(self, authed_client, mock_db):
         """List artifacts returns empty list when build has no artifacts."""
         mock_db.buildjob.find_unique.return_value = _build_obj(id="build-no-art")
-        mock_db.buildjobartifact.find_many.return_value = []
+        mock_db.buildartifact.find_many.return_value = []
 
         response = authed_client.get("/v2/builds/build-no-art/artifacts")
         assert response.status_code == 200
@@ -729,7 +729,7 @@ class TestListBuildArtifacts:
     def test_list_artifacts_includes_size_and_checksum(self, authed_client, mock_db):
         """List artifacts response includes sizeBytes and checksum fields."""
         mock_db.buildjob.find_unique.return_value = _build_obj(id="build-meta")
-        mock_db.buildjobartifact.find_many.return_value = [
+        mock_db.buildartifact.find_many.return_value = [
             _artifact_obj(id="a1", sizeBytes=131072, checksum="deadbeef"),
         ]
 

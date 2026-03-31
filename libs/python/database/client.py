@@ -102,9 +102,9 @@ class Prisma(SyncBasePrisma):
     firmwarebuild: 'actions.FirmwareBuildActions[models.FirmwareBuild]'
     productstageconfig: 'actions.ProductStageConfigActions[models.ProductStageConfig]'
     validationqueueentry: 'actions.ValidationQueueEntryActions[models.ValidationQueueEntry]'
-    pipelinerun: 'actions.PipelineRunActions[models.PipelineRun]'
+    buildrun: 'actions.BuildRunActions[models.BuildRun]'
     buildjob: 'actions.BuildJobActions[models.BuildJob]'
-    buildjobartifact: 'actions.BuildJobArtifactActions[models.BuildJobArtifact]'
+    buildartifact: 'actions.BuildArtifactActions[models.BuildArtifact]'
     session: 'actions.SessionActions[models.Session]'
     device: 'actions.DeviceActions[models.Device]'
     fixturedesign: 'actions.FixtureDesignActions[models.FixtureDesign]'
@@ -134,9 +134,9 @@ class Prisma(SyncBasePrisma):
         'firmwarebuild',
         'productstageconfig',
         'validationqueueentry',
-        'pipelinerun',
+        'buildrun',
         'buildjob',
-        'buildjobartifact',
+        'buildartifact',
         'session',
         'device',
         'fixturedesign',
@@ -194,9 +194,9 @@ class Prisma(SyncBasePrisma):
         self.firmwarebuild = actions.FirmwareBuildActions[models.FirmwareBuild](self, models.FirmwareBuild)
         self.productstageconfig = actions.ProductStageConfigActions[models.ProductStageConfig](self, models.ProductStageConfig)
         self.validationqueueentry = actions.ValidationQueueEntryActions[models.ValidationQueueEntry](self, models.ValidationQueueEntry)
-        self.pipelinerun = actions.PipelineRunActions[models.PipelineRun](self, models.PipelineRun)
+        self.buildrun = actions.BuildRunActions[models.BuildRun](self, models.BuildRun)
         self.buildjob = actions.BuildJobActions[models.BuildJob](self, models.BuildJob)
-        self.buildjobartifact = actions.BuildJobArtifactActions[models.BuildJobArtifact](self, models.BuildJobArtifact)
+        self.buildartifact = actions.BuildArtifactActions[models.BuildArtifact](self, models.BuildArtifact)
         self.session = actions.SessionActions[models.Session](self, models.Session)
         self.device = actions.DeviceActions[models.Device](self, models.Device)
         self.fixturedesign = actions.FixtureDesignActions[models.FixtureDesign](self, models.FixtureDesign)
@@ -374,9 +374,9 @@ class Batch:
     firmwarebuild: 'FirmwareBuildBatchActions'
     productstageconfig: 'ProductStageConfigBatchActions'
     validationqueueentry: 'ValidationQueueEntryBatchActions'
-    pipelinerun: 'PipelineRunBatchActions'
+    buildrun: 'BuildRunBatchActions'
     buildjob: 'BuildJobBatchActions'
-    buildjobartifact: 'BuildJobArtifactBatchActions'
+    buildartifact: 'BuildArtifactBatchActions'
     session: 'SessionBatchActions'
     device: 'DeviceBatchActions'
     fixturedesign: 'FixtureDesignBatchActions'
@@ -409,9 +409,9 @@ class Batch:
         self.firmwarebuild = FirmwareBuildBatchActions(self)
         self.productstageconfig = ProductStageConfigBatchActions(self)
         self.validationqueueentry = ValidationQueueEntryBatchActions(self)
-        self.pipelinerun = PipelineRunBatchActions(self)
+        self.buildrun = BuildRunBatchActions(self)
         self.buildjob = BuildJobBatchActions(self)
-        self.buildjobartifact = BuildJobArtifactBatchActions(self)
+        self.buildartifact = BuildArtifactBatchActions(self)
         self.session = SessionBatchActions(self)
         self.device = DeviceBatchActions(self)
         self.fixturedesign = FixtureDesignBatchActions(self)
@@ -1373,18 +1373,18 @@ class ValidationQueueEntryBatchActions:
 
 # NOTE: some arguments are meaningless in this context but are included
 # for completeness sake
-class PipelineRunBatchActions:
+class BuildRunBatchActions:
     def __init__(self, batcher: Batch) -> None:
         self._batcher = batcher
 
     def create(
         self,
-        data: types.PipelineRunCreateInput,
-        include: Optional[types.PipelineRunInclude] = None
+        data: types.BuildRunCreateInput,
+        include: Optional[types.BuildRunInclude] = None
     ) -> None:
         self._batcher._add(
             method='create',
-            model=models.PipelineRun,
+            model=models.BuildRun,
             arguments={
                 'data': data,
                 'include': include,
@@ -1393,7 +1393,7 @@ class PipelineRunBatchActions:
 
     def create_many(
         self,
-        data: List[types.PipelineRunCreateWithoutRelationsInput],
+        data: List[types.BuildRunCreateWithoutRelationsInput],
         *,
         skip_duplicates: Optional[bool] = None,
     ) -> None:
@@ -1402,7 +1402,7 @@ class PipelineRunBatchActions:
 
         self._batcher._add(
             method='create_many',
-            model=models.PipelineRun,
+            model=models.BuildRun,
             arguments={
                 'data': data,
                 'skipDuplicates': skip_duplicates,
@@ -1412,12 +1412,12 @@ class PipelineRunBatchActions:
 
     def delete(
         self,
-        where: types.PipelineRunWhereUniqueInput,
-        include: Optional[types.PipelineRunInclude] = None,
+        where: types.BuildRunWhereUniqueInput,
+        include: Optional[types.BuildRunInclude] = None,
     ) -> None:
         self._batcher._add(
             method='delete',
-            model=models.PipelineRun,
+            model=models.BuildRun,
             arguments={
                 'where': where,
                 'include': include,
@@ -1426,13 +1426,13 @@ class PipelineRunBatchActions:
 
     def update(
         self,
-        data: types.PipelineRunUpdateInput,
-        where: types.PipelineRunWhereUniqueInput,
-        include: Optional[types.PipelineRunInclude] = None
+        data: types.BuildRunUpdateInput,
+        where: types.BuildRunWhereUniqueInput,
+        include: Optional[types.BuildRunInclude] = None
     ) -> None:
         self._batcher._add(
             method='update',
-            model=models.PipelineRun,
+            model=models.BuildRun,
             arguments={
                 'data': data,
                 'where': where,
@@ -1442,13 +1442,13 @@ class PipelineRunBatchActions:
 
     def upsert(
         self,
-        where: types.PipelineRunWhereUniqueInput,
-        data: types.PipelineRunUpsertInput,
-        include: Optional[types.PipelineRunInclude] = None,
+        where: types.BuildRunWhereUniqueInput,
+        data: types.BuildRunUpsertInput,
+        include: Optional[types.BuildRunInclude] = None,
     ) -> None:
         self._batcher._add(
             method='upsert',
-            model=models.PipelineRun,
+            model=models.BuildRun,
             arguments={
                 'where': where,
                 'include': include,
@@ -1459,23 +1459,23 @@ class PipelineRunBatchActions:
 
     def update_many(
         self,
-        data: types.PipelineRunUpdateManyMutationInput,
-        where: types.PipelineRunWhereInput,
+        data: types.BuildRunUpdateManyMutationInput,
+        where: types.BuildRunWhereInput,
     ) -> None:
         self._batcher._add(
             method='update_many',
-            model=models.PipelineRun,
+            model=models.BuildRun,
             arguments={'data': data, 'where': where,},
             root_selection=['count'],
         )
 
     def delete_many(
         self,
-        where: Optional[types.PipelineRunWhereInput] = None,
+        where: Optional[types.BuildRunWhereInput] = None,
     ) -> None:
         self._batcher._add(
             method='delete_many',
-            model=models.PipelineRun,
+            model=models.BuildRun,
             arguments={'where': where},
             root_selection=['count'],
         )
@@ -1595,18 +1595,18 @@ class BuildJobBatchActions:
 
 # NOTE: some arguments are meaningless in this context but are included
 # for completeness sake
-class BuildJobArtifactBatchActions:
+class BuildArtifactBatchActions:
     def __init__(self, batcher: Batch) -> None:
         self._batcher = batcher
 
     def create(
         self,
-        data: types.BuildJobArtifactCreateInput,
-        include: Optional[types.BuildJobArtifactInclude] = None
+        data: types.BuildArtifactCreateInput,
+        include: Optional[types.BuildArtifactInclude] = None
     ) -> None:
         self._batcher._add(
             method='create',
-            model=models.BuildJobArtifact,
+            model=models.BuildArtifact,
             arguments={
                 'data': data,
                 'include': include,
@@ -1615,7 +1615,7 @@ class BuildJobArtifactBatchActions:
 
     def create_many(
         self,
-        data: List[types.BuildJobArtifactCreateWithoutRelationsInput],
+        data: List[types.BuildArtifactCreateWithoutRelationsInput],
         *,
         skip_duplicates: Optional[bool] = None,
     ) -> None:
@@ -1624,7 +1624,7 @@ class BuildJobArtifactBatchActions:
 
         self._batcher._add(
             method='create_many',
-            model=models.BuildJobArtifact,
+            model=models.BuildArtifact,
             arguments={
                 'data': data,
                 'skipDuplicates': skip_duplicates,
@@ -1634,12 +1634,12 @@ class BuildJobArtifactBatchActions:
 
     def delete(
         self,
-        where: types.BuildJobArtifactWhereUniqueInput,
-        include: Optional[types.BuildJobArtifactInclude] = None,
+        where: types.BuildArtifactWhereUniqueInput,
+        include: Optional[types.BuildArtifactInclude] = None,
     ) -> None:
         self._batcher._add(
             method='delete',
-            model=models.BuildJobArtifact,
+            model=models.BuildArtifact,
             arguments={
                 'where': where,
                 'include': include,
@@ -1648,13 +1648,13 @@ class BuildJobArtifactBatchActions:
 
     def update(
         self,
-        data: types.BuildJobArtifactUpdateInput,
-        where: types.BuildJobArtifactWhereUniqueInput,
-        include: Optional[types.BuildJobArtifactInclude] = None
+        data: types.BuildArtifactUpdateInput,
+        where: types.BuildArtifactWhereUniqueInput,
+        include: Optional[types.BuildArtifactInclude] = None
     ) -> None:
         self._batcher._add(
             method='update',
-            model=models.BuildJobArtifact,
+            model=models.BuildArtifact,
             arguments={
                 'data': data,
                 'where': where,
@@ -1664,13 +1664,13 @@ class BuildJobArtifactBatchActions:
 
     def upsert(
         self,
-        where: types.BuildJobArtifactWhereUniqueInput,
-        data: types.BuildJobArtifactUpsertInput,
-        include: Optional[types.BuildJobArtifactInclude] = None,
+        where: types.BuildArtifactWhereUniqueInput,
+        data: types.BuildArtifactUpsertInput,
+        include: Optional[types.BuildArtifactInclude] = None,
     ) -> None:
         self._batcher._add(
             method='upsert',
-            model=models.BuildJobArtifact,
+            model=models.BuildArtifact,
             arguments={
                 'where': where,
                 'include': include,
@@ -1681,23 +1681,23 @@ class BuildJobArtifactBatchActions:
 
     def update_many(
         self,
-        data: types.BuildJobArtifactUpdateManyMutationInput,
-        where: types.BuildJobArtifactWhereInput,
+        data: types.BuildArtifactUpdateManyMutationInput,
+        where: types.BuildArtifactWhereInput,
     ) -> None:
         self._batcher._add(
             method='update_many',
-            model=models.BuildJobArtifact,
+            model=models.BuildArtifact,
             arguments={'data': data, 'where': where,},
             root_selection=['count'],
         )
 
     def delete_many(
         self,
-        where: Optional[types.BuildJobArtifactWhereInput] = None,
+        where: Optional[types.BuildArtifactWhereInput] = None,
     ) -> None:
         self._batcher._add(
             method='delete_many',
-            model=models.BuildJobArtifact,
+            model=models.BuildArtifact,
             arguments={'where': where},
             root_selection=['count'],
         )

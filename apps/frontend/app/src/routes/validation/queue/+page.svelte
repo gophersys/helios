@@ -65,9 +65,9 @@
     if (!searchQuery.trim()) return entries;
     const q = searchQuery.toLowerCase().trim();
     return entries.filter((entry) => {
-      const pipelineName = entry.pipelineRun?.name?.toLowerCase() ?? '';
-      const product = entry.pipelineRun?.product?.toLowerCase() ?? '';
-      const branch = entry.pipelineRun?.branch?.toLowerCase() ?? '';
+      const pipelineName = entry.buildRun?.name?.toLowerCase() ?? '';
+      const product = entry.buildRun?.product?.toLowerCase() ?? '';
+      const branch = entry.buildRun?.branch?.toLowerCase() ?? '';
       const benchName = entry.bench?.name?.toLowerCase() ?? '';
       const reason = entry.reason?.toLowerCase() ?? '';
       return (
@@ -327,18 +327,18 @@
 
                 <!-- Pipeline -->
                 <td class="px-4 py-3">
-                  {#if entry.pipelineRun}
+                  {#if entry.buildRun}
                     <a
-                      href="/builds/pipelines/{entry.pipelineRunId}"
+                      href="/builds/runs/{entry.buildRunId}"
                       class="text-sm font-medium text-accent hover:underline"
                     >
-                      {entry.pipelineRun.name ?? entry.pipelineRunId.slice(0, 8)}
+                      {entry.buildRun.name ?? entry.buildRunId.slice(0, 8)}
                     </a>
                     <div class="mt-0.5 text-2xs text-text-tertiary">
-                      {entry.pipelineRun.product} / {entry.pipelineRun.branch}
+                      {entry.buildRun.product} / {entry.buildRun.branch}
                     </div>
                   {:else}
-                    <span class="font-mono text-sm text-text-tertiary">{entry.pipelineRunId.slice(0, 12)}</span>
+                    <span class="font-mono text-sm text-text-tertiary">{entry.buildRunId.slice(0, 12)}</span>
                   {/if}
                 </td>
 

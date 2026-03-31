@@ -116,7 +116,7 @@ enum QueueEntryStatus {
   CANCELLED
 }
 
-enum PipelineStatus {
+enum BuildRunStatus {
   PENDING // Waiting for builds to start
   BUILDING // Builds in progress
   BUILD_FAILED // One or more builds failed
@@ -155,7 +155,7 @@ model Product {
   tests        Test[]
   sessions     Session[]
   buildJobs    BuildJob[]
-  pipelineRuns PipelineRun[]
+  buildRuns    BuildRun[]
   deployments  Deployment[]
   stageConfigs ProductStageConfig[]
 
@@ -204,17 +204,19 @@ model Board {
 /// A board revision (e.g. A0, B0, B1) -- a specific version of a Board PCB.
 /// Each revision maps to a specific ck_boards directory and has its own SoC list.
 model BoardRevision {
-  id            String          @id @default(cuid())
-  boardId       String
-  version       String /// e.g. "A0", "B0", "B1"
-  ckBoardsName  String /// full west build target name, e.g. "alpha_b0"
-  socs          String[] /// parsed from board.yml, e.g. ["nrf52840", "nrf9151"]
-  deviceType    Int? /// CoreCloud device type ID (e.g. 2 for Alpha)
-  deviceVariant Int? /// CoreCloud device variant ID (e.g. 3 for B0)
-  status        LifecycleStatus @default(ACTIVE)
-  notes         String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id              String          @id @default(cuid())
+  boardId         String
+  version         String /// e.g. "A0", "B0", "B1"
+  ckBoardsName    String /// full west build target name, e.g. "alpha_b0"
+  socs            String[] /// parsed from board.yml, e.g. ["nrf52840", "nrf9151"]
+  deviceType      Int? /// CoreCloud device type ID (e.g. 2 for Alpha)
+  deviceVariant   Int? /// CoreCloud device variant ID (e.g. 3 for B0)
+  modemVersion    String? /// Nordic modem firmware version, e.g. "2.0.2"
+  modemStorageKey String? /// MinIO key for modem firmware zip
+  status          LifecycleStatus @default(ACTIVE)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   board        Board           @relation(fields: [boardId], references: [id], onDelete: Cascade)
   targets      ProductTarget[]
@@ -236,6 +238,7 @@ model FirmwareSet {
 
   // Version identity (per CK firmware versioning spec)
   version         String /// "0.5.2" (major.minor.build)
+  variant         String  @default("debug") /// "smoke", "debug", "release", "mfg"
   releaseTrack    String  @default("bench") /// "bench", "engineering", "production"
   isManufacturing Boolean @default(false)
   isDebug         Boolean @default(false)
@@ -244,10 +247,6 @@ model FirmwareSet {
   source          String  @default("upload") /// "upload", "build-service", "teamcity"
   buildJobId      String? /// FK to BuildJob if built by Concord CI
   externalBuildId String? /// External build system ID
-
-  // Shared modem firmware (applies to all targets with nRF91xx comms)
-  modemVersion    String? /// "2.0.2"
-  modemStorageKey String? /// MinIO key for modem firmware zip
 
   // Build fingerprint for caching
   buildFingerprint String? /// SHA-256 of source + config — enables build reuse
@@ -344,7 +343,7 @@ model ProductStageConfig {
   updatedAt   DateTime @updatedAt
 
   product      Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
-  pipelineRuns PipelineRun[]
+  buildRuns    BuildRun[]
   queueEntries ValidationQueueEntry[]
 
   @@unique([productId, stage])
@@ -358,7 +357,7 @@ model ValidationQueueEntry {
   id String @id @default(cuid())
 
   // What triggered this
-  pipelineRunId String
+  buildRunId    String
   stageConfigId String?
   stage         Int /// Validation stage (1-5)
   priority      Int     @default(50) /// From stage config, but overridable
@@ -385,13 +384,13 @@ model ValidationQueueEntry {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  pipelineRun PipelineRun         @relation(fields: [pipelineRunId], references: [id])
+  buildRun    BuildRun            @relation(fields: [buildRunId], references: [id])
   stageConfig ProductStageConfig? @relation(fields: [stageConfigId], references: [id])
   fixture     Fixture?            @relation(fields: [fixtureId], references: [id])
   session     Session?            @relation(fields: [sessionId], references: [id])
 
   @@index([status, priority])
-  @@index([pipelineRunId])
+  @@index([buildRunId])
   @@index([fixtureId])
   @@map("validation_queue_entries")
 }
@@ -405,14 +404,14 @@ model ValidationQueueEntry {
 
 /// Groups multiple builds (e.g., alpha_fw + alpha_mfg_fw) triggered by same commit.
 /// Tracks the overall build+validate workflow for a product.
-model PipelineRun {
+model BuildRun {
   id          String         @id @default(cuid())
   name        String? /// e.g., "alpha-main-abc1234"
   productId   String /// FK to Product
   board       String /// Board variant (alpha_b0)
   branch      String
   commitSha   String?
-  status      PipelineStatus @default(PENDING)
+  status      BuildRunStatus @default(PENDING)
   triggerType String         @default("manual") /// manual, webhook, scheduled
   triggerData Json? /// Webhook payload or trigger config
 
@@ -482,8 +481,8 @@ model BuildJob {
   reusedFromId     String? /// If CACHED, points to the original successful build
 
   // Pipeline relation
-  pipelineRunId String?
-  pipelineRun   PipelineRun? @relation(fields: [pipelineRunId], references: [id])
+  buildRunId String?
+  buildRun   BuildRun? @relation(fields: [buildRunId], references: [id])
 
   // Worker info
   workerId String? /// Node/host that built this (e.g. "wanda")
@@ -495,22 +494,22 @@ model BuildJob {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  product    Product            @relation(fields: [productId], references: [id])
-  artifacts  BuildJobArtifact[]
-  reusedFrom BuildJob?          @relation("BuildReuse", fields: [reusedFromId], references: [id])
-  reusedBy   BuildJob[]         @relation("BuildReuse")
+  product    Product         @relation(fields: [productId], references: [id])
+  artifacts  BuildArtifact[]
+  reusedFrom BuildJob?       @relation("BuildReuse", fields: [reusedFromId], references: [id])
+  reusedBy   BuildJob[]      @relation("BuildReuse")
 
   @@index([productId, branch])
   @@index([matrixLabel])
   @@index([productId])
   @@index([status])
-  @@index([pipelineRunId])
+  @@index([buildRunId])
   @@index([buildFingerprint])
   @@map("build_jobs")
 }
 
 /// A build artifact (hex, bin, elf) stored in MinIO.
-model BuildJobArtifact {
+model BuildArtifact {
   id           String   @id @default(cuid())
   buildJobId   String
   name         String
@@ -552,7 +551,7 @@ model Session {
   fixtureId String?
 
   // Pipeline link (CI trigger)
-  pipelineRunId String?
+  buildRunId String?
 
   // Progress (denormalized for dashboard)
   targetCount    Int?
@@ -573,14 +572,14 @@ model Session {
 
   product    Product               @relation(fields: [productId], references: [id])
   fixture    Fixture?              @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
-  pipeline   PipelineRun?          @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+  pipeline   BuildRun?             @relation(fields: [buildRunId], references: [id], onDelete: SetNull)
   createdBy  User?                 @relation(fields: [createdById], references: [id])
   devices    Device[]
   queueEntry ValidationQueueEntry?
 
   @@index([productId])
   @@index([type, status])
-  @@index([pipelineRunId])
+  @@index([buildRunId])
   @@map("sessions")
 }
 

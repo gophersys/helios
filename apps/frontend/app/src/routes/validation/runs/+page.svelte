@@ -148,7 +148,7 @@
     const config = run.config as Record<string, unknown> | null;
     if (config?.bitbucketPrId || config?.pullRequestId) return 'bitbucket';
     if (config?.nightlyRun || config?.scheduled) return 'scheduled';
-    if (config?.pipelineId) return 'ci';
+    if (config?.runId) return 'ci';
     return 'manual';
   }
 
@@ -416,12 +416,12 @@
                 </span>
               {/if}
               <!-- Pipeline link (if triggered from a pipeline) -->
-              {#if config?.pipelineId}
+              {#if config?.runId}
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <span
                   role="link"
                   tabindex="0"
-                  onclick={(e) => { e.stopPropagation(); goto(`/builds/pipelines/${config?.pipelineId}`); }}
+                  onclick={(e) => { e.stopPropagation(); goto(`/builds/runs/${config?.runId}`); }}
                   class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-info-muted text-info text-2xs font-medium hover:bg-info/20 cursor-pointer transition-colors"
                   title="View build pipeline"
                 >

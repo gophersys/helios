@@ -32,7 +32,7 @@ def _serialize_session(s: Any, include_executions: bool = False) -> dict:
         "type": s.type if hasattr(s, "type") else "VALIDATION",
         "productId": s.productId,
         "fixtureId": s.fixtureId,
-        "pipelineRunId": s.pipelineRunId if hasattr(s, "pipelineRunId") else None,
+        "buildRunId": s.buildRunId if hasattr(s, "buildRunId") else None,
         "status": s.status,
         "config": s.config,
         "targetCount": s.targetCount,
@@ -51,8 +51,8 @@ def _serialize_session(s: Any, include_executions: bool = False) -> dict:
         data["product"] = {"id": s.product.id, "name": s.product.name}
     if hasattr(s, "createdBy") and s.createdBy is not None:
         data["createdBy"] = {"id": s.createdBy.id, "name": s.createdBy.name, "email": s.createdBy.email}
-    if hasattr(s, "pipeline") and s.pipeline is not None:
-        data["pipeline"] = _serialize_pipeline_run(s.pipeline)
+    if hasattr(s, "pipeline") and s.buildRun is not None:
+        data["pipeline"] = _serialize_build_run(s.pipeline)
     if hasattr(s, "devices") and s.devices is not None:
         data["devices"] = [_serialize_device(d) for d in s.devices]
     if include_executions and hasattr(s, "devices") and s.devices is not None:
@@ -167,7 +167,7 @@ def _serialize_build_job(b: Any) -> dict:
     return data
 
 
-def _serialize_pipeline_run(p: Any) -> dict:
+def _serialize_build_run(p: Any) -> dict:
     data = {
         "id": p.id,
         "name": p.name,
@@ -456,11 +456,11 @@ def cancel_run(run_id: str):
     except Exception as e:
         logger.warning("Queue processing after run cancel failed: %s", e)
 
-    # Reset pipeline status from VALIDATING back to SUCCESS
-    if session.pipelineRunId:
+    # Reset build run status from VALIDATING back to SUCCESS
+    if session.buildRunId:
         try:
-            db.pipelinerun.update(
-                where={"id": session.pipelineRunId},
+            db.buildrun.update(
+                where={"id": session.buildRunId},
                 data={"status": "SUCCESS"},
             )
         except Exception:
@@ -607,7 +607,7 @@ def rerun_session(session_id: str):
     """POST /v2/sessions/<id>/rerun — Clone a session with optional different pipeline.
 
     Creates a new Session copying productId, fixtureId, type from the original.
-    If pipelineRunId is provided, uses that; otherwise uses the original's pipeline.
+    If buildRunId is provided, uses that; otherwise uses the original's pipeline.
     """
     raw = request.get_json() or {}
     data, error = SessionRerunRequest.from_json(raw)
@@ -624,13 +624,13 @@ def rerun_session(session_id: str):
     if not original:
         return not_found(f"Session not found: {session_id}")
 
-    # Determine pipeline to use
-    pipeline_run_id = data.pipeline_run_id or original.pipelineRunId
-    if pipeline_run_id:
-        # Validate pipeline exists
-        pipeline = db.pipelinerun.find_unique(where={"id": pipeline_run_id})
+    # Determine build run to use
+    build_run_id = data.build_run_id or original.buildRunId
+    if build_run_id:
+        # Validate build run exists
+        build_run = db.buildrun.find_unique(where={"id": build_run_id})
         if not pipeline:
-            return not_found(f"Pipeline not found: {pipeline_run_id}")
+            return not_found(f"Pipeline not found: {build_run_id}")
 
     try:
         # Build config for the new session
@@ -647,7 +647,7 @@ def rerun_session(session_id: str):
                 "type": original.type,
                 "productId": original.productId,
                 "fixtureId": original.fixtureId,
-                "pipelineRunId": pipeline_run_id,
+                "buildRunId": build_run_id,
                 "status": "PENDING",
                 "config": Json(new_config) if new_config else None,
                 "notes": f"Rerun of session {session_id}",
@@ -657,7 +657,7 @@ def rerun_session(session_id: str):
 
         log_audit("session.rerun", "Session", new_session.id, {
             "originalSessionId": session_id,
-            "pipelineRunId": pipeline_run_id,
+            "buildRunId": build_run_id,
             "productId": original.productId,
         })
 

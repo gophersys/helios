@@ -27,7 +27,7 @@ def validate_pipeline_artifacts(db, pipeline_id: str) -> Dict[str, Any]:
             "missing": [...]
         }
     """
-    pipeline = db.pipelinerun.find_unique(
+    pipeline = db.buildrun.find_unique(
         where={"id": pipeline_id},
         include={
             "builds": {"include": {"artifacts": True}},

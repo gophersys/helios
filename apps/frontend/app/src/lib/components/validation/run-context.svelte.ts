@@ -443,9 +443,9 @@ class RunContext {
       this.error = null;
 
       // Hydrate build jobs from pipeline if present
-      const pipelineRun = (res.data as any).pipelineRun;
-      if (pipelineRun?.builds?.length) {
-        this.buildJobs = pipelineRun.builds.map((b: any) => ({
+      const buildRun = (res.data as any).buildRun;
+      if (buildRun?.builds?.length) {
+        this.buildJobs = buildRun.builds.map((b: any) => ({
           id: b.id,
           product: b.product,
           fwType: b.fwType,

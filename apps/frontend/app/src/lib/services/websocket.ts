@@ -775,19 +775,19 @@ export interface CiBuildCompleteEvent {
 }
 
 export interface CiPipelineStartEvent {
-  pipelineId: string;
+  runId: string;
   status: string;
 }
 
 export interface CiPipelineStageUpdateEvent {
-  pipelineId: string;
+  runId: string;
   stage: string;
   status: string;
   detail: string | null;
 }
 
 export interface CiPipelineCompleteEvent {
-  pipelineId: string;
+  runId: string;
   status: string;
   durationSeconds: number | null;
 }
@@ -837,7 +837,7 @@ export function subscribeCiBuild(
  * Subscribe to real-time CI pipeline events (stage transitions, completion).
  */
 export function subscribeCiPipeline(
-  pipelineId: string,
+  runId: string,
   callbacks: {
     onStart?: (data: CiPipelineStartEvent) => void;
     onStageUpdate?: (data: CiPipelineStageUpdateEvent) => void;
@@ -852,15 +852,15 @@ export function subscribeCiPipeline(
   }
 
   const startHandler = (data: CiPipelineStartEvent) => {
-    if (data.pipelineId === pipelineId) callbacks.onStart?.(data);
+    if (data.runId === runId) callbacks.onStart?.(data);
   };
 
   const stageHandler = (data: CiPipelineStageUpdateEvent) => {
-    if (data.pipelineId === pipelineId) callbacks.onStageUpdate?.(data);
+    if (data.runId === runId) callbacks.onStageUpdate?.(data);
   };
 
   const completeHandler = (data: CiPipelineCompleteEvent) => {
-    if (data.pipelineId === pipelineId) callbacks.onComplete?.(data);
+    if (data.runId === runId) callbacks.onComplete?.(data);
   };
 
   socket.on('ci_pipeline_start', startHandler);

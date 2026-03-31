@@ -467,11 +467,11 @@ def report_finish(run_id: str):
     })
 
     # Propagate result back to parent pipeline if this run was triggered by one
-    pipeline_id = getattr(session, "pipelineRunId", None)
+    pipeline_id = getattr(session, "buildRunId", None)
     if pipeline_id:
         try:
             pipeline_status = "SUCCESS" if (data.failed == 0 and data.errors == 0) else "FAILED"
-            db.pipelinerun.update(
+            db.buildrun.update(
                 where={"id": pipeline_id},
                 data={
                     "status": pipeline_status,

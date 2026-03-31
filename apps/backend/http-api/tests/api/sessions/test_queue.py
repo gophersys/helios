@@ -30,7 +30,7 @@ def _make_pipeline(**overrides):
 def _make_queue_entry(**overrides):
     defaults = dict(
         id="entry-1",
-        pipelineRunId="pipe-1",
+        buildRunId="pipe-1",
         stageConfigId=None,
         stage=4,
         priority=0,
@@ -46,7 +46,7 @@ def _make_queue_entry(**overrides):
         completedAt=None,
         createdAt=NOW,
         updatedAt=NOW,
-        pipelineRun=None,
+        buildRun=None,
         fixture=None,
         session=None,
     )
@@ -114,9 +114,9 @@ def test_list_queue_requires_auth(client):
     assert response.status_code == 401
 
 
-def test_list_queue_entry_with_pipeline_run(authed_client, mock_db):
-    """Queue entry with nested pipelineRun should serialize it."""
-    entry = _make_queue_entry(pipelineRun=_make_pipeline())
+def test_list_queue_entry_with_build_run(authed_client, mock_db):
+    """Queue entry with nested buildRun should serialize it."""
+    entry = _make_queue_entry(buildRun=_make_pipeline())
     mock_db.validationqueueentry.count.return_value = 1
     mock_db.validationqueueentry.find_many.return_value = [entry]
 
@@ -125,8 +125,8 @@ def test_list_queue_entry_with_pipeline_run(authed_client, mock_db):
     assert response.status_code == 200
     data = json.loads(response.data)
     entry_data = data["data"]["data"][0]
-    assert entry_data["pipelineRun"]["id"] == "pipe-1"
-    assert entry_data["pipelineRun"]["branch"] == "main"
+    assert entry_data["buildRun"]["id"] == "pipe-1"
+    assert entry_data["buildRun"]["branch"] == "main"
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +141,7 @@ def test_get_queue_entry_success(authed_client, mock_db):
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data["data"]["id"] == "entry-1"
-    assert data["data"]["pipelineRunId"] == "pipe-1"
+    assert data["data"]["buildRunId"] == "pipe-1"
 
 
 def test_get_queue_entry_not_found(authed_client, mock_db):
@@ -162,13 +162,13 @@ def test_get_queue_entry_requires_auth(client):
 # ---------------------------------------------------------------------------
 
 def test_create_queue_entry_success(authed_client, mock_db):
-    mock_db.pipelinerun.find_unique.return_value = _make_pipeline()
+    mock_db.buildrun.find_unique.return_value = _make_pipeline()
     mock_db.validationqueueentry.find_first.return_value = None  # no existing entry
     created = _make_queue_entry(
         stage=4,
         priority=5,
         reason="Manual enqueue",
-        pipelineRun=_make_pipeline(),
+        buildRun=_make_pipeline(),
     )
     mock_db.validationqueueentry.create.return_value = created
 
@@ -176,7 +176,7 @@ def test_create_queue_entry_success(authed_client, mock_db):
         response = authed_client.post(
             "/v2/sessions/queue",
             data=json.dumps({
-                "pipelineRunId": "pipe-1",
+                "buildRunId": "pipe-1",
                 "stage": 4,
                 "priority": 5,
                 "reason": "Manual enqueue",
@@ -198,15 +198,15 @@ def test_create_queue_entry_missing_pipeline_id(authed_client, mock_db):
 
     assert response.status_code == 400
     data = json.loads(response.data)
-    assert "pipelineRunId" in data["errors"][0]["message"]
+    assert "buildRunId" in data["errors"][0]["message"]
 
 
 def test_create_queue_entry_pipeline_not_found(authed_client, mock_db):
-    mock_db.pipelinerun.find_unique.return_value = None
+    mock_db.buildrun.find_unique.return_value = None
 
     response = authed_client.post(
         "/v2/sessions/queue",
-        data=json.dumps({"pipelineRunId": "bad-pipe"}),
+        data=json.dumps({"buildRunId": "bad-pipe"}),
     )
 
     assert response.status_code == 404
@@ -214,12 +214,12 @@ def test_create_queue_entry_pipeline_not_found(authed_client, mock_db):
 
 def test_create_queue_entry_duplicate(authed_client, mock_db):
     """Cannot enqueue pipeline that already has a QUEUED entry."""
-    mock_db.pipelinerun.find_unique.return_value = _make_pipeline()
+    mock_db.buildrun.find_unique.return_value = _make_pipeline()
     mock_db.validationqueueentry.find_first.return_value = _make_queue_entry()
 
     response = authed_client.post(
         "/v2/sessions/queue",
-        data=json.dumps({"pipelineRunId": "pipe-1"}),
+        data=json.dumps({"buildRunId": "pipe-1"}),
     )
 
     assert response.status_code == 409
@@ -236,7 +236,7 @@ def test_create_queue_entry_no_body(authed_client, mock_db):
 def test_create_queue_entry_requires_auth(client):
     response = client.post(
         "/v2/sessions/queue",
-        data=json.dumps({"pipelineRunId": "pipe-1"}),
+        data=json.dumps({"buildRunId": "pipe-1"}),
         content_type="application/json",
     )
     assert response.status_code == 401
@@ -483,7 +483,7 @@ def test_trigger_scheduler_success(authed_client, mock_db):
             "processed": True,
             "entryId": "entry-1",
             "sessionId": "sess-1",
-            "pipelineRunId": "pipe-1",
+            "buildRunId": "pipe-1",
         }
 
         response = authed_client.post("/v2/sessions/queue/schedule")

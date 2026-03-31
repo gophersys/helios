@@ -3991,7 +3991,7 @@ class BoardRevisionActions(Generic[_PrismaModelT]):
         results = BoardRevision.prisma().count(
             select={
                 '_all': True,
-                'status': True,
+                'modemVersion': True,
             },
         )
         ```
@@ -4131,10 +4131,10 @@ class BoardRevisionActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group BoardRevision records by notes values
+        # group BoardRevision records by modemStorageKey values
         # and count how many records are in each group
         results = BoardRevision.prisma().group_by(
-            ['notes'],
+            ['modemStorageKey'],
             count=True,
         )
         ```
@@ -4716,11 +4716,11 @@ class FirmwareSetActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the second FirmwareSet record ordered by the releaseTrack field
+        # find the second FirmwareSet record ordered by the variant field
         firmwareset = FirmwareSet.prisma().find_first_or_raise(
             skip=1,
             order={
-                'releaseTrack': 'desc',
+                'variant': 'desc',
             },
         )
         ```
@@ -4888,7 +4888,7 @@ class FirmwareSetActions(Generic[_PrismaModelT]):
         # update all FirmwareSet records
         total = FirmwareSet.prisma().update_many(
             data={
-                'isManufacturing': True
+                'releaseTrack': 'caifcbgii'
             },
             where={}
         )
@@ -4952,7 +4952,7 @@ class FirmwareSetActions(Generic[_PrismaModelT]):
         results = FirmwareSet.prisma().count(
             select={
                 '_all': True,
-                'isDebug': True,
+                'isManufacturing': True,
             },
         )
         ```
@@ -5019,7 +5019,7 @@ class FirmwareSetActions(Generic[_PrismaModelT]):
         results = FirmwareSet.prisma().count(
             select={
                 '_all': True,
-                'source': True,
+                'isDebug': True,
             },
         )
         ```
@@ -5159,10 +5159,10 @@ class FirmwareSetActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group FirmwareSet records by buildJobId values
+        # group FirmwareSet records by source values
         # and count how many records are in each group
         results = FirmwareSet.prisma().group_by(
-            ['buildJobId'],
+            ['source'],
             count=True,
         )
         ```
@@ -7361,7 +7361,7 @@ class ValidationQueueEntryActions(Generic[_PrismaModelT]):
         -------
         ```py
         user = ValidationQueueEntry.prisma().query_first(
-            'SELECT * FROM ValidationQueueEntry WHERE pipelineRunId = $1',
+            'SELECT * FROM ValidationQueueEntry WHERE buildRunId = $1',
             'bieiidcabj',
         )
         ```
@@ -7401,7 +7401,7 @@ class ValidationQueueEntryActions(Generic[_PrismaModelT]):
         validationqueueentry = ValidationQueueEntry.prisma().create(
             data={
                 # data to create a ValidationQueueEntry record
-                'pipelineRunId': 'bjcbfcieaa',
+                'buildRunId': 'bjcbfcieaa',
                 'stage': 2100427849,
             },
         )
@@ -7457,12 +7457,12 @@ class ValidationQueueEntryActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a ValidationQueueEntry record
-                    'pipelineRunId': 'iejbeaaeg',
+                    'buildRunId': 'iejbeaaeg',
                     'stage': 928152175,
                 },
                 {
                     # data to create a ValidationQueueEntry record
-                    'pipelineRunId': 'chdadcaga',
+                    'buildRunId': 'chdadcaga',
                     'stage': 982848517,
                 },
             ],
@@ -7934,11 +7934,11 @@ class ValidationQueueEntryActions(Generic[_PrismaModelT]):
             data={
                 'create': {
                     'id': 'fbjeiiffa',
-                    'pipelineRunId': 'chdadcaga',
+                    'buildRunId': 'chdadcaga',
                     'stage': 982848517,
                 },
                 'update': {
-                    'pipelineRunId': 'chdadcaga',
+                    'buildRunId': 'chdadcaga',
                     'stage': 982848517,
                 },
             },
@@ -8308,7 +8308,7 @@ class ValidationQueueEntryActions(Generic[_PrismaModelT]):
         return resp['data']['result']  # type: ignore[no-any-return]
 
 
-class PipelineRunActions(Generic[_PrismaModelT]):
+class BuildRunActions(Generic[_PrismaModelT]):
     __slots__ = (
         '_client',
         '_model',
@@ -8335,7 +8335,7 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
         Returns
         -------
-        List[prisma.models.PipelineRun]
+        List[prisma.models.BuildRun]
             The records returned by the SQL query
 
         Raises
@@ -8348,8 +8348,8 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        users = PipelineRun.prisma().query_raw(
-            'SELECT * FROM PipelineRun WHERE id = $1',
+        users = BuildRun.prisma().query_raw(
+            'SELECT * FROM BuildRun WHERE id = $1',
             'jhgidcgbf',
         )
         ```
@@ -8373,7 +8373,7 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
         Returns
         -------
-        prisma.models.PipelineRun
+        prisma.models.BuildRun
             The first record returned by the SQL query
         None
             The raw SQL query did not return any records
@@ -8388,8 +8388,8 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        user = PipelineRun.prisma().query_first(
-            'SELECT * FROM PipelineRun WHERE name = $1',
+        user = BuildRun.prisma().query_first(
+            'SELECT * FROM BuildRun WHERE name = $1',
             'bgjgecfejc',
         )
         ```
@@ -8398,22 +8398,22 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
     def create(
         self,
-        data: types.PipelineRunCreateInput,
-        include: Optional[types.PipelineRunInclude] = None
+        data: types.BuildRunCreateInput,
+        include: Optional[types.BuildRunInclude] = None
     ) -> _PrismaModelT:
-        """Create a new PipelineRun record.
+        """Create a new BuildRun record.
 
         Parameters
         ----------
         data
-            PipelineRun record data
+            BuildRun record data
         include
-            Specifies which relations should be loaded on the returned PipelineRun model
+            Specifies which relations should be loaded on the returned BuildRun model
 
         Returns
         -------
-        prisma.models.PipelineRun
-            The created PipelineRun record
+        prisma.models.BuildRun
+            The created BuildRun record
 
         Raises
         ------
@@ -8425,10 +8425,10 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # create a PipelineRun record from just the required fields
-        pipelinerun = PipelineRun.prisma().create(
+        # create a BuildRun record from just the required fields
+        buildrun = BuildRun.prisma().create(
             data={
-                # data to create a PipelineRun record
+                # data to create a BuildRun record
                 'productId': 'bgjcgchib',
                 'board': 'bacdaibgfa',
                 'branch': 'dchgibach',
@@ -8448,18 +8448,18 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
     def create_many(
         self,
-        data: List[types.PipelineRunCreateWithoutRelationsInput],
+        data: List[types.BuildRunCreateWithoutRelationsInput],
         *,
         skip_duplicates: Optional[bool] = None,
     ) -> int:
-        """Create multiple PipelineRun records at once.
+        """Create multiple BuildRun records at once.
 
         This function is *not* available when using SQLite.
 
         Parameters
         ----------
         data
-            List of PipelineRun record data
+            List of BuildRun record data
         skip_duplicates
             Boolean flag for ignoring unique constraint errors
 
@@ -8482,16 +8482,16 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        total = PipelineRun.prisma().create_many(
+        total = BuildRun.prisma().create_many(
             data=[
                 {
-                    # data to create a PipelineRun record
+                    # data to create a BuildRun record
                     'productId': 'fchheijjc',
                     'board': 'cacjdfhejh',
                     'branch': 'bdbifjhbbi',
                 },
                 {
-                    # data to create a PipelineRun record
+                    # data to create a BuildRun record
                     'productId': 'cbccbbcdfb',
                     'board': 'bacejedaca',
                     'branch': 'bhbhdahfaj',
@@ -8517,22 +8517,22 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
     def delete(
         self,
-        where: types.PipelineRunWhereUniqueInput,
-        include: Optional[types.PipelineRunInclude] = None
+        where: types.BuildRunWhereUniqueInput,
+        include: Optional[types.BuildRunInclude] = None
     ) -> Optional[_PrismaModelT]:
-        """Delete a single PipelineRun record.
+        """Delete a single BuildRun record.
 
         Parameters
         ----------
         where
-            PipelineRun filter to select the record to be deleted, must be unique
+            BuildRun filter to select the record to be deleted, must be unique
         include
-            Specifies which relations should be loaded on the returned PipelineRun model
+            Specifies which relations should be loaded on the returned BuildRun model
 
         Returns
         -------
-        prisma.models.PipelineRun
-            The deleted PipelineRun record
+        prisma.models.BuildRun
+            The deleted BuildRun record
         None
             Could not find a record to delete
 
@@ -8546,7 +8546,7 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        pipelinerun = PipelineRun.prisma().delete(
+        buildrun = BuildRun.prisma().delete(
             where={
                 'id': 'bfjibceaec',
             },
@@ -8569,22 +8569,22 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
     def find_unique(
         self,
-        where: types.PipelineRunWhereUniqueInput,
-        include: Optional[types.PipelineRunInclude] = None
+        where: types.BuildRunWhereUniqueInput,
+        include: Optional[types.BuildRunInclude] = None
     ) -> Optional[_PrismaModelT]:
-        """Find a unique PipelineRun record.
+        """Find a unique BuildRun record.
 
         Parameters
         ----------
         where
-            PipelineRun filter to find the record, must be unique
+            BuildRun filter to find the record, must be unique
         include
-            Specifies which relations should be loaded on the returned PipelineRun model
+            Specifies which relations should be loaded on the returned BuildRun model
 
         Returns
         -------
-        prisma.models.PipelineRun
-            The found PipelineRun record
+        prisma.models.BuildRun
+            The found BuildRun record
         None
             No record matching the given input could be found
 
@@ -8598,7 +8598,7 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        pipelinerun = PipelineRun.prisma().find_unique(
+        buildrun = BuildRun.prisma().find_unique(
             where={
                 'id': 'ibhgcdbgd',
             },
@@ -8620,22 +8620,22 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
     def find_unique_or_raise(
         self,
-        where: types.PipelineRunWhereUniqueInput,
-        include: Optional[types.PipelineRunInclude] = None
+        where: types.BuildRunWhereUniqueInput,
+        include: Optional[types.BuildRunInclude] = None
     ) -> _PrismaModelT:
-        """Find a unique PipelineRun record. Raises `RecordNotFoundError` if no record is found.
+        """Find a unique BuildRun record. Raises `RecordNotFoundError` if no record is found.
 
         Parameters
         ----------
         where
-            PipelineRun filter to find the record, must be unique
+            BuildRun filter to find the record, must be unique
         include
-            Specifies which relations should be loaded on the returned PipelineRun model
+            Specifies which relations should be loaded on the returned BuildRun model
 
         Returns
         -------
-        prisma.models.PipelineRun
-            The found PipelineRun record
+        prisma.models.BuildRun
+            The found BuildRun record
 
         Raises
         ------
@@ -8649,7 +8649,7 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        pipelinerun = PipelineRun.prisma().find_unique_or_raise(
+        buildrun = BuildRun.prisma().find_unique_or_raise(
             where={
                 'id': 'badaffhddg',
             },
@@ -8670,37 +8670,37 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         self,
         take: Optional[int] = None,
         skip: Optional[int] = None,
-        where: Optional[types.PipelineRunWhereInput] = None,
-        cursor: Optional[types.PipelineRunWhereUniqueInput] = None,
-        include: Optional[types.PipelineRunInclude] = None,
-        order: Optional[Union[types.PipelineRunOrderByInput, List[types.PipelineRunOrderByInput]]] = None,
-        distinct: Optional[List[types.PipelineRunScalarFieldKeys]] = None,
+        where: Optional[types.BuildRunWhereInput] = None,
+        cursor: Optional[types.BuildRunWhereUniqueInput] = None,
+        include: Optional[types.BuildRunInclude] = None,
+        order: Optional[Union[types.BuildRunOrderByInput, List[types.BuildRunOrderByInput]]] = None,
+        distinct: Optional[List[types.BuildRunScalarFieldKeys]] = None,
     ) -> List[_PrismaModelT]:
-        """Find multiple PipelineRun records.
+        """Find multiple BuildRun records.
 
         An empty list is returned if no records could be found.
 
         Parameters
         ----------
         take
-            Limit the maximum number of PipelineRun records returned
+            Limit the maximum number of BuildRun records returned
         skip
             Ignore the first N results
         where
-            PipelineRun filter to select records
+            BuildRun filter to select records
         cursor
             Specifies the position in the list to start returning results from, (typically an ID field)
         include
-            Specifies which relations should be loaded on the returned PipelineRun model
+            Specifies which relations should be loaded on the returned BuildRun model
         order
-            Order the returned PipelineRun records by any field
+            Order the returned BuildRun records by any field
         distinct
-            Filter PipelineRun records by either a single distinct field or distinct combinations of fields
+            Filter BuildRun records by either a single distinct field or distinct combinations of fields
 
         Returns
         -------
-        List[prisma.models.PipelineRun]
-            The list of all PipelineRun records that could be found
+        List[prisma.models.BuildRun]
+            The list of all BuildRun records that could be found
 
         Raises
         ------
@@ -8710,11 +8710,11 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the first 10 PipelineRun records
-        pipelineruns = PipelineRun.prisma().find_many(take=10)
+        # find the first 10 BuildRun records
+        buildruns = BuildRun.prisma().find_many(take=10)
 
-        # find the first 5 PipelineRun records ordered by the productId field
-        pipelineruns = PipelineRun.prisma().find_many(
+        # find the first 5 BuildRun records ordered by the productId field
+        buildruns = BuildRun.prisma().find_many(
             take=5,
             order={
                 'productId': 'desc',
@@ -8740,33 +8740,33 @@ class PipelineRunActions(Generic[_PrismaModelT]):
     def find_first(
         self,
         skip: Optional[int] = None,
-        where: Optional[types.PipelineRunWhereInput] = None,
-        cursor: Optional[types.PipelineRunWhereUniqueInput] = None,
-        include: Optional[types.PipelineRunInclude] = None,
-        order: Optional[Union[types.PipelineRunOrderByInput, List[types.PipelineRunOrderByInput]]] = None,
-        distinct: Optional[List[types.PipelineRunScalarFieldKeys]] = None,
+        where: Optional[types.BuildRunWhereInput] = None,
+        cursor: Optional[types.BuildRunWhereUniqueInput] = None,
+        include: Optional[types.BuildRunInclude] = None,
+        order: Optional[Union[types.BuildRunOrderByInput, List[types.BuildRunOrderByInput]]] = None,
+        distinct: Optional[List[types.BuildRunScalarFieldKeys]] = None,
     ) -> Optional[_PrismaModelT]:
-        """Find a single PipelineRun record.
+        """Find a single BuildRun record.
 
         Parameters
         ----------
         skip
             Ignore the first N records
         where
-            PipelineRun filter to select the record
+            BuildRun filter to select the record
         cursor
             Specifies the position in the list to start returning results from, (typically an ID field)
         include
-            Specifies which relations should be loaded on the returned PipelineRun model
+            Specifies which relations should be loaded on the returned BuildRun model
         order
-            Order the returned PipelineRun records by any field
+            Order the returned BuildRun records by any field
         distinct
-            Filter PipelineRun records by either a single distinct field or distinct combinations of fields
+            Filter BuildRun records by either a single distinct field or distinct combinations of fields
 
         Returns
         -------
-        prisma.models.PipelineRun
-            The first PipelineRun record found, matching the given arguments
+        prisma.models.BuildRun
+            The first BuildRun record found, matching the given arguments
         None
             No record could be found
 
@@ -8778,8 +8778,8 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the second PipelineRun record ordered by the board field
-        pipelinerun = PipelineRun.prisma().find_first(
+        # find the second BuildRun record ordered by the board field
+        buildrun = BuildRun.prisma().find_first(
             skip=1,
             order={
                 'board': 'desc',
@@ -8808,33 +8808,33 @@ class PipelineRunActions(Generic[_PrismaModelT]):
     def find_first_or_raise(
         self,
         skip: Optional[int] = None,
-        where: Optional[types.PipelineRunWhereInput] = None,
-        cursor: Optional[types.PipelineRunWhereUniqueInput] = None,
-        include: Optional[types.PipelineRunInclude] = None,
-        order: Optional[Union[types.PipelineRunOrderByInput, List[types.PipelineRunOrderByInput]]] = None,
-        distinct: Optional[List[types.PipelineRunScalarFieldKeys]] = None,
+        where: Optional[types.BuildRunWhereInput] = None,
+        cursor: Optional[types.BuildRunWhereUniqueInput] = None,
+        include: Optional[types.BuildRunInclude] = None,
+        order: Optional[Union[types.BuildRunOrderByInput, List[types.BuildRunOrderByInput]]] = None,
+        distinct: Optional[List[types.BuildRunScalarFieldKeys]] = None,
     ) -> _PrismaModelT:
-        """Find a single PipelineRun record. Raises `RecordNotFoundError` if no record was found.
+        """Find a single BuildRun record. Raises `RecordNotFoundError` if no record was found.
 
         Parameters
         ----------
         skip
             Ignore the first N records
         where
-            PipelineRun filter to select the record
+            BuildRun filter to select the record
         cursor
             Specifies the position in the list to start returning results from, (typically an ID field)
         include
-            Specifies which relations should be loaded on the returned PipelineRun model
+            Specifies which relations should be loaded on the returned BuildRun model
         order
-            Order the returned PipelineRun records by any field
+            Order the returned BuildRun records by any field
         distinct
-            Filter PipelineRun records by either a single distinct field or distinct combinations of fields
+            Filter BuildRun records by either a single distinct field or distinct combinations of fields
 
         Returns
         -------
-        prisma.models.PipelineRun
-            The first PipelineRun record found, matching the given arguments
+        prisma.models.BuildRun
+            The first BuildRun record found, matching the given arguments
 
         Raises
         ------
@@ -8846,8 +8846,8 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the second PipelineRun record ordered by the branch field
-        pipelinerun = PipelineRun.prisma().find_first_or_raise(
+        # find the second BuildRun record ordered by the branch field
+        buildrun = BuildRun.prisma().find_first_or_raise(
             skip=1,
             order={
                 'branch': 'desc',
@@ -8871,25 +8871,25 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
     def update(
         self,
-        data: types.PipelineRunUpdateInput,
-        where: types.PipelineRunWhereUniqueInput,
-        include: Optional[types.PipelineRunInclude] = None
+        data: types.BuildRunUpdateInput,
+        where: types.BuildRunWhereUniqueInput,
+        include: Optional[types.BuildRunInclude] = None
     ) -> Optional[_PrismaModelT]:
-        """Update a single PipelineRun record.
+        """Update a single BuildRun record.
 
         Parameters
         ----------
         data
-            PipelineRun record data specifying what to update
+            BuildRun record data specifying what to update
         where
-            PipelineRun filter to select the unique record to create / update
+            BuildRun filter to select the unique record to create / update
         include
-            Specifies which relations should be loaded on the returned PipelineRun model
+            Specifies which relations should be loaded on the returned BuildRun model
 
         Returns
         -------
-        prisma.models.PipelineRun
-            The updated PipelineRun record
+        prisma.models.BuildRun
+            The updated BuildRun record
         None
             No record could be found
 
@@ -8901,12 +8901,12 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        pipelinerun = PipelineRun.prisma().update(
+        buildrun = BuildRun.prisma().update(
             where={
                 'id': 'bbdbfcfihd',
             },
             data={
-                # data to update the PipelineRun record to
+                # data to update the BuildRun record to
             },
         )
         ```
@@ -8928,25 +8928,25 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
     def upsert(
         self,
-        where: types.PipelineRunWhereUniqueInput,
-        data: types.PipelineRunUpsertInput,
-        include: Optional[types.PipelineRunInclude] = None,
+        where: types.BuildRunWhereUniqueInput,
+        data: types.BuildRunUpsertInput,
+        include: Optional[types.BuildRunInclude] = None,
     ) -> _PrismaModelT:
         """Updates an existing record or create a new one
 
         Parameters
         ----------
         where
-            PipelineRun filter to select the unique record to create / update
+            BuildRun filter to select the unique record to create / update
         data
             Data specifying what fields to set on create and update
         include
-            Specifies which relations should be loaded on the returned PipelineRun model
+            Specifies which relations should be loaded on the returned BuildRun model
 
         Returns
         -------
-        prisma.models.PipelineRun
-            The created or updated PipelineRun record
+        prisma.models.BuildRun
+            The created or updated BuildRun record
 
         Raises
         ------
@@ -8958,7 +8958,7 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        pipelinerun = PipelineRun.prisma().upsert(
+        buildrun = BuildRun.prisma().upsert(
             where={
                 'id': 'cbagggbji',
             },
@@ -8992,22 +8992,22 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
     def update_many(
         self,
-        data: types.PipelineRunUpdateManyMutationInput,
-        where: types.PipelineRunWhereInput,
+        data: types.BuildRunUpdateManyMutationInput,
+        where: types.BuildRunWhereInput,
     ) -> int:
-        """Update multiple PipelineRun records
+        """Update multiple BuildRun records
 
         Parameters
         ----------
         data
-            PipelineRun data to update the selected PipelineRun records to
+            BuildRun data to update the selected BuildRun records to
         where
-            Filter to select the PipelineRun records to update
+            Filter to select the BuildRun records to update
 
         Returns
         -------
         int
-            The total number of PipelineRun records that were updated
+            The total number of BuildRun records that were updated
 
         Raises
         ------
@@ -9017,8 +9017,8 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # update all PipelineRun records
-        total = PipelineRun.prisma().update_many(
+        # update all BuildRun records
+        total = BuildRun.prisma().update_many(
             data={
                 'commitSha': 'bchgafhjed'
             },
@@ -9040,21 +9040,21 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         select: None = None,
         take: Optional[int] = None,
         skip: Optional[int] = None,
-        where: Optional[types.PipelineRunWhereInput] = None,
-        cursor: Optional[types.PipelineRunWhereUniqueInput] = None,
+        where: Optional[types.BuildRunWhereInput] = None,
+        cursor: Optional[types.BuildRunWhereUniqueInput] = None,
     ) -> int:
-        """Count the number of PipelineRun records present in the database
+        """Count the number of BuildRun records present in the database
 
         Parameters
         ----------
         select
-            Select the PipelineRun fields to be counted
+            Select the BuildRun fields to be counted
         take
             Limit the maximum result
         skip
             Ignore the first N records
         where
-            PipelineRun filter to find records
+            BuildRun filter to find records
         cursor
             Specifies the position in the list to start counting results from, (typically an ID field)
         order
@@ -9065,7 +9065,7 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         int
             The total number of records found, returned if `select` is not given
 
-        prisma.types.PipelineRunCountAggregateOutput
+        prisma.types.BuildRunCountAggregateOutput
             Data returned when `select` is used, the fields present in this dictionary will
             match the fields passed in the `select` argument
 
@@ -9078,10 +9078,10 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         -------
         ```py
         # total: int
-        total = PipelineRun.prisma().count()
+        total = BuildRun.prisma().count()
 
-        # results: prisma.types.PipelineRunCountAggregateOutput
-        results = PipelineRun.prisma().count(
+        # results: prisma.types.BuildRunCountAggregateOutput
+        results = BuildRun.prisma().count(
             select={
                 '_all': True,
                 'status': True,
@@ -9094,34 +9094,34 @@ class PipelineRunActions(Generic[_PrismaModelT]):
     @overload
     def count(
         self,
-        select: types.PipelineRunCountAggregateInput,
+        select: types.BuildRunCountAggregateInput,
         take: Optional[int] = None,
         skip: Optional[int] = None,
-        where: Optional[types.PipelineRunWhereInput] = None,
-        cursor: Optional[types.PipelineRunWhereUniqueInput] = None,
-    ) -> types.PipelineRunCountAggregateOutput:
+        where: Optional[types.BuildRunWhereInput] = None,
+        cursor: Optional[types.BuildRunWhereUniqueInput] = None,
+    ) -> types.BuildRunCountAggregateOutput:
         ...
 
     def count(
         self,
-        select: Optional[types.PipelineRunCountAggregateInput] = None,
+        select: Optional[types.BuildRunCountAggregateInput] = None,
         take: Optional[int] = None,
         skip: Optional[int] = None,
-        where: Optional[types.PipelineRunWhereInput] = None,
-        cursor: Optional[types.PipelineRunWhereUniqueInput] = None,
-    ) -> Union[int, types.PipelineRunCountAggregateOutput]:
-        """Count the number of PipelineRun records present in the database
+        where: Optional[types.BuildRunWhereInput] = None,
+        cursor: Optional[types.BuildRunWhereUniqueInput] = None,
+    ) -> Union[int, types.BuildRunCountAggregateOutput]:
+        """Count the number of BuildRun records present in the database
 
         Parameters
         ----------
         select
-            Select the PipelineRun fields to be counted
+            Select the BuildRun fields to be counted
         take
             Limit the maximum result
         skip
             Ignore the first N records
         where
-            PipelineRun filter to find records
+            BuildRun filter to find records
         cursor
             Specifies the position in the list to start counting results from, (typically an ID field)
         order
@@ -9132,7 +9132,7 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         int
             The total number of records found, returned if `select` is not given
 
-        prisma.types.PipelineRunCountAggregateOutput
+        prisma.types.BuildRunCountAggregateOutput
             Data returned when `select` is used, the fields present in this dictionary will
             match the fields passed in the `select` argument
 
@@ -9145,10 +9145,10 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         -------
         ```py
         # total: int
-        total = PipelineRun.prisma().count()
+        total = BuildRun.prisma().count()
 
-        # results: prisma.types.PipelineRunCountAggregateOutput
-        results = PipelineRun.prisma().count(
+        # results: prisma.types.BuildRunCountAggregateOutput
+        results = BuildRun.prisma().count(
             select={
                 '_all': True,
                 'triggerType': True,
@@ -9185,23 +9185,23 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         if select is None:
             return cast(int, resp['data']['result']['_count']['_all'])
         else:
-            return cast(types.PipelineRunCountAggregateOutput, resp['data']['result']['_count'])
+            return cast(types.BuildRunCountAggregateOutput, resp['data']['result']['_count'])
 
     def delete_many(
         self,
-        where: Optional[types.PipelineRunWhereInput] = None
+        where: Optional[types.BuildRunWhereInput] = None
     ) -> int:
-        """Delete multiple PipelineRun records.
+        """Delete multiple BuildRun records.
 
         Parameters
         ----------
         where
-            Optional PipelineRun filter to find the records to be deleted
+            Optional BuildRun filter to find the records to be deleted
 
         Returns
         -------
         int
-            The total number of PipelineRun records that were deleted
+            The total number of BuildRun records that were deleted
 
         Raises
         ------
@@ -9211,8 +9211,8 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # delete all PipelineRun records
-        total = PipelineRun.prisma().delete_many()
+        # delete all BuildRun records
+        total = BuildRun.prisma().delete_many()
         ```
         """
         resp = self._client._execute(
@@ -9229,30 +9229,30 @@ class PipelineRunActions(Generic[_PrismaModelT]):
     # TODO: statically type that the order argument is required when take or skip are present
     def group_by(
         self,
-        by: List['types.PipelineRunScalarFieldKeys'],
+        by: List['types.BuildRunScalarFieldKeys'],
         *,
-        where: Optional['types.PipelineRunWhereInput'] = None,
+        where: Optional['types.BuildRunWhereInput'] = None,
         take: Optional[int] = None,
         skip: Optional[int] = None,
-        avg: Optional['types.PipelineRunAvgAggregateInput'] = None,
-        sum: Optional['types.PipelineRunSumAggregateInput'] = None,
-        min: Optional['types.PipelineRunMinAggregateInput'] = None,
-        max: Optional['types.PipelineRunMaxAggregateInput'] = None,
-        having: Optional['types.PipelineRunScalarWhereWithAggregatesInput'] = None,
-        count: Optional[Union[bool, 'types.PipelineRunCountAggregateInput']] = None,
-        order: Optional[Union[Mapping['types.PipelineRunScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.PipelineRunScalarFieldKeys', 'types.SortOrder']]]] = None,
-    ) -> List['types.PipelineRunGroupByOutput']:
-        """Group PipelineRun records by one or more field values and perform aggregations
+        avg: Optional['types.BuildRunAvgAggregateInput'] = None,
+        sum: Optional['types.BuildRunSumAggregateInput'] = None,
+        min: Optional['types.BuildRunMinAggregateInput'] = None,
+        max: Optional['types.BuildRunMaxAggregateInput'] = None,
+        having: Optional['types.BuildRunScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.BuildRunCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.BuildRunScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.BuildRunScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.BuildRunGroupByOutput']:
+        """Group BuildRun records by one or more field values and perform aggregations
         each group such as finding the average.
 
         Parameters
         ----------
         by
-            List of scalar PipelineRun fields to group records by
+            List of scalar BuildRun fields to group records by
         where
-            PipelineRun filter to select records
+            BuildRun filter to select records
         take
-            Limit the maximum number of PipelineRun records returned
+            Limit the maximum number of BuildRun records returned
         skip
             Ignore the first N records
         avg
@@ -9278,8 +9278,8 @@ class PipelineRunActions(Generic[_PrismaModelT]):
 
         Returns
         -------
-        List[prisma.types.PipelineRunGroupByOutput]
-            A list of dictionaries representing the PipelineRun record,
+        List[prisma.types.BuildRunGroupByOutput]
+            A list of dictionaries representing the BuildRun record,
             this will also have additional fields present if aggregation arguments
             are used (see the above parameters)
 
@@ -9291,9 +9291,9 @@ class PipelineRunActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group PipelineRun records by triggerData values
+        # group BuildRun records by triggerData values
         # and count how many records are in each group
-        results = PipelineRun.prisma().group_by(
+        results = BuildRun.prisma().group_by(
             ['triggerData'],
             count=True,
         )
@@ -10379,7 +10379,7 @@ class BuildJobActions(Generic[_PrismaModelT]):
         return resp['data']['result']  # type: ignore[no-any-return]
 
 
-class BuildJobArtifactActions(Generic[_PrismaModelT]):
+class BuildArtifactActions(Generic[_PrismaModelT]):
     __slots__ = (
         '_client',
         '_model',
@@ -10406,7 +10406,7 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
         Returns
         -------
-        List[prisma.models.BuildJobArtifact]
+        List[prisma.models.BuildArtifact]
             The records returned by the SQL query
 
         Raises
@@ -10419,8 +10419,8 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        users = BuildJobArtifact.prisma().query_raw(
-            'SELECT * FROM BuildJobArtifact WHERE id = $1',
+        users = BuildArtifact.prisma().query_raw(
+            'SELECT * FROM BuildArtifact WHERE id = $1',
             'gfidhicai',
         )
         ```
@@ -10444,7 +10444,7 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
         Returns
         -------
-        prisma.models.BuildJobArtifact
+        prisma.models.BuildArtifact
             The first record returned by the SQL query
         None
             The raw SQL query did not return any records
@@ -10459,8 +10459,8 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        user = BuildJobArtifact.prisma().query_first(
-            'SELECT * FROM BuildJobArtifact WHERE buildJobId = $1',
+        user = BuildArtifact.prisma().query_first(
+            'SELECT * FROM BuildArtifact WHERE buildJobId = $1',
             'jfegcaafh',
         )
         ```
@@ -10469,22 +10469,22 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
     def create(
         self,
-        data: types.BuildJobArtifactCreateInput,
-        include: Optional[types.BuildJobArtifactInclude] = None
+        data: types.BuildArtifactCreateInput,
+        include: Optional[types.BuildArtifactInclude] = None
     ) -> _PrismaModelT:
-        """Create a new BuildJobArtifact record.
+        """Create a new BuildArtifact record.
 
         Parameters
         ----------
         data
-            BuildJobArtifact record data
+            BuildArtifact record data
         include
-            Specifies which relations should be loaded on the returned BuildJobArtifact model
+            Specifies which relations should be loaded on the returned BuildArtifact model
 
         Returns
         -------
-        prisma.models.BuildJobArtifact
-            The created BuildJobArtifact record
+        prisma.models.BuildArtifact
+            The created BuildArtifact record
 
         Raises
         ------
@@ -10496,10 +10496,10 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # create a BuildJobArtifact record from just the required fields
-        buildjobartifact = BuildJobArtifact.prisma().create(
+        # create a BuildArtifact record from just the required fields
+        buildartifact = BuildArtifact.prisma().create(
             data={
-                # data to create a BuildJobArtifact record
+                # data to create a BuildArtifact record
                 'buildJobId': 'bcbeiajjfa',
                 'name': 'baehicaajf',
                 'storageKey': 'bdachdeiga',
@@ -10521,18 +10521,18 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
     def create_many(
         self,
-        data: List[types.BuildJobArtifactCreateWithoutRelationsInput],
+        data: List[types.BuildArtifactCreateWithoutRelationsInput],
         *,
         skip_duplicates: Optional[bool] = None,
     ) -> int:
-        """Create multiple BuildJobArtifact records at once.
+        """Create multiple BuildArtifact records at once.
 
         This function is *not* available when using SQLite.
 
         Parameters
         ----------
         data
-            List of BuildJobArtifact record data
+            List of BuildArtifact record data
         skip_duplicates
             Boolean flag for ignoring unique constraint errors
 
@@ -10555,10 +10555,10 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        total = BuildJobArtifact.prisma().create_many(
+        total = BuildArtifact.prisma().create_many(
             data=[
                 {
-                    # data to create a BuildJobArtifact record
+                    # data to create a BuildArtifact record
                     'buildJobId': 'fejggijff',
                     'name': 'hghjaaai',
                     'storageKey': 'cajicjjdef',
@@ -10566,7 +10566,7 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
                     'checksum': 'ibbigdigd',
                 },
                 {
-                    # data to create a BuildJobArtifact record
+                    # data to create a BuildArtifact record
                     'buildJobId': 'bdiiiabbii',
                     'name': 'hfcfhhadh',
                     'storageKey': 'bbihggdcji',
@@ -10594,22 +10594,22 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
     def delete(
         self,
-        where: types.BuildJobArtifactWhereUniqueInput,
-        include: Optional[types.BuildJobArtifactInclude] = None
+        where: types.BuildArtifactWhereUniqueInput,
+        include: Optional[types.BuildArtifactInclude] = None
     ) -> Optional[_PrismaModelT]:
-        """Delete a single BuildJobArtifact record.
+        """Delete a single BuildArtifact record.
 
         Parameters
         ----------
         where
-            BuildJobArtifact filter to select the record to be deleted, must be unique
+            BuildArtifact filter to select the record to be deleted, must be unique
         include
-            Specifies which relations should be loaded on the returned BuildJobArtifact model
+            Specifies which relations should be loaded on the returned BuildArtifact model
 
         Returns
         -------
-        prisma.models.BuildJobArtifact
-            The deleted BuildJobArtifact record
+        prisma.models.BuildArtifact
+            The deleted BuildArtifact record
         None
             Could not find a record to delete
 
@@ -10623,7 +10623,7 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        buildjobartifact = BuildJobArtifact.prisma().delete(
+        buildartifact = BuildArtifact.prisma().delete(
             where={
                 'id': 'bacbebhjjd',
             },
@@ -10646,22 +10646,22 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
     def find_unique(
         self,
-        where: types.BuildJobArtifactWhereUniqueInput,
-        include: Optional[types.BuildJobArtifactInclude] = None
+        where: types.BuildArtifactWhereUniqueInput,
+        include: Optional[types.BuildArtifactInclude] = None
     ) -> Optional[_PrismaModelT]:
-        """Find a unique BuildJobArtifact record.
+        """Find a unique BuildArtifact record.
 
         Parameters
         ----------
         where
-            BuildJobArtifact filter to find the record, must be unique
+            BuildArtifact filter to find the record, must be unique
         include
-            Specifies which relations should be loaded on the returned BuildJobArtifact model
+            Specifies which relations should be loaded on the returned BuildArtifact model
 
         Returns
         -------
-        prisma.models.BuildJobArtifact
-            The found BuildJobArtifact record
+        prisma.models.BuildArtifact
+            The found BuildArtifact record
         None
             No record matching the given input could be found
 
@@ -10675,7 +10675,7 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        buildjobartifact = BuildJobArtifact.prisma().find_unique(
+        buildartifact = BuildArtifact.prisma().find_unique(
             where={
                 'id': 'dfbfaddhe',
             },
@@ -10697,22 +10697,22 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
     def find_unique_or_raise(
         self,
-        where: types.BuildJobArtifactWhereUniqueInput,
-        include: Optional[types.BuildJobArtifactInclude] = None
+        where: types.BuildArtifactWhereUniqueInput,
+        include: Optional[types.BuildArtifactInclude] = None
     ) -> _PrismaModelT:
-        """Find a unique BuildJobArtifact record. Raises `RecordNotFoundError` if no record is found.
+        """Find a unique BuildArtifact record. Raises `RecordNotFoundError` if no record is found.
 
         Parameters
         ----------
         where
-            BuildJobArtifact filter to find the record, must be unique
+            BuildArtifact filter to find the record, must be unique
         include
-            Specifies which relations should be loaded on the returned BuildJobArtifact model
+            Specifies which relations should be loaded on the returned BuildArtifact model
 
         Returns
         -------
-        prisma.models.BuildJobArtifact
-            The found BuildJobArtifact record
+        prisma.models.BuildArtifact
+            The found BuildArtifact record
 
         Raises
         ------
@@ -10726,7 +10726,7 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        buildjobartifact = BuildJobArtifact.prisma().find_unique_or_raise(
+        buildartifact = BuildArtifact.prisma().find_unique_or_raise(
             where={
                 'id': 'bdcbbieibf',
             },
@@ -10747,37 +10747,37 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         self,
         take: Optional[int] = None,
         skip: Optional[int] = None,
-        where: Optional[types.BuildJobArtifactWhereInput] = None,
-        cursor: Optional[types.BuildJobArtifactWhereUniqueInput] = None,
-        include: Optional[types.BuildJobArtifactInclude] = None,
-        order: Optional[Union[types.BuildJobArtifactOrderByInput, List[types.BuildJobArtifactOrderByInput]]] = None,
-        distinct: Optional[List[types.BuildJobArtifactScalarFieldKeys]] = None,
+        where: Optional[types.BuildArtifactWhereInput] = None,
+        cursor: Optional[types.BuildArtifactWhereUniqueInput] = None,
+        include: Optional[types.BuildArtifactInclude] = None,
+        order: Optional[Union[types.BuildArtifactOrderByInput, List[types.BuildArtifactOrderByInput]]] = None,
+        distinct: Optional[List[types.BuildArtifactScalarFieldKeys]] = None,
     ) -> List[_PrismaModelT]:
-        """Find multiple BuildJobArtifact records.
+        """Find multiple BuildArtifact records.
 
         An empty list is returned if no records could be found.
 
         Parameters
         ----------
         take
-            Limit the maximum number of BuildJobArtifact records returned
+            Limit the maximum number of BuildArtifact records returned
         skip
             Ignore the first N results
         where
-            BuildJobArtifact filter to select records
+            BuildArtifact filter to select records
         cursor
             Specifies the position in the list to start returning results from, (typically an ID field)
         include
-            Specifies which relations should be loaded on the returned BuildJobArtifact model
+            Specifies which relations should be loaded on the returned BuildArtifact model
         order
-            Order the returned BuildJobArtifact records by any field
+            Order the returned BuildArtifact records by any field
         distinct
-            Filter BuildJobArtifact records by either a single distinct field or distinct combinations of fields
+            Filter BuildArtifact records by either a single distinct field or distinct combinations of fields
 
         Returns
         -------
-        List[prisma.models.BuildJobArtifact]
-            The list of all BuildJobArtifact records that could be found
+        List[prisma.models.BuildArtifact]
+            The list of all BuildArtifact records that could be found
 
         Raises
         ------
@@ -10787,11 +10787,11 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the first 10 BuildJobArtifact records
-        buildjobartifacts = BuildJobArtifact.prisma().find_many(take=10)
+        # find the first 10 BuildArtifact records
+        buildartifacts = BuildArtifact.prisma().find_many(take=10)
 
-        # find the first 5 BuildJobArtifact records ordered by the name field
-        buildjobartifacts = BuildJobArtifact.prisma().find_many(
+        # find the first 5 BuildArtifact records ordered by the name field
+        buildartifacts = BuildArtifact.prisma().find_many(
             take=5,
             order={
                 'name': 'desc',
@@ -10817,33 +10817,33 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
     def find_first(
         self,
         skip: Optional[int] = None,
-        where: Optional[types.BuildJobArtifactWhereInput] = None,
-        cursor: Optional[types.BuildJobArtifactWhereUniqueInput] = None,
-        include: Optional[types.BuildJobArtifactInclude] = None,
-        order: Optional[Union[types.BuildJobArtifactOrderByInput, List[types.BuildJobArtifactOrderByInput]]] = None,
-        distinct: Optional[List[types.BuildJobArtifactScalarFieldKeys]] = None,
+        where: Optional[types.BuildArtifactWhereInput] = None,
+        cursor: Optional[types.BuildArtifactWhereUniqueInput] = None,
+        include: Optional[types.BuildArtifactInclude] = None,
+        order: Optional[Union[types.BuildArtifactOrderByInput, List[types.BuildArtifactOrderByInput]]] = None,
+        distinct: Optional[List[types.BuildArtifactScalarFieldKeys]] = None,
     ) -> Optional[_PrismaModelT]:
-        """Find a single BuildJobArtifact record.
+        """Find a single BuildArtifact record.
 
         Parameters
         ----------
         skip
             Ignore the first N records
         where
-            BuildJobArtifact filter to select the record
+            BuildArtifact filter to select the record
         cursor
             Specifies the position in the list to start returning results from, (typically an ID field)
         include
-            Specifies which relations should be loaded on the returned BuildJobArtifact model
+            Specifies which relations should be loaded on the returned BuildArtifact model
         order
-            Order the returned BuildJobArtifact records by any field
+            Order the returned BuildArtifact records by any field
         distinct
-            Filter BuildJobArtifact records by either a single distinct field or distinct combinations of fields
+            Filter BuildArtifact records by either a single distinct field or distinct combinations of fields
 
         Returns
         -------
-        prisma.models.BuildJobArtifact
-            The first BuildJobArtifact record found, matching the given arguments
+        prisma.models.BuildArtifact
+            The first BuildArtifact record found, matching the given arguments
         None
             No record could be found
 
@@ -10855,8 +10855,8 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the second BuildJobArtifact record ordered by the storageKey field
-        buildjobartifact = BuildJobArtifact.prisma().find_first(
+        # find the second BuildArtifact record ordered by the storageKey field
+        buildartifact = BuildArtifact.prisma().find_first(
             skip=1,
             order={
                 'storageKey': 'desc',
@@ -10885,33 +10885,33 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
     def find_first_or_raise(
         self,
         skip: Optional[int] = None,
-        where: Optional[types.BuildJobArtifactWhereInput] = None,
-        cursor: Optional[types.BuildJobArtifactWhereUniqueInput] = None,
-        include: Optional[types.BuildJobArtifactInclude] = None,
-        order: Optional[Union[types.BuildJobArtifactOrderByInput, List[types.BuildJobArtifactOrderByInput]]] = None,
-        distinct: Optional[List[types.BuildJobArtifactScalarFieldKeys]] = None,
+        where: Optional[types.BuildArtifactWhereInput] = None,
+        cursor: Optional[types.BuildArtifactWhereUniqueInput] = None,
+        include: Optional[types.BuildArtifactInclude] = None,
+        order: Optional[Union[types.BuildArtifactOrderByInput, List[types.BuildArtifactOrderByInput]]] = None,
+        distinct: Optional[List[types.BuildArtifactScalarFieldKeys]] = None,
     ) -> _PrismaModelT:
-        """Find a single BuildJobArtifact record. Raises `RecordNotFoundError` if no record was found.
+        """Find a single BuildArtifact record. Raises `RecordNotFoundError` if no record was found.
 
         Parameters
         ----------
         skip
             Ignore the first N records
         where
-            BuildJobArtifact filter to select the record
+            BuildArtifact filter to select the record
         cursor
             Specifies the position in the list to start returning results from, (typically an ID field)
         include
-            Specifies which relations should be loaded on the returned BuildJobArtifact model
+            Specifies which relations should be loaded on the returned BuildArtifact model
         order
-            Order the returned BuildJobArtifact records by any field
+            Order the returned BuildArtifact records by any field
         distinct
-            Filter BuildJobArtifact records by either a single distinct field or distinct combinations of fields
+            Filter BuildArtifact records by either a single distinct field or distinct combinations of fields
 
         Returns
         -------
-        prisma.models.BuildJobArtifact
-            The first BuildJobArtifact record found, matching the given arguments
+        prisma.models.BuildArtifact
+            The first BuildArtifact record found, matching the given arguments
 
         Raises
         ------
@@ -10923,8 +10923,8 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the second BuildJobArtifact record ordered by the sizeBytes field
-        buildjobartifact = BuildJobArtifact.prisma().find_first_or_raise(
+        # find the second BuildArtifact record ordered by the sizeBytes field
+        buildartifact = BuildArtifact.prisma().find_first_or_raise(
             skip=1,
             order={
                 'sizeBytes': 'desc',
@@ -10948,25 +10948,25 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
     def update(
         self,
-        data: types.BuildJobArtifactUpdateInput,
-        where: types.BuildJobArtifactWhereUniqueInput,
-        include: Optional[types.BuildJobArtifactInclude] = None
+        data: types.BuildArtifactUpdateInput,
+        where: types.BuildArtifactWhereUniqueInput,
+        include: Optional[types.BuildArtifactInclude] = None
     ) -> Optional[_PrismaModelT]:
-        """Update a single BuildJobArtifact record.
+        """Update a single BuildArtifact record.
 
         Parameters
         ----------
         data
-            BuildJobArtifact record data specifying what to update
+            BuildArtifact record data specifying what to update
         where
-            BuildJobArtifact filter to select the unique record to create / update
+            BuildArtifact filter to select the unique record to create / update
         include
-            Specifies which relations should be loaded on the returned BuildJobArtifact model
+            Specifies which relations should be loaded on the returned BuildArtifact model
 
         Returns
         -------
-        prisma.models.BuildJobArtifact
-            The updated BuildJobArtifact record
+        prisma.models.BuildArtifact
+            The updated BuildArtifact record
         None
             No record could be found
 
@@ -10978,12 +10978,12 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        buildjobartifact = BuildJobArtifact.prisma().update(
+        buildartifact = BuildArtifact.prisma().update(
             where={
                 'id': 'dgjhdcggi',
             },
             data={
-                # data to update the BuildJobArtifact record to
+                # data to update the BuildArtifact record to
             },
         )
         ```
@@ -11005,25 +11005,25 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
     def upsert(
         self,
-        where: types.BuildJobArtifactWhereUniqueInput,
-        data: types.BuildJobArtifactUpsertInput,
-        include: Optional[types.BuildJobArtifactInclude] = None,
+        where: types.BuildArtifactWhereUniqueInput,
+        data: types.BuildArtifactUpsertInput,
+        include: Optional[types.BuildArtifactInclude] = None,
     ) -> _PrismaModelT:
         """Updates an existing record or create a new one
 
         Parameters
         ----------
         where
-            BuildJobArtifact filter to select the unique record to create / update
+            BuildArtifact filter to select the unique record to create / update
         data
             Data specifying what fields to set on create and update
         include
-            Specifies which relations should be loaded on the returned BuildJobArtifact model
+            Specifies which relations should be loaded on the returned BuildArtifact model
 
         Returns
         -------
-        prisma.models.BuildJobArtifact
-            The created or updated BuildJobArtifact record
+        prisma.models.BuildArtifact
+            The created or updated BuildArtifact record
 
         Raises
         ------
@@ -11035,7 +11035,7 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        buildjobartifact = BuildJobArtifact.prisma().upsert(
+        buildartifact = BuildArtifact.prisma().upsert(
             where={
                 'id': 'bbjbcdfabd',
             },
@@ -11073,22 +11073,22 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
     def update_many(
         self,
-        data: types.BuildJobArtifactUpdateManyMutationInput,
-        where: types.BuildJobArtifactWhereInput,
+        data: types.BuildArtifactUpdateManyMutationInput,
+        where: types.BuildArtifactWhereInput,
     ) -> int:
-        """Update multiple BuildJobArtifact records
+        """Update multiple BuildArtifact records
 
         Parameters
         ----------
         data
-            BuildJobArtifact data to update the selected BuildJobArtifact records to
+            BuildArtifact data to update the selected BuildArtifact records to
         where
-            Filter to select the BuildJobArtifact records to update
+            Filter to select the BuildArtifact records to update
 
         Returns
         -------
         int
-            The total number of BuildJobArtifact records that were updated
+            The total number of BuildArtifact records that were updated
 
         Raises
         ------
@@ -11098,8 +11098,8 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # update all BuildJobArtifact records
-        total = BuildJobArtifact.prisma().update_many(
+        # update all BuildArtifact records
+        total = BuildArtifact.prisma().update_many(
             data={
                 'checksum': 'gchfgbcec'
             },
@@ -11121,21 +11121,21 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         select: None = None,
         take: Optional[int] = None,
         skip: Optional[int] = None,
-        where: Optional[types.BuildJobArtifactWhereInput] = None,
-        cursor: Optional[types.BuildJobArtifactWhereUniqueInput] = None,
+        where: Optional[types.BuildArtifactWhereInput] = None,
+        cursor: Optional[types.BuildArtifactWhereUniqueInput] = None,
     ) -> int:
-        """Count the number of BuildJobArtifact records present in the database
+        """Count the number of BuildArtifact records present in the database
 
         Parameters
         ----------
         select
-            Select the BuildJobArtifact fields to be counted
+            Select the BuildArtifact fields to be counted
         take
             Limit the maximum result
         skip
             Ignore the first N records
         where
-            BuildJobArtifact filter to find records
+            BuildArtifact filter to find records
         cursor
             Specifies the position in the list to start counting results from, (typically an ID field)
         order
@@ -11146,7 +11146,7 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         int
             The total number of records found, returned if `select` is not given
 
-        prisma.types.BuildJobArtifactCountAggregateOutput
+        prisma.types.BuildArtifactCountAggregateOutput
             Data returned when `select` is used, the fields present in this dictionary will
             match the fields passed in the `select` argument
 
@@ -11159,10 +11159,10 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         -------
         ```py
         # total: int
-        total = BuildJobArtifact.prisma().count()
+        total = BuildArtifact.prisma().count()
 
-        # results: prisma.types.BuildJobArtifactCountAggregateOutput
-        results = BuildJobArtifact.prisma().count(
+        # results: prisma.types.BuildArtifactCountAggregateOutput
+        results = BuildArtifact.prisma().count(
             select={
                 '_all': True,
                 'role': True,
@@ -11175,34 +11175,34 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
     @overload
     def count(
         self,
-        select: types.BuildJobArtifactCountAggregateInput,
+        select: types.BuildArtifactCountAggregateInput,
         take: Optional[int] = None,
         skip: Optional[int] = None,
-        where: Optional[types.BuildJobArtifactWhereInput] = None,
-        cursor: Optional[types.BuildJobArtifactWhereUniqueInput] = None,
-    ) -> types.BuildJobArtifactCountAggregateOutput:
+        where: Optional[types.BuildArtifactWhereInput] = None,
+        cursor: Optional[types.BuildArtifactWhereUniqueInput] = None,
+    ) -> types.BuildArtifactCountAggregateOutput:
         ...
 
     def count(
         self,
-        select: Optional[types.BuildJobArtifactCountAggregateInput] = None,
+        select: Optional[types.BuildArtifactCountAggregateInput] = None,
         take: Optional[int] = None,
         skip: Optional[int] = None,
-        where: Optional[types.BuildJobArtifactWhereInput] = None,
-        cursor: Optional[types.BuildJobArtifactWhereUniqueInput] = None,
-    ) -> Union[int, types.BuildJobArtifactCountAggregateOutput]:
-        """Count the number of BuildJobArtifact records present in the database
+        where: Optional[types.BuildArtifactWhereInput] = None,
+        cursor: Optional[types.BuildArtifactWhereUniqueInput] = None,
+    ) -> Union[int, types.BuildArtifactCountAggregateOutput]:
+        """Count the number of BuildArtifact records present in the database
 
         Parameters
         ----------
         select
-            Select the BuildJobArtifact fields to be counted
+            Select the BuildArtifact fields to be counted
         take
             Limit the maximum result
         skip
             Ignore the first N records
         where
-            BuildJobArtifact filter to find records
+            BuildArtifact filter to find records
         cursor
             Specifies the position in the list to start counting results from, (typically an ID field)
         order
@@ -11213,7 +11213,7 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         int
             The total number of records found, returned if `select` is not given
 
-        prisma.types.BuildJobArtifactCountAggregateOutput
+        prisma.types.BuildArtifactCountAggregateOutput
             Data returned when `select` is used, the fields present in this dictionary will
             match the fields passed in the `select` argument
 
@@ -11226,10 +11226,10 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         -------
         ```py
         # total: int
-        total = BuildJobArtifact.prisma().count()
+        total = BuildArtifact.prisma().count()
 
-        # results: prisma.types.BuildJobArtifactCountAggregateOutput
-        results = BuildJobArtifact.prisma().count(
+        # results: prisma.types.BuildArtifactCountAggregateOutput
+        results = BuildArtifact.prisma().count(
             select={
                 '_all': True,
                 'processor': True,
@@ -11266,23 +11266,23 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         if select is None:
             return cast(int, resp['data']['result']['_count']['_all'])
         else:
-            return cast(types.BuildJobArtifactCountAggregateOutput, resp['data']['result']['_count'])
+            return cast(types.BuildArtifactCountAggregateOutput, resp['data']['result']['_count'])
 
     def delete_many(
         self,
-        where: Optional[types.BuildJobArtifactWhereInput] = None
+        where: Optional[types.BuildArtifactWhereInput] = None
     ) -> int:
-        """Delete multiple BuildJobArtifact records.
+        """Delete multiple BuildArtifact records.
 
         Parameters
         ----------
         where
-            Optional BuildJobArtifact filter to find the records to be deleted
+            Optional BuildArtifact filter to find the records to be deleted
 
         Returns
         -------
         int
-            The total number of BuildJobArtifact records that were deleted
+            The total number of BuildArtifact records that were deleted
 
         Raises
         ------
@@ -11292,8 +11292,8 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # delete all BuildJobArtifact records
-        total = BuildJobArtifact.prisma().delete_many()
+        # delete all BuildArtifact records
+        total = BuildArtifact.prisma().delete_many()
         ```
         """
         resp = self._client._execute(
@@ -11310,30 +11310,30 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
     # TODO: statically type that the order argument is required when take or skip are present
     def group_by(
         self,
-        by: List['types.BuildJobArtifactScalarFieldKeys'],
+        by: List['types.BuildArtifactScalarFieldKeys'],
         *,
-        where: Optional['types.BuildJobArtifactWhereInput'] = None,
+        where: Optional['types.BuildArtifactWhereInput'] = None,
         take: Optional[int] = None,
         skip: Optional[int] = None,
-        avg: Optional['types.BuildJobArtifactAvgAggregateInput'] = None,
-        sum: Optional['types.BuildJobArtifactSumAggregateInput'] = None,
-        min: Optional['types.BuildJobArtifactMinAggregateInput'] = None,
-        max: Optional['types.BuildJobArtifactMaxAggregateInput'] = None,
-        having: Optional['types.BuildJobArtifactScalarWhereWithAggregatesInput'] = None,
-        count: Optional[Union[bool, 'types.BuildJobArtifactCountAggregateInput']] = None,
-        order: Optional[Union[Mapping['types.BuildJobArtifactScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.BuildJobArtifactScalarFieldKeys', 'types.SortOrder']]]] = None,
-    ) -> List['types.BuildJobArtifactGroupByOutput']:
-        """Group BuildJobArtifact records by one or more field values and perform aggregations
+        avg: Optional['types.BuildArtifactAvgAggregateInput'] = None,
+        sum: Optional['types.BuildArtifactSumAggregateInput'] = None,
+        min: Optional['types.BuildArtifactMinAggregateInput'] = None,
+        max: Optional['types.BuildArtifactMaxAggregateInput'] = None,
+        having: Optional['types.BuildArtifactScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.BuildArtifactCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.BuildArtifactScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.BuildArtifactScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.BuildArtifactGroupByOutput']:
+        """Group BuildArtifact records by one or more field values and perform aggregations
         each group such as finding the average.
 
         Parameters
         ----------
         by
-            List of scalar BuildJobArtifact fields to group records by
+            List of scalar BuildArtifact fields to group records by
         where
-            BuildJobArtifact filter to select records
+            BuildArtifact filter to select records
         take
-            Limit the maximum number of BuildJobArtifact records returned
+            Limit the maximum number of BuildArtifact records returned
         skip
             Ignore the first N records
         avg
@@ -11359,8 +11359,8 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
 
         Returns
         -------
-        List[prisma.types.BuildJobArtifactGroupByOutput]
-            A list of dictionaries representing the BuildJobArtifact record,
+        List[prisma.types.BuildArtifactGroupByOutput]
+            A list of dictionaries representing the BuildArtifact record,
             this will also have additional fields present if aggregation arguments
             are used (see the above parameters)
 
@@ -11372,9 +11372,9 @@ class BuildJobArtifactActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group BuildJobArtifact records by artifactType values
+        # group BuildArtifact records by artifactType values
         # and count how many records are in each group
-        results = BuildJobArtifact.prisma().group_by(
+        results = BuildArtifact.prisma().group_by(
             ['artifactType'],
             count=True,
         )
@@ -12198,7 +12198,7 @@ class SessionActions(Generic[_PrismaModelT]):
         results = Session.prisma().count(
             select={
                 '_all': True,
-                'pipelineRunId': True,
+                'buildRunId': True,
             },
         )
         ```

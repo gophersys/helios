@@ -96,7 +96,7 @@ class Product(bases.BaseProduct):
     tests: Optional[List['models.Test']] = None
     sessions: Optional[List['models.Session']] = None
     buildJobs: Optional[List['models.BuildJob']] = None
-    pipelineRuns: Optional[List['models.PipelineRun']] = None
+    buildRuns: Optional[List['models.BuildRun']] = None
     deployments: Optional[List['models.Deployment']] = None
     stageConfigs: Optional[List['models.ProductStageConfig']] = None
 
@@ -542,6 +542,14 @@ class BoardRevision(bases.BaseBoardRevision):
     """CoreCloud device variant ID (e.g. 3 for B0)
     """
 
+    modemVersion: Optional[_str] = None
+    """Nordic modem firmware version, e.g. "2.0.2"
+    """
+
+    modemStorageKey: Optional[_str] = None
+    """MinIO key for modem firmware zip
+    """
+
     status: 'enums.LifecycleStatus'
     notes: Optional[_str] = None
     createdAt: datetime.datetime
@@ -703,6 +711,10 @@ class FirmwareSet(bases.BaseFirmwareSet):
     """"0.5.2" (major.minor.build)
     """
 
+    variant: _str
+    """"smoke", "debug", "release", "mfg"
+    """
+
     releaseTrack: _str
     """"bench", "engineering", "production"
     """
@@ -719,14 +731,6 @@ class FirmwareSet(bases.BaseFirmwareSet):
 
     externalBuildId: Optional[_str] = None
     """External build system ID
-    """
-
-    modemVersion: Optional[_str] = None
-    """"2.0.2"
-    """
-
-    modemStorageKey: Optional[_str] = None
-    """MinIO key for modem firmware zip
     """
 
     buildFingerprint: Optional[_str] = None
@@ -1115,7 +1119,7 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: Optional['models.Product'] = None
-    pipelineRuns: Optional[List['models.PipelineRun']] = None
+    buildRuns: Optional[List['models.BuildRun']] = None
     queueEntries: Optional[List['models.ValidationQueueEntry']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
@@ -1247,7 +1251,7 @@ class ValidationQueueEntry(bases.BaseValidationQueueEntry):
     """
 
     id: _str
-    pipelineRunId: _str
+    buildRunId: _str
     stageConfigId: Optional[_str] = None
     stage: _int
     """Validation stage (1-5)
@@ -1278,7 +1282,7 @@ class ValidationQueueEntry(bases.BaseValidationQueueEntry):
     completedAt: Optional[datetime.datetime] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
-    pipelineRun: Optional['models.PipelineRun'] = None
+    buildRun: Optional['models.BuildRun'] = None
     stageConfig: Optional['models.ProductStageConfig'] = None
     fixture: Optional['models.Fixture'] = None
     session: Optional['models.Session'] = None
@@ -1406,7 +1410,7 @@ class ValidationQueueEntry(bases.BaseValidationQueueEntry):
         _created_partial_types.add(name)
 
 
-class PipelineRun(bases.BasePipelineRun):
+class BuildRun(bases.BaseBuildRun):
     """Groups multiple builds (e.g., alpha_fw + alpha_mfg_fw) triggered by same commit.
     Tracks the overall build+validate workflow for a product.
     """
@@ -1426,7 +1430,7 @@ class PipelineRun(bases.BasePipelineRun):
 
     branch: _str
     commitSha: Optional[_str] = None
-    status: 'enums.PipelineStatus'
+    status: 'enums.BuildRunStatus'
     triggerType: _str
     """manual, webhook, scheduled
     """
@@ -1493,11 +1497,11 @@ class PipelineRun(bases.BasePipelineRun):
     @staticmethod
     def create_partial(
         name: str,
-        include: Optional[Iterable['types.PipelineRunKeys']] = None,
-        exclude: Optional[Iterable['types.PipelineRunKeys']] = None,
-        required: Optional[Iterable['types.PipelineRunKeys']] = None,
-        optional: Optional[Iterable['types.PipelineRunKeys']] = None,
-        relations: Optional[Mapping['types.PipelineRunRelationalFieldKeys', str]] = None,
+        include: Optional[Iterable['types.BuildRunKeys']] = None,
+        exclude: Optional[Iterable['types.BuildRunKeys']] = None,
+        required: Optional[Iterable['types.BuildRunKeys']] = None,
+        optional: Optional[Iterable['types.BuildRunKeys']] = None,
+        relations: Optional[Mapping['types.BuildRunRelationalFieldKeys', str]] = None,
         exclude_relational_fields: bool = False,
     ) -> None:
         if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
@@ -1524,26 +1528,26 @@ class PipelineRun(bases.BasePipelineRun):
                 'exclude_relational_fields and relations are mutually exclusive'
             )
 
-        fields: Dict['types.PipelineRunKeys', PartialModelField] = OrderedDict()
+        fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict()
 
         try:
             if include:
                 for field in include:
-                    fields[field] = _PipelineRun_fields[field].copy()
+                    fields[field] = _BuildRun_fields[field].copy()
             elif exclude:
                 for field in exclude:
-                    if field not in _PipelineRun_fields:
+                    if field not in _BuildRun_fields:
                         raise KeyError(field)
 
                 fields = {
                     key: data.copy()
-                    for key, data in _PipelineRun_fields.items()
+                    for key, data in _BuildRun_fields.items()
                     if key not in exclude
                 }
             else:
                 fields = {
                     key: data.copy()
-                    for key, data in _PipelineRun_fields.items()
+                    for key, data in _BuildRun_fields.items()
                 }
 
             if required:
@@ -1558,13 +1562,13 @@ class PipelineRun(bases.BasePipelineRun):
                 fields = {
                     key: data
                     for key, data in fields.items()
-                    if key not in _PipelineRun_relational_fields
+                    if key not in _BuildRun_relational_fields
                 }
 
             if relations:
                 for field, type_ in relations.items():
-                    if field not in _PipelineRun_relational_fields:
-                        raise errors.UnknownRelationalFieldError('PipelineRun', field)
+                    if field not in _BuildRun_relational_fields:
+                        raise errors.UnknownRelationalFieldError('BuildRun', field)
 
                     # TODO: this method of validating types is not ideal
                     # as it means we cannot two create partial types that
@@ -1583,7 +1587,7 @@ class PipelineRun(bases.BasePipelineRun):
                         info['type'] = f'\'partials.{type_}\''
         except KeyError as exc:
             raise ValueError(
-                f'{exc.args[0]} is not a valid PipelineRun / {name} field.'
+                f'{exc.args[0]} is not a valid BuildRun / {name} field.'
             ) from None
 
         models = partial_models_ctx.get()
@@ -1591,7 +1595,7 @@ class PipelineRun(bases.BasePipelineRun):
             {
                 'name': name,
                 'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'PipelineRun',
+                'from_model': 'BuildRun',
             }
         )
         _created_partial_types.add(name)
@@ -1648,8 +1652,8 @@ class BuildJob(bases.BaseBuildJob):
     """If CACHED, points to the original successful build
     """
 
-    pipelineRunId: Optional[_str] = None
-    pipelineRun: Optional['models.PipelineRun'] = None
+    buildRunId: Optional[_str] = None
+    buildRun: Optional['models.BuildRun'] = None
     workerId: Optional[_str] = None
     """Node/host that built this (e.g. "wanda")
     """
@@ -1660,7 +1664,7 @@ class BuildJob(bases.BaseBuildJob):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: Optional['models.Product'] = None
-    artifacts: Optional[List['models.BuildJobArtifact']] = None
+    artifacts: Optional[List['models.BuildArtifact']] = None
     reusedFrom: Optional['models.BuildJob'] = None
     reusedBy: Optional[List['models.BuildJob']] = None
 
@@ -1787,7 +1791,7 @@ class BuildJob(bases.BaseBuildJob):
         _created_partial_types.add(name)
 
 
-class BuildJobArtifact(bases.BaseBuildJobArtifact):
+class BuildArtifact(bases.BaseBuildArtifact):
     """A build artifact (hex, bin, elf) stored in MinIO.
     """
 
@@ -1831,11 +1835,11 @@ class BuildJobArtifact(bases.BaseBuildJobArtifact):
     @staticmethod
     def create_partial(
         name: str,
-        include: Optional[Iterable['types.BuildJobArtifactKeys']] = None,
-        exclude: Optional[Iterable['types.BuildJobArtifactKeys']] = None,
-        required: Optional[Iterable['types.BuildJobArtifactKeys']] = None,
-        optional: Optional[Iterable['types.BuildJobArtifactKeys']] = None,
-        relations: Optional[Mapping['types.BuildJobArtifactRelationalFieldKeys', str]] = None,
+        include: Optional[Iterable['types.BuildArtifactKeys']] = None,
+        exclude: Optional[Iterable['types.BuildArtifactKeys']] = None,
+        required: Optional[Iterable['types.BuildArtifactKeys']] = None,
+        optional: Optional[Iterable['types.BuildArtifactKeys']] = None,
+        relations: Optional[Mapping['types.BuildArtifactRelationalFieldKeys', str]] = None,
         exclude_relational_fields: bool = False,
     ) -> None:
         if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
@@ -1862,26 +1866,26 @@ class BuildJobArtifact(bases.BaseBuildJobArtifact):
                 'exclude_relational_fields and relations are mutually exclusive'
             )
 
-        fields: Dict['types.BuildJobArtifactKeys', PartialModelField] = OrderedDict()
+        fields: Dict['types.BuildArtifactKeys', PartialModelField] = OrderedDict()
 
         try:
             if include:
                 for field in include:
-                    fields[field] = _BuildJobArtifact_fields[field].copy()
+                    fields[field] = _BuildArtifact_fields[field].copy()
             elif exclude:
                 for field in exclude:
-                    if field not in _BuildJobArtifact_fields:
+                    if field not in _BuildArtifact_fields:
                         raise KeyError(field)
 
                 fields = {
                     key: data.copy()
-                    for key, data in _BuildJobArtifact_fields.items()
+                    for key, data in _BuildArtifact_fields.items()
                     if key not in exclude
                 }
             else:
                 fields = {
                     key: data.copy()
-                    for key, data in _BuildJobArtifact_fields.items()
+                    for key, data in _BuildArtifact_fields.items()
                 }
 
             if required:
@@ -1896,13 +1900,13 @@ class BuildJobArtifact(bases.BaseBuildJobArtifact):
                 fields = {
                     key: data
                     for key, data in fields.items()
-                    if key not in _BuildJobArtifact_relational_fields
+                    if key not in _BuildArtifact_relational_fields
                 }
 
             if relations:
                 for field, type_ in relations.items():
-                    if field not in _BuildJobArtifact_relational_fields:
-                        raise errors.UnknownRelationalFieldError('BuildJobArtifact', field)
+                    if field not in _BuildArtifact_relational_fields:
+                        raise errors.UnknownRelationalFieldError('BuildArtifact', field)
 
                     # TODO: this method of validating types is not ideal
                     # as it means we cannot two create partial types that
@@ -1921,7 +1925,7 @@ class BuildJobArtifact(bases.BaseBuildJobArtifact):
                         info['type'] = f'\'partials.{type_}\''
         except KeyError as exc:
             raise ValueError(
-                f'{exc.args[0]} is not a valid BuildJobArtifact / {name} field.'
+                f'{exc.args[0]} is not a valid BuildArtifact / {name} field.'
             ) from None
 
         models = partial_models_ctx.get()
@@ -1929,7 +1933,7 @@ class BuildJobArtifact(bases.BaseBuildJobArtifact):
             {
                 'name': name,
                 'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'BuildJobArtifact',
+                'from_model': 'BuildArtifact',
             }
         )
         _created_partial_types.add(name)
@@ -1950,7 +1954,7 @@ class Session(bases.BaseSession):
     productId: _str
     status: 'enums.SessionStatus'
     fixtureId: Optional[_str] = None
-    pipelineRunId: Optional[_str] = None
+    buildRunId: Optional[_str] = None
     targetCount: Optional[_int] = None
     completedCount: _int
     passedCount: _int
@@ -1966,7 +1970,7 @@ class Session(bases.BaseSession):
     updatedAt: datetime.datetime
     product: Optional['models.Product'] = None
     fixture: Optional['models.Fixture'] = None
-    pipeline: Optional['models.PipelineRun'] = None
+    pipeline: Optional['models.BuildRun'] = None
     createdBy: Optional['models.User'] = None
     devices: Optional[List['models.Device']] = None
     queueEntry: Optional['models.ValidationQueueEntry'] = None
@@ -4845,7 +4849,7 @@ _Product_relational_fields: Set[str] = {
         'tests',
         'sessions',
         'buildJobs',
-        'pipelineRuns',
+        'buildRuns',
         'deployments',
         'stageConfigs',
     }
@@ -4987,11 +4991,11 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
-        ('pipelineRuns', {
-            'name': 'pipelineRuns',
+        ('buildRuns', {
+            'name': 'buildRuns',
             'is_list': True,
             'optional': True,
-            'type': 'List[\'models.PipelineRun\']',
+            'type': 'List[\'models.BuildRun\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -5239,6 +5243,22 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': '''CoreCloud device variant ID (e.g. 3 for B0)''',
         }),
+        ('modemVersion', {
+            'name': 'modemVersion',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Nordic modem firmware version, e.g. "2.0.2"''',
+        }),
+        ('modemStorageKey', {
+            'name': 'modemStorageKey',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''MinIO key for modem firmware zip''',
+        }),
         ('status', {
             'name': 'status',
             'is_list': False,
@@ -5337,6 +5357,14 @@ _FirmwareSet_fields: Dict['types.FirmwareSetKeys', PartialModelField] = OrderedD
             'is_relational': False,
             'documentation': '''"0.5.2" (major.minor.build)''',
         }),
+        ('variant', {
+            'name': 'variant',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"smoke", "debug", "release", "mfg"''',
+        }),
         ('releaseTrack', {
             'name': 'releaseTrack',
             'is_list': False,
@@ -5384,22 +5412,6 @@ _FirmwareSet_fields: Dict['types.FirmwareSetKeys', PartialModelField] = OrderedD
             'type': '_str',
             'is_relational': False,
             'documentation': '''External build system ID''',
-        }),
-        ('modemVersion', {
-            'name': 'modemVersion',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"2.0.2"''',
-        }),
-        ('modemStorageKey', {
-            'name': 'modemStorageKey',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''MinIO key for modem firmware zip''',
         }),
         ('buildFingerprint', {
             'name': 'buildFingerprint',
@@ -5607,7 +5619,7 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
 
 _ProductStageConfig_relational_fields: Set[str] = {
         'product',
-        'pipelineRuns',
+        'buildRuns',
         'queueEntries',
     }
 _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelField] = OrderedDict(
@@ -5820,11 +5832,11 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_relational': True,
             'documentation': None,
         }),
-        ('pipelineRuns', {
-            'name': 'pipelineRuns',
+        ('buildRuns', {
+            'name': 'buildRuns',
             'is_list': True,
             'optional': True,
-            'type': 'List[\'models.PipelineRun\']',
+            'type': 'List[\'models.BuildRun\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -5840,7 +5852,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
 )
 
 _ValidationQueueEntry_relational_fields: Set[str] = {
-        'pipelineRun',
+        'buildRun',
         'stageConfig',
         'fixture',
         'session',
@@ -5855,8 +5867,8 @@ _ValidationQueueEntry_fields: Dict['types.ValidationQueueEntryKeys', PartialMode
             'is_relational': False,
             'documentation': None,
         }),
-        ('pipelineRunId', {
-            'name': 'pipelineRunId',
+        ('buildRunId', {
+            'name': 'buildRunId',
             'is_list': False,
             'optional': False,
             'type': '_str',
@@ -5983,11 +5995,11 @@ _ValidationQueueEntry_fields: Dict['types.ValidationQueueEntryKeys', PartialMode
             'is_relational': False,
             'documentation': None,
         }),
-        ('pipelineRun', {
-            'name': 'pipelineRun',
+        ('buildRun', {
+            'name': 'buildRun',
             'is_list': False,
             'optional': True,
-            'type': 'models.PipelineRun',
+            'type': 'models.BuildRun',
             'is_relational': True,
             'documentation': None,
         }),
@@ -6018,14 +6030,14 @@ _ValidationQueueEntry_fields: Dict['types.ValidationQueueEntryKeys', PartialMode
     ],
 )
 
-_PipelineRun_relational_fields: Set[str] = {
+_BuildRun_relational_fields: Set[str] = {
         'product',
         'stageConfig',
         'builds',
         'sessions',
         'queueEntries',
     }
-_PipelineRun_fields: Dict['types.PipelineRunKeys', PartialModelField] = OrderedDict(
+_BuildRun_fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict(
     [
         ('id', {
             'name': 'id',
@@ -6079,7 +6091,7 @@ _PipelineRun_fields: Dict['types.PipelineRunKeys', PartialModelField] = OrderedD
             'name': 'status',
             'is_list': False,
             'optional': False,
-            'type': 'enums.PipelineStatus',
+            'type': 'enums.BuildRunStatus',
             'is_relational': False,
             'documentation': None,
         }),
@@ -6239,7 +6251,7 @@ _PipelineRun_fields: Dict['types.PipelineRunKeys', PartialModelField] = OrderedD
 )
 
 _BuildJob_relational_fields: Set[str] = {
-        'pipelineRun',
+        'buildRun',
         'product',
         'artifacts',
         'reusedFrom',
@@ -6431,19 +6443,19 @@ _BuildJob_fields: Dict['types.BuildJobKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': '''If CACHED, points to the original successful build''',
         }),
-        ('pipelineRunId', {
-            'name': 'pipelineRunId',
+        ('buildRunId', {
+            'name': 'buildRunId',
             'is_list': False,
             'optional': True,
             'type': '_str',
             'is_relational': False,
             'documentation': None,
         }),
-        ('pipelineRun', {
-            'name': 'pipelineRun',
+        ('buildRun', {
+            'name': 'buildRun',
             'is_list': False,
             'optional': True,
-            'type': 'models.PipelineRun',
+            'type': 'models.BuildRun',
             'is_relational': True,
             'documentation': None,
         }),
@@ -6507,7 +6519,7 @@ _BuildJob_fields: Dict['types.BuildJobKeys', PartialModelField] = OrderedDict(
             'name': 'artifacts',
             'is_list': True,
             'optional': True,
-            'type': 'List[\'models.BuildJobArtifact\']',
+            'type': 'List[\'models.BuildArtifact\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -6530,10 +6542,10 @@ _BuildJob_fields: Dict['types.BuildJobKeys', PartialModelField] = OrderedDict(
     ],
 )
 
-_BuildJobArtifact_relational_fields: Set[str] = {
+_BuildArtifact_relational_fields: Set[str] = {
         'buildJob',
     }
-_BuildJobArtifact_fields: Dict['types.BuildJobArtifactKeys', PartialModelField] = OrderedDict(
+_BuildArtifact_fields: Dict['types.BuildArtifactKeys', PartialModelField] = OrderedDict(
     [
         ('id', {
             'name': 'id',
@@ -6684,8 +6696,8 @@ _Session_fields: Dict['types.SessionKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
-        ('pipelineRunId', {
-            'name': 'pipelineRunId',
+        ('buildRunId', {
+            'name': 'buildRunId',
             'is_list': False,
             'optional': True,
             'type': '_str',
@@ -6816,7 +6828,7 @@ _Session_fields: Dict['types.SessionKeys', PartialModelField] = OrderedDict(
             'name': 'pipeline',
             'is_list': False,
             'optional': True,
-            'type': 'models.PipelineRun',
+            'type': 'models.BuildRun',
             'is_relational': True,
             'documentation': None,
         }),
@@ -8754,9 +8766,9 @@ model_rebuild(FirmwareSet)
 model_rebuild(FirmwareBuild)
 model_rebuild(ProductStageConfig)
 model_rebuild(ValidationQueueEntry)
-model_rebuild(PipelineRun)
+model_rebuild(BuildRun)
 model_rebuild(BuildJob)
-model_rebuild(BuildJobArtifact)
+model_rebuild(BuildArtifact)
 model_rebuild(Session)
 model_rebuild(Device)
 model_rebuild(FixtureDesign)

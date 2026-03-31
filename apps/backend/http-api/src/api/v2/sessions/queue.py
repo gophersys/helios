@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 def _serialize_queue_entry(entry) -> dict:
     data = {
         "id": entry.id,
-        "pipelineRunId": entry.pipelineRunId,
+        "buildRunId": entry.buildRunId,
         "stageConfigId": entry.stageConfigId,
         "stage": entry.stage,
         "priority": entry.priority,
@@ -46,9 +46,9 @@ def _serialize_queue_entry(entry) -> dict:
         "createdAt": entry.createdAt.isoformat(),
         "updatedAt": entry.updatedAt.isoformat(),
     }
-    if hasattr(entry, "pipelineRun") and entry.pipelineRun is not None:
-        p = entry.pipelineRun
-        data["pipelineRun"] = {
+    if hasattr(entry, "buildRun") and entry.buildRun is not None:
+        p = entry.buildRun
+        data["buildRun"] = {
             "id": p.id,
             "name": p.name,
             "product": p.product,
@@ -86,15 +86,15 @@ def process_queue(db=None) -> dict:
             {"priority": "desc"},
             {"requestedAt": "asc"},
         ],
-        include={"pipelineRun": {"include": {"builds": True}}},
+        include={"buildRun": {"include": {"builds": True}}},
     )
 
     if not entry:
         return {"processed": False, "reason": "No pending entries"}
 
     # Verify the pipeline still exists and has builds
-    pipeline = entry.pipelineRun
-    if not pipeline:
+    build_run = entry.buildRun
+    if not build_run:
         db.validationqueueentry.update(
             where={"id": entry.id},
             data={
@@ -118,11 +118,11 @@ def process_queue(db=None) -> dict:
         return {"processed": False, "reason": "No builds", "entryId": entry.id}
 
     # Re-fetch pipeline with full includes needed by trigger_pipeline_validation
-    pipeline = db.pipelinerun.find_unique(
-        where={"id": entry.pipelineRunId},
+    build_run = db.buildrun.find_unique(
+        where={"id": entry.buildRunId},
         include={"builds": {"include": {"product": True}}, "product": True},
     )
-    if not pipeline:
+    if not build_run:
         db.validationqueueentry.update(
             where={"id": entry.id},
             data={
@@ -142,9 +142,9 @@ def process_queue(db=None) -> dict:
     )
 
     # Attempt to trigger — this will find an available fixture (or return None/queued)
-    from src.services.pipeline_service import trigger_pipeline_validation
+    from src.services.build_run_service import trigger_pipeline_validation
 
-    result = trigger_pipeline_validation(entry.pipelineRunId, pipeline, builds)
+    result = trigger_pipeline_validation(entry.buildRunId, pipeline, builds)
 
     if result is None or (isinstance(result, dict) and result.get("queued")):
         # Still no fixture available — revert to QUEUED
@@ -169,21 +169,21 @@ def process_queue(db=None) -> dict:
     )
 
     # Update pipeline status
-    db.pipelinerun.update(
-        where={"id": entry.pipelineRunId},
+    db.buildrun.update(
+        where={"id": entry.buildRunId},
         data={"status": "VALIDATING", "validationRunId": run_id},
     )
 
     logger.info(
         "Queue entry %s started: pipeline=%s session=%s",
-        entry.id[:8], entry.pipelineRunId[:8], run_id[:8],
+        entry.id[:8], entry.buildRunId[:8], run_id[:8],
     )
 
     return {
         "processed": True,
         "entryId": entry.id,
         "sessionId": run_id,
-        "pipelineRunId": entry.pipelineRunId,
+        "buildRunId": entry.buildRunId,
     }
 
 
@@ -216,7 +216,7 @@ def list_queue():
             {"requestedAt": "asc"},
         ],
         include={
-            "pipelineRun": True,
+            "buildRun": True,
             "fixture": True,
             "session": True,
         },
@@ -241,7 +241,7 @@ def get_queue_entry(entry_id: str):
     entry = db.validationqueueentry.find_unique(
         where={"id": entry_id},
         include={
-            "pipelineRun": True,
+            "buildRun": True,
             "fixture": True,
             "session": True,
         },
@@ -261,17 +261,17 @@ def create_queue_entry():
     if not data:
         return bad_request("Request body required")
 
-    pipeline_run_id = (data.get("pipelineRunId") or "").strip()
-    if not pipeline_run_id:
-        return bad_request("pipelineRunId is required")
+    build_run_id = (data.get("buildRunId") or "").strip()
+    if not build_run_id:
+        return bad_request("buildRunId is required")
 
-    pipeline = db.pipelinerun.find_unique(where={"id": pipeline_run_id})
-    if not pipeline:
+    build_run = db.buildrun.find_unique(where={"id": build_run_id})
+    if not build_run:
         return not_found("Pipeline not found")
 
     # Check for existing QUEUED entry for this pipeline
     existing = db.validationqueueentry.find_first(
-        where={"pipelineRunId": pipeline_run_id, "status": "QUEUED"},
+        where={"buildRunId": build_run_id, "status": "QUEUED"},
     )
     if existing:
         return conflict("Pipeline already has a pending queue entry")
@@ -282,18 +282,18 @@ def create_queue_entry():
 
     entry = db.validationqueueentry.create(
         data={
-            "pipelineRunId": pipeline_run_id,
+            "buildRunId": build_run_id,
             "stage": stage,
             "priority": priority,
             "status": "QUEUED",
             "reason": reason,
             "requestedAt": datetime.now(timezone.utc),
         },
-        include={"pipelineRun": True},
+        include={"buildRun": True},
     )
 
     log_audit("validation.queue.create", "ValidationQueueEntry", entry.id, {
-        "pipelineRunId": pipeline_run_id,
+        "buildRunId": build_run_id,
         "stage": stage,
         "priority": priority,
         "reason": reason,
@@ -327,7 +327,7 @@ def update_queue_entry(entry_id: str):
     entry = db.validationqueueentry.update(
         where={"id": entry_id},
         data=update_data,
-        include={"pipelineRun": True, "fixture": True, "session": True},
+        include={"buildRun": True, "fixture": True, "session": True},
     )
 
     log_audit("validation.queue.update", "ValidationQueueEntry", entry_id, update_data)
@@ -353,11 +353,11 @@ def cancel_queue_entry(entry_id: str):
             "status": "CANCELLED",
             "completedAt": datetime.now(timezone.utc),
         },
-        include={"pipelineRun": True, "fixture": True, "session": True},
+        include={"buildRun": True, "fixture": True, "session": True},
     )
 
     log_audit("validation.queue.cancel", "ValidationQueueEntry", entry_id, {
-        "pipelineRunId": entry.pipelineRunId,
+        "buildRunId": entry.buildRunId,
     })
 
     return jsonify(ApiResponse.ok(_serialize_queue_entry(entry)).to_dict()), 200
@@ -385,7 +385,7 @@ def promote_queue_entry(entry_id: str):
     entry = db.validationqueueentry.update(
         where={"id": entry_id},
         data={"priority": new_priority},
-        include={"pipelineRun": True, "fixture": True, "session": True},
+        include={"buildRun": True, "fixture": True, "session": True},
     )
 
     log_audit("validation.queue.promote", "ValidationQueueEntry", entry_id, {

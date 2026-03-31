@@ -6,31 +6,31 @@ from api.v2.sessions.types import QueueEntryCreateRequest, QueueEntryUpdateReque
 class TestQueueEntryCreateRequest:
     def test_valid_create(self):
         req, err = QueueEntryCreateRequest.from_json({
-            "pipelineRunId": "pipe-123",
+            "buildRunId": "pipe-123",
             "stage": 5,
         })
         assert err is None
-        assert req.pipelineRunId == "pipe-123"
+        assert req.buildRunId == "pipe-123"
         assert req.stage == 5
         assert req.priority is None
 
     def test_missing_pipeline_run_id(self):
         _, err = QueueEntryCreateRequest.from_json({"stage": 1})
         assert err is not None
-        assert "pipelineRunId" in err
+        assert "buildRunId" in err
 
     def test_missing_stage(self):
-        _, err = QueueEntryCreateRequest.from_json({"pipelineRunId": "p1"})
+        _, err = QueueEntryCreateRequest.from_json({"buildRunId": "p1"})
         assert err is not None
         assert "stage" in err.lower()
 
     def test_invalid_stage(self):
-        _, err = QueueEntryCreateRequest.from_json({"pipelineRunId": "p1", "stage": 6})
+        _, err = QueueEntryCreateRequest.from_json({"buildRunId": "p1", "stage": 6})
         assert err is not None
 
     def test_with_priority(self):
         req, err = QueueEntryCreateRequest.from_json({
-            "pipelineRunId": "p1",
+            "buildRunId": "p1",
             "stage": 4,
             "priority": 75,
             "reason": "nightly run",
@@ -41,7 +41,7 @@ class TestQueueEntryCreateRequest:
 
     def test_invalid_priority(self):
         _, err = QueueEntryCreateRequest.from_json({
-            "pipelineRunId": "p1", "stage": 1, "priority": 300,
+            "buildRunId": "p1", "stage": 1, "priority": 300,
         })
         assert err is not None
 

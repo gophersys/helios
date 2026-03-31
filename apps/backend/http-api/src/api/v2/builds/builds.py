@@ -91,7 +91,7 @@ def _serialize_build_job(b: Any) -> dict:
 
 
 def _serialize_build_artifact(a: Any) -> dict:
-    """Serialize a BuildJobArtifact model to a JSON-friendly dict."""
+    """Serialize a BuildArtifact model to a JSON-friendly dict."""
     return {
         "id": a.id,
         "buildJobId": a.buildJobId,
@@ -213,7 +213,7 @@ def list_build_artifacts(build_id: str):
     if processor:
         where["processor"] = processor
 
-    artifacts = db.buildjobartifact.find_many(
+    artifacts = db.buildartifact.find_many(
         where=where,
         order={"createdAt": "asc"},
     )
@@ -454,19 +454,19 @@ def update_build(build_id: str):
         )
 
         # Update pipeline status based on build status changes
-        if updated.pipelineRunId:
+        if updated.buildRunId:
             new_status = update_data.get("status")
 
             # When a build starts (claimed by worker), update pipeline from PENDING to BUILDING
             if new_status in ("CLONING", "BUILDING"):
-                pipeline = db.pipelinerun.find_unique(where={"id": updated.pipelineRunId})
+                pipeline = db.buildrun.find_unique(where={"id": updated.buildRunId})
                 if pipeline and pipeline.status == "PENDING":
-                    db.pipelinerun.update(
-                        where={"id": updated.pipelineRunId},
+                    db.buildrun.update(
+                        where={"id": updated.buildRunId},
                         data={"status": "BUILDING"},
                     )
                     logger.info("Build %s claimed, pipeline %s now BUILDING",
-                               build_id, updated.pipelineRunId)
+                               build_id, updated.buildRunId)
 
             # When a build succeeds, unblock dependent version-bump builds
             if new_status == "SUCCESS":
@@ -488,11 +488,11 @@ def update_build(build_id: str):
 
             # When a build finishes, check if pipeline is complete
             if new_status in ("SUCCESS", "FAILED", "CANCELLED"):
-                from src.services.pipeline_service import check_pipeline_completion
-                new_pipeline_status = check_pipeline_completion(updated.pipelineRunId)
+                from src.services.build_run_service import check_pipeline_completion
+                new_pipeline_status = check_pipeline_completion(updated.buildRunId)
                 if new_pipeline_status:
                     logger.info("Build %s finished, pipeline %s now %s",
-                               build_id, updated.pipelineRunId, new_pipeline_status)
+                               build_id, updated.buildRunId, new_pipeline_status)
 
         log_audit("ci.build.update", "BuildJob", build_id, {
             "fields": list(update_data.keys()),
@@ -618,9 +618,9 @@ def upload_build_artifact(build_id: str):
         if content_type is not None:
             create_data["contentType"] = content_type
 
-        artifact = db.buildjobartifact.create(data=create_data)
+        artifact = db.buildartifact.create(data=create_data)
 
-        log_audit("ci.artifact.upload", "BuildJobArtifact", artifact.id, {
+        log_audit("ci.artifact.upload", "BuildArtifact", artifact.id, {
             "buildJobId": build_id,
             "name": file.filename,
             "sizeBytes": size_bytes,
@@ -677,7 +677,7 @@ def download_build_artifacts(build_id: str):
     if not build:
         return not_found("Build job not found")
 
-    artifacts = db.buildjobartifact.find_many(
+    artifacts = db.buildartifact.find_many(
         where={"buildJobId": build_id},
         order={"createdAt": "asc"},
     )
@@ -755,7 +755,7 @@ def download_single_artifact(build_id: str, artifact_name: str):
     if not build:
         return not_found("Build job not found")
 
-    artifact = db.buildjobartifact.find_first(
+    artifact = db.buildartifact.find_first(
         where={
             "buildJobId": build_id,
             "name": artifact_name,
@@ -836,7 +836,7 @@ def stream_build_log(build_id: str):
         # Broadcast via WebSocket for real-time UI updates
         _emit_ci_event("ci_build_log", {
             "buildId": build_id,
-            "pipelineId": build.pipelineRunId,
+            "pipelineId": build.buildRunId,
             "chunk": chunk,
         })
 

@@ -31,7 +31,7 @@
   import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadPipelineArtifacts, downloadSingleArtifact, triggerPipelineValidation, validatePipelineArtifacts, fetchPipelineSessions } from '$lib/services/ci';
   import type { PipelineSessionSummary, ArtifactValidationReport } from '$lib/services/ci';
   import { getTriggerConfig, getProductInfo } from '$lib/constants/builds';
-  import type { BuildJobArtifact } from '$lib/types/ci';
+  import type { BuildArtifact } from '$lib/types/ci';
   import {
     subscribeCiPipeline,
     type CiPipelineCompleteEvent,
@@ -44,7 +44,7 @@
   import Skeleton from '$lib/components/ui/skeleton.svelte';
 
   const auth = getAuth();
-  const pipelineId = $derived($page.params.id);
+  const runId = $derived($page.params.id);
 
   let pipeline = $state<Pipeline | null>(null);
   let loading = $state(true);
@@ -56,7 +56,7 @@
   // Expandable build logs & artifacts
   let expandedBuilds = $state<Set<string>>(new Set());
   let buildLogs = $state<Record<string, string>>({});
-  let buildArtifacts = $state<Record<string, BuildJobArtifact[]>>({});
+  let buildArtifacts = $state<Record<string, BuildArtifact[]>>({});
   let loadingLogs = $state<Set<string>>(new Set());
   let logContainers = $state<Record<string, HTMLDivElement | null>>({});
   let logPollIntervals = $state<Record<string, ReturnType<typeof setInterval>>>({});
@@ -76,7 +76,7 @@
 
   async function fetchValidationRuns() {
     try {
-      validationRuns = await fetchPipelineSessions(pipelineId);
+      validationRuns = await fetchPipelineSessions(runId);
     } catch {
       // Pipeline may not have sessions yet
     }
@@ -144,12 +144,12 @@
   }
 
   async function handleTriggerValidation(): Promise<void> {
-    if (!pipeline || triggeringValidation || !pipelineId) return;
+    if (!pipeline || triggeringValidation || !runId) return;
     triggeringValidation = true;
     try {
       await triggerPipelineValidation(pipeline.id);
       // Refresh pipeline and validation runs list
-      pipeline = await fetchPipeline(pipelineId);
+      pipeline = await fetchPipeline(runId);
       await fetchValidationRuns();
       error = null;
     } catch (err) {
@@ -160,10 +160,10 @@
   }
 
   async function handleValidateArtifacts(): Promise<void> {
-    if (!pipelineId || validatingArtifacts) return;
+    if (!runId || validatingArtifacts) return;
     validatingArtifacts = true;
     try {
-      artifactReport = await validatePipelineArtifacts(pipelineId);
+      artifactReport = await validatePipelineArtifacts(runId);
       showArtifactReport = true;
       error = null;
     } catch (err) {
@@ -382,9 +382,9 @@
   }
 
   async function loadPipeline(isInitial: boolean = false): Promise<void> {
-    if (!pipelineId) return;
+    if (!runId) return;
     try {
-      pipeline = await fetchPipeline(pipelineId);
+      pipeline = await fetchPipeline(runId);
       error = null;
 
       // On initial load, pre-fetch log analysis for all completed builds before showing content
@@ -409,9 +409,9 @@
   }
 
   function setupWebSocket(): void {
-    if (!pipelineId) return;
+    if (!runId) return;
     unsubscribeWs = subscribeCiPipeline(
-      pipelineId,
+      runId,
       {
         onStageUpdate: () => { loadPipeline(); },
         onComplete: (_data: CiPipelineCompleteEvent) => { loadPipeline(); },
@@ -468,7 +468,7 @@
 </script>
 
 <svelte:head>
-  <title>Build {pipelineId?.slice(0, 8) ?? ''} - Concord</title>
+  <title>Build {runId?.slice(0, 8) ?? ''} - Concord</title>
 </svelte:head>
 
 <div class="animate-fade-in">

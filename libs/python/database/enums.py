@@ -128,7 +128,7 @@ class QueueEntryStatus(StrEnum):
     FAILED = 'FAILED'
     CANCELLED = 'CANCELLED'
 
-class PipelineStatus(StrEnum):
+class BuildRunStatus(StrEnum):
     PENDING = 'PENDING'
     BUILDING = 'BUILDING'
     BUILD_FAILED = 'BUILD_FAILED'

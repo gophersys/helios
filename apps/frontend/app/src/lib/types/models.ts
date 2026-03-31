@@ -630,7 +630,7 @@ export interface ValidationRun {
   // Extended fields for filtering/display
   trigger?: ValidationTrigger;
   stage?: ValidationStage;
-  pipelineRunId?: string;
+  buildRunId?: string;
   commitSha?: string;
   branch?: string;
 }

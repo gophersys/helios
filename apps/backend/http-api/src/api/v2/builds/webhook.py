@@ -242,7 +242,7 @@ def webhook_bitbucket():
 
 
 @require_permissions(Permissions.BUILDS_TRIGGER)
-def trigger_pipeline():
+def trigger_build_run():
     """POST /v2/builds/trigger — Manual CI pipeline trigger."""
     data, error = CiTriggerRequest.from_json(request.get_json())
     if error:

@@ -24,7 +24,7 @@
     Zap,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import type { BuildJob, BuildJobArtifact, Pipeline, MatrixLabel, ValidationStage } from '$lib/types/ci';
+  import type { BuildJob, BuildArtifact, Pipeline, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
   import type { Pagination, Product } from '$lib/types/models';
   import { fetchPipelines, fetchBuilds, triggerPipeline, createManualBuild, uploadBuildArtifact } from '$lib/services/ci';
@@ -141,7 +141,7 @@
   let uploadSubmitting = $state(false);
   let uploadBuildId = $state<string | null>(null);
   let uploadingFile = $state(false);
-  let uploadedArtifacts = $state<BuildJobArtifact[]>([]);
+  let uploadedArtifacts = $state<BuildArtifact[]>([]);
   let preselectedProductId = $state<string | null>(null);
   let artifactRole = $state('');
   let artifactProcessor = $state('');
@@ -243,7 +243,7 @@
         serialNumber: formSerialNumber || undefined,
       });
       resetForm();
-      goto(`/builds/pipelines/${pipeline.id}`);
+      goto(`/builds/runs/${pipeline.id}`);
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to trigger pipeline';
     } finally {
@@ -598,7 +598,7 @@
         {@const trigger = getTriggerConfig(pipeline.triggerType)}
         {@const productInfo = getProductInfo(pipeline.product ?? '')}
         <button
-          onclick={() => goto(`/builds/pipelines/${pipeline.id}`)}
+          onclick={() => goto(`/builds/runs/${pipeline.id}`)}
           class="w-full rounded-lg border border-border bg-surface-0 px-4 py-3 text-left transition-colors hover:bg-surface-1"
         >
           <div class="flex items-center justify-between gap-4 mb-2">

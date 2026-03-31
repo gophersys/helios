@@ -96,7 +96,7 @@
           {#each pipelines as pipeline (pipeline.id)}
             <tr class="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-1)] transition-colors">
               <td class="px-3 py-2">
-                <a href="/builds/pipelines/{pipeline.id}" class="font-mono text-xs text-[var(--color-accent)] hover:underline">
+                <a href="/builds/runs/{pipeline.id}" class="font-mono text-xs text-[var(--color-accent)] hover:underline">
                   {pipeline.name || pipeline.id.slice(0, 8)}
                 </a>
               </td>

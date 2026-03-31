@@ -8,7 +8,7 @@
   import ProductStages from './product-stages.svelte';
   import { Cpu, Pencil, Check, X, CircuitBoard, ExternalLink, Upload, Package, FlaskConical, Factory } from 'lucide-svelte';
   import type { Product, BoardRevision, ProductTarget } from '$lib/types/models';
-  import type { BuildJobArtifact } from '$lib/types/ci';
+  import type { BuildArtifact } from '$lib/types/ci';
   import { api } from '$lib/api';
   import { createManualBuild, uploadBuildArtifact } from '$lib/services/ci';
 
@@ -144,7 +144,7 @@
   let uploadSubmitting = $state(false);
   let uploadBuildId = $state<string | null>(null);
   let uploadingFile = $state(false);
-  let uploadedArtifacts = $state<BuildJobArtifact[]>([]);
+  let uploadedArtifacts = $state<BuildArtifact[]>([]);
   let artifactRole = $state('');
   let artifactProcessor = $state('');
 

@@ -45,7 +45,7 @@ export async function getQueueEntry(entryId: string): Promise<ValidationQueueEnt
 }
 
 export async function createQueueEntry(data: {
-  pipelineRunId: string;
+  buildRunId: string;
   stage: number;
   priority?: number;
   reason?: string;

@@ -154,14 +154,14 @@ class BaseValidationQueueEntry(_PrismaModel):
         return actions.ValidationQueueEntryActions[_PrismaModelT](client or get_client(), cls)
 
 
-class BasePipelineRun(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['PipelineRun']] = 'PipelineRun'  # pyright: ignore[reportIncompatibleVariableOverride]
+class BaseBuildRun(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['BuildRun']] = 'BuildRun'  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.PipelineRunActions[_PrismaModelT]':
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.BuildRunActions[_PrismaModelT]':
         from .client import get_client
 
-        return actions.PipelineRunActions[_PrismaModelT](client or get_client(), cls)
+        return actions.BuildRunActions[_PrismaModelT](client or get_client(), cls)
 
 
 class BaseBuildJob(_PrismaModel):
@@ -174,14 +174,14 @@ class BaseBuildJob(_PrismaModel):
         return actions.BuildJobActions[_PrismaModelT](client or get_client(), cls)
 
 
-class BaseBuildJobArtifact(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['BuildJobArtifact']] = 'BuildJobArtifact'  # pyright: ignore[reportIncompatibleVariableOverride]
+class BaseBuildArtifact(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['BuildArtifact']] = 'BuildArtifact'  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.BuildJobArtifactActions[_PrismaModelT]':
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.BuildArtifactActions[_PrismaModelT]':
         from .client import get_client
 
-        return actions.BuildJobArtifactActions[_PrismaModelT](client or get_client(), cls)
+        return actions.BuildArtifactActions[_PrismaModelT](client or get_client(), cls)
 
 
 class BaseSession(_PrismaModel):

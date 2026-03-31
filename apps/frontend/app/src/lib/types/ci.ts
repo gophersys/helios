@@ -4,7 +4,7 @@ export type BuildJobStatus = 'QUEUED' | 'BLOCKED' | 'BUILDING' | 'SUCCESS' | 'FA
 export type PipelineStage = 'BUILD' | 'FLASH' | 'VALIDATE';
 export type PipelineStageStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
 
-export interface BuildJobArtifact {
+export interface BuildArtifact {
   id: string;
   buildJobId?: string;
   name: string;
@@ -33,7 +33,7 @@ export interface BuildJob {
   createdAt: string;
   triggerType: string;  // "worker" | "manual" | "webhook"
   notes?: string | null;
-  artifacts: BuildJobArtifact[];
+  artifacts: BuildArtifact[];
   // Stage matrix fields
   matrixLabel?: MatrixLabel | string | null;
   matrixIndex?: number | null;

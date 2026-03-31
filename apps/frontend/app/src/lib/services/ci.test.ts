@@ -28,10 +28,9 @@ vi.mock('$lib/api', () => ({
 
 // Import after mocking
 import {
-  fetchPipeline,
-  fetchPipelines,
-  downloadPipelineArtifacts,
-  downloadBuildArtifacts,
+  fetchBuildRun,
+  fetchBuildRuns,
+  downloadBuildRunArtifacts,
   downloadSingleArtifact,
   createManualBuild,
 } from './ci';
@@ -75,9 +74,9 @@ function makeBuild(status: PipelineBuildSummary['status'], overrides: Partial<Pi
   };
 }
 
-// ── fetchPipeline — stage computation ─────────────────────────────────────
+// ── fetchBuildRun — stage computation ─────────────────────────────────────
 
-describe('fetchPipeline stage computation', () => {
+describe('fetchBuildRun stage computation', () => {
   beforeEach(() => {
     mockApiFetch.mockReset();
   });
@@ -87,7 +86,7 @@ describe('fetchPipeline stage computation', () => {
       const pipeline = makePipelineBase({ builds: [] });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('PENDING');
     });
@@ -98,7 +97,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('RUNNING');
     });
@@ -109,7 +108,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('RUNNING');
     });
@@ -120,7 +119,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('FAILED');
     });
@@ -131,7 +130,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('SUCCESS');
     });
@@ -142,7 +141,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('SUCCESS');
     });
@@ -154,7 +153,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('RUNNING');
     });
@@ -167,7 +166,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.detail).toBe('1/2 builds passed');
     });
@@ -176,7 +175,7 @@ describe('fetchPipeline stage computation', () => {
       const pipeline = makePipelineBase({ builds: [] });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.detail).toBeNull();
     });
@@ -189,7 +188,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.finishedAt).toBe(finishedAt);
     });
@@ -201,7 +200,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
       expect(buildStage.finishedAt).toBeNull();
     });
@@ -212,7 +211,7 @@ describe('fetchPipeline stage computation', () => {
       const pipeline = makePipelineBase({ validationRunId: null, status: 'BUILDING' });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const flashStage = result.stages!.find(s => s.stage === 'FLASH');
       expect(flashStage).toBeUndefined();
     });
@@ -224,7 +223,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const flashStage = result.stages!.find(s => s.stage === 'FLASH');
       expect(flashStage).toBeDefined();
     });
@@ -233,7 +232,7 @@ describe('fetchPipeline stage computation', () => {
       const pipeline = makePipelineBase({ status: 'VALIDATING', validationRunId: null });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const flashStage = result.stages!.find(s => s.stage === 'FLASH');
       expect(flashStage).toBeDefined();
     });
@@ -245,7 +244,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const flashStage = result.stages!.find(s => s.stage === 'FLASH')!;
       expect(flashStage.status).toBe('SUCCESS');
     });
@@ -257,7 +256,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const flashStage = result.stages!.find(s => s.stage === 'FLASH')!;
       expect(flashStage.status).toBe('SKIPPED');
     });
@@ -269,7 +268,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const flashStage = result.stages!.find(s => s.stage === 'FLASH')!;
       expect(flashStage.status).toBe('PENDING');
     });
@@ -280,7 +279,7 @@ describe('fetchPipeline stage computation', () => {
       const pipeline = makePipelineBase({ validationRunId: null });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const validateStage = result.stages!.find(s => s.stage === 'VALIDATE');
       expect(validateStage).toBeUndefined();
     });
@@ -292,7 +291,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const validateStage = result.stages!.find(s => s.stage === 'VALIDATE')!;
       expect(validateStage.status).toBe('SUCCESS');
     });
@@ -304,7 +303,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const validateStage = result.stages!.find(s => s.stage === 'VALIDATE')!;
       expect(validateStage.status).toBe('FAILED');
     });
@@ -316,7 +315,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const validateStage = result.stages!.find(s => s.stage === 'VALIDATE')!;
       expect(validateStage.status).toBe('PENDING');
     });
@@ -327,7 +326,7 @@ describe('fetchPipeline stage computation', () => {
       const pipeline = makePipelineBase({ builds: [makeBuild('SUCCESS')] });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       expect(result.stages![0].stage).toBe('BUILD');
     });
 
@@ -339,7 +338,7 @@ describe('fetchPipeline stage computation', () => {
       });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       const stageNames = result.stages!.map(s => s.stage);
       expect(stageNames).toEqual(['BUILD', 'FLASH', 'VALIDATE']);
     });
@@ -350,7 +349,7 @@ describe('fetchPipeline stage computation', () => {
       const pipeline = makePipelineBase({ builds: [] });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       expect(result.buildJob).toBeNull();
     });
 
@@ -359,7 +358,7 @@ describe('fetchPipeline stage computation', () => {
       const pipeline = makePipelineBase({ builds: [build], board: 'alpha_b0', branch: 'main' });
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
-      const result = await fetchPipeline('pipe-1');
+      const result = await fetchBuildRun('pipe-1');
       expect(result.buildJob).not.toBeNull();
       expect(result.buildJob!.id).toBe('b-1');
       expect(result.buildJob!.board).toBe('alpha_b0');
@@ -369,9 +368,9 @@ describe('fetchPipeline stage computation', () => {
   });
 });
 
-// ── fetchPipelines — query string building ─────────────────────────────────
+// ── fetchBuildRuns — query string building ─────────────────────────────────
 
-describe('fetchPipelines query string building', () => {
+describe('fetchBuildRuns query string building', () => {
   beforeEach(() => {
     mockApiFetch.mockReset();
     mockApiFetch.mockResolvedValue({
@@ -385,37 +384,37 @@ describe('fetchPipelines query string building', () => {
   });
 
   it('calls with no query string when no params', async () => {
-    await fetchPipelines();
+    await fetchBuildRuns();
     const url: string = mockApiFetch.mock.calls[0][0];
-    expect(url).toBe('/v2/builds/pipelines?');
+    expect(url).toBe('/v2/builds/runs?');
   });
 
   it('includes page param', async () => {
-    await fetchPipelines({ page: 3 });
+    await fetchBuildRuns({ page: 3 });
     const url: string = mockApiFetch.mock.calls[0][0];
     expect(url).toContain('page=3');
   });
 
   it('includes status param', async () => {
-    await fetchPipelines({ status: 'FAILED' });
+    await fetchBuildRuns({ status: 'FAILED' });
     const url: string = mockApiFetch.mock.calls[0][0];
     expect(url).toContain('status=FAILED');
   });
 
   it('includes branch param', async () => {
-    await fetchPipelines({ branch: 'feature/foo' });
+    await fetchBuildRuns({ branch: 'feature/foo' });
     const url: string = mockApiFetch.mock.calls[0][0];
     expect(url).toContain('branch=feature%2Ffoo');
   });
 
   it('includes matrixMode param', async () => {
-    await fetchPipelines({ matrixMode: 'fuota' });
+    await fetchBuildRuns({ matrixMode: 'fuota' });
     const url: string = mockApiFetch.mock.calls[0][0];
     expect(url).toContain('matrixMode=fuota');
   });
 
   it('omits undefined params', async () => {
-    await fetchPipelines({ page: undefined, status: 'SUCCESS' });
+    await fetchBuildRuns({ page: undefined, status: 'SUCCESS' });
     const url: string = mockApiFetch.mock.calls[0][0];
     expect(url).not.toContain('page=');
     expect(url).toContain('status=SUCCESS');
@@ -423,69 +422,69 @@ describe('fetchPipelines query string building', () => {
 
   it('returns pagination defaults when API response is missing fields', async () => {
     mockApiFetch.mockResolvedValue({ data: [], errors: [] }); // no page fields
-    const result = await fetchPipelines();
+    const result = await fetchBuildRuns();
     expect(result.pagination).toEqual({ page: 1, limit: 25, total: 0, pages: 0 });
   });
 });
 
-// ── downloadPipelineArtifacts — branch sanitization ───────────────────────
+// ── downloadBuildRunArtifacts — branch sanitization ───────────────────────
 
-describe('downloadPipelineArtifacts branch sanitization', () => {
+describe('downloadBuildRunArtifacts branch sanitization', () => {
   beforeEach(() => {
     mockApiDownload.mockReset().mockResolvedValue(undefined);
   });
 
   it('passes clean branch through unchanged', async () => {
-    await downloadPipelineArtifacts('pipe-1', 'alpha', 'main');
+    await downloadBuildRunArtifacts('pipe-1', 'alpha', 'main');
     expect(mockApiDownload).toHaveBeenCalledWith(
-      '/v2/builds/pipelines/pipe-1/artifacts/download',
+      '/v2/builds/runs/pipe-1/artifacts/download',
       'alpha_main_all.zip'
     );
   });
 
   it('replaces forward slashes with underscores', async () => {
-    await downloadPipelineArtifacts('pipe-1', 'alpha', 'feature/my-branch');
+    await downloadBuildRunArtifacts('pipe-1', 'alpha', 'feature/my-branch');
     const [, filename] = mockApiDownload.mock.calls[0];
     expect(filename).toBe('alpha_feature_my-branch_all.zip');
   });
 
   it('replaces dots with underscores', async () => {
-    await downloadPipelineArtifacts('pipe-1', 'alpha', 'release.1.0');
+    await downloadBuildRunArtifacts('pipe-1', 'alpha', 'release.1.0');
     const [, filename] = mockApiDownload.mock.calls[0];
     expect(filename).toBe('alpha_release_1_0_all.zip');
   });
 
   it('replaces spaces with underscores', async () => {
-    await downloadPipelineArtifacts('pipe-1', 'alpha', 'my branch');
+    await downloadBuildRunArtifacts('pipe-1', 'alpha', 'my branch');
     const [, filename] = mockApiDownload.mock.calls[0];
     expect(filename).toBe('alpha_my_branch_all.zip');
   });
 
   it('preserves hyphens and underscores', async () => {
-    await downloadPipelineArtifacts('pipe-1', 'alpha', 'my-branch_v2');
+    await downloadBuildRunArtifacts('pipe-1', 'alpha', 'my-branch_v2');
     const [, filename] = mockApiDownload.mock.calls[0];
     expect(filename).toBe('alpha_my-branch_v2_all.zip');
   });
 
   it('uses correct pipeline endpoint', async () => {
-    await downloadPipelineArtifacts('pipe-42', 'alpha', 'main');
+    await downloadBuildRunArtifacts('pipe-42', 'alpha', 'main');
     const [url] = mockApiDownload.mock.calls[0];
-    expect(url).toBe('/v2/builds/pipelines/pipe-42/artifacts/download');
+    expect(url).toBe('/v2/builds/runs/pipe-42/artifacts/download');
   });
 });
 
-// ── downloadBuildArtifacts — filename construction ─────────────────────────
+// ── downloadBuildRunArtifacts — filename construction ─────────────────────────
 
-describe('downloadBuildArtifacts', () => {
+describe('downloadBuildRunArtifacts', () => {
   beforeEach(() => {
     mockApiDownload.mockReset().mockResolvedValue(undefined);
   });
 
-  it('constructs filename as product_variant_version.zip', async () => {
-    await downloadBuildArtifacts('build-1', 'alpha', 'release', '1.2.3');
+  it('constructs filename from product and branch', async () => {
+    await downloadBuildRunArtifacts('build-1', 'alpha', 'release');
     expect(mockApiDownload).toHaveBeenCalledWith(
-      '/v2/builds/build-1/artifacts/download',
-      'alpha_release_1.2.3.zip'
+      '/v2/builds/runs/build-1/artifacts/download',
+      'alpha_release_all.zip'
     );
   });
 });

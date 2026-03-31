@@ -15,7 +15,7 @@
     Server,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import type { BuildJob, BuildJobArtifact } from '$lib/types/ci';
+  import type { BuildJob, BuildArtifact } from '$lib/types/ci';
   import { fetchBuild, fetchBuildLog, fetchBuildArtifacts, triggerBuild } from '$lib/services/ci';
   import {
     subscribeCiBuild,
@@ -32,7 +32,7 @@
   const buildId = $derived($page.params.id);
 
   let build = $state<BuildJob | null>(null);
-  let artifacts = $state<BuildJobArtifact[]>([]);
+  let artifacts = $state<BuildArtifact[]>([]);
   let logLines = $state<string[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
