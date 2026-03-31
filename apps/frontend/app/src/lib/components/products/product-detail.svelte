@@ -6,6 +6,7 @@
   import TextInput from '$lib/components/ui/text-input.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import ProductStages from './product-stages.svelte';
+  import FirmwareTab from './firmware-tab.svelte';
   import { Cpu, Pencil, Check, X, CircuitBoard, ExternalLink, Upload, Package, FlaskConical, Factory } from 'lucide-svelte';
   import type { Product, BoardRevision, ProductTarget } from '$lib/types/models';
   import type { BuildArtifact } from '$lib/types/ci';
@@ -513,6 +514,7 @@
     <!-- ═══ TABS ═══ -->
     <div class="mt-5 flex gap-1 border-b border-border">
       {#each tabs as tab}
+        {@const TabIcon = tab.icon}
         <button
           onclick={() => (activeTab = tab.key)}
           class={[
@@ -522,7 +524,7 @@
               : 'text-text-tertiary hover:text-text-secondary'
           ].join(' ')}
         >
-          <svelte:component this={tab.icon} size={14} />
+          <TabIcon size={14} />
           {tab.label}
         </button>
       {/each}
@@ -531,13 +533,7 @@
     <!-- ═══ TAB CONTENT ═══ -->
     <div class="mt-5">
       {#if activeTab === 'firmware'}
-        <div class="py-8 text-center">
-          <Package size={32} class="mx-auto mb-3 text-text-tertiary opacity-40" />
-          <p class="text-sm text-text-secondary">No firmware builds yet.</p>
-          <p class="mt-1 text-2xs text-text-tertiary">
-            Builds from the CI pipeline and manual uploads will appear here.
-          </p>
-        </div>
+        <FirmwareTab productId={product.id} {canManage} />
       {/if}
 
       {#if activeTab === 'validation'}
