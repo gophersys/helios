@@ -54,6 +54,9 @@ class AppConfig(EnvConfig):
     GIT_POLLER_ENABLED: bool = True
     GIT_POLLER_INTERVAL_S: int = 300
 
+    # Bitbucket — SSH private key (base64-encoded) for git operations
+    BITBUCKET_SSH_KEY: str = ""
+
     # CkBoards — shared board definition repository
     CK_BOARDS_REPO_URL: str = "git@bitbucket.org:corekinect/ck_boards.git"
     CK_BOARDS_FETCH_INTERVAL: int = 60

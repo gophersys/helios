@@ -136,32 +136,12 @@ if __name__ == "__main__":
         init_observability_service(poll_interval_s=5)
 
         # Initialize CkBoards service (board definition discovery)
-        # Run in background thread to avoid blocking eventlet during git clone
         def _init_ck_boards():
             try:
-                import subprocess
-                bare_repo_path = "/tmp/ck_boards.git"
-                worktree_base = "/tmp/ck_boards_wt"
-                os.makedirs(worktree_base, exist_ok=True)
-
-                if not os.path.isdir(bare_repo_path):
-                    logger.info("Cloning ck_boards bare repo to %s ...", bare_repo_path)
-                    subprocess.run(
-                        ["git", "clone", "--bare", env_config.CK_BOARDS_REPO_URL, bare_repo_path],
-                        timeout=60, check=True, capture_output=True,
-                    )
-                    logger.info("ck_boards bare clone complete")
-                else:
-                    subprocess.run(
-                        ["git", "--git-dir", bare_repo_path, "fetch", "--prune", "origin"],
-                        timeout=30, capture_output=True,
-                    )
-
                 from api.v2.products.board_discovery import init_ck_boards_service
-                init_ck_boards_service(bare_repo_path, worktree_base)
-                logger.info("CkBoards service initialized (repo: %s)", bare_repo_path)
-            except Exception as ck_err:
-                logger.warning("CkBoards service init failed (non-fatal): %s", ck_err)
+                init_ck_boards_service(env_config)
+            except Exception as e:
+                logger.error("CkBoards service init failed: %s", e)
 
         import threading
         threading.Thread(target=_init_ck_boards, daemon=True).start()
