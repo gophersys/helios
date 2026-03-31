@@ -74,13 +74,17 @@ def create_secret():
     from flask import g
     user_id = getattr(g, "current_user", {}).get("sub")
 
-    secret = db.secret.create(data={
+    # Verify user exists before linking (auth bypass uses dummy ID)
+    create_data: dict = {
         "name": name,
         "type": secret_type,
         "value": value,
         "description": description,
-        "createdById": user_id,
-    })
+    }
+    if user_id and db.user.find_unique(where={"id": user_id}):
+        create_data["createdById"] = user_id
+
+    secret = db.secret.create(data=create_data)
 
     log_audit("secret.create", "Secret", secret.id, {"name": name, "type": secret_type})
     return jsonify(ApiResponse.ok(_serialize(secret)).to_dict()), 201

@@ -26,7 +26,7 @@ DEFAULT_STAGES = [
     {"stage": 5, "name": "FUOTA"},
 ]
 
-_INCLUDE = {"boardRevision": True, "signingKey": {"select": {"id": True, "name": True, "type": True}}}
+_INCLUDE = {"boardRevision": True, "signingKey": True}
 
 
 def _serialize_stage_config(cfg) -> dict:

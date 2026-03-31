@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
 
   // External libraries
-  import { X, Monitor, Shield, KeyRound, Sun, Moon, Plus, Trash2, Copy, Check, GitBranch, Server, Globe, Clock } from 'lucide-svelte';
+  import { X, Monitor, Shield, KeyRound, Lock, Sun, Moon, Plus, Trash2, Copy, Check, GitBranch, Server, Globe, Clock } from 'lucide-svelte';
 
   // Internal imports
   import { getAuth } from '$lib/stores/auth.svelte';
@@ -88,6 +88,7 @@
     { id: 'system', label: 'System', icon: Monitor },
     { id: 'permissions', label: 'My Permissions', icon: Shield },
     { id: 'api-keys', label: 'API Keys', icon: KeyRound },
+    { id: 'secrets', label: 'Secrets', icon: Lock },
   ];
 
   let activeId = $state('system');
@@ -161,6 +162,56 @@
     createdAt: string;
   }
 
+  // Secrets state
+  interface SecretEntry { id: string; name: string; type: string; description: string | null; }
+  let secrets = $state<SecretEntry[]>([]);
+  let secretsLoading = $state(true);
+  let showSecretForm = $state(false);
+  let secretName = $state('');
+  let secretType = $state('signing_key');
+  let secretValue = $state('');
+  let secretDescription = $state('');
+  let secretSaving = $state(false);
+
+  async function fetchSecrets(): Promise<void> {
+    try {
+      const data = await apiFetch<ApiResponse<SecretEntry[]>>('/v2/system/secrets');
+      secrets = data.data ?? [];
+    } catch { secrets = []; }
+    finally { secretsLoading = false; }
+  }
+
+  async function handleCreateSecret(): Promise<void> {
+    secretSaving = true;
+    try {
+      await apiFetch('/v2/system/secrets', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: secretName.trim(),
+          type: secretType,
+          value: secretValue.trim(),
+          description: secretDescription.trim() || null,
+        }),
+      });
+      secretName = ''; secretType = 'signing_key'; secretValue = ''; secretDescription = '';
+      showSecretForm = false;
+      await fetchSecrets();
+    } catch (err: unknown) {
+      console.error('Failed to create secret:', err);
+    } finally { secretSaving = false; }
+  }
+
+  async function handleDeleteSecret(id: string, name: string): Promise<void> {
+    if (!confirm(`Delete secret "${name}"? This cannot be undone.`)) return;
+    try {
+      await apiFetch(`/v2/system/secrets/${id}`, { method: 'DELETE' });
+      await fetchSecrets();
+    } catch (err: unknown) {
+      console.error('Failed to delete secret:', err);
+    }
+  }
+
+  // API Keys state
   let apiKeys = $state<ApiKey[]>([]);
   let apiKeysLoading = $state(true);
   let showCreateKey = $state(false);
@@ -228,6 +279,9 @@
   $effect(() => {
     if (activeId === 'api-keys' && apiKeysLoading) {
       fetchApiKeys();
+    }
+    if (activeId === 'secrets' && secretsLoading) {
+      fetchSecrets();
     }
     if (activeId === 'system' && !buildInfoLoaded) {
       loadBuildInfo();
@@ -631,6 +685,85 @@
             }}
             onCancel={() => (deleteTarget = null)}
           />
+
+        {:else if activeId === 'secrets'}
+          <!-- Secrets Section -->
+          <p class="mb-4 text-sm text-text-secondary">
+            Manage signing keys and credentials used by the build system and validation stages.
+          </p>
+
+          <!-- Add secret form -->
+          {#if showSecretForm}
+            <div class="mb-4 rounded-lg border border-accent/30 bg-accent/5 p-4 space-y-3">
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label for="secret-name" class="mb-1 block text-2xs font-medium text-text-tertiary">Name</label>
+                  <input id="secret-name" type="text" bind:value={secretName} placeholder="e.g. Bench Signing Key"
+                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none" />
+                </div>
+                <div>
+                  <label for="secret-type" class="mb-1 block text-2xs font-medium text-text-tertiary">Type</label>
+                  <select id="secret-type" bind:value={secretType}
+                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none">
+                    <option value="signing_key">Signing Key</option>
+                    <option value="ssh_key">SSH Key</option>
+                    <option value="api_token">API Token</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label for="secret-value" class="mb-1 block text-2xs font-medium text-text-tertiary">Value (base64-encoded)</label>
+                <textarea id="secret-value" bind:value={secretValue} rows={3} placeholder="Paste base64-encoded key..."
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none" />
+              </div>
+              <div>
+                <label for="secret-desc" class="mb-1 block text-2xs font-medium text-text-tertiary">Description (optional)</label>
+                <input id="secret-desc" type="text" bind:value={secretDescription} placeholder="What this secret is for"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none" />
+              </div>
+              <div class="flex gap-2">
+                <button onclick={handleCreateSecret} disabled={secretSaving || !secretName.trim() || !secretValue.trim()}
+                  class="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50">
+                  {secretSaving ? 'Saving...' : 'Add Secret'}
+                </button>
+                <button onclick={() => (showSecretForm = false)}
+                  class="rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-2">Cancel</button>
+              </div>
+            </div>
+          {:else}
+            <button onclick={() => (showSecretForm = true)}
+              class="mb-4 inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover">
+              <Plus size={14} /> Add Secret
+            </button>
+          {/if}
+
+          <!-- Secrets list -->
+          {#if secretsLoading}
+            <p class="text-sm text-text-tertiary">Loading secrets...</p>
+          {:else if secrets.length === 0}
+            <p class="text-sm text-text-tertiary">No secrets configured. Add signing keys to use with validation stages.</p>
+          {:else}
+            <div class="space-y-2">
+              {#each secrets as secret}
+                <div class="flex items-center justify-between rounded-lg border border-border bg-surface-0 px-4 py-3">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <Lock size={14} class="text-accent" />
+                      <span class="text-sm font-medium text-text-primary">{secret.name}</span>
+                      <span class="rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary">{secret.type.replace('_', ' ')}</span>
+                    </div>
+                    {#if secret.description}
+                      <p class="mt-1 text-2xs text-text-tertiary">{secret.description}</p>
+                    {/if}
+                  </div>
+                  <button onclick={() => handleDeleteSecret(secret.id, secret.name)}
+                    class="rounded p-1 text-text-tertiary hover:bg-error-muted hover:text-error" title="Delete secret">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
         {/if}
       </div>
     </div>

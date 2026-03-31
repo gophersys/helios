@@ -379,14 +379,13 @@ class ArtifactWriter:
         if not self.enabled:
             return False
 
-        import io as _io
         full_path = f"sessions/{self.run_id}/{object_path}"
         try:
             client = self._get_client()
             client.put_object(
                 self.bucket,
                 full_path,
-                _io.BytesIO(content),
+                io.BytesIO(content),
                 len(content),
                 content_type="application/x-ndjson",
             )

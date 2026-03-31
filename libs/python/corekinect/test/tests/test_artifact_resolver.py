@@ -232,10 +232,11 @@ class TestBuildManifest:
         with pytest.raises(ValueError, match="Unsupported.*schema.*99"):
             BuildManifest.from_dict(data)
 
-    def test_missing_schema_version(self):
+    def test_missing_schema_version_defaults_to_legacy(self):
+        """Missing schemaVersion defaults to 0 (legacy format), which is valid."""
         data = {k: v for k, v in ALPHA_MANIFEST.items() if k != "schemaVersion"}
-        with pytest.raises(ValueError, match="Unsupported.*schema.*0"):
-            BuildManifest.from_dict(data)
+        manifest = BuildManifest.from_dict(data)
+        assert manifest.schema_version == 0
 
 
 # =============================================================================

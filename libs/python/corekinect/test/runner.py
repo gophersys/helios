@@ -395,6 +395,8 @@ class PreflightChecker:
             board = profile.get("board", "?")
             return True, f"{product}/{board}"
 
+        except PermissionError:
+            return False, f"Permission denied: {path}"
         except json.JSONDecodeError as e:
             return False, f"Invalid JSON: {e}"
         except Exception as e:

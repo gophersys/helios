@@ -11,6 +11,7 @@ import re
 import time
 from typing import Any, Callable, Dict, List, Optional
 
+from corekinect.test.errors import CloudError
 from corekinect.utils import Logger
 from corekinect.utils.timeutil.formaters import auto_format_time_elapsed
 
@@ -149,7 +150,15 @@ class CloudClient:
                     section_data = status.get(section, {})
                     current_record_id = section_data.get("recordId", 0)
                     if current_record_id > baseline_record_id:
-                        if predicate is None or predicate(section_data):
+                        if predicate is not None:
+                            try:
+                                pred_ok = predicate(section_data)
+                            except Exception as exc:
+                                self._log.warning("Predicate raised: %s", exc)
+                                continue
+                        else:
+                            pred_ok = True
+                        if pred_ok:
                             elapsed = auto_format_time_elapsed(time.monotonic() - t0)
                             self._log.info(
                                 "%s changed after %s (recordId %d -> %d)",

@@ -246,7 +246,10 @@ class FirmwareAssetManager:
                     self._log.debug("Deleted temp file: %s", path)
             except Exception as e:
                 self._log.warning("Error deleting temp file %s: %s", path, e)
-            self._temp_files.remove(path)
+            try:
+                self._temp_files.remove(path)
+            except ValueError:
+                pass
 
         self._assets.clear()
 
@@ -286,11 +289,17 @@ class FirmwareAssetManager:
             # Cleanup on failure
             if os.path.exists(local_path):
                 os.unlink(local_path)
-            self._temp_files.remove(local_path)
+            try:
+                self._temp_files.remove(local_path)
+            except ValueError:
+                pass
             raise RuntimeError(f"Failed to download {storage_key}: {e}") from e
 
     def _upload_to_mtib(self, local_path: str, target: str, mtib_name: str) -> None:
         """Upload local file to MTIB server."""
+        if not os.path.exists(local_path):
+            raise FileNotFoundError(f"Firmware file not found: {local_path}")
+
         from protocols.mtib.mtib_pb2 import HostType
 
         # Map target string to HostType
