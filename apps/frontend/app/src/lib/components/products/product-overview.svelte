@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { GitBranch, Hammer, ListTodo, FlaskConical, AlertCircle } from 'lucide-svelte';
-  import { fetchPipelines } from '$lib/services/ci';
+  import { fetchBuildRuns } from '$lib/services/ci';
   import { getQueueStats } from '$lib/services/queue';
   import { apiFetch } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
@@ -36,7 +36,7 @@
     error = null;
     try {
       const [pipelinesRes, queueRes, runsRes] = await Promise.all([
-        fetchPipelines({ product: productName, limit: 50 }),
+        fetchBuildRuns({ product: productName, limit: 50 }),
         getQueueStats().catch(() => ({ total: 0, byStatus: { QUEUED: 0 }, avgWaitSeconds: null })),
         apiFetch<ApiResponse<{ data: ValidationRun[]; pagination: Pagination }>>(
           '/v2/sessions?limit=50'

@@ -17,7 +17,7 @@
       </div>
       <div class="px-5 py-4">
         <p class="text-sm text-text-secondary">
-          This will stop the running tests, kill the K8s job, and unlock the fixture. You can re-run from the pipeline page.
+          This will stop the running tests, kill the K8s job, and unlock the fixture. You can re-run from the builds page.
         </p>
         <p class="mt-3 mb-1 text-2xs font-medium text-text-tertiary">
           Type <span class="font-mono text-text-primary">{ctx.runId}</span> to confirm

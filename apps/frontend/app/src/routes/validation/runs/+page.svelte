@@ -159,7 +159,7 @@
       const prId = config?.bitbucketPrId || config?.pullRequestId || '';
       return prId ? `PR #${prId}` : 'Bitbucket PR';
     }
-    if (type === 'ci') return 'Pipeline';
+    if (type === 'ci') return 'Build Run';
     if (type === 'scheduled') return 'Nightly';
     return run.createdBy?.name || 'Manual';
   }
@@ -423,7 +423,7 @@
                   tabindex="0"
                   onclick={(e) => { e.stopPropagation(); goto(`/builds/runs/${config?.runId}`); }}
                   class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-info-muted text-info text-2xs font-medium hover:bg-info/20 cursor-pointer transition-colors"
-                  title="View build pipeline"
+                  title="View build run"
                 >
                   <GitCommit size={10} />
                   Build

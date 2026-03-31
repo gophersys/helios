@@ -66,8 +66,8 @@ class TestFixtureProfileFromApi:
 
             # Verify API call
             mock_get.assert_called_once_with(
-                "https://staging.concord.local/v2/validation/benches/cmmgsdsnh0001sktijmewtmwg/profile",
-                headers={"Authorization": "Bearer ck_run_test_abc123"},
+                "https://staging.concord.local/v2/fixtures/benches/cmmgsdsnh0001sktijmewtmwg/profile",
+                headers={"Authorization": "ApiKey ck_run_test_abc123"},
                 timeout=30,
             )
 
@@ -257,9 +257,16 @@ class TestTestContextFromEnv:
                                 with patch("corekinect.test.context.PowerProfiler"):
                                     ctx = TestContext.from_env()
 
-                # Verify API was called (not file)
+                # Verify bench profile API was called (not file)
                 mock_get.assert_called()
-                assert "bench-123" in mock_get.call_args[0][0]
+                bench_calls = [
+                    c for c in mock_get.call_args_list
+                    if "bench-123" in str(c)
+                ]
+                assert len(bench_calls) > 0, (
+                    f"Expected a call containing 'bench-123', got: "
+                    f"{[str(c) for c in mock_get.call_args_list]}"
+                )
 
     def test_from_env_falls_back_to_file(self, base_env, sample_profile_data):
         """Falls back to file loading when API env vars are missing."""

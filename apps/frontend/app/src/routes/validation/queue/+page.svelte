@@ -269,7 +269,7 @@
       <input
         type="text"
         bind:value={searchQuery}
-        placeholder="Search pipeline, product, branch..."
+        placeholder="Search build run, product, branch..."
         class="rounded-lg border border-border bg-surface-0 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
       />
     </div>
@@ -286,7 +286,7 @@
   {#if loading}
     <LoadingState message="Loading queue entries..." />
   {:else if filteredEntries.length === 0}
-    <EmptyState message={searchQuery ? 'No entries match your search.' : 'Queue is empty. Entries appear when pipeline runs request validation.'} />
+    <EmptyState message={searchQuery ? 'No entries match your search.' : 'Queue is empty. Entries appear when build runs request validation.'} />
   {:else}
     <div class="overflow-hidden rounded-xl border border-border">
       <div class="overflow-x-auto">

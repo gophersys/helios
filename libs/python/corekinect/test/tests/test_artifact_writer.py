@@ -254,7 +254,7 @@ class TestArtifactWriterInit:
         writer._current_test = "test_boot"
 
         path = writer._object_path("output.log")
-        assert path == "validation/runs/run123/test_boot/output.log"
+        assert path == "sessions/run123/test_boot/output.log"
 
     def test_object_path_without_test(self):
         """Object path should be session-level when no test context."""
@@ -263,7 +263,7 @@ class TestArtifactWriterInit:
         writer._current_test = None
 
         path = writer._object_path("manifest.json")
-        assert path == "validation/runs/run123/manifest.json"
+        assert path == "sessions/run123/manifest.json"
 
     def test_object_path_override_test(self):
         """Object path should use override test name."""
@@ -272,7 +272,7 @@ class TestArtifactWriterInit:
         writer._current_test = "test_boot"
 
         path = writer._object_path("output.log", test_name="test_power")
-        assert path == "validation/runs/run123/test_power/output.log"
+        assert path == "sessions/run123/test_power/output.log"
 
 
 class TestArtifactWriterTestLifecycle:

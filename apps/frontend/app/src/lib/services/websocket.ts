@@ -834,7 +834,7 @@ export function subscribeCiBuild(
 }
 
 /**
- * Subscribe to real-time CI pipeline events (stage transitions, completion).
+ * Subscribe to real-time CI build run events (stage transitions, completion).
  */
 export function subscribeCiPipeline(
   runId: string,

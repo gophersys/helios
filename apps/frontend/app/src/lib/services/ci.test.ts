@@ -6,7 +6,7 @@
  * lives between the apiFetch call and the returned value.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Pipeline, PipelineBuildSummary } from '$lib/types/ci';
+import type { BuildRunDetail, BuildRunBuildSummary } from '$lib/types/ci';
 
 // ── Mock $lib/api before importing the service ─────────────────────────────
 
@@ -37,10 +37,10 @@ import {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function makePipelineBase(overrides: Partial<Pipeline> = {}): Pipeline {
+function makePipelineBase(overrides: Partial<BuildRunDetail> = {}): BuildRunDetail {
   return {
     id: 'pipe-1',
-    name: 'Test Pipeline',
+    name: 'Test BuildRunDetail',
     product: 'alpha',
     board: 'alpha_b0',
     branch: 'main',
@@ -60,7 +60,7 @@ function makePipelineBase(overrides: Partial<Pipeline> = {}): Pipeline {
   };
 }
 
-function makeBuild(status: PipelineBuildSummary['status'], overrides: Partial<PipelineBuildSummary> = {}): PipelineBuildSummary {
+function makeBuild(status: BuildRunBuildSummary['status'], overrides: Partial<BuildRunBuildSummary> = {}): BuildRunBuildSummary {
   return {
     id: `build-${Math.random()}`,
     product: 'alpha',
@@ -87,7 +87,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('PENDING');
     });
 
@@ -98,7 +98,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('RUNNING');
     });
 
@@ -109,7 +109,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('RUNNING');
     });
 
@@ -120,7 +120,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('FAILED');
     });
 
@@ -131,7 +131,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('SUCCESS');
     });
 
@@ -142,7 +142,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('SUCCESS');
     });
 
@@ -154,7 +154,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.status).toBe('RUNNING');
     });
   });
@@ -167,7 +167,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.detail).toBe('1/2 builds passed');
     });
 
@@ -176,7 +176,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.detail).toBeNull();
     });
 
@@ -189,7 +189,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.finishedAt).toBe(finishedAt);
     });
 
@@ -201,7 +201,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const buildStage = result.stages!.find(s => s.stage === 'BUILD')!;
+      const buildStage = result.stages!.find((s: any) => s.stage === 'BUILD')!;
       expect(buildStage.finishedAt).toBeNull();
     });
   });
@@ -212,7 +212,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const flashStage = result.stages!.find(s => s.stage === 'FLASH');
+      const flashStage = result.stages!.find((s: any) => s.stage === 'FLASH');
       expect(flashStage).toBeUndefined();
     });
 
@@ -224,7 +224,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const flashStage = result.stages!.find(s => s.stage === 'FLASH');
+      const flashStage = result.stages!.find((s: any) => s.stage === 'FLASH');
       expect(flashStage).toBeDefined();
     });
 
@@ -233,7 +233,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const flashStage = result.stages!.find(s => s.stage === 'FLASH');
+      const flashStage = result.stages!.find((s: any) => s.stage === 'FLASH');
       expect(flashStage).toBeDefined();
     });
 
@@ -245,7 +245,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const flashStage = result.stages!.find(s => s.stage === 'FLASH')!;
+      const flashStage = result.stages!.find((s: any) => s.stage === 'FLASH')!;
       expect(flashStage.status).toBe('SUCCESS');
     });
 
@@ -257,7 +257,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const flashStage = result.stages!.find(s => s.stage === 'FLASH')!;
+      const flashStage = result.stages!.find((s: any) => s.stage === 'FLASH')!;
       expect(flashStage.status).toBe('SKIPPED');
     });
 
@@ -269,7 +269,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const flashStage = result.stages!.find(s => s.stage === 'FLASH')!;
+      const flashStage = result.stages!.find((s: any) => s.stage === 'FLASH')!;
       expect(flashStage.status).toBe('PENDING');
     });
   });
@@ -280,7 +280,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const validateStage = result.stages!.find(s => s.stage === 'VALIDATE');
+      const validateStage = result.stages!.find((s: any) => s.stage === 'VALIDATE');
       expect(validateStage).toBeUndefined();
     });
 
@@ -292,7 +292,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const validateStage = result.stages!.find(s => s.stage === 'VALIDATE')!;
+      const validateStage = result.stages!.find((s: any) => s.stage === 'VALIDATE')!;
       expect(validateStage.status).toBe('SUCCESS');
     });
 
@@ -304,7 +304,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const validateStage = result.stages!.find(s => s.stage === 'VALIDATE')!;
+      const validateStage = result.stages!.find((s: any) => s.stage === 'VALIDATE')!;
       expect(validateStage.status).toBe('FAILED');
     });
 
@@ -316,7 +316,7 @@ describe('fetchBuildRun stage computation', () => {
       mockApiFetch.mockResolvedValue({ data: pipeline, errors: [] });
 
       const result = await fetchBuildRun('pipe-1');
-      const validateStage = result.stages!.find(s => s.stage === 'VALIDATE')!;
+      const validateStage = result.stages!.find((s: any) => s.stage === 'VALIDATE')!;
       expect(validateStage.status).toBe('PENDING');
     });
   });

@@ -26,9 +26,9 @@
     XCircle,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import type { Pipeline, PipelineBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
+  import type { BuildRunDetail, PipelineBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
-  import { fetchPipeline, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadPipelineArtifacts, downloadSingleArtifact, triggerPipelineValidation, validatePipelineArtifacts, fetchPipelineSessions } from '$lib/services/ci';
+  import { fetchBuildRun, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadPipelineArtifacts, downloadSingleArtifact, triggerPipelineValidation, validateBuildRunArtifacts, fetchPipelineSessions } from '$lib/services/ci';
   import type { PipelineSessionSummary, ArtifactValidationReport } from '$lib/services/ci';
   import { getTriggerConfig, getProductInfo } from '$lib/constants/builds';
   import type { BuildArtifact } from '$lib/types/ci';
@@ -46,7 +46,7 @@
   const auth = getAuth();
   const runId = $derived($page.params.id);
 
-  let pipeline = $state<Pipeline | null>(null);
+  let buildRun = $state<Pipeline | null>(null);
   let loading = $state(true);
   let initialLoadComplete = $state(false);
   let error = $state<string | null>(null);
@@ -71,7 +71,7 @@
   let artifactReport = $state<ArtifactValidationReport | null>(null);
   let showArtifactReport = $state(false);
 
-  // Validation runs triggered from this pipeline
+  // Validation runs triggered from this build run
   let validationRuns = $state<PipelineSessionSummary[]>([]);
 
   async function fetchValidationRuns() {
@@ -84,21 +84,21 @@
 
   // Can trigger validation: builds have at least some successes and pipeline isn't actively building
   const canTriggerValidation = $derived(
-    pipeline &&
-    ['SUCCESS', 'FAILED', 'BUILD_FAILED', 'VALIDATING'].includes(pipeline.status ?? '') &&
-    pipeline.builds && pipeline.builds.length > 0 &&
-    pipeline.builds.some(b => b.status === 'SUCCESS' || b.status === 'CACHED')
+    buildRun &&
+    ['SUCCESS', 'FAILED', 'BUILD_FAILED', 'VALIDATING'].includes(buildRun.status ?? '') &&
+    buildRun.builds && buildRun.builds.length > 0 &&
+    buildRun.builds.some(b => b.status === 'SUCCESS' || b.status === 'CACHED')
   );
 
   // Check if all builds are complete (success or failed)
   const allBuildsComplete = $derived(
-    pipeline?.builds && pipeline.builds.length > 0 &&
-    pipeline.builds.every(b => b.status === 'SUCCESS' || b.status === 'FAILED' || b.status === 'CANCELLED')
+    buildRun?.builds && buildRun.builds.length > 0 &&
+    buildRun.builds.every(b => b.status === 'SUCCESS' || b.status === 'FAILED' || b.status === 'CANCELLED')
   );
 
   // Check if any builds have artifacts
   const hasAnyArtifacts = $derived(
-    pipeline?.builds?.some(b => (b.artifactCount ?? 0) > 0) ?? false
+    buildRun?.builds?.some(b => (b.artifactCount ?? 0) > 0) ?? false
   );
 
   async function handleDownloadBuild(build: PipelineBuildSummary, e: Event): Promise<void> {
@@ -125,18 +125,18 @@
   }
 
   async function handleDownloadAll(): Promise<void> {
-    if (!pipeline || downloadingAll) return;
+    if (!buildRun || downloadingAll) return;
 
     downloadingAll = true;
 
     try {
       await downloadPipelineArtifacts(
-        pipeline.id,
-        pipeline.product,
-        pipeline.branch
+        buildRun.id,
+        buildRun.product,
+        buildRun.branch
       );
     } catch (err) {
-      console.error('Failed to download pipeline artifacts:', err);
+      console.error('Failed to download build run artifacts:', err);
       error = err instanceof Error ? err.message : 'Download failed';
     } finally {
       downloadingAll = false;
@@ -144,12 +144,12 @@
   }
 
   async function handleTriggerValidation(): Promise<void> {
-    if (!pipeline || triggeringValidation || !runId) return;
+    if (!buildRun || triggeringValidation || !runId) return;
     triggeringValidation = true;
     try {
-      await triggerPipelineValidation(pipeline.id);
+      await triggerPipelineValidation(buildRun.id);
       // Refresh pipeline and validation runs list
-      pipeline = await fetchPipeline(runId);
+      buildRun = await fetchBuildRun(runId);
       await fetchValidationRuns();
       error = null;
     } catch (err) {
@@ -163,7 +163,7 @@
     if (!runId || validatingArtifacts) return;
     validatingArtifacts = true;
     try {
-      artifactReport = await validatePipelineArtifacts(runId);
+      artifactReport = await validateBuildRunArtifacts(runId);
       showArtifactReport = true;
       error = null;
     } catch (err) {
@@ -203,7 +203,7 @@
     try {
       await resetBuild(buildId);
       // Reload the pipeline to get fresh status
-      await loadPipeline();
+      await loadBuildRun();
     } catch (err) {
       console.error('Failed to reset build:', err);
       error = err instanceof Error ? err.message : 'Failed to reset build';
@@ -214,34 +214,34 @@
   }
 
   const isRunning = $derived(
-    pipeline?.status === 'BUILDING' || pipeline?.status === 'PENDING'
+    buildRun?.status === 'BUILDING' || buildRun?.status === 'PENDING'
   );
 
-  const triggerDisplay = $derived(getTriggerConfig(pipeline?.triggerType ?? 'manual'));
+  const triggerDisplay = $derived(getTriggerConfig(buildRun?.triggerType ?? 'manual'));
 
   const totalDuration = $derived.by(() => {
-    if (!pipeline?.builds) return null;
-    const totalSeconds = pipeline.builds.reduce((sum, b) => sum + (b.durationSeconds ?? 0), 0);
+    if (!buildRun?.builds) return null;
+    const totalSeconds = buildRun.builds.reduce((sum, b) => sum + (b.durationSeconds ?? 0), 0);
     return totalSeconds > 0 ? totalSeconds : null;
   });
 
   const totalArtifacts = $derived.by(() => {
-    if (!pipeline?.builds) return 0;
-    return pipeline.builds.reduce((sum, b) => sum + (b.artifactCount ?? 0), 0);
+    if (!buildRun?.builds) return 0;
+    return buildRun.builds.reduce((sum, b) => sum + (b.artifactCount ?? 0), 0);
   });
 
   // Check if this is a stage pipeline with matrix labels (FUOTA has grouped view)
-  const isFuota = $derived(pipeline?.matrixMode === 'fuota');
-  const stageInfo = $derived(pipeline?.matrixMode ? STAGE_DISPLAY[pipeline.matrixMode as ValidationStage] : null);
+  const isFuota = $derived(buildRun?.matrixMode === 'fuota');
+  const stageInfo = $derived(buildRun?.matrixMode ? STAGE_DISPLAY[buildRun.matrixMode as ValidationStage] : null);
 
   // Group builds by FUOTA step for display (ordered by flow)
   const groupedBuilds = $derived.by(() => {
-    if (!pipeline?.builds || !isFuota) return null;
+    if (!buildRun?.builds || !isFuota) return null;
 
     // Group by fuotaStep, preserving FUOTA flow order
     const stepGroups: Map<number, { title: string; builds: PipelineBuildSummary[] }> = new Map();
 
-    for (const build of pipeline.builds) {
+    for (const build of buildRun.builds) {
       const label = build.matrixLabel as MatrixLabel;
       const info = label ? MATRIX_LABEL_DISPLAY[label] : null;
 
@@ -281,8 +281,8 @@
 
   function getFwRepo(): string {
     // Use buildMatrix.mainFw when available (most accurate), fall back to product info
-    if (pipeline?.buildMatrix?.mainFw) return pipeline.buildMatrix.mainFw as string;
-    const info = getProductInfo(pipeline?.product ?? '');
+    if (pipeline?.buildMatrix?.mainFw) return buildRun?.buildMatrix.mainFw as string;
+    const info = getProductInfo(buildRun?.product ?? '');
     return info.repo;
   }
 
@@ -381,15 +381,15 @@
     return name.endsWith('.hex') || name.endsWith('.cfw') || name.endsWith('.bin');
   }
 
-  async function loadPipeline(isInitial: boolean = false): Promise<void> {
+  async function loadBuildRun(isInitial: boolean = false): Promise<void> {
     if (!runId) return;
     try {
-      pipeline = await fetchPipeline(runId);
+      buildRun = await fetchBuildRun(runId);
       error = null;
 
       // On initial load, pre-fetch log analysis for all completed builds before showing content
-      if (isInitial && pipeline?.builds) {
-        const completedBuilds = pipeline.builds.filter(
+      if (isInitial && buildRun?.builds) {
+        const completedBuilds = buildRun.builds.filter(
           (b) => b.status === 'SUCCESS' || b.status === 'FAILED'
         );
         if (completedBuilds.length > 0) {
@@ -413,8 +413,8 @@
     unsubscribeWs = subscribeCiPipeline(
       runId,
       {
-        onStageUpdate: () => { loadPipeline(); },
-        onComplete: (_data: CiPipelineCompleteEvent) => { loadPipeline(); },
+        onStageUpdate: () => { loadBuildRun(); },
+        onComplete: (_data: CiPipelineCompleteEvent) => { loadBuildRun(); },
       },
       (msg) => console.warn('Build WS error:', msg)
     );
@@ -427,8 +427,8 @@
   }
 
   $effect(() => {
-    if (!pipeline?.builds) return;
-    for (const build of pipeline.builds) {
+    if (!buildRun?.builds) return;
+    for (const build of buildRun.builds) {
       if (expandedBuilds.has(build.id)) {
         if (build.status === 'BUILDING' || build.status === 'QUEUED') {
           startLogPolling(build.id, build);
@@ -442,8 +442,8 @@
 
   // Pre-fetch artifacts for completed builds
   $effect(() => {
-    if (!pipeline?.builds) return;
-    for (const build of pipeline.builds) {
+    if (!buildRun?.builds) return;
+    for (const build of buildRun.builds) {
       if ((build.status === 'SUCCESS' || build.status === 'FAILED') && !logAnalysis[build.id]) {
         fetchAndUpdateLog(build.id, false);
       }
@@ -455,11 +455,11 @@
       goto('/');
       return;
     }
-    loadPipeline(true); // Initial load - wait for all data
+    loadBuildRun(true); // Initial load - wait for all data
     fetchValidationRuns();
     setupWebSocket();
     pollInterval = setInterval(() => {
-      if (isRunning) loadPipeline(false); // Refresh - don't block
+      if (isRunning) loadBuildRun(false); // Refresh - don't block
     }, 5000);
   });
 
@@ -524,13 +524,13 @@
         {/each}
       </div>
     </div>
-  {:else if error && !pipeline}
+  {:else if error && !buildRun}
     <ErrorAlert message={error} />
-  {:else if pipeline}
+  {:else if buildRun}
     <ErrorAlert message={error} />
 
     <!-- Header -->
-    {@const productInfo = getProductInfo(pipeline.product)}
+    {@const productInfo = getProductInfo(buildRun.product)}
     <div class="flex items-start justify-between gap-4 mb-6">
       <div>
         <div class="flex items-center gap-3">
@@ -543,16 +543,16 @@
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
                 <span class="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
               </span>
-              {pipeline.status}
+              {buildRun.status}
             </span>
           {:else}
-            <StatusBadge status={pipeline.status} />
+            <StatusBadge status={buildRun.status} />
           {/if}
         </div>
         <div class="mt-2 flex items-center gap-2 flex-wrap">
           <!-- Branch card -->
-          {#if pipeline.branch}
-            {@const branchUrl = getBitbucketBranchUrl(pipeline.branch)}
+          {#if buildRun.branch}
+            {@const branchUrl = getBitbucketBranchUrl(buildRun.branch)}
             <a
               href={branchUrl ?? '#'}
               target="_blank"
@@ -561,7 +561,7 @@
               title="View branch on Bitbucket"
             >
               <GitBranch size={14} class="text-accent" />
-              {pipeline.branch}
+              {buildRun.branch}
               {#if branchUrl}
                 <ExternalLink size={10} class="text-text-tertiary" />
               {/if}
@@ -575,8 +575,8 @@
             </span>
           {/if}
           <!-- Commit badge -->
-          {#if pipeline.commitSha}
-            {@const commitUrl = getBitbucketCommitUrl(pipeline.commitSha)}
+          {#if buildRun.commitSha}
+            {@const commitUrl = getBitbucketCommitUrl(buildRun.commitSha)}
             <a
               href={commitUrl ?? '#'}
               target="_blank"
@@ -585,7 +585,7 @@
               title="View commit on Bitbucket"
             >
               <GitCommit size={14} class="text-warning" />
-              {pipeline.commitSha.slice(0, 7)}
+              {buildRun.commitSha.slice(0, 7)}
               {#if commitUrl}
                 <ExternalLink size={10} class="text-text-tertiary" />
               {/if}
@@ -605,8 +605,8 @@
             {formatDuration(totalDuration * 1000)}
           </span>
         {/if}
-        <span title={formatDateTime(pipeline.createdAt)}>
-          {formatTimeAgo(pipeline.createdAt)}
+        <span title={formatDateTime(buildRun.createdAt)}>
+          {formatTimeAgo(buildRun.createdAt)}
         </span>
         <!-- Validate Artifacts button -->
         {#if hasAnyArtifacts}
@@ -650,7 +650,7 @@
         <div class="mt-1 flex items-center gap-1.5">
           <Hammer size={16} class="text-text-tertiary" />
           <span class="text-sm font-semibold text-text-primary">
-            {pipeline.completedBuilds}/{pipeline.expectedBuilds}
+            {buildRun.completedBuilds}/{buildRun.expectedBuilds}
           </span>
         </div>
       </div>
@@ -674,8 +674,8 @@
         <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Commit</div>
         <div class="mt-1 flex items-center gap-1.5">
           <GitCommit size={16} class="text-text-tertiary" />
-          {#if pipeline.commitSha}
-            {@const commitUrl = getBitbucketCommitUrl(pipeline.commitSha)}
+          {#if buildRun.commitSha}
+            {@const commitUrl = getBitbucketCommitUrl(buildRun.commitSha)}
             {#if commitUrl}
               <a
                 href={commitUrl}
@@ -684,11 +684,11 @@
                 class="text-sm font-mono text-text-primary hover:text-accent transition-colors inline-flex items-center gap-1"
                 title="View commit on Bitbucket"
               >
-                {pipeline.commitSha.slice(0, 12)}
+                {buildRun.commitSha.slice(0, 12)}
                 <ExternalLink size={12} />
               </a>
             {:else}
-              <span class="text-sm font-mono text-text-primary">{pipeline.commitSha.slice(0, 12)}</span>
+              <span class="text-sm font-mono text-text-primary">{buildRun.commitSha.slice(0, 12)}</span>
             {/if}
           {:else}
             <span class="text-sm text-text-tertiary italic">Manual trigger</span>
@@ -703,13 +703,13 @@
         <div class="flex items-center gap-3">
           <FlaskConical size={16} class="text-accent" />
           <span class="text-sm font-medium text-text-primary">Validation</span>
-          {#if pipeline.autoValidate}
+          {#if buildRun.autoValidate}
             <span class="inline-flex items-center rounded bg-accent-muted px-1.5 py-0.5 text-2xs font-medium text-accent">
               Auto
             </span>
           {/if}
-          {#if pipeline.matrixMode}
-            {@const stageInfo = STAGE_DISPLAY[pipeline.matrixMode as ValidationStage]}
+          {#if buildRun.matrixMode}
+            {@const stageInfo = STAGE_DISPLAY[buildRun.matrixMode as ValidationStage]}
             {#if stageInfo}
               <span class="inline-flex items-center rounded {stageInfo.color} px-1.5 py-0.5 text-2xs font-medium">
                 {stageInfo.name}
@@ -732,7 +732,7 @@
                 {validationRuns.length > 0 ? 'Re-run' : 'Run Validation'}
               {/if}
             </button>
-          {:else if pipeline.status === 'BUILDING' || pipeline.status === 'PENDING'}
+          {:else if buildRun.status === 'BUILDING' || buildRun.status === 'PENDING'}
             <span class="text-2xs text-text-tertiary">Waiting for builds...</span>
           {/if}
         </div>
@@ -745,7 +745,7 @@
               <StatusBadge status={vr.status} />
               <span class="text-xs font-medium text-text-primary truncate flex-1 min-w-0">{vr.name}</span>
               <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary flex-shrink-0">
-                {pipeline.autoValidate ? 'Auto' : 'Manual'}
+                {buildRun.autoValidate ? 'Auto' : 'Manual'}
               </span>
               {#if vr.passedCount > 0}
                 <span class="flex items-center gap-1 text-2xs text-success flex-shrink-0">
@@ -772,7 +772,7 @@
     </div>
 
     <!-- Builds section -->
-    {#if pipeline.builds && pipeline.builds.length > 0}
+    {#if buildRun.builds && buildRun.builds.length > 0}
       <div class="mb-6 min-w-0 overflow-hidden">
         <h2 class="mb-3 text-sm font-medium text-text-primary flex items-center gap-2">
           <Hammer size={16} class="text-text-tertiary" />
@@ -1036,7 +1036,7 @@
         {:else}
           <!-- Legacy flat view -->
           <div class="space-y-3 min-w-0">
-            {#each pipeline.builds as build (build.id)}
+            {#each buildRun.builds as build (build.id)}
             {@const isExpanded = expandedBuilds.has(build.id)}
             {@const isLoadingLog = loadingLogs.has(build.id)}
             {@const analysis = logAnalysis[build.id]}
@@ -1242,8 +1242,8 @@
     {/if}
 
     <!-- Modem Firmware -->
-    {#if pipeline.triggerData?.modemFirmware}
-      {@const modem = pipeline.triggerData.modemFirmware}
+    {#if buildRun.triggerData?.modemFirmware}
+      {@const modem = buildRun.triggerData.modemFirmware}
       <div class="mb-6 rounded-lg border border-border bg-surface-0 px-4 py-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -1271,8 +1271,8 @@
 
     <!-- Metadata footer -->
     <div class="mt-6 flex items-center gap-4 text-2xs text-text-tertiary">
-      <span>Created {formatDateTime(pipeline.createdAt)}</span>
-      <span class="font-mono">{pipeline.id}</span>
+      <span>Created {formatDateTime(buildRun.createdAt)}</span>
+      <span class="font-mono">{buildRun.id}</span>
     </div>
   {/if}
 </div>
@@ -1355,7 +1355,7 @@
         </div>
       {:else}
         <div class="rounded-lg border border-border bg-surface-0 p-4 text-center text-sm text-text-tertiary">
-          No build matrix configured for this pipeline. Artifact validation skipped.
+          No build matrix configured for this build run. Artifact validation skipped.
         </div>
       {/if}
 

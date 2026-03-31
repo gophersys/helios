@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Clock, AlertCircle } from 'lucide-svelte';
-  import { fetchPipelines } from '$lib/services/ci';
+  import { fetchBuildRuns } from '$lib/services/ci';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import type { Pipeline } from '$lib/types/ci';
 
@@ -12,7 +12,7 @@
 
   let { productId, productName }: Props = $props();
 
-  let pipelines = $state<Pipeline[]>([]);
+  let pipelines = $state<BuildRunDetail[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
@@ -38,7 +38,7 @@
     loading = true;
     error = null;
     try {
-      const result = await fetchPipelines({ product: productName, limit: 20 });
+      const result = await fetchBuildRuns({ product: productName, limit: 20 });
       pipelines = result.data;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load pipelines';
@@ -93,26 +93,26 @@
           </tr>
         </thead>
         <tbody>
-          {#each pipelines as pipeline (pipeline.id)}
+          {#each pipelines as pipeline (buildRun.id)}
             <tr class="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-1)] transition-colors">
               <td class="px-3 py-2">
-                <a href="/builds/runs/{pipeline.id}" class="font-mono text-xs text-[var(--color-accent)] hover:underline">
-                  {pipeline.name || pipeline.id.slice(0, 8)}
+                <a href="/builds/runs/{buildRun.id}" class="font-mono text-xs text-[var(--color-accent)] hover:underline">
+                  {buildRun.name || buildRun.id.slice(0, 8)}
                 </a>
               </td>
               <td class="px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)]">
-                {pipeline.branch || '\u2014'}
+                {buildRun.branch || '\u2014'}
               </td>
               <td class="px-3 py-2">
-                <StatusBadge status={pipeline.status} />
+                <StatusBadge status={buildRun.status} />
               </td>
               <td class="px-3 py-2 text-xs text-[var(--color-text-secondary)]">
-                {pipeline.completedBuilds}/{pipeline.expectedBuilds}
+                {buildRun.completedBuilds}/{buildRun.expectedBuilds}
               </td>
               <td class="px-3 py-2 text-right">
                 <span class="flex items-center justify-end gap-1 text-xs text-[var(--color-text-tertiary)]">
                   <Clock size={12} />
-                  {formatDuration(pipeline.startedAt, pipeline.finishedAt)}
+                  {formatDuration(buildRun.startedAt, buildRun.finishedAt)}
                 </span>
               </td>
             </tr>

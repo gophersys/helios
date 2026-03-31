@@ -2,7 +2,7 @@
 
 export type BuildJobStatus = 'QUEUED' | 'BLOCKED' | 'BUILDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 export type PipelineStage = 'BUILD' | 'FLASH' | 'VALIDATE';
-export type PipelineStageStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
+export type BuildRunStageStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
 
 export interface BuildArtifact {
   id: string;
@@ -44,9 +44,9 @@ export interface BuildJob {
   reusedFromId?: string | null;
 }
 
-export interface PipelineStageInfo {
+export interface BuildRunStageInfo {
   stage: PipelineStage;
-  status: PipelineStageStatus;
+  status: BuildRunStageStatus;
   startedAt: string | null;
   finishedAt: string | null;
   detail: string | null;
@@ -68,7 +68,7 @@ export type MatrixLabel =
   | 'FUT_RELEASE_A' | 'FUT_RELEASE_B'
   | 'MAIN_BASELINE' | 'MAIN_MERGED';
 
-export interface PipelineBuildSummary {
+export interface BuildRunBuildSummary {
   id: string;
   product: string;
   status: BuildJobStatus;
@@ -201,7 +201,7 @@ export const FUOTA_TRANSITIONS: Array<{ from: MatrixLabel; to: MatrixLabel; purp
   { from: 'PROD_QUIET', to: 'PROD_QUIET_BUMP', purpose: 'Prod→Prod quiet FUOTA' },
 ];
 
-export interface Pipeline {
+export interface BuildRunDetail {
   id: string;
   name: string;
   product: string;
@@ -218,7 +218,7 @@ export interface Pipeline {
   finishedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  builds?: PipelineBuildSummary[];
+  builds?: BuildRunBuildSummary[];
   // Build matrix mode (validation stage)
   matrixMode?: 'smoke' | 'silicon' | 'integration' | 'nightly' | 'fuota' | null;
   buildMatrix?: {
@@ -233,7 +233,7 @@ export interface Pipeline {
   // Computed for UI compatibility
   buildJob?: BuildJob | null;
   validationRun?: { id: string; name: string; status: string } | null;
-  stages?: PipelineStageInfo[];
+  stages?: BuildRunStageInfo[];
 }
 
 // Validation stage display info
@@ -281,7 +281,7 @@ export interface TriggerBuildConfig {
   commitSha?: string;
 }
 
-export interface TriggerPipelineConfig {
+export interface TriggerBuildRunConfig {
   product: string;
   board: string;
   target: string;

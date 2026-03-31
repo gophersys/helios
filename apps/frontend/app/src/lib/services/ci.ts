@@ -3,17 +3,17 @@ import type { ApiResponse } from '$lib/types';
 import type {
   BuildJob,
   BuildArtifact,
-  Pipeline,
-  PipelineStageInfo,
-  PipelineStageStatus,
+  BuildRunDetail,
+  BuildRunStageInfo,
+  BuildRunStageStatus,
   TriggerBuildConfig,
-  TriggerPipelineConfig,
+  TriggerBuildRunConfig,
 } from '$lib/types/ci';
 import type { Pagination } from '$lib/types/models';
 
-// ── Pipelines ──────────────────────────────────────────────────
+// ── Build Runs ──────────────────────────────────────────────────
 
-export interface FetchPipelinesParams {
+export interface FetchBuildRunsParams {
   page?: number;
   limit?: number;
   status?: string;
@@ -32,8 +32,8 @@ interface PaginatedApiResponse<T> {
 }
 
 export async function fetchBuildRuns(
-  params?: FetchPipelinesParams
-): Promise<{ data: Pipeline[]; pagination: Pagination }> {
+  params?: FetchBuildRunsParams
+): Promise<{ data: BuildRunDetail[]; pagination: Pagination }> {
   const qs = new URLSearchParams();
   if (params?.page) qs.set('page', String(params.page));
   if (params?.limit) qs.set('limit', String(params.limit));
@@ -42,7 +42,7 @@ export async function fetchBuildRuns(
   if (params?.product) qs.set('product', params.product);
   if (params?.matrixMode) qs.set('matrixMode', params.matrixMode);
 
-  const res = await apiFetch<PaginatedApiResponse<Pipeline[]>>(
+  const res = await apiFetch<PaginatedApiResponse<BuildRunDetail[]>>(
     `/v2/builds/runs?${qs.toString()}`
   );
   return {
@@ -56,20 +56,20 @@ export async function fetchBuildRuns(
   };
 }
 
-export async function fetchBuildRun(id: string): Promise<Pipeline> {
-  const res = await apiFetch<ApiResponse<Pipeline>>(`/v2/builds/runs/${id}`);
-  const pipeline = res.data;
+export async function fetchBuildRun(id: string): Promise<BuildRunDetail> {
+  const res = await apiFetch<ApiResponse<BuildRunDetail>>(`/v2/builds/runs/${id}`);
+  const buildRun = res.data;
 
   // Compute stages from pipeline status and builds
-  const stages: PipelineStageInfo[] = [];
+  const stages: BuildRunStageInfo[] = [];
 
   // BUILD stage
-  const builds = pipeline.builds ?? [];
+  const builds = buildRun.builds ?? [];
   const allBuildsComplete = builds.length > 0 && builds.every(b => b.status === 'SUCCESS' || b.status === 'FAILED' || b.status === 'CANCELLED');
   const anyBuildFailed = builds.some(b => b.status === 'FAILED');
   const anyBuildRunning = builds.some(b => b.status === 'BUILDING');
 
-  let buildStatus: PipelineStageStatus = 'PENDING';
+  let buildStatus: BuildRunStageStatus = 'PENDING';
   if (anyBuildRunning) buildStatus = 'RUNNING';
   else if (anyBuildFailed) buildStatus = 'FAILED';
   else if (allBuildsComplete && builds.length > 0) buildStatus = 'SUCCESS';
@@ -78,13 +78,13 @@ export async function fetchBuildRun(id: string): Promise<Pipeline> {
   stages.push({
     stage: 'BUILD',
     status: buildStatus,
-    startedAt: pipeline.startedAt,
-    finishedAt: allBuildsComplete ? pipeline.finishedAt : null,
+    startedAt: buildRun.startedAt,
+    finishedAt: allBuildsComplete ? buildRun.finishedAt : null,
     detail: builds.length > 0 ? `${builds.filter(b => b.status === 'SUCCESS').length}/${builds.length} builds passed` : null,
   });
 
   // FLASH stage (only if validation is configured)
-  if (pipeline.validationRunId || pipeline.status === 'VALIDATING') {
+  if (buildRun.validationRunId || buildRun.status === 'VALIDATING') {
     stages.push({
       stage: 'FLASH',
       status: buildStatus === 'SUCCESS' ? 'SUCCESS' : buildStatus === 'FAILED' ? 'SKIPPED' : 'PENDING',
@@ -95,10 +95,10 @@ export async function fetchBuildRun(id: string): Promise<Pipeline> {
   }
 
   // VALIDATE stage
-  if (pipeline.validationRunId) {
+  if (buildRun.validationRunId) {
     stages.push({
       stage: 'VALIDATE',
-      status: pipeline.status === 'COMPLETED' ? 'SUCCESS' : pipeline.status === 'FAILED' ? 'FAILED' : 'PENDING',
+      status: buildRun.status === 'COMPLETED' ? 'SUCCESS' : buildRun.status === 'FAILED' ? 'FAILED' : 'PENDING',
       startedAt: null,
       finishedAt: null,
       detail: null,
@@ -106,31 +106,31 @@ export async function fetchBuildRun(id: string): Promise<Pipeline> {
   }
 
   // Set computed fields for UI compatibility
-  pipeline.stages = stages;
-  pipeline.buildJob = builds.length > 0 ? {
+  buildRun.stages = stages;
+  buildRun.buildJob = builds.length > 0 ? {
     id: builds[0].id,
     product: builds[0].product,
-    board: pipeline.board,
+    board: buildRun.board,
     target: '',
     variant: builds[0].variant,
-    branch: pipeline.branch,
-    commitSha: pipeline.commitSha ?? '',
+    branch: buildRun.branch,
+    commitSha: buildRun.commitSha ?? '',
     status: builds[0].status,
     versionString: builds[0].versionString,
     buildLog: null,
-    startedAt: pipeline.startedAt,
-    finishedAt: pipeline.finishedAt,
+    startedAt: buildRun.startedAt,
+    finishedAt: buildRun.finishedAt,
     durationSeconds: builds[0].durationSeconds,
-    triggerType: pipeline.triggerType ?? 'worker',
-    createdAt: pipeline.createdAt,
+    triggerType: buildRun.triggerType ?? 'worker',
+    createdAt: buildRun.createdAt,
     artifacts: [],
   } : null;
 
-  return pipeline;
+  return buildRun;
 }
 
-export async function triggerPipeline(config: TriggerPipelineConfig): Promise<Pipeline> {
-  const res = await api.post<ApiResponse<Pipeline>>('/v2/builds/trigger', config);
+export async function triggerBuildRun(config: TriggerBuildRunConfig): Promise<BuildRunDetail> {
+  const res = await api.post<ApiResponse<BuildRunDetail>>('/v2/builds/trigger', config);
   return res.data;
 }
 
@@ -253,7 +253,7 @@ export interface ArtifactValidationReport {
   }>;
 }
 
-export async function validatePipelineArtifacts(runId: string): Promise<ArtifactValidationReport> {
+export async function validateBuildRunArtifacts(runId: string): Promise<ArtifactValidationReport> {
   const res = await api.post<ApiResponse<ArtifactValidationReport>>(
     `/v2/builds/runs/${runId}/validate-artifacts`
   );
@@ -265,12 +265,12 @@ export async function resetBuild(id: string): Promise<BuildJob> {
   return res.data;
 }
 
-export async function cancelPipeline(id: string): Promise<Pipeline> {
-  const res = await api.post<ApiResponse<Pipeline>>(`/v2/builds/runs/${id}/cancel`, {});
+export async function cancelPipeline(id: string): Promise<BuildRunDetail> {
+  const res = await api.post<ApiResponse<BuildRunDetail>>(`/v2/builds/runs/${id}/cancel`, {});
   return res.data;
 }
 
-export async function triggerPipelineValidation(
+export async function triggerBuildRunValidation(
   runId: string
 ): Promise<{ runId: string; validationRunId: string; status: string }> {
   const res = await api.post<ApiResponse<{ runId: string; validationRunId: string; status: string }>>(
@@ -315,7 +315,7 @@ export async function downloadBuildArtifacts(
 }
 
 /**
- * Download all artifacts for a pipeline (all builds) as a ZIP.
+ * Download all artifacts for a build run (all builds) as a ZIP.
  */
 export async function downloadBuildRunArtifacts(
   runId: string,
