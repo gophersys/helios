@@ -77,12 +77,15 @@
 
     <div class="flex items-center gap-3">
       {#if config}
-        <button
-          class="px-2 py-1 text-xs rounded font-medium {config.enabled ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'}"
+        <div
+          role="button"
+          tabindex="0"
+          class="px-2 py-1 text-xs rounded font-medium cursor-pointer {config.enabled ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'}"
           onclick={handleToggleEnabled}
+          onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggleEnabled(e); } }}
         >
           {config.enabled ? 'Enabled' : 'Disabled'}
-        </button>
+        </div>
       {:else}
         <span class="text-xs text-text-tertiary">Not configured</span>
       {/if}

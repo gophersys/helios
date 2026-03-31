@@ -256,8 +256,9 @@
           </div>
         {:else}
           <div class="max-w-md">
-            <label class="mb-1 block text-2xs font-medium text-text-tertiary">Branch</label>
+            <label for="branch-select" class="mb-1 block text-2xs font-medium text-text-tertiary">Branch</label>
             <select
+              id="branch-select"
               bind:value={selectedBranch}
               class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
             >

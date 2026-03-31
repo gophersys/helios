@@ -12,21 +12,21 @@
     onCancel?: () => void;
   }
 
-  let { productId, stage, config, onSaved, onCancel }: Props = $props();
+  let props: Props = $props();
 
   let saving = $state(false);
   let error = $state('');
 
-  // User-editable fields only
-  let enabled = $state(config?.enabled ?? true);
-  let buildTarget = $state(config?.buildTarget ?? '');
-  let fwRepoUrl = $state(config?.fwRepoUrl ?? '');
-  let fwRepoBranch = $state(config?.fwRepoBranch ?? '');
-  let mfgRepoUrl = $state(config?.mfgRepoUrl ?? '');
-  let mfgRepoBranch = $state(config?.mfgRepoBranch ?? '');
-  let buildVariant = $state(config?.buildVariant ?? '');
-  let buildScript = $state(config?.buildScript ?? '');
-  let description = $state(config?.description ?? '');
+  // User-editable fields — initialized from config prop reactively
+  let enabled = $state(props.config?.enabled ?? true);
+  let buildTarget = $state(props.config?.buildTarget ?? '');
+  let fwRepoUrl = $state(props.config?.fwRepoUrl ?? '');
+  let fwRepoBranch = $state(props.config?.fwRepoBranch ?? '');
+  let mfgRepoUrl = $state(props.config?.mfgRepoUrl ?? '');
+  let mfgRepoBranch = $state(props.config?.mfgRepoBranch ?? '');
+  let buildVariant = $state(props.config?.buildVariant ?? '');
+  let buildScript = $state(props.config?.buildScript ?? '');
+  let description = $state(props.config?.description ?? '');
 
   async function handleSubmit() {
     saving = true;
@@ -44,12 +44,12 @@
         description: description || null,
       };
 
-      if (config) {
-        await updateStageConfig(productId, stage, data);
+      if (props.config) {
+        await updateStageConfig(props.productId, props.stage, data);
       } else {
-        await createStageConfig(productId, { ...data, stage, name: STAGE_NAMES[stage] });
+        await createStageConfig(props.productId, { ...data, stage: props.stage, name: STAGE_NAMES[props.stage] });
       }
-      onSaved?.();
+      props.onSaved?.();
     } catch (e: any) {
       error = e.message || 'Failed to save';
     } finally {
@@ -150,13 +150,13 @@
   </div>
 
   <div class="flex justify-end gap-3">
-    <button type="button" onclick={() => onCancel?.()}
+    <button type="button" onclick={() => props.onCancel?.()}
       class="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
       Cancel
     </button>
     <button type="submit" disabled={saving}
       class="px-4 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
-      {saving ? 'Saving...' : config ? 'Save Changes' : 'Create Configuration'}
+      {saving ? 'Saving...' : props.config ? 'Save Changes' : 'Create Configuration'}
     </button>
   </div>
 </form>
