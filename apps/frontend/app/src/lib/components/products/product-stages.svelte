@@ -13,9 +13,10 @@
     productId: string;
     productName?: string;
     revisions?: BoardRevision[];
+    fwRepoSlug?: string;
   }
 
-  let { productId, productName = '', revisions = [] }: Props = $props();
+  let { productId, productName = '', revisions = [], fwRepoSlug = '' }: Props = $props();
 
   let configs = $state<ProductStageConfig[]>([]);
   let secrets = $state<Secret[]>([]);
@@ -103,6 +104,7 @@
           {productId}
           {revisions}
           {secrets}
+          {fwRepoSlug}
           onUpdated={loadConfigs}
         />
       {/each}

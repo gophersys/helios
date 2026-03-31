@@ -537,7 +537,7 @@
       {/if}
 
       {#if activeTab === 'validation'}
-        <ProductStages productId={product.id} productName={product.name} revisions={product.boards?.[0]?.revisions ?? []} />
+        <ProductStages productId={product.id} productName={product.name} revisions={product.boards?.[0]?.revisions ?? []} fwRepoSlug={product.fwRepoSlug ?? ''} />
       {/if}
 
       {#if activeTab === 'manufacturing'}

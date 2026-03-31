@@ -27,6 +27,7 @@ from .products.board_discovery import (
     discover_board_detail,
     discover_boards,
     list_board_branches,
+    list_repo_branches,
 )
 from .products.products import (
     create_product,
@@ -67,6 +68,7 @@ from .system.logs import register_log_handlers
 from .system.exec import register_exec_handlers
 from .system.observability_ws import register_observability_handlers, register_icle_handlers
 from .system.retention import cleanup_validation_runs, get_validation_storage_usage
+from .system.secrets import list_secrets, create_secret, delete_secret
 
 # Kubernetes handlers (was system/ cluster endpoints)
 from .kubernetes.cluster import get_cluster, get_namespaces
@@ -338,6 +340,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/boards/discover",                                                  endpoint="discover_boards",        view_func=discover_boards,        methods=["GET"])
     v2.add_url_rule("/products/boards/discover/<board_name>",                                     endpoint="discover_board_detail",  view_func=discover_board_detail,  methods=["GET"])
     v2.add_url_rule("/products/repos/check",                                                      endpoint="check_repo",             view_func=check_repo,             methods=["GET"])
+    v2.add_url_rule("/products/repos/branches",                                                  endpoint="list_repo_branches",     view_func=list_repo_branches,     methods=["GET"])
 
     # Products
     v2.add_url_rule("/products",                                                                   view_func=list_products,          methods=["GET"])
@@ -393,6 +396,11 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # System: Retention management
     v2.add_url_rule("/system/retention/validation/cleanup",   endpoint="cleanup_validation_runs",     view_func=cleanup_validation_runs,      methods=["POST"])
     v2.add_url_rule("/system/retention/validation/usage",     endpoint="get_validation_storage_usage", view_func=get_validation_storage_usage, methods=["GET"])
+
+    # Secrets
+    v2.add_url_rule("/system/secrets",              view_func=list_secrets,   methods=["GET"])
+    v2.add_url_rule("/system/secrets",              view_func=create_secret,  methods=["POST"])
+    v2.add_url_rule("/system/secrets/<secret_id>",  view_func=delete_secret,  methods=["DELETE"])
 
     # Storage download
     from .storage_download import download_storage_file

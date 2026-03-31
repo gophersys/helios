@@ -131,3 +131,50 @@ def check_repo():
         pass
 
     return jsonify(ApiResponse.ok(result).to_dict()), 200
+
+
+@require_permissions(Permissions.PRODUCTS_VIEW)
+def list_repo_branches():
+    """GET /v2/products/repos/branches?slug=alpha_fw — list branches for a Bitbucket repo."""
+    import base64
+    import os
+    import stat
+    import subprocess
+
+    from config import env_config
+
+    slug = request.args.get("slug", "").strip()
+    if not slug:
+        return bad_request("slug query parameter is required")
+
+    repo_url = f"git@bitbucket.org:corekinect/{slug}.git"
+    branches = []
+
+    try:
+        env = dict(os.environ)
+        ssh_key_b64 = env_config.BITBUCKET_SSH_KEY
+        key_path = None
+        if ssh_key_b64:
+            key_path = f"/tmp/.ssh_branches_{os.getpid()}"
+            with open(key_path, "wb") as f:
+                f.write(base64.b64decode(ssh_key_b64))
+            os.chmod(key_path, stat.S_IRUSR)
+            env["GIT_SSH_COMMAND"] = f"ssh -i {key_path} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+        proc = subprocess.run(
+            ["git", "ls-remote", "--heads", repo_url],
+            timeout=15, capture_output=True, text=True, env=env,
+        )
+        if proc.returncode == 0:
+            for line in proc.stdout.strip().splitlines():
+                parts = line.split("\t")
+                if len(parts) == 2:
+                    ref = parts[1].replace("refs/heads/", "")
+                    branches.append(ref)
+
+        if key_path:
+            os.unlink(key_path)
+    except Exception:
+        pass
+
+    return jsonify(ApiResponse.ok({"slug": slug, "branches": sorted(branches)}).to_dict()), 200

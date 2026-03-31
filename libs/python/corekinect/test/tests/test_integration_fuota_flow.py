@@ -80,7 +80,7 @@ class TestFuotaTransitionFlow:
         for cfw_path in target_cfws:
             info = parse_cfw_header(cfw_path)
             assert info["version_string"] == "0.5.1"
-            assert info["is_mfg"] is False  # debug variant, not mfg
+            assert info["is_mfg"] is True  # track=BM includes Mfg flag
 
         # ── 4. Verify target strings for FUOTA plan ──
         target_strings = target.target_strings()

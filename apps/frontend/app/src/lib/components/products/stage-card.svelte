@@ -3,7 +3,9 @@
   import { STAGE_NAMES, STAGE_DESCRIPTIONS, STAGE_BUILD_COUNTS } from '$lib/types/stages';
   import { updateStageConfig } from '$lib/services/stages';
   import type { BoardRevision } from '$lib/types/models';
-  import { ChevronDown, Settings, Zap, GitBranch, Key } from 'lucide-svelte';
+  import { ChevronDown, Settings, Zap, GitBranch, Key, Loader2 } from 'lucide-svelte';
+  import { apiFetch } from '$lib/api';
+  import type { ApiResponse } from '$lib/types';
 
   interface Props {
     stage: number;
@@ -11,10 +13,11 @@
     productId: string;
     revisions: BoardRevision[];
     secrets: Secret[];
+    fwRepoSlug?: string;
     onUpdated: () => void;
   }
 
-  let { stage, config, productId, revisions, secrets, onUpdated }: Props = $props();
+  let { stage, config, productId, revisions, secrets, fwRepoSlug = '', onUpdated }: Props = $props();
 
   let expanded = $state(false);
   let configuring = $state(false);
@@ -39,6 +42,23 @@
 
   const signingKeys = $derived(secrets.filter(s => s.type === 'signing_key'));
 
+  // Branch loading from firmware repo
+  let repoBranches = $state<string[]>([]);
+  let loadingBranches = $state(false);
+
+  async function loadBranches() {
+    if (!fwRepoSlug) return;
+    loadingBranches = true;
+    try {
+      const res = await apiFetch<ApiResponse<{ branches: string[] }>>(`/v2/products/repos/branches?slug=${encodeURIComponent(fwRepoSlug)}`);
+      repoBranches = res.data?.branches ?? [];
+      if (!formBranch && repoBranches.includes('main')) formBranch = 'main';
+      else if (!formBranch && repoBranches.includes('master')) formBranch = 'master';
+      else if (!formBranch && repoBranches.length > 0) formBranch = repoBranches[0];
+    } catch { /* non-fatal */ }
+    finally { loadingBranches = false; }
+  }
+
   function startConfiguring() {
     if (config) {
       formRevisionId = config.boardRevisionId || '';
@@ -51,6 +71,7 @@
     }
     configuring = true;
     expanded = true;
+    loadBranches();
   }
 
   async function saveAndEnable() {
@@ -155,13 +176,32 @@
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
           <label for="stage-branch-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Watch Branch</label>
-          <input
-            id="stage-branch-{stage}"
-            type="text"
-            bind:value={formBranch}
-            placeholder="main"
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-          />
+          {#if loadingBranches}
+            <div class="flex items-center gap-2 py-2 text-2xs text-text-tertiary">
+              <Loader2 size={12} class="animate-spin" /> Loading branches...
+            </div>
+          {:else if repoBranches.length > 0}
+            <select
+              id="stage-branch-{stage}"
+              bind:value={formBranch}
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+            >
+              {#each repoBranches as branch}
+                <option value={branch}>{branch}</option>
+              {/each}
+            </select>
+          {:else}
+            <input
+              id="stage-branch-{stage}"
+              type="text"
+              bind:value={formBranch}
+              placeholder="main"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            />
+            {#if fwRepoSlug}
+              <p class="mt-1 text-2xs text-text-tertiary">Could not load branches from {fwRepoSlug}</p>
+            {/if}
+          {/if}
         </div>
         <div>
           <label for="stage-key-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Signing Key</label>
