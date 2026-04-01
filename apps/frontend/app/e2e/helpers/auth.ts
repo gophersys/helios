@@ -23,10 +23,9 @@ export async function loginViaAPI(page: Page): Promise<string> {
     cachedToken = body.data.token;
   }
 
-  // Navigate to a page first so localStorage is available for the domain
-  await page.goto('/login', { waitUntil: 'commit' });
-  await page.evaluate((token: string) => {
-    localStorage.setItem('concord-token', token);
+  // Set token before ANY navigation via addInitScript (runs on every page load)
+  await page.addInitScript((token: string) => {
+    window.localStorage.setItem('concord-token', token);
   }, cachedToken);
 
   return cachedToken;
