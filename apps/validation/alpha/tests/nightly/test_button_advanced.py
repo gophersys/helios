@@ -8,6 +8,8 @@ import time
 
 import pytest
 
+from corekinect.test.profiles import Capability
+from corekinect.test.pytest_integration import requires_capability
 from corekinect.utils import Logger
 
 from tests.common.timing import Timing
@@ -30,6 +32,7 @@ class TestButtonAdvanced:
         """Inject fixtures."""
         self.ctx = ctx
 
+    @requires_capability(Capability.BUTTON)
     @pytest.mark.timeout(Timing.NIGHTLY.STIMULUS_FULL)
     def test_hard_reset_on_seven_presses(self):
         """PRDTST-346: Hard reset on 7 rapid presses within 5 seconds.

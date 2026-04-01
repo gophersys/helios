@@ -217,7 +217,7 @@
     buildRun?.status === 'BUILDING' || buildRun?.status === 'PENDING'
   );
 
-  const triggerDisplay = $derived(getTriggerConfig(buildRun?.triggerType ?? 'manual'));
+  const triggerDisplay = $derived(getTriggerConfig(buildRun?.triggerTypes ?? 'manual'));
 
   const totalDuration = $derived.by(() => {
     if (!buildRun?.builds) return null;

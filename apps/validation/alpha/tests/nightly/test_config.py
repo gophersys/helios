@@ -201,62 +201,55 @@ class TestConfigOverrides:
         except Exception as exc:
             log.warning("Failed to restore config defaults: %s", exc)
 
+    def _write_and_verify(self, field: str, value: int) -> None:
+        """Write a config value and verify it was accepted.
+
+        CoreCloud's Search endpoint may cache results briefly after a
+        PUT, so we poll with wait_for_config_change instead of reading
+        back immediately.
+        """
+        self.cloud.set_ground_mode_config({field: value})
+        config = self.cloud.wait_for_config_change(
+            field=field, expected_value=value, timeout_s=10, poll_interval_s=1,
+        )
+        assert config[field] == value
+
     def test_heartbeat_period_non_default(self):
         """PRDTST-356: Set heartbeat period to non-default value."""
-        self.cloud.set_ground_mode_config({"gpsHeartbeatPeriod": 120})
-        config = self.cloud.get_ground_mode_config()
-        assert config["gpsHeartbeatPeriod"] == 120
+        self._write_and_verify("gpsHeartbeatPeriod", 120)
 
     def test_heartbeat_period_min(self):
         """PRDTST-371: Heartbeat period minimum value (1 minute)."""
-        self.cloud.set_ground_mode_config({"gpsHeartbeatPeriod": 1})
-        config = self.cloud.get_ground_mode_config()
-        assert config["gpsHeartbeatPeriod"] == 1
+        self._write_and_verify("gpsHeartbeatPeriod", 1)
 
     def test_heartbeat_period_max(self):
         """PRDTST-344: Heartbeat period max value (2-byte, 65535 minutes)."""
-        self.cloud.set_ground_mode_config({"gpsHeartbeatPeriod": 65535})
-        config = self.cloud.get_ground_mode_config()
-        assert config["gpsHeartbeatPeriod"] == 65535
+        self._write_and_verify("gpsHeartbeatPeriod", 65535)
 
     def test_zero_heartbeat_disables(self):
         """PRDTST-335: Zero heartbeat period disables heartbeats."""
-        self.cloud.set_ground_mode_config({"gpsHeartbeatPeriod": 0})
-        config = self.cloud.get_ground_mode_config()
-        assert config["gpsHeartbeatPeriod"] == 0
+        self._write_and_verify("gpsHeartbeatPeriod", 0)
 
     def test_stop_motion_timeout_non_default(self):
         """PRDTST-347: Stop motion timeout non-default value."""
-        self.cloud.set_ground_mode_config({"stopMotionTimeout": 30})
-        config = self.cloud.get_ground_mode_config()
-        assert config["stopMotionTimeout"] == 30
+        self._write_and_verify("stopMotionTimeout", 30)
 
     def test_heartbeat_timeout_non_default(self):
         """PRDTST-359: Heartbeat acquisition timeout non-default value."""
-        self.cloud.set_ground_mode_config({"heartbeatAcquisitionTimeout": 120})
-        config = self.cloud.get_ground_mode_config()
-        assert config["heartbeatAcquisitionTimeout"] == 120
+        self._write_and_verify("heartbeatAcquisitionTimeout", 120)
 
     def test_continuous_motion_disabled(self):
         """PRDTST-364: Continuous motion disabled (period = 0)."""
-        self.cloud.set_ground_mode_config({"continuousMotionPeriod": 0})
-        config = self.cloud.get_ground_mode_config()
-        assert config["continuousMotionPeriod"] == 0
+        self._write_and_verify("continuousMotionPeriod", 0)
 
     def test_continuous_motion_non_default(self):
         """PRDTST-369: Continuous motion period non-default value."""
-        self.cloud.set_ground_mode_config({"continuousMotionPeriod": 120})
-        config = self.cloud.get_ground_mode_config()
-        assert config["continuousMotionPeriod"] == 120
+        self._write_and_verify("continuousMotionPeriod", 120)
 
     def test_continuous_motion_min(self):
         """PRDTST-387: Continuous motion period minimum (1 second)."""
-        self.cloud.set_ground_mode_config({"continuousMotionPeriod": 1})
-        config = self.cloud.get_ground_mode_config()
-        assert config["continuousMotionPeriod"] == 1
+        self._write_and_verify("continuousMotionPeriod", 1)
 
     def test_continuous_motion_max(self):
         """PRDTST-394: Continuous motion period max (65535 seconds)."""
-        self.cloud.set_ground_mode_config({"continuousMotionPeriod": 65535})
-        config = self.cloud.get_ground_mode_config()
-        assert config["continuousMotionPeriod"] == 65535
+        self._write_and_verify("continuousMotionPeriod", 65535)

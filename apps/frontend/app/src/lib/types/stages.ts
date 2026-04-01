@@ -7,7 +7,7 @@ export interface ProductStageConfig {
   boardRevisionId: string | null;
   boardRevision: { id: string; version: string; ckBoardsName: string } | null;
   watchBranch: string | null;
-  triggerType: string;
+  triggerTypes: string[];
   signingKeyId: string | null;
   signingKey: { id: string; name: string; type: string } | null;
   createdAt: string;

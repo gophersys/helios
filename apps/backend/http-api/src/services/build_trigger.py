@@ -171,12 +171,17 @@ def trigger_stage_build(
             data={
                 "productId": product_id,
                 "board": board,
-                "target": build_def.fw_type,  # "app" or "mfg"
-                "variant": build_def.variant,  # "debug", "release", "mfg"
+                "target": build_def.fw_type,
+                "variant": build_def.variant,
                 "branch": git_ref,
                 "status": initial_status,
                 "matrixLabel": build_def.label,
                 "matrixIndex": i,
+                "configFlags": Json({
+                    "config_log": getattr(build_def, "config_log", True),
+                    "produces_hex": getattr(build_def, "produces_hex", True),
+                    "produces_cfw": getattr(build_def, "produces_cfw", False),
+                }),
                 "versionBump": build_def.is_version_bump,
                 "baseJobId": base_job_id,
                 "buildRunId": build_run.id,

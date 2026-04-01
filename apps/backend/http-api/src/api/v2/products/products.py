@@ -73,7 +73,7 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
                 "stage": s.stage,
                 "name": s.name,
                 "enabled": s.enabled,
-                "triggerType": getattr(s, "triggerType", "manual"),
+                "triggerTypes": getattr(s, "triggerTypes", "manual"),
             }
             for s in sorted(stages, key=lambda x: x.stage)
         ]

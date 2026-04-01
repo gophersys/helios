@@ -176,7 +176,7 @@ def _serialize_build_run(p: Any) -> dict:
         "branch": p.branch,
         "commitSha": p.commitSha,
         "status": p.status,
-        "triggerType": p.triggerType,
+        "triggerTypes": p.triggerTypes,
         "expectedBuilds": p.expectedBuilds,
         "completedBuilds": p.completedBuilds,
         "startedAt": p.startedAt.isoformat() if p.startedAt else None,

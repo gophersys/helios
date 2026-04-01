@@ -122,7 +122,7 @@
   let productFilter = $state('');
   let branchFilter = $state('');
   let stageFilter = $state('');
-  let triggerTypeFilter = $state('');
+  let triggerTypesFilter = $state('');
   let currentPage = $state(1);
   let refreshing = $state(false);
   let productOptions = $state<{ value: string; label: string }[]>([]);
@@ -192,7 +192,7 @@
         page: currentPage,
         limit: 25,
         status: statusFilter || undefined,
-        triggerType: triggerTypeFilter || undefined,
+        triggerTypes: triggerTypesFilter || undefined,
       });
       buildJobs = res.data;
       pagination = res.pagination;
@@ -367,7 +367,7 @@
     const _p = productFilter;
     const _b = branchFilter;
     const _st = stageFilter;
-    const _tt = triggerTypeFilter;
+    const _tt = triggerTypesFilter;
     currentPage = 1;
   });
 </script>
@@ -457,7 +457,7 @@
       options={STAGE_OPTIONS}
     />
     <Select
-      bind:value={triggerTypeFilter}
+      bind:value={triggerTypesFilter}
       placeholder="All triggers"
       options={TRIGGER_TYPE_OPTIONS}
     />
@@ -553,8 +553,8 @@
                     v{build.versionString}
                   </span>
                 {/if}
-                {#if build.triggerType && build.triggerType !== 'worker'}
-                  {@const triggerBadge = TRIGGER_TYPE_BADGE[build.triggerType] || TRIGGER_TYPE_BADGE.worker}
+                {#if build.triggerTypes && build.triggerTypes !== 'worker'}
+                  {@const triggerBadge = TRIGGER_TYPE_BADGE[build.triggerTypes] || TRIGGER_TYPE_BADGE.worker}
                   <span class="inline-flex items-center rounded px-1.5 py-0.5 text-2xs font-medium {triggerBadge.color}">
                     {triggerBadge.label}
                   </span>
@@ -595,7 +595,7 @@
   {:else}
     <div class="space-y-2">
       {#each buildRuns as buildRun (buildRun.id)}
-        {@const trigger = getTriggerConfig(buildRun.triggerType)}
+        {@const trigger = getTriggerConfig(buildRun.triggerTypes)}
         {@const productInfo = getProductInfo(buildRun.product ?? '')}
         <button
           onclick={() => goto(`/builds/runs/${buildRun.id}`)}
@@ -639,7 +639,7 @@
               {buildRun.completedBuilds ?? 0}/{buildRun.expectedBuilds ?? 0} builds
             </span>
             <!-- Trigger source badge (only for non-manual triggers) -->
-            {#if buildRun.triggerType && buildRun.triggerType !== 'manual'}
+            {#if buildRun.triggerTypes && buildRun.triggerTypes !== 'manual'}
               {@const TriggerIcon = trigger.icon}
               <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {trigger.color} font-medium">
                 <TriggerIcon size={10} />

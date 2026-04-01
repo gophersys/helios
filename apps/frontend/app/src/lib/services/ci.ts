@@ -121,7 +121,7 @@ export async function fetchBuildRun(id: string): Promise<BuildRunDetail> {
     startedAt: buildRun.startedAt,
     finishedAt: buildRun.finishedAt,
     durationSeconds: builds[0].durationSeconds,
-    triggerType: buildRun.triggerType ?? 'worker',
+    triggerTypes: buildRun.triggerTypes ?? 'worker',
     createdAt: buildRun.createdAt,
     artifacts: [],
   } : null;
@@ -142,7 +142,7 @@ export interface FetchBuildsParams {
   status?: string;
   branch?: string;
   product?: string;
-  triggerType?: string;
+  triggerTypes?: string;
 }
 
 export async function fetchBuilds(
@@ -154,7 +154,7 @@ export async function fetchBuilds(
   if (params?.status) qs.set('status', params.status);
   if (params?.branch) qs.set('branch', params.branch);
   if (params?.product) qs.set('product', params.product);
-  if (params?.triggerType) qs.set('triggerType', params.triggerType);
+  if (params?.triggerTypes) qs.set('triggerTypes', params.triggerTypes);
 
   const res = await apiFetch<PaginatedApiResponse<BuildJob[]>>(
     `/v2/builds?${qs.toString()}`
@@ -211,7 +211,7 @@ export async function createManualBuild(config: ManualBuildConfig): Promise<Buil
     versionString: config.versionString || undefined,
     notes: config.notes || undefined,
     productId: config.productId || undefined,
-    triggerType: 'manual',
+    triggerTypes: 'manual',
     initialStatus: 'SUCCESS',
   });
   return res.data;

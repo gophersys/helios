@@ -27,7 +27,7 @@
   let formRevisionId = $state('');
   let formBranch = $state('main');
   let formSigningKeyId = $state('');
-  let formTriggerType = $state('manual');
+  let formTriggerTypes = $state<string[]>(['manual']);
 
   const triggerOptions = [
     { value: 'pr_push', label: 'Pull request', desc: 'Run when a PR targeting the branch is opened or updated' },
@@ -37,28 +37,38 @@
     { value: 'manual', label: 'Manual', desc: 'Only run when manually triggered' },
   ];
 
-  // Smart defaults per stage (like GitHub Actions defaults)
-  const defaultTrigger: Record<number, string> = {
-    1: 'pr_push',    // Smoke: run on every PR
-    2: 'auto',       // Silicon: after Smoke passes
-    3: 'auto',       // Integration: after Silicon passes
-    4: 'schedule',   // Nightly: scheduled cron
-    5: 'pr_merge',   // FUOTA: when merged to main
+  // Smart defaults per stage
+  const defaultTriggers: Record<number, string[]> = {
+    1: ['pr_push'],           // Smoke: run on every PR
+    2: ['auto'],              // Silicon: after Smoke passes
+    3: ['auto'],              // Integration: after Silicon passes
+    4: ['schedule'],          // Nightly: scheduled cron
+    5: ['pr_merge', 'manual'], // FUOTA: on merge + manual
   };
 
-  // Whether this trigger type needs a branch selector
-  const needsBranch = (t: string) => ['pr_push', 'pr_merge', 'schedule'].includes(t);
+  function toggleTrigger(value: string) {
+    if (formTriggerTypes.includes(value)) {
+      formTriggerTypes = formTriggerTypes.filter(t => t !== value);
+      if (formTriggerTypes.length === 0) formTriggerTypes = ['manual'];
+    } else {
+      formTriggerTypes = [...formTriggerTypes.filter(t => t !== 'manual'), value];
+    }
+  }
 
   // Human-readable trigger summary
-  function triggerSummary(type: string, branch: string | null): string {
-    switch (type) {
-      case 'pr_push': return branch ? `PRs → ${branch}` : 'Pull requests';
-      case 'pr_merge': return branch ? `Merge → ${branch}` : 'On merge';
-      case 'auto': return 'After prev. stage';
-      case 'schedule': return branch ? `Cron (${branch})` : 'Scheduled';
-      case 'manual': return 'Manual';
-      default: return type;
-    }
+  function triggerSummary(types: string | string[], branch: string | null): string {
+    const arr = Array.isArray(types) ? types : [types];
+    const labels = arr.map(t => {
+      switch (t) {
+        case 'pr_push': return branch ? `PR → ${branch}` : 'PR';
+        case 'pr_merge': return branch ? `Merge → ${branch}` : 'Merge';
+        case 'auto': return 'Auto';
+        case 'schedule': return 'Cron';
+        case 'manual': return 'Manual';
+        default: return t;
+      }
+    });
+    return labels.join(' + ');
   }
 
   const stageBadgeColors: Record<number, string> = {
@@ -97,12 +107,12 @@
       formRevisionId = config.boardRevisionId || '';
       formBranch = config.watchBranch || 'main';
       formSigningKeyId = config.signingKeyId || '';
-      formTriggerType = (config as any).triggerType || defaultTrigger[stage] || 'manual';
+      formTriggerTypes = (config as any).triggerTypes || defaultTriggers[stage] || ['manual'];
     } else {
       formRevisionId = revisions[0]?.id || '';
       formBranch = 'main';
       formSigningKeyId = signingKeys[0]?.id || '';
-      formTriggerType = defaultTrigger[stage] || 'manual';
+      formTriggerTypes = defaultTriggers[stage] || ['manual'];
     }
     configuring = true;
     expanded = true;
@@ -121,7 +131,7 @@
         boardRevisionId: formRevisionId,
         watchBranch: formBranch || null,
         signingKeyId: formSigningKeyId || null,
-        triggerType: formTriggerType,
+        triggerTypes: formTriggerTypes,
         buildNow,
       } as any);
       configuring = false;
@@ -170,7 +180,7 @@
         {/if}
         {#if config?.enabled}
           <span class="px-1.5 py-0.5 text-2xs rounded bg-accent/10 text-accent">
-            {triggerSummary((config as any).triggerType || 'manual', config.watchBranch)}
+            {triggerSummary((config as any).triggerTypes || 'manual', config.watchBranch)}
           </span>
         {/if}
       </div>
@@ -222,8 +232,8 @@
         <span class="mb-2 block text-2xs font-medium text-text-tertiary">on:</span>
         <div class="space-y-1">
           {#each triggerOptions as opt}
-            <label class="flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors {formTriggerType === opt.value ? 'border-accent bg-accent/5' : 'border-border-subtle bg-surface-0 hover:bg-surface-1'}">
-              <input type="radio" name="trigger-{stage}" value={opt.value} bind:group={formTriggerType} class="mt-0.5 accent-accent" />
+            <label class="flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors {formTriggerTypes.includes(opt.value) ? 'border-accent bg-accent/5' : 'border-border-subtle bg-surface-0 hover:bg-surface-1'}">
+              <input type="checkbox" checked={formTriggerTypes.includes(opt.value)} onchange={() => toggleTrigger(opt.value)} class="mt-0.5 accent-accent" />
               <div>
                 <span class="text-sm font-medium text-text-primary">{opt.label}</span>
                 <p class="text-2xs text-text-tertiary">{opt.desc}</p>
@@ -234,11 +244,11 @@
       </div>
 
       <!-- Branch filter (shown when trigger type needs one) -->
-      {#if needsBranch(formTriggerType)}
+      {#if formTriggerTypes.some((t: string) => ["pr_push","pr_merge","schedule"].includes(t))}
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
           <label for="stage-branch-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">
-            {formTriggerType === 'pr_push' ? 'PRs targeting branch' : formTriggerType === 'pr_merge' ? 'Merge into branch' : 'Build from branch'}
+            {formTriggerTypes.includes('pr_push') ? 'PRs targeting branch' : formTriggerTypes.includes('pr_merge') ? 'Merge into branch' : 'Build from branch'}
           </label>
           {#if loadingBranches}
             <div class="flex items-center gap-2 py-2 text-2xs text-text-tertiary">
@@ -290,7 +300,7 @@
       <!-- Info -->
       <div class="rounded bg-surface-0 border border-border-subtle px-3 py-2 text-2xs text-text-tertiary flex items-center gap-2">
         <Zap size={12} class="text-accent shrink-0" />
-        Enabling this stage will create {STAGE_BUILD_COUNTS[stage] || '?'} firmware builds when triggered. Start initial builds now, or wait for next push to the watched branch.
+        This stage creates {STAGE_BUILD_COUNTS[stage] || '?'} firmware builds. If open PRs exist on the watched branch, builds start automatically.
       </div>
 
       <!-- Build result feedback -->
@@ -301,7 +311,7 @@
           </div>
         {:else if buildResult.error}
           <div class="rounded bg-error-muted border border-error/30 px-3 py-2 text-sm text-error">
-            Build failed to trigger: {buildResult.error}
+            {buildResult.error}
           </div>
         {/if}
       {/if}
@@ -313,14 +323,7 @@
           disabled={saving || !formRevisionId}
           class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
         >
-          {saving ? 'Saving...' : 'Enable & Build Now'}
-        </button>
-        <button
-          onclick={() => enableStage(false)}
-          disabled={saving || !formRevisionId}
-          class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50"
-        >
-          Enable (Build on Next Push)
+          {saving ? 'Enabling...' : 'Enable'}
         </button>
         <button
           onclick={() => { configuring = false; expanded = false; }}
@@ -342,7 +345,7 @@
         </div>
         <div>
           <span class="block text-2xs text-text-tertiary">Trigger</span>
-          <span class="text-text-primary">{triggerSummary((config as any).triggerType || 'manual', config.watchBranch)}</span>
+          <span class="text-text-primary">{triggerSummary((config as any).triggerTypes || 'manual', config.watchBranch)}</span>
         </div>
         {#if config.watchBranch}
         <div>

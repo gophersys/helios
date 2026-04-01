@@ -31,7 +31,7 @@ export interface BuildJob {
   finishedAt: string | null;
   durationSeconds: number | null;
   createdAt: string;
-  triggerType: string;  // "worker" | "manual" | "webhook"
+  triggerTypes: string;  // "worker" | "manual" | "webhook"
   notes?: string | null;
   artifacts: BuildArtifact[];
   // Stage matrix fields
@@ -209,7 +209,7 @@ export interface BuildRunDetail {
   branch: string;
   commitSha: string | null;
   status: string;
-  triggerType: string;
+  triggerTypes: string;
   expectedBuilds: number;
   completedBuilds: number;
   validationRunId: string | null;

@@ -156,9 +156,9 @@ class BuildCreateRequest:
         if not data:
             return None, "Request body must contain JSON data"
 
-        trigger_type = (data.get("triggerType") or "worker").strip()
+        trigger_type = (data.get("triggerTypes") or "worker").strip()
         if trigger_type not in ("worker", "manual", "webhook"):
-            return None, "triggerType must be one of: worker, manual, webhook"
+            return None, "triggerTypes must be one of: worker, manual, webhook"
 
         product_id = (data.get("productId") or "").strip() or None
 
@@ -271,7 +271,7 @@ class PipelineCreateRequest:
             return None, "branch is required"
 
         commit_sha = (data.get("commitSha") or "").strip() or None
-        trigger_type = (data.get("triggerType") or "manual").strip()
+        trigger_type = (data.get("triggerTypes") or "manual").strip()
         mfg_repo_slug = (data.get("mfgRepoSlug") or "").strip() or None
         mfg_ssh_url = (data.get("mfgSshUrl") or "").strip() or None
 

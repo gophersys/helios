@@ -54,7 +54,7 @@ class TestPowerProfile:
         # Sample current over extended period
         samples = []
         for i in range(Timing.NIGHTLY.POWER_SAMPLE_DURATION):
-            current_ma = self.ctx.fixture.read_current()
+            current_ma = self.ctx.fixture.read_total_current()
             samples.append(current_ma)
             if i % 10 == 0:
                 log.info("[%ds] Current: %.3fmA", i, current_ma)
@@ -82,13 +82,13 @@ class TestPowerProfile:
         Triggered by button press to wake device from sleep.
         """
         log.info("Triggering active mode with button press...")
-        self.ctx.fixture.button_press(duration_s=1)
+        self.ctx.fixture.press_button(duration_s=1)
         time.sleep(5)  # Wait for sensors to start
 
         # Sample during active period
         samples = []
         for i in range(20):
-            current_ma = self.ctx.fixture.read_current()
+            current_ma = self.ctx.fixture.read_total_current()
             samples.append(current_ma)
             time.sleep(0.5)
 
@@ -127,7 +127,7 @@ class TestPowerProfile:
         BURST_THRESHOLD_MA = 50.0
 
         for i in range(600):
-            current_ma = self.ctx.fixture.read_current()
+            current_ma = self.ctx.fixture.read_total_current()
 
             if current_ma > max_current_ma:
                 max_current_ma = current_ma
@@ -161,7 +161,7 @@ class TestPowerProfile:
         duration_s = 300  # 5 minutes
 
         while time.time() - start_time < duration_s:
-            current_ma = self.ctx.fixture.read_current()
+            current_ma = self.ctx.fixture.read_total_current()
             elapsed = time.time() - start_time
             samples.append((elapsed, current_ma))
 

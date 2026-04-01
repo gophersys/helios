@@ -73,7 +73,7 @@ def handle_repo_event(event: RepoEvent) -> List[Dict[str, Any]]:
         where={
             "productId": product.id,
             "enabled": True,
-            "triggerType": {"in": trigger_types},
+            "triggerTypes": {"hasSome": trigger_types},
         },
     )
     if not stages:
@@ -162,7 +162,7 @@ def poll_for_changes() -> List[Dict[str, Any]]:
 
     # Find products with active pr_push stages
     stages = db.productstageconfig.find_many(
-        where={"enabled": True, "triggerType": "pr_push"},
+        where={"enabled": True, "triggerTypes": {"has": "pr_push"}},
         include={"product": True},
     )
     if not stages:
@@ -264,7 +264,7 @@ def _poll_git_ls_remote(repos: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     # Get stages again for branch info
     stages = db.productstageconfig.find_many(
-        where={"enabled": True, "triggerType": "pr_push"},
+        where={"enabled": True, "triggerTypes": {"has": "pr_push"}},
         include={"product": True},
     )
 
@@ -330,7 +330,7 @@ def _poll_git_ls_remote(repos: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def handle_auto_progress(product_id: str, completed_stage: int) -> Optional[Dict[str, Any]]:
-    """Trigger the next stage if it has triggerType="auto".
+    """Trigger the next stage if it has triggerTypes="auto".
 
     Called when a validation run passes.
     """
@@ -345,7 +345,7 @@ def handle_auto_progress(product_id: str, completed_stage: int) -> Optional[Dict
             "productId": product_id,
             "stage": next_stage_num,
             "enabled": True,
-            "triggerType": "auto",
+            "triggerTypes": {"has": "auto"},
         },
     )
     if not next_config:

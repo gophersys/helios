@@ -27,7 +27,7 @@ class StageConfigCreateRequest:
     enabled: bool = False
     boardRevisionId: Optional[str] = None
     watchBranch: Optional[str] = None
-    triggerType: str = "manual"
+    triggerTypes: list = None  # ["pr_push", "manual"]
     signingKeyId: Optional[str] = None
 
     @classmethod
@@ -48,9 +48,16 @@ class StageConfigCreateRequest:
         if name != expected_name:
             return None, f"Name must be '{expected_name}' for stage {stage}"
 
-        trigger_type = (data.get("triggerType") or "manual").strip()
-        if trigger_type not in VALID_TRIGGER_TYPES:
-            return None, f"triggerType must be one of: {', '.join(sorted(VALID_TRIGGER_TYPES))}"
+        trigger_types = data.get("triggerTypes", ["manual"])
+        if isinstance(trigger_types, str):
+            trigger_types = [trigger_types]
+        if not isinstance(trigger_types, list):
+            return None, "triggerTypes must be an array"
+        invalid = [t for t in trigger_types if t not in VALID_TRIGGER_TYPES]
+        if invalid:
+            return None, f"Invalid trigger types: {invalid}. Valid: {sorted(VALID_TRIGGER_TYPES)}"
+        if not trigger_types:
+            trigger_types = ["manual"]
 
         return cls(
             stage=stage,
@@ -58,7 +65,7 @@ class StageConfigCreateRequest:
             enabled=data.get("enabled", False),
             boardRevisionId=data.get("boardRevisionId"),
             watchBranch=(data.get("watchBranch") or "").strip() or None,
-            triggerType=trigger_type,
+            triggerTypes=trigger_types,
             signingKeyId=data.get("signingKeyId"),
         ), None
 
@@ -68,7 +75,7 @@ class StageConfigUpdateRequest:
     enabled: Optional[bool] = None
     boardRevisionId: Optional[str] = None
     watchBranch: Optional[str] = None
-    triggerType: Optional[str] = None
+    triggerTypes: Optional[list] = None
     signingKeyId: Optional[str] = None
     _has_board_revision_id: bool = False
     _has_watch_branch: bool = False
@@ -92,12 +99,16 @@ class StageConfigUpdateRequest:
         if watch_branch is not None:
             watch_branch = watch_branch.strip() or None
 
-        trigger_type = data.get("triggerType")
-        has_tt = "triggerType" in data
-        if trigger_type is not None:
-            trigger_type = trigger_type.strip()
-            if trigger_type not in VALID_TRIGGER_TYPES:
-                return None, f"triggerType must be one of: {', '.join(sorted(VALID_TRIGGER_TYPES))}"
+        trigger_types = data.get("triggerTypes")
+        has_tt = "triggerTypes" in data
+        if trigger_types is not None:
+            if isinstance(trigger_types, str):
+                trigger_types = [trigger_types]
+            if not isinstance(trigger_types, list):
+                return None, "triggerTypes must be an array"
+            invalid = [t for t in trigger_types if t not in VALID_TRIGGER_TYPES]
+            if invalid:
+                return None, f"Invalid trigger types: {invalid}"
 
         signing_key_id = data.get("signingKeyId")
         has_sk = "signingKeyId" in data
@@ -110,7 +121,7 @@ class StageConfigUpdateRequest:
             enabled=enabled,
             boardRevisionId=board_revision_id,
             watchBranch=watch_branch,
-            triggerType=trigger_type,
+            triggerTypes=trigger_types,
             signingKeyId=signing_key_id,
             _has_board_revision_id=has_brid,
             _has_watch_branch=has_wb,
@@ -127,7 +138,7 @@ class StageConfigUpdateRequest:
         if self._has_watch_branch:
             update_data["watchBranch"] = self.watchBranch
         if self._has_trigger_type:
-            update_data["triggerType"] = self.triggerType
+            update_data["triggerTypes"] = self.triggerTypes
         if self._has_signing_key_id:
             update_data["signingKeyId"] = self.signingKeyId
         return update_data

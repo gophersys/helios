@@ -150,6 +150,7 @@ def create_build_k8s_job(build_job_id: str) -> Optional[str]:
                             {"name": "MATRIX_LABEL", "value": job.matrixLabel or ""},
                             {"name": "VERSION_BUMP", "value": "true" if job.versionBump else "false"},
                             {"name": "BUILD_NUM", "value": str(job.buildNum or 0)},
+                            {"name": "CONFIG_LOG", "value": "y" if (job.configFlags or {}).get("config_log", True) else "n"},
                             {"name": "BITBUCKET_SSH_KEY", "value": bitbucket_ssh_key},
                             {"name": "SIGNING_KEY", "value": signing_key_b64},
                         ],

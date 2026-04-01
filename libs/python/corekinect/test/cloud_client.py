@@ -339,23 +339,34 @@ class CloudClient:
     ) -> None:
         """Write GroundModeConfigV2 to CoreCloud for this device.
 
-        Sends a PUT to /System/Devices/Configurations/GroundModeV2
-        to update the device's configuration. The device will receive
-        the new config on its next uplink.
+        Reads the current config, merges the provided changes, then
+        PUTs the full config object. CoreCloud requires all fields
+        to be present in the PUT payload.
 
         Args:
             config_values: Dict of config field names (camelCase API format)
-                to values. Only fields present will be updated.
+                to values. Only fields present will be updated; others
+                keep their current values.
                 Example: {"gpsHeartbeatPeriod": 120, "stopMotionTimeout": 30}
 
         Raises:
-            CloudError: If API returns non-200 status.
+            CloudError: If API returns non-200 status or current config
+                cannot be read.
         """
         api = self._get_api()
         if not api:
             raise CloudError("CoreCloud REST API not available")
 
-        payload = {"deviceId": self._device_id_hex, **config_values}
+        # Read current config — PUT requires ALL fields
+        current = self.get_ground_mode_config()
+        if current is None:
+            raise CloudError(
+                f"Cannot read current config for {self._device_id_hex} — "
+                f"cannot merge changes"
+            )
+
+        # Merge changes into full config
+        payload = {**current, **config_values}
 
         resp = api.request(
             "PUT",

@@ -81,7 +81,7 @@ def _serialize_build_job(b: Any) -> dict:
         "configFlags": getattr(b, "configFlags", None),
         "reusedFromId": getattr(b, "reusedFromId", None),
         "buildFingerprint": getattr(b, "buildFingerprint", None),
-        "triggerType": getattr(b, "triggerType", "worker"),
+        "triggerTypes": getattr(b, "triggerType", "worker"),
         "notes": getattr(b, "notes", None),
     }
     if hasattr(b, "artifacts") and b.artifacts is not None:
@@ -139,9 +139,9 @@ def list_builds():
     if board:
         where["board"] = board
 
-    trigger_type = request.args.get("triggerType")
+    trigger_type = request.args.get("triggerTypes")
     if trigger_type:
-        where["triggerType"] = trigger_type
+        where["triggerTypes"] = trigger_type
 
     product_id = request.args.get("productId")
     if product_id:

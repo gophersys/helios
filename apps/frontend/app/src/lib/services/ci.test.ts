@@ -46,7 +46,7 @@ function makePipelineBase(overrides: Partial<BuildRunDetail> = {}): BuildRunDeta
     branch: 'main',
     commitSha: 'abc123',
     status: 'BUILDING',
-    triggerType: 'webhook',
+    triggerTypes: 'webhook',
     expectedBuilds: 1,
     completedBuilds: 0,
     validationRunId: null,
@@ -517,13 +517,13 @@ describe('createManualBuild field filtering', () => {
     mockApiPost.mockResolvedValue({ data: { id: 'build-new' }, errors: [] });
   });
 
-  it('always sets triggerType to manual and initialStatus to SUCCESS', async () => {
+  it('always sets triggerTypes to manual and initialStatus to SUCCESS', async () => {
     await createManualBuild({
       product: 'alpha', board: 'alpha_b0', target: 'nrf52840',
       variant: 'release', branch: 'main',
     });
     const [, body] = mockApiPost.mock.calls[0];
-    expect(body.triggerType).toBe('manual');
+    expect(body.triggerTypes).toBe('manual');
     expect(body.initialStatus).toBe('SUCCESS');
   });
 
