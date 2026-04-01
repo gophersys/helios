@@ -46,12 +46,18 @@ fi
 # ── Build Application Processor (nRF52840) ──────────────────────────────────
 
 echo -e "${CYAN}Building Application (nRF52840)...${NC}"
+
+# DTS overlay for APP processor — configures UART pins, I2C sensors, etc.
+# Without this, UART TX/RX are on wrong pins and shell output is silent.
+APP_DTC_OVERLAY="${REPO}/boards/${BOARD}_nrf52840.overlay"
+
 west build --pristine \
     -d ${REPO}/build/app \
     -b ${BOARD}/nrf52840 \
     --sysbuild ${REPO} \
     -- -DBOARD_ROOT=${REPO}/ck_boards/current/ \
-       -DEXTRA_CONF_FILE="${EXTRA_CONF}"
+       -DEXTRA_CONF_FILE="${EXTRA_CONF}" \
+       ${APP_DTC_OVERLAY:+-DDTC_OVERLAY_FILE=${APP_DTC_OVERLAY}}
 
 # Merge PSP hex (vitals processing library)
 PSP_HEX="${REPO}/vsm_drv/src/corekinect/module/vsm/threads/vitals/lib/bin/psp.hex"
@@ -70,6 +76,9 @@ sed -i "s|/workspaces/[a-z_]*/comms_encryption_key.pem|${REPO}/comms_encryption_
 # Clear FIPS hash for first build
 echo "# FIPS placeholder" > ${COMMS_DIR}/fips.conf
 
+# DTS overlay for COMMS processor — UART pins, sensor config
+COMMS_DTC_OVERLAY="${REPO}/boards/${BOARD}_${COMMS_SOC}_ns.overlay"
+
 # First comms build
 west build --pristine \
     -d ${COMMS_DIR}/build \
@@ -77,7 +86,8 @@ west build --pristine \
     --sysbuild ${COMMS_DIR} \
     -- -DBOARD_ROOT=${REPO}/ck_boards/current/ \
        ${COMMS_OVERLAY:+-DOVERLAY_CONFIG=${COMMS_OVERLAY}} \
-       -DEXTRA_CONF_FILE="${COMMS_EXTRA}"
+       -DEXTRA_CONF_FILE="${COMMS_EXTRA}" \
+       ${COMMS_DTC_OVERLAY:+-DDTC_OVERLAY_FILE=${COMMS_DTC_OVERLAY}}
 
 # ── FIPS Hash + Rebuild ─────────────────────────────────────────────────────
 
@@ -104,7 +114,8 @@ west build \
     --sysbuild ${COMMS_DIR} \
     -- -DBOARD_ROOT=${REPO}/ck_boards/current/ \
        -DOVERLAY_CONFIG="${FIPS_OVERLAY}" \
-       -DEXTRA_CONF_FILE="${COMMS_EXTRA}"
+       -DEXTRA_CONF_FILE="${COMMS_EXTRA}" \
+       ${COMMS_DTC_OVERLAY:+-DDTC_OVERLAY_FILE=${COMMS_DTC_OVERLAY}}
 
 # ── Collect Artifacts ────────────────────────────────────────────────────────
 
