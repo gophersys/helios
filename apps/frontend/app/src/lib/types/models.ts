@@ -120,6 +120,7 @@ export interface Product {
   active: boolean;
   fwRepoSlug: string | null;
   mfgFwRepoSlug: string | null;
+  builderImage: string | null;
   metadata: Record<string, unknown> | null;
   buildConfig: BuildConfig | null;
   targets: ProductTarget[];

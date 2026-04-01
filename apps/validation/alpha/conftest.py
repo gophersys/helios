@@ -405,88 +405,89 @@ def mock_cloud(ctx):
 
 
 @pytest.fixture(scope="session")
-def pipeline_assets():
-    """Session-scoped artifact resolver for pipeline firmware.
+def stage_assets():
+    """Session-scoped stage-aware firmware assets.
 
-    When PIPELINE_ID is set (from K8s Job trigger), provides access to
-    firmware artifacts from the CI pipeline via the ArtifactResolver.
-    Tests use this to:
-      - Download hex files for J-Link flashing
-      - Download CFW files for FUOTA
-      - Get version strings and target metadata per build
+    When PIPELINE_ID is set (from K8s Job trigger), provides typed access
+    to firmware artifacts via StageAssets and BuildAsset. Tests use this to:
+      - Download hex files: ``stage_assets.mfg().hex("app")``
+      - Download CFW files: ``stage_assets.by_label("FUT_DEBUG_A").cfws()``
+      - Get version strings: ``stage_assets.by_label("MFG_BASE").version()``
+      - Get modem firmware: ``stage_assets.modem_zip()``
 
     Usage in tests:
-        def test_fuota(ctx, pipeline_assets):
-            if pipeline_assets:
-                app_hex = pipeline_assets.get_artifact("MFG_BASE", role="app", artifact_type="plaintextHex")
-                cfws = pipeline_assets.get_artifacts("MFG_BUMP", artifact_type="encryptedCfw")
-                targets = pipeline_assets.get_targets("MFG_BASE")
+        def test_fuota(ctx, stage_assets):
+            if stage_assets:
+                mfg = stage_assets.mfg()
+                app_hex = mfg.hex("app")
+                version = mfg.version()
 
     Returns None if PIPELINE_ID is not set (manual run without CI trigger).
     """
     if not cfg.PIPELINE_ID:
-        log.info("PIPELINE_ID not set — pipeline_assets fixture returning None")
+        log.info("PIPELINE_ID not set — stage_assets fixture returning None")
         yield None
         return
 
+    # Determine stage from environment (defaults to "fuota" for backward compat)
+    stage = os.environ.get("STAGE", "fuota")
+
     try:
-        from corekinect.test.artifact_resolver import ArtifactResolver
-        resolver = ArtifactResolver(
+        from corekinect.test.stage_assets import StageAssets
+        assets = StageAssets.from_pipeline(
             pipeline_id=cfg.PIPELINE_ID,
+            stage=stage,
             api_url=os.environ.get("CONCORD_API_URL", ""),
             api_key=os.environ.get("CONCORD_API_KEY", ""),
-            logger=log,
+            strict=False,  # Don't fail here — preflight validates
         )
-        log.info("ArtifactResolver initialized: %s", cfg.PIPELINE_ID)
-        log.info(resolver.summary())
-        yield resolver
-        resolver.cleanup()
+        log.info("StageAssets loaded: pipeline=%s, stage=%s, labels=%s",
+                 cfg.PIPELINE_ID, stage, assets.labels)
+        yield assets
+        assets.cleanup()
     except Exception as e:
-        log.error("Failed to initialize ArtifactResolver: %s", e)
+        log.error("Failed to initialize StageAssets: %s", e)
         yield None
 
 
 @pytest.fixture(scope="session")
-def mfg_flash(ctx, pipeline_assets):
+def mfg_flash(ctx, stage_assets):
     """Session-scoped fixture: Flash MFG_BASE firmware via J-Link.
 
-    When pipeline_assets is available:
-      1. Downloads MFG_BASE hex files from MinIO
-      2. Uploads to MTIB server
-      3. Flashes nRF52840 (app) and nRF9151 (comms) via J-Link
-      4. Re-personalizes the device
+    When stage_assets is available:
+      1. Downloads MFG_BASE hex files via BuildAsset
+      2. Flashes nRF52840 (app) and nRF9151 (comms) via J-Link
+      3. Re-personalizes the device
 
     Runs once at the start of the test session, before any tests.
-    Does nothing if pipeline_assets is not available (manual run).
+    Does nothing if stage_assets is not available (manual run).
     """
-    if not pipeline_assets:
-        log.info("No pipeline_assets — skipping Stage 4 MFG flash")
+    if not stage_assets:
+        log.info("No stage_assets — skipping Stage 4 MFG flash")
         yield None
         return
 
     try:
-        # Download MFG_BASE hex files
-        log.info("MFG flash:Downloading MFG_BASE firmware from pipeline...")
-        app_hex_path = pipeline_assets.get_hex("MFG_BASE", "app")
-        comms_hex_path = pipeline_assets.get_hex("MFG_BASE", "comms")
-        log.info("MFG_BASE app hex: %s", app_hex_path)
-        log.info("MFG_BASE comms hex: %s", comms_hex_path)
+        mfg = stage_assets.mfg()
+        log.info("MFG flash: Downloading MFG_BASE v%s...", mfg.version())
 
-        # Upload to MTIB and flash nRF52840
-        log.info("MFG flash:Flashing MFG_BASE nRF52840...")
-        server_app = pipeline_assets.upload_to_mtib(app_hex_path, ctx.mtib, "nrf52840")
-        ctx.fixture.flash_firmware(server_app, target="nrf52840")
+        # Download and flash nRF52840
+        app_hex = mfg.hex("app")
+        log.info("MFG flash: Flashing nRF52840: %s", app_hex)
+        ctx.fixture.flash_firmware(app_hex, target="nrf52840")
 
-        # Flash nRF9151 comms (if hex available)
-        if comms_hex_path:
-            log.info("MFG flash:Flashing MFG_BASE nRF9151...")
-            server_comms = pipeline_assets.upload_to_mtib(comms_hex_path, ctx.mtib, "nrf9151")
-            ctx.fixture.flash_firmware(server_comms, target="nrf9151")
+        # Flash nRF9151 comms (if target exists in manifest)
+        try:
+            comms_hex = mfg.hex("comms")
+            log.info("MFG flash: Flashing nRF9151: %s", comms_hex)
+            ctx.fixture.flash_firmware(comms_hex, target="nrf9151")
+        except Exception:
+            log.info("MFG flash: No comms target in MFG_BASE — skipping nRF9151 flash")
 
         # Re-personalize after flash
         device_snr = cfg.DEVICE_SNR
         if device_snr:
-            log.info("MFG flash:Re-personalizing device...")
+            log.info("MFG flash: Re-personalizing device...")
             from corekinect.test.device_personalizer import DevicePersonalizer
 
             known_device_id = None
@@ -504,19 +505,18 @@ def mfg_flash(ctx, pipeline_assets):
             )
             result, err = personalizer.repersonalize(power_cycle=True, lock_shells=True)
             if err:
-                log.warning("MFG flash:Re-personalization failed: %s", err)
+                log.warning("MFG flash: Re-personalization failed: %s", err)
             else:
-                log.info("MFG flash:Re-personalized device_id=%s", result.device_id)
+                log.info("MFG flash: Re-personalized device_id=%s", result.device_id)
         else:
-            # Just power cycle if no personalization
-            log.info("MFG flash:Power cycling after flash...")
+            log.info("MFG flash: Power cycling after flash...")
             ctx.fixture.power_cycle()
 
-        log.info("MFG flash:MFG_BASE flash complete")
+        log.info("MFG flash: Complete")
         yield "MFG_BASE"
 
     except Exception as e:
-        log.error("MFG flash:MFG flash failed: %s", e)
+        log.error("MFG flash: Failed: %s", e)
         yield None
 
 

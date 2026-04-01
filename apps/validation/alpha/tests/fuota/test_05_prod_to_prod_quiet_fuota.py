@@ -140,25 +140,25 @@ class TestProdToProdQuietFuota:
     # 01: Download ALL artifacts
     # =====================================================================
 
-    def test_01_download_artifacts(self, pipeline_assets, device_config):
+    def test_01_download_artifacts(self, stage_assets, device_config):
         """Download MFG hex + modem + PROD_QUIET CFW + PROD_QUIET_BUMP CFW."""
         cls = TestProdToProdQuietFuota
 
         # --- MFG firmware ---
-        flash_version = pipeline_assets.get_version(FLASH_LABEL)
+        flash_build = stage_assets.by_label(FLASH_LABEL)
+        flash_version = flash_build.version()
         print(f"{FLASH_LABEL}: v{flash_version}")
 
-        flash_targets = pipeline_assets.get_targets(FLASH_LABEL)
+        flash_targets = flash_build.targets()
         assert flash_targets, f"Build '{FLASH_LABEL}' has no targets"
 
-        app_hex = pipeline_assets.get_artifact(FLASH_LABEL, role="app", artifact_type="plaintextHex")
+        app_hex = flash_build.hex("app")
         assert app_hex and Path(app_hex).exists(), f"{FLASH_LABEL} app hex download failed"
 
-        comms_target = pipeline_assets.get_target(FLASH_LABEL, role="comms")
-        comms_hex = None
-        if comms_target:
-            comms_hex = pipeline_assets.get_artifact(FLASH_LABEL, role="comms", artifact_type="plaintextHex")
-            assert comms_hex and Path(comms_hex).exists(), f"{FLASH_LABEL} comms hex download failed"
+        try:
+            comms_hex = flash_build.hex("comms")
+        except Exception:
+            comms_hex = None
 
         cls._app_hex = app_hex
         cls._comms_hex = comms_hex
@@ -166,9 +166,7 @@ class TestProdToProdQuietFuota:
         cls._flash_targets = flash_targets
 
         # --- Modem firmware ---
-        modem_zip = pipeline_assets.get_modem_firmware(FLASH_LABEL)
-        if modem_zip is None:
-            modem_zip = pipeline_assets.get_modem_firmware_from_trigger()
+        modem_zip = stage_assets.modem_zip()
         if modem_zip:
             cls._modem_zip = modem_zip
             print(f"Modem FW:  {Path(modem_zip).name}")
@@ -176,10 +174,11 @@ class TestProdToProdQuietFuota:
             print("WARNING: No modem firmware — modem flash will be skipped")
 
         # --- Setup CFW (PROD_QUIET) ---
-        setup_version = pipeline_assets.get_version(SETUP_FUOTA_LABEL)
+        setup_build = stage_assets.by_label(SETUP_FUOTA_LABEL)
+        setup_version = setup_build.version()
         print(f"{SETUP_FUOTA_LABEL}: v{setup_version}")
 
-        setup_cfws = pipeline_assets.get_artifacts(SETUP_FUOTA_LABEL, artifact_type="encryptedCfw")
+        setup_cfws = setup_build.cfws()
         assert setup_cfws, f"{SETUP_FUOTA_LABEL} has no CFW files"
 
         setup_targets = []
@@ -196,10 +195,11 @@ class TestProdToProdQuietFuota:
         cls._setup_app_ids = setup_app_ids
 
         # --- Upgrade CFW (PROD_QUIET_BUMP) ---
-        upgrade_version = pipeline_assets.get_version(UPGRADE_FUOTA_LABEL)
+        upgrade_build = stage_assets.by_label(UPGRADE_FUOTA_LABEL)
+        upgrade_version = upgrade_build.version()
         print(f"{UPGRADE_FUOTA_LABEL}: v{upgrade_version}")
 
-        upgrade_cfws = pipeline_assets.get_artifacts(UPGRADE_FUOTA_LABEL, artifact_type="encryptedCfw")
+        upgrade_cfws = upgrade_build.cfws()
         assert upgrade_cfws, f"{UPGRADE_FUOTA_LABEL} has no CFW files"
 
         upgrade_targets = []

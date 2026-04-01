@@ -151,7 +151,29 @@ def update_stage_config(product_id: str, stage: str):
         include=_INCLUDE,
     )
     log_audit("stageConfig.update", "ProductStageConfig", config.id, update_data)
-    return jsonify(ApiResponse.ok(_serialize_stage_config(updated)).to_dict()), 200
+
+    result = _serialize_stage_config(updated)
+
+    # If buildNow is requested and stage is being enabled, trigger builds
+    raw_data = request.get_json() or {}
+    if raw_data.get("buildNow") and updated.enabled:
+        from src.services.build_trigger import trigger_stage_build
+        try:
+            trigger_result = trigger_stage_build(product_id, config.id)
+            if trigger_result:
+                result["buildTriggered"] = True
+                result["buildRunId"] = trigger_result["buildRunId"]
+                result["jobCount"] = trigger_result["jobCount"]
+                logger.info("Build triggered for stage %s: %s", stage, trigger_result["buildRunId"])
+            else:
+                result["buildTriggered"] = False
+                result["buildError"] = "Failed to trigger build — check product repos and revision config"
+        except Exception as e:
+            logger.error("Failed to trigger build for stage %s: %s", stage, e)
+            result["buildTriggered"] = False
+            result["buildError"] = str(e)
+
+    return jsonify(ApiResponse.ok(result).to_dict()), 200
 
 
 @require_permissions(Permissions.BUILDS_MANAGE)

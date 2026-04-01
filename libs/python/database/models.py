@@ -80,6 +80,10 @@ class Product(bases.BaseProduct):
     """Bitbucket slug for manufacturing firmware repo, e.g. "alpha_mfg_fw"
     """
 
+    builderImage: Optional[_str] = None
+    """Docker image for builds, e.g. "registry.corekinect.com/alpha-fw-builder:latest"
+    """
+
     buildConfig: Optional['fields.Json'] = None
     """structured build configuration (overlays, post-build steps)
     """
@@ -5017,6 +5021,14 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'type': '_str',
             'is_relational': False,
             'documentation': '''Bitbucket slug for manufacturing firmware repo, e.g. "alpha_mfg_fw"''',
+        }),
+        ('builderImage', {
+            'name': 'builderImage',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Docker image for builds, e.g. "registry.corekinect.com/alpha-fw-builder:latest"''',
         }),
         ('buildConfig', {
             'name': 'buildConfig',

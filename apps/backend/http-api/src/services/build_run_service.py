@@ -670,8 +670,19 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
                     "finishedAt": datetime.now(timezone.utc),
                 },
             )
-            logger.warning("Pipeline %s artifact validation failed: %s", run_id, error_msg)
+            logger.warning("BuildRun %s artifact validation failed: %s", run_id, error_msg)
             return new_status
+
+        # Promote artifacts to FirmwareSets
+        try:
+            from src.services.build_promotion import promote_build_run_to_firmware
+            promoted = promote_build_run_to_firmware(run_id)
+            if promoted:
+                logger.info("BuildRun %s promoted to %d FirmwareSet(s)", run_id, len(promoted))
+            else:
+                logger.warning("BuildRun %s promotion returned no results", run_id)
+        except Exception as promo_err:
+            logger.error("BuildRun %s promotion failed (non-blocking): %s", run_id, promo_err)
 
         if getattr(pipeline, "autoValidate", False):
             new_status = "VALIDATING"

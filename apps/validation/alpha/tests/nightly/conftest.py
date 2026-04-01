@@ -13,5 +13,5 @@ from corekinect.utils import Logger
 log = Logger(log_name="nightly")
 
 
-# Nightly tests don't need the pipeline_assets fixture
-# They use pre-flashed firmware from Gate or manual setup
+# Nightly tests don't need the stage_assets fixture
+# They use pre-flashed firmware from FUOTA stage or manual setup

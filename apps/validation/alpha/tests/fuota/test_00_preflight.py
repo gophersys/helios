@@ -126,39 +126,36 @@ class TestPreflight:
         print(f"UART capture:  {uart_status}")
         print(f"MTIB connection OK")
 
-    def test_pipeline_builds(self, pipeline_assets):
+    def test_pipeline_builds(self, stage_assets):
         """Verify all pipeline builds are present and successful."""
         pipeline_id = os.environ.get("PIPELINE_ID", "?")
         print(f"Pipeline ID: {pipeline_id}")
 
-        assert pipeline_assets.has_all_builds(), (
-            f"Pipeline missing required builds. "
-            f"Available: {list(pipeline_assets.builds.keys())}"
+        missing = stage_assets.missing_labels()
+        assert missing == [], (
+            f"Pipeline missing required builds: {missing}. "
+            f"Available: {stage_assets.labels}"
         )
 
-        print(f"{'Label':<24} {'Variant':<10} {'Version':<12} {'Status':<10} {'Manifest':<10} {'Artifacts'}")
-        print(f"{'-'*88}")
-        for label, build in sorted(pipeline_assets.builds.items()):
-            art_count = len(build.artifacts)
-            has_manifest = "yes" if build.has_manifest else "no"
-            print(f"{label:<24} {build.variant:<10} v{build.version_string or '?':<11} {build.status:<10} {has_manifest:<10} {art_count} files")
-            assert build.status in ("SUCCESS", "CACHED"), (
-                f"Build {label} is {build.status}, expected SUCCESS or CACHED"
-            )
+        print(f"{'Label':<24} {'Version':<12}")
+        print(f"{'-'*36}")
+        for label in sorted(stage_assets.labels):
+            build = stage_assets.by_label(label)
+            version = build.version()
+            print(f"{label:<24} v{version or '?':<11}")
 
-        print(f"All {len(pipeline_assets.builds)} builds OK")
+        print(f"All {len(stage_assets.labels)} builds OK")
 
-    def test_storage_access(self, pipeline_assets):
+    def test_storage_access(self, stage_assets):
         """Verify MinIO storage is accessible for firmware artifacts."""
         storage_url = os.environ.get("STORAGE_URL", "?")
         bucket = os.environ.get("STORAGE_BUCKET_NAME", "?")
         print(f"MinIO URL:    {storage_url}")
         print(f"Bucket:       {bucket}")
 
-        first_label = next(iter(pipeline_assets.builds.keys()), None)
+        first_label = next(iter(stage_assets.labels), None)
         if first_label:
-            build = pipeline_assets.builds[first_label]
-            artifact_count = len(build.artifacts)
-            print(f"Test build:   {first_label} ({artifact_count} artifacts)")
+            build = stage_assets.by_label(first_label)
+            print(f"Test build:   {first_label} (v{build.version()})")
 
         print(f"Storage access OK")

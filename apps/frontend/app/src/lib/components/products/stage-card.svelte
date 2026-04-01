@@ -74,17 +74,26 @@
     loadBranches();
   }
 
-  async function saveAndEnable() {
+  let buildResult = $state<{ triggered: boolean; runId?: string; error?: string } | null>(null);
+
+  async function enableStage(buildNow: boolean) {
     if (!formRevisionId) return;
     saving = true;
+    buildResult = null;
     try {
-      await updateStageConfig(productId, stage, {
+      const result = await updateStageConfig(productId, stage, {
         enabled: true,
         boardRevisionId: formRevisionId,
         watchBranch: formBranch || null,
         signingKeyId: formSigningKeyId || null,
-      });
+        buildNow,
+      } as any);
       configuring = false;
+      if (result.buildTriggered) {
+        buildResult = { triggered: true, runId: result.buildRunId };
+      } else if (result.buildError) {
+        buildResult = { triggered: false, error: result.buildError };
+      }
       onUpdated();
     } catch (err) {
       console.error('Failed to save stage config:', err);
@@ -227,17 +236,30 @@
         Enabling this stage will create {STAGE_BUILD_COUNTS[stage] || '?'} firmware builds when triggered. Start initial builds now, or wait for next push to the watched branch.
       </div>
 
+      <!-- Build result feedback -->
+      {#if buildResult}
+        {#if buildResult.triggered}
+          <div class="rounded bg-success-muted border border-success/30 px-3 py-2 text-sm text-success">
+            Build triggered! {buildResult.runId ? `Run ID: ${buildResult.runId}` : ''}
+          </div>
+        {:else if buildResult.error}
+          <div class="rounded bg-error-muted border border-error/30 px-3 py-2 text-sm text-error">
+            Build failed to trigger: {buildResult.error}
+          </div>
+        {/if}
+      {/if}
+
       <!-- Actions -->
       <div class="flex gap-2">
         <button
-          onclick={saveAndEnable}
+          onclick={() => enableStage(true)}
           disabled={saving || !formRevisionId}
           class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
         >
           {saving ? 'Saving...' : 'Enable & Build Now'}
         </button>
         <button
-          onclick={async () => { await saveAndEnable(); /* TODO: don't trigger build */ }}
+          onclick={() => enableStage(false)}
           disabled={saving || !formRevisionId}
           class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50"
         >

@@ -887,7 +887,7 @@ class ProductActions(Generic[_PrismaModelT]):
         results = Product.prisma().count(
             select={
                 '_all': True,
-                'buildConfig': True,
+                'builderImage': True,
             },
         )
         ```
@@ -1027,10 +1027,10 @@ class ProductActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group Product records by metadata values
+        # group Product records by buildConfig values
         # and count how many records are in each group
         results = Product.prisma().group_by(
-            ['metadata'],
+            ['buildConfig'],
             count=True,
         )
         ```

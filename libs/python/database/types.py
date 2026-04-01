@@ -1752,6 +1752,7 @@ class ProductOptionalCreateInput(TypedDict, total=False):
     active: _bool
     fwRepoSlug: Optional[_str]
     mfgFwRepoSlug: Optional[_str]
+    builderImage: Optional[_str]
     buildConfig: Optional['fields.Json']
     metadata: Optional['fields.Json']
     createdAt: datetime.datetime
@@ -1783,6 +1784,7 @@ class ProductOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     active: _bool
     fwRepoSlug: Optional[_str]
     mfgFwRepoSlug: Optional[_str]
+    builderImage: Optional[_str]
     buildConfig: Optional['fields.Json']
     metadata: Optional['fields.Json']
     createdAt: datetime.datetime
@@ -1848,6 +1850,7 @@ class ProductUpdateInput(TypedDict, total=False):
     active: _bool
     fwRepoSlug: Optional[_str]
     mfgFwRepoSlug: Optional[_str]
+    builderImage: Optional[_str]
     buildConfig: Optional['fields.Json']
     metadata: Optional['fields.Json']
     createdAt: datetime.datetime
@@ -1872,6 +1875,7 @@ class ProductUpdateManyMutationInput(TypedDict, total=False):
     active: _bool
     fwRepoSlug: Optional[_str]
     mfgFwRepoSlug: Optional[_str]
+    builderImage: Optional[_str]
     buildConfig: Optional['fields.Json']
     metadata: Optional['fields.Json']
     createdAt: datetime.datetime
@@ -1966,6 +1970,14 @@ _Product_mfgFwRepoSlug_OrderByInput = TypedDict(
     total=True
 )
 
+_Product_builderImage_OrderByInput = TypedDict(
+    '_Product_builderImage_OrderByInput',
+    {
+        'builderImage': 'SortOrder',
+    },
+    total=True
+)
+
 _Product_buildConfig_OrderByInput = TypedDict(
     '_Product_buildConfig_OrderByInput',
     {
@@ -2024,6 +2036,7 @@ ProductOrderByInput = Union[
     '_Product_active_OrderByInput',
     '_Product_fwRepoSlug_OrderByInput',
     '_Product_mfgFwRepoSlug_OrderByInput',
+    '_Product_builderImage_OrderByInput',
     '_Product_buildConfig_OrderByInput',
     '_Product_metadata_OrderByInput',
     '_Product_createdAt_OrderByInput',
@@ -5578,6 +5591,7 @@ class ProductWhereInput(TypedDict, total=False):
     active: Union[_bool, 'types.BooleanFilter']
     fwRepoSlug: Union[None, _str, 'types.StringFilter']
     mfgFwRepoSlug: Union[None, _str, 'types.StringFilter']
+    builderImage: Union[None, _str, 'types.StringFilter']
     buildConfig: Union[None, 'fields.Json', 'types.JsonFilter']
     metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5608,6 +5622,7 @@ class ProductWhereInputRecursive1(TypedDict, total=False):
     active: Union[_bool, 'types.BooleanFilter']
     fwRepoSlug: Union[None, _str, 'types.StringFilter']
     mfgFwRepoSlug: Union[None, _str, 'types.StringFilter']
+    builderImage: Union[None, _str, 'types.StringFilter']
     buildConfig: Union[None, 'fields.Json', 'types.JsonFilter']
     metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5638,6 +5653,7 @@ class ProductWhereInputRecursive2(TypedDict, total=False):
     active: Union[_bool, 'types.BooleanFilter']
     fwRepoSlug: Union[None, _str, 'types.StringFilter']
     mfgFwRepoSlug: Union[None, _str, 'types.StringFilter']
+    builderImage: Union[None, _str, 'types.StringFilter']
     buildConfig: Union[None, 'fields.Json', 'types.JsonFilter']
     metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5668,6 +5684,7 @@ class ProductWhereInputRecursive3(TypedDict, total=False):
     active: Union[_bool, 'types.BooleanFilter']
     fwRepoSlug: Union[None, _str, 'types.StringFilter']
     mfgFwRepoSlug: Union[None, _str, 'types.StringFilter']
+    builderImage: Union[None, _str, 'types.StringFilter']
     buildConfig: Union[None, 'fields.Json', 'types.JsonFilter']
     metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5698,6 +5715,7 @@ class ProductWhereInputRecursive4(TypedDict, total=False):
     active: Union[_bool, 'types.BooleanFilter']
     fwRepoSlug: Union[None, _str, 'types.StringFilter']
     mfgFwRepoSlug: Union[None, _str, 'types.StringFilter']
+    builderImage: Union[None, _str, 'types.StringFilter']
     buildConfig: Union[None, 'fields.Json', 'types.JsonFilter']
     metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5728,6 +5746,7 @@ class ProductScalarWhereWithAggregatesInput(TypedDict, total=False):
     active: Union[_bool, 'types.BooleanWithAggregatesFilter']
     fwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     mfgFwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
+    builderImage: Union[_str, 'types.StringWithAggregatesFilter']
     buildConfig: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5747,6 +5766,7 @@ class ProductScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
     active: Union[_bool, 'types.BooleanWithAggregatesFilter']
     fwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     mfgFwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
+    builderImage: Union[_str, 'types.StringWithAggregatesFilter']
     buildConfig: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5766,6 +5786,7 @@ class ProductScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
     active: Union[_bool, 'types.BooleanWithAggregatesFilter']
     fwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     mfgFwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
+    builderImage: Union[_str, 'types.StringWithAggregatesFilter']
     buildConfig: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5785,6 +5806,7 @@ class ProductScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
     active: Union[_bool, 'types.BooleanWithAggregatesFilter']
     fwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     mfgFwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
+    builderImage: Union[_str, 'types.StringWithAggregatesFilter']
     buildConfig: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5804,6 +5826,7 @@ class ProductScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
     active: Union[_bool, 'types.BooleanWithAggregatesFilter']
     fwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     mfgFwRepoSlug: Union[_str, 'types.StringWithAggregatesFilter']
+    builderImage: Union[_str, 'types.StringWithAggregatesFilter']
     buildConfig: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5819,6 +5842,7 @@ class ProductGroupByOutput(TypedDict, total=False):
     active: _bool
     fwRepoSlug: _str
     mfgFwRepoSlug: _str
+    builderImage: _str
     buildConfig: 'fields.Json'
     metadata: 'fields.Json'
     createdAt: datetime.datetime
@@ -5847,6 +5871,7 @@ class ProductScalarAggregateOutput(TypedDict, total=False):
     active: _bool
     fwRepoSlug: _str
     mfgFwRepoSlug: _str
+    builderImage: _str
     buildConfig: 'fields.Json'
     metadata: 'fields.Json'
     createdAt: datetime.datetime
@@ -5866,6 +5891,7 @@ class ProductMaxAggregateInput(TypedDict, total=False):
     active: bool
     fwRepoSlug: bool
     mfgFwRepoSlug: bool
+    builderImage: bool
     buildConfig: bool
     metadata: bool
     createdAt: bool
@@ -5881,6 +5907,7 @@ class ProductMinAggregateInput(TypedDict, total=False):
     active: bool
     fwRepoSlug: bool
     mfgFwRepoSlug: bool
+    builderImage: bool
     buildConfig: bool
     metadata: bool
     createdAt: bool
@@ -5905,6 +5932,7 @@ ProductCountAggregateInput = TypedDict(
         'active': bool,
         'fwRepoSlug': bool,
         'mfgFwRepoSlug': bool,
+        'builderImage': bool,
         'buildConfig': bool,
         'metadata': bool,
         'createdAt': bool,
@@ -5924,6 +5952,7 @@ ProductCountAggregateOutput = TypedDict(
         'active': int,
         'fwRepoSlug': int,
         'mfgFwRepoSlug': int,
+        'builderImage': int,
         'buildConfig': int,
         'metadata': int,
         'createdAt': int,
@@ -5942,6 +5971,7 @@ ProductKeys = Literal[
     'active',
     'fwRepoSlug',
     'mfgFwRepoSlug',
+    'builderImage',
     'buildConfig',
     'metadata',
     'createdAt',
@@ -5964,6 +5994,7 @@ ProductScalarFieldKeys = Literal[
     'active',
     'fwRepoSlug',
     'mfgFwRepoSlug',
+    'builderImage',
     'buildConfig',
     'metadata',
     'createdAt',

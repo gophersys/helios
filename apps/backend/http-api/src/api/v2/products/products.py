@@ -46,6 +46,7 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         "active": p.active,
         "fwRepoSlug": getattr(p, "fwRepoSlug", None),
         "mfgFwRepoSlug": getattr(p, "mfgFwRepoSlug", None),
+        "builderImage": getattr(p, "builderImage", None),
         "buildConfig": p.buildConfig,
         "metadata": p.metadata,
         "createdAt": p.createdAt.isoformat(),

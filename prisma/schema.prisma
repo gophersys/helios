@@ -143,6 +143,7 @@ model Product {
     active         Boolean @default(true)
     fwRepoSlug     String? /// Bitbucket slug for production firmware repo, e.g. "alpha_fw"
     mfgFwRepoSlug  String? /// Bitbucket slug for manufacturing firmware repo, e.g. "alpha_mfg_fw"
+    builderImage   String? /// Docker image for builds, e.g. "registry.corekinect.com/alpha-fw-builder:latest"
 
     buildConfig Json? /// structured build configuration (overlays, post-build steps)
     metadata    Json? /// additional product-specific config

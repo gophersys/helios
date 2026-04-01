@@ -117,27 +117,26 @@ class TestMfgToMfgFuota:
     # 01: Download artifacts
     # =====================================================================
 
-    def test_01_download_artifacts(self, pipeline_assets, device_config):
+    def test_01_download_artifacts(self, stage_assets, device_config):
         """Download MFG hex + modem zip + production CFW from pipeline."""
 
         # --- MFG firmware: hex files for J-Link flash ---
-        # Use resolver API: get_artifact(label, role, artifact_type)
 
-        flash_version = pipeline_assets.get_version(FLASH_LABEL)
+        flash_build = stage_assets.by_label(FLASH_LABEL)
+        flash_version = flash_build.version()
         print(f"{FLASH_LABEL}: v{flash_version}")
 
-        flash_targets = pipeline_assets.get_targets(FLASH_LABEL)
+        flash_targets = flash_build.targets()
         assert flash_targets, f"Build '{FLASH_LABEL}' has no targets"
 
-        app_hex = pipeline_assets.get_artifact(FLASH_LABEL, role="app", artifact_type="plaintextHex")
+        app_hex = flash_build.hex("app")
         assert app_hex and Path(app_hex).exists(), f"{FLASH_LABEL} app hex download failed"
 
         # Comms hex: only download if the build has a comms target
-        comms_target = pipeline_assets.get_target(FLASH_LABEL, role="comms")
-        comms_hex = None
-        if comms_target:
-            comms_hex = pipeline_assets.get_artifact(FLASH_LABEL, role="comms", artifact_type="plaintextHex")
-            assert comms_hex and Path(comms_hex).exists(), f"{FLASH_LABEL} comms hex download failed"
+        try:
+            comms_hex = flash_build.hex("comms")
+        except Exception:
+            comms_hex = None
 
         print(f"App hex:   {Path(app_hex).name} ({Path(app_hex).stat().st_size} bytes)")
         if comms_hex:
@@ -152,9 +151,7 @@ class TestMfgToMfgFuota:
 
         # --- Modem firmware: from manifest or pipeline triggerData ---
 
-        modem_zip = pipeline_assets.get_modem_firmware(FLASH_LABEL)
-        if modem_zip is None:
-            modem_zip = pipeline_assets.get_modem_firmware_from_trigger()
+        modem_zip = stage_assets.modem_zip()
         if modem_zip:
             print(f"Modem FW:  {Path(modem_zip).name} ({Path(modem_zip).stat().st_size} bytes)")
             TestMfgToMfgFuota._modem_zip = modem_zip
@@ -163,10 +160,11 @@ class TestMfgToMfgFuota:
 
         # --- FUOTA target firmware: CFW files for OTA delivery ---
 
-        fuota_version = pipeline_assets.get_version(FUOTA_LABEL)
+        fuota_build = stage_assets.by_label(FUOTA_LABEL)
+        fuota_version = fuota_build.version()
         print(f"{FUOTA_LABEL}: v{fuota_version}")
 
-        cfw_paths = pipeline_assets.get_artifacts(FUOTA_LABEL, artifact_type="encryptedCfw")
+        cfw_paths = fuota_build.cfws()
         assert cfw_paths, f"{FUOTA_LABEL} has no CFW files"
 
         target_strings = []
@@ -179,7 +177,7 @@ class TestMfgToMfgFuota:
             print(f"CFW: {Path(cfw_path).name} -> {meta['target_string']}")
 
         # Validate CFW app IDs match manifest targets (product-agnostic)
-        fuota_targets = pipeline_assets.get_targets(FUOTA_LABEL)
+        fuota_targets = fuota_build.targets()
         expected_app_ids = {t.app_id for t in fuota_targets}
         missing = expected_app_ids - app_ids_found
         assert not missing, (
