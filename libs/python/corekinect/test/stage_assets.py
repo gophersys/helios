@@ -44,49 +44,16 @@ if TYPE_CHECKING:
     from corekinect.test.artifact_resolver import ArtifactResolver
 
 from corekinect.test.errors import ConfigError
+from corekinect.validation.stage_defs import Stage, get_required_labels as _get_required_labels
 from corekinect.utils import Logger
 
 log = Logger(log_name="stage_assets")
 
 
-# =============================================================================
-# Stage → required build labels
-# =============================================================================
-
+# Backward compat — derived from the shared source of truth.
+# Prefer importing get_required_labels() from corekinect.validation.stage_defs directly.
 STAGE_REQUIRED_LABELS: Dict[str, List[str]] = {
-    "smoke": [
-        "MFG_BASE",
-        "APP_DEBUG",
-    ],
-    "silicon": [
-        "MFG_BASE",
-        "APP_DEBUG",
-        "APP_RELEASE",
-    ],
-    "integration": [
-        "MFG_BASE",
-        "APP_DEBUG",
-        "APP_RELEASE",
-        "MAIN_BASE",
-    ],
-    "nightly": [
-        "MFG_BASE",
-        "MFG_BUMP",
-        "APP_DEBUG",
-        "APP_RELEASE",
-        "FUOTA_DEBUG_A",
-        "FUOTA_DEBUG_B",
-    ],
-    "fuota": [
-        "MFG_BASE",
-        "MFG_BUMP",
-        "FUT_DEBUG_A",
-        "FUT_DEBUG_B",
-        "FUT_RELEASE_A",
-        "FUT_RELEASE_B",
-        "MAIN_BASELINE",
-        "MAIN_MERGED",
-    ],
+    stage.value: _get_required_labels(stage) for stage in Stage
 }
 
 
