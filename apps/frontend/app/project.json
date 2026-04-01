@@ -22,7 +22,7 @@
     },
     "serve": {
       "executor": "nx:run-commands",
-      "dependsOn": ["typecheck"],
+      "dependsOn": ["typecheck", "build"],
       "options": {
         "cwd": "apps/frontend/app",
         "command": "npx vite dev --port 4200"

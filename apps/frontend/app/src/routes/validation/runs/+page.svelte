@@ -397,8 +397,8 @@
               </span>
               <!-- Stage badge -->
               {#if stageBadge}
+                {@const StageBadgeIcon = stageBadge.icon}
                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-medium {stageBadge.color}">
-                  {@const StageBadgeIcon = stageBadge.icon}
                   <StageBadgeIcon size={10} />
                   {stage.toUpperCase()}
                 </span>

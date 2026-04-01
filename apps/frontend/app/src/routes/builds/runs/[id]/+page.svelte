@@ -28,8 +28,8 @@
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { BuildRunDetail, PipelineBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
-  import { fetchBuildRun, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadPipelineArtifacts, downloadSingleArtifact, triggerPipelineValidation, validateBuildRunArtifacts, fetchPipelineSessions } from '$lib/services/ci';
-  import type { PipelineSessionSummary, ArtifactValidationReport } from '$lib/services/ci';
+  import { fetchBuildRun, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadBuildRunArtifacts, downloadSingleArtifact, triggerBuildRunValidation, validateBuildRunArtifacts, fetchBuildRunSessions } from '$lib/services/ci';
+  import type { BuildRunSessionSummary, ArtifactValidationReport } from '$lib/services/ci';
   import { getTriggerConfig, getProductInfo } from '$lib/constants/builds';
   import type { BuildArtifact } from '$lib/types/ci';
   import {
@@ -72,11 +72,11 @@
   let showArtifactReport = $state(false);
 
   // Validation runs triggered from this build run
-  let validationRuns = $state<PipelineSessionSummary[]>([]);
+  let validationRuns = $state<BuildRunSessionSummary[]>([]);
 
   async function fetchValidationRuns() {
     try {
-      validationRuns = await fetchPipelineSessions(runId);
+      validationRuns = await fetchBuildRunSessions(runId);
     } catch {
       // Pipeline may not have sessions yet
     }
@@ -130,7 +130,7 @@
     downloadingAll = true;
 
     try {
-      await downloadPipelineArtifacts(
+      await downloadBuildRunArtifacts(
         buildRun.id,
         buildRun.product,
         buildRun.branch
@@ -147,7 +147,7 @@
     if (!buildRun || triggeringValidation || !runId) return;
     triggeringValidation = true;
     try {
-      await triggerPipelineValidation(buildRun.id);
+      await triggerBuildRunValidation(buildRun.id);
       // Refresh pipeline and validation runs list
       buildRun = await fetchBuildRun(runId);
       await fetchValidationRuns();
@@ -942,8 +942,8 @@
 
                             <!-- Error/Warning Summary Panel -->
                             {#if analysis && (analysis.errorCount > 0 || analysis.warningCount > 0)}
+                              {@const issuesOpen = expandedIssues.has(build.id)}
                               <div class="mb-4 rounded-lg border border-border bg-surface-0 overflow-hidden">
-                                {@const issuesOpen = expandedIssues.has(build.id)}
                                 <button
                                   class="w-full px-3 py-2 bg-surface-2 flex items-center gap-3 hover:bg-surface-1 transition-colors"
                                   onclick={(e) => { e.stopPropagation(); if (expandedIssues.has(build.id)) { expandedIssues.delete(build.id); } else { expandedIssues.add(build.id); } expandedIssues = new Set(expandedIssues); }}

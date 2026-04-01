@@ -237,8 +237,9 @@
       {#if needsBranch(formTriggerType)}
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
-          {@const branchLabel = formTriggerType === 'pr_push' ? 'PRs targeting branch' : formTriggerType === 'pr_merge' ? 'Merge into branch' : 'Build from branch'}
-          <label for="stage-branch-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">{branchLabel}</label>
+          <label for="stage-branch-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">
+            {formTriggerType === 'pr_push' ? 'PRs targeting branch' : formTriggerType === 'pr_merge' ? 'Merge into branch' : 'Build from branch'}
+          </label>
           {#if loadingBranches}
             <div class="flex items-center gap-2 py-2 text-2xs text-text-tertiary">
               <Loader2 size={12} class="animate-spin" /> Loading branches...

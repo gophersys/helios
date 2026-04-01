@@ -48,8 +48,7 @@
           : 'hover:bg-surface-1 text-text-secondary'
         }"
     >
-      {@const StatusIcon = statusInfo.icon}
-      <StatusIcon size={16} class="{statusInfo.class}" />
+      {#if statusInfo.icon}{@const StatusIcon = statusInfo.icon}<StatusIcon size={16} class="{statusInfo.class}" />{/if}
       <div class="flex-1 min-w-0">
         <div class="text-sm font-medium truncate flex items-center gap-1.5">
           {#if stage.type === 'build'}
