@@ -56,17 +56,14 @@ export async function fetchBuildRuns(
   if (params?.createdBefore) qs.set('createdBefore', params.createdBefore);
   if (params?.matrixMode) qs.set('matrixMode', params.matrixMode);
 
-  const res = await apiFetch<PaginatedApiResponse<BuildRunDetail[]>>(
+  // API returns { data: { data: [...], pagination: {...} }, errors: [] }
+  const res = await apiFetch<ApiResponse<{ data: BuildRunDetail[]; pagination: Pagination }>>(
     `/v2/builds/runs?${qs.toString()}`
   );
+  const inner = res.data as { data: BuildRunDetail[]; pagination: Pagination };
   return {
-    data: res.data,
-    pagination: {
-      page: res.page ?? 1,
-      limit: res.resultsPerPage ?? 25,
-      total: res.totalResults ?? 0,
-      pages: res.totalPages ?? 0,
-    },
+    data: inner?.data ?? [],
+    pagination: inner?.pagination ?? { page: 1, limit: 25, total: 0, pages: 0 },
   };
 }
 
@@ -170,17 +167,14 @@ export async function fetchBuilds(
   if (params?.product) qs.set('product', params.product);
   if (params?.triggerTypes) qs.set('triggerTypes', params.triggerTypes);
 
-  const res = await apiFetch<PaginatedApiResponse<BuildJob[]>>(
+  // API returns { data: { data: [...], pagination: {...} }, errors: [] }
+  const res = await apiFetch<ApiResponse<{ data: BuildJob[]; pagination: Pagination }>>(
     `/v2/builds?${qs.toString()}`
   );
+  const inner = res.data as { data: BuildJob[]; pagination: Pagination };
   return {
-    data: res.data,
-    pagination: {
-      page: res.page ?? 1,
-      limit: res.resultsPerPage ?? 25,
-      total: res.totalResults ?? 0,
-      pages: res.totalPages ?? 0,
-    },
+    data: inner?.data ?? [],
+    pagination: inner?.pagination ?? { page: 1, limit: 25, total: 0, pages: 0 },
   };
 }
 
@@ -369,17 +363,14 @@ export async function fetchPrPipelines(
   if (params?.productId) qs.set('productId', params.productId);
   if (params?.status) qs.set('status', params.status);
 
-  const res = await apiFetch<PaginatedApiResponse<PrPipelineSummary[]>>(
+  // API returns { data: { data: [...], pagination: {...} }, errors: [] }
+  const res = await apiFetch<ApiResponse<{ data: PrPipelineSummary[]; pagination: Pagination }>>(
     `/v2/builds/prs?${qs.toString()}`
   );
+  const inner = res.data as { data: PrPipelineSummary[]; pagination: Pagination };
   return {
-    data: res.data,
-    pagination: {
-      page: res.page ?? 1,
-      limit: res.resultsPerPage ?? 20,
-      total: res.totalResults ?? 0,
-      pages: res.totalPages ?? 0,
-    },
+    data: inner?.data ?? [],
+    pagination: inner?.pagination ?? { page: 1, limit: 20, total: 0, pages: 0 },
   };
 }
 
