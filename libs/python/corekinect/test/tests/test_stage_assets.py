@@ -46,10 +46,10 @@ def fuota_resolver(resolver):
     """Resolver with all builds required by the fuota stage."""
     resolver.add_build("MFG_BASE", version="0.8.3", variant="mfg", track="BM")
     resolver.add_build("MFG_BUMP", version="0.8.4", variant="mfg", track="BM")
-    resolver.add_build("FUT_DEBUG_A", version="0.5.0", variant="debug", track="BM")
-    resolver.add_build("FUT_DEBUG_B", version="0.5.1", variant="debug", track="BM")
-    resolver.add_build("FUT_RELEASE_A", version="0.5.0", variant="release", track="BM")
-    resolver.add_build("FUT_RELEASE_B", version="0.5.1", variant="release", track="BM")
+    resolver.add_build("FUT_VERBOSE_A", version="0.5.0", variant="debug", track="BM")
+    resolver.add_build("FUT_VERBOSE_B", version="0.5.1", variant="debug", track="BM")
+    resolver.add_build("FUT_QUIET_A", version="0.5.0", variant="release", track="BM")
+    resolver.add_build("FUT_QUIET_B", version="0.5.1", variant="release", track="BM")
     resolver.add_build("MAIN_BASELINE", version="0.8.2", variant="release", track="BM")
     resolver.add_build("MAIN_MERGED", version="0.8.3", variant="release", track="BM")
     return resolver

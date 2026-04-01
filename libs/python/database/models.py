@@ -1071,6 +1071,10 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     """Git branch to poll for this stage (e.g., "main", "develop")
     """
 
+    triggerType: _str
+    """"pr_push", "pr_merge", "auto", "schedule", "manual"
+    """
+
     signingKeyId: Optional[_str] = None
     """FK to Secret (signing key for this stage's builds)
     """
@@ -5809,6 +5813,14 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'type': '_str',
             'is_relational': False,
             'documentation': '''Git branch to poll for this stage (e.g., "main", "develop")''',
+        }),
+        ('triggerType', {
+            'name': 'triggerType',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"pr_push", "pr_merge", "auto", "schedule", "manual"''',
         }),
         ('signingKeyId', {
             'name': 'signingKeyId',

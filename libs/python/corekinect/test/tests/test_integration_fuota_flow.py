@@ -33,10 +33,10 @@ def _build_fuota_resolver() -> StubArtifactResolver:
     resolver = StubArtifactResolver()
     resolver.add_build("MFG_BASE", version="0.5.0", variant="mfg", track="BM")
     resolver.add_build("MFG_BUMP", version="0.5.1", variant="mfg", track="BM")
-    resolver.add_build("FUT_DEBUG_A", version="0.5.0", variant="debug", track="BM")
-    resolver.add_build("FUT_DEBUG_B", version="0.5.1", variant="debug", track="BM")
-    resolver.add_build("FUT_RELEASE_A", version="0.5.0", variant="release", track="B")
-    resolver.add_build("FUT_RELEASE_B", version="0.5.1", variant="release", track="B")
+    resolver.add_build("FUT_VERBOSE_A", version="0.5.0", variant="debug", track="BM")
+    resolver.add_build("FUT_VERBOSE_B", version="0.5.1", variant="debug", track="BM")
+    resolver.add_build("FUT_QUIET_A", version="0.5.0", variant="release", track="BM")
+    resolver.add_build("FUT_QUIET_B", version="0.5.1", variant="release", track="BM")
     resolver.add_build("MAIN_BASELINE", version="0.5.0", variant="debug", track="BM")
     resolver.add_build("MAIN_MERGED", version="0.5.0", variant="debug", track="BM")
     return resolver
@@ -65,8 +65,8 @@ class TestFuotaTransitionFlow:
         assert len(assets.labels) == 8
 
         # ── 2. Get source and target builds ──
-        source = assets.by_label("FUT_DEBUG_A")
-        target = assets.by_label("FUT_DEBUG_B")
+        source = assets.by_label("FUT_VERBOSE_A")
+        target = assets.by_label("FUT_VERBOSE_B")
 
         assert source.version() == "0.5.0"
         assert target.version() == "0.5.1"
@@ -158,19 +158,19 @@ class TestStageAssetsToOrchestrator:
 
         resolver.cleanup()
 
-    def test_release_builds_have_no_mfg_flag(self):
-        """Release CFWs should not have the manufacturing flag."""
+    def test_quiet_builds_use_bm_track(self):
+        """Quiet CFWs use BM track (same as all Alpha FUOTA builds)."""
         resolver = _build_fuota_resolver()
         assets = StageAssets(resolver, stage="fuota")
 
-        release_a = assets.by_label("FUT_RELEASE_A")
-        cfws = release_a.cfws()
+        quiet_a = assets.by_label("FUT_QUIET_A")
+        cfws = quiet_a.cfws()
 
         for cfw_path in cfws:
             info = parse_cfw_header(cfw_path)
-            assert info["is_mfg"] is False
-            assert info["track"] == "B"  # Bench, no M suffix
-            assert "M" not in info["target_string"].split("-")[1]
+            # All Alpha FUOTA builds use BM track — no D flag
+            assert info["track"] == "B"
+            assert info["is_debug"] is False, "D flag must NEVER be set for FUOTA CFWs"
 
         resolver.cleanup()
 
@@ -179,7 +179,7 @@ class TestStageAssetsToOrchestrator:
         resolver = _build_fuota_resolver()
         assets = StageAssets(resolver, stage="fuota")
 
-        target = assets.by_label("FUT_DEBUG_B")
+        target = assets.by_label("FUT_VERBOSE_B")
 
         # Version string from manifest
         app_version_string = target.version_string("app")
@@ -202,10 +202,10 @@ class TestStageValidation:
         # Only add 7 of 8 required FUOTA builds
         resolver.add_build("MFG_BASE", version="0.5.0", variant="mfg", track="BM")
         resolver.add_build("MFG_BUMP", version="0.5.1", variant="mfg", track="BM")
-        resolver.add_build("FUT_DEBUG_A", version="0.5.0", variant="debug", track="BM")
-        resolver.add_build("FUT_DEBUG_B", version="0.5.1", variant="debug", track="BM")
-        resolver.add_build("FUT_RELEASE_A", version="0.5.0", variant="release", track="B")
-        resolver.add_build("FUT_RELEASE_B", version="0.5.1", variant="release", track="B")
+        resolver.add_build("FUT_VERBOSE_A", version="0.5.0", variant="debug", track="BM")
+        resolver.add_build("FUT_VERBOSE_B", version="0.5.1", variant="debug", track="BM")
+        resolver.add_build("FUT_QUIET_A", version="0.5.0", variant="release", track="B")
+        resolver.add_build("FUT_QUIET_B", version="0.5.1", variant="release", track="B")
         resolver.add_build("MAIN_BASELINE", version="0.5.0", variant="debug", track="BM")
         # Missing: MAIN_MERGED
 
@@ -216,7 +216,7 @@ class TestStageValidation:
         """If a build failed, StageAssets.validate() catches it."""
         resolver = _build_fuota_resolver()
         # Corrupt one build
-        resolver._builds["FUT_DEBUG_B"].status = "FAILED"
+        resolver._builds["FUT_VERBOSE_B"].status = "FAILED"
 
         with pytest.raises(ConfigError, match="failed builds"):
             StageAssets(resolver, stage="fuota", strict=True)

@@ -67,9 +67,9 @@ from .helpers import (
 )
 
 # Pipeline build labels
-FLASH_LABEL = "MFG_FLASH"       # MFG firmware to flash via J-Link
+FLASH_LABEL = "MFG_BASE"        # MFG firmware to flash via J-Link
 # TODO(corecloud-fix): When CoreCloud fixes D-flag stripping, consider switching to debug
-FUOTA_LABEL = "PROD_QUIET"      # Production firmware with CONFIG_LOG=n (release, default)
+FUOTA_LABEL = "FUT_QUIET_A"     # Production firmware with CONFIG_LOG=n (release, default)
 
 
 @pytest.fixture(autouse=True, scope="class")
@@ -103,6 +103,7 @@ def _fuota_cleanup(request, fuota_client):
         print(f"Cleanup warning: {e} — atexit handler will retry")
 
 
+@pytest.mark.fuota_full
 class TestMfgToProdQuietFuota:
     """MFG-to-Production FUOTA (quiet) — cloud-only verification."""
 

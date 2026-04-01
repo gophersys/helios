@@ -16,10 +16,13 @@ from .stage_defs import (
     StageBuildDef,
     STAGE_NUMBERS,
     STAGE_NAMES,
-    get_stage_build_defs,
-    get_required_labels,
+    get_build_def,
     get_labels_with_cfw,
     get_labels_with_hex,
+    get_quiet_labels,
+    get_required_labels,
+    get_stage_build_defs,
+    get_verbose_labels,
 )
 
 __all__ = [
@@ -27,8 +30,11 @@ __all__ = [
     "StageBuildDef",
     "STAGE_NUMBERS",
     "STAGE_NAMES",
-    "get_stage_build_defs",
-    "get_required_labels",
+    "get_build_def",
     "get_labels_with_cfw",
     "get_labels_with_hex",
+    "get_quiet_labels",
+    "get_required_labels",
+    "get_stage_build_defs",
+    "get_verbose_labels",
 ]

@@ -7090,7 +7090,7 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         results = ProductStageConfig.prisma().count(
             select={
                 '_all': True,
-                'signingKeyId': True,
+                'triggerType': True,
             },
         )
         ```
@@ -7230,10 +7230,10 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group ProductStageConfig records by createdAt values
+        # group ProductStageConfig records by signingKeyId values
         # and count how many records are in each group
         results = ProductStageConfig.prisma().group_by(
-            ['createdAt'],
+            ['signingKeyId'],
             count=True,
         )
         ```

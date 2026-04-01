@@ -17,6 +17,9 @@ STAGE_NAMES = {
 }
 
 
+VALID_TRIGGER_TYPES = {"pr_push", "pr_merge", "auto", "schedule", "manual"}
+
+
 @dataclass
 class StageConfigCreateRequest:
     stage: int
@@ -24,6 +27,7 @@ class StageConfigCreateRequest:
     enabled: bool = False
     boardRevisionId: Optional[str] = None
     watchBranch: Optional[str] = None
+    triggerType: str = "manual"
     signingKeyId: Optional[str] = None
 
     @classmethod
@@ -44,12 +48,17 @@ class StageConfigCreateRequest:
         if name != expected_name:
             return None, f"Name must be '{expected_name}' for stage {stage}"
 
+        trigger_type = (data.get("triggerType") or "manual").strip()
+        if trigger_type not in VALID_TRIGGER_TYPES:
+            return None, f"triggerType must be one of: {', '.join(sorted(VALID_TRIGGER_TYPES))}"
+
         return cls(
             stage=stage,
             name=name,
             enabled=data.get("enabled", False),
             boardRevisionId=data.get("boardRevisionId"),
             watchBranch=(data.get("watchBranch") or "").strip() or None,
+            triggerType=trigger_type,
             signingKeyId=data.get("signingKeyId"),
         ), None
 
@@ -59,9 +68,11 @@ class StageConfigUpdateRequest:
     enabled: Optional[bool] = None
     boardRevisionId: Optional[str] = None
     watchBranch: Optional[str] = None
+    triggerType: Optional[str] = None
     signingKeyId: Optional[str] = None
     _has_board_revision_id: bool = False
     _has_watch_branch: bool = False
+    _has_trigger_type: bool = False
     _has_signing_key_id: bool = False
 
     @classmethod
@@ -81,10 +92,17 @@ class StageConfigUpdateRequest:
         if watch_branch is not None:
             watch_branch = watch_branch.strip() or None
 
+        trigger_type = data.get("triggerType")
+        has_tt = "triggerType" in data
+        if trigger_type is not None:
+            trigger_type = trigger_type.strip()
+            if trigger_type not in VALID_TRIGGER_TYPES:
+                return None, f"triggerType must be one of: {', '.join(sorted(VALID_TRIGGER_TYPES))}"
+
         signing_key_id = data.get("signingKeyId")
         has_sk = "signingKeyId" in data
 
-        has_any = enabled is not None or has_brid or has_wb or has_sk
+        has_any = enabled is not None or has_brid or has_wb or has_tt or has_sk
         if not has_any:
             return None, "No fields to update"
 
@@ -92,9 +110,11 @@ class StageConfigUpdateRequest:
             enabled=enabled,
             boardRevisionId=board_revision_id,
             watchBranch=watch_branch,
+            triggerType=trigger_type,
             signingKeyId=signing_key_id,
             _has_board_revision_id=has_brid,
             _has_watch_branch=has_wb,
+            _has_trigger_type=has_tt,
             _has_signing_key_id=has_sk,
         ), None
 
@@ -106,6 +126,8 @@ class StageConfigUpdateRequest:
             update_data["boardRevisionId"] = self.boardRevisionId
         if self._has_watch_branch:
             update_data["watchBranch"] = self.watchBranch
+        if self._has_trigger_type:
+            update_data["triggerType"] = self.triggerType
         if self._has_signing_key_id:
             update_data["signingKeyId"] = self.signingKeyId
         return update_data

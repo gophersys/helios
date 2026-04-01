@@ -45,8 +45,8 @@ from .helpers import (
 )
 
 # Pipeline build labels
-FLASH_LABEL = "MFG_FLASH"    # Older MFG firmware to flash via J-Link
-FUOTA_LABEL = "MFG_BASE"     # Newer MFG firmware to deliver via FUOTA (same code, bumped version)
+FLASH_LABEL = "MFG_BASE"     # Older MFG firmware to flash via J-Link
+FUOTA_LABEL = "MFG_BUMP"     # Newer MFG firmware to deliver via FUOTA (same code, bumped version)
 
 
 @pytest.fixture(autouse=True, scope="class")
@@ -91,6 +91,7 @@ def _fuota_cleanup(request, fuota_client):
         print(f"Cleanup warning: {e} — atexit handler will retry")
 
 
+@pytest.mark.fuota_fast
 class TestMfgToMfgFuota:
     """MFG-to-MFG FUOTA — sanity check (same code, version bump)."""
 

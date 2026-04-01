@@ -73,10 +73,10 @@ from .helpers import (
 )
 
 # Pipeline build labels
-FLASH_LABEL = "MFG_FLASH"
+FLASH_LABEL = "MFG_BASE"
 # TODO(corecloud-fix): When CoreCloud fixes D-flag stripping, consider switching to debug
-SETUP_FUOTA_LABEL = "PROD_QUIET"           # Setup: MFG → this
-UPGRADE_FUOTA_LABEL = "PROD_QUIET_BUMP"    # Test:  PROD_QUIET → this
+SETUP_FUOTA_LABEL = "FUT_QUIET_A"          # Setup: MFG → this
+UPGRADE_FUOTA_LABEL = "FUT_QUIET_B"        # Test:  FUT_QUIET_A → this
 
 
 @pytest.fixture(autouse=True, scope="class")
@@ -107,6 +107,7 @@ def _fuota_cleanup(request, fuota_client):
         print(f"Cleanup warning: {e} — atexit handler will retry")
 
 
+@pytest.mark.fuota_full
 class TestProdToProdQuietFuota:
     """Prod-to-Prod FUOTA (quiet) — two-phase upgrade, cloud-only verification."""
 

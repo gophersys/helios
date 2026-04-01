@@ -27,6 +27,24 @@
   let formRevisionId = $state('');
   let formBranch = $state('main');
   let formSigningKeyId = $state('');
+  let formTriggerType = $state('manual');
+
+  const triggerOptions = [
+    { value: 'pr_push', label: 'On every push (PR or branch)' },
+    { value: 'pr_merge', label: 'On merge to watched branch' },
+    { value: 'auto', label: 'Auto (after previous stage passes)' },
+    { value: 'schedule', label: 'Scheduled (cron)' },
+    { value: 'manual', label: 'Manual only' },
+  ];
+
+  // Default trigger type per stage
+  const defaultTrigger: Record<number, string> = {
+    1: 'pr_push',    // Smoke on every push
+    2: 'auto',       // Silicon after Smoke
+    3: 'auto',       // Integration after Silicon
+    4: 'schedule',   // Nightly on cron
+    5: 'pr_merge',   // FUOTA on merge
+  };
 
   const stageBadgeColors: Record<number, string> = {
     1: 'bg-blue-500/10 text-blue-400',
@@ -64,10 +82,12 @@
       formRevisionId = config.boardRevisionId || '';
       formBranch = config.watchBranch || 'main';
       formSigningKeyId = config.signingKeyId || '';
+      formTriggerType = (config as any).triggerType || defaultTrigger[stage] || 'manual';
     } else {
       formRevisionId = revisions[0]?.id || '';
       formBranch = 'main';
       formSigningKeyId = signingKeys[0]?.id || '';
+      formTriggerType = defaultTrigger[stage] || 'manual';
     }
     configuring = true;
     expanded = true;
@@ -86,6 +106,7 @@
         boardRevisionId: formRevisionId,
         watchBranch: formBranch || null,
         signingKeyId: formSigningKeyId || null,
+        triggerType: formTriggerType,
         buildNow,
       } as any);
       configuring = false;
@@ -181,7 +202,22 @@
         </select>
       </div>
 
-      <!-- Branch + Signing Key -->
+      <!-- Trigger type -->
+      <div>
+        <label for="stage-trigger-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Trigger</label>
+        <select
+          id="stage-trigger-{stage}"
+          bind:value={formTriggerType}
+          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+        >
+          {#each triggerOptions as opt}
+            <option value={opt.value}>{opt.label}</option>
+          {/each}
+        </select>
+      </div>
+
+      <!-- Branch + Signing Key (shown when trigger needs a branch) -->
+      {#if formTriggerType === 'pr_push' || formTriggerType === 'pr_merge'}
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
           <label for="stage-branch-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Watch Branch</label>
@@ -229,6 +265,8 @@
           {/if}
         </div>
       </div>
+
+      {/if}
 
       <!-- Info -->
       <div class="rounded bg-surface-0 border border-border-subtle px-3 py-2 text-2xs text-text-tertiary flex items-center gap-2">

@@ -326,6 +326,9 @@ model ProductStageConfig {
     // Source — which branch to watch for changes
     watchBranch String? /// Git branch to poll for this stage (e.g., "main", "develop")
 
+    // Trigger — what event starts this stage
+    triggerType String @default("manual") /// "pr_push", "pr_merge", "auto", "schedule", "manual"
+
     // Signing — which key set to use for builds
     signingKeyId String? /// FK to Secret (signing key for this stage's builds)
 
