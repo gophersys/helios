@@ -36,6 +36,19 @@ class BuildWorkerLoop:
         self.git_ops = GitOps(config.ssh_key_path, self.client)
         self.builder = BuildExecutor(self.client)
 
+        # Docker build runner (if builder_mode == "docker")
+        self.docker_runner = None
+        if config.builder_mode == "docker":
+            from src.worker.docker_runner import DockerBuildRunner
+            self.docker_runner = DockerBuildRunner(
+                workspace_volume=config.workspace_volume,
+                ccache_volume=config.ccache_volume,
+                builder_network=config.builder_network,
+                builder_timeout=config.builder_timeout,
+                default_image=config.default_builder_image,
+            )
+            log.info("Docker build mode enabled (default image: %s)", config.default_builder_image)
+
         # NCS version cache: product -> ncs_version (learned from devcontainer)
         self._product_ncs_cache: Dict[str, str] = {}
 
@@ -52,12 +65,12 @@ class BuildWorkerLoop:
                 data={
                     "create": {
                         "id": self.config.worker_id,
-                        "ncsVersion": self.config.ncs_version or "",
+                        "ncsVersion": "",
                         "status": "ONLINE",
                         "lastHeartbeat": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     },
                     "update": {
-                        "ncsVersion": self.config.ncs_version or "",
+                        "ncsVersion": "",
                         "status": "ONLINE",
                         "lastHeartbeat": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     },
@@ -105,11 +118,8 @@ class BuildWorkerLoop:
 
         for j in jobs:
             product = j["product"]
-            # Skip products we already know need a different NCS version
-            if self.config.ncs_version and product in self._product_ncs_cache:
-                cached_ncs = self._product_ncs_cache[product]
-                if cached_ncs != self.config.ncs_version:
-                    continue
+            # In docker mode, any NCS version is supported — skip version check
+            # In local mode, we'd need to check NCS compatibility here
 
             return BuildJob(
                 id=j["id"],
@@ -219,88 +229,248 @@ class BuildWorkerLoop:
             work_dir.mkdir(parents=True)
             output_dir.mkdir(parents=True)
 
-            # Determine product base (alpha_fw -> alpha)
-            product_base = job.product.lower().replace("_fw", "").replace("_mfg", "")  # "alpha"
+            # ── Resolve repos from webhookData ──
+            # Each BuildJob carries both repo URLs so the worker doesn't guess.
+            # repoUrl = the PRIMARY source (where the build script lives)
+            # The other repo is SECONDARY (cloned at mainline for shared assets)
+            webhook = job.config_flags  # webhookData is parsed into the job
+            # Try to get repo info from the API response's webhookData
+            _webhook_data = {}
+            try:
+                result = self.client.api_get(f"/v2/builds/{job.id}")
+                if result and result.get("data"):
+                    _webhook_data = result["data"].get("webhookData") or {}
+            except Exception:
+                pass
 
-            # 1. Fetch build script from API
-            log.info("Fetching build script...")
+            fw_slug = _webhook_data.get("fwRepoSlug") or f"{job.product.lower()}_fw"
+            mfg_slug = _webhook_data.get("mfgRepoSlug") or f"{job.product.lower()}_mfg_fw"
+            product_base = job.product.lower().replace("_fw", "").replace("_mfg", "")
+
+            # Determine primary/secondary based on build target
+            # The PR branch only exists on the fw repo. The mfg repo always uses "main".
+            # Both repo types are cloned — primary is the one being built,
+            # secondary provides shared assets (signing keys, etc).
+            if job.target == "mfg":
+                primary_slug = mfg_slug
+                primary_branch = "main"     # mfg repo always uses mainline
+                primary_commit = None       # latest on main
+                secondary_slug = fw_slug
+                secondary_branch = job.branch
+                secondary_commit = job.commit_sha
+            else:
+                primary_slug = fw_slug
+                primary_branch = job.branch
+                primary_commit = job.commit_sha
+                secondary_slug = mfg_slug
+                secondary_branch = "main"
+                secondary_commit = None
+
+            # 1. Fetch overlays from API (optional)
             self._update_local_job(job.id, step="clone")
-            script_content = self.git_ops.fetch_build_script(job.product)
-            if not script_content:
-                self.update_job(job.id, "FAILED", f"Failed to fetch build script for {job.product}")
-                return False
-
-            scripts_dir = work_dir / "scripts"
-            scripts_dir.mkdir(parents=True)
-            script_file = scripts_dir / "build.sh"
-            script_file.write_text(script_content)
-            script_file.chmod(0o755)
-
-            # 2. Fetch overlays from API
-            log.info("Fetching overlays...")
             overlays_dir = work_dir / "overlays"
-            self.git_ops.fetch_overlays(job.product, overlays_dir)  # Optional, don't fail if missing
+            self.git_ops.fetch_overlays(job.product, overlays_dir)
 
-            # 3. Clone production firmware repo (e.g., alpha_fw)
-            # Status is already CLONING from claim_job()
-            main_fw = f"{product_base}_fw"
-            main_fw_dir = work_dir / main_fw
-            # For mfg target builds, the commitSha belongs to the mfg repo — clone main fw at latest
-            main_commit = job.commit_sha if job.target != "mfg" else None
-            log.info("Cloning %s (branch=%s, commit=%s)...", main_fw, job.branch, (main_commit or "latest")[:8])
-            self.client.heartbeat(job.id)  # Keep alive during clone
-            if not self.git_ops.clone_repo(main_fw, main_fw_dir, main_commit, branch=job.branch, job_id=job.id):
-                self.update_job(job.id, "FAILED", f"Failed to clone {main_fw} (branch={job.branch})")
+            # 2. Clone PRIMARY repo (contains the build script + source to compile)
+            primary_dir = work_dir / primary_slug
+            log.info("Cloning PRIMARY %s (branch=%s, commit=%s)...",
+                     primary_slug, primary_branch, (primary_commit or "latest")[:8])
+            self.client.heartbeat(job.id)
+            if not self.git_ops.clone_repo(primary_slug, primary_dir, primary_commit,
+                                           branch=primary_branch, job_id=job.id):
+                self.update_job(job.id, "FAILED",
+                               f"Failed to clone {primary_slug} (branch={primary_branch})")
                 return False
 
-            # 3.5. Check NCS version compatibility from repo's devcontainer
-            repo_ncs = self.git_ops.check_ncs_version(main_fw_dir)
+            # 2.5. NCS version detection (informational — docker mode uses correct image)
+            repo_ncs = self.git_ops.check_ncs_version(primary_dir)
             if repo_ncs:
                 self._product_ncs_cache[job.product] = repo_ncs
-                if self.config.ncs_version and repo_ncs != self.config.ncs_version:
-                    log.warning("NCS version mismatch: repo requires %s, worker has %s — releasing job", repo_ncs, self.config.ncs_version)
-                    self.update_job(job.id, "QUEUED")  # Release back for correct worker
+                log.info("Detected NCS version: %s", repo_ncs)
+
+            # 3. Clone SECONDARY repo (shared assets, signing keys, mfg firmware)
+            secondary_dir = work_dir / secondary_slug
+            log.info("Cloning SECONDARY %s (branch=%s)...", secondary_slug, secondary_branch)
+            self.client.heartbeat(job.id)
+            if not self.git_ops.clone_repo(secondary_slug, secondary_dir, secondary_commit,
+                                           branch=secondary_branch, job_id=job.id):
+                log.warning("Failed to clone %s — secondary repo unavailable", secondary_slug)
+
+            # 4. Fetch build recipe
+            # Priority: API recipe (Concord-managed) → repo script → fail
+            scripts_dir = work_dir / "scripts"
+            scripts_dir.mkdir(parents=True, exist_ok=True)
+            recipe_path = scripts_dir / "build.sh"
+
+            recipe_found = False
+            product_id = job.product_id or (_webhook_data.get("productId"))
+
+            # Try API recipe first (stored in MinIO via Products → Build Config)
+            if product_id:
+                result = self.client.api_get(f"/v2/products/{product_id}/recipe")
+                if result and result.get("data"):
+                    content = result["data"].get("content")
+                    if content:
+                        recipe_path.write_text(content)
+                        recipe_path.chmod(0o755)
+                        recipe_found = True
+                        log.info("Build recipe loaded from API (Concord-managed)")
+
+            # Fall back to repo's own build script
+            if not recipe_found:
+                for candidate in [
+                    primary_dir / "scripts" / "build.sh",
+                    primary_dir / "build_all.sh",
+                    primary_dir / "build.sh",
+                ]:
+                    if candidate.exists():
+                        shutil.copy2(candidate, recipe_path)
+                        recipe_path.chmod(0o755)
+                        recipe_found = True
+                        log.info("Using repo build script: %s", candidate.name)
+                        break
+
+            if not recipe_found:
+                self.update_job(job.id, "FAILED",
+                               f"No build recipe found — upload one via Products → Build Config")
+                return False
+
+            # 4.5. Fetch product targets for SDK env vars (appId, role, processor)
+            import json as _json
+            targets_json = "[]"
+            if product_id:
+                prod_result = self.client.api_get(f"/v2/products/{product_id}")
+                if prod_result and prod_result.get("data"):
+                    prod_data = prod_result["data"]
+                    targets = []
+                    for board in (prod_data.get("boards") or []):
+                        for rev in (board.get("revisions") or []):
+                            for t in (rev.get("targets") or []):
+                                targets.append({
+                                    "role": t.get("role", ""),
+                                    "appId": t.get("appId", 0),
+                                    "processor": t.get("processor") or t.get("soc", ""),
+                                })
+                    if targets:
+                        targets_json = _json.dumps(targets)
+                        log.info("Product targets: %s", targets_json)
+            if not job.config_flags:
+                job.config_flags = {}
+            job.config_flags["_targets_json"] = targets_json
+
+            # 4.6. Copy SDK into workspace (needed for DinD — can't bind-mount from container)
+            sdk_src = Path("/app/sdk")
+            sdk_dest = work_dir / "sdk"
+            if sdk_src.is_dir() and not sdk_dest.exists():
+                shutil.copytree(sdk_src, sdk_dest)
+                log.info("Copied Concord Build SDK to workspace")
+                # Update the recipe to source from workspace-relative path
+                if recipe_path.exists():
+                    content = recipe_path.read_text()
+                    content = content.replace(
+                        "source /app/sdk/concord-build.sh",
+                        f"source /workspace/{job.id}/sdk/concord-build.sh"
+                    )
+                    recipe_path.write_text(content)
+
+            # 5. Deploy signing key from Concord Secrets
+            #
+            # The stage config's signingKeyId points to a Secret in Concord.
+            # The build trigger embeds the key value (base64) in webhookData
+            # so the orchestrator doesn't need direct DB access.
+            #
+            # This key is the MCUboot encryption key — critical for FUOTA.
+            # Both repos MUST use the SAME key so MCUboot can decrypt OTA images.
+            # The SDK's _concord_fix_sysbuild_paths handles writing the key to
+            # the paths that sysbuild.conf references.
+            import base64 as _b64
+            signing_key_b64 = _webhook_data.get("signingKeyValue")
+            signing_key_deployed = False
+
+            if signing_key_b64:
+                try:
+                    key_bytes = _b64.b64decode(signing_key_b64)
+                    # Deploy to BOTH repos — every path that sysbuild.conf might reference
+                    for target_dir in [primary_dir, secondary_dir]:
+                        if not target_dir.is_dir():
+                            continue
+                        for key_name in ["encryption_key.pem", "comms_encryption_key.pem"]:
+                            dest = target_dir / key_name
+                            dest.write_bytes(key_bytes)
+                            dest.chmod(0o600)
+                        # Also into comm_coproc_mfg subdirectory
+                        comms_subdir = target_dir / "comm_coproc_mfg"
+                        if comms_subdir.is_dir():
+                            (comms_subdir / "comms_encryption_key.pem").write_bytes(key_bytes)
+                            (comms_subdir / "comms_encryption_key.pem").chmod(0o600)
+                        log.info("Signing key deployed to %s (from Concord Secrets)", target_dir.name)
+                    signing_key_deployed = True
+                except Exception as e:
+                    log.error("Failed to decode signing key: %s", e)
+
+            # Fallback: check /keys/{product} mount (K8s secret volume, staging/production)
+            if not signing_key_deployed:
+                keys_dir = Path(f"/keys/{product_base}")
+                if keys_dir.is_dir():
+                    for key_file in keys_dir.glob("*.pem"):
+                        for target_dir in [primary_dir, secondary_dir]:
+                            if target_dir.is_dir():
+                                for key_name in ["encryption_key.pem", "comms_encryption_key.pem"]:
+                                    shutil.copy2(key_file, target_dir / key_name)
+                                comms_subdir = target_dir / "comm_coproc_mfg"
+                                if comms_subdir.is_dir():
+                                    shutil.copy2(key_file, comms_subdir / "comms_encryption_key.pem")
+                        log.info("Signing key from K8s mount: %s", key_file.name)
+                        signing_key_deployed = True
+                        break
+
+            if not signing_key_deployed:
+                log.warning("No signing key configured — encrypted builds will fail. "
+                           "Add a signing key in Products → Stage Config → Signing Key")
+
+            # 6. Resolve builder image from devcontainer.json
+            builder_image = None
+            if self.docker_runner:
+                builder_image = self.git_ops.get_builder_image(primary_dir)
+                if not builder_image:
+                    builder_image = self.config.default_builder_image
+                    log.info("No devcontainer.json — using default: %s", builder_image)
+
+                if not self.docker_runner.ensure_image(builder_image):
+                    self.update_job(job.id, "FAILED",
+                                   f"Failed to pull builder image: {builder_image}")
                     return False
 
-            # 4. Clone manufacturing firmware repo (e.g., alpha_mfg_fw)
-            mfg_fw = f"{product_base}_mfg_fw"
-            mfg_fw_dir = work_dir / mfg_fw
-            # For mfg target builds, the commitSha belongs to the mfg repo
-            mfg_commit = job.commit_sha if job.target == "mfg" else None
-            log.info("Cloning %s (branch=%s, commit=%s)...", mfg_fw, job.branch, (mfg_commit or "latest")[:8] if mfg_commit else "latest")
-            self.client.heartbeat(job.id)  # Keep alive during second clone
-            if not self.git_ops.clone_repo(mfg_fw, mfg_fw_dir, mfg_commit, branch=job.branch, job_id=job.id):
-                log.warning("Failed to clone %s - mfg builds may fail", mfg_fw)
-                # Don't fail here, mfg repo might not exist for all products
+                # Store primary slug in config_flags for executor's Docker path mapping
+                if not job.config_flags:
+                    job.config_flags = {}
+                job.config_flags["_primary_slug"] = primary_slug
 
-            # 5. Copy MCUboot signing keys into cloned repos
-            # Always overwrite — repos may ship different keys per-branch but
-            # FUOTA requires both alpha_fw and alpha_mfg_fw to use the SAME
-            # shared boot key so MCUboot can decrypt OTA images.
-            keys_dir = Path(f"/keys/{product_base}")
-            if keys_dir.is_dir():
-                for key_file in keys_dir.glob("*.pem"):
-                    for target_dir in [main_fw_dir, mfg_fw_dir]:
-                        if target_dir.is_dir():
-                            dest = target_dir / key_file.name
-                            shutil.copy2(key_file, dest)
-                            log.info("Copied shared key %s to %s", key_file.name, target_dir.name)
-
-            # 6. Run build (writes log to output_dir/build.log during execution)
+            # 7. Run build
             self.update_job(job.id, "BUILDING")
-            self._update_local_job(job.id, step="cmake_configure")
-            log_file = output_dir / "build.log"
             self._update_local_job(job.id, step="compile")
-            success, log_output = self.builder.run_build(job, work_dir, output_dir)
+            log_file = output_dir / "build.log"
+            success, log_output = self.builder.run_build(
+                job, work_dir, output_dir,
+                docker_runner=self.docker_runner,
+                builder_image=builder_image,
+            )
             duration = int(time.time() - start_time)
+
+            # Write build log to file (for upload even on failure)
+            if log_output:
+                log_file.write_text(log_output)
+                log.info("Build output: %d lines, %d chars", log_output.count('\n'), len(log_output))
+                # Log last 20 lines for debugging
+                for line in log_output.strip().split('\n')[-20:]:
+                    log.info("  | %s", line)
 
             if not success:
                 log.error("Build failed for %s", job.id[:8])
-                # Store truncated error in DB, full log goes to MinIO as artifact
                 error_summary = log_output[-4000:] if len(log_output) > 4000 else log_output
                 self.update_job(job.id, "FAILED", error_summary, duration=duration)
-                # Upload full log as artifact
-                self.client.upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
+                if log_file.exists():
+                    self.client.upload_file(f"/v2/builds/{job.id}/artifacts", log_file, "build.log")
                 return False
 
             # 6. Extract version from build script output (needed for manifest)
@@ -381,7 +551,7 @@ class BuildWorkerLoop:
 
     def run(self):
         """Main worker loop."""
-        ncs_info = f", ncs={self.config.ncs_version}" if self.config.ncs_version else ", ncs=all"
+        ncs_info = f", mode={self.config.builder_mode}"
         log.info("Build worker starting (id=%s, poll=%ds%s)", self.config.worker_id, self.config.poll_interval, ncs_info)
 
         while not (self.shutdown_event and self.shutdown_event.is_set()):

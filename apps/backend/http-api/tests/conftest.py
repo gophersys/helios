@@ -23,7 +23,6 @@ def pytest_configure(config):
         "LOG_LEVEL": "10",
         "LOG_PATH": "/tmp/concord-test.log",
         "SERVER_PORT": "9001",
-        "AUTH_ENABLED": "true",
         "CORS_ORIGINS": "http://localhost:4200",
         "JWT_SECRET_KEY": "test-jwt-secret-key-for-testing",
         "COREOPS_PROXY_URL": "http://localhost:50050",

@@ -68,6 +68,7 @@ def _serialize_build_job(b: Any) -> dict:
         "versionString": b.versionString,
         "errorMessage": b.errorMessage,
         "workerId": getattr(b, "workerId", None) or (b.webhookData.get("workerId") if isinstance(getattr(b, "webhookData", None), dict) else None),
+        "webhookData": b.webhookData if isinstance(getattr(b, "webhookData", None), dict) else None,
         "startedAt": b.startedAt.isoformat() if b.startedAt else None,
         "finishedAt": b.finishedAt.isoformat() if b.finishedAt else None,
         "durationSeconds": b.durationSeconds,
@@ -507,7 +508,7 @@ def update_build(build_id: str):
         return jsonify(ApiResponse.ok(_serialize_build_job(updated)).to_dict()), 200
 
     except Exception as e:
-        logger.error("Failed to update build job: %s", e)
+        logger.exception("Failed to update build job %s: %s", build_id, e)
         return internal_error("Failed to update build job")
 
 

@@ -52,10 +52,10 @@ config:
   SERVER_PORT: "9001"
   LOG_LEVEL: "4"
   LOG_PATH: "logs"
-  AUTH_ENABLED: "true"
   ASSETS_FOLDER: "assets"
   CORS_ORIGINS: "https://staging.concord.local,http://staging.concord.local,http://localhost:4200"
   MTIB_PORT: "50053"
+  BITBUCKET_EMAIL: "mateo@corekinect.com"
   BITBUCKET_POLLER_ENABLED: "true"
   BITBUCKET_POLLER_INTERVAL_S: "15"
   BITBUCKET_SSH_KEY: "" # Set via values-staging-secrets.yaml
@@ -74,7 +74,7 @@ config:
   DEVICE_IMEI: "355025931735979"
   DEVICE_ICCIDS: "89148000008770457338,89012230001000370694"
 
-# Build Service — DaemonSet on builder nodes
+# Build Service — lightweight orchestrator, spawns dynamic builder containers
 buildService:
   enabled: true
   image:
@@ -82,11 +82,11 @@ buildService:
     tag: staging
   resources:
     requests:
-      cpu: "4"
-      memory: "8Gi"
+      cpu: "500m"
+      memory: "512Mi"
     limits:
-      cpu: "14"
-      memory: "28Gi"
+      cpu: "2"
+      memory: "2Gi"
 
 # Git Poller — polls firmware repos for new commits
 gitPoller:

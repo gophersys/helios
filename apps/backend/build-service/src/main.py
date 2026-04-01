@@ -15,6 +15,23 @@ logging.basicConfig(
 log = logging.getLogger("build-service")
 
 
+def _setup_ssh_key(config):
+    """Decode base64 SSH key to file if provided via env var."""
+    import base64
+    from pathlib import Path
+
+    if config.bitbucket_ssh_key:
+        ssh_dir = Path(config.ssh_key_path).parent
+        ssh_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        key_data = base64.b64decode(config.bitbucket_ssh_key)
+        key_path = Path(config.ssh_key_path)
+        key_path.write_bytes(key_data)
+        key_path.chmod(0o600)
+        log.info("SSH key written to %s (%d bytes)", config.ssh_key_path, len(key_data))
+    elif not Path(config.ssh_key_path).exists():
+        log.warning("No SSH key available — git clone will fail")
+
+
 def main():
     from src.config import BuildServiceConfig
     from src.db.client import init_db, close_db
@@ -22,7 +39,10 @@ def main():
     from src.worker.loop import BuildWorkerLoop
 
     config = BuildServiceConfig.from_env()
-    log.info("Build Service starting — worker=%s, ncs=%s", config.worker_id, config.ncs_version)
+    log.info("Build Service starting — worker=%s, mode=%s", config.worker_id, config.builder_mode)
+
+    # Setup SSH key from base64 env var
+    _setup_ssh_key(config)
 
     # Initialize local database
     try:

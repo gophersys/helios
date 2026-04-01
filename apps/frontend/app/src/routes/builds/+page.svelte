@@ -2,18 +2,23 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import {
+    Activity,
+    Check,
     ChevronLeft,
     ChevronRight,
     ChevronsLeft,
     ChevronsRight,
     Clock,
     Cpu,
+    ExternalLink,
     FlaskConical,
     GitBranch,
     GitCommit,
+    GitPullRequest,
     Grid3X3,
     Hammer,
     Layers,
+    Loader2,
     Moon,
     Package,
     Plus,
@@ -24,10 +29,10 @@
     Zap,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import type { BuildJob, BuildArtifact, BuildRunDetail, MatrixLabel, ValidationStage } from '$lib/types/ci';
+  import type { BuildJob, BuildArtifact, BuildRunDetail, BuildSummary, PrPipelineSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
   import type { Pagination, Product } from '$lib/types/models';
-  import { fetchBuildRuns, fetchBuilds, triggerBuildRun, createManualBuild, uploadBuildArtifact } from '$lib/services/ci';
+  import { fetchBuildRuns, fetchBuilds, fetchBuildSummary, fetchPrPipelines, triggerBuildRun, createManualBuild, uploadBuildArtifact } from '$lib/services/ci';
   import { fetchProducts as fetchProductList } from '$lib/services/products';
   import { getTriggerConfig, getProductInfo } from '$lib/constants/builds';
   import { formatTimeAgo, formatDateTime, formatDuration } from '$lib/utils/formatting';
@@ -44,7 +49,14 @@
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('builds:manage'));
 
+  // ── Stage config ──────────────────────────────────────────────
+  const STAGE_ABBREV: Record<number, string> = { 1: 'SM', 2: 'SI', 3: 'IN', 4: 'NY', 5: 'FU' };
+  const STAGE_NAMES: Record<number, string> = { 1: 'Smoke', 2: 'Silicon', 3: 'Integration', 4: 'Nightly', 5: 'FUOTA' };
+  const ALL_STAGES = [1, 2, 3, 4, 5];
+
+  // ── Filter options ────────────────────────────────────────────
   const STATUS_OPTIONS = [
+    { value: 'PENDING', label: 'Pending' },
     { value: 'BUILDING', label: 'Building' },
     { value: 'SUCCESS', label: 'Success' },
     { value: 'FAILED', label: 'Failed' },
@@ -52,17 +64,25 @@
   ];
 
   const STAGE_OPTIONS = [
-    { value: 'smoke', label: 'Smoke' },
-    { value: 'silicon', label: 'Silicon' },
-    { value: 'integration', label: 'Integration' },
-    { value: 'nightly', label: 'Nightly' },
-    { value: 'fuota', label: 'FUOTA' },
+    { value: '1', label: 'Smoke' },
+    { value: '2', label: 'Silicon' },
+    { value: '3', label: 'Integration' },
+    { value: '4', label: 'Nightly' },
+    { value: '5', label: 'FUOTA' },
   ];
 
   const TRIGGER_TYPE_OPTIONS = [
-    { value: 'worker', label: 'Worker' },
+    { value: 'pr_push', label: 'PR Push' },
+    { value: 'pr_merge', label: 'PR Merge' },
     { value: 'manual', label: 'Manual' },
-    { value: 'webhook', label: 'Webhook' },
+    { value: 'auto', label: 'Auto' },
+    { value: 'schedule', label: 'Schedule' },
+  ];
+
+  const PR_STATUS_OPTIONS = [
+    { value: 'active', label: 'Active' },
+    { value: 'failed', label: 'Failed' },
+    { value: 'completed', label: 'Completed' },
   ];
 
   // Trigger type badge config for build jobs
@@ -70,6 +90,10 @@
     worker: { color: 'text-text-secondary bg-surface-2', label: 'Worker' },
     manual: { color: 'text-accent bg-accent-muted', label: 'Manual' },
     webhook: { color: 'text-info bg-info-muted', label: 'Webhook' },
+    pr_push: { color: 'text-info bg-info-muted', label: 'PR Push' },
+    pr_merge: { color: 'text-success bg-success-muted', label: 'PR Merge' },
+    auto: { color: 'text-warning bg-warning-muted', label: 'Auto' },
+    schedule: { color: 'text-text-secondary bg-surface-2', label: 'Schedule' },
   };
 
   // Per-stage icon and color config for list badges
@@ -81,53 +105,49 @@
     fuota:       { icon: Radio,  color: 'text-info bg-info-muted' },
   };
 
-  // Get build matrix summary for validation buildRuns
-  function getMatrixSummary(pipeline: BuildRunDetail): string | null {
-    if (!buildRun.builds || buildRun.builds.length === 0) return null;
-    if (!buildRun.matrixMode) return null;
+  const STAGE_TO_MATRIX_MODE: Record<string, string> = {
+    '1': 'smoke',
+    '2': 'silicon',
+    '3': 'integration',
+    '4': 'nightly',
+    '5': 'fuota',
+  };
 
-    const statusCounts = new Map<string, number>();
-    for (const build of buildRun.builds) {
-      const status = build.status;
-      statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
-    }
+  // ── View mode ─────────────────────────────────────────────────
+  type ViewMode = 'prPipelines' | 'buildRuns' | 'jobs';
+  let viewMode = $state<ViewMode>('prPipelines');
 
-    const parts: string[] = [];
-    const order = ['SUCCESS', 'BUILDING', 'FAILED', 'QUEUED', 'CANCELLED'];
-    for (const status of order) {
-      const count = statusCounts.get(status);
-      if (count && count > 0) {
-        parts.push(`${count} ${status.toLowerCase()}`);
-      }
-    }
-    return parts.join(', ');
-  }
-
-  // Get unique variants from builds
-  function getVariantSummary(pipeline: BuildRunDetail): string {
-    if (!buildRun.builds || buildRun.builds.length === 0) return '';
-    const variants = new Set(buildRun.builds.map(b => b.variant));
-    return Array.from(variants).join(', ');
-  }
-
-  type ViewMode = 'buildRuns' | 'jobs';
-  let viewMode = $state<ViewMode>('jobs');
-
-  let buildRuns = $state<BuildRunDetail[]>([]);
-  let buildJobs = $state<BuildJob[]>([]);
+  // ── Shared state ──────────────────────────────────────────────
   let pagination = $state<Pagination>({ page: 1, limit: 25, total: 0, pages: 0 });
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let statusFilter = $state('');
-  let productFilter = $state('');
-  let branchFilter = $state('');
-  let stageFilter = $state('');
-  let triggerTypesFilter = $state('');
   let currentPage = $state(1);
   let refreshing = $state(false);
   let productOptions = $state<{ value: string; label: string }[]>([]);
+  let products = $state<Product[]>([]);
 
-  // Upload modal state
+  // ── Summary stats ─────────────────────────────────────────────
+  let summary = $state<BuildSummary | null>(null);
+
+  // ── PR Pipelines state ────────────────────────────────────────
+  let prPipelines = $state<PrPipelineSummary[]>([]);
+  let prProductFilter = $state('');
+  let prStatusFilter = $state('');
+
+  // ── Build Runs state ──────────────────────────────────────────
+  let buildRuns = $state<BuildRunDetail[]>([]);
+  let runsProductFilter = $state('');
+  let runsStageFilter = $state('');
+  let runsStatusFilter = $state('');
+  let runsTriggerFilter = $state('');
+  let runsBranchFilter = $state('');
+
+  // ── Build Jobs state ──────────────────────────────────────────
+  let buildJobs = $state<BuildJob[]>([]);
+  let jobsStatusFilter = $state('');
+  let jobsTriggerFilter = $state('');
+
+  // ── Upload modal state ────────────────────────────────────────
   let showUploadModal = $state(false);
   let uploadStep = $state<'details' | 'artifacts'>('details');
   let uploadProducts = $state<Product[]>([]);
@@ -146,7 +166,7 @@
   let artifactRole = $state('');
   let artifactProcessor = $state('');
 
-  // Trigger form
+  // ── Trigger form state ────────────────────────────────────────
   let showForm = $state(false);
   let formProduct = $state('');
   let formBoard = $state('');
@@ -158,28 +178,124 @@
   let formValidate = $state(false);
   let submitting = $state(false);
 
-  async function loadPipelines(): Promise<void> {
+  // ── Helper functions ──────────────────────────────────────────
+
+  function getStageStatusClasses(status: string | null): string {
+    if (!status) return 'bg-surface-2 text-text-tertiary';
+    switch (status) {
+      case 'SUCCESS':
+      case 'COMPLETED':
+        return 'bg-success-muted text-success';
+      case 'BUILDING':
+      case 'PENDING':
+      case 'VALIDATING':
+      case 'RUNNING':
+        return 'bg-warning-muted text-warning';
+      case 'FAILED':
+      case 'BUILD_FAILED':
+        return 'bg-error-muted text-error';
+      default:
+        return 'bg-surface-2 text-text-tertiary';
+    }
+  }
+
+  function isActiveStatus(status: string | null): boolean {
+    return status === 'BUILDING' || status === 'PENDING' || status === 'VALIDATING' || status === 'RUNNING';
+  }
+
+  function getMatrixSummary(run: BuildRunDetail): string | null {
+    if (!run.builds || run.builds.length === 0) return null;
+    if (!run.matrixMode) return null;
+
+    const statusCounts = new Map<string, number>();
+    for (const build of run.builds) {
+      statusCounts.set(build.status, (statusCounts.get(build.status) || 0) + 1);
+    }
+
+    const parts: string[] = [];
+    const order = ['SUCCESS', 'BUILDING', 'FAILED', 'QUEUED', 'CANCELLED'];
+    for (const status of order) {
+      const count = statusCounts.get(status);
+      if (count && count > 0) {
+        parts.push(`${count} ${status.toLowerCase()}`);
+      }
+    }
+    return parts.join(', ');
+  }
+
+  function getVariantSummary(run: BuildRunDetail): string {
+    if (!run.builds || run.builds.length === 0) return '';
+    const variants = new Set(run.builds.map(b => b.variant));
+    return Array.from(variants).join(', ');
+  }
+
+  function runDuration(run: BuildRunDetail): string {
+    if (run.startedAt && run.finishedAt) {
+      const duration = new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime();
+      return formatDuration(duration);
+    }
+    if (run.builds && run.builds.length > 0) {
+      const totalSeconds = run.builds.reduce((sum, b) => sum + (b.durationSeconds ?? 0), 0);
+      if (totalSeconds > 0) return formatDuration(totalSeconds * 1000);
+    }
+    return '--';
+  }
+
+  // ── Data loading ──────────────────────────────────────────────
+
+  async function loadSummary(): Promise<void> {
+    try {
+      summary = await fetchBuildSummary();
+    } catch {
+      // Summary is non-critical, don't set error
+    }
+  }
+
+  async function loadProducts(): Promise<void> {
+    try {
+      products = await fetchProductList();
+      productOptions = products.map(p => ({ value: p.id, label: p.name }));
+    } catch {
+      // Non-critical
+    }
+  }
+
+  async function loadPrPipelines(): Promise<void> {
+    try {
+      const res = await fetchPrPipelines({
+        page: currentPage,
+        limit: 20,
+        productId: prProductFilter || undefined,
+        status: prStatusFilter || undefined,
+      });
+      prPipelines = res.data;
+      pagination = res.pagination;
+      error = null;
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to load PR pipelines';
+    } finally {
+      loading = false;
+      refreshing = false;
+    }
+  }
+
+  async function loadBuildRuns(): Promise<void> {
     try {
       const res = await fetchBuildRuns({
         page: currentPage,
         limit: 25,
-        status: statusFilter || undefined,
-        product: productFilter || undefined,
-        branch: branchFilter || undefined,
-        matrixMode: stageFilter || undefined,
+        status: runsStatusFilter || undefined,
+        product: runsProductFilter ? (products.find(p => p.id === runsProductFilter)?.name) : undefined,
+        productId: runsProductFilter || undefined,
+        branch: runsBranchFilter || undefined,
+        stage: runsStageFilter ? parseInt(runsStageFilter) : undefined,
+        triggerType: runsTriggerFilter || undefined,
       });
       buildRuns = res.data;
       pagination = res.pagination;
       error = null;
-
-      // Extract unique products for filter dropdown (only on first load)
-      if (productOptions.length === 0 && res.data.length > 0) {
-        const products = new Set<string>();
-        res.data.forEach(p => { if (p.product) products.add(p.product); });
-        productOptions = Array.from(products).sort().map(p => ({ value: p, label: p }));
-      }
     } catch (err: unknown) {
-      error = err instanceof Error ? err.message : 'Failed to load buildRuns';
+      error = err instanceof Error ? err.message : 'Failed to load build runs';
     } finally {
       loading = false;
       refreshing = false;
@@ -191,8 +307,8 @@
       const res = await fetchBuilds({
         page: currentPage,
         limit: 25,
-        status: statusFilter || undefined,
-        triggerTypes: triggerTypesFilter || undefined,
+        status: jobsStatusFilter || undefined,
+        triggerTypes: jobsTriggerFilter || undefined,
       });
       buildJobs = res.data;
       pagination = res.pagination;
@@ -206,7 +322,9 @@
   }
 
   function loadData(): void {
-    if (viewMode === 'buildRuns') loadPipelines();
+    loadSummary();
+    if (viewMode === 'prPipelines') loadPrPipelines();
+    else if (viewMode === 'buildRuns') loadBuildRuns();
     else loadBuildJobs();
   }
 
@@ -214,6 +332,15 @@
     refreshing = true;
     loadData();
   }
+
+  function switchTab(mode: ViewMode): void {
+    viewMode = mode;
+    currentPage = 1;
+    loading = true;
+    loadData();
+  }
+
+  // ── Trigger form handlers ─────────────────────────────────────
 
   function resetForm(): void {
     formProduct = '';
@@ -232,7 +359,7 @@
     error = null;
     submitting = true;
     try {
-      const buildRun = await triggerBuildRun({
+      const run = await triggerBuildRun({
         product: formProduct,
         board: formBoard,
         target: formTarget,
@@ -243,13 +370,15 @@
         serialNumber: formSerialNumber || undefined,
       });
       resetForm();
-      goto(`/builds/runs/${buildRun.id}`);
+      goto(`/builds/runs/${run.id}`);
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to trigger build';
     } finally {
       submitting = false;
     }
   }
+
+  // ── Upload modal handlers ────────────────────────────────────
 
   async function loadUploadProducts(): Promise<void> {
     try {
@@ -330,45 +459,53 @@
     }
   }
 
-  function pipelineDuration(pipeline: BuildRunDetail): string {
-    // For list view, calculate from startedAt/finishedAt or use build durations
-    if (buildRun.startedAt && buildRun.finishedAt) {
-      const duration = new Date(buildRun.finishedAt).getTime() - new Date(buildRun.startedAt).getTime();
-      return formatDuration(duration);
-    }
-    if (buildRun.builds && buildRun.builds.length > 0) {
-      const totalSeconds = buildRun.builds.reduce((sum, b) => sum + (b.durationSeconds ?? 0), 0);
-      if (totalSeconds > 0) return formatDuration(totalSeconds * 1000);
-    }
-    return '--';
-  }
+  // ── Lifecycle ─────────────────────────────────────────────────
 
   onMount(() => {
     if (!auth.hasPermission('builds:view')) {
       goto('/');
       return;
     }
+    loadProducts();
     loadData();
 
-    // Auto-refresh every 10s
     const interval = setInterval(() => {
       loadData();
     }, 10000);
     return () => clearInterval(interval);
   });
 
+  // Reset page when filters change per view
   $effect(() => {
-    const _p = currentPage;
-    loadData();
+    if (viewMode === 'prPipelines') {
+      const _a = prProductFilter;
+      const _b = prStatusFilter;
+      currentPage = 1;
+    }
   });
 
   $effect(() => {
-    const _s = statusFilter;
-    const _p = productFilter;
-    const _b = branchFilter;
-    const _st = stageFilter;
-    const _tt = triggerTypesFilter;
-    currentPage = 1;
+    if (viewMode === 'buildRuns') {
+      const _a = runsProductFilter;
+      const _b = runsStageFilter;
+      const _c = runsStatusFilter;
+      const _d = runsTriggerFilter;
+      const _e = runsBranchFilter;
+      currentPage = 1;
+    }
+  });
+
+  $effect(() => {
+    if (viewMode === 'jobs') {
+      const _a = jobsStatusFilter;
+      const _b = jobsTriggerFilter;
+      currentPage = 1;
+    }
+  });
+
+  $effect(() => {
+    const _p = currentPage;
+    loadData();
   });
 </script>
 
@@ -380,13 +517,48 @@
   <div class="mb-6">
     <PageHeader
       title="Builds"
-      description="Firmware build buildRuns - build, flash, and validate in one flow."
+      description="Firmware build pipelines -- build, flash, and validate in one flow."
     />
   </div>
 
   <ErrorAlert message={error} />
 
-  {#if showForm}
+  <!-- ── Summary Stats Bar ─────────────────────────────────────── -->
+  {#if summary}
+    <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div class="rounded-lg border border-border bg-surface-1 px-4 py-3">
+        <div class="text-2xs font-medium text-text-tertiary">Active Runs</div>
+        <div class="mt-1 flex items-center gap-2">
+          <span class="text-xl font-semibold tabular-nums text-text-primary">{summary.activeRuns}</span>
+          {#if summary.activeRuns > 0}
+            <span class="relative flex h-2.5 w-2.5">
+              <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"></span>
+              <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent"></span>
+            </span>
+          {/if}
+        </div>
+      </div>
+      <div class="rounded-lg border border-border bg-surface-1 px-4 py-3">
+        <div class="text-2xs font-medium text-text-tertiary">Queued Jobs</div>
+        <div class="mt-1 text-xl font-semibold tabular-nums text-text-primary">{summary.queuedJobs}</div>
+      </div>
+      <div class="rounded-lg border border-border bg-surface-1 px-4 py-3">
+        <div class="text-2xs font-medium text-text-tertiary">Success Rate (24h)</div>
+        <div class="mt-1 text-xl font-semibold tabular-nums text-text-primary">
+          {summary.successRate24h != null ? `${Math.round(summary.successRate24h)}%` : '--'}
+        </div>
+      </div>
+      <div class="rounded-lg border border-border bg-surface-1 px-4 py-3">
+        <div class="text-2xs font-medium text-text-tertiary">Avg Duration</div>
+        <div class="mt-1 text-xl font-semibold tabular-nums text-text-primary">
+          {summary.avgDurationSeconds != null ? formatDuration(summary.avgDurationSeconds * 1000) : '--'}
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- ── Trigger Form (Build Runs + Jobs tabs) ─────────────────── -->
+  {#if showForm && viewMode !== 'prPipelines'}
     <FormCard title="Trigger Build" onClose={resetForm}>
       <form onsubmit={handleSubmit} class="space-y-3">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -438,81 +610,379 @@
     </FormCard>
   {/if}
 
-  <div class="mb-4 flex flex-wrap items-center gap-3">
-    <Select
-      bind:value={statusFilter}
-      placeholder="All statuses"
-      options={STATUS_OPTIONS}
-    />
-    {#if productOptions.length > 0}
-      <Select
-        bind:value={productFilter}
-        placeholder="All products"
-        options={productOptions}
-      />
-    {/if}
-    <Select
-      bind:value={stageFilter}
-      placeholder="All stages"
-      options={STAGE_OPTIONS}
-    />
-    <Select
-      bind:value={triggerTypesFilter}
-      placeholder="All triggers"
-      options={TRIGGER_TYPE_OPTIONS}
-    />
-    <TextInput
-      bind:value={branchFilter}
-      placeholder="Filter by branch..."
-    />
-    <span class="ml-auto text-2xs text-text-tertiary">
-      {pagination.total} builds
-    </span>
+  <!-- ── Tab bar ───────────────────────────────────────────────── -->
+  <div class="mb-4 flex items-center gap-0 border-b border-border">
     <button
-      onclick={refresh}
-      disabled={refreshing}
-      class="btn btn-sm flex items-center gap-1.5"
-      title="Refresh"
+      onclick={() => switchTab('prPipelines')}
+      class="px-4 py-2 text-sm font-medium transition-colors {viewMode === 'prPipelines' ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
     >
-      <RefreshCw size={14} class={refreshing ? 'animate-spin' : ''} />
-    </button>
-    {#if canManage}
-      <button
-        onclick={() => openUploadModal()}
-        class="btn btn-sm flex items-center gap-1.5"
-      >
-        <Upload size={14} />
-        Upload Build
-      </button>
-      <button
-        onclick={() => { showForm = true; }}
-        class="btn btn-sm btn-primary flex items-center gap-1.5"
-      >
-        <Plus size={14} />
-        Trigger Build
-      </button>
-    {/if}
-  </div>
-
-  <!-- View toggle -->
-  <div class="mb-4 flex gap-1 border-b border-border">
-    <button
-      onclick={() => { viewMode = 'jobs'; loading = true; loadData(); }}
-      class="px-4 py-2 text-sm font-medium transition-colors {viewMode === 'jobs' ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
-    >
-      Build Jobs
+      <span class="flex items-center gap-1.5">
+        <GitPullRequest size={14} />
+        PR Pipelines
+      </span>
     </button>
     <button
-      onclick={() => { viewMode = 'buildRuns'; loading = true; loadData(); }}
+      onclick={() => switchTab('buildRuns')}
       class="px-4 py-2 text-sm font-medium transition-colors {viewMode === 'buildRuns' ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
     >
-      Pipelines
+      <span class="flex items-center gap-1.5">
+        <Package size={14} />
+        Build Runs
+      </span>
     </button>
+    <button
+      onclick={() => switchTab('jobs')}
+      class="px-4 py-2 text-sm font-medium transition-colors {viewMode === 'jobs' ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
+    >
+      <span class="flex items-center gap-1.5">
+        <Hammer size={14} />
+        Build Jobs
+      </span>
+    </button>
+
+    <!-- Right side: count + refresh + action buttons -->
+    <div class="ml-auto flex items-center gap-2">
+      <span class="text-2xs text-text-tertiary tabular-nums">
+        {pagination.total} result{pagination.total !== 1 ? 's' : ''}
+      </span>
+      <button
+        onclick={refresh}
+        disabled={refreshing}
+        class="btn btn-sm flex items-center gap-1.5"
+        title="Refresh"
+        aria-label="Refresh"
+      >
+        <RefreshCw size={14} class={refreshing ? 'animate-spin' : ''} />
+      </button>
+      {#if canManage && viewMode !== 'prPipelines'}
+        <button
+          onclick={() => openUploadModal()}
+          class="btn btn-sm flex items-center gap-1.5"
+          title="Upload Build"
+          aria-label="Upload Build"
+        >
+          <Upload size={14} />
+          Upload
+        </button>
+        <button
+          onclick={() => { showForm = true; }}
+          class="btn btn-sm btn-primary flex items-center gap-1.5"
+        >
+          <Plus size={14} />
+          Trigger
+        </button>
+      {/if}
+    </div>
   </div>
 
+  <!-- ── Filters per view ──────────────────────────────────────── -->
+  {#if viewMode === 'prPipelines'}
+    <div class="mb-4 flex flex-wrap items-center gap-3">
+      {#if productOptions.length > 0}
+        <Select
+          bind:value={prProductFilter}
+          placeholder="All products"
+          options={productOptions}
+        />
+      {/if}
+      <Select
+        bind:value={prStatusFilter}
+        placeholder="All statuses"
+        options={PR_STATUS_OPTIONS}
+      />
+    </div>
+  {:else if viewMode === 'buildRuns'}
+    <div class="mb-4 flex flex-wrap items-center gap-3">
+      {#if productOptions.length > 0}
+        <Select
+          bind:value={runsProductFilter}
+          placeholder="All products"
+          options={productOptions}
+        />
+      {/if}
+      <Select
+        bind:value={runsStageFilter}
+        placeholder="All stages"
+        options={STAGE_OPTIONS}
+      />
+      <Select
+        bind:value={runsStatusFilter}
+        placeholder="All statuses"
+        options={STATUS_OPTIONS}
+      />
+      <Select
+        bind:value={runsTriggerFilter}
+        placeholder="All triggers"
+        options={TRIGGER_TYPE_OPTIONS}
+      />
+      <TextInput
+        bind:value={runsBranchFilter}
+        placeholder="Filter by branch..."
+      />
+    </div>
+  {:else}
+    <div class="mb-4 flex flex-wrap items-center gap-3">
+      <Select
+        bind:value={jobsStatusFilter}
+        placeholder="All statuses"
+        options={STATUS_OPTIONS}
+      />
+      <Select
+        bind:value={jobsTriggerFilter}
+        placeholder="All triggers"
+        options={[
+          { value: 'worker', label: 'Worker' },
+          { value: 'manual', label: 'Manual' },
+          { value: 'webhook', label: 'Webhook' },
+        ]}
+      />
+    </div>
+  {/if}
+
+  <!-- ── Content ───────────────────────────────────────────────── -->
   {#if loading}
-    <LoadingState message="Loading {viewMode === 'buildRuns' ? 'buildRuns' : 'build jobs'}..." />
-  {:else if viewMode === 'jobs'}
+    <LoadingState message="Loading {viewMode === 'prPipelines' ? 'PR pipelines' : viewMode === 'buildRuns' ? 'build runs' : 'build jobs'}..." />
+
+  <!-- ── PR Pipelines View ─────────────────────────────────────── -->
+  {:else if viewMode === 'prPipelines'}
+    {#if prPipelines.length === 0}
+      <EmptyState message="No PR pipelines found." />
+    {:else}
+      <div class="space-y-2">
+        {#each prPipelines as pr (pr.prNumber + '-' + pr.productId)}
+          <div class="rounded-lg border border-border bg-surface-0 px-4 py-3 transition-colors hover:bg-surface-1">
+            <!-- Top row: PR info -->
+            <div class="flex items-start justify-between gap-4 mb-2">
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <GitPullRequest size={16} class="flex-shrink-0 text-text-tertiary" />
+                <span class="text-sm font-medium text-text-primary">
+                  PR #{pr.prNumber}:
+                </span>
+                {#if pr.prUrl}
+                  <a
+                    href={pr.prUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="truncate text-sm text-text-primary hover:text-accent transition-colors"
+                    title={pr.prTitle || ''}
+                  >
+                    {pr.prTitle || 'Untitled'}
+                    <ExternalLink size={10} class="inline ml-1 text-text-tertiary" />
+                  </a>
+                {:else}
+                  <span class="truncate text-sm text-text-primary" title={pr.prTitle || ''}>
+                    {pr.prTitle || 'Untitled'}
+                  </span>
+                {/if}
+              </div>
+              <div class="flex items-center gap-3 text-2xs text-text-tertiary flex-shrink-0">
+                {#if pr.prAuthor}
+                  <span>{pr.prAuthor}</span>
+                {/if}
+                <span title={formatDateTime(pr.updatedAt)}>
+                  {formatTimeAgo(pr.updatedAt)}
+                </span>
+              </div>
+            </div>
+
+            <!-- Middle row: product + branch info -->
+            <div class="flex items-center gap-2 mb-2.5 text-2xs">
+              <span class="font-medium text-text-secondary">{pr.product}</span>
+              {#if pr.sourceBranch}
+                <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-text-secondary">
+                  <GitBranch size={10} />
+                  {pr.sourceBranch}
+                </span>
+              {/if}
+              {#if pr.targetBranch}
+                <span class="text-text-tertiary">&#8594;</span>
+                <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-text-tertiary">
+                  {pr.targetBranch}
+                </span>
+              {/if}
+              {#if pr.latestCommit}
+                <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-text-tertiary font-mono">
+                  <GitCommit size={10} />
+                  {pr.latestCommit.slice(0, 7)}
+                </span>
+              {/if}
+            </div>
+
+            <!-- Stage badges row -->
+            <div class="flex items-center gap-1.5">
+              {#each ALL_STAGES as stageNum}
+                {@const stageData = pr.stages[stageNum]}
+                {@const abbrev = STAGE_ABBREV[stageNum]}
+                {@const stageName = STAGE_NAMES[stageNum]}
+                {#if stageData}
+                  <button
+                    onclick={() => goto(`/builds/runs/${stageData.buildRunId}`)}
+                    class="inline-flex items-center gap-1 rounded px-2 py-1 text-2xs font-semibold transition-colors hover:opacity-80 {getStageStatusClasses(stageData.status)}"
+                    title="{stageName}: {stageData.status} ({stageData.completedBuilds}/{stageData.expectedBuilds} builds){stageData.duration != null ? ' - ' + formatDuration(stageData.duration * 1000) : ''}"
+                  >
+                    {abbrev}
+                    {#if stageData.status === 'SUCCESS' || stageData.status === 'COMPLETED'}
+                      <Check size={10} />
+                    {:else if isActiveStatus(stageData.status)}
+                      <Loader2 size={10} class="animate-spin" />
+                    {:else if stageData.status === 'FAILED' || stageData.status === 'BUILD_FAILED'}
+                      <X size={10} />
+                    {/if}
+                  </button>
+                {:else}
+                  <span
+                    class="inline-flex items-center gap-1 rounded px-2 py-1 text-2xs font-semibold bg-surface-2 text-text-tertiary"
+                    title="{stageName}: Not triggered"
+                  >
+                    {abbrev}
+                    <span class="text-text-tertiary">&mdash;</span>
+                  </span>
+                {/if}
+              {/each}
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+  <!-- ── Build Runs View ───────────────────────────────────────── -->
+  {:else if viewMode === 'buildRuns'}
+    {#if buildRuns.length === 0}
+      <EmptyState message="No build runs found." />
+    {:else}
+      <div class="space-y-2">
+        {#each buildRuns as run (run.id)}
+          {@const trigger = getTriggerConfig(run.triggerType ?? '')}
+          {@const productInfo = getProductInfo(run.product ?? '')}
+          <button
+            onclick={() => goto(`/builds/runs/${run.id}`)}
+            class="w-full rounded-lg border border-border bg-surface-0 px-4 py-3 text-left transition-colors hover:bg-surface-1"
+          >
+            <div class="flex items-center justify-between gap-4 mb-2">
+              <div class="flex items-center gap-3 min-w-0">
+                <Package size={16} class="flex-shrink-0 text-text-tertiary" />
+                <span class="text-sm font-medium text-text-primary truncate">
+                  {productInfo.name}
+                </span>
+                {#if productInfo.rev}
+                  <span class="inline-flex items-center gap-1 rounded bg-info-muted px-1.5 py-0.5 text-2xs text-info font-medium">
+                    {productInfo.rev}
+                  </span>
+                {/if}
+                <!-- Stage badge -->
+                {#if run.stage}
+                  {@const modeKey = STAGE_TO_MATRIX_MODE[String(run.stage)]}
+                  {#if modeKey && STAGE_BADGE[modeKey]}
+                    {@const badge = STAGE_BADGE[modeKey]}
+                    {@const stage = STAGE_DISPLAY[modeKey as ValidationStage]}
+                    {@const BadgeIcon = badge.icon}
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {badge.color} text-2xs font-medium" title={stage?.description ?? modeKey}>
+                      <BadgeIcon size={10} />
+                      {stage?.name ?? modeKey}
+                    </span>
+                  {/if}
+                {:else if run.matrixMode && STAGE_BADGE[run.matrixMode]}
+                  {@const badge = STAGE_BADGE[run.matrixMode]}
+                  {@const stage = STAGE_DISPLAY[run.matrixMode as ValidationStage]}
+                  {@const BadgeIcon = badge.icon}
+                  <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {badge.color} text-2xs font-medium" title={stage?.description ?? run.matrixMode}>
+                    <BadgeIcon size={10} />
+                    {stage?.name ?? run.matrixMode}
+                  </span>
+                {/if}
+                <!-- PR info -->
+                {#if run.prNumber}
+                  <span class="inline-flex items-center gap-1 rounded bg-accent-muted px-1.5 py-0.5 text-2xs text-accent font-medium">
+                    <GitPullRequest size={10} />
+                    #{run.prNumber}
+                  </span>
+                {/if}
+                {#if run.branch}
+                  <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary">
+                    <GitBranch size={10} />
+                    {run.branch}
+                  </span>
+                {/if}
+                {#if run.commitSha}
+                  <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-2xs font-mono text-text-tertiary">
+                    <GitCommit size={10} />
+                    {run.commitSha.slice(0, 7)}
+                  </span>
+                {/if}
+                <StatusBadge status={run.status} />
+              </div>
+              <div class="flex items-center gap-3 text-2xs text-text-tertiary flex-shrink-0">
+                <span class="tabular-nums">{runDuration(run)}</span>
+                <span title={formatDateTime(run.createdAt)}>
+                  {formatTimeAgo(run.createdAt)}
+                </span>
+              </div>
+            </div>
+            <!-- Build info row -->
+            <div class="flex items-center gap-3 text-2xs flex-wrap">
+              <span class="text-text-tertiary">
+                {run.completedBuilds ?? 0}/{run.expectedBuilds ?? 0} builds
+              </span>
+              <!-- Trigger source badge -->
+              {#if run.triggerType}
+                {@const triggerBadge = TRIGGER_TYPE_BADGE[run.triggerType] || TRIGGER_TYPE_BADGE.manual}
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {triggerBadge.color} font-medium">
+                  {triggerBadge.label}
+                </span>
+              {/if}
+              <!-- Validation indicator -->
+              {#if run.validationRunId}
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-success-muted text-success font-medium" title="Validation run linked">
+                  <FlaskConical size={10} />
+                  Validated
+                </span>
+              {:else if run.autoValidate}
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent-muted text-accent font-medium" title="Will auto-trigger validation">
+                  <FlaskConical size={10} />
+                  Auto
+                </span>
+              {/if}
+              <!-- Build summary -->
+              {#if run.builds && run.builds.length > 0}
+                {@const matrixSummary = getMatrixSummary(run)}
+                {#if matrixSummary}
+                  <span class="text-text-tertiary">{matrixSummary}</span>
+                {:else}
+                  <span class="text-text-tertiary">
+                    {getVariantSummary(run)}
+                  </span>
+                {/if}
+              {/if}
+              <!-- Build version chips -->
+              {#if run.builds && run.builds.length > 0}
+                <div class="flex items-center gap-1.5 ml-auto">
+                  {#each run.builds.slice(0, 6) as build}
+                    <span
+                      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-mono {
+                        build.status === 'SUCCESS' ? 'bg-success-muted text-success' :
+                        build.status === 'FAILED' ? 'bg-error-muted text-error' :
+                        build.status === 'BUILDING' ? 'bg-warning-muted text-warning animate-pulse' :
+                        build.status === 'BLOCKED' ? 'bg-surface-2 text-text-tertiary' :
+                        'bg-surface-2 text-text-tertiary'
+                      }"
+                      title="{build.variant ?? ''} {build.versionString ?? ''} - {build.status}{build.durationSeconds ? ` (${formatDuration(build.durationSeconds * 1000)})` : ''}"
+                    >
+                      {build.versionString ?? '...'}
+                    </span>
+                  {/each}
+                  {#if run.builds.length > 6}
+                    <span class="text-2xs text-text-tertiary">+{run.builds.length - 6}</span>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          </button>
+        {/each}
+      </div>
+    {/if}
+
+  <!-- ── Build Jobs View ───────────────────────────────────────── -->
+  {:else}
     {#if buildJobs.length === 0}
       <EmptyState message="No build jobs found." />
     {:else}
@@ -590,123 +1060,9 @@
         {/each}
       </div>
     {/if}
-  {:else if buildRuns.length === 0}
-    <EmptyState message="No buildRuns found." />
-  {:else}
-    <div class="space-y-2">
-      {#each buildRuns as buildRun (buildRun.id)}
-        {@const trigger = getTriggerConfig(buildRun.triggerTypes)}
-        {@const productInfo = getProductInfo(buildRun.product ?? '')}
-        <button
-          onclick={() => goto(`/builds/runs/${buildRun.id}`)}
-          class="w-full rounded-lg border border-border bg-surface-0 px-4 py-3 text-left transition-colors hover:bg-surface-1"
-        >
-          <div class="flex items-center justify-between gap-4 mb-2">
-            <div class="flex items-center gap-3 min-w-0">
-              <Package size={16} class="flex-shrink-0 text-text-tertiary" />
-              <span class="text-sm font-medium text-text-primary truncate">
-                {productInfo.name}
-              </span>
-              {#if productInfo.rev}
-                <span class="inline-flex items-center gap-1 rounded bg-info-muted px-1.5 py-0.5 text-2xs text-info font-medium">
-                  {productInfo.rev}
-                </span>
-              {/if}
-              {#if buildRun.branch}
-                <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary">
-                  <GitBranch size={10} />
-                  {buildRun.branch}
-                </span>
-              {/if}
-              {#if buildRun.commitSha}
-                <span class="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-2xs font-mono text-text-tertiary">
-                  <GitCommit size={10} />
-                  {buildRun.commitSha.slice(0, 7)}
-                </span>
-              {/if}
-              <StatusBadge status={buildRun.status} />
-            </div>
-            <div class="flex items-center gap-3 text-2xs text-text-tertiary flex-shrink-0">
-              <span class="tabular-nums">{pipelineDuration( buildRun)}</span>
-              <span title={formatDateTime(buildRun.createdAt)}>
-                {formatTimeAgo(buildRun.createdAt)}
-              </span>
-            </div>
-          </div>
-          <!-- Build info row with trigger source -->
-          <div class="flex items-center gap-3 text-2xs flex-wrap">
-            <span class="text-text-tertiary">
-              {buildRun.completedBuilds ?? 0}/{buildRun.expectedBuilds ?? 0} builds
-            </span>
-            <!-- Trigger source badge (only for non-manual triggers) -->
-            {#if buildRun.triggerTypes && buildRun.triggerTypes !== 'manual'}
-              {@const TriggerIcon = trigger.icon}
-              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {trigger.color} font-medium">
-                <TriggerIcon size={10} />
-                {trigger.label}
-              </span>
-            {/if}
-            <!-- Stage indicator -->
-            {#if buildRun.matrixMode && STAGE_BADGE[buildRun.matrixMode]}
-              {@const badge = STAGE_BADGE[buildRun.matrixMode]}
-              {@const stage = STAGE_DISPLAY[buildRun.matrixMode as ValidationStage]}
-              {@const BadgeIcon = badge.icon}
-              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded {badge.color} font-medium" title={stage?.description ?? buildRun.matrixMode}>
-                <BadgeIcon size={10} />
-                {stage?.name ?? buildRun.matrixMode}
-              </span>
-            {/if}
-            <!-- Validation indicator -->
-            {#if buildRun.validationRunId}
-              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-success-muted text-success font-medium" title="Validation run linked">
-                <FlaskConical size={10} />
-                Validated
-              </span>
-            {:else if buildRun.autoValidate}
-              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent-muted text-accent font-medium" title="Will auto-trigger validation">
-                <FlaskConical size={10} />
-                Auto
-              </span>
-            {/if}
-            <!-- Build summary -->
-            {#if buildRun.builds && buildRun.builds.length > 0}
-              {@const summary = getMatrixSummary( buildRun)}
-              {#if summary}
-                <span class="text-text-tertiary">{summary}</span>
-              {:else}
-                <span class="text-text-tertiary">
-                  {getVariantSummary( buildRun)}
-                </span>
-              {/if}
-            {/if}
-            <!-- Show build versions with status colors and duration -->
-            {#if buildRun.builds && buildRun.builds.length > 0}
-              <div class="flex items-center gap-1.5 ml-auto">
-                {#each buildRun.builds.slice(0, 6) as build}
-                  <span
-                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-mono {
-                      build.status === 'SUCCESS' ? 'bg-success-muted text-success' :
-                      build.status === 'FAILED' ? 'bg-error-muted text-error' :
-                      build.status === 'BUILDING' ? 'bg-warning-muted text-warning animate-pulse' :
-                      build.status === 'BLOCKED' ? 'bg-surface-2 text-text-tertiary' :
-                      'bg-surface-2 text-text-tertiary'
-                    }"
-                    title="{build.variant ?? ''} {build.versionString ?? ''} - {build.status}{build.durationSeconds ? ` (${formatDuration(build.durationSeconds * 1000)})` : ''}"
-                  >
-                    {build.versionString ?? '...'}
-                  </span>
-                {/each}
-                {#if buildRun.builds.length > 6}
-                  <span class="text-2xs text-text-tertiary">+{buildRun.builds.length - 6}</span>
-                {/if}
-              </div>
-            {/if}
-          </div>
-        </button>
-      {/each}
-    </div>
   {/if}
 
+  <!-- ── Pagination ────────────────────────────────────────────── -->
   {#if pagination.pages > 1}
     <div class="mt-4 flex items-center justify-between">
       <span class="text-2xs text-text-tertiary">
@@ -717,6 +1073,7 @@
           onclick={() => (currentPage = 1)}
           disabled={currentPage <= 1}
           aria-label="First page"
+          title="First page"
           class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
         >
           <ChevronsLeft size={16} />
@@ -725,6 +1082,7 @@
           onclick={() => (currentPage = Math.max(1, currentPage - 1))}
           disabled={currentPage <= 1}
           aria-label="Previous page"
+          title="Previous page"
           class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
         >
           <ChevronLeft size={16} />
@@ -733,6 +1091,7 @@
           onclick={() => (currentPage = Math.min(pagination.pages, currentPage + 1))}
           disabled={currentPage >= pagination.pages}
           aria-label="Next page"
+          title="Next page"
           class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
         >
           <ChevronRight size={16} />
@@ -741,6 +1100,7 @@
           onclick={() => (currentPage = pagination.pages)}
           disabled={currentPage >= pagination.pages}
           aria-label="Last page"
+          title="Last page"
           class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
         >
           <ChevronsRight size={16} />
@@ -750,7 +1110,7 @@
   {/if}
 </div>
 
-<!-- Upload Build Modal -->
+<!-- ── Upload Build Modal ──────────────────────────────────────── -->
 <Modal open={showUploadModal} title={uploadStep === 'details' ? 'Upload Build' : 'Upload Artifacts'} onclose={closeUploadModal} size="lg">
   {#if uploadStep === 'details'}
     <form onsubmit={handleUploadCreate} class="space-y-3">

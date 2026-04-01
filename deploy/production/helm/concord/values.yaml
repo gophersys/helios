@@ -78,7 +78,6 @@ config:
   SERVER_PORT: "9001"
   LOG_LEVEL: "4"
   LOG_PATH: "logs"
-  AUTH_ENABLED: "true"
   ASSETS_FOLDER: "assets"
   CORS_ORIGINS: "https://staging.concord.local"
   MTIB_PORT: "50053"

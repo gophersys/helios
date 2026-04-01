@@ -76,46 +76,43 @@ class BuildExecutor:
             return int(match.group(3))  # build number
         return None
 
-    def run_build(self, job: BuildJob, work_dir: Path, output_dir: Path) -> Tuple[bool, str]:
-        """Run the build script with real-time log streaming.
+    def prepare_build_env(self, job: BuildJob, work_dir: Path, output_dir: Path,
+                          docker_mode: bool = False) -> Tuple[Dict[str, str], List[str], str]:
+        """Prepare environment variables and build command.
 
-        Streams output line-by-line to:
-        1. Local log file (build.log)
-        2. API endpoint for WebSocket broadcast
-
-        The workspace structure is:
-            work_dir/
-                scripts/build.sh   # Build script
-                overlays/          # DTS overlays
-                alpha_fw/          # Production firmware repo
-                alpha_mfg_fw/      # Manufacturing firmware repo (optional)
+        Returns (env_dict, cmd_list, build_target) for use by either
+        local subprocess or DockerBuildRunner.
         """
         script_path = work_dir / "scripts" / "build.sh"
-
         if not script_path.exists():
-            return False, f"Build script not found: {script_path}"
+            raise FileNotFoundError(f"Build script not found: {script_path}")
 
-        # Determine build target based on product name
-        # alpha_fw -> app, alpha_mfg_fw -> mfg
-        if "_mfg_" in job.product or "_mfg" in job.product:
-            build_target = "mfg"
+        build_target = job.target if job.target in ("app", "mfg") else "app"
+
+        # Build environment
+        env: Dict[str, str] = {}
+
+        # Repo directory paths — in Docker mode these are container-internal paths
+        if docker_mode:
+            # Inside the builder container, workspace is at /workspace/{job_id}
+            container_work = f"/workspace/{job.id}"
+            primary_slug = job.config_flags.get("_primary_slug", f"{job.product}_fw") if job.config_flags else f"{job.product}_fw"
+            env["BUILD_DIR"] = f"{container_work}/artifacts"
+            env["OUTPUT_DIR"] = f"{container_work}/artifacts"
+            env["REPO_DIR"] = f"{container_work}/{primary_slug}"
         else:
-            build_target = "app"
+            # Local mode — use real filesystem paths
+            product_base = job.product.lower().replace("_fw", "").replace("_mfg", "")
+            if job.target == "mfg":
+                repo_dir = str(work_dir / f"{product_base}_mfg_fw")
+            else:
+                repo_dir = str(work_dir / f"{product_base}_fw")
+            env["BUILD_DIR"] = str(output_dir)
+            env["OUTPUT_DIR"] = str(output_dir)
+            env["REPO_DIR"] = repo_dir
 
-        # Prepare environment for build script
-        env = os.environ.copy()
-
-        # Determine firmware repo directory (REPO_DIR enables CI_MODE in build.sh)
-        if "_mfg_" in job.product or "_mfg" in job.product:
-            product_base = job.product.replace("_mfg_fw", "").replace("_mfg", "")
-            repo_dir = str(work_dir / f"{product_base}_mfg_fw")
-        else:
-            repo_dir = str(work_dir / job.product)
-
+        # Legacy env vars (backward compat with existing build scripts)
         env.update({
-            "BUILD_DIR": str(output_dir),
-            "OUTPUT_DIR": str(output_dir),
-            "REPO_DIR": repo_dir,
             "VARIANT": job.variant if job.variant != "mfg" else "",
             "MTIB_REV": job.mtib_rev,
             "COMMIT_SHA": job.commit_sha or "",
@@ -123,11 +120,106 @@ class BuildExecutor:
             "TARGET": build_target,
             "FIRMWARE_TYPE": build_target,
             "BOARD": job.board,
-            # Zephyr/NCS paths (assuming ncs-build container)
-            "ZEPHYR_BASE": os.environ.get("ZEPHYR_BASE", "/workdir/zephyr"),
-            "ZEPHYR_TOOLCHAIN_VARIANT": "zephyr",
-            "ZEPHYR_SDK_INSTALL_DIR": os.environ.get("ZEPHYR_SDK_INSTALL_DIR", "/workdir/zephyr-sdk"),
         })
+
+        # Concord SDK env vars (used by concord-build.sh)
+        config_flags = job.config_flags or {}
+        targets_json = config_flags.get("_targets_json", "[]")
+        env.update({
+            "CONCORD_BOARD": job.board,
+            "CONCORD_VARIANT": job.variant or "release",
+            "CONCORD_FW_TYPE": build_target,
+            "CONCORD_CONFIG_LOG": "y" if config_flags.get("config_log", True) else "n",
+            "CONCORD_PRODUCES_HEX": "true" if config_flags.get("produces_hex", True) else "false",
+            "CONCORD_PRODUCES_CFW": "true" if config_flags.get("produces_cfw", False) else "false",
+            "CONCORD_COMMIT_SHA": job.commit_sha or "",
+            "CONCORD_BRANCH": job.branch,
+            "CONCORD_MATRIX_LABEL": job.matrix_label or "",
+            "CONCORD_PRODUCT": job.product,
+            "CONCORD_TARGETS": targets_json,
+        })
+        if docker_mode:
+            env["CONCORD_REPO_DIR"] = env.get("REPO_DIR", "")
+            env["CONCORD_BUILD_DIR"] = f"{env.get('REPO_DIR', '')}/build"
+            env["CONCORD_OUTPUT_DIR"] = env.get("OUTPUT_DIR", "")
+        else:
+            env["CONCORD_REPO_DIR"] = env.get("REPO_DIR", "")
+            env["CONCORD_BUILD_DIR"] = f"{env.get('REPO_DIR', '')}/build"
+            env["CONCORD_OUTPUT_DIR"] = env.get("OUTPUT_DIR", "")
+
+        if not docker_mode:
+            # Local mode needs Zephyr paths from the host environment
+            env["ZEPHYR_BASE"] = os.environ.get("ZEPHYR_BASE", "/workdir/zephyr")
+            env["ZEPHYR_TOOLCHAIN_VARIANT"] = "zephyr"
+            env["ZEPHYR_SDK_INSTALL_DIR"] = os.environ.get("ZEPHYR_SDK_INSTALL_DIR", "/workdir/zephyr-sdk")
+
+        # Version override — set BOTH legacy and SDK env vars
+        _version_override = None
+        if job.version_override:
+            parts = job.version_override.strip().split(".")
+            if len(parts) >= 3:
+                try:
+                    _version_override = str(int(parts[2]))
+                    log.info("Version override: %s → BUILD_NUM=%s", job.version_override, parts[2])
+                except ValueError:
+                    pass
+        elif job.version_bump and job.base_job_id:
+            base_version = self.get_base_build_version(job.base_job_id)
+            if base_version is not None:
+                _version_override = str(base_version + 1)
+                log.info("Version bump: %d → %d (base: %s)", base_version, base_version + 1, job.base_job_id[:8])
+
+        if _version_override:
+            env["VERSION_BUILD_OVERRIDE"] = _version_override
+            env["CONCORD_VERSION_OVERRIDE"] = _version_override
+
+        # Build command
+        if docker_mode:
+            script = f"/workspace/{job.id}/scripts/build.sh"
+        else:
+            script = str(script_path)
+        cmd = ["bash", script, build_target, "--mtib-rev", job.mtib_rev, "-b", job.board]
+        if job.variant and job.variant not in ("mfg", "release"):
+            cmd.extend(["--variant", job.variant])
+
+        config_flags = getattr(job, "config_flags", None) or {}
+        if isinstance(config_flags, dict) and config_flags.get("forceLog"):
+            cmd.append("--force-log")
+
+        return env, cmd, build_target
+
+    def run_build(self, job: BuildJob, work_dir: Path, output_dir: Path,
+                  docker_runner=None, builder_image: str = None) -> Tuple[bool, str]:
+        """Run the build script with real-time log streaming.
+
+        If docker_runner is provided, delegates to a dynamically-spawned container.
+        Otherwise runs the build locally via subprocess (legacy mode).
+        """
+        try:
+            docker_mode = docker_runner is not None and builder_image is not None
+            env, cmd, build_target = self.prepare_build_env(job, work_dir, output_dir, docker_mode)
+        except FileNotFoundError as e:
+            return False, str(e)
+
+        # Log streaming callback
+        def _stream_log(chunk: str):
+            self.api_client.stream_log_chunk(job.id, chunk)
+
+        # ── Docker mode: delegate to dynamic container ──
+        if docker_mode:
+            log.info("Docker build: image=%s cmd=%s", builder_image, " ".join(cmd))
+            return docker_runner.run_build(
+                image=builder_image,
+                job_id=job.id,
+                work_dir=work_dir,
+                output_dir=output_dir,
+                env=env,
+                cmd=cmd,
+                log_callback=_stream_log,
+            )
+
+        # ── Local mode: subprocess (legacy) ──
+        script_path = work_dir / "scripts" / "build.sh"
 
         # Handle explicit version override (e.g., "0.5.0" -> BUILD_NUM=0)
         if job.version_override:
@@ -361,9 +453,7 @@ class BuildExecutor:
             classification = classify_artifact(artifact.name)
             if classification:
                 artifact_type, app_id = classification
-                metadata["artifactType"] = (
-                    "plaintext_hex" if artifact_type == "plaintextHex" else "encrypted_cfw"
-                )
+                metadata["artifactType"] = artifact_type  # "plaintextHex" or "encryptedCfw"
                 # Look up role/processor from buildConfig
                 target_meta = target_lookup.get(app_id, {})
                 if target_meta:

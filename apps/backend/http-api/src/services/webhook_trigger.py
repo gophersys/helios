@@ -80,14 +80,19 @@ def handle_repo_event(event: RepoEvent) -> List[Dict[str, Any]]:
         logger.debug("No matching stages for %s trigger %s", product.name, trigger_types)
         return []
 
-    # Filter by branch
+    # Filter by branch — for PR events, match against the TARGET branch
+    # (the branch the PR aims to merge into, e.g. "concord-main")
+    match_branch = event.branch  # default: source branch
+    if event.metadata and event.metadata.get("target_branch"):
+        match_branch = event.metadata["target_branch"]
+
     matching = []
     for stage in stages:
         if not stage.watchBranch or stage.watchBranch == "*":
             matching.append(stage)
-        elif stage.watchBranch == event.branch:
+        elif stage.watchBranch == match_branch:
             matching.append(stage)
-        elif stage.watchBranch.endswith("*") and event.branch.startswith(stage.watchBranch[:-1]):
+        elif stage.watchBranch.endswith("*") and match_branch.startswith(stage.watchBranch[:-1]):
             matching.append(stage)
 
     results = []
@@ -162,6 +167,7 @@ def poll_for_changes() -> List[Dict[str, Any]]:
 
     bb = BitbucketClient(
         api_token=env_config.BITBUCKET_API_TOKEN,
+        email=env_config.BITBUCKET_EMAIL,
         workspace=env_config.BITBUCKET_WORKSPACE,
     )
     if not bb.is_configured:
@@ -228,17 +234,12 @@ def poll_for_changes() -> List[Dict[str, Any]]:
             if not matched:
                 continue
 
-            # Check if this PR has a new commit since last poll
-            cache_key = f"pr_{repo_slug}_{pr_meta['pr_id']}"
-            cache_file = f"/tmp/concord_poll_{cache_key}.sha"
-            last_sha = None
-            try:
-                with open(cache_file) as f:
-                    last_sha = f.read().strip()
-            except FileNotFoundError:
-                pass
-
-            if commit_sha == last_sha:
+            # Check if this PR has a new commit since last poll (DB-backed cache)
+            pr_id = pr_meta["pr_id"]
+            cached = db.pollcache.find_first(
+                where={"repoSlug": repo_slug, "prId": pr_id},
+            )
+            if cached and cached.commitSha == commit_sha:
                 continue  # No new commits
 
             logger.info("Poller: PR #%d '%s' on %s (%s → %s) new commit %s",
@@ -256,12 +257,17 @@ def poll_for_changes() -> List[Dict[str, Any]]:
             triggered = handle_repo_event(event)
             results.extend(triggered)
 
-            # Cache the SHA
+            # Cache the SHA in database (survives pod restarts)
             try:
-                with open(cache_file, "w") as f:
-                    f.write(commit_sha)
-            except Exception:
-                pass
+                db.pollcache.upsert(
+                    where={"repoSlug_prId": {"repoSlug": repo_slug, "prId": pr_id}},
+                    data={
+                        "create": {"repoSlug": repo_slug, "prId": pr_id, "commitSha": commit_sha},
+                        "update": {"commitSha": commit_sha},
+                    },
+                )
+            except Exception as e:
+                logger.warning("Failed to update poll cache for %s PR #%d: %s", repo_slug, pr_id, e)
 
     return results
 

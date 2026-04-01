@@ -113,11 +113,13 @@ class GitOps:
             job_id: Optional job ID for log streaming
         """
         config = self._get_repo_config(repo_slug)
-        if not config or not config.get("ssh_url"):
-            log.error("No SSH URL configured for repo: %s", repo_slug)
-            return False
+        repo_url = config.get("ssh_url") if config else None
 
-        repo_url = config["ssh_url"]
+        # Fall back to Bitbucket convention if no SSH URL in config
+        if not repo_url:
+            workspace = os.environ.get("BITBUCKET_WORKSPACE", "corekinect")
+            repo_url = f"git@bitbucket.org:{workspace}/{repo_slug}.git"
+            log.info("Using default SSH URL for %s: %s", repo_slug, repo_url)
         env = os.environ.copy()
         env["GIT_SSH_COMMAND"] = f"ssh -i {self.ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes"
 
@@ -173,24 +175,22 @@ class GitOps:
             log.error("Clone failed: %s", e)
             return False
 
+    def get_builder_image(self, repo_dir: Path) -> Optional[str]:
+        """Read the full builder image URL from repo's .devcontainer/devcontainer.json.
+
+        Returns the complete image URL (e.g., 'containers.ad.corekinect.com/ncs-fw-dev:2.7.0')
+        or None if not found.
+        """
+        from src.worker.docker_runner import DockerBuildRunner
+        return DockerBuildRunner.extract_builder_image(repo_dir)
+
     def check_ncs_version(self, repo_dir: Path) -> Optional[str]:
-        """Read NCS version from repo's .devcontainer/devcontainer.json.
+        """Read NCS version from repo's devcontainer image tag.
 
         Returns the NCS version string (e.g., '2.7.0') or None if not found.
         """
-        devcontainer = repo_dir / ".devcontainer" / "devcontainer.json"
-        if not devcontainer.exists():
+        image = self.get_builder_image(repo_dir)
+        if not image:
             return None
-        try:
-            text = devcontainer.read_text()
-            # Remove JSON comments (// style)
-            text = re.sub(r'//.*$', '', text, flags=re.MULTILINE)
-            data = json.loads(text)
-            image = data.get("image", "")
-            # Extract version from image tag like "containers.ad.corekinect.com/ncs-fw-dev:2.7.0"
-            match = re.search(r'ncs.*?:(\d+\.\d+\.\d+)', image)
-            if match:
-                return match.group(1)
-        except Exception as e:
-            log.warning("Could not parse devcontainer.json: %s", e)
-        return None
+        from src.worker.docker_runner import DockerBuildRunner
+        return DockerBuildRunner.extract_ncs_version(image)

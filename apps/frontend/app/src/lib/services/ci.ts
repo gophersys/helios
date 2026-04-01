@@ -6,6 +6,8 @@ import type {
   BuildRunDetail,
   BuildRunStageInfo,
   BuildRunStageStatus,
+  BuildSummary,
+  PrPipelineSummary,
   TriggerBuildConfig,
   TriggerBuildRunConfig,
 } from '$lib/types/ci';
@@ -19,6 +21,12 @@ export interface FetchBuildRunsParams {
   status?: string;
   branch?: string;
   product?: string;
+  productId?: string;
+  stage?: number;
+  prNumber?: number;
+  triggerType?: string;
+  createdAfter?: string;
+  createdBefore?: string;
   matrixMode?: string;
 }
 
@@ -40,6 +48,12 @@ export async function fetchBuildRuns(
   if (params?.status) qs.set('status', params.status);
   if (params?.branch) qs.set('branch', params.branch);
   if (params?.product) qs.set('product', params.product);
+  if (params?.productId) qs.set('productId', params.productId);
+  if (params?.stage) qs.set('stage', String(params.stage));
+  if (params?.prNumber) qs.set('prNumber', String(params.prNumber));
+  if (params?.triggerType) qs.set('triggerType', params.triggerType);
+  if (params?.createdAfter) qs.set('createdAfter', params.createdAfter);
+  if (params?.createdBefore) qs.set('createdBefore', params.createdBefore);
   if (params?.matrixMode) qs.set('matrixMode', params.matrixMode);
 
   const res = await apiFetch<PaginatedApiResponse<BuildRunDetail[]>>(
@@ -121,7 +135,7 @@ export async function fetchBuildRun(id: string): Promise<BuildRunDetail> {
     startedAt: buildRun.startedAt,
     finishedAt: buildRun.finishedAt,
     durationSeconds: builds[0].durationSeconds,
-    triggerTypes: buildRun.triggerTypes ?? 'worker',
+    triggerTypes: buildRun.triggerType ?? 'worker',
     createdAt: buildRun.createdAt,
     artifacts: [],
   } : null;
@@ -335,4 +349,43 @@ export async function downloadSingleArtifact(
   artifactName: string
 ): Promise<void> {
   await apiDownload(`/v2/builds/${buildId}/artifacts/${encodeURIComponent(artifactName)}`, artifactName);
+}
+
+// ── PR Pipelines ──────────────────────────────────────────────────
+
+export interface FetchPrPipelinesParams {
+  page?: number;
+  limit?: number;
+  productId?: string;
+  status?: string; // "active" | "completed" | "failed"
+}
+
+export async function fetchPrPipelines(
+  params?: FetchPrPipelinesParams
+): Promise<{ data: PrPipelineSummary[]; pagination: Pagination }> {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set('page', String(params.page));
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.productId) qs.set('productId', params.productId);
+  if (params?.status) qs.set('status', params.status);
+
+  const res = await apiFetch<PaginatedApiResponse<PrPipelineSummary[]>>(
+    `/v2/builds/prs?${qs.toString()}`
+  );
+  return {
+    data: res.data,
+    pagination: {
+      page: res.page ?? 1,
+      limit: res.resultsPerPage ?? 20,
+      total: res.totalResults ?? 0,
+      pages: res.totalPages ?? 0,
+    },
+  };
+}
+
+// ── Build Summary ─────────────────────────────────────────────────
+
+export async function fetchBuildSummary(): Promise<BuildSummary> {
+  const res = await apiFetch<ApiResponse<BuildSummary>>('/v2/builds/summary');
+  return res.data;
 }

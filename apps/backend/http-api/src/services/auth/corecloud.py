@@ -31,7 +31,6 @@ def authenticate_corecloud(email: str, password: str) -> Tuple[Optional[dict], O
         (None, error_message) on failure
     """
     # SECURITY: All authentication must go through Core Cloud auth server.
-    # To disable auth for development, set AUTH_ENABLED=false in environment.
     auth_url = getattr(env_config, "AUTH_SERVER_URL", "")
     api_key = getattr(env_config, "AUTH_SERVER_API_KEY", "")
 

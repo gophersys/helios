@@ -7,18 +7,18 @@ appPostgresClient: Optional[Prisma] = None
 
 
 def init_postgres_client() -> Prisma:
-    """Initialize the global PostgreSQL client"""
+    """Initialize the global PostgreSQL client."""
     global appPostgresClient
 
     client = Prisma()
-    client.connect(timeout=1)
+    client.connect(timeout=5)
 
     appPostgresClient = client
     return client
 
 
 def get_db_client() -> Prisma:
-    """Get the global database client instance"""
+    """Get the global database client instance."""
     global appPostgresClient
 
     if appPostgresClient is None:

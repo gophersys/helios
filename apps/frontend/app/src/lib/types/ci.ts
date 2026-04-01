@@ -1,6 +1,6 @@
 // CI / Build pipeline types
 
-export type BuildJobStatus = 'QUEUED' | 'BLOCKED' | 'BUILDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+export type BuildJobStatus = 'QUEUED' | 'BLOCKED' | 'CLONING' | 'BUILDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'CACHED';
 export type PipelineStage = 'BUILD' | 'FLASH' | 'VALIDATE';
 export type BuildRunStageStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
 
@@ -205,15 +205,24 @@ export interface BuildRunDetail {
   id: string;
   name: string;
   product: string;
+  productId?: string;
   board: string;
   branch: string;
   commitSha: string | null;
   status: string;
-  triggerTypes: string;
+  triggerType: string;
+  stage?: number | null;
   expectedBuilds: number;
   completedBuilds: number;
   validationRunId: string | null;
   autoValidate: boolean;
+  // PR context (first-class fields for filtering/grouping)
+  prNumber?: number | null;
+  prTitle?: string | null;
+  prAuthor?: string | null;
+  sourceBranch?: string | null;
+  targetBranch?: string | null;
+  prUrl?: string | null;
   startedAt: string | null;
   finishedAt: string | null;
   createdAt: string;
@@ -234,6 +243,47 @@ export interface BuildRunDetail {
   buildJob?: BuildJob | null;
   validationRun?: { id: string; name: string; status: string } | null;
   stages?: BuildRunStageInfo[];
+}
+
+// PR Pipeline — shows a PR's validation status across all stages
+export interface PrStageStatus {
+  status: string;
+  buildRunId: string;
+  commitSha: string | null;
+  completedBuilds: number;
+  expectedBuilds: number;
+  duration: number | null;
+  createdAt: string;
+}
+
+export interface PrPipelineSummary {
+  prNumber: number;
+  prTitle: string | null;
+  prAuthor: string | null;
+  prUrl: string | null;
+  product: string;
+  productId: string;
+  sourceBranch: string | null;
+  targetBranch: string | null;
+  latestCommit: string | null;
+  updatedAt: string;
+  stages: Record<number, PrStageStatus | null>;
+}
+
+// Build system summary stats
+export interface BuildSummary {
+  activeRuns: number;
+  queuedJobs: number;
+  buildingJobs: number;
+  successRate24h: number | null;
+  avgDurationSeconds: number | null;
+  byStage: Array<{
+    stage: number;
+    name: string;
+    active: number;
+    success24h: number;
+    failed24h: number;
+  }>;
 }
 
 // Validation stage display info

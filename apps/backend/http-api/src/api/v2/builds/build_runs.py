@@ -41,19 +41,48 @@ def list_build_runs():
     skip = (page - 1) * limit
 
     product = request.args.get("product")
+    product_id = request.args.get("productId")
     branch = request.args.get("branch")
     status = request.args.get("status")
+    stage = request.args.get("stage", type=int)
+    pr_number = request.args.get("prNumber", type=int)
+    trigger_type = request.args.get("triggerType")
+    created_after = request.args.get("createdAfter")
+    created_before = request.args.get("createdBefore")
+    # Legacy compat: matrixMode still accepted but stage is preferred
     matrix_mode = request.args.get("matrixMode")
 
     where: Dict[str, Any] = {}
-    if product:
-        where["product"] = product
+    if product_id:
+        where["productId"] = product_id
+    elif product:
+        where["product"] = {"is": {"OR": [{"name": product}, {"slug": product}]}}
     if branch:
-        where["branch"] = branch
+        where["branch"] = {"contains": branch}
     if status:
         where["status"] = status
-    if matrix_mode:
+    if stage:
+        where["stage"] = stage
+    elif matrix_mode:
         where["matrixMode"] = matrix_mode
+    if pr_number:
+        where["prNumber"] = pr_number
+    if trigger_type:
+        where["triggerType"] = trigger_type
+    if created_after or created_before:
+        date_filter = {}
+        if created_after:
+            try:
+                date_filter["gte"] = datetime.fromisoformat(created_after.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        if created_before:
+            try:
+                date_filter["lte"] = datetime.fromisoformat(created_before.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        if date_filter:
+            where["createdAt"] = date_filter
 
     try:
         total = db.buildrun.count(where=where)
@@ -78,7 +107,7 @@ def list_build_runs():
         }).to_dict()), 200
 
     except Exception as e:
-        logger.error("Failed to list pipelines: %s", e)
+        logger.exception("Failed to list pipelines: %s", e)
         return internal_error("Failed to list pipelines")
 
 

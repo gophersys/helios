@@ -7,13 +7,14 @@
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import ProductStages from './product-stages.svelte';
   import FirmwareTab from './firmware-tab.svelte';
-  import { Cpu, Pencil, Check, X, CircuitBoard, ExternalLink, Upload, Package, FlaskConical, Factory } from 'lucide-svelte';
+  import BuildConfigTab from './build-config-tab.svelte';
+  import { Cpu, Pencil, Check, X, CircuitBoard, ExternalLink, Upload, Package, FlaskConical, Factory, Wrench } from 'lucide-svelte';
   import type { Product, BoardRevision, ProductTarget } from '$lib/types/models';
   import type { BuildArtifact } from '$lib/types/ci';
   import { api } from '$lib/api';
   import { createManualBuild, uploadBuildArtifact } from '$lib/services/ci';
 
-  type Tab = 'firmware' | 'validation' | 'manufacturing';
+  type Tab = 'firmware' | 'validation' | 'build' | 'manufacturing';
 
   interface Props {
     product: Product;
@@ -217,6 +218,7 @@
   const tabs: { key: Tab; label: string; icon: typeof Package }[] = [
     { key: 'firmware', label: 'Firmware', icon: Package },
     { key: 'validation', label: 'Validation', icon: FlaskConical },
+    { key: 'build', label: 'Build Config', icon: Wrench },
     { key: 'manufacturing', label: 'Manufacturing', icon: Factory },
   ];
 
@@ -538,6 +540,10 @@
 
       {#if activeTab === 'validation'}
         <ProductStages productId={product.id} productName={product.name} revisions={product.boards?.[0]?.revisions ?? []} fwRepoSlug={product.fwRepoSlug ?? ''} />
+      {/if}
+
+      {#if activeTab === 'build'}
+        <BuildConfigTab productId={product.id} productName={product.name} {canManage} />
       {/if}
 
       {#if activeTab === 'manufacturing'}

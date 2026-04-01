@@ -71,3 +71,7 @@
 	path = apps/firmware/products/sigma5/sigma5_mfg_fw
 	url = git@bitbucket.org:corekinect/sigma5_mfg_fw.git
 	branch = main
+[submodule "apps/validation/alpha"]
+	path = apps/validation/alpha
+	url = git@bitbucket.org:corekinect/alpha_validation.git
+	branch = init/seed

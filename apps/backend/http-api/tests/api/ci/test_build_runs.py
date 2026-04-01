@@ -137,7 +137,10 @@ class TestListPipelines:
         assert response.status_code == 200
 
         call_args = mock_db.buildrun.find_many.call_args
-        assert call_args.kwargs["where"]["product"] == "theta"
+        where = call_args.kwargs["where"]
+        # Product filter uses nested OR query for name/slug matching
+        assert "product" in where
+        assert where["product"]["is"]["OR"][0]["name"] == "theta"
 
     def test_list_pipelines_with_branch_filter(self, authed_client, mock_db):
         """List pipelines filters by branch query parameter."""
@@ -150,7 +153,8 @@ class TestListPipelines:
         assert response.status_code == 200
 
         call_args = mock_db.buildrun.find_many.call_args
-        assert call_args.kwargs["where"]["branch"] == "feature/x"
+        # Branch filter uses contains for substring matching
+        assert call_args.kwargs["where"]["branch"] == {"contains": "feature/x"}
 
     def test_list_pipelines_with_status_filter(self, authed_client, mock_db):
         """List pipelines filters by status query parameter."""

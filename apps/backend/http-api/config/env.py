@@ -20,8 +20,7 @@ class AppConfig(EnvConfig):
     # CORS — comma-separated list of allowed origins
     CORS_ORIGINS: str = "http://localhost:4200"
 
-    # Auth
-    AUTH_ENABLED: bool = True
+    # Auth — always enforced. API key or JWT required for all endpoints.
     # WARNING: The default JWT secret is for development only.
     # In production and staging, set JWT_SECRET_KEY to a strong, unique value (32+ chars).
     JWT_SECRET_KEY: str = "concord-dev-jwt-secret-change-in-production"
@@ -58,6 +57,7 @@ class AppConfig(EnvConfig):
     BITBUCKET_SSH_KEY: str = ""
     # Bitbucket — API token for REST API (PR polling, repo operations)
     BITBUCKET_API_TOKEN: str = ""
+    BITBUCKET_EMAIL: str = ""  # Email for Basic auth with API token
     BITBUCKET_WORKSPACE: str = "corekinect"
 
     # CkBoards — shared board definition repository

@@ -31,7 +31,9 @@ spec:
       containers:
         - name: build-service
           image: "{{ .Values.buildService.image.repository }}:{{ .Values.buildService.image.tag }}"
-          command: ["python3", "-m", "src.main"]
+          command: ["python3", "-u", "-m", "src.main"]
+          securityContext:
+            privileged: true
           env:
             - name: CONCORD_API_URL
               value: "http://concord-http-api:9001"
@@ -53,20 +55,17 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: NCS_VERSION
-              value: "2.7.0"
+            # Dynamic container builder — reads image from repo devcontainer.json
+            - name: BUILDER_MODE
+              value: "docker"
+            - name: DEFAULT_BUILDER_IMAGE
+              value: "containers.ad.corekinect.com/ncs-fw-dev:2.7.0"
+            - name: BUILDER_NETWORK
+              value: "host"
+            - name: BUILDER_TIMEOUT
+              value: "1800"
             - name: SSH_KEY_PATH
               value: "/root/.ssh/id_rsa"
-            - name: CCACHE_DIR
-              value: "/ccache"
-            - name: CCACHE_MAXSIZE
-              value: "10G"
-            - name: CMAKE_C_COMPILER_LAUNCHER
-              value: "ccache"
-            - name: CMAKE_CXX_COMPILER_LAUNCHER
-              value: "ccache"
-            - name: CMAKE_BUILD_PARALLEL_LEVEL
-              value: "14"
           ports:
             - containerPort: 9002
               name: http
@@ -85,12 +84,14 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              cpu: {{ .Values.buildService.resources.requests.cpu | default "4" | quote }}
-              memory: {{ .Values.buildService.resources.requests.memory | default "8Gi" | quote }}
+              cpu: {{ .Values.buildService.resources.requests.cpu | default "500m" | quote }}
+              memory: {{ .Values.buildService.resources.requests.memory | default "512Mi" | quote }}
             limits:
-              cpu: {{ .Values.buildService.resources.limits.cpu | default "14" | quote }}
-              memory: {{ .Values.buildService.resources.limits.memory | default "28Gi" | quote }}
+              cpu: {{ .Values.buildService.resources.limits.cpu | default "2" | quote }}
+              memory: {{ .Values.buildService.resources.limits.memory | default "2Gi" | quote }}
           volumeMounts:
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
             - name: ssh-key
               mountPath: /root/.ssh
               readOnly: true
@@ -102,6 +103,10 @@ spec:
             - name: ccache
               mountPath: /ccache
       volumes:
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
         - name: ssh-key
           secret:
             secretName: bitbucket-ssh-key
@@ -111,11 +116,13 @@ spec:
             secretName: alpha-mcuboot-keys
             defaultMode: 0400
         - name: workspace
-          emptyDir:
-            sizeLimit: 30Gi
+          hostPath:
+            path: /tmp/concord-builds
+            type: DirectoryOrCreate
         - name: ccache
-          emptyDir:
-            sizeLimit: 15Gi
+          hostPath:
+            path: /tmp/concord-ccache
+            type: DirectoryOrCreate
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

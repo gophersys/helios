@@ -33,23 +33,14 @@ LOCAL_DIR = REPO_ROOT / "deploy" / "local"
 # ---------------------------------------------------------------------------
 
 class TestAppConfigBooleanParsing:
-    """Verify that EnvConfig._parse_bool handles AUTH_ENABLED correctly."""
+    """Verify that EnvConfig._parse_bool handles boolean string parsing."""
 
-    def test_auth_enabled_false_string(self):
+    def test_bool_false_string(self):
         """The string 'false' should parse to Python False."""
-        env_override = {
-            "ENVIRONMENT": "test",
-            "AUTH_ENABLED": "false",
-        }
-        with patch.dict(os.environ, env_override):
-            from config.env import AppConfig
-            # Create a new instance with the overridden env
-            config = AppConfig.__new__(AppConfig)
-            # Manually test the bool parsing
-            from corekinect.utils.config.env import EnvConfig
-            assert EnvConfig._parse_bool("false") is False
+        from corekinect.utils.config.env import EnvConfig
+        assert EnvConfig._parse_bool("false") is False
 
-    def test_auth_enabled_true_string(self):
+    def test_bool_true_string(self):
         """The string 'true' should parse to Python True."""
         from corekinect.utils.config.env import EnvConfig
         assert EnvConfig._parse_bool("true") is True
@@ -196,7 +187,6 @@ class TestJwtSecretValidation:
 # Config keys that MUST be present in every Helm values file
 _REQUIRED_CONFIG_KEYS = {
     "SERVER_PORT",
-    "AUTH_ENABLED",
     "CORS_ORIGINS",
     "STORAGE_URL",
     "STORAGE_BUCKET_NAME",
@@ -249,24 +239,6 @@ class TestHelmValuesCompleteness:
         missing = _REQUIRED_SECRET_KEYS - set(secrets.keys())
         assert not missing, f"{env_file} missing secret keys: {missing}"
 
-    @pytest.mark.parametrize("env_file", ["values-staging.yaml", "values-production.yaml"])
-    def test_auth_enabled_is_string_bool(self, env_file):
-        """AUTH_ENABLED should be a string 'true' or 'false', not a YAML boolean."""
-        path = HELM_DIR / env_file
-        if not path.exists():
-            pytest.skip(f"{env_file} not found")
-
-        values = _load_yaml(path)
-        auth_val = values.get("config", {}).get("AUTH_ENABLED")
-        assert auth_val is not None, f"{env_file} missing AUTH_ENABLED"
-        assert isinstance(auth_val, str), (
-            f"{env_file}: AUTH_ENABLED should be a quoted string ('\"true\"' or '\"false\"'), "
-            f"got {type(auth_val).__name__}: {auth_val}"
-        )
-        assert auth_val in ("true", "false"), (
-            f"{env_file}: AUTH_ENABLED should be 'true' or 'false', got '{auth_val}'"
-        )
-
     def test_staging_and_production_have_different_jwt_secrets(self):
         """Staging and production must not share JWT secrets."""
         staging_path = HELM_DIR / "values-staging.yaml"
@@ -318,16 +290,11 @@ class TestHelmValuesCompleteness:
 class TestAppConfigFieldCoverage:
     """Ensure AppConfig declares all fields referenced in deployment configs."""
 
-    def test_auth_enabled_field_exists(self):
-        """AppConfig must declare AUTH_ENABLED as a bool field."""
+    def test_jwt_secret_field_exists(self):
+        """AppConfig must declare JWT_SECRET_KEY as a str field."""
         from config.env import AppConfig
         import typing
 
         hints = typing.get_type_hints(AppConfig)
-        assert "AUTH_ENABLED" in hints, (
-            "AppConfig must declare AUTH_ENABLED — "
-            "this was the root cause of the production OAuth error"
-        )
-        assert hints["AUTH_ENABLED"] is bool, (
-            "AUTH_ENABLED must be declared as bool"
-        )
+        assert "JWT_SECRET_KEY" in hints, "AppConfig must declare JWT_SECRET_KEY"
+        assert hints["JWT_SECRET_KEY"] is str, "JWT_SECRET_KEY must be str"

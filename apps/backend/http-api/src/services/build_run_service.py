@@ -60,11 +60,13 @@ def serialize_build_run(p) -> Dict[str, Any]:
         "id": p.id,
         "name": p.name,
         "product": safe_product_str(getattr(p, "product", None)) or getattr(p, "productId", None),
+        "productId": getattr(p, "productId", None),
         "board": p.board,
         "branch": p.branch,
         "commitSha": p.commitSha,
         "status": p.status,
-        "triggerTypes": p.triggerTypes,
+        "triggerType": p.triggerType,
+        "stage": getattr(p, "stage", None),
         "expectedBuilds": p.expectedBuilds,
         "completedBuilds": p.completedBuilds,
         "validationRunId": p.validationRunId,
@@ -72,6 +74,13 @@ def serialize_build_run(p) -> Dict[str, Any]:
         "autoValidate": getattr(p, "autoValidate", False),
         "buildMatrix": p.buildMatrix if hasattr(p, "buildMatrix") else None,
         "triggerData": p.triggerData if hasattr(p, "triggerData") else None,
+        # PR context
+        "prNumber": getattr(p, "prNumber", None),
+        "prTitle": getattr(p, "prTitle", None),
+        "prAuthor": getattr(p, "prAuthor", None),
+        "sourceBranch": getattr(p, "sourceBranch", None),
+        "targetBranch": getattr(p, "targetBranch", None),
+        "prUrl": getattr(p, "prUrl", None),
         "startedAt": p.startedAt.isoformat() if p.startedAt else None,
         "finishedAt": p.finishedAt.isoformat() if p.finishedAt else None,
         "createdAt": p.createdAt.isoformat(),
@@ -111,15 +120,24 @@ def serialize_build_run_summary(p) -> Dict[str, Any]:
         "id": p.id,
         "name": p.name,
         "product": safe_product_str(getattr(p, "product", None)) or getattr(p, "productId", None),
+        "productId": getattr(p, "productId", None),
         "branch": p.branch,
         "commitSha": p.commitSha,
         "status": p.status,
-        "triggerTypes": p.triggerTypes,
+        "triggerType": p.triggerType,
+        "stage": getattr(p, "stage", None),
         "expectedBuilds": p.expectedBuilds,
         "completedBuilds": p.completedBuilds,
         "matrixMode": getattr(p, "matrixMode", None),
         "autoValidate": getattr(p, "autoValidate", False),
         "validationRunId": getattr(p, "validationRunId", None),
+        # PR context
+        "prNumber": getattr(p, "prNumber", None),
+        "prTitle": getattr(p, "prTitle", None),
+        "prAuthor": getattr(p, "prAuthor", None),
+        "sourceBranch": getattr(p, "sourceBranch", None),
+        "targetBranch": getattr(p, "targetBranch", None),
+        "prUrl": getattr(p, "prUrl", None),
         "startedAt": p.startedAt.isoformat() if p.startedAt else None,
         "finishedAt": p.finishedAt.isoformat() if p.finishedAt else None,
         "createdAt": p.createdAt.isoformat(),
@@ -655,23 +673,26 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
             return new_status
 
         # All builds succeeded — validate artifacts before proceeding
-        from src.services.artifact_validator import (
-            validate_pipeline_artifacts,
-            format_missing_artifacts_message,
-        )
-        validation_result = validate_pipeline_artifacts(db, run_id)
-        if not validation_result["valid"]:
-            new_status = "BUILD_FAILED"
-            error_msg = format_missing_artifacts_message(validation_result["missing"])
-            db.buildrun.update(
-                where={"id": run_id},
-                data={
-                    "status": new_status,
-                    "finishedAt": datetime.now(timezone.utc),
-                },
+        try:
+            from src.services.artifact_validator import (
+                validate_pipeline_artifacts,
+                format_missing_artifacts_message,
             )
-            logger.warning("BuildRun %s artifact validation failed: %s", run_id, error_msg)
-            return new_status
+            validation_result = validate_pipeline_artifacts(db, run_id)
+            if not validation_result["valid"]:
+                new_status = "BUILD_FAILED"
+                error_msg = format_missing_artifacts_message(validation_result["missing"])
+                db.buildrun.update(
+                    where={"id": run_id},
+                    data={
+                        "status": new_status,
+                        "finishedAt": datetime.now(timezone.utc),
+                    },
+                )
+                logger.warning("BuildRun %s artifact validation failed: %s", run_id, error_msg)
+                return new_status
+        except Exception as val_err:
+            logger.exception("BuildRun %s artifact validation error (non-blocking): %s", run_id, val_err)
 
         # Promote artifacts to FirmwareSets
         try:
@@ -719,6 +740,18 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
                 data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
             )
             logger.info("Pipeline %s builds complete (autoValidate=false), set to SUCCESS", run_id)
+
+        # Auto-progress: trigger next stage if current succeeded and next has "auto" trigger
+        if new_status == "SUCCESS" and pipeline.stage and pipeline.productId:
+            try:
+                from src.services.webhook_trigger import handle_auto_progress
+                auto_result = handle_auto_progress(pipeline.productId, pipeline.stage)
+                if auto_result:
+                    logger.info("Auto-progress: stage %d → %d for product %s, buildRun=%s",
+                                pipeline.stage, pipeline.stage + 1, pipeline.productId,
+                                auto_result.get("buildRunId", "?")[:8])
+            except Exception as e:
+                logger.warning("Auto-progress failed for pipeline %s: %s", run_id, e)
 
         return new_status
 

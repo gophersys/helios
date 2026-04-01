@@ -1,7 +1,14 @@
-FROM containers.ad.corekinect.com/ncs-build:2.7.0
+FROM python:3.12-slim
 
+# Orchestrator dependencies: git, SSH, Docker CLI (for spawning builder containers)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openssh-client ccache && \
+    git openssh-client ca-certificates curl gnupg && \
+    # Install Docker CLI from official Docker repo
+    install -m 0755 -d /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends docker-ce-cli && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -9,19 +16,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY prisma/ prisma/
-RUN cd /app && prisma generate --schema=prisma/schema.prisma
-
+COPY sdk/ /app/sdk/
 COPY src/ src/
 
 ENV PYTHONPATH=/app/src
-ENV BUILD_SERVICE_PORT=9002
-ENV CCACHE_DIR=/ccache
-ENV CCACHE_MAXSIZE=10G
-ENV CMAKE_C_COMPILER_LAUNCHER=ccache
-ENV CMAKE_CXX_COMPILER_LAUNCHER=ccache
-ENV CMAKE_BUILD_PARALLEL_LEVEL=14
-
 EXPOSE 9002
 
-CMD ["python3", "-m", "src.main"]
+CMD ["python3", "-u", "-m", "src.main"]

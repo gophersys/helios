@@ -100,17 +100,62 @@ def trigger_stage_build(
     if not builder_image and product.fwRepoSlug:
         builder_image = f"containers.ad.corekinect.com/{product.fwRepoSlug}-builder:latest"
 
-    # Determine trigger type and commit info from event metadata
-    trigger_type = "stage"
+    # Extract trigger context from event metadata
+    trigger_type = "manual"
     commit_sha = None
     trigger_data = None
+    pr_number = None
+    pr_title = None
+    pr_author = None
+    source_branch = None
+    target_branch = None
+    pr_url = None
+
     if event_metadata:
-        trigger_type = event_metadata.get("source", "stage")
         commit_sha = event_metadata.get("source_commit") or event_metadata.get("commit_sha")
-        if event_metadata.get("pr_id"):
-            trigger_type = "pull_request"
-            branch = event_metadata.get("source_branch", branch)
         trigger_data = Json(event_metadata)
+
+        # Normalize trigger type to match ProductStageConfig.triggerTypes vocabulary
+        source = event_metadata.get("source", "")
+        if event_metadata.get("pr_id"):
+            trigger_type = "pr_push"
+            branch = event_metadata.get("source_branch", branch)
+            # Promote PR fields to first-class columns
+            pr_number = event_metadata.get("pr_id")
+            pr_title = event_metadata.get("pr_title")
+            pr_author = event_metadata.get("pr_author")
+            source_branch = event_metadata.get("source_branch")
+            target_branch = event_metadata.get("target_branch")
+            pr_url = event_metadata.get("pr_url")
+        elif source == "auto_progress":
+            trigger_type = "auto"
+        elif source == "schedule":
+            trigger_type = "schedule"
+        elif source in ("webhook", "poller"):
+            trigger_type = "pr_push"
+        else:
+            trigger_type = "manual"
+
+    now = datetime.now(timezone.utc)
+
+    # Auto-cancel: cancel in-progress runs for the same PR+stage with older commits
+    if pr_number and commit_sha:
+        _cancel_stale_runs(db, product_id, pr_number, stage_config.stage, commit_sha)
+
+    # Dedup: skip if an active BuildRun already exists for this exact commit+stage
+    if commit_sha:
+        existing = db.buildrun.find_first(
+            where={
+                "productId": product_id,
+                "stageConfigId": stage_config_id,
+                "commitSha": commit_sha,
+                "status": {"in": ["PENDING", "BUILDING"]},
+            },
+        )
+        if existing:
+            logger.info("Dedup: BuildRun %s already active for %s stage %d commit %s",
+                        existing.id[:8], product.name, stage_config.stage, commit_sha[:7])
+            return {"buildRunId": existing.id, "deduplicated": True}
 
     # Create BuildRun
     build_run = db.buildrun.create(
@@ -126,7 +171,14 @@ def trigger_stage_build(
             "stageConfigId": stage_config_id,
             "expectedBuilds": len(build_defs),
             "completedBuilds": 0,
-            "startedAt": datetime.now(timezone.utc),
+            "startedAt": now,
+            # PR context — first-class fields for efficient querying
+            "prNumber": pr_number,
+            "prTitle": pr_title,
+            "prAuthor": pr_author,
+            "sourceBranch": source_branch,
+            "targetBranch": target_branch,
+            "prUrl": pr_url,
             "buildMatrix": Json({
                 "mode": stage_enum.value,
                 "labels": [d.label for d in build_defs],
@@ -187,8 +239,13 @@ def trigger_stage_build(
                 "buildRunId": build_run.id,
                 "webhookData": Json({
                     "repoUrl": repo_url,
+                    "fwRepoUrl": fw_repo,
+                    "mfgRepoUrl": mfg_repo,
+                    "fwRepoSlug": product.fwRepoSlug,
+                    "mfgRepoSlug": product.mfgFwRepoSlug,
                     "builderImage": builder_image,
                     "signingKeyId": stage_config.signingKeyId,
+                    "signingKeyValue": stage_config.signingKey.value if stage_config.signingKey else None,
                     "boardRevisionId": revision.id,
                     "ckBoardsName": board,
                 }),
@@ -226,3 +283,36 @@ def trigger_stage_build(
         "k8sLaunched": k8s_launched,
         "jobs": jobs_created,
     }
+
+
+def _cancel_stale_runs(db, product_id: str, pr_number: int, stage: int, new_commit_sha: str):
+    """Cancel in-progress BuildRuns for the same PR+stage with older commits.
+
+    When a developer pushes a new commit, builds for the old commit are wasted compute.
+    This mirrors GitHub Actions' auto-cancel behavior.
+    """
+    stale_runs = db.buildrun.find_many(
+        where={
+            "productId": product_id,
+            "prNumber": pr_number,
+            "stage": stage,
+            "status": {"in": ["PENDING", "BUILDING"]},
+            "commitSha": {"not": new_commit_sha},
+        },
+    )
+    now = datetime.now(timezone.utc)
+    for run in stale_runs:
+        db.buildjob.update_many(
+            where={
+                "buildRunId": run.id,
+                "status": {"in": ["QUEUED", "BLOCKED", "CLONING", "BUILDING"]},
+            },
+            data={"status": "CANCELLED", "finishedAt": now},
+        )
+        db.buildrun.update(
+            where={"id": run.id},
+            data={"status": "CANCELLED", "finishedAt": now},
+        )
+        logger.info("Auto-cancelled stale BuildRun %s (PR #%d, stage %d, commit %s superseded by %s)",
+                     run.id[:8], pr_number, stage,
+                     (run.commitSha or "?")[:7], new_commit_sha[:7])

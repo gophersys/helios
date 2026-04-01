@@ -60,6 +60,12 @@ from .products.firmware_builds import (
     upload_firmware_build,
     download_firmware_build,
 )
+from .products.test_packages import (
+    upload_test_package,
+    list_test_packages,
+    get_latest_test_package,
+    download_test_package,
+)
 
 # System handlers
 from .system.info import get_system_info
@@ -275,6 +281,12 @@ from .builds.stage_config import (
     initialize_stages,
 )
 
+# PR pipeline + summary endpoints
+from .builds.pr_builds import list_pr_pipelines, get_build_summary
+
+# Build recipes (product build scripts stored in MinIO)
+from .builds.recipes import get_recipe, update_recipe, validate_recipe
+
 # Run manifest (execution graph for validation pipeline stages)
 from .builds.manifest import get_run_manifest
 
@@ -375,6 +387,12 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/firmware/<set_id>/builds",                             view_func=upload_firmware_build,   methods=["POST"])
     v2.add_url_rule("/firmware/builds/<build_id>/download",                                        view_func=download_firmware_build, methods=["GET"])
 
+    # Products - Test Packages
+    v2.add_url_rule("/products/<product_id>/test-packages",                                        endpoint="upload_test_package",      view_func=upload_test_package,       methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/test-packages",                                        endpoint="list_test_packages",       view_func=list_test_packages,        methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/test-packages/latest",                                 endpoint="get_latest_test_package",  view_func=get_latest_test_package,   methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/test-packages/<version>/download",                     endpoint="download_test_package",    view_func=download_test_package,     methods=["GET"])
+
     # Products - Stage Configs (validation stage configuration per product)
     v2.add_url_rule("/products/<product_id>/stages",                                            endpoint="list_stage_configs",       view_func=list_stage_configs,    methods=["GET"])
     v2.add_url_rule("/products/<product_id>/stages",                                            endpoint="create_stage_config",      view_func=create_stage_config,   methods=["POST"])
@@ -382,6 +400,11 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/stages/<stage>",                                    endpoint="get_stage_config",         view_func=get_stage_config,      methods=["GET"])
     v2.add_url_rule("/products/<product_id>/stages/<stage>",                                    endpoint="update_stage_config",      view_func=update_stage_config,   methods=["PUT"])
     v2.add_url_rule("/products/<product_id>/stages/<stage>",                                    endpoint="delete_stage_config",      view_func=delete_stage_config,   methods=["DELETE"])
+
+    # Products - Build Recipe (product build script stored in MinIO)
+    v2.add_url_rule("/products/<product_id>/recipe",                                             endpoint="get_recipe",               view_func=get_recipe,            methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/recipe",                                             endpoint="update_recipe",            view_func=update_recipe,         methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/recipe/validate",                                    endpoint="validate_recipe",          view_func=validate_recipe,       methods=["POST"])
 
     # Products - Run Manifest (execution graph for validation pipeline)
     v2.add_url_rule("/products/<product_id>/manifest",                                           endpoint="get_product_manifest",     view_func=get_run_manifest,      methods=["GET"])
@@ -601,6 +624,10 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/builds/<build_id>/log",                                                   endpoint="get_ci_build_log",         view_func=get_ci_build_log,      methods=["GET"])
     v2.add_url_rule("/builds/<build_id>/log",                                                   endpoint="stream_ci_build_log",      view_func=stream_ci_build_log,   methods=["POST"])
     v2.add_url_rule("/builds/<build_id>/reset",                                                 endpoint="reset_ci_build",           view_func=reset_ci_build,        methods=["POST"])
+
+    # Builds - PR Pipelines & Summary
+    v2.add_url_rule("/builds/prs",                                                         endpoint="list_pr_pipelines",        view_func=list_pr_pipelines,      methods=["GET"])
+    v2.add_url_rule("/builds/summary",                                                     endpoint="get_build_summary",        view_func=get_build_summary,      methods=["GET"])
 
     # Builds - Pipelines
     v2.add_url_rule("/builds/runs",                                                        endpoint="list_ci_pipelines",        view_func=list_ci_build_runs,     methods=["GET"])

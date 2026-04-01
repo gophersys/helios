@@ -48,10 +48,10 @@ config:
   SERVER_PORT: "9001"
   LOG_LEVEL: "2"
   LOG_PATH: "logs"
-  AUTH_ENABLED: "true"
   ASSETS_FOLDER: "assets"
   CORS_ORIGINS: "https://concord.local,http://concord.local"
   MTIB_PORT: "50053"
+  BITBUCKET_EMAIL: "mateo@corekinect.com"
   BITBUCKET_POLLER_ENABLED: "true"
   BITBUCKET_POLLER_INTERVAL_S: "300"
   BITBUCKET_SSH_KEY: "" # Set via values-production-secrets.yaml
@@ -63,7 +63,7 @@ config:
   COREOPS_PROXY_URL: "http://10.4.45.30:8001"
   CONCORD_API_HOST: "concord.local"
 
-# Build Service — DaemonSet on builder nodes
+# Build Service — lightweight orchestrator, spawns dynamic builder containers
 buildService:
   enabled: true
   image:
@@ -71,11 +71,11 @@ buildService:
     tag: production
   resources:
     requests:
-      cpu: "4"
-      memory: "8Gi"
+      cpu: "500m"
+      memory: "512Mi"
     limits:
-      cpu: "14"
-      memory: "28Gi"
+      cpu: "2"
+      memory: "2Gi"
 
 # Git Poller — polls firmware repos for new commits
 gitPoller:

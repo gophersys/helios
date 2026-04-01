@@ -50,7 +50,6 @@ services:
       - "9001:9001"
     environment:
       ENVIRONMENT: development
-      AUTH_ENABLED: "false"
       DATABASE_URL: postgresql://concord:concord@db:5432/concord
       DIRECT_DATABASE_URL: postgresql://concord:concord@db:5432/concord
       STORAGE_URL: http://minio:8675
@@ -61,6 +60,7 @@ services:
       COREOPS_PROXY_URL: http://localhost:8090
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY}
       BITBUCKET_API_TOKEN: ${BITBUCKET_API_TOKEN}
+      BITBUCKET_EMAIL: ${BITBUCKET_EMAIL:-mateo@corekinect.com}
       BITBUCKET_WORKSPACE: corekinect
       BITBUCKET_POLLER_ENABLED: "true"
       BITBUCKET_POLLER_INTERVAL_S: "5"
@@ -78,7 +78,48 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  # ── Build Service (orchestrator — spawns dynamic builder containers) ──
+  build-service:
+    build:
+      context: ../../apps/backend/build-service
+      dockerfile: Dockerfile
+    environment:
+      CONCORD_API_URL: http://http-api:9001
+      CONCORD_API_KEY: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG
+      WORKER_ID: dev-builder-1
+      POLL_INTERVAL: "5"
+      WORKSPACE_DIR: /tmp/builds
+      BUILD_SERVICE_DATABASE_URL: ""
+      BUILD_SERVICE_PORT: "9002"
+      # Docker build runner — spawns builds in product-specific containers
+      BUILDER_MODE: docker
+      WORKSPACE_VOLUME: development_build_workspace
+      CCACHE_VOLUME: development_ccache_data
+      DEFAULT_BUILDER_IMAGE: containers.ad.corekinect.com/ncs-fw-dev:2.7.0
+      BUILDER_NETWORK: host
+      BUILDER_TIMEOUT: "1800"
+      # Git auth
+      SSH_KEY_PATH: /root/.ssh/id_rsa
+      BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY}
+      BITBUCKET_WORKSPACE: corekinect
+      # Signing keys
+      BENCH_SIGNING_KEY: ${BENCH_SIGNING_KEY:-}
+      ENGINEERING_SIGNING_KEY: ${ENGINEERING_SIGNING_KEY:-}
+      PRODUCTION_SIGNING_KEY: ${PRODUCTION_SIGNING_KEY:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - build_workspace:/tmp/builds
+      - ccache_data:/ccache
+    ports:
+      - "9002:9002"
+    depends_on:
+      http-api:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   minio_data:
   influxdb_data:
+  build_workspace:
+  ccache_data:
