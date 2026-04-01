@@ -4,6 +4,10 @@ Merges device management (search, register, status polling, key upload)
 and FUOTA operations (plan create, CFW upload, device assignment, progress
 monitoring) into a single client backed by CoreCloudRestInterface.
 
+All public methods return typed dataclass models from ``core_cloud.models``
+instead of raw dicts. The raw-dict methods are preserved with ``_raw``
+suffix for backward compatibility during migration.
+
 Usage:
     # From env vars (test context)
     with CoreCloudClient(env_namespace="VAL_1_0") as client:
@@ -32,12 +36,27 @@ from corekinect.core_cloud.api_interface import (
     CoreCloudRestInterface,
     _ensure_scheme,
 )
+from corekinect.core_cloud.models import (
+    BootInfo,
+    CommsHwFailInfo,
+    DeviceInfo,
+    DeviceStatus,
+    FuotaAssignResult,
+    FuotaDeviceSettings,
+    FuotaPlan,
+    FuotaProgress,
+    FuotaStage,
+    GroundModeConfig,
+    HwFailInfo,
+    PositionInfo,
+    RegistrationResult,
+)
 
 # Default poll intervals
 _DEVICE_POLL_INTERVAL_S = 2.0
 _FUOTA_POLL_INTERVAL_S = 30.0
 
-# TLS verification — overridable for self-signed certs in local dev
+# TLS verification -- overridable for self-signed certs in local dev
 _TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes")
 
 
@@ -47,6 +66,10 @@ class CoreCloudClient:
     Wraps ``CoreCloudRestInterface`` for authenticated ``/api/`` requests
     and adds direct session calls for ``/singleton/`` FUOTA endpoints
     (which live outside the ``/api`` prefix).
+
+    All public methods return typed dataclass models. For backward
+    compatibility during migration, raw-dict methods are available
+    with a ``_raw`` suffix (e.g. ``search_devices_raw``).
 
     Parameters
     ----------
@@ -123,7 +146,7 @@ class CoreCloudClient:
         self._iface.__enter__()
         host = str(self._iface.api.rest_server_host_name or "")
         base = _ensure_scheme(host, default_scheme=self._iface.api.default_scheme)
-        # Strip /api suffix — singleton endpoints sit outside it
+        # Strip /api suffix -- singleton endpoints sit outside it
         self._singleton_base = base.rstrip("/").removesuffix("/api")
         return self
 
@@ -165,8 +188,23 @@ class CoreCloudClient:
     # Device methods
     # ==================================================================
 
-    def search_devices(self, device_ids: List[str]) -> dict:
-        """Search devices by ID.
+    def search_devices(self, device_ids: List[str]) -> List[DeviceInfo]:
+        """Search devices by ID, returning typed DeviceInfo objects.
+
+        ``GET /api/System/Devices/Search`` with JSON body.
+
+        Args:
+            device_ids: List of DevEUI hex strings.
+
+        Returns:
+            List of DeviceInfo objects for found devices.
+        """
+        data = self.search_devices_raw(device_ids)
+        raw_devices = data.get("devices", data if isinstance(data, list) else [])
+        return [DeviceInfo.from_api(d) for d in raw_devices]
+
+    def search_devices_raw(self, device_ids: List[str]) -> dict:
+        """Search devices by ID (raw dict response).
 
         ``GET /api/System/Devices/Search`` with JSON body.
 
@@ -183,8 +221,23 @@ class CoreCloudClient:
         resp.raise_for_status()
         return resp.json()
 
-    def get_device_status(self, device_ids: List[str]) -> dict:
-        """Get device status (boot, position, HW failures).
+    def get_device_status(self, device_ids: List[str]) -> List[DeviceStatus]:
+        """Get device status (boot, position, HW failures) as typed objects.
+
+        ``GET /api/System/Devices/Status`` with JSON body.
+
+        Args:
+            device_ids: List of DevEUI hex strings.
+
+        Returns:
+            List of DeviceStatus objects.
+        """
+        data = self.get_device_status_raw(device_ids)
+        raw_devices = data.get("devices", [])
+        return [DeviceStatus.from_api(d) for d in raw_devices]
+
+    def get_device_status_raw(self, device_ids: List[str]) -> dict:
+        """Get device status (raw dict response).
 
         ``GET /api/System/Devices/Status`` with JSON body.
 
@@ -201,7 +254,10 @@ class CoreCloudClient:
         resp.raise_for_status()
         return resp.json()
 
-    def register_devices(self, devices: List[dict]) -> dict:
+    def register_devices(
+        self,
+        devices: List[dict],
+    ) -> RegistrationResult:
         """Register devices in CoreCloud.
 
         ``POST /api/System/Devices/Register``
@@ -210,15 +266,14 @@ class CoreCloudClient:
         ``DeviceType``, ``DeviceVariantId``.
 
         Returns:
-            Response JSON with ``registeredDevices`` and
-            ``devicesAlreadyRegistered`` lists.
+            RegistrationResult with registered and already-registered lists.
         """
         resp = self._api_request(
             "POST", "/System/Devices/Register",
             json={"Devices": devices},
         )
         resp.raise_for_status()
-        return resp.json()
+        return RegistrationResult.from_api(resp.json())
 
     def ensure_device_registered(
         self,
@@ -230,10 +285,9 @@ class CoreCloudClient:
 
         Returns True if newly registered, False if already existed.
         """
-        data = self.search_devices([device_id])
-        devices = data.get("devices", data if isinstance(data, list) else [])
-        for d in devices:
-            if d.get("deviceId") == device_id:
+        found = self.search_devices([device_id])
+        for d in found:
+            if d.device_id == device_id:
                 self.log.info("Device %s already registered", device_id)
                 return False
 
@@ -246,12 +300,10 @@ class CoreCloudClient:
             "DeviceType": device_type_id,
             "DeviceVariantId": device_variant_id,
         }])
-        registered = result.get("registeredDevices", [])
-        already = result.get("devicesAlreadyRegistered", [])
-        if registered:
+        if result.any_newly_registered:
             self.log.info("Device %s registered successfully", device_id)
             return True
-        if already:
+        if result.already_registered:
             self.log.info("Device %s was already registered", device_id)
             return False
         raise RuntimeError(f"Unexpected registration result: {result}")
@@ -316,7 +368,7 @@ class CoreCloudClient:
 
         while time.monotonic() < deadline:
             try:
-                data = self.get_device_status([device_id])
+                data = self.get_device_status_raw([device_id])
                 devices = data.get("devices", [])
                 if devices:
                     section_data = devices[0].get(section, {})
@@ -341,43 +393,151 @@ class CoreCloudClient:
         )
 
     # ==================================================================
+    # Configuration methods
+    # ==================================================================
+
+    def get_ground_mode_config(self, device_id: str) -> Optional[GroundModeConfig]:
+        """Read current GroundModeConfigV2 for a device.
+
+        ``POST /api/System/Devices/Configurations/GroundModeV2/Search``
+
+        Args:
+            device_id: DevEUI hex string.
+
+        Returns:
+            GroundModeConfig if found, None if device has no config.
+
+        Raises:
+            RuntimeError: If API returns non-200 status.
+        """
+        resp = self._api_request(
+            "POST",
+            "/System/Devices/Configurations/GroundModeV2/Search",
+            json={"deviceIds": [device_id]},
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"GroundModeConfigV2 query failed: HTTP {resp.status_code} "
+                f"{resp.text[:200]}"
+            )
+
+        data = resp.json()
+        configs = data.get("groundModeConfigurations", [])
+        for cfg in configs:
+            if cfg.get("deviceId") == device_id:
+                return GroundModeConfig.from_api(cfg)
+
+        self.log.warning("No GroundModeConfigV2 found for device %s", device_id)
+        return None
+
+    def set_ground_mode_config(
+        self,
+        device_id: str,
+        config: GroundModeConfig,
+    ) -> None:
+        """Write GroundModeConfigV2 for a device.
+
+        ``PUT /api/System/Devices/Configurations/GroundModeV2``
+
+        The config object is serialized to the full API payload.
+        CoreCloud requires all fields to be present in the PUT.
+
+        Args:
+            device_id: DevEUI hex string.
+            config: GroundModeConfig with all fields populated.
+
+        Raises:
+            RuntimeError: If API returns non-200/204 status.
+        """
+        payload = config.to_api()
+        payload["deviceId"] = device_id
+
+        resp = self._api_request(
+            "PUT",
+            "/System/Devices/Configurations/GroundModeV2",
+            json=payload,
+        )
+        if resp.status_code not in (200, 204):
+            raise RuntimeError(
+                f"GroundModeConfigV2 write failed: HTTP {resp.status_code} "
+                f"{resp.text[:200]}"
+            )
+        self.log.info("Config updated for %s", device_id)
+
+    def update_ground_mode_config(
+        self,
+        device_id: str,
+        **updates: Any,
+    ) -> GroundModeConfig:
+        """Read-modify-write GroundModeConfigV2 fields.
+
+        Reads the current config, applies the given field updates,
+        and writes the full config back. Returns the updated config.
+
+        Args:
+            device_id: DevEUI hex string.
+            **updates: Field names (snake_case) and new values.
+                Example: ``update_ground_mode_config(dev, gps_heartbeat_period=120)``
+
+        Returns:
+            The updated GroundModeConfig.
+
+        Raises:
+            RuntimeError: If current config cannot be read or write fails.
+        """
+        current = self.get_ground_mode_config(device_id)
+        if current is None:
+            raise RuntimeError(
+                f"Cannot read current config for {device_id} -- cannot merge changes"
+            )
+        updated = current.with_updates(**updates)
+        self.set_ground_mode_config(device_id, updated)
+        return updated
+
+    # ==================================================================
     # FUOTA methods
     # ==================================================================
 
-    def list_fuota_plans(self) -> List[dict]:
-        """List all FUOTA plans.
+    def list_fuota_plans(self) -> List[FuotaPlan]:
+        """List all FUOTA plans as typed objects.
 
         ``GET /singleton/firmwareupdates/plans``
 
         Returns:
-            List of plan dicts.
+            List of FuotaPlan objects.
         """
         resp = self._singleton_request("GET", "firmwareupdates/plans")
         resp.raise_for_status()
-        return resp.json().get("fuotaPlans", [])
+        raw_plans = resp.json().get("fuotaPlans", [])
+        return [FuotaPlan.from_api(p) for p in raw_plans]
 
     def create_fuota_plan(
         self,
-        stages: List[dict],
+        stages: List[FuotaStage],
         description: str = "",
         device_type_id: int = 2,
         device_variant_id: int = 3,
         ignore_target_app_ids: bool = False,
-    ) -> dict:
+    ) -> FuotaPlan:
         """Create a FUOTA plan.
 
         ``POST /singleton/firmwareupdates/plans``
 
-        Each stage dict should have:
-        - ``targets``: list of CFW version strings (e.g. ``["108.0.8.2-BMD"]``)
-        - ``description``: human-readable label
-        - ``isSkippable``: bool
+        Args:
+            stages: List of FuotaStage objects defining the plan.
+            description: Human-readable plan description.
+            device_type_id: CoreCloud device type (2 = Alpha).
+            device_variant_id: CoreCloud device variant (3 = Alpha B0).
+            ignore_target_app_ids: If True, skip app ID validation.
 
         Returns:
-            Plan dict including ``planId``.
+            Created FuotaPlan including the assigned planId.
+
+        Raises:
+            RuntimeError: If plan creation fails.
         """
         payload = {
-            "stages": stages,
+            "stages": [s.to_api() for s in stages],
             "description": description,
             "deviceTypeId": device_type_id,
             "deviceVariantId": device_variant_id,
@@ -389,9 +549,33 @@ class CoreCloudClient:
             raise RuntimeError(
                 f"Plan creation failed: {resp.status_code} {resp.text[:300]}"
             )
-        plan = resp.json()
-        self.log.info("Plan created: id=%d", plan.get("planId", "?"))
+        plan = FuotaPlan.from_api(resp.json())
+        self.log.info("Plan created: id=%d", plan.plan_id)
         return plan
+
+    def create_fuota_plan_from_dicts(
+        self,
+        stages: List[dict],
+        description: str = "",
+        device_type_id: int = 2,
+        device_variant_id: int = 3,
+        ignore_target_app_ids: bool = False,
+    ) -> FuotaPlan:
+        """Create a FUOTA plan from raw stage dicts (backward compatible).
+
+        Each stage dict should have:
+        - ``targets``: list of CFW version strings (e.g. ``["108.0.8.2-BMD"]``)
+        - ``description``: human-readable label
+        - ``isSkippable``: bool
+
+        Returns:
+            Created FuotaPlan including the assigned planId.
+        """
+        typed_stages = [FuotaStage.from_api(s) for s in stages]
+        return self.create_fuota_plan(
+            typed_stages, description, device_type_id,
+            device_variant_id, ignore_target_app_ids,
+        )
 
     def upload_firmware_image(self, cfw_path: str) -> bool:
         """Upload a .cfw firmware image to CoreCloud.
@@ -448,14 +632,14 @@ class CoreCloudClient:
             f"CFW delete failed: {resp.status_code} {resp.text[:200]}"
         )
 
-    def get_fuota_progress(self, device_id: str) -> Optional[dict]:
+    def get_fuota_progress(self, device_id: str) -> Optional[FuotaProgress]:
         """Get FUOTA progress for a device.
 
         ``GET /singleton/firmwareupdates/progress?deviceId=<id>``
 
         Returns:
-            Progress dict (percentComplete, pagesApplied, totalPages, etc.)
-            or None if no active transfer (404).
+            FuotaProgress if transfer is active, None if no active
+            transfer (404).
         """
         resp = self._singleton_request(
             "GET", f"firmwareupdates/progress?deviceId={device_id}",
@@ -463,7 +647,7 @@ class CoreCloudClient:
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
-        return resp.json()
+        return FuotaProgress.from_api(resp.json())
 
     def assign_device_to_plan(
         self,
@@ -471,7 +655,7 @@ class CoreCloudClient:
         plan_id: int,
         max_stage: int = 1000,
         enable: bool = True,
-    ) -> dict:
+    ) -> FuotaAssignResult:
         """Assign a device to a FUOTA plan.
 
         ``POST /singleton/firmwareupdates/settings/devices``
@@ -486,7 +670,7 @@ class CoreCloudClient:
             enable: True to enable, False to disable FUOTA.
 
         Returns:
-            Response dict with ``numDevicesUpdated``.
+            FuotaAssignResult with count of updated devices.
         """
         self.ensure_device_registered(device_id)
 
@@ -506,16 +690,19 @@ class CoreCloudClient:
             raise RuntimeError(
                 f"Device assignment failed: {resp.status_code} {resp.text[:300]}"
             )
-        result = resp.json()
-        self.log.info("Assignment result: %s", result)
+        result = FuotaAssignResult.from_api(resp.json())
+        self.log.info("Assignment result: %d devices updated", result.num_devices_updated)
         return result
 
-    def get_device_fuota_settings(self, device_ids: Optional[List[str]] = None) -> dict:
+    def get_device_fuota_settings(
+        self,
+        device_ids: Optional[List[str]] = None,
+    ) -> List[FuotaDeviceSettings]:
         """Get FUOTA settings for devices.
 
         ``GET /singleton/firmwareupdates/settings/devices``
 
-        CRITICAL: uses ``/settings/devices`` NOT ``/settings`` — the latter
+        CRITICAL: uses ``/settings/devices`` NOT ``/settings`` -- the latter
         returns empty results (known CoreCloud bug).
 
         Args:
@@ -523,7 +710,7 @@ class CoreCloudClient:
                 returns all enrolled devices.
 
         Returns:
-            Response JSON (typically ``{"devicesFound": [...]}``)
+            List of FuotaDeviceSettings objects.
         """
         kwargs: Dict[str, Any] = {}
         if device_ids:
@@ -532,14 +719,16 @@ class CoreCloudClient:
             "GET", "firmwareupdates/settings/devices", **kwargs,
         )
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        raw_devices = data.get("devicesFound", data if isinstance(data, list) else [])
+        return [FuotaDeviceSettings.from_api(d) for d in raw_devices]
 
     def wait_for_fuota_complete(
         self,
         device_id: str,
         timeout_s: float = 7200,
         poll_interval_s: float = _FUOTA_POLL_INTERVAL_S,
-    ) -> bool:
+    ) -> FuotaProgress:
         """Poll FUOTA progress until 100% or timeout.
 
         Args:
@@ -548,7 +737,7 @@ class CoreCloudClient:
             poll_interval_s: Polling interval.
 
         Returns:
-            True if FUOTA completed (100%), False never (raises on timeout).
+            Final FuotaProgress at 100%.
 
         Raises:
             TimeoutError: If progress does not reach 100% within *timeout_s*.
@@ -561,27 +750,23 @@ class CoreCloudClient:
             progress = self.get_fuota_progress(device_id)
 
             if progress:
-                pages = progress.get("pagesApplied", 0)
-                total = progress.get("totalPages", 1)
-                pct = progress.get("percentComplete", 0)
-                ver = progress.get("version", "?")
-
-                if pages != last_pages:
+                if progress.pages_applied != last_pages:
                     elapsed = time.monotonic() - t0
                     self.log.info(
                         "FUOTA %s: %d/%d pages (%d%%) [%.0fs]",
-                        ver, pages, total, pct, elapsed,
+                        progress.version, progress.pages_applied,
+                        progress.total_pages, progress.percent_complete, elapsed,
                     )
-                    last_pages = pages
+                    last_pages = progress.pages_applied
 
-                if pct >= 100:
+                if progress.is_complete:
                     elapsed = time.monotonic() - t0
                     self.log.info(
-                        "FUOTA complete: %s in %.0fs", ver, elapsed,
+                        "FUOTA complete: %s in %.0fs", progress.version, elapsed,
                     )
-                    return True
+                    return progress
             else:
-                self.log.debug("No FUOTA progress (404) — transfer may not have started")
+                self.log.debug("No FUOTA progress (404) -- transfer may not have started")
 
             time.sleep(poll_interval_s)
 
@@ -624,26 +809,25 @@ class CoreCloudClient:
         self.ensure_device_registered(device_id, device_type_id, device_variant_id)
 
         stages = [
-            {
-                "targets": from_targets,
-                "description": f"From: {', '.join(from_targets)}",
-                "isSkippable": False,
-            },
-            {
-                "targets": to_targets,
-                "description": f"To: {', '.join(to_targets)}",
-                "isSkippable": False,
-            },
+            FuotaStage(
+                targets=from_targets,
+                description=f"From: {', '.join(from_targets)}",
+                is_skippable=False,
+            ),
+            FuotaStage(
+                targets=to_targets,
+                description=f"To: {', '.join(to_targets)}",
+                is_skippable=False,
+            ),
         ]
 
         plan = self.create_fuota_plan(
             stages, description, device_type_id, device_variant_id,
         )
-        plan_id = plan["planId"]
 
-        self.assign_device_to_plan(device_id, plan_id, max_stage=1, enable=True)
+        self.assign_device_to_plan(device_id, plan.plan_id, max_stage=1, enable=True)
 
         self.log.info("Waiting for FUOTA page delivery...")
         self.wait_for_fuota_complete(device_id, timeout_s=timeout_s)
 
-        return plan_id
+        return plan.plan_id

@@ -50,9 +50,9 @@ class AppConfig(EnvConfig):
     # Validation — K8s namespace for validation jobs (privileged namespace for hardware access)
     VALIDATION_NAMESPACE: str = "validation"
 
-    # Git poller — polls repos for new commits to trigger builds
-    GIT_POLLER_ENABLED: bool = True
-    GIT_POLLER_INTERVAL_S: int = 300
+    # Bitbucket poller — polls repos for new commits to trigger builds
+    BITBUCKET_POLLER_ENABLED: bool = True
+    BITBUCKET_POLLER_INTERVAL_S: int = 300
 
     # Bitbucket — SSH private key (base64-encoded) for git operations
     BITBUCKET_SSH_KEY: str = ""

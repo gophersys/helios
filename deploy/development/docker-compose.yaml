@@ -62,6 +62,8 @@ services:
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY}
       BITBUCKET_API_TOKEN: ${BITBUCKET_API_TOKEN}
       BITBUCKET_WORKSPACE: corekinect
+      BITBUCKET_POLLER_ENABLED: "true"
+      BITBUCKET_POLLER_INTERVAL_S: "5"
       CK_BOARDS_REPO_URL: git@bitbucket.org:corekinect/ck_boards.git
       CK_BOARDS_FETCH_INTERVAL: "60"
       SERVER_PORT: "9001"

@@ -1071,8 +1071,8 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     """Git branch to poll for this stage (e.g., "main", "develop")
     """
 
-    triggerType: _str
-    """"pr_push", "pr_merge", "auto", "schedule", "manual"
+    triggerTypes: List[_str]
+    """["pr_push", "pr_merge", "auto", "schedule", "manual"]
     """
 
     signingKeyId: Optional[_str] = None
@@ -1102,6 +1102,19 @@ class ProductStageConfig(bases.BaseProductStageConfig):
                 stacklevel=3,
             )
 
+    @field_validator('triggerTypes', pre=True, allow_reuse=True)
+    @classmethod
+    def _transform_required_list_fields(cls, value: object) -> object:
+        # When using raw queries, some databases will return `None` for an array field that has not been set yet.
+        #
+        # In our case we want to use an empty list instead as that is the internal Prisma behaviour and we want
+        # to use the same consistent structure between the core ORM and raw queries. For example, if we updated
+        # our type definitions to include `None` for `List` fields then it would be misleading as it will only
+        # ever be `None` in raw queries.
+        if value is None:
+            return []
+
+        return value
 
     @staticmethod
     def create_partial(
@@ -5814,13 +5827,13 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_relational': False,
             'documentation': '''Git branch to poll for this stage (e.g., "main", "develop")''',
         }),
-        ('triggerType', {
-            'name': 'triggerType',
-            'is_list': False,
+        ('triggerTypes', {
+            'name': 'triggerTypes',
+            'is_list': True,
             'optional': False,
-            'type': '_str',
+            'type': 'List[_str]',
             'is_relational': False,
-            'documentation': '''"pr_push", "pr_merge", "auto", "schedule", "manual"''',
+            'documentation': '''["pr_push", "pr_merge", "auto", "schedule", "manual"]''',
         }),
         ('signingKeyId', {
             'name': 'signingKeyId',

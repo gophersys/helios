@@ -21,9 +21,11 @@ from tests.common.assertions import assert_current_in_range
 log = Logger(log_name="nightly.power")
 
 # Power budgets (from firmware design spec)
-SLEEP_CURRENT_LIMIT_UA = 50.0     # Sleep mode (PSM)
-ACTIVE_CURRENT_LIMIT_MA = 15.0    # Active mode average
-MODEM_PEAK_LIMIT_MA = 300.0       # Modem TX burst peak
+# Alpha PRD power limits (from PRDTST-341, PRDTST-404, PRDTST-348)
+# Note: batteryless fixture measures ch0+ch1 combined (total current)
+SLEEP_CURRENT_LIMIT_UA = 500.0    # PRDTST-348: Sleep mode < 500uA avg
+ACTIVE_CURRENT_LIMIT_MA = 50.0    # PRDTST-404: Normal use < 50mA over 10 min
+MODEM_PEAK_LIMIT_MA = 150.0       # PRDTST-341: Active mode < 150mA peak
 
 
 class TestPowerProfile:

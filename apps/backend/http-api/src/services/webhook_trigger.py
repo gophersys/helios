@@ -148,19 +148,28 @@ def parse_bitbucket_webhook(event_key: str, payload: Dict[str, Any]) -> RepoEven
 
 
 def poll_for_changes() -> List[Dict[str, Any]]:
-    """Poll repos for new PR commits via Bitbucket REST API.
+    """Poll Bitbucket for non-draft PRs targeting watched branches.
 
-    Uses Bitbucket API to list open PRs and detect new commits.
-    Rich metadata: PR number, title, author, source/target branch.
-
-    Falls back to git ls-remote if Bitbucket API not configured.
+    For each product with pr_push-triggered stages:
+    1. List open PRs via Bitbucket REST API
+    2. Skip draft PRs
+    3. Match PR target branch to stage watchBranch
+    4. Detect new commits (compare with cached SHA)
+    5. Fire RepoEvent with PR metadata → triggers matching stages
     """
     from config import env_config
     from src.services.bitbucket_client import BitbucketClient, parse_pr_metadata
 
+    bb = BitbucketClient(
+        api_token=env_config.BITBUCKET_API_TOKEN,
+        workspace=env_config.BITBUCKET_WORKSPACE,
+    )
+    if not bb.is_configured:
+        return []
+
     db = get_db_client()
 
-    # Find products with active pr_push stages
+    # Find all enabled stages with pr_push trigger, grouped by product
     stages = db.productstageconfig.find_many(
         where={"enabled": True, "triggerTypes": {"has": "pr_push"}},
         include={"product": True},
@@ -168,169 +177,102 @@ def poll_for_changes() -> List[Dict[str, Any]]:
     if not stages:
         return []
 
-    # Collect unique repo slugs to poll
-    repos_to_poll: Dict[str, Any] = {}  # repo_slug → product
-    for stage in stages:
-        if stage.product and stage.product.fwRepoSlug:
-            repos_to_poll[stage.product.fwRepoSlug] = stage.product
-
-    bb = BitbucketClient(
-        api_token=env_config.BITBUCKET_API_TOKEN,
-        workspace=env_config.BITBUCKET_WORKSPACE,
-    )
-
-    results = []
-
-    if bb.is_configured:
-        # PR-aware polling via Bitbucket API
-        for repo_slug, product in repos_to_poll.items():
-            try:
-                prs = bb.list_open_prs(repo_slug)
-            except Exception as e:
-                logger.warning("Failed to list PRs for %s: %s", repo_slug, e)
-                continue
-
-            for pr in prs:
-                pr_meta = parse_pr_metadata(pr)
-                branch = pr_meta["source_branch"]
-                commit_sha = pr_meta["source_commit"]
-
-                if not commit_sha:
-                    continue
-
-                # Check cache
-                cache_key = f"{repo_slug}:pr:{pr_meta['pr_id']}"
-                cache_file = f"/tmp/concord_poll_{cache_key.replace(':', '_')}.sha"
-                last_sha = None
-                try:
-                    with open(cache_file) as f:
-                        last_sha = f.read().strip()
-                except FileNotFoundError:
-                    pass
-
-                if commit_sha == last_sha:
-                    continue
-
-                logger.info("Poller: PR #%s on %s has new commit %s (was %s)",
-                             pr_meta["pr_id"], repo_slug, commit_sha[:7],
-                             (last_sha or "none")[:7])
-
-                event = RepoEvent(
-                    repo_slug=repo_slug,
-                    branch=branch,
-                    commit_sha=commit_sha,
-                    event_type="push",
-                    source="poller",
-                    metadata=pr_meta,
-                )
-                triggered = handle_repo_event(event)
-                results.extend(triggered)
-
-                # Update cache
-                try:
-                    with open(cache_file, "w") as f:
-                        f.write(commit_sha)
-                except Exception:
-                    pass
-    else:
-        # Fallback: git ls-remote (no PR metadata)
-        logger.debug("Bitbucket API not configured — using git ls-remote fallback")
-        results = _poll_git_ls_remote(repos_to_poll)
-
-    return results
-
-
-def _poll_git_ls_remote(repos: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Fallback poller using git ls-remote (no PR metadata)."""
-    import base64
-    import os
-    import stat
-    import subprocess
-
-    from config import env_config
-
-    env = dict(os.environ)
-    ssh_key_b64 = env_config.BITBUCKET_SSH_KEY
-    key_path = None
-    if ssh_key_b64:
-        key_path = "/tmp/.ssh_poller"
-        with open(key_path, "wb") as f:
-            f.write(base64.b64decode(ssh_key_b64))
-        os.chmod(key_path, stat.S_IRUSR)
-        env["GIT_SSH_COMMAND"] = f"ssh -i {key_path} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-
-    results = []
-    db = get_db_client()
-
-    # Get stages again for branch info
-    stages = db.productstageconfig.find_many(
-        where={"enabled": True, "triggerTypes": {"has": "pr_push"}},
-        include={"product": True},
-    )
-
-    polled: Dict[str, str] = {}
+    # Build a map: repo_slug → { product, watched_branches }
+    repo_stages: Dict[str, Dict] = {}
     for stage in stages:
         product = stage.product
         if not product or not product.fwRepoSlug:
             continue
-        repo_slug = product.fwRepoSlug
-        branch = stage.watchBranch or "main"
-        cache_key = f"{repo_slug}:{branch}"
+        slug = product.fwRepoSlug
+        if slug not in repo_stages:
+            repo_stages[slug] = {"product": product, "watched_branches": set()}
+        branch = stage.watchBranch or "*"
+        repo_stages[slug]["watched_branches"].add(branch)
 
-        if cache_key not in polled:
-            repo_url = f"git@bitbucket.org:corekinect/{repo_slug}.git"
-            try:
-                proc = subprocess.run(
-                    ["git", "ls-remote", repo_url, f"refs/heads/{branch}"],
-                    timeout=15, capture_output=True, text=True, env=env,
-                )
-                if proc.returncode == 0 and proc.stdout.strip():
-                    polled[cache_key] = proc.stdout.strip().split()[0]
-            except Exception:
+    results = []
+
+    for repo_slug, info in repo_stages.items():
+        watched = info["watched_branches"]
+
+        try:
+            prs = bb.list_open_prs(repo_slug)
+        except Exception as e:
+            logger.warning("Poller: failed to list PRs for %s: %s", repo_slug, e)
+            continue
+
+        for pr in prs:
+            # Skip draft PRs
+            if pr.get("draft", False):
                 continue
 
-        sha = polled.get(cache_key)
-        if not sha:
-            continue
+            pr_meta = parse_pr_metadata(pr)
+            target_branch = pr_meta["target_branch"]
+            source_branch = pr_meta["source_branch"]
+            commit_sha = pr_meta["source_commit"]
 
-        cache_file = f"/tmp/concord_poll_{cache_key.replace(':', '_')}.sha"
-        last_sha = None
-        try:
-            with open(cache_file) as f:
-                last_sha = f.read().strip()
-        except FileNotFoundError:
-            pass
+            if not commit_sha or not target_branch:
+                continue
 
-        if sha == last_sha:
-            continue
+            # Match PR target branch against watched branches
+            matched = False
+            if "*" in watched:
+                matched = True
+            elif target_branch in watched:
+                matched = True
+            else:
+                for pattern in watched:
+                    if pattern.endswith("*") and target_branch.startswith(pattern[:-1]):
+                        matched = True
+                        break
 
-        event = RepoEvent(
-            repo_slug=repo_slug, branch=branch, commit_sha=sha,
-            event_type="push", source="poller",
-        )
-        triggered = handle_repo_event(event)
-        results.extend(triggered)
+            if not matched:
+                continue
 
-        try:
-            with open(cache_file, "w") as f:
-                f.write(sha)
-        except Exception:
-            pass
+            # Check if this PR has a new commit since last poll
+            cache_key = f"pr_{repo_slug}_{pr_meta['pr_id']}"
+            cache_file = f"/tmp/concord_poll_{cache_key}.sha"
+            last_sha = None
+            try:
+                with open(cache_file) as f:
+                    last_sha = f.read().strip()
+            except FileNotFoundError:
+                pass
 
-    if key_path:
-        try:
-            os.unlink(key_path)
-        except Exception:
-            pass
+            if commit_sha == last_sha:
+                continue  # No new commits
+
+            logger.info("Poller: PR #%d '%s' on %s (%s → %s) new commit %s",
+                        pr_meta["pr_id"], pr_meta["pr_title"][:40],
+                        repo_slug, source_branch, target_branch, commit_sha[:7])
+
+            event = RepoEvent(
+                repo_slug=repo_slug,
+                branch=source_branch,
+                commit_sha=commit_sha,
+                event_type="push",
+                source="poller",
+                metadata=pr_meta,
+            )
+            triggered = handle_repo_event(event)
+            results.extend(triggered)
+
+            # Cache the SHA
+            try:
+                with open(cache_file, "w") as f:
+                    f.write(commit_sha)
+            except Exception:
+                pass
 
     return results
+
+
 
 
 # ── Auto-progress — triggers next stage when current passes ──────────
 
 
 def handle_auto_progress(product_id: str, completed_stage: int) -> Optional[Dict[str, Any]]:
-    """Trigger the next stage if it has triggerTypes="auto".
+    """Trigger the next stage if it has "auto" in triggerTypes.
 
     Called when a validation run passes.
     """
@@ -345,7 +287,7 @@ def handle_auto_progress(product_id: str, completed_stage: int) -> Optional[Dict
             "productId": product_id,
             "stage": next_stage_num,
             "enabled": True,
-            "triggerTypes": {"has": "auto"},
+            "triggerTypes": {"has": "auto"},  # Prisma array contains query
         },
     )
     if not next_config:

@@ -228,16 +228,16 @@ class BuildCreateRequest:
 class PipelineCreateRequest:
     """Create a CI pipeline (build -> validate chain).
 
-    Can be triggered manually (product name) or by git poller (productId).
-    Git poller also provides repoSlug and commitSha for traceability.
+    Can be triggered manually (product name) or by Bitbucket poller (productId).
+    Bitbucket poller also provides repoSlug and commitSha for traceability.
     """
 
     product: str  # Product name or repo slug
     board: str
     branch: str
-    product_id: Optional[str] = None  # DB product ID (from git poller)
-    repo_slug: Optional[str] = None   # Git repo slug (from git poller)
-    commit_sha: Optional[str] = None  # Commit SHA (from git poller)
+    product_id: Optional[str] = None  # DB product ID (from Bitbucket poller)
+    repo_slug: Optional[str] = None   # Git repo slug (from Bitbucket poller)
+    commit_sha: Optional[str] = None  # Commit SHA (from Bitbucket poller)
     trigger_type: str = "manual"      # manual, poller, webhook
     mfg_repo_slug: Optional[str] = None  # Manufacturing firmware repo
     mfg_ssh_url: Optional[str] = None    # Manufacturing firmware SSH URL
@@ -255,7 +255,7 @@ class PipelineCreateRequest:
         if not data:
             return None, "Request body must contain JSON data"
 
-        # Product can be specified by ID (git poller) or name (manual)
+        # Product can be specified by ID (Bitbucket poller) or name (manual)
         product_id = (data.get("productId") or "").strip() or None
         repo_slug = (data.get("repoSlug") or "").strip() or None
         product = (data.get("product") or repo_slug or "").strip()

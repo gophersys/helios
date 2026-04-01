@@ -420,7 +420,7 @@ class TestCreatePipeline:
         assert response.status_code == 400
 
     def test_create_pipeline_with_poller_trigger(self, authed_client, mock_db):
-        """Create pipeline from git poller includes productId and repoSlug."""
+        """Create pipeline from Bitbucket poller includes productId and repoSlug."""
         self._mock_pipeline_creation(mock_db, "pipe-poller")
 
         with patch("src.api.v2.builds.build_runs.log_audit"):

@@ -70,25 +70,25 @@ def start_scheduler():
     t2.start()
     logger.info("Build recovery scheduler started (interval=%ds)", _BUILD_RECOVERY_INTERVAL_SECONDS)
 
-    # Git poller — polls repos for new commits to trigger stage builds
+    # Bitbucket poller — polls repos for new commits to trigger stage builds
     from config import env_config
-    if env_config.GIT_POLLER_ENABLED:
+    if env_config.BITBUCKET_POLLER_ENABLED:
         def _poller_loop():
             import time
-            interval = env_config.GIT_POLLER_INTERVAL_S
+            interval = env_config.BITBUCKET_POLLER_INTERVAL_S
             time.sleep(30)  # Initial delay to let services start
             while True:
                 try:
                     from src.services.webhook_trigger import poll_for_changes
                     results = poll_for_changes()
                     if results:
-                        logger.info("Git poller triggered %d stage build(s)", len(results))
+                        logger.info("Bitbucket poller triggered %d stage build(s)", len(results))
                 except Exception as e:
-                    logger.warning("Git poller error: %s", e)
+                    logger.warning("Bitbucket poller error: %s", e)
                 time.sleep(interval)
 
         t3 = threading.Thread(target=_poller_loop, daemon=True, name="git-poller")
         t3.start()
-        logger.info("Git poller started (interval=%ds)", env_config.GIT_POLLER_INTERVAL_S)
+        logger.info("Bitbucket poller started (interval=%ds)", env_config.BITBUCKET_POLLER_INTERVAL_S)
     else:
-        logger.info("Git poller disabled (GIT_POLLER_ENABLED=false)")
+        logger.info("Bitbucket poller disabled (BITBUCKET_POLLER_ENABLED=false)")

@@ -1,6 +1,6 @@
 """Bitbucket REST API client — reads PRs, branches, commits.
 
-Used by the git poller to detect PR changes with rich metadata.
+Used by the Bitbucket poller to detect PR changes with rich metadata.
 Authenticates via API token (Basic auth: email + token).
 
 Bitbucket deprecated App Passwords in Sept 2025 in favor of API tokens.

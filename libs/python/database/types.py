@@ -26989,7 +26989,7 @@ class ProductStageConfigOptionalCreateInput(TypedDict, total=False):
     enabled: _bool
     boardRevisionId: Optional[_str]
     watchBranch: Optional[_str]
-    triggerType: _str
+    triggerTypes: List[_str]
     signingKeyId: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -27016,7 +27016,7 @@ class ProductStageConfigOptionalCreateWithoutRelationsInput(TypedDict, total=Fal
     enabled: _bool
     boardRevisionId: Optional[_str]
     watchBranch: Optional[_str]
-    triggerType: _str
+    triggerTypes: List[_str]
     signingKeyId: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -27080,7 +27080,7 @@ class ProductStageConfigUpdateInput(TypedDict, total=False):
     name: _str
     enabled: _bool
     watchBranch: Optional[_str]
-    triggerType: _str
+    triggerTypes: 'types.StringListUpdate'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: 'ProductUpdateOneWithoutRelationsInput'
@@ -27097,7 +27097,7 @@ class ProductStageConfigUpdateManyMutationInput(TypedDict, total=False):
     name: _str
     enabled: _bool
     watchBranch: Optional[_str]
-    triggerType: _str
+    triggerTypes: 'types.StringListUpdate'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -27190,10 +27190,10 @@ _ProductStageConfig_watchBranch_OrderByInput = TypedDict(
     total=True
 )
 
-_ProductStageConfig_triggerType_OrderByInput = TypedDict(
-    '_ProductStageConfig_triggerType_OrderByInput',
+_ProductStageConfig_triggerTypes_OrderByInput = TypedDict(
+    '_ProductStageConfig_triggerTypes_OrderByInput',
     {
-        'triggerType': 'SortOrder',
+        'triggerTypes': 'SortOrder',
     },
     total=True
 )
@@ -27248,7 +27248,7 @@ ProductStageConfigOrderByInput = Union[
     '_ProductStageConfig_enabled_OrderByInput',
     '_ProductStageConfig_boardRevisionId_OrderByInput',
     '_ProductStageConfig_watchBranch_OrderByInput',
-    '_ProductStageConfig_triggerType_OrderByInput',
+    '_ProductStageConfig_triggerTypes_OrderByInput',
     '_ProductStageConfig_signingKeyId_OrderByInput',
     '_ProductStageConfig_createdAt_OrderByInput',
     '_ProductStageConfig_updatedAt_OrderByInput',
@@ -30798,7 +30798,7 @@ class ProductStageConfigWhereInput(TypedDict, total=False):
     enabled: Union[_bool, 'types.BooleanFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
     watchBranch: Union[None, _str, 'types.StringFilter']
-    triggerType: Union[_str, 'types.StringFilter']
+    triggerTypes: 'types.StringListFilter'
     signingKeyId: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -30824,7 +30824,7 @@ class ProductStageConfigWhereInputRecursive1(TypedDict, total=False):
     enabled: Union[_bool, 'types.BooleanFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
     watchBranch: Union[None, _str, 'types.StringFilter']
-    triggerType: Union[_str, 'types.StringFilter']
+    triggerTypes: 'types.StringListFilter'
     signingKeyId: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -30850,7 +30850,7 @@ class ProductStageConfigWhereInputRecursive2(TypedDict, total=False):
     enabled: Union[_bool, 'types.BooleanFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
     watchBranch: Union[None, _str, 'types.StringFilter']
-    triggerType: Union[_str, 'types.StringFilter']
+    triggerTypes: 'types.StringListFilter'
     signingKeyId: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -30876,7 +30876,7 @@ class ProductStageConfigWhereInputRecursive3(TypedDict, total=False):
     enabled: Union[_bool, 'types.BooleanFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
     watchBranch: Union[None, _str, 'types.StringFilter']
-    triggerType: Union[_str, 'types.StringFilter']
+    triggerTypes: 'types.StringListFilter'
     signingKeyId: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -30902,7 +30902,7 @@ class ProductStageConfigWhereInputRecursive4(TypedDict, total=False):
     enabled: Union[_bool, 'types.BooleanFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
     watchBranch: Union[None, _str, 'types.StringFilter']
-    triggerType: Union[_str, 'types.StringFilter']
+    triggerTypes: 'types.StringListFilter'
     signingKeyId: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -30928,7 +30928,7 @@ class ProductStageConfigScalarWhereWithAggregatesInput(TypedDict, total=False):
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     watchBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    triggerType: Union[_str, 'types.StringWithAggregatesFilter']
+    triggerTypes: Union[_str, 'types.StringWithAggregatesFilter']
     signingKeyId: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -30947,7 +30947,7 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive1(TypedDict, tota
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     watchBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    triggerType: Union[_str, 'types.StringWithAggregatesFilter']
+    triggerTypes: Union[_str, 'types.StringWithAggregatesFilter']
     signingKeyId: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -30966,7 +30966,7 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive2(TypedDict, tota
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     watchBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    triggerType: Union[_str, 'types.StringWithAggregatesFilter']
+    triggerTypes: Union[_str, 'types.StringWithAggregatesFilter']
     signingKeyId: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -30985,7 +30985,7 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive3(TypedDict, tota
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     watchBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    triggerType: Union[_str, 'types.StringWithAggregatesFilter']
+    triggerTypes: Union[_str, 'types.StringWithAggregatesFilter']
     signingKeyId: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -31004,7 +31004,7 @@ class ProductStageConfigScalarWhereWithAggregatesInputRecursive4(TypedDict, tota
     enabled: Union[_bool, 'types.BooleanWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     watchBranch: Union[_str, 'types.StringWithAggregatesFilter']
-    triggerType: Union[_str, 'types.StringWithAggregatesFilter']
+    triggerTypes: Union[_str, 'types.StringWithAggregatesFilter']
     signingKeyId: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -31019,7 +31019,7 @@ class ProductStageConfigGroupByOutput(TypedDict, total=False):
     enabled: _bool
     boardRevisionId: _str
     watchBranch: _str
-    triggerType: _str
+    triggerTypes: List[_str]
     signingKeyId: _str
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -31049,7 +31049,7 @@ class ProductStageConfigScalarAggregateOutput(TypedDict, total=False):
     enabled: _bool
     boardRevisionId: _str
     watchBranch: _str
-    triggerType: _str
+    triggerTypes: List[_str]
     signingKeyId: _str
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -31068,7 +31068,7 @@ class ProductStageConfigMaxAggregateInput(TypedDict, total=False):
     enabled: bool
     boardRevisionId: bool
     watchBranch: bool
-    triggerType: bool
+    triggerTypes: bool
     signingKeyId: bool
     createdAt: bool
     updatedAt: bool
@@ -31083,7 +31083,7 @@ class ProductStageConfigMinAggregateInput(TypedDict, total=False):
     enabled: bool
     boardRevisionId: bool
     watchBranch: bool
-    triggerType: bool
+    triggerTypes: bool
     signingKeyId: bool
     createdAt: bool
     updatedAt: bool
@@ -31108,7 +31108,7 @@ ProductStageConfigCountAggregateInput = TypedDict(
         'enabled': bool,
         'boardRevisionId': bool,
         'watchBranch': bool,
-        'triggerType': bool,
+        'triggerTypes': bool,
         'signingKeyId': bool,
         'createdAt': bool,
         'updatedAt': bool,
@@ -31127,7 +31127,7 @@ ProductStageConfigCountAggregateOutput = TypedDict(
         'enabled': int,
         'boardRevisionId': int,
         'watchBranch': int,
-        'triggerType': int,
+        'triggerTypes': int,
         'signingKeyId': int,
         'createdAt': int,
         'updatedAt': int,
@@ -31145,7 +31145,7 @@ ProductStageConfigKeys = Literal[
     'enabled',
     'boardRevisionId',
     'watchBranch',
-    'triggerType',
+    'triggerTypes',
     'signingKeyId',
     'createdAt',
     'updatedAt',
@@ -31163,7 +31163,7 @@ ProductStageConfigScalarFieldKeys = Literal[
     'enabled',
     'boardRevisionId',
     'watchBranch',
-    'triggerType',
+    'triggerTypes',
     'signingKeyId',
     'createdAt',
     'updatedAt',

@@ -56,8 +56,8 @@ config:
   ASSETS_FOLDER: "assets"
   CORS_ORIGINS: "https://staging.concord.local,http://staging.concord.local,http://localhost:4200"
   MTIB_PORT: "50053"
-  GIT_POLLER_ENABLED: "true"
-  GIT_POLLER_INTERVAL_S: "15"
+  BITBUCKET_POLLER_ENABLED: "true"
+  BITBUCKET_POLLER_INTERVAL_S: "15"
   BITBUCKET_SSH_KEY: "" # Set via values-staging-secrets.yaml
   CK_BOARDS_REPO_URL: "git@bitbucket.org:corekinect/ck_boards.git"
   CK_BOARDS_FETCH_INTERVAL: "60"

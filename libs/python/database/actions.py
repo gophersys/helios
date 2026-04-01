@@ -7090,7 +7090,7 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         results = ProductStageConfig.prisma().count(
             select={
                 '_all': True,
-                'triggerType': True,
+                'triggerTypes': True,
             },
         )
         ```

@@ -52,8 +52,8 @@ config:
   ASSETS_FOLDER: "assets"
   CORS_ORIGINS: "https://concord.local,http://concord.local"
   MTIB_PORT: "50053"
-  GIT_POLLER_ENABLED: "true"
-  GIT_POLLER_INTERVAL_S: "300"
+  BITBUCKET_POLLER_ENABLED: "true"
+  BITBUCKET_POLLER_INTERVAL_S: "300"
   BITBUCKET_SSH_KEY: "" # Set via values-production-secrets.yaml
   CK_BOARDS_REPO_URL: "git@bitbucket.org:corekinect/ck_boards.git"
   CK_BOARDS_FETCH_INTERVAL: "60"
