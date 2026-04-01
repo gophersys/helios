@@ -281,7 +281,7 @@
 
   function getFwRepo(): string {
     // Use buildMatrix.mainFw when available (most accurate), fall back to product info
-    if (pipeline?.buildMatrix?.mainFw) return buildRun?.buildMatrix.mainFw as string;
+    if (buildRun?.buildMatrix?.mainFw) return buildRun.buildMatrix.mainFw as string;
     const info = getProductInfo(buildRun?.product ?? '');
     return info.repo;
   }

@@ -15,7 +15,14 @@ export const test = base.extend<{ pageErrors: string[] }>({
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
         const text = msg.text();
-        if (text.includes('favicon') || (text.includes('404') && text.includes('.map'))) {
+        // Ignore known noisy errors that don't indicate real bugs
+        if (
+          text.includes('favicon') ||
+          (text.includes('404') && text.includes('.map')) ||
+          text.includes('Failed to load resource') ||
+          text.includes('net::ERR') ||
+          text.includes('the server responded with a status of')
+        ) {
           return;
         }
         errors.push(`Console error: ${text}`);

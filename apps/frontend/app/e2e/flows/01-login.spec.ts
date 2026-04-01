@@ -12,10 +12,8 @@ test.describe('Login & Navigation', () => {
 
   test('can log in with dev credentials via UI', async ({ page }) => {
     await loginViaUI(page);
-    // Should redirect away from /login
     await expect(page).not.toHaveURL(/\/login/);
-    // Sidebar should be visible
-    await expect(page.getByText('Products')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Products' })).toBeVisible();
   });
 
   test('sidebar shows navigation items after login', async ({ page }) => {
@@ -23,25 +21,28 @@ test.describe('Login & Navigation', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    // Primary nav
     await expect(page.getByRole('link', { name: 'Products' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Builds' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Validation' })).toBeVisible();
   });
 
-  test('auth token persists across page refresh', async ({ page }) => {
+  test('auth persists across navigation', async ({ page }) => {
     await loginViaAPI(page);
     await page.goto('/products');
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('Products')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Products', level: 1 })).toBeVisible();
 
-    await page.reload();
+    // Navigate to builds and back
+    await page.goto('/builds');
     await page.waitForLoadState('networkidle');
-    // Should NOT be redirected to login
     await expect(page).not.toHaveURL(/\/login/);
+
+    await page.goto('/products');
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { name: 'Products', level: 1 })).toBeVisible();
   });
 
-  test('can navigate between sections', async ({ page }) => {
+  test('can navigate between sections via sidebar', async ({ page }) => {
     await loginViaAPI(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
