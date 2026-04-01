@@ -1,6 +1,6 @@
 {{- if .Values.buildService.enabled }}
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: concord-build-service
   namespace: {{ .Release.Namespace }}
@@ -9,25 +9,20 @@ metadata:
     app.kubernetes.io/component: build-service
     app.kubernetes.io/part-of: concord-ci
 spec:
+  replicas: {{ .Values.buildService.replicas | default 1 }}
   selector:
     matchLabels:
       app: concord-build-service
-  updateStrategy:
+  strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 1
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
         app: concord-build-service
     spec:
-      nodeSelector:
-        corekinect.com/purpose: builder
-      tolerations:
-        - key: "corekinect.com/purpose"
-          operator: "Equal"
-          value: "builder"
-          effect: "PreferNoSchedule"
       containers:
         - name: build-service
           image: "{{ .Values.buildService.image.repository }}:{{ .Values.buildService.image.tag }}"
@@ -70,18 +65,6 @@ spec:
             - containerPort: 9002
               name: http
               protocol: TCP
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 9002
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 9002
-            initialDelaySeconds: 30
-            periodSeconds: 30
           resources:
             requests:
               cpu: {{ .Values.buildService.resources.requests.cpu | default "500m" | quote }}
@@ -97,9 +80,6 @@ spec:
               readOnly: true
             - name: workspace
               mountPath: /tmp/builds
-            - name: alpha-mcuboot-keys
-              mountPath: /keys/alpha
-              readOnly: true
             - name: ccache
               mountPath: /ccache
       volumes:
@@ -111,10 +91,6 @@ spec:
           secret:
             secretName: bitbucket-ssh-key
             defaultMode: 0600
-        - name: alpha-mcuboot-keys
-          secret:
-            secretName: alpha-mcuboot-keys
-            defaultMode: 0400
         - name: workspace
           hostPath:
             path: /tmp/concord-builds
