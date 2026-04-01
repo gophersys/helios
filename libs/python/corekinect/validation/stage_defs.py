@@ -379,6 +379,42 @@ _STAGE_BUILDS: Dict[Stage, List[StageBuildDef]] = {
 
 
 # =============================================================================
+# Stage → required capabilities
+#
+# Minimum capabilities a fixture MUST have to run a stage. The backend
+# uses this for scheduling — it won't assign a fixture that lacks
+# critical capabilities unless strict_mode is disabled.
+#
+# Individual tests within a stage may require additional capabilities
+# beyond the stage minimum (e.g., a GNSS test needs GNSS_SIMULATOR).
+# Those tests skip gracefully if the extra capability is missing.
+#
+# In strict_mode, the backend waits for a fixture with ALL capabilities
+# listed in the stage's full_capabilities set (stage minimum + all
+# test-level requirements). In normal mode, it assigns the best
+# available fixture and lets tests skip what they can't run.
+# =============================================================================
+
+_STAGE_CAPABILITIES: Dict[Stage, List[str]] = {
+    # Smoke: just needs MTIB connectivity (power + basic I/O)
+    Stage.SMOKE: ["power"],
+
+    # Silicon: needs GPIO access for driver testing
+    Stage.SILICON: ["power", "button", "jlink"],
+
+    # Integration: needs harness connectivity + basic peripherals
+    Stage.INTEGRATION: ["power", "button", "jlink"],
+
+    # Nightly: comprehensive — needs most fixture capabilities
+    # Individual tests skip if specific capabilities are missing
+    Stage.NIGHTLY: ["power", "button", "peltier"],
+
+    # FUOTA: needs J-Link for initial flash + power for boot verification
+    Stage.FUOTA: ["power", "jlink"],
+}
+
+
+# =============================================================================
 # Public API
 # =============================================================================
 
@@ -503,3 +539,19 @@ def get_quiet_labels(stage: Stage) -> List[str]:
     return sorted(
         d.label for d in get_stage_build_defs(stage) if not d.config_log
     )
+
+
+def get_stage_capabilities(stage: Stage) -> List[str]:
+    """Get minimum required capability names for a stage.
+
+    The backend uses this for fixture scheduling. A fixture must have
+    at least these capabilities to run the stage. Individual tests may
+    require additional capabilities and will skip gracefully.
+
+    Args:
+        stage: Validation stage.
+
+    Returns:
+        List of capability name strings (matching Capability enum values).
+    """
+    return list(_STAGE_CAPABILITIES.get(stage, []))

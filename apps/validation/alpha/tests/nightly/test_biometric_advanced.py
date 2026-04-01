@@ -8,6 +8,8 @@ import time
 
 import pytest
 
+from corekinect.test.profiles import Capability
+from corekinect.test.pytest_integration import requires_capability
 from corekinect.utils import Logger
 
 from tests.common.timing import Timing
@@ -35,6 +37,7 @@ class TestBiometricAdvanced:
         except Exception as exc:
             log.warning("Failed to deactivate on-skin simulation: %s", exc)
 
+    @requires_capability(Capability.PPG_SERVO, Capability.PPG_LED)
     @pytest.mark.timeout(Timing.NIGHTLY.STIMULUS_FULL)
     @pytest.mark.corecloud
     def test_position_message_on_skin(self):

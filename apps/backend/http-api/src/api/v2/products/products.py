@@ -65,6 +65,32 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
     if hasattr(p, "_count") and p._count is not None:
         data["sessionCount"] = getattr(p._count, "sessions", 0)
         data["testCount"] = getattr(p._count, "tests", 0)
+    # Stage config summary (always included for card display)
+    if hasattr(p, "stageConfigs") and p.stageConfigs is not None:
+        stages = p.stageConfigs
+        data["stageConfigs"] = [
+            {
+                "stage": s.stage,
+                "name": s.name,
+                "enabled": s.enabled,
+                "triggerType": getattr(s, "triggerType", "manual"),
+            }
+            for s in sorted(stages, key=lambda x: x.stage)
+        ]
+        data["enabledStageCount"] = sum(1 for s in stages if s.enabled)
+    # Revision summary (always included for card display)
+    if hasattr(p, "boards") and p.boards:
+        revisions = []
+        for board in p.boards:
+            if hasattr(board, "revisions") and board.revisions:
+                for rev in board.revisions:
+                    revisions.append({
+                        "version": rev.version,
+                        "ckBoardsName": rev.ckBoardsName,
+                        "status": rev.status,
+                        "targetCount": len(rev.targets) if hasattr(rev, "targets") and rev.targets else 0,
+                    })
+        data["revisions"] = revisions
     return data
 
 
@@ -141,6 +167,7 @@ def list_products():
         include={
             "boards": {"include": {"revisions": {"include": {"targets": True}}}},
             "firmwareSets": True,
+            "stageConfigs": True,
         },
     )
     return jsonify(ApiResponse.ok({

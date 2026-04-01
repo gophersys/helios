@@ -24,15 +24,26 @@ from typing import Any, Dict, List, Optional, Set
 class Capability(str, Enum):
     """Physical capabilities a test bench may have.
 
-    These represent actual hardware that must be wired on the fixture.
-    Not all benches have all capabilities — depends on what's installed.
+    These represent actual hardware or instruments that must be present
+    on the fixture or MTIB node. Capabilities are checked before tests
+    run — missing capabilities cause graceful skip, never crash.
+
+    Static capabilities (physical wiring, don't change between runs):
+        POWER, BUTTON, PELTIER, CHARGER_RELAY, PPG_SERVO, PPG_LED,
+        LED_PHOTODIODE, NFC_READER, MOTION_ACTUATOR, HAPTIC_SENSOR
+
+    Dynamic capabilities (may change between runs, probed at connect):
+        JLINK, JOULESCOPE, BATTERY
+
+    External capabilities (require equipment outside the fixture):
+        GNSS_SIMULATOR, ENVIRONMENTAL_CHAMBER
     """
 
     # Always present on any MTIB
-    POWER = "power"  # INA219 power monitoring
+    POWER = "power"  # INA219 power monitoring (basic mA resolution)
     BUTTON = "button"  # GPIO to drive DUT button
 
-    # Optional hardware
+    # Fixture hardware (static, depends on wiring)
     PELTIER = "peltier"  # Heater for temperature simulation
     CHARGER_RELAY = "charger_relay"  # Relay to connect/disconnect charger
     PPG_SERVO = "ppg_servo"  # Servo for PPG IR blocker
@@ -41,7 +52,17 @@ class Capability(str, Enum):
     NFC_READER = "nfc_reader"  # I2C NFC reader
     MOTION_ACTUATOR = "motion_actuator"  # FluidNC linear rail
     HAPTIC_SENSOR = "haptic_sensor"  # Vibration detection sensor
+
+    # MTIB instruments (dynamic, probed at connect)
     JLINK = "jlink"  # J-Link SWD debug probes for flashing
+    JOULESCOPE = "joulescope"  # High-precision current measurement (nA/µA)
+
+    # DUT state (depends on fixture configuration)
+    BATTERY = "battery"  # Real battery installed in DUT (enables charging tests)
+
+    # External equipment
+    GNSS_SIMULATOR = "gnss_simulator"  # RF GPS signal generator
+    ENVIRONMENTAL_CHAMBER = "environmental_chamber"  # Temperature/humidity control
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -87,8 +108,8 @@ FEATURE_REQUIREMENTS: Dict[Feature, List[Capability]] = {
     Feature.MOTION: [Capability.MOTION_ACTUATOR],
     Feature.NFC: [Capability.NFC_READER],
     Feature.CELLULAR: [],  # uses DUT's own modem
-    Feature.GNSS: [],  # uses DUT's own GPS
-    Feature.CHARGING: [Capability.CHARGER_RELAY],  # also needs battery
+    Feature.GNSS: [],  # uses DUT's own GPS (GNSS_SIMULATOR enhances but not required)
+    Feature.CHARGING: [Capability.CHARGER_RELAY, Capability.BATTERY],
     Feature.HAPTIC: [Capability.HAPTIC_SENSOR],
 }
 

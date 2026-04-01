@@ -22,6 +22,7 @@ from .stage_defs import (
     get_quiet_labels,
     get_required_labels,
     get_stage_build_defs,
+    get_stage_capabilities,
     get_verbose_labels,
 )
 
