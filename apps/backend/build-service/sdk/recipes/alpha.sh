@@ -49,7 +49,9 @@ echo -e "${CYAN}Building Application (nRF52840)...${NC}"
 
 # DTS overlay for APP processor — configures UART pins, I2C sensors, etc.
 # Without this, UART TX/RX are on wrong pins and shell output is silent.
+# Only pass if the file exists (alpha_fw has it, alpha_mfg_fw may not)
 APP_DTC_OVERLAY="${REPO}/boards/${BOARD}_nrf52840.overlay"
+if [ ! -f "$APP_DTC_OVERLAY" ]; then APP_DTC_OVERLAY=""; fi
 
 west build --pristine \
     -d ${REPO}/build/app \
@@ -77,7 +79,9 @@ sed -i "s|/workspaces/[a-z_]*/comms_encryption_key.pem|${REPO}/comms_encryption_
 echo "# FIPS placeholder" > ${COMMS_DIR}/fips.conf
 
 # DTS overlay for COMMS processor — UART pins, sensor config
+# Only pass if the file exists
 COMMS_DTC_OVERLAY="${REPO}/boards/${BOARD}_${COMMS_SOC}_ns.overlay"
+if [ ! -f "$COMMS_DTC_OVERLAY" ]; then COMMS_DTC_OVERLAY=""; fi
 
 # First comms build
 west build --pristine \
