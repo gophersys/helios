@@ -478,6 +478,7 @@ def update_build(build_id: str):
                     }
                 )
                 if dependent_builds:
+                    from src.services.build_job_runner import create_build_k8s_job
                     for dep in dependent_builds:
                         db.buildjob.update(
                             where={"id": dep.id},
@@ -485,6 +486,10 @@ def update_build(build_id: str):
                         )
                         logger.info("Unblocked build %s (%s) - base build %s completed",
                                    dep.id, dep.matrixLabel, build_id)
+                        # Launch K8s job for the unblocked build
+                        k8s_name = create_build_k8s_job(dep.id)
+                        if k8s_name:
+                            logger.info("Launched K8s build job for unblocked: %s", k8s_name)
 
             # When a build finishes, check if pipeline is complete
             if new_status in ("SUCCESS", "FAILED", "CANCELLED"):

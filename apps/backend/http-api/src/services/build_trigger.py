@@ -186,8 +186,23 @@ def trigger_stage_build(
 
     logger.info("Created %d BuildJobs for BuildRun %s", len(jobs_created), build_run.id)
 
+    # Spawn K8s Jobs for QUEUED builds (not BLOCKED ones — they'll spawn when unblocked)
+    from src.services.build_job_runner import create_build_k8s_job
+    k8s_launched = 0
+    for job_info in jobs_created:
+        job_record = db.buildjob.find_unique(where={"id": job_info["id"]})
+        if job_record and job_record.status == "QUEUED":
+            k8s_name = create_build_k8s_job(job_info["id"])
+            if k8s_name:
+                k8s_launched += 1
+                logger.info("Launched K8s build job: %s (%s)", k8s_name, job_info["matrixLabel"])
+
+    logger.info("Launched %d/%d K8s build jobs for BuildRun %s",
+                k8s_launched, len(jobs_created), build_run.id)
+
     return {
         "buildRunId": build_run.id,
         "jobCount": len(jobs_created),
+        "k8sLaunched": k8s_launched,
         "jobs": jobs_created,
     }
