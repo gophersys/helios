@@ -30,21 +30,36 @@
   let formTriggerType = $state('manual');
 
   const triggerOptions = [
-    { value: 'pr_push', label: 'On every push (PR or branch)' },
-    { value: 'pr_merge', label: 'On merge to watched branch' },
-    { value: 'auto', label: 'Auto (after previous stage passes)' },
-    { value: 'schedule', label: 'Scheduled (cron)' },
-    { value: 'manual', label: 'Manual only' },
+    { value: 'pr_push', label: 'Pull request', desc: 'Run when a PR targeting the branch is opened or updated' },
+    { value: 'pr_merge', label: 'Merge', desc: 'Run when code is merged into the branch' },
+    { value: 'auto', label: 'After previous stage', desc: 'Automatically run when the previous stage passes' },
+    { value: 'schedule', label: 'Schedule', desc: 'Run on a cron schedule against the branch' },
+    { value: 'manual', label: 'Manual', desc: 'Only run when manually triggered' },
   ];
 
-  // Default trigger type per stage
+  // Smart defaults per stage (like GitHub Actions defaults)
   const defaultTrigger: Record<number, string> = {
-    1: 'pr_push',    // Smoke on every push
-    2: 'auto',       // Silicon after Smoke
-    3: 'auto',       // Integration after Silicon
-    4: 'schedule',   // Nightly on cron
-    5: 'pr_merge',   // FUOTA on merge
+    1: 'pr_push',    // Smoke: run on every PR
+    2: 'auto',       // Silicon: after Smoke passes
+    3: 'auto',       // Integration: after Silicon passes
+    4: 'schedule',   // Nightly: scheduled cron
+    5: 'pr_merge',   // FUOTA: when merged to main
   };
+
+  // Whether this trigger type needs a branch selector
+  const needsBranch = (t: string) => ['pr_push', 'pr_merge', 'schedule'].includes(t);
+
+  // Human-readable trigger summary
+  function triggerSummary(type: string, branch: string | null): string {
+    switch (type) {
+      case 'pr_push': return branch ? `PRs → ${branch}` : 'Pull requests';
+      case 'pr_merge': return branch ? `Merge → ${branch}` : 'On merge';
+      case 'auto': return 'After prev. stage';
+      case 'schedule': return branch ? `Cron (${branch})` : 'Scheduled';
+      case 'manual': return 'Manual';
+      default: return type;
+    }
+  }
 
   const stageBadgeColors: Record<number, string> = {
     1: 'bg-blue-500/10 text-blue-400',
@@ -153,9 +168,9 @@
             {config.boardRevision.ckBoardsName}
           </span>
         {/if}
-        {#if config?.enabled && config?.watchBranch}
-          <span class="px-1.5 py-0.5 text-2xs rounded bg-surface-2 text-text-tertiary flex items-center gap-1">
-            <GitBranch size={10} /> {config.watchBranch}
+        {#if config?.enabled}
+          <span class="px-1.5 py-0.5 text-2xs rounded bg-accent/10 text-accent">
+            {triggerSummary((config as any).triggerType || 'manual', config.watchBranch)}
           </span>
         {/if}
       </div>
@@ -202,25 +217,28 @@
         </select>
       </div>
 
-      <!-- Trigger type -->
+      <!-- Trigger — GitHub Actions style -->
       <div>
-        <label for="stage-trigger-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Trigger</label>
-        <select
-          id="stage-trigger-{stage}"
-          bind:value={formTriggerType}
-          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
-        >
+        <span class="mb-2 block text-2xs font-medium text-text-tertiary">on:</span>
+        <div class="space-y-1">
           {#each triggerOptions as opt}
-            <option value={opt.value}>{opt.label}</option>
+            <label class="flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors {formTriggerType === opt.value ? 'border-accent bg-accent/5' : 'border-border-subtle bg-surface-0 hover:bg-surface-1'}">
+              <input type="radio" name="trigger-{stage}" value={opt.value} bind:group={formTriggerType} class="mt-0.5 accent-accent" />
+              <div>
+                <span class="text-sm font-medium text-text-primary">{opt.label}</span>
+                <p class="text-2xs text-text-tertiary">{opt.desc}</p>
+              </div>
+            </label>
           {/each}
-        </select>
+        </div>
       </div>
 
-      <!-- Branch + Signing Key (shown when trigger needs a branch) -->
-      {#if formTriggerType === 'pr_push' || formTriggerType === 'pr_merge'}
+      <!-- Branch filter (shown when trigger type needs one) -->
+      {#if needsBranch(formTriggerType)}
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
-          <label for="stage-branch-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">Watch Branch</label>
+          {@const branchLabel = formTriggerType === 'pr_push' ? 'PRs targeting branch' : formTriggerType === 'pr_merge' ? 'Merge into branch' : 'Build from branch'}
+          <label for="stage-branch-{stage}" class="mb-1 block text-2xs font-medium text-text-tertiary">{branchLabel}</label>
           {#if loadingBranches}
             <div class="flex items-center gap-2 py-2 text-2xs text-text-tertiary">
               <Loader2 size={12} class="animate-spin" /> Loading branches...
@@ -316,17 +334,23 @@
   <!-- Enabled summary -->
   {#if expanded && !configuring && config?.enabled}
     <div class="border-t border-border px-4 py-3 space-y-3">
-      <div class="grid grid-cols-3 gap-3 text-sm">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
         <div>
           <span class="block text-2xs text-text-tertiary">Revision</span>
           <span class="font-mono text-text-primary">{config.boardRevision?.ckBoardsName || '—'}</span>
         </div>
         <div>
+          <span class="block text-2xs text-text-tertiary">Trigger</span>
+          <span class="text-text-primary">{triggerSummary((config as any).triggerType || 'manual', config.watchBranch)}</span>
+        </div>
+        {#if config.watchBranch}
+        <div>
           <span class="block text-2xs text-text-tertiary">Branch</span>
           <span class="font-mono text-text-primary flex items-center gap-1">
-            <GitBranch size={12} /> {config.watchBranch || '—'}
+            <GitBranch size={12} /> {config.watchBranch}
           </span>
         </div>
+        {/if}
         <div>
           <span class="block text-2xs text-text-tertiary">Signing Key</span>
           <span class="text-text-primary flex items-center gap-1">

@@ -1,15 +1,16 @@
 # Alpha PRDTST Traceability Matrix
 
-**Generated:** 2026-03-07
+**Generated:** 2026-04-01
 **Product:** Alpha B0
 **Total PRD Tests:** 89
-**Implemented:** 22 | **Blocked:** 29 | **Not Started:** 38
+**Implemented:** 46 | **Blocked:** 39 | **Not Started:** 4
 
 ## Status Legend
 
 | Status | Meaning |
 |--------|---------|
 | PASS | Test implemented and passing on hardware |
+| IMPLEMENTED | Test code written but not yet run against hardware |
 | XFAIL | Test implemented but expected failure (hardware not wired) |
 | SKIP | Test implemented but skipped (hardware not connected) |
 | BLOCKED | Cannot implement (missing hardware/capability) |
@@ -33,24 +34,24 @@
 
 | PRDTST ID | Description | Test File | Test Method | Status | Blocker |
 |-----------|-------------|-----------|-------------|--------|---------|
-| PRDTST-328 | Motion stop acquisition timeout default value | — | — | NOT_STARTED | Requires CoreCloud config message parsing |
-| PRDTST-330 | Heartbeat acquisition timeout default (60s) | — | — | NOT_STARTED | Requires CoreCloud config message parsing |
-| PRDTST-335 | Zero heartbeat period (disable heartbeats) | — | — | NOT_STARTED | Requires config write + CoreCloud message verification |
-| PRDTST-342 | Continuous motion period default value | — | — | NOT_STARTED | Requires CoreCloud config message parsing |
-| PRDTST-344 | Heartbeat period max value (2-byte) | — | — | NOT_STARTED | Requires config write + CoreCloud message verification |
-| PRDTST-347 | Stop motion timeout non-default value | — | — | NOT_STARTED | Requires config write + CoreCloud message verification |
-| PRDTST-352 | Heartbeat period default value | — | — | NOT_STARTED | Requires CoreCloud config message parsing |
-| PRDTST-353 | Start motion window start default (3s) | — | — | NOT_STARTED | Requires CoreCloud config message parsing |
-| PRDTST-356 | Heartbeat period non-default value | — | — | NOT_STARTED | Requires config write + CoreCloud message verification |
-| PRDTST-359 | Heartbeat acquisition timeout non-default value | — | — | NOT_STARTED | Requires config write + CoreCloud message verification |
-| PRDTST-364 | Continuous motion disabled | — | — | NOT_STARTED | Requires config write + CoreCloud message verification |
-| PRDTST-369 | Continuous motion period non-default value | — | — | NOT_STARTED | Requires config write + CoreCloud message verification |
-| PRDTST-371 | Heartbeat period min value | — | — | NOT_STARTED | Requires config write + CoreCloud message verification |
+| PRDTST-328 | Motion stop acquisition timeout default value | test_config.py | TestConfigDefaults::test_motion_stop_acquisition_timeout_default | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-330 | Heartbeat acquisition timeout default (60s) | test_config.py | TestConfigDefaults::test_heartbeat_acquisition_timeout_default | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-335 | Zero heartbeat period (disable heartbeats) | test_config.py | TestConfigOverrides::test_zero_heartbeat_disables | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-342 | Continuous motion period default value | test_config.py | TestConfigDefaults::test_continuous_motion_period_default | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-344 | Heartbeat period max value (2-byte) | test_config.py | TestConfigOverrides::test_heartbeat_period_max | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-347 | Stop motion timeout non-default value | test_config.py | TestConfigOverrides::test_stop_motion_timeout_non_default | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-352 | Heartbeat period default value | test_config.py | TestConfigDefaults::test_gps_heartbeat_period_default | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-353 | Start motion window start default (3s) | test_config.py | TestConfigDefaults::test_start_motion_window_start_default | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-356 | Heartbeat period non-default value | test_config.py | TestConfigOverrides::test_heartbeat_period_non_default | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-359 | Heartbeat acquisition timeout non-default value | test_config.py | TestConfigOverrides::test_heartbeat_timeout_non_default | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-364 | Continuous motion disabled | test_config.py | TestConfigOverrides::test_continuous_motion_disabled | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-369 | Continuous motion period non-default value | test_config.py | TestConfigOverrides::test_continuous_motion_non_default | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-371 | Heartbeat period min value | test_config.py | TestConfigOverrides::test_heartbeat_period_min | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
 | PRDTST-374 | Ground mode config sent on boot | test_boot.py | test_power_cycle_produces_bootmsg, test_boot_reports_firmware_version | PASS | — |
-| PRDTST-387 | Continuous motion period min (1s) | — | — | NOT_STARTED | Requires config write + CoreCloud message verification; behavior at 1s undefined |
-| PRDTST-388 | Default ground mode config values | — | — | NOT_STARTED | Requires CoreCloud GroundModeConfigV2 message parsing |
-| PRDTST-394 | Continuous motion period max (65535s) | — | — | NOT_STARTED | Requires config write + CoreCloud message verification |
-| PRDTST-399 | Stop motion timeout default (2 min) | — | — | NOT_STARTED | Requires CoreCloud config message parsing |
+| PRDTST-387 | Continuous motion period min (1s) | test_config.py | TestConfigOverrides::test_continuous_motion_min | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-388 | Default ground mode config values | test_config.py | TestConfigDefaults::test_all_defaults_match | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-394 | Continuous motion period max (65535s) | test_config.py | TestConfigOverrides::test_continuous_motion_max | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
+| PRDTST-399 | Stop motion timeout default (2 min) | test_config.py | TestConfigDefaults::test_stop_motion_timeout_default | IMPLEMENTED | Implemented — uses CloudClient.get_ground_mode_config() |
 
 ### Motion Detection (5 tests)
 
@@ -112,20 +113,20 @@
 
 | PRDTST ID | Description | Test File | Test Method | Status | Blocker |
 |-----------|-------------|-----------|-------------|--------|---------|
-| PRDTST-333 | GNSS position-based heading estimate (within 10 deg) | — | — | NOT_STARTED | Requires GNSS fix + motion for heading calculation |
-| PRDTST-343 | GNSS cold start fix (within 1 min, 6m accuracy, aiding disabled) | — | — | NOT_STARTED | Requires clear sky conditions or GNSS simulator |
-| PRDTST-358 | GNSS position-based speed estimate (within 20%) | — | — | NOT_STARTED | Requires GNSS fix + known-speed motion |
-| PRDTST-360 | GNSS warm start fix (within 30s, 1m accuracy, aiding disabled) | — | — | NOT_STARTED | Requires prior fix + clear sky or GNSS simulator |
-| PRDTST-378 | GNSS cold start fix (within 30s, 1m accuracy, aiding enabled) | — | — | NOT_STARTED | Requires clear sky or GNSS simulator + aiding data |
-| PRDTST-384 | GNSS cold start fix extended (within 3 min, 1m accuracy, aiding disabled) | — | — | NOT_STARTED | Requires clear sky or GNSS simulator |
-| PRDTST-396 | GNSS warm start fix (within 30s, 1m accuracy, aiding enabled) | — | — | NOT_STARTED | Requires prior fix + clear sky or GNSS simulator + aiding data |
+| PRDTST-333 | GNSS position-based heading estimate (within 10 deg) | test_gnss.py | TestGNSS::test_heading_accuracy | IMPLEMENTED | Implemented — skips gracefully without GPS signal |
+| PRDTST-343 | GNSS cold start fix (within 1 min, 6m accuracy, aiding disabled) | test_gnss.py | TestGNSS::test_cold_start_fix_1min_6m | IMPLEMENTED | Implemented — skips gracefully without GPS signal |
+| PRDTST-358 | GNSS position-based speed estimate (within 20%) | test_gnss.py | TestGNSS::test_speed_accuracy | IMPLEMENTED | Implemented — skips gracefully without GPS signal |
+| PRDTST-360 | GNSS warm start fix (within 30s, 1m accuracy, aiding disabled) | test_gnss.py | TestGNSS::test_warm_start_fix_30s_1m | IMPLEMENTED | Implemented — skips gracefully without GPS signal |
+| PRDTST-378 | GNSS cold start fix (within 30s, 1m accuracy, aiding enabled) | test_gnss.py | TestGNSS::test_cold_start_fix_30s_with_aiding | IMPLEMENTED | Implemented — skips gracefully without GPS signal |
+| PRDTST-384 | GNSS cold start fix extended (within 3 min, 1m accuracy, aiding disabled) | test_gnss.py | TestGNSS::test_cold_start_fix_3min_1m | IMPLEMENTED | Implemented — skips gracefully without GPS signal |
+| PRDTST-396 | GNSS warm start fix (within 30s, 1m accuracy, aiding enabled) | test_gnss.py | TestGNSS::test_warm_start_fix_30s_with_aiding | IMPLEMENTED | Implemented — skips gracefully without GPS signal |
 
 ### On-Skin / Biometrics (3 tests)
 
 | PRDTST ID | Description | Test File | Test Method | Status | Blocker |
 |-----------|-------------|-----------|-------------|--------|---------|
 | PRDTST-327 | Biometric data messages sent when on-skin | test_biometric.py | test_on_skin_detected, test_biometric_includes_temperature | PASS | — |
-| PRDTST-379 | Position messages sent when on-skin | — | — | NOT_STARTED | Requires on-skin simulation + CoreCloud PositionMsgV6 parsing |
+| PRDTST-379 | Position messages sent when on-skin | test_biometric_advanced.py | TestBiometricAdvanced::test_position_message_on_skin | IMPLEMENTED | — |
 | PRDTST-400 | On-skin detection (on and off) | test_biometric.py | test_on_skin_detected, test_off_skin_detected | PASS | — |
 
 ### Button / SOS / Haptic (9 tests)
@@ -133,7 +134,7 @@
 | PRDTST ID | Description | Test File | Test Method | Status | Blocker |
 |-----------|-------------|-----------|-------------|--------|---------|
 | PRDTST-325 | Negative test: no SOS for <3s or >6s press | test_button.py | test_short_press_no_power_off | PASS | Partial: verifies short press does not power off; SOS-specific negative verification NOT_STARTED |
-| PRDTST-346 | Hard reset on 7 rapid presses | — | — | NOT_STARTED | Requires rapid multi-press GPIO actuation + reboot detection |
+| PRDTST-346 | Hard reset on 7 rapid presses | test_button_advanced.py | TestButtonAdvanced::test_hard_reset_on_seven_presses | IMPLEMENTED | — |
 | PRDTST-362 | Haptic feedback on SOS entry | — | — | BLOCKED | No haptic/vibration sensor on fixture; cannot detect motor activation |
 | PRDTST-377 | Manufacturing test mode on double-click | test_button.py | test_double_press | PASS | Verifies device survives double-press; mfg mode entry not explicitly verified |
 | PRDTST-380 | Haptic feedback on SOS acknowledgement | — | — | BLOCKED | No haptic/vibration sensor on fixture |
@@ -152,7 +153,7 @@
 
 | PRDTST ID | Description | Test File | Test Method | Status | Blocker |
 |-----------|-------------|-----------|-------------|--------|---------|
-| PRDTST-376 | FUOTA from previous release to current | — | — | NOT_STARTED | FUOTA API workflow confirmed; CFW files generated; test automation not yet written |
+| PRDTST-376 | FUOTA from previous release to current | test_01_mfg_to_mfg_fuota.py | TestMfgToMfgFuota | IMPLEMENTED | — |
 
 ### VSM / IPC (1 test)
 
@@ -168,21 +169,21 @@
 
 ## Summary by Category
 
-| Category | Total | PASS | XFAIL | SKIP | BLOCKED | NOT_STARTED |
-|----------|-------|------|-------|------|---------|-------------|
-| Power / Runtime | 7 | 2 | 0 | 0 | 5 | 0 |
-| Config Values | 18 | 1 | 0 | 0 | 0 | 17 |
-| Motion Detection | 5 | 0 | 0 | 4 | 1 | 0 |
-| Charging / BMS | 29 | 0 | 2 | 0 | 27 | 0 |
-| Environmental Sensors | 7 | 4 | 0 | 0 | 0 | 3 |
-| GNSS | 7 | 0 | 0 | 0 | 0 | 7 |
-| On-Skin / Biometrics | 3 | 2 | 0 | 0 | 0 | 1 |
-| Button / SOS / Haptic | 9 | 3 | 0 | 0 | 5 | 1 |
-| NFC | 1 | 0 | 0 | 1 | 0 | 0 |
-| FUOTA | 1 | 0 | 0 | 0 | 0 | 1 |
-| VSM / IPC | 1 | 0 | 0 | 0 | 0 | 1 |
-| Operating Temperature | 1 | 0 | 0 | 0 | 1 | 0 |
-| **TOTAL** | **89** | **12** | **2** | **5** | **39** | **31** |
+| Category | Total | PASS | IMPLEMENTED | XFAIL | SKIP | BLOCKED | NOT_STARTED |
+|----------|-------|------|-------------|-------|------|---------|-------------|
+| Power / Runtime | 7 | 2 | 0 | 0 | 0 | 5 | 0 |
+| Config Values | 18 | 1 | 17 | 0 | 0 | 0 | 0 |
+| Motion Detection | 5 | 0 | 0 | 0 | 4 | 1 | 0 |
+| Charging / BMS | 29 | 0 | 0 | 2 | 0 | 27 | 0 |
+| Environmental Sensors | 7 | 4 | 0 | 0 | 0 | 0 | 3 |
+| GNSS | 7 | 0 | 7 | 0 | 0 | 0 | 0 |
+| On-Skin / Biometrics | 3 | 2 | 1 | 0 | 0 | 0 | 0 |
+| Button / SOS / Haptic | 9 | 3 | 1 | 0 | 0 | 5 | 0 |
+| NFC | 1 | 0 | 0 | 0 | 1 | 0 | 0 |
+| FUOTA | 1 | 0 | 1 | 0 | 0 | 0 | 0 |
+| VSM / IPC | 1 | 0 | 0 | 0 | 0 | 0 | 1 |
+| Operating Temperature | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
+| **TOTAL** | **89** | **12** | **27** | **2** | **5** | **39** | **4** |
 
 ## Blocker Analysis
 
@@ -200,24 +201,29 @@
 | Sub-mA current measurement required | PRDTST-348 | 1 |
 | Multi-day test duration required | PRDTST-331, 340, 363 | 3 |
 
-### Software / Integration Blockers (Can Resolve)
+### Software / Integration Blockers (Resolved)
 
-| Blocker | Affected Tests | Count |
-|---------|---------------|-------|
-| CoreCloud config message parsing not implemented | PRDTST-328, 330, 335, 342, 344, 347, 352, 353, 356, 359, 364, 369, 371, 387, 388, 394, 399 | 17 |
-| GNSS simulator or clear sky test location needed | PRDTST-333, 343, 358, 360, 378, 384, 396 | 7 |
-| FUOTA test automation not written | PRDTST-376 | 1 |
+| Blocker | Affected Tests | Count | Status |
+|---------|---------------|-------|--------|
+| ~~CoreCloud config message parsing not implemented~~ | PRDTST-328, 330, 335, 342, 344, 347, 352, 353, 356, 359, 364, 369, 371, 387, 388, 394, 399 | 17 | RESOLVED — uses CloudClient.get_ground_mode_config() |
+| ~~GNSS simulator or clear sky test location needed~~ | PRDTST-333, 343, 358, 360, 378, 384, 396 | 7 | RESOLVED — skips gracefully without GPS signal |
+| ~~FUOTA test automation not written~~ | PRDTST-376 | 1 | RESOLVED — test_01_mfg_to_mfg_fuota.py |
 
 ## Test File Index
 
 | Test File | Path | PRDTST Coverage |
 |-----------|------|-----------------|
-| test_boot.py | apps/validation/alpha/tests/stage4/test_boot.py | PRDTST-341, 374, 404 |
-| test_power.py | apps/validation/alpha/tests/stage4/test_power.py | General power budget (no direct PRDTST mapping) |
-| test_motion.py | apps/validation/alpha/tests/stage4/test_motion.py | PRDTST-324, 326, 375, 393 |
-| test_environmental.py | apps/validation/alpha/tests/stage4/test_environmental.py | PRDTST-345, 357, 398, 406 |
-| test_biometric.py | apps/validation/alpha/tests/stage4/test_biometric.py | PRDTST-327, 400 |
-| test_button.py | apps/validation/alpha/tests/stage4/test_button.py | PRDTST-325, 338, 377, 382, 412 |
-| test_nfc.py | apps/validation/alpha/tests/stage4/test_nfc.py | PRDTST-337 |
-| test_corecloud_integration.py | apps/validation/alpha/tests/stage4/test_corecloud_integration.py | Infrastructure (no direct PRDTST mapping) |
+| test_boot.py | apps/validation/alpha/tests/nightly/test_boot.py | PRDTST-341, 374, 404 |
+| test_power.py | apps/validation/alpha/tests/nightly/test_power.py | General power budget (no direct PRDTST mapping) |
+| test_motion.py | apps/validation/alpha/tests/nightly/test_motion.py | PRDTST-324, 326, 375, 393 |
+| test_environmental.py | apps/validation/alpha/tests/nightly/test_environmental.py | PRDTST-345, 357, 398, 406 |
+| test_biometric.py | apps/validation/alpha/tests/nightly/test_biometric.py | PRDTST-327, 400 |
+| test_biometric_advanced.py | apps/validation/alpha/tests/nightly/test_biometric_advanced.py | PRDTST-379 |
+| test_button.py | apps/validation/alpha/tests/nightly/test_button.py | PRDTST-325, 338, 377, 382, 412 |
+| test_button_advanced.py | apps/validation/alpha/tests/nightly/test_button_advanced.py | PRDTST-346 |
+| test_config.py | apps/validation/alpha/tests/nightly/test_config.py | PRDTST-328, 330, 335, 342, 344, 347, 352, 353, 356, 359, 364, 369, 371, 387, 388, 394, 399 |
+| test_gnss.py | apps/validation/alpha/tests/nightly/test_gnss.py | PRDTST-333, 343, 358, 360, 378, 384, 396 |
+| test_nfc.py | apps/validation/alpha/tests/nightly/test_nfc.py | PRDTST-337 |
+| test_01_mfg_to_mfg_fuota.py | apps/validation/alpha/tests/nightly/test_01_mfg_to_mfg_fuota.py | PRDTST-376 |
+| test_corecloud_integration.py | apps/validation/alpha/tests/nightly/test_corecloud_integration.py | Infrastructure (no direct PRDTST mapping) |
 | test_smoke_mtib.py | apps/validation/alpha/tests/test_smoke_mtib.py | Infrastructure (no direct PRDTST mapping) |
