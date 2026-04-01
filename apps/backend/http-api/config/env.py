@@ -56,6 +56,9 @@ class AppConfig(EnvConfig):
 
     # Bitbucket — SSH private key (base64-encoded) for git operations
     BITBUCKET_SSH_KEY: str = ""
+    # Bitbucket — API token for REST API (PR polling, repo operations)
+    BITBUCKET_API_TOKEN: str = ""
+    BITBUCKET_WORKSPACE: str = "corekinect"
 
     # CkBoards — shared board definition repository
     CK_BOARDS_REPO_URL: str = "git@bitbucket.org:corekinect/ck_boards.git"

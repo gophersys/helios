@@ -1,8 +1,8 @@
 """Prod-to-Prod FUOTA (verbose) — upgrade between production firmware versions.
 
 Two-phase test:
-  SETUP: Flash MFG → FUOTA to PROD_VERBOSE (establish prod baseline)
-  TEST:  FUOTA from PROD_VERBOSE → PROD_VERBOSE_BUMP (prod-to-prod upgrade)
+  SETUP: Flash MFG → FUOTA to FUT_VERBOSE_A (establish prod baseline)
+  TEST:  FUOTA from FUT_VERBOSE_A → FUT_VERBOSE_B (prod-to-prod upgrade)
 
 This validates the real-world OTA upgrade path where a device already running
 production firmware receives a newer version over the air.
@@ -11,9 +11,9 @@ production firmware receives a newer version over the air.
 # VERSION MAPPING (update when pipeline seeds change)
 # ═══════════════════════════════════════════════════════════════════════
 # Label              Version   FW Type     CONFIG_LOG   CFW Flags
-# MFG_FLASH          v0.5.21   mfg release  y (default)  BM
-# PROD_VERBOSE       v0.8.24   app release  y (override) B
-# PROD_VERBOSE_BUMP  v0.8.25   app release  y (override) B
+# MFG_BASE           v0.5.21   mfg release  y (default)  BM
+# FUT_VERBOSE_A      v0.8.24   app release  y (override) B
+# FUT_VERBOSE_B      v0.8.25   app release  y (override) B
 #
 # CORECLOUD WORKAROUND (remove when CoreCloud fixes D-flag stripping)
 # ═══════════════════════════════════════════════════════════════════════
@@ -21,7 +21,7 @@ production firmware receives a newer version over the air.
 # All prod builds use release variant (no D flag). Verbose builds
 # override CONFIG_LOG=y for UART output without the debug flag.
 #
-# TODO(corecloud-fix): When fixed, switch PROD_VERBOSE* to debug
+# TODO(corecloud-fix): When fixed, switch FUT_VERBOSE_* to debug
 # builds, change labels, update CFW flags from -B to -BD.
 #
 # VERIFICATION STRATEGY
@@ -31,9 +31,9 @@ production firmware receives a newer version over the air.
 # Post-upgrade cloud check-in is a HARD fail (180s).
 
 Pipeline builds used:
-    MFG_FLASH              → Flashed via J-Link (mfg hex)
-    PROD_VERBOSE           → Setup FUOTA target (production CFW, CONFIG_LOG=y)
-    PROD_VERBOSE_BUMP      → Upgrade FUOTA target (production CFW, CONFIG_LOG=y, bumped)
+    MFG_BASE               → Flashed via J-Link (mfg hex)
+    FUT_VERBOSE_A          → Setup FUOTA target (production CFW, CONFIG_LOG=y)
+    FUT_VERBOSE_B          → Upgrade FUOTA target (production CFW, CONFIG_LOG=y, bumped)
     triggerData.modemFirmware → Modem baseband firmware (.zip)
 
 Flow:
@@ -43,15 +43,15 @@ Flow:
     03. Verify boot (current >5mA)
     04. Personalize (EC keygen + key upload)
     05. Cloud check-in (best-effort)
-    06. Upload PROD_VERBOSE CFW
-    07. Create MFG→PROD_VERBOSE plan
+    06. Upload FUT_VERBOSE_A CFW
+    07. Create MFG→FUT_VERBOSE_A plan
     08. FUOTA delivery (setup)
-    09. Verify PROD_VERBOSE version via UART
+    09. Verify FUT_VERBOSE_A version via UART
     ── TEST PHASE (prod-to-prod upgrade) ──
-    10. Upload PROD_VERBOSE_BUMP CFW
-    11. Create PROD_VERBOSE→PROD_VERBOSE_BUMP plan
+    10. Upload FUT_VERBOSE_B CFW
+    11. Create FUT_VERBOSE_A→FUT_VERBOSE_B plan
     12. FUOTA delivery (upgrade)
-    13. Verify PROD_VERBOSE_BUMP version via UART
+    13. Verify FUT_VERBOSE_B version via UART
     14. Post-upgrade cloud check-in (HARD fail)
     15. Cleanup (disable both FUOTA assignments)
 """
@@ -148,7 +148,7 @@ class TestProdToProdVerboseFuota:
     # =====================================================================
 
     def test_01_download_artifacts(self, stage_assets, device_config):
-        """Download MFG hex + modem + PROD_VERBOSE CFW + PROD_VERBOSE_BUMP CFW."""
+        """Download MFG hex + modem + FUT_VERBOSE_A CFW + FUT_VERBOSE_B CFW."""
         cls = TestProdToProdVerboseFuota
 
         # --- MFG firmware ---
@@ -180,7 +180,7 @@ class TestProdToProdVerboseFuota:
         else:
             print("WARNING: No modem firmware — modem flash will be skipped")
 
-        # --- Setup CFW (PROD_VERBOSE) ---
+        # --- Setup CFW (FUT_VERBOSE_A) ---
         setup_build = stage_assets.by_label(SETUP_FUOTA_LABEL)
         setup_version = setup_build.version()
         print(f"{SETUP_FUOTA_LABEL}: v{setup_version}")
@@ -201,7 +201,7 @@ class TestProdToProdVerboseFuota:
         cls._setup_version = setup_version
         cls._setup_app_ids = setup_app_ids
 
-        # --- Upgrade CFW (PROD_VERBOSE_BUMP) ---
+        # --- Upgrade CFW (FUT_VERBOSE_B) ---
         upgrade_build = stage_assets.by_label(UPGRADE_FUOTA_LABEL)
         upgrade_version = upgrade_build.version()
         print(f"{UPGRADE_FUOTA_LABEL}: v{upgrade_version}")
@@ -310,7 +310,7 @@ class TestProdToProdVerboseFuota:
             print("WARNING: Cloud check-in timed out — continuing")
 
     # ═════════════════════════════════════════════════════════════════════
-    # SETUP PHASE: MFG → PROD_VERBOSE
+    # SETUP PHASE: MFG → FUT_VERBOSE_A
     # ═════════════════════════════════════════════════════════════════════
 
     # =====================================================================
@@ -318,7 +318,7 @@ class TestProdToProdVerboseFuota:
     # =====================================================================
 
     def test_06_setup_upload_cfw(self, fuota_client):
-        """Upload PROD_VERBOSE CFW files to CoreCloud."""
+        """Upload FUT_VERBOSE_A CFW files to CoreCloud."""
         cls = TestProdToProdVerboseFuota
         assert cls._setup_cfw_paths, "No setup CFW paths — test_01 must pass first"
 
@@ -330,7 +330,7 @@ class TestProdToProdVerboseFuota:
     # =====================================================================
 
     def test_07_setup_create_plan(self, fuota_client, device_config):
-        """Create MFG → PROD_VERBOSE FUOTA plan."""
+        """Create MFG → FUT_VERBOSE_A FUOTA plan."""
         cls = TestProdToProdVerboseFuota
         assert cls._device_id, "No device_id — test_04 must pass first"
 
@@ -358,7 +358,7 @@ class TestProdToProdVerboseFuota:
     # =====================================================================
 
     def test_08_setup_fuota_delivery(self, fuota_client, ctx):
-        """Wait for setup FUOTA delivery (MFG → PROD_VERBOSE)."""
+        """Wait for setup FUOTA delivery (MFG → FUT_VERBOSE_A)."""
         cls = TestProdToProdVerboseFuota
         assert cls._device_id and cls._setup_plan_id
 
@@ -379,7 +379,7 @@ class TestProdToProdVerboseFuota:
     # =====================================================================
 
     def test_09_setup_verify_version(self, ctx):
-        """Verify PROD_VERBOSE firmware version via UART boot logs.
+        """Verify FUT_VERBOSE_A firmware version via UART boot logs.
 
         COMMS only — APP (nRF52840) doesn't emit version even with forceLog.
         TODO(corecloud-fix): Switch to require_both=True when forceLog covers APP.
@@ -396,7 +396,7 @@ class TestProdToProdVerboseFuota:
         print(f"Setup verified: comms={versions['comms']}, app={versions['app']}")
 
     # ═════════════════════════════════════════════════════════════════════
-    # TEST PHASE: PROD_VERBOSE → PROD_VERBOSE_BUMP
+    # TEST PHASE: FUT_VERBOSE_A → FUT_VERBOSE_B
     # ═════════════════════════════════════════════════════════════════════
 
     # =====================================================================
@@ -404,7 +404,7 @@ class TestProdToProdVerboseFuota:
     # =====================================================================
 
     def test_10_upgrade_upload_cfw(self, fuota_client):
-        """Upload PROD_VERBOSE_BUMP CFW files to CoreCloud."""
+        """Upload FUT_VERBOSE_B CFW files to CoreCloud."""
         cls = TestProdToProdVerboseFuota
         assert cls._upgrade_cfw_paths, "No upgrade CFW paths — test_01 must pass first"
 
@@ -416,7 +416,7 @@ class TestProdToProdVerboseFuota:
     # =====================================================================
 
     def test_11_upgrade_create_plan(self, fuota_client, device_config):
-        """Create PROD_VERBOSE → PROD_VERBOSE_BUMP FUOTA plan."""
+        """Create FUT_VERBOSE_A → FUT_VERBOSE_B FUOTA plan."""
         cls = TestProdToProdVerboseFuota
         assert cls._device_id
 
@@ -444,7 +444,7 @@ class TestProdToProdVerboseFuota:
     # =====================================================================
 
     def test_12_upgrade_fuota_delivery(self, fuota_client, ctx):
-        """Wait for upgrade FUOTA delivery (PROD_VERBOSE → PROD_VERBOSE_BUMP)."""
+        """Wait for upgrade FUOTA delivery (FUT_VERBOSE_A → FUT_VERBOSE_B)."""
         cls = TestProdToProdVerboseFuota
         assert cls._device_id and cls._upgrade_plan_id
 
@@ -465,7 +465,7 @@ class TestProdToProdVerboseFuota:
     # =====================================================================
 
     def test_13_upgrade_verify_version(self, ctx):
-        """Verify PROD_VERBOSE_BUMP firmware version via UART boot logs.
+        """Verify FUT_VERBOSE_B firmware version via UART boot logs.
 
         COMMS only — APP (nRF52840) doesn't emit version even with forceLog.
         TODO(corecloud-fix): Switch to require_both=True when forceLog covers APP.

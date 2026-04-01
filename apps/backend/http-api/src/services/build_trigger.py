@@ -32,6 +32,7 @@ _STAGE_MAP = {
 def trigger_stage_build(
     product_id: str,
     stage_config_id: str,
+    event_metadata: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Create a BuildRun with BuildJobs for a stage.
 
@@ -99,14 +100,28 @@ def trigger_stage_build(
     if not builder_image and product.fwRepoSlug:
         builder_image = f"containers.ad.corekinect.com/{product.fwRepoSlug}-builder:latest"
 
+    # Determine trigger type and commit info from event metadata
+    trigger_type = "stage"
+    commit_sha = None
+    trigger_data = None
+    if event_metadata:
+        trigger_type = event_metadata.get("source", "stage")
+        commit_sha = event_metadata.get("source_commit") or event_metadata.get("commit_sha")
+        if event_metadata.get("pr_id"):
+            trigger_type = "pull_request"
+            branch = event_metadata.get("source_branch", branch)
+        trigger_data = Json(event_metadata)
+
     # Create BuildRun
     build_run = db.buildrun.create(
         data={
             "productId": product_id,
             "board": board,
             "branch": branch,
+            "commitSha": commit_sha,
             "status": "BUILDING",
-            "triggerType": "stage",
+            "triggerType": trigger_type,
+            "triggerData": trigger_data,
             "stage": stage_config.stage,
             "stageConfigId": stage_config_id,
             "expectedBuilds": len(build_defs),

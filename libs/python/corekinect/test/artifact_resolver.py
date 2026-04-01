@@ -620,7 +620,7 @@ class ArtifactResolver:
         """Download and return local path to an artifact.
 
         Args:
-            label: Build matrix label (e.g., "MFG_BASE", "PROD_VERBOSE")
+            label: Build matrix label (e.g., "MFG_BASE", "FUT_VERBOSE_A")
             role: Target role (e.g., "app", "comms")
             artifact_type: "plaintextHex" or "encryptedCfw"
 

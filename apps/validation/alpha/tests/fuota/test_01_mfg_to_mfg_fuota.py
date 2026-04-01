@@ -5,8 +5,8 @@ Proves the FUOTA delivery mechanism works before testing cross-variant
 upgrades (MFG→PROD).
 
 Pipeline builds used:
-    MFG_FLASH              → Flashed via J-Link (older mfg hex, v0.5.3)
-    MFG_BASE               → Delivered via FUOTA (newer mfg CFW, v0.5.4)
+    MFG_BASE               → Flashed via J-Link (older mfg hex, v0.5.3)
+    MFG_BUMP               → Delivered via FUOTA (newer mfg CFW, v0.5.4)
     triggerData.modemFirmware → Modem baseband firmware (.zip)
 
 Flow:

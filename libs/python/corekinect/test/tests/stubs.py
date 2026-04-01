@@ -8,7 +8,7 @@ without network calls, hardware, or CoreCloud connectivity.
 Usage:
     resolver = StubArtifactResolver()
     resolver.add_build("MFG_BASE", version="0.8.3", variant="mfg", track="BM")
-    resolver.add_build("FUT_DEBUG_A", version="0.5.0", variant="debug", track="BM")
+    resolver.add_build("FUT_VERBOSE_A", version="0.5.0", variant="debug", track="BM")
 
     assets = StageAssets(resolver, stage="fuota", strict=False)
     mfg = assets.mfg()

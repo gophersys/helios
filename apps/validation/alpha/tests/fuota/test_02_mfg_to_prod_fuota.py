@@ -8,8 +8,8 @@ version verification via UART + cloud check-in.
 # VERSION MAPPING (update when pipeline seeds change)
 # ═══════════════════════════════════════════════════════════════════════
 # Label            Version   FW Type     CONFIG_LOG   CFW Flags
-# MFG_FLASH        v0.5.21   mfg release  y (default)  BM
-# PROD_VERBOSE     v0.8.24   app release  y (override) B
+# MFG_BASE         v0.5.21   mfg release  y (default)  BM
+# FUT_VERBOSE_A    v0.8.24   app release  y (override) B
 #
 # CORECLOUD WORKAROUND (remove when CoreCloud fixes D-flag stripping)
 # ═══════════════════════════════════════════════════════════════════════
@@ -18,7 +18,7 @@ version verification via UART + cloud check-in.
 # All prod builds use release variant (no D flag). Verbose builds
 # override CONFIG_LOG=y for UART output without the debug flag.
 #
-# TODO(corecloud-fix): When fixed, switch PROD_VERBOSE to debug
+# TODO(corecloud-fix): When fixed, switch FUT_VERBOSE_A to debug
 # builds, change labels, update CFW flags from -B to -BD.
 #
 # VERIFICATION STRATEGY
@@ -28,8 +28,8 @@ version verification via UART + cloud check-in.
 # Post-FUOTA cloud check-in is a HARD fail (180s).
 
 Pipeline builds used:
-    MFG_FLASH              → Flashed via J-Link (mfg hex)
-    PROD_VERBOSE           → Delivered via FUOTA (production CFW, CONFIG_LOG=y)
+    MFG_BASE               → Flashed via J-Link (mfg hex)
+    FUT_VERBOSE_A          → Delivered via FUOTA (production CFW, CONFIG_LOG=y)
     triggerData.modemFirmware → Modem baseband firmware (.zip)
 
 Flow:
@@ -420,7 +420,7 @@ class TestMfgToProdFuota:
     def test_10_verify_version(self, ctx):
         """Power cycle and verify production firmware version via UART boot logs.
 
-        PROD_VERBOSE has CONFIG_LOG=y on COMMS (nRF9151). The APP processor
+        FUT_VERBOSE_A has CONFIG_LOG=y on COMMS (nRF9151). The APP processor
         (nRF52840) does not emit version strings even with forceLog — the
         build flag only affects the COMMS build. COMMS version alone is
         sufficient proof that FUOTA delivered the correct firmware.

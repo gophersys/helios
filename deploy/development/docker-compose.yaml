@@ -60,6 +60,8 @@ services:
       JWT_SECRET_KEY: concord-dev-jwt-secret
       COREOPS_PROXY_URL: http://localhost:8090
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY}
+      BITBUCKET_API_TOKEN: ${BITBUCKET_API_TOKEN}
+      BITBUCKET_WORKSPACE: corekinect
       CK_BOARDS_REPO_URL: git@bitbucket.org:corekinect/ck_boards.git
       CK_BOARDS_FETCH_INTERVAL: "60"
       SERVER_PORT: "9001"

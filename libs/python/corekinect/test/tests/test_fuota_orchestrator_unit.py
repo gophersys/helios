@@ -346,10 +346,10 @@ class TestCreateTransitionPlan:
     def test_description_includes_source_and_target_info(self, orchestrator, stub_client, resolver):
         """Plan description should include source/target labels and versions."""
         resolver.add_build("MFG_BASE", version="0.5.1", track="BM")
-        resolver.add_build("FUT_DEBUG_A", version="0.5.2", track="BM")
+        resolver.add_build("FUT_VERBOSE_A", version="0.5.2", track="BM")
 
         source = BuildAsset("MFG_BASE", resolver)
-        target = BuildAsset("FUT_DEBUG_A", resolver)
+        target = BuildAsset("FUT_VERBOSE_A", resolver)
 
         orchestrator.create_transition_plan(
             device_id=self.DEVICE_ID,
@@ -365,7 +365,7 @@ class TestCreateTransitionPlan:
         ]
         desc = plan_events[0]["description"]
         assert "MFG_BASE" in desc
-        assert "FUT_DEBUG_A" in desc
+        assert "FUT_VERBOSE_A" in desc
         assert "0.5.1" in desc
         assert "0.5.2" in desc
 

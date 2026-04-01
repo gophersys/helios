@@ -280,3 +280,148 @@ class CloudClient:
     def get_status(self) -> Optional[Dict[str, Any]]:
         """Get full device status snapshot."""
         return self._fetch_status()
+
+    # ------------------------------------------------------------------
+    # Configuration
+    # ------------------------------------------------------------------
+
+    def get_ground_mode_config(self) -> Optional[Dict[str, Any]]:
+        """Read current GroundModeConfigV2 from CoreCloud.
+
+        Queries POST /System/Devices/Configurations/GroundModeV2/Search
+        for the device's current configuration values.
+
+        Returns:
+            Config dict with keys: gpsHeartbeatPeriod, continuousMotionPeriod,
+            stopMotionTimeout, heartbeatAcquisitionTimeout, motionAcquisitionTimeout,
+            motionAcquisitionOnTime, motionInitialAcquisitionOnTime,
+            xlrMotionThreshold, xlrMotionDuration, startMotionWindowStart,
+            startMotionWindowEnd. Returns None if API unavailable.
+
+        Raises:
+            CloudError: If API returns non-200 status.
+        """
+        api = self._get_api()
+        if not api:
+            return None
+
+        resp = api.request(
+            "POST",
+            "/System/Devices/Configurations/GroundModeV2/Search",
+            json={"deviceIds": [self._device_id_hex]},
+        )
+        if resp.status_code != 200:
+            raise CloudError(
+                f"GroundModeConfigV2 query failed: HTTP {resp.status_code} "
+                f"{resp.text[:200]}"
+            )
+
+        data = resp.json()
+        configs = data.get("groundModeConfigurations", [])
+        if not configs:
+            self._log.warning("No GroundModeConfigV2 found for device %s", self._device_id_hex)
+            return None
+
+        # Find our device's config (there should be exactly one)
+        for cfg in configs:
+            if cfg.get("deviceId") == self._device_id_hex:
+                return cfg
+
+        self._log.warning(
+            "Device %s not in config response (got %d devices)",
+            self._device_id_hex, len(configs),
+        )
+        return None
+
+    def set_ground_mode_config(
+        self,
+        config_values: Dict[str, Any],
+    ) -> None:
+        """Write GroundModeConfigV2 to CoreCloud for this device.
+
+        Sends a PUT to /System/Devices/Configurations/GroundModeV2
+        to update the device's configuration. The device will receive
+        the new config on its next uplink.
+
+        Args:
+            config_values: Dict of config field names (camelCase API format)
+                to values. Only fields present will be updated.
+                Example: {"gpsHeartbeatPeriod": 120, "stopMotionTimeout": 30}
+
+        Raises:
+            CloudError: If API returns non-200 status.
+        """
+        api = self._get_api()
+        if not api:
+            raise CloudError("CoreCloud REST API not available")
+
+        payload = {"deviceId": self._device_id_hex, **config_values}
+
+        resp = api.request(
+            "PUT",
+            "/System/Devices/Configurations/GroundModeV2",
+            json=payload,
+        )
+        if resp.status_code not in (200, 204):
+            raise CloudError(
+                f"GroundModeConfigV2 write failed: HTTP {resp.status_code} "
+                f"{resp.text[:200]}"
+            )
+        self._log.info(
+            "Config updated for %s: %s",
+            self._device_id_hex, config_values,
+        )
+
+    def wait_for_config_change(
+        self,
+        field: str,
+        expected_value: Any,
+        timeout_s: float = 180,
+        poll_interval_s: float = 10,
+    ) -> Dict[str, Any]:
+        """Wait for a config field to reach an expected value.
+
+        Polls GroundModeConfigV2 until the specified field matches
+        the expected value. Used after set_ground_mode_config() to
+        verify the device received and applied the new config.
+
+        Args:
+            field: Config field name in camelCase (e.g., "gpsHeartbeatPeriod").
+            expected_value: Expected value for the field.
+            timeout_s: Maximum wait time.
+            poll_interval_s: Polling interval.
+
+        Returns:
+            Full config dict when the field matches.
+
+        Raises:
+            TimeoutError: If field doesn't reach expected value within timeout.
+            CloudError: If API query fails.
+        """
+        deadline = time.monotonic() + timeout_s
+        t0 = time.monotonic()
+
+        while time.monotonic() < deadline:
+            config = self.get_ground_mode_config()
+            if config and config.get(field) == expected_value:
+                elapsed = auto_format_time_elapsed(time.monotonic() - t0)
+                self._log.info(
+                    "Config %s reached %s after %s",
+                    field, expected_value, elapsed,
+                )
+                return config
+
+            if config:
+                self._log.debug(
+                    "Config %s = %s (waiting for %s)",
+                    field, config.get(field), expected_value,
+                )
+
+            time.sleep(poll_interval_s)
+
+        current = self.get_ground_mode_config()
+        current_val = current.get(field) if current else "N/A"
+        raise TimeoutError(
+            f"Config field '{field}' did not reach {expected_value} "
+            f"within {timeout_s}s (current: {current_val})"
+        )

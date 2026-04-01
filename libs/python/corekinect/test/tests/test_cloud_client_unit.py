@@ -399,3 +399,285 @@ class TestGetStatus:
         client = CloudClient(device_id=0x70B3D584C01E1FCC)
         with patch.object(client, "_fetch_status", return_value=None):
             assert client.get_status() is None
+
+
+# ---------------------------------------------------------------------------
+# Config methods — get/set/wait for GroundModeConfigV2
+# ---------------------------------------------------------------------------
+
+class TestConfigMethods:
+    """Tests for get_ground_mode_config, set_ground_mode_config,
+    and wait_for_config_change."""
+
+    DEVICE_HEX = "70B3D584C01E1FCC"
+    DEVICE_INT = 0x70B3D584C01E1FCC
+
+    def _make_client(self):
+        return CloudClient(device_id=self.DEVICE_INT)
+
+    def _mock_api(self, client):
+        """Patch _get_api to return a MagicMock api object."""
+        api = MagicMock()
+        patcher = patch.object(client, "_get_api", return_value=api)
+        patcher.start()
+        return api, patcher
+
+    # -- get_ground_mode_config -----------------------------------------------
+
+    def test_get_config_returns_config_for_device(self):
+        """Returns the config dict when API returns 200 with matching device."""
+        client = self._make_client()
+        api, patcher = self._mock_api(client)
+
+        config_entry = {
+            "deviceId": self.DEVICE_HEX,
+            "gpsHeartbeatPeriod": 60,
+            "stopMotionTimeout": 30,
+        }
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"groundModeConfigurations": [config_entry]}
+        api.request.return_value = resp
+
+        try:
+            result = client.get_ground_mode_config()
+        finally:
+            patcher.stop()
+
+        assert result == config_entry
+        api.request.assert_called_once_with(
+            "POST",
+            "/System/Devices/Configurations/GroundModeV2/Search",
+            json={"deviceIds": [self.DEVICE_HEX]},
+        )
+
+    def test_get_config_returns_none_when_api_unavailable(self):
+        """Returns None when _get_api returns None (API init failed)."""
+        client = self._make_client()
+        with patch.object(client, "_get_api", return_value=None):
+            result = client.get_ground_mode_config()
+        assert result is None
+
+    def test_get_config_raises_on_non_200(self):
+        """Raises CloudError when API returns a non-200 status code."""
+        from corekinect.test.errors import CloudError
+
+        client = self._make_client()
+        api, patcher = self._mock_api(client)
+
+        resp = MagicMock()
+        resp.status_code = 500
+        resp.text = "Internal Server Error"
+        api.request.return_value = resp
+
+        try:
+            with pytest.raises(CloudError, match="HTTP 500"):
+                client.get_ground_mode_config()
+        finally:
+            patcher.stop()
+
+    def test_get_config_returns_none_when_device_not_in_response(self):
+        """Returns None when response contains configs but not for our device."""
+        client = self._make_client()
+        api, patcher = self._mock_api(client)
+
+        other_device_config = {
+            "deviceId": "AAAAAAAAAAAAAAAA",
+            "gpsHeartbeatPeriod": 120,
+        }
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"groundModeConfigurations": [other_device_config]}
+        api.request.return_value = resp
+
+        try:
+            result = client.get_ground_mode_config()
+        finally:
+            patcher.stop()
+
+        assert result is None
+
+    def test_get_config_returns_none_when_empty_configs_list(self):
+        """Returns None when API returns 200 but empty configurations list."""
+        client = self._make_client()
+        api, patcher = self._mock_api(client)
+
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"groundModeConfigurations": []}
+        api.request.return_value = resp
+
+        try:
+            result = client.get_ground_mode_config()
+        finally:
+            patcher.stop()
+
+        assert result is None
+
+    # -- set_ground_mode_config -----------------------------------------------
+
+    def test_set_config_calls_put_with_correct_payload(self):
+        """Calls PUT with deviceId merged into config_values."""
+        client = self._make_client()
+        api, patcher = self._mock_api(client)
+
+        resp = MagicMock()
+        resp.status_code = 200
+        api.request.return_value = resp
+
+        config_values = {"gpsHeartbeatPeriod": 120, "stopMotionTimeout": 45}
+
+        try:
+            client.set_ground_mode_config(config_values)
+        finally:
+            patcher.stop()
+
+        api.request.assert_called_once_with(
+            "PUT",
+            "/System/Devices/Configurations/GroundModeV2",
+            json={
+                "deviceId": self.DEVICE_HEX,
+                "gpsHeartbeatPeriod": 120,
+                "stopMotionTimeout": 45,
+            },
+        )
+
+    def test_set_config_accepts_204(self):
+        """204 is also a valid success status code."""
+        client = self._make_client()
+        api, patcher = self._mock_api(client)
+
+        resp = MagicMock()
+        resp.status_code = 204
+        api.request.return_value = resp
+
+        try:
+            client.set_ground_mode_config({"gpsHeartbeatPeriod": 60})
+        finally:
+            patcher.stop()
+
+        # No exception raised — success
+
+    def test_set_config_raises_on_non_200_204(self):
+        """Raises CloudError when API returns a non-200/204 status code."""
+        from corekinect.test.errors import CloudError
+
+        client = self._make_client()
+        api, patcher = self._mock_api(client)
+
+        resp = MagicMock()
+        resp.status_code = 403
+        resp.text = "Forbidden"
+        api.request.return_value = resp
+
+        try:
+            with pytest.raises(CloudError, match="HTTP 403"):
+                client.set_ground_mode_config({"gpsHeartbeatPeriod": 120})
+        finally:
+            patcher.stop()
+
+    def test_set_config_raises_when_api_unavailable(self):
+        """Raises CloudError when _get_api returns None."""
+        from corekinect.test.errors import CloudError
+
+        client = self._make_client()
+        with patch.object(client, "_get_api", return_value=None):
+            with pytest.raises(CloudError, match="not available"):
+                client.set_ground_mode_config({"gpsHeartbeatPeriod": 120})
+
+    # -- wait_for_config_change -----------------------------------------------
+
+    def test_wait_returns_immediately_when_field_matches(self):
+        """Returns immediately when the field already has the expected value."""
+        client = self._make_client()
+        config = {
+            "deviceId": self.DEVICE_HEX,
+            "gpsHeartbeatPeriod": 120,
+        }
+
+        with patch.object(client, "get_ground_mode_config", return_value=config), \
+             patch("corekinect.test.cloud_client.time.sleep"):
+            result = client.wait_for_config_change(
+                field="gpsHeartbeatPeriod",
+                expected_value=120,
+                timeout_s=5,
+            )
+
+        assert result == config
+        assert result["gpsHeartbeatPeriod"] == 120
+
+    def test_wait_raises_timeout_when_field_never_matches(self):
+        """Raises TimeoutError when the field never reaches expected value."""
+        client = self._make_client()
+        config = {
+            "deviceId": self.DEVICE_HEX,
+            "gpsHeartbeatPeriod": 60,
+        }
+
+        with patch.object(client, "get_ground_mode_config", return_value=config), \
+             patch("corekinect.test.cloud_client.time.sleep"):
+            with pytest.raises(TimeoutError, match="gpsHeartbeatPeriod"):
+                client.wait_for_config_change(
+                    field="gpsHeartbeatPeriod",
+                    expected_value=120,
+                    timeout_s=0.5,
+                    poll_interval_s=0.1,
+                )
+
+    def test_wait_returns_after_field_eventually_matches(self):
+        """Returns once the field transitions to the expected value."""
+        client = self._make_client()
+
+        call_count = 0
+
+        def side_effect():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                return {
+                    "deviceId": self.DEVICE_HEX,
+                    "gpsHeartbeatPeriod": 60,
+                }
+            return {
+                "deviceId": self.DEVICE_HEX,
+                "gpsHeartbeatPeriod": 120,
+            }
+
+        with patch.object(client, "get_ground_mode_config", side_effect=side_effect), \
+             patch("corekinect.test.cloud_client.time.sleep"):
+            result = client.wait_for_config_change(
+                field="gpsHeartbeatPeriod",
+                expected_value=120,
+                timeout_s=60,
+                poll_interval_s=0.1,
+            )
+
+        assert result["gpsHeartbeatPeriod"] == 120
+        assert call_count >= 3
+
+    def test_wait_handles_none_config_gracefully(self):
+        """Does not crash when get_ground_mode_config returns None during polling."""
+        client = self._make_client()
+
+        call_count = 0
+
+        def side_effect():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                return None
+            return {
+                "deviceId": self.DEVICE_HEX,
+                "gpsHeartbeatPeriod": 120,
+            }
+
+        with patch.object(client, "get_ground_mode_config", side_effect=side_effect), \
+             patch("corekinect.test.cloud_client.time.sleep"):
+            result = client.wait_for_config_change(
+                field="gpsHeartbeatPeriod",
+                expected_value=120,
+                timeout_s=60,
+                poll_interval_s=0.1,
+            )
+
+        assert result["gpsHeartbeatPeriod"] == 120

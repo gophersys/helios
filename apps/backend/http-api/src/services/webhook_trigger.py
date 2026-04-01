@@ -95,7 +95,7 @@ def handle_repo_event(event: RepoEvent) -> List[Dict[str, Any]]:
         logger.info("Triggering %s stage %d (%s) from %s event on %s/%s",
                      product.name, stage.stage, stage.name, event.source,
                      event.repo_slug, event.branch)
-        result = trigger_stage_build(product.id, stage.id)
+        result = trigger_stage_build(product.id, stage.id, event_metadata=event.metadata)
         if result:
             results.append({"stage": stage.stage, "name": stage.name, **result})
 
@@ -148,13 +148,100 @@ def parse_bitbucket_webhook(event_key: str, payload: Dict[str, Any]) -> RepoEven
 
 
 def poll_for_changes() -> List[Dict[str, Any]]:
-    """Poll all enabled stages with pr_push trigger for new commits.
+    """Poll repos for new PR commits via Bitbucket REST API.
 
-    Compares current remote HEAD with last known commit. If different,
-    fires a RepoEvent. Uses BITBUCKET_SSH_KEY for git ls-remote.
+    Uses Bitbucket API to list open PRs and detect new commits.
+    Rich metadata: PR number, title, author, source/target branch.
 
-    Call this on a timer (e.g., every 60s).
+    Falls back to git ls-remote if Bitbucket API not configured.
     """
+    from config import env_config
+    from src.services.bitbucket_client import BitbucketClient, parse_pr_metadata
+
+    db = get_db_client()
+
+    # Find products with active pr_push stages
+    stages = db.productstageconfig.find_many(
+        where={"enabled": True, "triggerType": "pr_push"},
+        include={"product": True},
+    )
+    if not stages:
+        return []
+
+    # Collect unique repo slugs to poll
+    repos_to_poll: Dict[str, Any] = {}  # repo_slug → product
+    for stage in stages:
+        if stage.product and stage.product.fwRepoSlug:
+            repos_to_poll[stage.product.fwRepoSlug] = stage.product
+
+    bb = BitbucketClient(
+        api_token=env_config.BITBUCKET_API_TOKEN,
+        workspace=env_config.BITBUCKET_WORKSPACE,
+    )
+
+    results = []
+
+    if bb.is_configured:
+        # PR-aware polling via Bitbucket API
+        for repo_slug, product in repos_to_poll.items():
+            try:
+                prs = bb.list_open_prs(repo_slug)
+            except Exception as e:
+                logger.warning("Failed to list PRs for %s: %s", repo_slug, e)
+                continue
+
+            for pr in prs:
+                pr_meta = parse_pr_metadata(pr)
+                branch = pr_meta["source_branch"]
+                commit_sha = pr_meta["source_commit"]
+
+                if not commit_sha:
+                    continue
+
+                # Check cache
+                cache_key = f"{repo_slug}:pr:{pr_meta['pr_id']}"
+                cache_file = f"/tmp/concord_poll_{cache_key.replace(':', '_')}.sha"
+                last_sha = None
+                try:
+                    with open(cache_file) as f:
+                        last_sha = f.read().strip()
+                except FileNotFoundError:
+                    pass
+
+                if commit_sha == last_sha:
+                    continue
+
+                logger.info("Poller: PR #%s on %s has new commit %s (was %s)",
+                             pr_meta["pr_id"], repo_slug, commit_sha[:7],
+                             (last_sha or "none")[:7])
+
+                event = RepoEvent(
+                    repo_slug=repo_slug,
+                    branch=branch,
+                    commit_sha=commit_sha,
+                    event_type="push",
+                    source="poller",
+                    metadata=pr_meta,
+                )
+                triggered = handle_repo_event(event)
+                results.extend(triggered)
+
+                # Update cache
+                try:
+                    with open(cache_file, "w") as f:
+                        f.write(commit_sha)
+                except Exception:
+                    pass
+    else:
+        # Fallback: git ls-remote (no PR metadata)
+        logger.debug("Bitbucket API not configured — using git ls-remote fallback")
+        results = _poll_git_ls_remote(repos_to_poll)
+
+    return results
+
+
+def _poll_git_ls_remote(repos: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Fallback poller using git ls-remote (no PR metadata)."""
     import base64
     import os
     import stat
@@ -162,21 +249,6 @@ def poll_for_changes() -> List[Dict[str, Any]]:
 
     from config import env_config
 
-    db = get_db_client()
-
-    # Find all enabled stages with pr_push trigger
-    stages = db.productstageconfig.find_many(
-        where={
-            "enabled": True,
-            "triggerType": "pr_push",
-        },
-        include={"product": True},
-    )
-
-    if not stages:
-        return []
-
-    # Setup SSH
     env = dict(os.environ)
     ssh_key_b64 = env_config.BITBUCKET_SSH_KEY
     key_path = None
@@ -188,21 +260,24 @@ def poll_for_changes() -> List[Dict[str, Any]]:
         env["GIT_SSH_COMMAND"] = f"ssh -i {key_path} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
     results = []
+    db = get_db_client()
 
-    # Group stages by product to avoid duplicate polling
-    products_polled: Dict[str, str] = {}  # repo_slug → latest_sha
+    # Get stages again for branch info
+    stages = db.productstageconfig.find_many(
+        where={"enabled": True, "triggerType": "pr_push"},
+        include={"product": True},
+    )
 
+    polled: Dict[str, str] = {}
     for stage in stages:
         product = stage.product
         if not product or not product.fwRepoSlug:
             continue
-
         repo_slug = product.fwRepoSlug
         branch = stage.watchBranch or "main"
         cache_key = f"{repo_slug}:{branch}"
 
-        # Get current remote SHA
-        if cache_key not in products_polled:
+        if cache_key not in polled:
             repo_url = f"git@bitbucket.org:corekinect/{repo_slug}.git"
             try:
                 proc = subprocess.run(
@@ -210,20 +285,14 @@ def poll_for_changes() -> List[Dict[str, Any]]:
                     timeout=15, capture_output=True, text=True, env=env,
                 )
                 if proc.returncode == 0 and proc.stdout.strip():
-                    sha = proc.stdout.strip().split()[0]
-                    products_polled[cache_key] = sha
-                else:
-                    continue
-            except Exception as e:
-                logger.warning("Failed to poll %s: %s", repo_url, e)
+                    polled[cache_key] = proc.stdout.strip().split()[0]
+            except Exception:
                 continue
 
-        current_sha = products_polled.get(cache_key)
-        if not current_sha:
+        sha = polled.get(cache_key)
+        if not sha:
             continue
 
-        # Compare with last known SHA (stored in stage config metadata or a separate table)
-        # For now, use a simple file-based cache
         cache_file = f"/tmp/concord_poll_{cache_key.replace(':', '_')}.sha"
         last_sha = None
         try:
@@ -232,31 +301,22 @@ def poll_for_changes() -> List[Dict[str, Any]]:
         except FileNotFoundError:
             pass
 
-        if current_sha == last_sha:
-            continue  # No change
-
-        # New commit detected — fire event
-        logger.info("Poller: new commit on %s/%s: %s (was %s)",
-                     repo_slug, branch, current_sha[:7], (last_sha or "none")[:7])
+        if sha == last_sha:
+            continue
 
         event = RepoEvent(
-            repo_slug=repo_slug,
-            branch=branch,
-            commit_sha=current_sha,
-            event_type="push",
-            source="poller",
+            repo_slug=repo_slug, branch=branch, commit_sha=sha,
+            event_type="push", source="poller",
         )
         triggered = handle_repo_event(event)
         results.extend(triggered)
 
-        # Update cache
         try:
             with open(cache_file, "w") as f:
-                f.write(current_sha)
+                f.write(sha)
         except Exception:
             pass
 
-    # Cleanup SSH key
     if key_path:
         try:
             os.unlink(key_path)

@@ -27,8 +27,8 @@ Usage:
     modem = assets.modem_zip()        # modem firmware path
 
     # FUOTA transitions
-    source = assets.by_label("FUT_DEBUG_A")
-    target = assets.by_label("FUT_DEBUG_B")
+    source = assets.by_label("FUT_VERBOSE_A")
+    target = assets.by_label("FUT_VERBOSE_B")
     cfws = target.cfws()              # all CFW files for FUOTA delivery
     ver = target.version_string("app")  # "109.0.8.3-BM"
 
@@ -79,7 +79,7 @@ class BuildAsset:
 
     @property
     def label(self) -> str:
-        """Build matrix label (e.g., 'MFG_BASE', 'FUT_DEBUG_A')."""
+        """Build matrix label (e.g., 'MFG_BASE', 'FUT_VERBOSE_A')."""
         return self._label
 
     def hex(self, target: str) -> str:
@@ -267,7 +267,7 @@ class StageAssets:
         """Get build by matrix label.
 
         Args:
-            label: Matrix label (e.g., "MFG_BASE", "FUT_DEBUG_A").
+            label: Matrix label (e.g., "MFG_BASE", "FUT_VERBOSE_A").
 
         Returns:
             BuildAsset wrapper for the requested build.

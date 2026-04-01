@@ -1,8 +1,8 @@
 """Prod-to-Prod FUOTA (quiet) — upgrade between silent production firmware versions.
 
 Two-phase test:
-  SETUP: Flash MFG → FUOTA to PROD_QUIET (establish prod baseline)
-  TEST:  FUOTA from PROD_QUIET → PROD_QUIET_BUMP (prod-to-prod upgrade)
+  SETUP: Flash MFG → FUOTA to FUT_QUIET_A (establish prod baseline)
+  TEST:  FUOTA from FUT_QUIET_A → FUT_QUIET_B (prod-to-prod upgrade)
 
 No UART verification at all. Cloud check-in is the definitive proof.
 
@@ -10,9 +10,9 @@ No UART verification at all. Cloud check-in is the definitive proof.
 # VERSION MAPPING (update when pipeline seeds change)
 # ═══════════════════════════════════════════════════════════════════════
 # Label              Version   FW Type     CONFIG_LOG   CFW Flags
-# MFG_FLASH          v0.5.21   mfg release  y (default)  BM
-# PROD_QUIET         v0.8.22   app release  n (default)  B
-# PROD_QUIET_BUMP    v0.8.23   app release  n (default)  B
+# MFG_BASE           v0.5.21   mfg release  y (default)  BM
+# FUT_QUIET_A        v0.8.22   app release  n (default)  B
+# FUT_QUIET_B        v0.8.23   app release  n (default)  B
 #
 # CORECLOUD WORKAROUND (remove when CoreCloud fixes D-flag stripping)
 # ═══════════════════════════════════════════════════════════════════════
@@ -29,9 +29,9 @@ No UART verification at all. Cloud check-in is the definitive proof.
 #   → Cloud check-in (180s, HARD fail) after upgrade is the sole proof
 
 Pipeline builds used:
-    MFG_FLASH              → Flashed via J-Link (mfg hex)
-    PROD_QUIET             → Setup FUOTA target (production CFW, CONFIG_LOG=n)
-    PROD_QUIET_BUMP        → Upgrade FUOTA target (production CFW, CONFIG_LOG=n, bumped)
+    MFG_BASE               → Flashed via J-Link (mfg hex)
+    FUT_QUIET_A            → Setup FUOTA target (production CFW, CONFIG_LOG=n)
+    FUT_QUIET_B            → Upgrade FUOTA target (production CFW, CONFIG_LOG=n, bumped)
     triggerData.modemFirmware → Modem baseband firmware (.zip)
 
 Flow:
@@ -41,13 +41,13 @@ Flow:
     03. Verify boot (current >5mA)
     04. Personalize (EC keygen + key upload)
     05. Cloud check-in (best-effort)
-    06. Upload PROD_QUIET CFW
-    07. Create MFG→PROD_QUIET plan
+    06. Upload FUT_QUIET_A CFW
+    07. Create MFG→FUT_QUIET_A plan
     08. FUOTA delivery (setup)
     09. Verify boot after setup FUOTA (current check, no UART)
     ── TEST PHASE ──
-    10. Upload PROD_QUIET_BUMP CFW
-    11. Create PROD_QUIET→PROD_QUIET_BUMP plan
+    10. Upload FUT_QUIET_B CFW
+    11. Create FUT_QUIET_A→FUT_QUIET_B plan
     12. FUOTA delivery (upgrade)
     13. Post-upgrade cloud check-in (HARD fail — only proof)
     14. Cleanup (disable both FUOTA assignments)
@@ -142,7 +142,7 @@ class TestProdToProdQuietFuota:
     # =====================================================================
 
     def test_01_download_artifacts(self, stage_assets, device_config):
-        """Download MFG hex + modem + PROD_QUIET CFW + PROD_QUIET_BUMP CFW."""
+        """Download MFG hex + modem + FUT_QUIET_A CFW + FUT_QUIET_B CFW."""
         cls = TestProdToProdQuietFuota
 
         # --- MFG firmware ---
@@ -174,7 +174,7 @@ class TestProdToProdQuietFuota:
         else:
             print("WARNING: No modem firmware — modem flash will be skipped")
 
-        # --- Setup CFW (PROD_QUIET) ---
+        # --- Setup CFW (FUT_QUIET_A) ---
         setup_build = stage_assets.by_label(SETUP_FUOTA_LABEL)
         setup_version = setup_build.version()
         print(f"{SETUP_FUOTA_LABEL}: v{setup_version}")
@@ -195,7 +195,7 @@ class TestProdToProdQuietFuota:
         cls._setup_version = setup_version
         cls._setup_app_ids = setup_app_ids
 
-        # --- Upgrade CFW (PROD_QUIET_BUMP) ---
+        # --- Upgrade CFW (FUT_QUIET_B) ---
         upgrade_build = stage_assets.by_label(UPGRADE_FUOTA_LABEL)
         upgrade_version = upgrade_build.version()
         print(f"{UPGRADE_FUOTA_LABEL}: v{upgrade_version}")
@@ -304,7 +304,7 @@ class TestProdToProdQuietFuota:
             print("WARNING: Cloud check-in timed out — continuing")
 
     # ═════════════════════════════════════════════════════════════════════
-    # SETUP PHASE: MFG → PROD_QUIET
+    # SETUP PHASE: MFG → FUT_QUIET_A
     # ═════════════════════════════════════════════════════════════════════
 
     # =====================================================================
@@ -312,7 +312,7 @@ class TestProdToProdQuietFuota:
     # =====================================================================
 
     def test_06_setup_upload_cfw(self, fuota_client):
-        """Upload PROD_QUIET CFW files to CoreCloud."""
+        """Upload FUT_QUIET_A CFW files to CoreCloud."""
         cls = TestProdToProdQuietFuota
         assert cls._setup_cfw_paths
 
@@ -324,7 +324,7 @@ class TestProdToProdQuietFuota:
     # =====================================================================
 
     def test_07_setup_create_plan(self, fuota_client, device_config):
-        """Create MFG → PROD_QUIET FUOTA plan."""
+        """Create MFG → FUT_QUIET_A FUOTA plan."""
         cls = TestProdToProdQuietFuota
         assert cls._device_id
 
@@ -352,7 +352,7 @@ class TestProdToProdQuietFuota:
     # =====================================================================
 
     def test_08_setup_fuota_delivery(self, fuota_client, ctx):
-        """Wait for setup FUOTA delivery (MFG → PROD_QUIET)."""
+        """Wait for setup FUOTA delivery (MFG → FUT_QUIET_A)."""
         cls = TestProdToProdQuietFuota
         assert cls._device_id and cls._setup_plan_id
 
@@ -388,7 +388,7 @@ class TestProdToProdQuietFuota:
         print(f"Post-setup DUT booted: avg current = {avg_current:.2f}mA")
 
     # ═════════════════════════════════════════════════════════════════════
-    # TEST PHASE: PROD_QUIET → PROD_QUIET_BUMP
+    # TEST PHASE: FUT_QUIET_A → FUT_QUIET_B
     # ═════════════════════════════════════════════════════════════════════
 
     # =====================================================================
@@ -396,7 +396,7 @@ class TestProdToProdQuietFuota:
     # =====================================================================
 
     def test_10_upgrade_upload_cfw(self, fuota_client):
-        """Upload PROD_QUIET_BUMP CFW files to CoreCloud."""
+        """Upload FUT_QUIET_B CFW files to CoreCloud."""
         cls = TestProdToProdQuietFuota
         assert cls._upgrade_cfw_paths
 
@@ -408,7 +408,7 @@ class TestProdToProdQuietFuota:
     # =====================================================================
 
     def test_11_upgrade_create_plan(self, fuota_client, device_config):
-        """Create PROD_QUIET → PROD_QUIET_BUMP FUOTA plan."""
+        """Create FUT_QUIET_A → FUT_QUIET_B FUOTA plan."""
         cls = TestProdToProdQuietFuota
         assert cls._device_id
 
@@ -436,7 +436,7 @@ class TestProdToProdQuietFuota:
     # =====================================================================
 
     def test_12_upgrade_fuota_delivery(self, fuota_client, ctx):
-        """Wait for upgrade FUOTA delivery (PROD_QUIET → PROD_QUIET_BUMP)."""
+        """Wait for upgrade FUOTA delivery (FUT_QUIET_A → FUT_QUIET_B)."""
         cls = TestProdToProdQuietFuota
         assert cls._device_id and cls._upgrade_plan_id
 

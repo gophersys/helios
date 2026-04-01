@@ -8,8 +8,8 @@ relies on boot current check + cloud check-in ONLY.
 # VERSION MAPPING (update when pipeline seeds change)
 # ═══════════════════════════════════════════════════════════════════════
 # Label            Version   FW Type     CONFIG_LOG   CFW Flags
-# MFG_FLASH        v0.5.21   mfg release  y (default)  BM
-# PROD_QUIET       v0.8.22   app release  n (default)  B
+# MFG_BASE         v0.5.21   mfg release  y (default)  BM
+# FUT_QUIET_A      v0.8.22   app release  n (default)  B
 #
 # CORECLOUD WORKAROUND (remove when CoreCloud fixes D-flag stripping)
 # ═══════════════════════════════════════════════════════════════════════
@@ -17,7 +17,7 @@ relies on boot current check + cloud check-in ONLY.
 #   Submitted: 108.0.8.22-BD  →  Stored: 108.0.8.22-B  →  MISMATCH
 # All prod builds use release variant (no D flag).
 #
-# TODO(corecloud-fix): When fixed, switch PROD_QUIET to debug build
+# TODO(corecloud-fix): When fixed, switch FUT_QUIET_A to debug build
 # if UART output is desired. Currently quiet = release with no log override.
 #
 # VERIFICATION STRATEGY
@@ -28,8 +28,8 @@ relies on boot current check + cloud check-in ONLY.
 #   → Cloud check-in (180s, HARD fail) is the sole proof of successful update
 
 Pipeline builds used:
-    MFG_FLASH              → Flashed via J-Link (mfg hex)
-    PROD_QUIET             → Delivered via FUOTA (production CFW, CONFIG_LOG=n)
+    MFG_BASE               → Flashed via J-Link (mfg hex)
+    FUT_QUIET_A            → Delivered via FUOTA (production CFW, CONFIG_LOG=n)
     triggerData.modemFirmware → Modem baseband firmware (.zip)
 
 Flow:
