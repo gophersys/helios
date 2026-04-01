@@ -6,8 +6,9 @@
   "targets": {
     "serve": {
       "executor": "nx:run-commands",
+      "dependsOn": ["typecheck"],
       "options": {
-        "command": "python3 -m src.main",
+        "command": "python3 -u -m src.main",
         "cwd": "apps/backend/build-service",
         "env": {
           "PYTHONPATH": "src:../../../libs/python:../../../libs/protocols:../../../libs"
@@ -31,33 +32,76 @@
         "cwd": "apps/backend/build-service"
       }
     },
+    "check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "npx nx typecheck build-service",
+          "npx nx test build-service"
+        ],
+        "parallel": false
+      }
+    },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
       "options": {
-        "file": "apps/backend/build-service/Dockerfile",
-        "context": "apps/backend/build-service"
+        "file": "apps/backend/build-service/deploy/Dockerfile",
+        "context": ".",
+        "build-args": [
+          "APP_VERSION=${APP_VERSION:-dev}",
+          "GIT_COMMIT=${GIT_COMMIT:-unknown}",
+          "GIT_BRANCH=${GIT_BRANCH:-unknown}",
+          "BUILD_TIME=${BUILD_TIME:-unknown}",
+          "BUILD_HOST=${BUILD_HOST:-unknown}"
+        ]
       },
       "configurations": {
+        "development": {
+          "tags": ["concord/build-service:development"],
+          "build-args": ["ENVIRONMENT=development"]
+        },
         "staging": {
-          "tags": ["concord/build-service:staging", "containers.ad.corekinect.com/concord-build-service:staging"]
+          "tags": [
+            "concord/build-service:staging",
+            "containers.ad.corekinect.com/concord-build-service:staging"
+          ],
+          "build-args": ["ENVIRONMENT=staging"]
         },
         "production": {
-          "tags": ["concord/build-service:production", "containers.ad.corekinect.com/concord-build-service:production"]
+          "tags": [
+            "concord/build-service:production",
+            "containers.ad.corekinect.com/concord-build-service:production"
+          ],
+          "build-args": ["ENVIRONMENT=production"],
+          "platforms": ["linux/amd64"]
         }
       }
     },
-    "generate-client": {
+    "build": {
       "executor": "nx:run-commands",
+      "dependsOn": ["containerize"],
       "options": {
-        "command": "prisma generate --schema=prisma/schema.prisma",
-        "cwd": "apps/backend/build-service"
+        "command": "echo 'Build complete'"
+      },
+      "configurations": {
+        "development": {},
+        "staging": {},
+        "production": {}
       }
     },
-    "migrate": {
+    "push": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "prisma migrate dev --schema=prisma/schema.prisma",
-        "cwd": "apps/backend/build-service"
+        "command": "echo 'Push requires explicit registry target'"
+      },
+      "configurations": {
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-build-service:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-build-service:production"
+        }
       }
     }
   }

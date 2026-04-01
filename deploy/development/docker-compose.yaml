@@ -81,8 +81,8 @@ services:
   # ── Build Service (orchestrator — spawns dynamic builder containers) ──
   build-service:
     build:
-      context: ../../apps/backend/build-service
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/backend/build-service/deploy/Dockerfile
     environment:
       CONCORD_API_URL: http://http-api:9001
       CONCORD_API_KEY: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG
