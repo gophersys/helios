@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Cpu, Pencil, Check, X, CircuitBoard, Plus, AlertTriangle, FlaskConical } from 'lucide-svelte';
+  import { Cpu, Pencil, Check, X, CircuitBoard, Plus, AlertTriangle, FlaskConical, RefreshCw, Loader2 } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import type { Product, BoardRevision, ProductTarget } from '$lib/types/models';
@@ -100,6 +100,27 @@
     }
   }
 
+  // ── Sync from ck_boards ─────────────────────────────────
+  let syncing = $state(false);
+  let syncResult = $state<{ synced: number; added: { version: string }[] } | null>(null);
+
+  async function syncFromRepo(): Promise<void> {
+    syncing = true;
+    error = null;
+    syncResult = null;
+    try {
+      const res = await api.post(`/v2/products/${product.id}/sync-revisions`, {});
+      syncResult = (res as any).data ?? res;
+      if ((syncResult?.synced ?? 0) > 0) {
+        onRefresh();
+      }
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to sync revisions';
+    } finally {
+      syncing = false;
+    }
+  }
+
   // ── Add revision ───────────────────────────────────────
   let showAddForm = $state(false);
   let addVersion = $state('');
@@ -135,12 +156,43 @@
 
 <div class="flex items-center justify-between mb-4">
   <h3 class="text-sm font-semibold text-text-primary">Board Revisions</h3>
-  {#if canManage && board && !showAddForm}
-    <button onclick={() => (showAddForm = true)} class="btn btn-sm btn-primary">
-      <Plus size={14} /> Add Revision
-    </button>
-  {/if}
+  <div class="flex items-center gap-2">
+    {#if canManage && board}
+      <button
+        onclick={syncFromRepo}
+        disabled={syncing}
+        class="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-2xs font-medium text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors disabled:opacity-50"
+        title="Sync hardware revisions from ck_boards main branch"
+      >
+        {#if syncing}
+          <Loader2 size={12} class="animate-spin" />
+        {:else}
+          <RefreshCw size={12} />
+        {/if}
+        Sync from ck_boards
+      </button>
+      {#if !showAddForm}
+        <button onclick={() => (showAddForm = true)} class="btn btn-sm btn-primary">
+          <Plus size={14} /> Add Revision
+        </button>
+      {/if}
+    {/if}
+  </div>
 </div>
+
+<!-- Sync result notification -->
+{#if syncResult}
+  <div class="mb-4 rounded-lg border px-4 py-3 {syncResult.synced > 0 ? 'border-success/30 bg-success-muted' : 'border-border bg-surface-0'}">
+    {#if syncResult.synced > 0}
+      <p class="text-sm font-medium text-success">
+        Added {syncResult.synced} new revision{syncResult.synced > 1 ? 's' : ''}: {syncResult.added.map(r => r.version).join(', ')}
+      </p>
+      <p class="text-2xs text-text-tertiary mt-0.5">AppIDs are set to 0 — update them using the edit button.</p>
+    {:else}
+      <p class="text-sm text-text-secondary">All revisions are up to date with ck_boards.</p>
+    {/if}
+  </div>
+{/if}
 
 <!-- Add revision form -->
 {#if showAddForm && canManage}

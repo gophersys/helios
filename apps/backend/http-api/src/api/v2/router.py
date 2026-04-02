@@ -36,6 +36,7 @@ from .products.products import (
     get_product_by_slug,
     list_products,
     update_product,
+    sync_product_revisions,
 )
 from .products.boards import (
     create_board,
@@ -368,6 +369,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>",                                                      view_func=get_product,            methods=["GET"])
     v2.add_url_rule("/products/<product_id>",                                                      view_func=update_product,         methods=["PUT"])
     v2.add_url_rule("/products/<product_id>",                                                      view_func=delete_product,         methods=["DELETE"])
+    v2.add_url_rule("/products/<product_id>/sync-revisions",                                       view_func=sync_product_revisions, methods=["POST"])
 
     # Products - Boards
     v2.add_url_rule("/products/<product_id>/boards",                                               view_func=list_boards,            methods=["GET"])

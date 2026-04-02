@@ -360,3 +360,81 @@ def get_product_by_slug(slug: str):
     if not product:
         return not_found(f"Product with slug '{slug}' not found")
     return jsonify(ApiResponse.ok(_serialize_product(product)).to_dict()), 200
+
+
+@require_permissions(Permissions.PRODUCTS_MANAGE)
+def sync_product_revisions(product_id: str):
+    """POST /v2/products/<id>/sync-revisions — Sync hardware revisions from ck_boards repo.
+
+    Discovers board revisions on the main branch of ck_boards and creates
+    any that don't already exist in the database. Does not modify existing revisions.
+    AppIDs are left at 0 for the user to fill in via the UI.
+    """
+    db = get_db_client()
+    product = db.product.find_unique(
+        where={"id": product_id},
+        include={"boards": {"include": {"revisions": True}}},
+    )
+    if not product:
+        return not_found("Product not found")
+
+    board = product.boards[0] if product.boards else None
+    if not board:
+        return bad_request("Product has no board configured")
+
+    from src.api.v2.products.board_discovery import get_ck_boards_service
+    svc = get_ck_boards_service()
+    if svc is None or not svc.is_ready:
+        return internal_error("Board discovery service not configured")
+
+    try:
+        detail = svc.discover_board_detail(board.ckBoardsFamily, "main")
+    except ValueError:
+        return not_found(f"Board family '{board.ckBoardsFamily}' not found in ck_boards repo")
+    except Exception:
+        logger.exception("Failed to discover boards for %s", board.ckBoardsFamily)
+        return internal_error("Failed to discover boards from ck_boards repo")
+
+    existing_versions = {r.version for r in (board.revisions or [])}
+    discovered_revisions = detail.get("revisions", []) if isinstance(detail, dict) else []
+
+    added = []
+    for rev_data in discovered_revisions:
+        version = rev_data.get("version", "")
+        if not version or version in existing_versions:
+            continue
+
+        ck_name = rev_data.get("ckBoardsName") or f"{board.ckBoardsFamily}_{version.lower()}"
+        socs = rev_data.get("socs", [])
+
+        try:
+            new_rev = db.boardrevision.create(data={
+                "boardId": board.id,
+                "version": version,
+                "ckBoardsName": ck_name,
+                "socs": socs,
+                "status": "DRAFT",
+                "notes": "Auto-discovered from ck_boards main branch",
+            })
+            for i, soc in enumerate(socs):
+                role = "app" if i == 0 else "comms" if i == 1 else f"target_{i}"
+                try:
+                    db.producttarget.create(data={
+                        "boardRevisionId": new_rev.id,
+                        "role": role,
+                        "soc": soc,
+                        "appId": 0,
+                    })
+                except Exception:
+                    pass
+            added.append({"version": version, "ckBoardsName": ck_name, "socs": socs})
+            log_audit("product.revision.sync", "BoardRevision", new_rev.id,
+                      {"productId": product_id, "version": version, "source": "ck_boards"})
+        except Exception:
+            logger.exception("Failed to create revision %s for %s", version, product_id)
+
+    return jsonify(ApiResponse.ok({
+        "synced": len(added),
+        "added": added,
+        "existing": list(existing_versions),
+    }).to_dict()), 200
