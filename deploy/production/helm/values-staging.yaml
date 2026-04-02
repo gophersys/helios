@@ -18,6 +18,9 @@ infrastructure:
     rootUser: minioadmin
     rootPassword: minioadmin-staging
     storage: 5Gi
+  pypi:
+    enabled: true
+    storage: "2Gi"
 
 httpApi:
   replicas: 1
@@ -36,6 +39,12 @@ frontend:
   replicas: 1
   image:
     repository: containers.ad.corekinect.com/concord-frontend
+    tag: staging
+
+docs:
+  enabled: true
+  image:
+    repository: containers.ad.corekinect.com/concord-docs
     tag: staging
 
 ingress:
@@ -64,15 +73,8 @@ config:
   STORAGE_URL: "http://concord-minio:9000"
   STORAGE_BUCKET_NAME: "concord"
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
-  COREOPS_PROXY_URL: "http://10.4.45.30:8001"
   CONCORD_API_HOST: "staging.concord.local"
-  # CI Pipeline — device identity defaults for validation K8s Jobs
-  DEVICE_ID: "70B3D584C01E1FCC"
-  DEVICE_SNR: "0964"
-  FIXTURE_PROFILE_PATH: "fixtures/alpha_b0.json"
-  PROXY_SERVER_URL: "http://10.4.45.30:8001"
-  DEVICE_IMEI: "355025931735979"
-  DEVICE_ICCIDS: "89148000008770457338,89012230001000370694"
+  PYPI_URL: "http://concord-pypi:8080/simple"
 
 # Build Service — lightweight orchestrator, spawns dynamic builder containers
 buildService:
@@ -105,4 +107,3 @@ secrets:
   AUTH_SERVER_API_KEY: "CHANGE-ME-use-secrets-overlay"
   DELETE_ALL_KEY: "CHANGE-ME-use-secrets-overlay"
   BITBUCKET_WEBHOOK_SECRET: "CHANGE-ME-use-secrets-overlay"
-  COREOPS_API_KEY: "CHANGE-ME-use-secrets-overlay"

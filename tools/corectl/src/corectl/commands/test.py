@@ -120,14 +120,16 @@ def _validate_structure(project_dir: Path, result: ValidationResult) -> dict:
     if enabled_count == 0:
         result.error("No stages enabled in manifest")
 
-    # Fixture profiles
+    # Fixture profiles — check for YAML (new) and JSON (legacy)
     fixtures_dir = project_dir / "fixtures"
     if fixtures_dir.is_dir():
-        profiles = list(fixtures_dir.glob("*.json"))
-        if profiles:
-            result.ok(f"fixtures/ ({len(profiles)} profiles)")
+        yaml_profiles = list(fixtures_dir.glob("*/fixture.yaml"))
+        json_profiles = list(fixtures_dir.glob("*.json"))
+        total = len(yaml_profiles) + len(json_profiles)
+        if total:
+            result.ok(f"fixtures/ ({total} profiles)")
         else:
-            result.warn("fixtures/ has no .json profiles")
+            result.warn("fixtures/ has no profiles (*.json or */fixture.yaml)")
     else:
         result.warn("No fixtures/ directory")
 
@@ -145,36 +147,38 @@ def _validate_semantics(project_dir: Path, manifest: dict, result: ValidationRes
     if dt == 0 or dv == 0:
         result.warn(f"Device type={dt}, variant={dv} — set these for production use")
 
-    # Try to validate fixture profiles
-    profiles = list((project_dir / "fixtures").glob("*.json")) if (project_dir / "fixtures").is_dir() else []
-    for profile_path in profiles:
-        try:
-            import json
-            with open(profile_path) as f:
-                profile_data = json.load(f)
-
-            # Basic checks
-            if "station_id" not in profile_data:
-                result.warn(f"{profile_path.name}: missing station_id")
-            if "capabilities" not in profile_data:
-                result.warn(f"{profile_path.name}: missing capabilities list")
-            if "power" not in profile_data:
-                result.warn(f"{profile_path.name}: missing power config")
-
-            # Try framework schema validation if available
+    # Validate fixture profiles (JSON legacy + YAML new)
+    fixtures_dir = project_dir / "fixtures"
+    if fixtures_dir.is_dir():
+        # JSON profiles (legacy)
+        for profile_path in fixtures_dir.glob("*.json"):
             try:
-                from corekinect.test.profile_schema import validate_fixture_profile
-                errors = validate_fixture_profile(profile_data)
-                if errors:
-                    for e in errors[:3]:
-                        result.warn(f"{profile_path.name}: {e}")
-                else:
-                    result.ok(f"{profile_path.name} passes schema validation")
-            except ImportError:
-                pass  # Framework not installed — skip schema validation
+                import json
+                with open(profile_path) as f:
+                    profile_data = json.load(f)
+                if "capabilities" not in profile_data:
+                    result.warn(f"{profile_path.name}: missing capabilities list")
+                if "power" not in profile_data:
+                    result.warn(f"{profile_path.name}: missing power config")
+            except Exception as exc:
+                result.error(f"{profile_path.name}: invalid JSON -- {exc}")
 
-        except Exception as exc:
-            result.error(f"{profile_path.name}: invalid JSON — {exc}")
+        # YAML profiles (new pattern: fixtures/<name>/fixture.yaml)
+        for yaml_path in fixtures_dir.glob("*/fixture.yaml"):
+            try:
+                with open(yaml_path) as f:
+                    profile_data = yaml.safe_load(f)
+                if not profile_data:
+                    result.error(f"{yaml_path}: empty YAML")
+                    continue
+                if "capabilities" not in profile_data:
+                    result.warn(f"{yaml_path.parent.name}/fixture.yaml: missing capabilities list")
+                if "power" not in profile_data:
+                    result.warn(f"{yaml_path.parent.name}/fixture.yaml: missing power config")
+                else:
+                    result.ok(f"{yaml_path.parent.name}/fixture.yaml passes basic validation")
+            except Exception as exc:
+                result.error(f"{yaml_path.parent.name}/fixture.yaml: invalid YAML -- {exc}")
 
     # Check pytest markers in pytest.ini
     pytest_ini = project_dir / "pytest.ini"

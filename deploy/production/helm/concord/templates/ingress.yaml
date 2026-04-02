@@ -15,6 +15,12 @@ spec:
   tls:
     - hosts:
         - {{ .Values.ingress.host }}
+        {{- if .Values.docs.enabled }}
+        - docs.{{ .Values.ingress.host }}
+        {{- end }}
+        {{- if .Values.infrastructure.pypi.enabled }}
+        - pypi.{{ .Values.ingress.host }}
+        {{- end }}
       secretName: {{ .Values.ingress.tls.secretName }}
   {{- end }}
   rules:
@@ -51,4 +57,28 @@ spec:
                 name: concord-frontend
                 port:
                   number: {{ .Values.frontend.port }}
+    {{- if .Values.docs.enabled }}
+    - host: docs.{{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: concord-docs
+                port:
+                  number: 80
+    {{- end }}
+    {{- if .Values.infrastructure.pypi.enabled }}
+    - host: pypi.{{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: concord-pypi
+                port:
+                  number: 8080
+    {{- end }}
 {{- end }}

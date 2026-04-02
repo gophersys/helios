@@ -149,7 +149,6 @@ class CoreOpsClient:
             return self._token
 
         # Fetch new token — uses client_credentials grant + X-API-KEY header
-        # (matches the working coreops-proxy auth flow)
         url = f"{self._config.auth_server_url.rstrip('/')}/Authentication/Tokens/Request"
         headers = {
             "Authorization": self._basic_auth_header(),

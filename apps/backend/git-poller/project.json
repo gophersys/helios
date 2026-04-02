@@ -12,15 +12,9 @@
         "cwd": "{workspaceRoot}"
       },
       "configurations": {
-        "development": {
-          "command": "nx run git-poller:containerize -c development"
-        },
-        "staging": {
-          "command": "nx run git-poller:containerize -c staging"
-        },
-        "production": {
-          "command": "nx run git-poller:containerize -c production"
-        }
+        "development": { "command": "nx run git-poller:containerize -c development" },
+        "staging": { "command": "nx run git-poller:containerize -c staging" },
+        "production": { "command": "nx run git-poller:containerize -c production" }
       }
     },
     "containerize": {
@@ -56,24 +50,23 @@
     "push": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],
-      "options": {
-        "cwd": "{workspaceRoot}"
-      },
-      "defaultConfiguration": "staging",
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
-        "staging": {
-          "command": "docker push containers.ad.corekinect.com/concord-git-poller:staging"
-        },
-        "production": {
-          "command": "docker push containers.ad.corekinect.com/concord-git-poller:production"
-        }
+        "development": { "command": "echo 'Skipping push for development'" },
+        "staging": { "command": "docker push containers.ad.corekinect.com/concord-git-poller:staging" },
+        "production": { "command": "docker push containers.ad.corekinect.com/concord-git-poller:production" }
       }
     },
-    "typecheck": {
+    "deploy": {
       "executor": "nx:run-commands",
-      "options": {
-        "cwd": "apps/backend/git-poller",
-        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
+      "dependsOn": ["push"],
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "development": { "command": "echo 'Skipping deploy for development'" },
+        "staging": { "command": "./deploy/production/ctl.sh staging deploy" },
+        "production": { "command": "./deploy/production/ctl.sh production deploy" }
       }
     },
     "serve": {
@@ -81,6 +74,13 @@
       "options": {
         "cwd": "apps/backend/git-poller",
         "command": "PYTHONPATH=src:. python3 -m src.main"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/git-poller",
+        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
       }
     }
   }

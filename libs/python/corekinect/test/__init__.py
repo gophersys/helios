@@ -60,33 +60,10 @@ from .assertions import (
 from .timing import COMMON, CommonTiming, timeout, wait_with_progress
 from .cfw import parse_cfw_header
 
-# ── Hardware / Profiles ──
-from .profiles import (
-    ButtonConfig,
-    Capability,
-    ChargerRelayConfig,
-    DEVICE_PROFILES,
-    DeviceProfile,
-    DutConfig,
-    FEATURE_REQUIREMENTS,
-    Feature,
-    FixtureProfile,
-    LedSensorConfig,
-    MotionConfig,
-    NfcReaderConfig,
-    PeltierConfig,
-    PowerConfig,
-    PpgSimulatorConfig,
-    ValidationConfig,
-    get_device_profile,
-)
-from .fixture_controller import FixtureController
-from .programmable_fixture import (
-    CapabilityNotAvailable,
-    FixtureBuilder,
-    FixturePresets,
-    ProgrammableFixture,
-)
+# ── Hardware / Profiles (deprecated — use product-specific fixtures) ──
+# Legacy imports kept for backward compatibility with existing code.
+# New product test apps should NOT import FixtureController or FixtureProfile
+# from corekinect.test. Instead, each product defines its own fixture module.
 
 # ── Artifacts & Storage ──
 from .artifact_resolver import ArtifactResolver, BuildManifest, ManifestTarget
@@ -139,29 +116,6 @@ __all__ = [
     "timeout",
     "wait_with_progress",
     "parse_cfw_header",
-    # ── Hardware / Profiles ──
-    "ButtonConfig",
-    "Capability",
-    "CapabilityNotAvailable",
-    "ChargerRelayConfig",
-    "DEVICE_PROFILES",
-    "DeviceProfile",
-    "DutConfig",
-    "FEATURE_REQUIREMENTS",
-    "Feature",
-    "FixtureBuilder",
-    "FixtureController",
-    "FixturePresets",
-    "FixtureProfile",
-    "LedSensorConfig",
-    "MotionConfig",
-    "NfcReaderConfig",
-    "PeltierConfig",
-    "PowerConfig",
-    "PpgSimulatorConfig",
-    "ProgrammableFixture",
-    "ValidationConfig",
-    "get_device_profile",
     # ── Artifacts & Storage ──
     "ArtifactInfo",
     "ArtifactResolver",

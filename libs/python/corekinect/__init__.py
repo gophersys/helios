@@ -11,9 +11,6 @@ Stages:
     from corekinect import Stage, STAGE_NUMBERS, STAGE_NAMES
     from corekinect import StageBuildDef, get_stage_build_defs
 
-Capabilities:
-    from corekinect import Capability, Feature, FEATURE_REQUIREMENTS
-
 Subpackages:
     corekinect.test        — Validation test framework
     corekinect.utils       — Logger, EnvConfig, time helpers
@@ -52,13 +49,6 @@ from .stages import (
     get_verbose_labels,
 )
 
-# ── Capabilities ──
-from .capabilities import (
-    Capability,
-    Feature,
-    FEATURE_REQUIREMENTS,
-)
-
 __all__ = [
     # Errors
     "CloudError",
@@ -80,8 +70,4 @@ __all__ = [
     "get_stage_build_defs",
     "get_stage_capabilities",
     "get_verbose_labels",
-    # Capabilities
-    "Capability",
-    "Feature",
-    "FEATURE_REQUIREMENTS",
 ]

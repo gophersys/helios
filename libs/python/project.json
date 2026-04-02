@@ -1,0 +1,45 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "corekinect",
+  "root": "libs/python",
+  "sourceRoot": "libs/python/corekinect",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "libs/python",
+        "commands": [
+          "python3 -m build --wheel --outdir dist/"
+        ]
+      },
+      "configurations": {
+        "development": {},
+        "staging": {},
+        "production": {}
+      },
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "defaultConfiguration": "development",
+      "options": { "cwd": "libs/python" },
+      "configurations": {
+        "development": { "commands": ["twine upload --repository-url http://localhost:8090 dist/*.whl"] },
+        "staging": { "commands": ["twine upload --repository-url https://pypi.staging.concord.local dist/*.whl"] },
+        "production": { "commands": ["twine upload --repository-url https://pypi.concord.local dist/*.whl"] }
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          "PYTHONPATH=libs/python:libs:libs/protocols python3 -m pytest libs/python/corekinect/test/tests/ -v --timeout=30"
+        ]
+      }
+    }
+  }
+}

@@ -107,7 +107,6 @@ from corekinect.test.device_personalizer import DevicePersonalizer
 
 personalizer = DevicePersonalizer(
     mtib=client,
-    coreops_url="http://coreops-proxy",  # or direct CoreOps URL
     device_snr="09J5",
     device_imei="355025931651952",  # Optional: skip modem read
     device_iccids=["89148000009808560116", "89457300000037581199"],  # Optional

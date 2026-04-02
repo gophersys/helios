@@ -76,11 +76,23 @@
     "push": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],
-      "defaultConfiguration": "staging",
+      "defaultConfiguration": "development",
       "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
+        "development": { "command": "echo 'Skipping push for development'" },
         "staging": { "command": "docker push containers.ad.corekinect.com/concord-http-api:staging" },
         "production": { "command": "docker push containers.ad.corekinect.com/concord-http-api:production" }
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["push"],
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "development": { "command": "echo 'Skipping deploy for development'" },
+        "staging": { "command": "./deploy/production/ctl.sh staging deploy" },
+        "production": { "command": "./deploy/production/ctl.sh production deploy" }
       }
     },
     "serve": {
@@ -114,16 +126,6 @@
       "options": {
         "cwd": "apps/backend/http-api",
         "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
-      }
-    },
-    "deploy": {
-      "executor": "nx:run-commands",
-      "dependsOn": ["build"],
-      "defaultConfiguration": "staging",
-      "options": { "cwd": "{workspaceRoot}" },
-      "configurations": {
-        "staging": { "command": "./deploy/production/ctl.sh staging deploy" },
-        "production": { "command": "./deploy/production/ctl.sh production deploy" }
       }
     },
     "db:push": {

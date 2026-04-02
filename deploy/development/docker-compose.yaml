@@ -43,6 +43,21 @@ services:
     volumes:
       - influxdb_data:/var/lib/influxdb2
 
+  pypi:
+    image: pypiserver/pypiserver:latest
+    ports:
+      - "8090:8080"
+    volumes:
+      - pypi_packages:/data/packages
+    command: run -P . -a . /data/packages
+    # -P . = no password (dev mode)
+    # -a . = no authentication
+
+  docs:
+    image: concord/docs:development
+    ports:
+      - "4000:80"
+
   # ── Backend ───────────────────────────────────────────
   http-api:
     image: concord/http-api:development
@@ -57,7 +72,6 @@ services:
       STORAGE_SECRET_ACCESS_KEY: concordstorage!
       STORAGE_BUCKET_NAME: concord
       JWT_SECRET_KEY: concord-dev-jwt-secret
-      COREOPS_PROXY_URL: http://localhost:8090
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY}
       BITBUCKET_API_TOKEN: ${BITBUCKET_API_TOKEN}
       BITBUCKET_EMAIL: ${BITBUCKET_EMAIL:-mateo@corekinect.com}
@@ -71,6 +85,7 @@ services:
       LOG_PATH: /tmp/logs
       ASSETS_FOLDER: assets
       DELETE_ALL_KEY: dev-delete-key
+      PYPI_URL: http://pypi:8080/simple
     depends_on:
       db:
         condition: service_healthy
@@ -123,3 +138,4 @@ volumes:
   influxdb_data:
   build_workspace:
   ccache_data:
+  pypi_packages:

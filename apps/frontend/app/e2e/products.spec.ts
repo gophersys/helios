@@ -89,8 +89,8 @@ test.describe('Product Detail', () => {
     await expect(page.locator('h2').filter({ hasText: 'Alpha' })).toBeVisible();
   });
 
-  test('shows all four tabs', async ({ page }) => {
-    for (const tab of ['Firmware', 'Validation', 'Build Config', 'Manufacturing']) {
+  test('shows all five tabs', async ({ page }) => {
+    for (const tab of ['Overview', 'Hardware', 'Stages', 'Assets', 'Manufacturing']) {
       await expect(page.locator('button').filter({ hasText: tab }).first()).toBeVisible();
     }
   });
@@ -170,6 +170,9 @@ test.describe('Edit Revision', () => {
     await loginViaAPI(page);
     await goToProducts(page);
     await openProduct(page, 'Alpha');
+    // Switch to Hardware tab where revisions live
+    await page.locator('button').filter({ hasText: 'Hardware' }).first().click();
+    await page.waitForTimeout(300);
   });
 
   test('revision cards have edit buttons', async ({ page }) => {
@@ -222,7 +225,7 @@ test.describe('Product Tabs', () => {
   });
 
   test('can switch between all tabs', async ({ page }) => {
-    for (const tab of ['Validation', 'Build Config', 'Manufacturing', 'Firmware']) {
+    for (const tab of ['Hardware', 'Stages', 'Assets', 'Manufacturing', 'Overview']) {
       await page.locator('button').filter({ hasText: tab }).first().click();
       await page.waitForTimeout(200);
     }

@@ -93,6 +93,10 @@ class MockFixtureController:
         self._button_pressed = False
         self._mtib = _MockMtibStub(fixture=self)
 
+    def has(self, capability: str) -> bool:
+        """Mock has all capabilities by default (testing test logic, not hardware)."""
+        return True
+
     def has_capability(self, cap) -> bool:
         """Mock has all capabilities by default (testing test logic, not hardware)."""
         return True
@@ -120,6 +124,12 @@ class MockFixtureController:
         """Return plausible current in mA."""
         current = 10.0 if self._powered else 0.5  # 0.5mA leakage when off
         log.info("MockFixture: read_dut_current() -> %.1f mA", current)
+        return current
+
+    def read_charger_current(self) -> float:
+        """Return plausible charger current in mA."""
+        current = 20.0 if self._powered else 0.0
+        log.info("MockFixture: read_charger_current() -> %.1f mA", current)
         return current
 
     def read_current(self, channel: int = 0) -> float:
@@ -151,6 +161,18 @@ class MockFixtureController:
 
     def stop_heartbeat(self) -> None:
         log.info("MockFixture: stop_heartbeat()")
+
+    def connect_charger(self) -> None:
+        log.info("MockFixture: connect_charger()")
+
+    def disconnect_charger(self) -> None:
+        log.info("MockFixture: disconnect_charger()")
+
+    def charger_power_on(self) -> None:
+        log.info("MockFixture: charger_power_on()")
+
+    def charger_power_off(self) -> None:
+        log.info("MockFixture: charger_power_off()")
 
     def shake(self, duration_s: float = 10, speed_mm_s: float = 50) -> None:
         log.info("MockFixture: shake(duration=%.1fs, speed=%.0f mm/s)", duration_s, speed_mm_s)

@@ -11,11 +11,69 @@
       }
     },
     "build": {
-      "command": "zensical build",
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
       "options": {
         "cwd": "{workspaceRoot}"
       },
+      "configurations": {
+        "development": { "command": "zensical build" },
+        "staging": { "command": "nx run docs:containerize -c staging" },
+        "production": { "command": "nx run docs:containerize -c production" }
+      },
       "outputs": ["{workspaceRoot}/apps/frontend/docs/site"]
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "defaultConfiguration": "development",
+      "options": {
+        "context": "{workspaceRoot}",
+        "cwd": "{workspaceRoot}",
+        "file": "apps/frontend/docs/deploy/Dockerfile",
+        "push": false,
+        "load": true
+      },
+      "configurations": {
+        "development": {
+          "tags": ["concord/docs:development"],
+          "platforms": []
+        },
+        "staging": {
+          "tags": [
+            "concord/docs:staging",
+            "containers.ad.corekinect.com/concord-docs:staging"
+          ]
+        },
+        "production": {
+          "tags": [
+            "concord/docs:production",
+            "containers.ad.corekinect.com/concord-docs:production"
+          ],
+          "platforms": ["linux/amd64"]
+        }
+      }
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "development": { "command": "echo 'Skipping push for development'" },
+        "staging": { "command": "docker push containers.ad.corekinect.com/concord-docs:staging" },
+        "production": { "command": "docker push containers.ad.corekinect.com/concord-docs:production" }
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["push"],
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "development": { "command": "echo 'Skipping deploy for development'" },
+        "staging": { "command": "./deploy/production/ctl.sh staging deploy" },
+        "production": { "command": "./deploy/production/ctl.sh production deploy" }
+      }
     }
   }
 }

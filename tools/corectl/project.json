@@ -5,6 +5,31 @@
   "projectType": "application",
   "tags": ["scope:tools", "type:cli"],
   "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "tools/corectl",
+        "command": "pip install build && python -m build"
+      },
+      "configurations": {
+        "development": {},
+        "staging": {},
+        "production": {}
+      },
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "defaultConfiguration": "development",
+      "options": { "cwd": "tools/corectl" },
+      "configurations": {
+        "development": { "command": "twine upload --repository-url http://localhost:8090 dist/*.whl" },
+        "staging": { "command": "twine upload --repository-url https://pypi.staging.concord.local dist/*.whl" },
+        "production": { "command": "twine upload --repository-url https://pypi.concord.local dist/*.whl" }
+      }
+    },
     "serve": {
       "executor": "nx:run-commands",
       "options": {
@@ -17,13 +42,6 @@
       "options": {
         "cwd": "tools/corectl",
         "command": "pip install -e . && corectl --version && corectl auth status"
-      }
-    },
-    "build": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "tools/corectl",
-        "command": "pip install build && python -m build"
       }
     },
     "install": {

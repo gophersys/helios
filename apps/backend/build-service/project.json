@@ -4,6 +4,79 @@
   "projectType": "application",
   "sourceRoot": "apps/backend/build-service/src",
   "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": { "command": "nx run build-service:containerize -c development" },
+        "staging": { "command": "nx run build-service:containerize -c staging" },
+        "production": { "command": "nx run build-service:containerize -c production" }
+      }
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "defaultConfiguration": "development",
+      "options": {
+        "file": "apps/backend/build-service/deploy/Dockerfile",
+        "context": ".",
+        "push": false,
+        "load": true,
+        "build-args": [
+          "APP_VERSION=${APP_VERSION:-dev}",
+          "GIT_COMMIT=${GIT_COMMIT:-unknown}",
+          "GIT_BRANCH=${GIT_BRANCH:-unknown}",
+          "BUILD_TIME=${BUILD_TIME:-unknown}",
+          "BUILD_HOST=${BUILD_HOST:-unknown}"
+        ]
+      },
+      "configurations": {
+        "development": {
+          "tags": ["concord/build-service:development"],
+          "build-args": ["ENVIRONMENT=development"],
+          "platforms": []
+        },
+        "staging": {
+          "tags": [
+            "concord/build-service:staging",
+            "containers.ad.corekinect.com/concord-build-service:staging"
+          ],
+          "build-args": ["ENVIRONMENT=staging"]
+        },
+        "production": {
+          "tags": [
+            "concord/build-service:production",
+            "containers.ad.corekinect.com/concord-build-service:production"
+          ],
+          "build-args": ["ENVIRONMENT=production"],
+          "platforms": ["linux/amd64"]
+        }
+      }
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "development": { "command": "echo 'Skipping push for development'" },
+        "staging": { "command": "docker push containers.ad.corekinect.com/concord-build-service:staging" },
+        "production": { "command": "docker push containers.ad.corekinect.com/concord-build-service:production" }
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["push"],
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "development": { "command": "echo 'Skipping deploy for development'" },
+        "staging": { "command": "./deploy/production/ctl.sh staging deploy" },
+        "production": { "command": "./deploy/production/ctl.sh production deploy" }
+      }
+    },
     "serve": {
       "executor": "nx:run-commands",
       "dependsOn": ["typecheck"],
@@ -40,68 +113,6 @@
           "npx nx test build-service"
         ],
         "parallel": false
-      }
-    },
-    "containerize": {
-      "executor": "@nx-tools/nx-container:build",
-      "options": {
-        "file": "apps/backend/build-service/deploy/Dockerfile",
-        "context": ".",
-        "build-args": [
-          "APP_VERSION=${APP_VERSION:-dev}",
-          "GIT_COMMIT=${GIT_COMMIT:-unknown}",
-          "GIT_BRANCH=${GIT_BRANCH:-unknown}",
-          "BUILD_TIME=${BUILD_TIME:-unknown}",
-          "BUILD_HOST=${BUILD_HOST:-unknown}"
-        ]
-      },
-      "configurations": {
-        "development": {
-          "tags": ["concord/build-service:development"],
-          "build-args": ["ENVIRONMENT=development"]
-        },
-        "staging": {
-          "tags": [
-            "concord/build-service:staging",
-            "containers.ad.corekinect.com/concord-build-service:staging"
-          ],
-          "build-args": ["ENVIRONMENT=staging"]
-        },
-        "production": {
-          "tags": [
-            "concord/build-service:production",
-            "containers.ad.corekinect.com/concord-build-service:production"
-          ],
-          "build-args": ["ENVIRONMENT=production"],
-          "platforms": ["linux/amd64"]
-        }
-      }
-    },
-    "build": {
-      "executor": "nx:run-commands",
-      "dependsOn": ["containerize"],
-      "options": {
-        "command": "echo 'Build complete'"
-      },
-      "configurations": {
-        "development": {},
-        "staging": {},
-        "production": {}
-      }
-    },
-    "push": {
-      "executor": "nx:run-commands",
-      "dependsOn": ["build"],
-      "options": {
-        "command": "echo 'Push requires explicit registry target'"
-      },
-      "configurations": {
-        "staging": {
-          "command": "docker push containers.ad.corekinect.com/concord-build-service:staging"
-        },
-        "production": {
-          "command": "docker push containers.ad.corekinect.com/concord-build-service:production"
-        }
       }
     }
   }

@@ -19,6 +19,9 @@ infrastructure:
     rootUser: minioadmin
     rootPassword: minioadmin
     storage: 5Gi
+  pypi:
+    enabled: false
+    storage: "2Gi"
 
 # ── Backend (http-api) ──────────────────────────────────────
 httpApi:
@@ -66,6 +69,13 @@ frontend:
       cpu: 200m
       memory: 128Mi
 
+# ── Docs Site ──────────────────────────────────────────────
+docs:
+  enabled: false
+  image:
+    repository: containers.ad.corekinect.com/concord-docs
+    tag: staging
+
 # ── Ingress ─────────────────────────────────────────────────
 ingress:
   enabled: true
@@ -86,7 +96,6 @@ config:
   STORAGE_URL: "http://concord-minio:9000"
   STORAGE_BUCKET_NAME: "concord"
   AUTH_SERVER_URL: ""
-  COREOPS_PROXY_URL: "none"
   CONCORD_API_HOST: "staging.concord.local"
 
 # ── Git Poller ────────────────────────────────────────────────
@@ -110,4 +119,3 @@ secrets:
   AUTH_SERVER_API_KEY: ""
   DELETE_ALL_KEY: "staging-delete-key"
   BITBUCKET_WEBHOOK_SECRET: ""
-  COREOPS_API_KEY: ""

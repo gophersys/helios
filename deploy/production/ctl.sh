@@ -13,7 +13,7 @@ set -euo pipefail
 #   production  — Kubernetes production namespace
 #
 # Targets (for build/deploy):
-#   api, frontend, git-poller, validation, build-service
+#   api, frontend, git-poller, validation, build-service, docs
 #   Default: api frontend git-poller
 # ───────────────────────────────────────────────────────────────
 
@@ -27,6 +27,7 @@ REGISTRY_FRONTEND="${REGISTRY}/concord-frontend"
 REGISTRY_GIT_POLLER="${REGISTRY}/concord-git-poller"
 REGISTRY_VALIDATION="${REGISTRY}/concord-validation-alpha"
 REGISTRY_BUILD_SERVICE="${REGISTRY}/concord-build-service"
+REGISTRY_DOCS="${REGISTRY}/concord-docs"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -180,9 +181,18 @@ cmd_build() {
         timer_end "Build-service build"
         ;;
 
+      docs)
+        timer_start
+        docker buildx build \
+          --file apps/frontend/docs/deploy/Dockerfile \
+          --tag "${REGISTRY_DOCS}:${env}" \
+          --load . > /dev/null 2>&1
+        timer_end "Docs build"
+        ;;
+
       *)
         err "Unknown build target: ${target}"
-        err "Valid: api, frontend, git-poller, validation, build-service"
+        err "Valid: api, frontend, git-poller, validation, build-service, docs"
         exit 1
         ;;
     esac
@@ -207,6 +217,7 @@ _push_images() {
         git-poller|poller)        docker save "${REGISTRY_GIT_POLLER}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
         validation|val)           docker save "${REGISTRY_VALIDATION}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
         build-service)            docker save "${REGISTRY_BUILD_SERVICE}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
+        docs)                     docker save "${REGISTRY_DOCS}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
       esac
     done
   else
@@ -219,6 +230,7 @@ _push_images() {
         git-poller|poller)        docker push "${REGISTRY_GIT_POLLER}:${env}" > /dev/null 2>&1 || true ;;
         validation|val)           docker push "${REGISTRY_VALIDATION}:${env}" > /dev/null 2>&1 || true ;;
         build-service)            docker push "${REGISTRY_BUILD_SERVICE}:${env}" > /dev/null 2>&1 || true ;;
+        docs)                     docker push "${REGISTRY_DOCS}:${env}" > /dev/null 2>&1 || true ;;
       esac
     done
     timer_end "Push"
@@ -415,7 +427,7 @@ ${BOLD}Commands:${NC}
   ${GREEN}version${NC}                                  Show version string
 
 ${BOLD}Targets:${NC}
-  api, frontend, git-poller, validation, build-service
+  api, frontend, git-poller, validation, build-service, docs
   Default: api frontend git-poller
 
 ${BOLD}Examples:${NC}

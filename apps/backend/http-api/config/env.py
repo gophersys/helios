@@ -29,9 +29,6 @@ class AppConfig(EnvConfig):
     AUTH_SERVER_URL: str = ""
     AUTH_SERVER_API_KEY: str = ""
 
-    # Core Cloud/Ops
-    COREOPS_PROXY_URL: str
-
     # Assets
     ASSETS_FOLDER: str
 

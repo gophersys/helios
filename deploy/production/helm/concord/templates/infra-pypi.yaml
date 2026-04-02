@@ -1,0 +1,60 @@
+{{- if .Values.infrastructure.pypi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: concord-pypi
+  labels:
+    app.kubernetes.io/name: concord-pypi
+    app.kubernetes.io/component: infrastructure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: concord-pypi
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: concord-pypi
+    spec:
+      containers:
+      - name: pypi
+        image: pypiserver/pypiserver:latest
+        args: ["run", "-P", ".", "-a", ".", "/data/packages"]
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: packages
+          mountPath: /data/packages
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+      volumes:
+      - name: packages
+        persistentVolumeClaim:
+          claimName: concord-pypi-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: concord-pypi-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.infrastructure.pypi.storage | default "2Gi" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: concord-pypi
+spec:
+  selector:
+    app.kubernetes.io/name: concord-pypi
+  ports:
+  - port: 8080
+    targetPort: 8080
+{{- end }}

@@ -12,7 +12,16 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"],
-      "cache": true
+      "cache": true,
+      "defaultConfiguration": "development"
+    },
+    "push": {
+      "dependsOn": ["build"],
+      "defaultConfiguration": "development"
+    },
+    "deploy": {
+      "dependsOn": ["push"],
+      "defaultConfiguration": "development"
     },
     "test": {
       "cache": true,

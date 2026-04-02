@@ -20,9 +20,16 @@
         ]
       }
     },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/frontend/app",
+        "command": "npx vite dev --port 4200"
+      }
+    },
     "serve": {
       "executor": "nx:run-commands",
-      "dependsOn": ["typecheck", "build"],
+      "dependsOn": ["typecheck"],
       "options": {
         "cwd": "apps/frontend/app",
         "command": "npx vite dev --port 4200"
@@ -112,11 +119,23 @@
     "push": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],
-      "defaultConfiguration": "staging",
+      "defaultConfiguration": "development",
       "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
+        "development": { "command": "echo 'Skipping push for development'" },
         "staging": { "command": "docker push containers.ad.corekinect.com/concord-frontend:staging" },
         "production": { "command": "docker push containers.ad.corekinect.com/concord-frontend:production" }
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["push"],
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "development": { "command": "echo 'Skipping deploy for development'" },
+        "staging": { "command": "./deploy/production/ctl.sh staging deploy" },
+        "production": { "command": "./deploy/production/ctl.sh production deploy" }
       }
     },
     "typecheck": {
@@ -131,16 +150,6 @@
       "options": {
         "cwd": "apps/frontend/app",
         "command": "npx vitest run"
-      }
-    },
-    "deploy": {
-      "executor": "nx:run-commands",
-      "dependsOn": ["build"],
-      "defaultConfiguration": "staging",
-      "options": { "cwd": "{workspaceRoot}" },
-      "configurations": {
-        "staging": { "command": "./deploy/production/ctl.sh staging deploy" },
-        "production": { "command": "./deploy/production/ctl.sh production deploy" }
       }
     }
   }

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "corekinect"
+dynamic = ["version"]
+description = "Corekinect test framework for IoT device validation"
+requires-python = ">=3.10"
+dependencies = [
+    "grpcio>=1.60.0",
+    "protobuf>=5.0",
+    "requests>=2.31.0",
+    "minio>=7.2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-timeout>=2.0",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "corekinect.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["corekinect*"]

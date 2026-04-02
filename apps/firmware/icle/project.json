@@ -7,11 +7,15 @@
   "targets": {
     "build": {
       "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
       "options": {
         "cwd": "{projectRoot}",
         "command": "west build -b esp32_devkitc_wroom/esp32/procpu"
       },
       "configurations": {
+        "development": {},
+        "staging": {},
+        "production": {},
         "pristine": {
           "command": "west build -b esp32_devkitc_wroom/esp32/procpu -p always"
         },

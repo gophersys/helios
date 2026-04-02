@@ -13,15 +13,9 @@
         "cwd": "{workspaceRoot}"
       },
       "configurations": {
-        "development": {
-          "command": "nx run manufacturing-alpha:containerize -c development"
-        },
-        "staging": {
-          "command": "nx run manufacturing-alpha:containerize -c staging"
-        },
-        "production": {
-          "command": "nx run manufacturing-alpha:containerize -c production"
-        }
+        "development": { "command": "nx run manufacturing-alpha:containerize -c development" },
+        "staging": { "command": "nx run manufacturing-alpha:containerize -c staging" },
+        "production": { "command": "nx run manufacturing-alpha:containerize -c production" }
       }
     },
     "containerize": {
@@ -49,25 +43,30 @@
           "tags": [
             "concord/manufacturing-alpha:production",
             "containers.ad.corekinect.com/concord-manufacturing-alpha:production"
-          ],
-          "push": true
+          ]
         }
       }
     },
     "push": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],
-      "options": {
-        "cwd": "{workspaceRoot}"
-      },
-      "defaultConfiguration": "staging",
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
-        "staging": {
-          "command": "docker push containers.ad.corekinect.com/concord-manufacturing-alpha:staging"
-        },
-        "production": {
-          "command": "docker push containers.ad.corekinect.com/concord-manufacturing-alpha:production"
-        }
+        "development": { "command": "echo 'Skipping push for development'" },
+        "staging": { "command": "docker push containers.ad.corekinect.com/concord-manufacturing-alpha:staging" },
+        "production": { "command": "docker push containers.ad.corekinect.com/concord-manufacturing-alpha:production" }
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["push"],
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "development": { "command": "echo 'Skipping deploy for development'" },
+        "staging": { "command": "./deploy/production/ctl.sh staging deploy" },
+        "production": { "command": "./deploy/production/ctl.sh production deploy" }
       }
     },
     "test": {
@@ -86,19 +85,12 @@
     },
     "setup": {
       "executor": "nx:run-commands",
-      "cwd": "{projectRoot}",
       "options": {
         "cwd": "{projectRoot}",
         "commands": [
-          {
-            "command": "python3 -m venv .venv"
-          },
-          {
-            "command": "bash -c 'source .venv/bin/activate && pip install -e .'"
-          },
-          {
-            "command": "cp .env.example .env"
-          }
+          { "command": "python3 -m venv .venv" },
+          { "command": "bash -c 'source .venv/bin/activate && pip install -e .'" },
+          { "command": "cp .env.example .env" }
         ],
         "parallel": false
       }

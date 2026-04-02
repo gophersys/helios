@@ -140,9 +140,14 @@ class StubFixture:
 
     # ── Capability API ──
 
+    def has(self, capability: str) -> bool:
+        """Stubs have all capabilities by default (testing test logic, not hardware)."""
+        cap_str = capability.value if hasattr(capability, "value") else str(capability)
+        return cap_str not in self._disabled_capabilities
+
     def has_capability(self, cap) -> bool:
         """Stubs have all capabilities by default (testing test logic, not hardware)."""
-        return cap not in self._disabled_capabilities
+        return self.has(cap)
 
     def disable_capability(self, cap) -> "StubFixture":
         """Disable a capability for testing skip logic."""

@@ -714,7 +714,7 @@
               <div>
                 <label for="secret-value" class="mb-1 block text-2xs font-medium text-text-tertiary">Value (base64-encoded)</label>
                 <textarea id="secret-value" bind:value={secretValue} rows={3} placeholder="Paste base64-encoded key..."
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none" />
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"></textarea>
               </div>
               <div>
                 <label for="secret-desc" class="mb-1 block text-2xs font-medium text-text-tertiary">Description (optional)</label>

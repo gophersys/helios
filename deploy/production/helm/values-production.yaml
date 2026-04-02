@@ -18,6 +18,9 @@ infrastructure:
     rootUser: concordadmin
     rootPassword: concord-minio-prod-2026
     storage: 10Gi
+  pypi:
+    enabled: true
+    storage: "5Gi"
 
 httpApi:
   replicas: 1
@@ -36,6 +39,12 @@ frontend:
   replicas: 1
   image:
     repository: containers.ad.corekinect.com/concord-frontend
+    tag: production
+
+docs:
+  enabled: true
+  image:
+    repository: containers.ad.corekinect.com/concord-docs
     tag: production
 
 ingress:
@@ -60,8 +69,8 @@ config:
   STORAGE_URL: "http://concord-minio:9000"
   STORAGE_BUCKET_NAME: "concord"
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
-  COREOPS_PROXY_URL: "http://10.4.45.30:8001"
   CONCORD_API_HOST: "concord.local"
+  PYPI_URL: "http://concord-pypi:8080/simple"
 
 # Build Service — lightweight orchestrator, spawns dynamic builder containers
 buildService:
@@ -94,4 +103,3 @@ secrets:
   AUTH_SERVER_API_KEY: "CHANGE-ME-use-secrets-overlay"
   DELETE_ALL_KEY: "CHANGE-ME-use-secrets-overlay"
   BITBUCKET_WEBHOOK_SECRET: "CHANGE-ME-use-secrets-overlay"
-  COREOPS_API_KEY: "CHANGE-ME-use-secrets-overlay"

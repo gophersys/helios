@@ -76,7 +76,6 @@ class TestJwtSecretValidation:
         "LOG_LEVEL": "10",
         "LOG_PATH": "/tmp/test.log",
         "SERVER_PORT": "9001",
-        "COREOPS_PROXY_URL": "http://localhost:50050",
         "CONCORD_API_HOST": "test.concord.local",
         "ASSETS_FOLDER": "/tmp/test-assets",
         "STORAGE_URL": "http://localhost:9000",
