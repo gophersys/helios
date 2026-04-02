@@ -1,14 +1,19 @@
 """Unified test context for Stage 4 product validation.
 
-Composes MTIB client, CloudClient, FixtureController, UartDemuxer,
+Composes MTIB client, CloudClient, fixture controller, UartDemuxer,
 and PowerProfiler into a single object passed to every test via
 pytest fixture.
+
+The fixture parameter is duck-typed — any object with the standard
+fixture interface (power_on, power_off, press_button, has_capability,
+etc.) works. Product test apps inject their own fixture implementation
+via from_env(fixture_factory=...).
 """
 
 import os
 import threading
 import time
-from typing import Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.mtib_client.v1.client.config import NetConfig
@@ -18,8 +23,6 @@ from .artifact_uploader import ArtifactUploader
 from .artifact_writer import ArtifactWriter
 from .cloud_client import CloudClient
 from .firmware import FirmwareAssetManager
-from .fixture_controller import FixtureController
-from .profiles import FixtureProfile
 from .acceleration_profiler import AccelerationProfiler
 from .power_profiler import PowerProfiler
 from .telemetry import TelemetryStreamer
@@ -54,7 +57,7 @@ class TestContext:
         self,
         mtib: MtibV1Client,
         cloud: CloudClient,
-        fixture: FixtureController,
+        fixture: Any,
         uart: UartDemuxer,
         power: PowerProfiler,
         product=None,
@@ -121,36 +124,6 @@ class TestContext:
         return mtib_addr, int(os.environ.get("MTIB_PORT", "50053"))
 
     @staticmethod
-    def _load_fixture_profile(
-        bench_id: Optional[str],
-        api_url: Optional[str],
-        api_key: Optional[str],
-    ) -> FixtureProfile:
-        """Load fixture profile from the Concord API or a local JSON file.
-
-        API mode is preferred when ``bench_id``, ``api_url``, and ``api_key``
-        are all provided. Falls back to the ``FIXTURE_PROFILE_PATH`` env var.
-
-        Returns:
-            Loaded FixtureProfile instance.
-
-        Raises:
-            ValueError: If neither API credentials nor a profile path is available.
-        """
-        if bench_id and api_url and api_key:
-            log.info(f"Loading fixture profile from API: {api_url}/benches/{bench_id}")
-            return FixtureProfile.from_api(bench_id, api_url, api_key)
-
-        profile_path = os.environ.get("FIXTURE_PROFILE_PATH")
-        if not profile_path:
-            raise ValueError(
-                "Either BENCH_ID+CONCORD_API_URL+CONCORD_API_KEY or "
-                "FIXTURE_PROFILE_PATH must be set"
-            )
-        log.info(f"Loading fixture profile from file: {profile_path}")
-        return FixtureProfile.from_json(profile_path)
-
-    @staticmethod
     def _load_product_context(
         product_slug: str,
         api_url: Optional[str],
@@ -192,28 +165,22 @@ class TestContext:
         return product_ctx
 
     @classmethod
-    def from_env(cls) -> "TestContext":
+    def from_env(
+        cls,
+        fixture_factory: Optional[Callable[[MtibV1Client], Any]] = None,
+    ) -> "TestContext":
         """Create TestContext from environment variables.
 
-        Delegates to helper methods for each concern:
-        - ``_load_mtib_config()`` — MTIB address parsing
-        - ``_load_fixture_profile()`` — profile from API or JSON file
-        - ``_load_product_context()`` — product metadata from API
+        Args:
+            fixture_factory: Optional callable that takes an MtibV1Client and
+                returns a product-specific fixture controller. Product test apps
+                inject their own fixture implementation here. If None, fixture
+                is set to None (product conftest must provide one).
 
         Required env vars:
-            MTIB_HOST or MTIB_ADDRESS: MTIB server address (e.g., 10.4.45.33:50053)
-            MTIB_PORT: MTIB server port (default: 50053, can be in MTIB_ADDRESS)
-            DEVICE_ID: CoreCloud device ID as hex string (e.g., 70B3D584C01E1FCC)
+            MTIB_HOST or MTIB_ADDRESS: MTIB server address
+            DEVICE_ID: CoreCloud device ID as hex string
             CORECLOUD_DB_ENV: CoreCloud namespace (default: DEV_1_0)
-
-        Profile loading (one of the following):
-            API mode (preferred):
-                BENCH_ID: TestBench ID or station_id
-                CONCORD_API_URL: Base URL of Concord API
-                CONCORD_API_KEY: API key for authentication
-
-            File mode (fallback):
-                FIXTURE_PROFILE_PATH: Path to fixture profile JSON
 
         Returns:
             Configured TestContext instance (not yet connected).
@@ -224,16 +191,11 @@ class TestContext:
         db_env = os.environ.get("CORECLOUD_DB_ENV", "DEV_1_0")
         device_id = int(device_id_hex, 16)
 
-        bench_id = os.environ.get("BENCH_ID")
         api_url = os.environ.get("CONCORD_API_URL")
         api_key = os.environ.get("CONCORD_API_KEY")
 
-        profile = cls._load_fixture_profile(bench_id, api_url, api_key)
-
-        # Determine product slug — explicit env var or derived from profile
+        # Determine product slug
         product_slug = os.environ.get("PRODUCT_SLUG")
-        if not product_slug and profile:
-            product_slug = f"{profile.product}_{profile.board}"
 
         # Load product context and apply its coreCloudEnv override
         product_ctx = None
@@ -246,9 +208,11 @@ class TestContext:
         config = MtibV1Client.Config(net=NetConfig(addr=mtib_host, port=mtib_port))
         mtib = MtibV1Client(config)
 
+        # Build fixture via product-specific factory or leave None
+        fixture = fixture_factory(mtib) if fixture_factory else None
+
         # Build components
         cloud = CloudClient(device_id=device_id, api_env=db_env)
-        fixture = FixtureController(mtib=mtib, profile=profile)
         uart = UartDemuxer(mtib=mtib)
         power = PowerProfiler(mtib=mtib)
 

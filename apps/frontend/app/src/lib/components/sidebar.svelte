@@ -5,7 +5,6 @@
     LayoutDashboard,
     FlaskConical,
     Hammer,
-    Wrench,
     Settings,
     Users,
     Cpu,
@@ -15,7 +14,7 @@
     PanelLeftClose,
     ChevronUp,
     Shield,
-    LineChart,
+    Factory,
   } from 'lucide-svelte';
   import { PUBLIC_APP_VERSION } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
@@ -54,7 +53,8 @@
     { to: '/products', icon: Package, label: 'Products', permission: 'products:view' },
     { to: '/builds', icon: Hammer, label: 'Builds', permission: 'builds:view' },
     { to: '/validation', icon: FlaskConical, label: 'Validation' },
-    { to: '/mtib', icon: Cpu, label: 'Hardware', permission: 'devices:view' },
+    { to: '/fixtures', icon: Cpu, label: 'Fixtures', permission: 'fixtures:view' },
+    { to: '/manufacturing', icon: Factory, label: 'Manufacturing', permission: 'manufacturing:view' },
   ];
 
   const visiblePrimaryItems = $derived(
@@ -63,9 +63,7 @@
 
   // Admin items
   const adminItems: NavItem[] = [
-    { to: '/fixtures', icon: Wrench, label: 'Fixtures' },
-    { to: '/users', icon: Users, label: 'Users & Permissions', permission: 'users:view' },
-    { to: '/case-study', icon: LineChart, label: 'Case Study', permission: 'system:view' },
+    { to: '/users', icon: Users, label: 'Users', permission: 'users:view' },
   ];
 
   const visibleAdminItems = $derived(
@@ -76,8 +74,8 @@
 
   // System items
   const systemItems: NavItem[] = [
-    { to: '/kubernetes', icon: KubernetesIcon, label: 'Cluster', permission: 'system:view' },
-    { to: '/history', icon: History, label: 'History', permission: 'system:view' },
+    { to: '/kubernetes', icon: KubernetesIcon, label: 'Kubernetes', permission: 'system:view' },
+    { to: '/deployments', icon: History, label: 'Deployments', permission: 'system:view' },
   ];
 
   const visibleSystemItems = $derived(

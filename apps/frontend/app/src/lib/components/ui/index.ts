@@ -12,6 +12,15 @@ export { default as FormCard } from './form-card.svelte';
 export { default as Card } from './card.svelte';
 export { default as Modal } from './modal.svelte';
 export { default as Tabs } from './tabs.svelte';
+export { default as DataList } from './data-list.svelte';
+export { default as FilterBar } from './filter-bar.svelte';
+export { default as FilterSelect } from './filter-select.svelte';
+export { default as FilterPills } from './filter-pills.svelte';
+export { default as Pagination } from './pagination.svelte';
+export { default as TriggerBadge } from './trigger-badge.svelte';
+export { default as StagePills } from './stage-pills.svelte';
+export { default as UserAvatar } from './user-avatar.svelte';
+export { default as TimeDisplay } from './time-display.svelte';
 
 // UI component types
 export type { SelectOption, Tab } from './types';
