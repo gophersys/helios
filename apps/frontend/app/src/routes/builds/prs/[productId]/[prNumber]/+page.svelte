@@ -336,20 +336,30 @@
                       <!-- Status text -->
                       <StatusBadge status={run.status} />
 
-                      <!-- Cancel button (for active builds) -->
-                      {#if canManage && isActive(run.status)}
-                        <button
-                          onclick={(e) => handleCancel(run.id, e)}
-                          disabled={cancellingId === run.id}
-                          class="rounded p-1 text-text-tertiary hover:text-error hover:bg-error-muted transition-colors"
-                          title="Cancel this build run"
-                        >
-                          {#if cancellingId === run.id}
-                            <Loader2 size={12} class="animate-spin" />
-                          {:else}
-                            <Ban size={12} />
-                          {/if}
-                        </button>
+                      <!-- Actions -->
+                      {#if canManage}
+                        {#if isActive(run.status)}
+                          <button
+                            onclick={(e) => handleCancel(run.id, e)}
+                            disabled={cancellingId === run.id}
+                            class="rounded p-1 text-text-tertiary hover:text-error hover:bg-error-muted transition-colors"
+                            title="Cancel"
+                          >
+                            {#if cancellingId === run.id}
+                              <Loader2 size={12} class="animate-spin" />
+                            {:else}
+                              <Ban size={12} />
+                            {/if}
+                          </button>
+                        {:else if run.status === 'FAILED' || run.status === 'BUILD_FAILED' || run.status === 'CANCELLED'}
+                          <button
+                            onclick={(e) => { e.stopPropagation(); goto(`/builds/runs/${run.id}`); }}
+                            class="rounded p-1 text-text-tertiary hover:text-accent hover:bg-accent-muted transition-colors"
+                            title="View details"
+                          >
+                            <RotateCcw size={12} />
+                          </button>
+                        {/if}
                       {/if}
                     </div>
                   </button>
