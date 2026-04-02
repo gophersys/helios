@@ -223,8 +223,80 @@
       loadBranches();
       loadRecipe();
       loadSecrets();
+      loadLastTestBuild();
     }
   });
+
+  async function loadLastTestBuild() {
+    // Check if there's a recent test build for this product
+    try {
+      const res = await apiFetch<ApiResponse<any>>('/v2/builds?status=BUILDING,QUEUED,SUCCESS,FAILED&limit=5&product=alpha');
+      const data = res.data;
+      const builds = Array.isArray(data) ? data : data?.data ?? [];
+      const testBuild = builds.find((b: any) => b.matrixLabel === 'TEST_BUILD');
+      if (!testBuild) return;
+
+      testBuildId = testBuild.id;
+      const isActive = testBuild.status === 'BUILDING' || testBuild.status === 'QUEUED' || testBuild.status === 'CLONING';
+
+      // Parse config flags for builder image
+      const flags = typeof testBuild.configFlags === 'string' ? JSON.parse(testBuild.configFlags) : testBuild.configFlags;
+      const builderImage = flags?._builder_image || 'Resolving...';
+
+      testBuildStatus = isActive ? 'running' : testBuild.status === 'SUCCESS' ? 'success' : 'failed';
+      testBuildRunning = isActive;
+      terminalOpen = true;
+
+      // Build header from job data
+      const rev = selectedRevision;
+      testBuildLogs = [
+        `\x1b[36m▸ Test build ${isActive ? '(in progress)' : testBuild.status}\x1b[0m`,
+        `\x1b[36m  Board:      \x1b[0m${testBuild.board}`,
+        `\x1b[36m  Revision:   \x1b[0m${rev?.version ?? '?'} (${rev?.ckBoardsName ?? '?'})`,
+        `\x1b[36m  Container:  \x1b[0m${builderImage}`,
+        `\x1b[36m  Job:        \x1b[0m${testBuild.id}`,
+        '',
+      ];
+
+      // Load existing build log
+      if (testBuild.buildLog) {
+        const lines = testBuild.buildLog.split('\n').filter((l: string) => l.length > 0);
+        testBuildLogs = [...testBuildLogs, ...lines];
+      }
+
+      // Add completion status if finished
+      if (!isActive) {
+        testBuildLogs = [...testBuildLogs, '',
+          `\x1b[${testBuild.status === 'SUCCESS' ? '32' : '31'}m▸ Build ${testBuild.status}${testBuild.durationSeconds ? ` (${testBuild.durationSeconds}s)` : ''}\x1b[0m`
+        ];
+        loadTestArtifacts();
+      } else {
+        // Resume polling for active builds
+        unsubscribeBuild = subscribeCiBuild(testBuild.id, {
+          onLog: (evt: CiBuildLogEvent) => {
+            if (testBuildId !== testBuild.id) return;
+            const chunk = evt.chunk || '';
+            const lines = chunk.split('\n').filter((l) => l.length > 0);
+            if (lines.length > 0) {
+              testBuildLogs = [...testBuildLogs, ...lines];
+              requestAnimationFrame(() => { if (terminalEl) terminalEl.scrollTop = terminalEl.scrollHeight; });
+            }
+          },
+          onComplete: (evt: any) => {
+            if (testBuildId !== testBuild.id) return;
+            testBuildRunning = false;
+            testBuildStatus = evt.status === 'SUCCESS' ? 'success' : 'failed';
+            testBuildLogs = [...testBuildLogs, '', `\x1b[${evt.status === 'SUCCESS' ? '32' : '31'}m▸ Build ${evt.status} (${evt.durationSeconds ?? '?'}s)\x1b[0m`];
+            if (terminalEl) terminalEl.scrollTop = terminalEl.scrollHeight;
+            loadTestArtifacts();
+          },
+        });
+        pollTestBuild(testBuild.id);
+      }
+    } catch {
+      // No previous test build — that's fine
+    }
+  }
 
   async function loadSecrets() {
     secretsLoading = true;
