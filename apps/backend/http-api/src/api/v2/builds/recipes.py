@@ -307,13 +307,25 @@ def save_recipe_version(product_id: str):
         "createdById": user_id,
     })
 
+    # Auto-publish to MinIO so build service always uses the latest version
+    slug = product.slug or product.name.lower().replace(" ", "_")
+    key = _recipe_key(slug)
+    try:
+        storage = get_storage_client()
+        bucket = get_bucket_name()
+        content_bytes = content.encode("utf-8")
+        storage.put_object(bucket, key, io.BytesIO(content_bytes), len(content_bytes),
+                          content_type="text/x-shellscript")
+    except Exception:
+        logger.exception("Failed to publish recipe v%d to MinIO", next_version)
+
     log_audit("recipe.version.save", "Product", product_id, {
         "product": product.name,
         "version": next_version,
         "changeNote": change_note,
     })
 
-    logger.info("Recipe version %d saved for %s", next_version, product.name)
+    logger.info("Recipe version %d saved and published for %s", next_version, product.name)
 
     return jsonify(ApiResponse.ok(_serialize_version(version, include_content=True)).to_dict()), 201
 
@@ -597,7 +609,8 @@ def test_recipe_build(product_id: str):
         bucket = get_bucket_name()
         slug = product.slug or product.name.lower().replace(" ", "-")
         key = storage_key(StoragePrefixes.RECIPES, f"{slug}/build.sh")
-        storage.put_object(bucket, key, io.BytesIO(content.encode()), len(content), content_type="text/x-shellscript")
+        content_bytes = content.encode("utf-8")
+        storage.put_object(bucket, key, io.BytesIO(content_bytes), len(content_bytes), content_type="text/x-shellscript")
     except Exception:
         logger.exception("Failed to write recipe to MinIO for test build")
 
