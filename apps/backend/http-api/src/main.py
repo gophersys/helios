@@ -136,15 +136,13 @@ if __name__ == "__main__":
         init_observability_service(poll_interval_s=5)
 
         # Initialize CkBoards service (board definition discovery)
-        def _init_ck_boards():
-            try:
-                from api.v2.products.board_discovery import init_ck_boards_service
-                init_ck_boards_service(env_config)
-            except Exception as e:
-                logger.error("CkBoards service init failed: %s", e)
-
-        import threading
-        threading.Thread(target=_init_ck_boards, daemon=True).start()
+        # Must run synchronously — eventlet monkey-patching breaks subprocess in threads
+        try:
+            from api.v2.products.board_discovery import init_ck_boards_service
+            init_ck_boards_service(env_config)
+            logger.info("CkBoards service ready")
+        except Exception as e:
+            logger.warning("CkBoards service init failed (board discovery unavailable): %s", e)
 
         # Routes
         register_v2_routes(logger, server, socketio)

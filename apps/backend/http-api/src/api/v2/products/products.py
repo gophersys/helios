@@ -382,18 +382,23 @@ def sync_product_revisions(product_id: str):
     if not board:
         return bad_request("Product has no board configured")
 
-    from src.api.v2.products.board_discovery import get_ck_boards_service
+    from api.v2.products.board_discovery import get_ck_boards_service
     svc = get_ck_boards_service()
     if svc is None or not svc.is_ready:
         return internal_error("Board discovery service not configured")
 
-    try:
-        detail = svc.discover_board_detail(board.ckBoardsFamily, "main")
-    except ValueError:
+    # Try main, then master (ck_boards uses master)
+    detail = None
+    for branch in ("main", "master"):
+        try:
+            detail = svc.discover_board_detail(board.ckBoardsFamily, branch)
+            break
+        except ValueError:
+            continue
+        except Exception:
+            logger.exception("Failed to discover boards for %s on %s", board.ckBoardsFamily, branch)
+    if detail is None:
         return not_found(f"Board family '{board.ckBoardsFamily}' not found in ck_boards repo")
-    except Exception:
-        logger.exception("Failed to discover boards for %s", board.ckBoardsFamily)
-        return internal_error("Failed to discover boards from ck_boards repo")
 
     existing_versions = {r.version for r in (board.revisions or [])}
     discovered_revisions = detail.get("revisions", []) if isinstance(detail, dict) else []
