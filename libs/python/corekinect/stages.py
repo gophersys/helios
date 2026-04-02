@@ -1,44 +1,14 @@
-"""Canonical stage and build definitions for the Concord validation platform.
+"""Single source of truth for validation stage build definitions.
 
-THIS IS THE SINGLE SOURCE OF TRUTH for what firmware builds each
-validation stage requires. Both the build service and the test framework
-import from here. No other module should define stage build matrices.
+Both the build service and the test framework import from here.
+No other module should define stage build matrices.
 
-Consumers:
-    Build service (apps/backend/http-api/):
-        from corekinect.stages import get_stage_build_defs, Stage
-        defs = get_stage_build_defs(Stage.FUOTA)
-        for d in defs:
-            create_build_job(label=d.label, fw_type=d.fw_type, ...)
+    from corekinect.stages import get_stage_build_defs, Stage
+    defs = get_stage_build_defs(Stage.FUOTA)
+    cfw_labels = [d.label for d in defs if d.produces_cfw]
 
-    Test framework (libs/python/corekinect/test/):
-        from corekinect.stages import get_required_labels, Stage
-        required = get_required_labels(Stage.FUOTA)
-        # ["FUT_QUIET_A", "FUT_QUIET_B", "FUT_VERBOSE_A", ...]
-
-    Test code (apps/validation/{product}/):
-        from corekinect.stages import get_stage_build_defs, Stage
-        defs = get_stage_build_defs(Stage.FUOTA)
-        cfw_labels = [d.label for d in defs if d.produces_cfw]
-
-Architecture:
-    Each stage defines a list of StageBuildDef objects. Each def specifies:
-    - label: unique identifier within the stage (e.g., "MFG_BASE")
-    - fw_type: firmware type ("mfg", "app", "driver_test")
-    - variant: build variant ("debug", "release", "mfg")
-    - config_log: whether UART logging is enabled (CONFIG_LOG Kconfig)
-    - produces_hex: whether this build produces plaintext hex files
-    - produces_cfw: whether this build produces encrypted CFW files
-    - git_ref: which git ref to build from ("pr", "main", "merge")
-    - is_version_bump: if True, this build starts BLOCKED until base completes
-    - base_label: label of the build this depends on (for version bumps)
-    - description: human-readable purpose of this build
-
-    The label is the key that connects the build system, backend API,
-    and test framework. The same label ("MFG_BASE") appears in:
-    - BuildJob.matrixLabel in the database
-    - StageAssets.by_label("MFG_BASE") in test code
-    - Pipeline API response builds[].matrixLabel
+The label string ("MFG_BASE", "FUT_VERBOSE_A", etc.) is the key that
+connects the build system, backend API, and test framework.
 
 CRITICAL — D-Flag Constraint:
     CoreCloud silently strips the D (debug) flag from FUOTA plan targets.
@@ -46,13 +16,10 @@ CRITICAL — D-Flag Constraint:
     (D stripped). The device requests "109.0.8.0-BM" but only the BMD image
     exists — FUOTA delivery NEVER starts.
 
-    Therefore:
-    - The D flag MUST NEVER be set in CFW track flags for FUOTA builds.
-    - "Verbose" (CONFIG_LOG=y) and "quiet" (CONFIG_LOG=n) describe the
-      BINARY configuration, NOT the CFW track flags.
-    - All Alpha validation FUOTA builds use BM track (Bench + Manufacturing).
-    - The `config_log` field controls the binary config independently of
-      the CFW track.
+    Therefore: the D flag MUST NEVER be set in CFW track flags for FUOTA
+    builds. "Verbose" (CONFIG_LOG=y) and "quiet" (CONFIG_LOG=n) describe
+    the binary config, NOT the CFW track flags. All Alpha FUOTA builds
+    use BM track. The ``config_log`` field is independent of the track.
 
     See: https://corekinect.atlassian.net/wiki/spaces/EN/pages/2704080902
 """
@@ -70,9 +37,8 @@ from typing import Dict, List, Optional
 class Stage(str, Enum):
     """Validation stage identifiers.
 
-    Each stage has a specific purpose, hardware requirement, and timing budget.
-    The stage name is used as the pipeline's matrix_mode and as directory
-    names in product test packages.
+    Used as the pipeline's matrix_mode and as directory names in product
+    test packages.
     """
 
     SMOKE = "smoke"              # Stage 1: Software tests, no hardware
@@ -106,42 +72,24 @@ STAGE_NAMES: Dict[int, str] = {
 
 @dataclass(frozen=True)
 class StageBuildDef:
-    """Definition of a single firmware build within a validation stage.
+    """A single firmware build recipe within a validation stage.
 
-    This is a recipe + artifact declaration. The build service uses
-    fw_type/variant/git_ref to know HOW to build. The test framework
-    uses produces_hex/produces_cfw to know WHAT artifacts to expect.
+    The build service reads fw_type/variant/git_ref to know HOW to build.
+    The test framework reads produces_hex/produces_cfw to know WHAT
+    artifacts to expect.
 
-    The ``config_log`` field controls whether UART logging is enabled
-    in the built binary (CONFIG_LOG Kconfig). This is INDEPENDENT of
-    the CFW track flags — a verbose build (config_log=True) can and
-    should use a non-debug CFW track (e.g., BM instead of BMD).
-
-    See the module docstring for the D-flag constraint explanation.
+    ``config_log`` controls CONFIG_LOG (UART logging) independently of
+    CFW track flags — a verbose build (config_log=True) still uses a
+    non-debug track (BM, not BMD). See module docstring for why.
 
     Args:
-        label: Matrix label, unique within a stage (e.g., "MFG_BASE").
-        fw_type: Firmware type — "mfg", "app", or "driver_test".
-        variant: Build variant — controls binary configuration.
-            "mfg" = manufacturing firmware with mfg shell.
-            "debug" = application firmware with CONFIG_LOG=y.
-            "release" = application firmware with CONFIG_LOG=n.
-        config_log: Whether UART logging is enabled (CONFIG_LOG=y).
-            True = "verbose" — UART boot logs visible, version
-            detectable via BootVersionDetector.
-            False = "quiet" — no UART output, verification via
-            power current or cloud check-in only.
-        produces_hex: Whether this build produces plaintext hex files
-            for J-Link flashing.
-        produces_cfw: Whether this build produces encrypted CFW files
-            for FUOTA delivery. MUST NOT use D-flag in track.
-        git_ref: Which git ref to build — "pr" (PR branch), "main"
-            (mainline), or "merge" (post-merge).
-        is_version_bump: If True, this build uses a bumped version
-            number. Starts in BLOCKED status until base_label completes.
-        base_label: Label of the build this depends on (for version
-            bump linking). Required when is_version_bump=True.
-        description: Human-readable explanation of why this build exists.
+        variant: "mfg" (mfg shell), "debug" (CONFIG_LOG=y), or
+            "release" (CONFIG_LOG=n).
+        config_log: True = verbose (UART boot logs visible).
+            False = quiet (verify via power current or cloud only).
+        produces_cfw: MUST NOT use D-flag in track.
+        is_version_bump: Starts BLOCKED until base_label completes.
+        base_label: Required when is_version_bump=True.
     """
 
     label: str
@@ -420,17 +368,10 @@ _STAGE_CAPABILITIES: Dict[Stage, List[str]] = {
 
 
 def get_stage_build_defs(stage: Stage) -> List[StageBuildDef]:
-    """Get the build definitions required for a validation stage.
+    """Return build definitions for a validation stage.
 
-    Returns an ordered list of StageBuildDef. Version bump builds
-    (is_version_bump=True) start in BLOCKED status and unblock
-    when their base build completes.
-
-    Args:
-        stage: Validation stage.
-
-    Returns:
-        List of build definitions for the stage.
+    Version bump builds start BLOCKED and unblock when their base
+    build completes.
 
     Raises:
         KeyError: If stage is not recognized.
@@ -443,31 +384,14 @@ def get_stage_build_defs(stage: Stage) -> List[StageBuildDef]:
 
 
 def get_required_labels(stage: Stage) -> List[str]:
-    """Get just the label names required for a stage.
-
-    Convenience wrapper for test framework validation.
-
-    Args:
-        stage: Validation stage.
-
-    Returns:
-        Sorted list of label strings.
-    """
+    """Return sorted label names required for a stage."""
     return sorted(d.label for d in get_stage_build_defs(stage))
 
 
 def get_labels_with_cfw(stage: Stage) -> List[str]:
-    """Get labels that produce encrypted CFW files.
+    """Return labels that produce encrypted CFW files (for FUOTA delivery).
 
-    Used by the test framework to know which builds can be
-    used for FUOTA delivery. All returned CFWs MUST use
-    non-debug track flags (no D-flag) per the CoreCloud constraint.
-
-    Args:
-        stage: Validation stage.
-
-    Returns:
-        Sorted list of labels that have produces_cfw=True.
+    All returned CFWs use non-debug track flags per the D-flag constraint.
     """
     return sorted(
         d.label for d in get_stage_build_defs(stage) if d.produces_cfw
@@ -475,32 +399,14 @@ def get_labels_with_cfw(stage: Stage) -> List[str]:
 
 
 def get_labels_with_hex(stage: Stage) -> List[str]:
-    """Get labels that produce plaintext hex files.
-
-    Used by the test framework to know which builds can be
-    flashed via J-Link.
-
-    Args:
-        stage: Validation stage.
-
-    Returns:
-        Sorted list of labels that have produces_hex=True.
-    """
+    """Return labels that produce plaintext hex files (for J-Link flashing)."""
     return sorted(
         d.label for d in get_stage_build_defs(stage) if d.produces_hex
     )
 
 
 def get_build_def(stage: Stage, label: str) -> Optional[StageBuildDef]:
-    """Get a specific build definition by label.
-
-    Args:
-        stage: Validation stage.
-        label: Build label (e.g., "MFG_BASE").
-
-    Returns:
-        The StageBuildDef, or None if not found.
-    """
+    """Return a specific build definition by label, or None if not found."""
     for d in get_stage_build_defs(stage):
         if d.label == label:
             return d
@@ -508,16 +414,10 @@ def get_build_def(stage: Stage, label: str) -> Optional[StageBuildDef]:
 
 
 def get_verbose_labels(stage: Stage) -> List[str]:
-    """Get labels that have UART logging enabled (config_log=True).
+    """Return labels with UART logging enabled (config_log=True).
 
-    These builds produce UART boot output that can be captured
-    by BootVersionDetector for version verification.
-
-    Args:
-        stage: Validation stage.
-
-    Returns:
-        Sorted list of verbose build labels.
+    These builds emit UART boot output that BootVersionDetector can
+    capture for version verification.
     """
     return sorted(
         d.label for d in get_stage_build_defs(stage) if d.config_log
@@ -525,16 +425,9 @@ def get_verbose_labels(stage: Stage) -> List[str]:
 
 
 def get_quiet_labels(stage: Stage) -> List[str]:
-    """Get labels that have UART logging disabled (config_log=False).
+    """Return labels with UART logging disabled (config_log=False).
 
-    These builds produce no UART output. Verification must use
-    power current measurement or cloud check-in instead.
-
-    Args:
-        stage: Validation stage.
-
-    Returns:
-        Sorted list of quiet build labels.
+    Verification must use power current or cloud check-in instead.
     """
     return sorted(
         d.label for d in get_stage_build_defs(stage) if not d.config_log
@@ -542,16 +435,9 @@ def get_quiet_labels(stage: Stage) -> List[str]:
 
 
 def get_stage_capabilities(stage: Stage) -> List[str]:
-    """Get minimum required capability names for a stage.
+    """Return minimum fixture capabilities required for a stage.
 
-    The backend uses this for fixture scheduling. A fixture must have
-    at least these capabilities to run the stage. Individual tests may
-    require additional capabilities and will skip gracefully.
-
-    Args:
-        stage: Validation stage.
-
-    Returns:
-        List of capability name strings (matching Capability enum values).
+    The backend uses this for fixture scheduling. Individual tests may
+    require extra capabilities and skip gracefully if missing.
     """
     return list(_STAGE_CAPABILITIES.get(stage, []))

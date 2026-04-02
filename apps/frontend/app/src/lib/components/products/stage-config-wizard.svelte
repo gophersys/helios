@@ -59,10 +59,11 @@
   // Step 3
   let recipe = $state('');
   let recipeLoading = $state(false);
-  let recipeDirty = $state(false);
+  let recipeDirty = $state(false);        // editor content differs from last save
   let recipeSaving = $state(false);
-  let recipeSavedVersion = $state<number | null>(null);
+  let recipeSavedVersion = $state<number | null>(null);  // last published version number
   let recipeLastSaved = $state<string | null>(null);
+  let recipeMatchesPublished = $state(true);  // true when content === last published
   let recipeValidating = $state(false);
   let recipeValidation = $state<{ valid: boolean; errors: string[]; warnings: string[] } | null>(null);
   let cursorLine = $state(1);
@@ -76,8 +77,27 @@
   let testBuildLogs = $state<string[]>([]);
   let testBuildArtifacts = $state<any[]>([]);
   let terminalOpen = $state(false);
+  let terminalHeight = $state(192); // default 192px
+  let dragging = $state(false);
   let unsubscribeBuild: (() => void) | null = null;
   let terminalEl: HTMLDivElement | null = $state(null);
+
+  function startDrag(e: MouseEvent) {
+    e.preventDefault();
+    dragging = true;
+    const startY = e.clientY;
+    const startHeight = terminalHeight;
+    function onMove(ev: MouseEvent) {
+      terminalHeight = Math.max(80, Math.min(600, startHeight + (startY - ev.clientY)));
+    }
+    function onUp() {
+      dragging = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
 
   // Dynamic recipe analysis — only matches actual calls, not comments
   function hasCall(script: string, fn: string): boolean {
@@ -315,7 +335,16 @@
       testBuildRunning = true;
       testBuildStarting = false;
 
-      testBuildLogs = [...testBuildLogs, `\x1b[36m▸ Test build started for ${data.board} (draft)\x1b[0m`, ''];
+      const rev = selectedRevision;
+      testBuildLogs = [
+        `\x1b[36m▸ Test build started\x1b[0m`,
+        `\x1b[36m  Board:     \x1b[0m${data.board}`,
+        `\x1b[36m  Revision:  \x1b[0m${rev?.version ?? '?'} (${rev?.ckBoardsName ?? '?'})`,
+        `\x1b[36m  Targets:   \x1b[0m${rev?.targets?.map((t: any) => `${t.role}:${t.soc}`).join(', ') ?? 'none'}`,
+        `\x1b[36m  Source:    \x1b[0mDraft (editor content)`,
+        `\x1b[36m  Job:       \x1b[0m${testBuildId}`,
+        '',
+      ];
 
       // Subscribe to WebSocket log stream
       unsubscribeBuild?.();
@@ -449,6 +478,7 @@
       });
       const data = (res as any).data ?? res;
       recipeSavedVersion = data?.version ?? null;
+      recipeMatchesPublished = true;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to publish recipe';
     } finally {
@@ -833,17 +863,21 @@
                     <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#f9e2af]/15 text-[#f9e2af] font-medium">
                       Unsaved changes
                     </span>
-                  {:else if recipeSavedVersion}
+                  {:else if recipeMatchesPublished && recipeSavedVersion}
                     <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#a6e3a1]/10 text-[#a6e3a1] font-medium">
                       Published v{recipeSavedVersion}
                     </span>
                   {:else if recipeLastSaved}
                     <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#89b4fa]/10 text-[#89b4fa] font-medium">
-                      Draft saved
+                      Draft{recipeSavedVersion ? ` (v${recipeSavedVersion} + changes)` : ''}
+                    </span>
+                  {:else if recipe.trim()}
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#313244] text-[#585b70] font-medium">
+                      Unpublished
                     </span>
                   {:else}
                     <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#313244] text-[#585b70] font-medium">
-                      New
+                      Empty
                     </span>
                   {/if}
                 </div>
@@ -899,6 +933,7 @@
                     onclick={() => {
                       recipe = '#!/bin/bash\nset -eo pipefail\n\n# Source the Concord Build SDK\nsource concord-build.sh\nconcord_init\n\n# Build firmware\n# west build -b $CONCORD_BOARD ...\n\n# Collect artifacts\n# concord_collect_hex <appId> <file.hex> <role> <processor>\n# concord_collect_cfw <appId> <file.cfw> <role> <processor>\n\nconcord_finalize\n';
                       recipeDirty = true;
+                      recipeMatchesPublished = false;
                     }}
                     class="flex items-center gap-1.5 rounded bg-[#313244] px-3 py-1.5 text-[11px] font-medium text-[#cdd6f4] hover:bg-[#45475a]"
                   >
@@ -911,7 +946,7 @@
                     value={recipe}
                     height="100%"
                     completions={concordCompletions}
-                    onchange={(v) => { recipe = v; recipeDirty = true; recipeValidation = null; }}
+                    onchange={(v) => { recipe = v; recipeDirty = true; recipeMatchesPublished = false; recipeValidation = null; }}
                     oncursorchange={(l, c) => { cursorLine = l; cursorCol = c; }}
                     class="h-full"
                   />
@@ -989,29 +1024,48 @@
             </div>
           </div>
 
-          <!-- Bottom: Terminal Panel (collapsible) -->
-          <div class="shrink-0 border-t border-[#313244] bg-[#11111b]">
+          <!-- Bottom: Terminal Panel (resizable) -->
+          <div class="shrink-0 bg-[#11111b]">
+            <!-- Drag handle -->
+            {#if terminalOpen}
+              <div
+                onmousedown={startDrag}
+                class="h-1 cursor-row-resize border-t border-[#313244] hover:bg-[#89b4fa]/30 transition-colors {dragging ? 'bg-[#89b4fa]/30' : ''}"
+                role="separator"
+                aria-orientation="horizontal"
+              ></div>
+            {:else}
+              <div class="border-t border-[#313244]"></div>
+            {/if}
+
+            <!-- Terminal header -->
             <button
-              onclick={() => (terminalOpen = !terminalOpen)}
+              onclick={() => { terminalOpen = !terminalOpen; if (!terminalOpen) terminalHeight = 192; }}
               class="flex items-center justify-between w-full px-3 py-1 text-[10px] font-medium text-[#a6adc8] hover:bg-[#181825]"
             >
               <div class="flex items-center gap-2">
                 <Terminal size={11} />
                 <span>Terminal</span>
                 {#if testBuildRunning}
-                  <span class="flex items-center gap-1 text-[#a6e3a1]"><Loader2 size={9} class="animate-spin" /> Running</span>
+                  <span class="flex items-center gap-1 text-[#a6e3a1]"><Loader2 size={9} class="animate-spin" /> Building...</span>
                 {:else if testBuildStatus === 'success'}
-                  <span class="text-[#a6e3a1]">✓ Success</span>
+                  <span class="text-[#a6e3a1]">✓ Build succeeded</span>
                 {:else if testBuildStatus === 'failed'}
-                  <span class="text-[#f38ba8]">✗ Failed</span>
+                  <span class="text-[#f38ba8]">✗ Build failed</span>
+                {/if}
+                {#if testBuildLogs.length > 0}
+                  <span class="text-[#585b70]">({testBuildLogs.length} lines)</span>
                 {/if}
               </div>
               <ChevronUp size={12} class="transition-transform {terminalOpen ? '' : 'rotate-180'}" />
             </button>
+
+            <!-- Terminal content -->
             {#if terminalOpen}
               <div
                 bind:this={terminalEl}
-                class="h-48 overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed text-[#cdd6f4] scroll-smooth"
+                style="height: {terminalHeight}px"
+                class="overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed text-[#cdd6f4]"
               >
                 {#if testBuildLogs.length === 0}
                   <div class="text-[#585b70] py-4 text-center">

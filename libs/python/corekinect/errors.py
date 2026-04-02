@@ -1,8 +1,9 @@
-"""Structured error types for the validation test framework.
+"""Structured error types for the validation framework.
 
-All framework exceptions inherit from ``ValidationError``. This lets
-runners and reporters catch and categorize failures by type instead
-of parsing error message strings.
+    from corekinect.errors import CloudError, FirmwareError
+
+    raise CloudError("Device not registered in CoreCloud")
+    raise FirmwareError("Version mismatch", expected="0.5.2", actual="0.5.1")
 
 Hierarchy:
     ValidationError          Base for all framework errors
@@ -11,47 +12,19 @@ Hierarchy:
     ├── FirmwareError        Boot, version mismatch, CFW parsing
     ├── CloudError           CoreCloud API, FUOTA delivery
     └── TimeoutError         Any polling timeout (cloud, FUOTA, boot)
-
-Usage:
-    from corekinect.errors import CloudError, FirmwareError
-
-    raise CloudError("Device not registered in CoreCloud")
-    raise FirmwareError(
-        "Version mismatch: expected 0.5.2, got 0.5.1",
-        expected="0.5.2",
-        actual="0.5.1",
-    )
 """
 
 
 class ValidationError(Exception):
-    """Base exception for all validation framework errors.
-
-    Runners can catch this to handle any framework-level failure
-    without catching unrelated Python exceptions.
-    """
+    """Base exception for all validation framework errors."""
 
 
 class ConfigError(ValidationError):
-    """Fixture profile, manifest, or environment configuration error.
-
-    Raised when:
-    - Required environment variables are missing
-    - Fixture profile JSON is malformed or missing required fields
-    - Stage build labels are missing from a pipeline
-    - concord.test.yaml manifest is invalid
-    """
+    """Fixture profile, manifest, or environment configuration error."""
 
 
 class HardwareError(ValidationError):
-    """MTIB, power, GPIO, or physical hardware failure.
-
-    Raised when:
-    - MTIB gRPC connection fails
-    - Power read returns unexpected values
-    - GPIO configuration fails
-    - J-Link probe not found
-    """
+    """MTIB, power, GPIO, or physical hardware failure."""
 
 
 class FirmwareError(ValidationError):

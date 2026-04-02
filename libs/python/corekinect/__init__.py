@@ -1,15 +1,7 @@
-"""Corekinect — shared Python library for the Concord validation platform.
+"""Shared Python library for the Concord validation platform.
 
-Top-level exports provide direct access to platform-wide concepts:
-
-Errors:
-    from corekinect import ValidationError, ConfigError, HardwareError
-    from corekinect import FirmwareError, CloudError
-    from corekinect import TimeoutError as ValidationTimeoutError
-
-Stages:
-    from corekinect import Stage, STAGE_NUMBERS, STAGE_NAMES
-    from corekinect import StageBuildDef, get_stage_build_defs
+    from corekinect import Stage, ValidationError, HardwareError
+    from corekinect.stages import get_stage_build_defs
 
 Subpackages:
     corekinect.test        — Validation test framework
