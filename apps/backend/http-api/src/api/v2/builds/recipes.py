@@ -34,20 +34,26 @@ logger = logging.getLogger(__name__)
 RECIPE_PREFIX = "firmware/recipes"
 
 
-def _recipe_key(product_slug: str) -> str:
+def _recipe_key(product_slug: str, stage: int | None = None) -> str:
+    if stage:
+        return f"{RECIPE_PREFIX}/{product_slug}/stage-{stage}/build.sh"
     return f"{RECIPE_PREFIX}/{product_slug}/build.sh"
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def get_recipe(product_id: str):
-    """GET /v2/products/<id>/recipe — Download the product's build recipe."""
+    """GET /v2/products/<id>/recipe?stage=5 — Download a stage's build recipe."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
 
+    stage = request.args.get("stage", type=int)
     slug = product.slug or product.name.lower().replace(" ", "_")
-    key = _recipe_key(slug)
+    key = _recipe_key(slug, stage)
+
+    # Fallback: if no stage-specific recipe, try the legacy product-level one
+    fallback_key = _recipe_key(slug) if stage else None
 
     try:
         client = get_storage_client()
@@ -66,9 +72,26 @@ def get_recipe(product_id: str):
     except Exception as e:
         error_str = str(e)
         if "NoSuchKey" in error_str or "not found" in error_str.lower():
+            # Try fallback to legacy product-level recipe
+            if fallback_key:
+                try:
+                    response = client.get_object(bucket, fallback_key)
+                    content = response.read().decode("utf-8")
+                    response.close()
+                    return jsonify(ApiResponse.ok({
+                        "product": product.name,
+                        "slug": slug,
+                        "stage": stage,
+                        "storageKey": fallback_key,
+                        "content": content,
+                        "fallback": True,
+                    }).to_dict()), 200
+                except Exception:
+                    pass
             return jsonify(ApiResponse.ok({
                 "product": product.name,
                 "slug": slug,
+                "stage": stage,
                 "storageKey": key,
                 "content": None,
             }).to_dict()), 200
@@ -92,8 +115,9 @@ def update_recipe(product_id: str):
     if not isinstance(content, str) or len(content) < 10:
         return bad_request("Recipe content too short")
 
+    stage = data.get("stage") or request.args.get("stage", type=int)
     slug = product.slug or product.name.lower().replace(" ", "_")
-    key = _recipe_key(slug)
+    key = _recipe_key(slug, stage)
 
     try:
         client = get_storage_client()
@@ -308,8 +332,9 @@ def save_recipe_version(product_id: str):
     })
 
     # Auto-publish to MinIO so build service always uses the latest version
+    stage = data.get("stage") or request.args.get("stage", type=int)
     slug = product.slug or product.name.lower().replace(" ", "_")
-    key = _recipe_key(slug)
+    key = _recipe_key(slug, stage)
     try:
         storage = get_storage_client()
         bucket = get_bucket_name()
@@ -586,11 +611,12 @@ def test_recipe_build(product_id: str):
 
     # Write recipe to MinIO so the build service can fetch it
     # Does NOT create a version — test builds use the editor content directly
+    test_stage = data.get("stage")
     try:
         storage = get_storage_client()
         bucket = get_bucket_name()
         slug = product.slug or product.name.lower().replace(" ", "-")
-        key = storage_key(StoragePrefixes.RECIPES, f"{slug}/build.sh")
+        key = _recipe_key(slug, test_stage)
         content_bytes = content.encode("utf-8")
         storage.put_object(bucket, key, io.BytesIO(content_bytes), len(content_bytes), content_type="text/x-shellscript")
     except Exception:

@@ -98,7 +98,7 @@ class TestContext:
 
     @staticmethod
     def _load_mtib_config() -> Tuple[str, int]:
-    """Parse MTIB host/port from env vars.
+        """Parse MTIB host/port from env vars.
 
         MTIB_ADDRESS takes precedence over MTIB_HOST and can include
         port as ``host:port``. Falls back to MTIB_PORT (default 50053).
@@ -122,7 +122,7 @@ class TestContext:
         api_url: Optional[str],
         api_key: Optional[str],
     ):
-    """Load product metadata from Concord catalog, falling back to defaults."""
+        """Load product metadata from Concord catalog, falling back to defaults."""
         from .runner import ProductContext
 
         if api_url and api_key:
@@ -153,18 +153,11 @@ class TestContext:
         """Create TestContext from environment variables.
 
         Args:
-            fixture_factory: Optional callable that takes an MtibV1Client and
-                returns a product-specific fixture controller. Product test apps
-                inject their own fixture implementation here. If None, fixture
-                is set to None (product conftest must provide one).
+            fixture_factory: Takes an MtibV1Client, returns a product-specific
+                fixture controller. If None, fixture is set to None.
 
-        Required env vars:
-            MTIB_HOST or MTIB_ADDRESS: MTIB server address
-            DEVICE_ID: CoreCloud device ID as hex string
-            CORECLOUD_DB_ENV: CoreCloud namespace (default: DEV_1_0)
-
-        Returns:
-            Configured TestContext instance (not yet connected).
+        Required env vars: MTIB_HOST or MTIB_ADDRESS, DEVICE_ID.
+        Returns an unconnected instance -- call connect() next.
         """
         mtib_host, mtib_port = cls._load_mtib_config()
 
@@ -211,14 +204,7 @@ class TestContext:
     # ═══════════════════════════════════════════════════════════════════════
 
     def connect(self) -> None:
-        """Connect to the MTIB server and start all background services.
-
-        Performs three steps in order:
-        1. Establishes the gRPC connection and verifies MTIB health.
-        2. Starts UART capture, wires it to the telemetry streamer,
-           and begins telemetry streaming.
-        3. Starts background power polling (both DUT and charger channels
-           at 2 Hz) and probes the accelerometer profiler.
+        """Connect to MTIB and start background services (UART, power polling, telemetry).
 
         Raises:
             ConnectionError: If the MTIB connection or health check fails.
@@ -257,16 +243,7 @@ class TestContext:
             log.info("Accelerometer not available — profiler disabled")
 
     def disconnect(self) -> None:
-        """Tear down all background services and disconnect from MTIB.
-
-        Stops services in reverse-start order:
-        1. Power polling thread (signal + join with 3s timeout).
-        2. Accelerometer profiler (if running).
-        3. Telemetry streamer (flushes pending data).
-        4. UART capture.
-        5. Firmware asset cleanup (best-effort).
-        6. MTIB gRPC disconnect.
-        """
+        """Stop all background services and disconnect from MTIB."""
         # Stop power polling
         if self._power_poll_stop is not None:
             self._power_poll_stop.set()
@@ -290,16 +267,10 @@ class TestContext:
         log.info("Disconnected from MTIB")
 
     def _power_poll_loop(self) -> None:
-        """Poll DUT and charger power channels at ~2 Hz, pushing readings to telemetry.
+        """Poll both power channels at ~2 Hz and push to telemetry.
 
-        Reads both INA219 channels (DUT ch0 and charger ch1) every 500ms and
-        forwards the measurements to the telemetry streamer for live display
-        and storage. Runs as a daemon thread; exits when ``_power_poll_stop``
-        is set.
-
-        Errors from individual reads are logged at debug level to avoid
-        flooding logs during transient power state changes (e.g., power
-        cycling between tests).
+        Errors are logged at debug level to avoid flooding during
+        power cycling between tests.
         """
         from corekinect.mtib_client.v1.client.types import PowerChannel
 
@@ -325,7 +296,7 @@ class TestContext:
     # ═══════════════════════════════════════════════════════════════════════
 
     def setup_test(self, test_name: Optional[str] = None, module: Optional[str] = None) -> None:
-        """Per-test setup: mark test start time, clear UART buffer, reset fixture state."""
+        """Mark test start, clear UART buffer, reset fixture state."""
         self.cloud.mark_test_start()
         self.uart.clear()
         if test_name:
@@ -337,7 +308,7 @@ class TestContext:
             self.fixture._button_pressed = False
 
     def teardown_test(self, test_name: str, artifacts_dir: Optional[str] = None) -> None:
-        """Per-test teardown: dump UART logs if artifacts_dir provided."""
+        """Dump UART logs to artifacts_dir if provided."""
         if artifacts_dir:
             log_path = os.path.join(artifacts_dir, f"{test_name}_uart.log")
             self.uart.dump_to_file(log_path)

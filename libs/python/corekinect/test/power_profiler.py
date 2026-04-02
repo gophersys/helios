@@ -1,7 +1,8 @@
-"""Power measurement wrapper for Stage 4 power budget tests.
+"""Power measurement via MTIB for power budget tests.
 
-Records power measurements via MTIB V1 PowerMeasure/PowerStream RPCs
-and computes per-test statistics (avg, peak, energy).
+    profiler = PowerProfiler(mtib)
+    measurement = profiler.measure(channel=0, duration_s=10)
+    print(f"Avg: {measurement.avg_current_ma:.1f} mA")
 """
 
 import threading

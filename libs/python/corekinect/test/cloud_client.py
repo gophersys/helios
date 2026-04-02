@@ -1,10 +1,13 @@
-"""CoreCloud message polling for Stage 4 verification.
+"""CoreCloud device status polling for test verification.
 
-Uses the CoreCloud REST API (/System/Devices/Status) to poll for device
-state changes. Falls back to direct DB queries via msg_class.since_server_time()
-only if the REST API is not configured.
+Polls /System/Devices/Status for state changes (boot, position, HW
+failures) that occur after mark_test_start(). Used by tests to verify
+that the device reacted to a stimulus.
 
-All queries return status changes detected after mark_test_start() was called.
+    client = CloudClient(device_id=0x70B3D584C01E1FCC)
+    client.mark_test_start()
+    # ... trigger device behavior ...
+    boot = client.wait_for_boot(timeout_s=120)
 """
 
 import re
@@ -22,31 +25,22 @@ _DEVICE_ID_PATTERN = re.compile(r'^[0-9A-Fa-f]{16}$')
 
 
 def validate_device_id(device_id: str) -> bool:
-    """Validate device ID is a valid hex string of expected length.
-
-    Args:
-        device_id: Device ID string to validate.
-
-    Returns:
-        True if valid 16-character hex string, False otherwise.
-    """
+    """Return True if device_id is a valid 16-character hex string."""
     return bool(_DEVICE_ID_PATTERN.match(device_id))
 
 # Default poll interval (CoreCloud uplink ~60s, no need to poll faster)
 DEFAULT_POLL_INTERVAL_S = 2.0
 
 class CloudClient:
-    """CoreCloud device status polling for Stage 4 verification.
+    """Poll CoreCloud /System/Devices/Status for state changes.
 
-    Polls /System/Devices/Status via CoreCloudRestInterface for boot,
-    position, and hardware failure state changes. Each test calls
-    mark_test_start() before triggering device behavior, then wait_for_*
-    methods detect when the device status changes (new recordId).
+    Call mark_test_start() before triggering device behavior, then use
+    wait_for_boot() / wait_for_position() to detect when the device
+    status changes (new recordId).
 
     Args:
         device_id: Integer device ID (e.g., 0x70B3D584C01E1FCC).
-        api_env: CoreCloud API namespace (default: "VAL_1_0").
-        logger: Parent Logger instance (creates child logger if provided).
+        api_env: CoreCloud namespace (default: "VAL_1_0").
     """
 
     def __init__(self, device_id: int, api_env: str = "VAL_1_0",
@@ -103,7 +97,7 @@ class CloudClient:
         return None
 
     def mark_test_start(self) -> None:
-        """Record baseline device status — subsequent queries detect changes."""
+        """Snapshot current device status as baseline for change detection."""
         self._baseline = self._fetch_status()
         if self._baseline:
             self._log.debug(
@@ -121,19 +115,13 @@ class CloudClient:
         timeout_s: float,
         poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     ) -> Dict[str, Any]:
-        """Poll /System/Devices/Status for a change in a section.
+        """Poll for a recordId change in a status section.
 
-        Detects change by comparing recordId against baseline. Returns the
-        new section data when it changes and matches the optional predicate.
-
-        Args:
-            section: Status section key (e.g., "bootInfo", "positionInfo").
-            predicate: Optional filter on the new section data.
-            timeout_s: Maximum wait time.
-            poll_interval_s: Polling interval.
+        Returns the new section data when it changes and matches the
+        optional predicate.
 
         Raises:
-            TimeoutError: If no matching change arrives within timeout_s.
+            TimeoutError: If no matching change within timeout_s.
         """
         baseline_record_id = 0
         if self._baseline:
@@ -186,16 +174,10 @@ class CloudClient:
         boot_reason: Optional[int] = None,
         timeout_s: float = 120,
     ) -> Dict[str, Any]:
-        """Poll for a new boot event after mark_test_start().
+        """Wait for a new boot event after mark_test_start().
 
         Args:
-            boot_reason: If provided, only match boots with this reason string.
-                Maps: 0="Normal", 1="Exception", 2="Fuota", 3="Charger".
-            timeout_s: Maximum wait time.
-
-        Returns:
-            Boot info dict with keys: recordId, timeOfBoot, bootReason.
-            Also has typed accessors: result["bootReason"] or result.boot_reason.
+            boot_reason: Filter by reason: 0=Normal, 1=Exception, 2=Fuota, 3=Charger.
         """
         reason_map = {0: "Normal", 1: "Exception", 2: "Fuota", 3: "Charger"}
         reason_str = reason_map.get(boot_reason) if boot_reason is not None else None
@@ -216,12 +198,7 @@ class CloudClient:
         predicate: Optional[Callable[[Dict[str, Any]], bool]] = None,
         timeout_s: float = 300,
     ) -> Dict[str, Any]:
-        """Poll for a new position event after mark_test_start().
-
-        Returns:
-            Position info dict with keys: recordId, timeOfFix, latitude,
-            longitude, battPercent, updateReason, etc.
-        """
+        """Wait for a new position event after mark_test_start()."""
         return self._poll_status_change("positionInfo", predicate, timeout_s, poll_interval_s=10)
 
     # ------------------------------------------------------------------
@@ -229,22 +206,14 @@ class CloudClient:
     # ------------------------------------------------------------------
 
     def check_hw_failures(self) -> Dict[str, Any]:
-        """Check current hardware failure status.
-
-        Returns:
-            App HW failure info dict. Empty dict if API unavailable.
-        """
+        """Return app HW failure info, or empty dict if API unavailable."""
         status = self._fetch_status()
         if not status:
             return {}
         return status.get("appHwFailInfo", {})
 
     def check_comms_hw_failures(self) -> Dict[str, Any]:
-        """Check current comms hardware failure status.
-
-        Returns:
-            Comms HW failure info dict. Empty dict if API unavailable.
-        """
+        """Return comms HW failure info, or empty dict if API unavailable."""
         status = self._fetch_status()
         if not status:
             return {}
@@ -259,27 +228,19 @@ class CloudClient:
         predicate: Optional[Callable[[Dict[str, Any]], bool]] = None,
         timeout_s: float = 120,
     ) -> Dict[str, Any]:
-        """Poll for biometric data — not available via REST API.
-
-        MockCloudClient provides this via injected scenarios.
-        Hardware mode requires direct DB access (not yet on REST API).
-        """
+        """Not available via REST API. Use mock mode for testing."""
         raise NotImplementedError("Biometric polling not available via REST API — use mock mode")
 
     def wait_for_network_status(self, timeout_s: float = 120) -> Dict[str, Any]:
-        """Poll for network status — not available via REST API.
-
-        MockCloudClient provides this via injected scenarios.
-        Hardware mode requires direct DB access (not yet on REST API).
-        """
+        """Not available via REST API. Use mock mode for testing."""
         raise NotImplementedError("Network status polling not available via REST API — use mock mode")
 
     def query_messages(self, *args, **kwargs) -> List:
-        """Query messages — not available via REST API."""
+        """Not available via REST API. Use mock mode for testing."""
         raise NotImplementedError("Message queries not available via REST API — use mock mode")
 
     def get_status(self) -> Optional[Dict[str, Any]]:
-        """Get full device status snapshot."""
+        """Return full device status snapshot, or None if API unavailable."""
         return self._fetch_status()
 
     # ------------------------------------------------------------------
@@ -289,15 +250,7 @@ class CloudClient:
     def get_ground_mode_config(self) -> Optional[Dict[str, Any]]:
         """Read current GroundModeConfigV2 from CoreCloud.
 
-        Queries POST /System/Devices/Configurations/GroundModeV2/Search
-        for the device's current configuration values.
-
-        Returns:
-            Config dict with keys: gpsHeartbeatPeriod, continuousMotionPeriod,
-            stopMotionTimeout, heartbeatAcquisitionTimeout, motionAcquisitionTimeout,
-            motionAcquisitionOnTime, motionInitialAcquisitionOnTime,
-            xlrMotionThreshold, xlrMotionDuration, startMotionWindowStart,
-            startMotionWindowEnd. Returns None if API unavailable.
+        Returns None if API unavailable.
 
         Raises:
             CloudError: If API returns non-200 status.
@@ -338,21 +291,17 @@ class CloudClient:
         self,
         config_values: Dict[str, Any],
     ) -> None:
-        """Write GroundModeConfigV2 to CoreCloud for this device.
+        """Write GroundModeConfigV2 to CoreCloud.
 
-        Reads the current config, merges the provided changes, then
-        PUTs the full config object. CoreCloud requires all fields
-        to be present in the PUT payload.
+        Reads current config, merges changes, then PUTs the full object
+        (CoreCloud requires all fields in the PUT payload).
 
         Args:
-            config_values: Dict of config field names (camelCase API format)
-                to values. Only fields present will be updated; others
-                keep their current values.
-                Example: {"gpsHeartbeatPeriod": 120, "stopMotionTimeout": 30}
+            config_values: Fields to update in camelCase.
+                Example: {"gpsHeartbeatPeriod": 120}
 
         Raises:
-            CloudError: If API returns non-200 status or current config
-                cannot be read.
+            CloudError: If API fails or current config can't be read.
         """
         api = self._get_api()
         if not api:
@@ -391,23 +340,13 @@ class CloudClient:
         timeout_s: float = 180,
         poll_interval_s: float = 10,
     ) -> Dict[str, Any]:
-        """Wait for a config field to reach an expected value.
+        """Poll until a config field matches the expected value.
 
-        Polls GroundModeConfigV2 until the specified field matches
-        the expected value. Used after set_ground_mode_config() to
-        verify the device received and applied the new config.
-
-        Args:
-            field: Config field name in camelCase (e.g., "gpsHeartbeatPeriod").
-            expected_value: Expected value for the field.
-            timeout_s: Maximum wait time.
-            poll_interval_s: Polling interval.
-
-        Returns:
-            Full config dict when the field matches.
+        Use after set_ground_mode_config() to verify the device applied
+        the new config.
 
         Raises:
-            TimeoutError: If field doesn't reach expected value within timeout.
+            TimeoutError: If field doesn't match within timeout_s.
             CloudError: If API query fails.
         """
         deadline = time.monotonic() + timeout_s

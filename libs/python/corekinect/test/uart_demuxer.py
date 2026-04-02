@@ -1,16 +1,14 @@
 """Dual-target UART capture with command sending and crash-safe persistence.
 
-Opens UART streams for APP (nRF52840) and COMMS (nRF9151) simultaneously
-in background threads. Buffers lines in memory for test logic (wait_for_log,
-get_logs) and writes to local files incrementally as data arrives.
+Captures APP (nRF52840) and COMMS (nRF9151) UART streams in parallel
+background threads. Lines are buffered in memory for test assertions
+and written to local files incrementally as they arrive.
 
-Features:
-- Simultaneous APP + COMMS capture in parallel threads
-- Command queue per target (send while capturing)
-- In-memory buffer with monotonic timestamps (for wait_for_log)
-- Incremental local file writing with POSIX timestamps (crash-safe)
-- on_line callback for downstream consumers (ArtifactWriter pipeline)
-- Dynamic pump rate control (fast during boot, normal for monitoring)
+    demuxer = UartDemuxer(mtib, log_dir="/tmp/uart")
+    demuxer.start()
+    demuxer.send("comms", "lock_shell")
+    line = demuxer.wait_for_log("mode ON", target="comms", timeout_s=10)
+    demuxer.stop()
 """
 
 from __future__ import annotations
@@ -37,26 +35,11 @@ log = Logger(log_name="uart_demuxer")
 class UartDemuxer:
     """Dual-target UART capture with command sending and persistence.
 
-    Usage:
-        demuxer = UartDemuxer(mtib, log_dir="/tmp/uart")
-        demuxer.start()
-
-        # Send commands while capturing
-        demuxer.send("comms", "lock_shell")
-        demuxer.wait_for_log("mode ON", target="comms", timeout_s=10)
-
-        # Get merged timeline
-        for ts, target, line in demuxer.get_timeline():
-            print(f"[{ts:.3f}] [{target}] {line}")
-
-        demuxer.stop()
-
     Args:
-        mtib: Connected MtibV1Client instance.
-        targets: List of HostType targets. Defaults to [APP, COMMS].
-        log_dir: Directory for local log files. If set, writes
-            uart_app.log and uart_comms.log incrementally.
-        pump_hz: Request pump rate in Hz (default: 20).
+        mtib: Connected MtibV1Client.
+        targets: HostType list. Defaults to [APP, COMMS].
+        log_dir: If set, writes uart_app.log / uart_comms.log incrementally.
+        pump_hz: gRPC request pump rate (default: 20 Hz).
     """
 
     APP = HostType.HOST_TYPE_NRF52840
@@ -103,7 +86,7 @@ class UartDemuxer:
     # ── Lifecycle ────────────────────────────────────────────
 
     def start(self) -> None:
-        """Start background UART capture threads for all targets."""
+        """Start background capture threads for all targets."""
         if self._running:
             return
 
@@ -138,7 +121,7 @@ class UartDemuxer:
         log.info("UART capture started: [%s]", targets_str)
 
     def stop(self) -> None:
-        """Stop all capture threads and close files."""
+        """Stop all capture threads and close log files."""
         self._running = False
         self._stop_event.set()
 
@@ -160,26 +143,22 @@ class UartDemuxer:
         return self._running
 
     def set_pump_rate(self, hz: float) -> None:
-        """Change pump rate (Hz) for all capture threads. Takes effect immediately."""
+        """Change pump rate (Hz) for all capture threads. Immediate effect."""
         self._pump_interval = 1.0 / hz
 
     # ── Command sending ─────────────────────────────────────
 
     def send(self, target: TargetType, command: str) -> None:
-        """Queue a command to be sent on the target's next pump cycle.
+        """Queue a shell command for the next pump cycle.
 
-        Wraps the command with \\r for shell input. Use send_bytes() for raw data.
-
-        Args:
-            target: HostType or "app"/"comms" string.
-            command: Shell command string.
+        Wraps with \\r. Use send_bytes() for raw data.
         """
         t = self._resolve_target(target)
         data = f"\r{command}\r".encode("utf-8")
         self._cmd_queues[t].put(data)
 
     def send_bytes(self, target: TargetType, data: bytes) -> None:
-        """Queue raw bytes to be sent (no wrapping)."""
+        """Queue raw bytes to send (no \\r wrapping)."""
         t = self._resolve_target(target)
         self._cmd_queues[t].put(data)
 
@@ -190,13 +169,10 @@ class UartDemuxer:
     ) -> Union[List[str], List[Tuple[str, str]]]:
         """Return captured log lines.
 
-        Args:
-            target: HostType or "app"/"comms". None = all targets.
-            since: Monotonic time threshold.
+        With target: returns List[str]. Without: List[Tuple[target_name, line]].
 
-        Returns:
-            If target specified: List[str] (lines only).
-            If target is None: List[Tuple[str, str]] (target_name, line).
+        Args:
+            since: Only include lines after this monotonic timestamp.
         """
         if target is not None:
             t = self._resolve_target(target)
@@ -220,11 +196,7 @@ class UartDemuxer:
     def get_timeline(
         self, since: Optional[float] = None
     ) -> List[Tuple[float, str, str]]:
-        """Merged timeline from all targets, sorted by monotonic timestamp.
-
-        Returns:
-            List of (monotonic_ts, target_name, line) tuples.
-        """
+        """Return merged (monotonic_ts, target_name, line) tuples, sorted by time."""
         with self._lock:
             result = []
             for t in self._targets:
@@ -244,14 +216,7 @@ class UartDemuxer:
     ) -> str:
         """Wait for a log line matching the regex pattern.
 
-        Args:
-            pattern: Regex pattern to match.
-            target: HostType or "app"/"comms". None = any target.
-            timeout_s: Maximum wait time in seconds.
-            since: Only consider lines after this monotonic timestamp.
-
-        Returns:
-            The first matching log line.
+        Returns the first matching line.
 
         Raises:
             TimeoutError: If no match within timeout_s.
@@ -279,18 +244,13 @@ class UartDemuxer:
     # ── Buffer management ───────────────────────────────────
 
     def clear(self) -> None:
-        """Clear in-memory buffers. Local files are NOT affected."""
+        """Clear in-memory buffers. Local log files are NOT affected."""
         with self._lock:
             for t in self._targets:
                 self._buffers[t] = []
 
     def dump_to_file(self, path: str, target: Optional[TargetType] = None) -> None:
-        """Write buffered logs to file.
-
-        Args:
-            path: Output file path.
-            target: Single target, or None for merged timeline.
-        """
+        """Write buffered logs to file. None target = merged timeline."""
         parent = os.path.dirname(path)
         if parent:
             os.makedirs(parent, exist_ok=True)

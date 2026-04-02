@@ -49,6 +49,7 @@ markdown_extensions:
 plugins:
   - search
   - mkdocstrings:
+      enabled: true
       default_handler: python
       handlers:
         python:
@@ -62,6 +63,7 @@ plugins:
             merge_init_into_class: true
             show_if_no_docstring: false
             heading_level: 2
+            allow_inspection: true
 
 extra:
   version:
@@ -73,76 +75,61 @@ extra_javascript:
 nav:
   - Home: index.md
 
-  - Vision:
-    - vision/index.md
-    - Thesis: vision/thesis.md
+  - Getting Started:
+    - Overview: vision/thesis.md
     - Validation Philosophy: vision/validation-philosophy.md
+    - Adding a Product: stories/US-001-adding-a-product.md
+    - Firmware Build Model: stories/US-002-firmware-build-model.md
 
-  - Architecture:
-    - architecture/index.md
-    - Platform:
-      - architecture/platform/index.md
-      - Unified Platform: architecture/platform/unified-platform.md
-      - Hardware Registry: architecture/platform/hardware-registry.md
-      - Log Streaming: architecture/platform/log-streaming.md
+  - Platform:
+    - architecture/platform/index.md
+    - System Architecture: architecture/platform/unified-platform.md
+    - Products & Boards: architecture/platform/hardware-registry.md
+    - Build System:
+      - architecture/build/index.md
+      - Build Service: architecture/build/build-service.md
+      - Product Builds: architecture/build/product-build-system.md
+      - Builder Nodes: architecture/build/builder-nodes.md
+      - Artifact Contract: architecture/build/artifact-contract.md
       - CI Pipeline: architecture/platform/ci-pipeline.md
-      - CoreCloud Library: architecture/platform/corecloud-library.md
     - Validation:
       - architecture/validation/index.md
       - Stages Overview: architecture/validation/stages-overview.md
-      - System Architecture: architecture/validation/system.md
-      - "Stage 1: Software Tests": architecture/validation/stage1-software-tests.md
-      - "Stage 2: Driver HW Tests": architecture/validation/stage2-driver-hw-tests.md
-      - "Stage 3: Integration Tests": architecture/validation/stage3-integration-tests.md
-      - "Stage 4: Product Tests": architecture/validation/stage4-product-tests.md
-      - "Stage 4: FUOTA Flow": architecture/validation/stage4-fuota-flow.md
-      - "Stage 4: PR Flow": architecture/validation/stage4-pr-flow.md
-      - "Stage 5: FUOTA Tests": architecture/validation/stage5-fuota-tests.md
+      - System Design: architecture/validation/system.md
       - Test Runner: architecture/validation/test-runner.md
-    - Build:
-      - architecture/build/index.md
-      - Build Service: architecture/build/build-service.md
-      - Builder Nodes: architecture/build/builder-nodes.md
-      - Product & Build System: architecture/build/product-build-system.md
-      - Artifact Contract: architecture/build/artifact-contract.md
+      - PR Flow: architecture/validation/stage4-pr-flow.md
+    - Environments & Deployment:
+      - Log Streaming: architecture/platform/log-streaming.md
+    - CoreCloud Integration: architecture/platform/corecloud-library.md
 
-  - Reference:
-    - reference/index.md
-    - FUOTA Workflow: reference/fuota-workflow.md
-    - FUOTA API: reference/fuota-api.md
-    - Alpha Test Cases: reference/alpha-test-cases.md
-    - Traceability Matrix: reference/traceability-matrix.md
-    - Twister HIL: reference/twister-hil.md
-    - Interfaces: reference/interfaces/index.md
-
-  - Guides:
+  - Test Framework:
     - guides/index.md
-    - Alpha:
+    - Stage Guides:
+      - "Stage 1 — Smoke":
+        - architecture/validation/stage1-software-tests.md
+      - "Stage 2 — Silicon":
+        - architecture/validation/stage2-driver-hw-tests.md
+      - "Stage 3 — Integration":
+        - architecture/validation/stage3-integration-tests.md
+      - "Stage 4 — Product":
+        - architecture/validation/stage4-product-tests.md
+      - "Stage 5 — FUOTA":
+        - architecture/validation/stage5-fuota-tests.md
+        - FUOTA Flow: architecture/validation/stage4-fuota-flow.md
+    - Alpha Product:
       - guides/alpha/index.md
       - "Stage 1": guides/alpha/stage1.md
       - "Stage 2": guides/alpha/stage2.md
       - "Stage 3": guides/alpha/stage3.md
       - "Stage 4": guides/alpha/stage4.md
       - "Stage 5": guides/alpha/stage5.md
-
-  - Diagrams:
-    - diagrams/index.md
-
-  - Research:
-    - research/index.md
-    - Sigma5 Firmware: research/01-sigma5-firmware-analysis.md
-    - Alpha Firmware: research/02-alpha-firmware-analysis.md
-    - Sensor Drivers: research/03-sensor-drivers-analysis.md
-    - MTIB Server: research/05-mtib-server-analysis.md
-    - FUOTA CoreCloud: research/06-fuota-corecloud-v1.md
-    - Alpha MFG Firmware: research/07-alpha-manufacturing-firmware-and-tests.md
-    - Device Personalization: research/08-device-personalization-and-key-provisioning.md
-    - Firmware Build & FUOTA: research/09-firmware-build-and-fuota-delivery.md
-    - CoreCloud Integration: research/10-corecloud-validation-integration.md
-
-  - User Stories:
-    - stories/index.md
-    - "US-001: Adding a Product": stories/US-001-adding-a-product.md
+    - Reference:
+      - FUOTA Workflow: reference/fuota-workflow.md
+      - FUOTA API: reference/fuota-api.md
+      - Alpha Test Cases: reference/alpha-test-cases.md
+      - Traceability Matrix: reference/traceability-matrix.md
+      - Twister HIL: reference/twister-hil.md
+      - Interfaces: reference/interfaces/index.md
 
   - API Reference:
     - api/index.md
@@ -164,5 +151,19 @@ nav:
       - Client: api/core-cloud/client.md
       - Models: api/core-cloud/models.md
 
-  - Journals:
-    - journals/README.md
+  - Internal:
+    - Research:
+      - research/index.md
+      - Sigma5 Firmware: research/01-sigma5-firmware-analysis.md
+      - Alpha Firmware: research/02-alpha-firmware-analysis.md
+      - Sensor Drivers: research/03-sensor-drivers-analysis.md
+      - MTIB Server: research/05-mtib-server-analysis.md
+      - FUOTA CoreCloud: research/06-fuota-corecloud-v1.md
+      - Alpha MFG Firmware: research/07-alpha-manufacturing-firmware-and-tests.md
+      - Device Personalization: research/08-device-personalization-and-key-provisioning.md
+      - Firmware Build & FUOTA: research/09-firmware-build-and-fuota-delivery.md
+      - CoreCloud Integration: research/10-corecloud-validation-integration.md
+    - Journals:
+      - journals/README.md
+    - Diagrams:
+      - diagrams/index.md

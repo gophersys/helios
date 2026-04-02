@@ -305,15 +305,31 @@ class BuildWorkerLoop:
             product_id = job.product_id or (_webhook_data.get("productId"))
 
             # Try API recipe first (stored in MinIO via Products → Build Config)
+            # Stage-specific recipes: firmware/recipes/{slug}/stage-{N}/build.sh
             if product_id:
-                result = self.client.api_get(f"/v2/products/{product_id}/recipe")
+                # Get stage number from the build run or webhook data
+                job_stage = None
+                if job.build_run_id:
+                    run_result = self.client.api_get(f"/v2/builds/runs/{job.build_run_id}")
+                    if run_result and run_result.get("data"):
+                        job_stage = run_result["data"].get("stage")
+                if not job_stage:
+                    job_stage = _webhook_data.get("stage")
+
+                # Try stage-specific recipe first, then fall back to product-level
+                recipe_url = f"/v2/products/{product_id}/recipe"
+                if job_stage:
+                    recipe_url += f"?stage={job_stage}"
+
+                result = self.client.api_get(recipe_url)
                 if result and result.get("data"):
                     content = result["data"].get("content")
                     if content:
                         recipe_path.write_text(content)
                         recipe_path.chmod(0o755)
                         recipe_found = True
-                        log.info("Build recipe loaded from API (Concord-managed)")
+                        stage_label = f"stage {job_stage}" if job_stage else "product-level"
+                        log.info("Build recipe loaded from API (%s)", stage_label)
 
             # Fall back to repo's own build script
             if not recipe_found:

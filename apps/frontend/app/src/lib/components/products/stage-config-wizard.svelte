@@ -250,7 +250,7 @@
     recipeLastSaved = null;
     try {
       // Load published recipe from MinIO (source of truth for builds)
-      const res = await apiFetch<ApiResponse<{ content: string }>>(`/v2/products/${productId}/recipe`);
+      const res = await apiFetch<ApiResponse<{ content: string }>>(`/v2/products/${productId}/recipe?stage=${stage}`);
       const data = res.data as any;
       recipe = data?.content ?? '';
       if (typeof recipe !== 'string') recipe = '';
@@ -329,6 +329,7 @@
 
       const res = await api.post(`/v2/products/${productId}/recipe/test-build`, {
         content: recipe,
+        stage,
         boardRevisionId: formRevisionId,
       });
       const data = (res as any).data ?? res;
@@ -452,7 +453,7 @@
     recipeSaving = true;
     error = null;
     try {
-      await api.put(`/v2/products/${productId}/recipe`, { content: recipe });
+      await api.put(`/v2/products/${productId}/recipe?stage=${stage}`, { content: recipe });
       recipeLastSaved = new Date().toLocaleTimeString();
       recipeDirty = false;
     } catch (err: unknown) {
@@ -475,6 +476,7 @@
       // Then create a versioned snapshot
       const res = await api.post(`/v2/products/${productId}/recipe/save`, {
         content: recipe,
+        stage,
         changeNote: `Published for Stage ${stage} ${stageName}`,
       });
       const data = (res as any).data ?? res;
@@ -498,7 +500,7 @@
     recipeValidating = true;
     recipeValidation = null;
     try {
-      const res = await api.post(`/v2/products/${productId}/recipe/validate`, { content: recipe });
+      const res = await api.post(`/v2/products/${productId}/recipe/validate', { content: recipe, stage });
       recipeValidation = (res as any).data ?? res;
     } catch {
       // Client-side fallback validation
@@ -563,7 +565,7 @@
 
       // Save recipe draft if modified (does NOT create a new version)
       if (recipeDirty && recipe.trim()) {
-        await api.put(`/v2/products/${productId}/recipe`, { content: recipe });
+        await api.put(`/v2/products/${productId}/recipe?stage=${stage}`, { content: recipe });
       }
 
       onSaved();
