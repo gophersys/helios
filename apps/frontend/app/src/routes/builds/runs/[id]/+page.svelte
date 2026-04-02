@@ -230,13 +230,14 @@
     return buildRun.builds.reduce((sum, b) => sum + (b.artifactCount ?? 0), 0);
   });
 
-  // Check if this is a stage pipeline with matrix labels (FUOTA has grouped view)
+  // Check if this is a stage pipeline with matrix labels
+  const hasMatrixLabels = $derived(buildRun?.builds?.some(b => b.matrixLabel) ?? false);
   const isFuota = $derived(buildRun?.matrixMode === 'fuota');
   const stageInfo = $derived(buildRun?.matrixMode ? STAGE_DISPLAY[buildRun.matrixMode as ValidationStage] : null);
 
-  // Group builds by FUOTA step for display (ordered by flow)
+  // Group builds by step for display (ordered by flow)
   const groupedBuilds = $derived.by(() => {
-    if (!buildRun?.builds || !isFuota) return null;
+    if (!buildRun?.builds || !hasMatrixLabels) return null;
 
     // Group by fuotaStep, preserving FUOTA flow order
     const stepGroups: Map<number, { title: string; builds: PipelineBuildSummary[] }> = new Map();
@@ -782,7 +783,7 @@
           {/if}
         </h2>
 
-        {#if isFuota && groupedBuilds}
+        {#if hasMatrixLabels && groupedBuilds}
           <!-- FUOTA grouped view (FUOTA flow order) -->
           <div class="space-y-4 min-w-0">
             {#each groupedBuilds as group, groupIdx (group.title)}

@@ -57,16 +57,20 @@ export interface BuildRunStageInfo {
 // "Quiet" builds are standard release (no UART logs, production-like).
 // All CFW flags are -B or -BM — no -D flag, avoiding CoreCloud D-flag stripping.
 export type MatrixLabel =
-  | 'MFG_FLASH' | 'MFG_BUMP'
+  // Current labels (from stage_defs.py)
+  | 'MFG_BASE' | 'MFG_BUMP'
+  | 'FUT_VERBOSE_A' | 'FUT_VERBOSE_B'
+  | 'FUT_QUIET_A' | 'FUT_QUIET_B'
+  | 'MAIN_BASELINE' | 'MAIN_MERGED'
+  // Nightly labels
+  | 'MFG_FLASH'
   | 'PROD_VERBOSE' | 'PROD_VERBOSE_BUMP'
   | 'PROD_QUIET' | 'PROD_QUIET_BUMP'
-  // Legacy labels (kept for backwards compat with old pipelines)
-  | 'MFG_BASE'
+  // Legacy labels
   | 'FLASH_BASE_DEBUG' | 'FLASH_BASE_RELEASE'
   | 'FUOTA_TARGET_DEBUG' | 'FUOTA_TARGET_RELEASE'
   | 'FUT_DEBUG_A' | 'FUT_DEBUG_B'
-  | 'FUT_RELEASE_A' | 'FUT_RELEASE_B'
-  | 'MAIN_BASELINE' | 'MAIN_MERGED';
+  | 'FUT_RELEASE_A' | 'FUT_RELEASE_B';
 
 export interface BuildRunBuildSummary {
   id: string;
@@ -144,49 +148,73 @@ export const MATRIX_LABEL_DISPLAY: Record<MatrixLabel, {
     fuotaStep: 3,
     priority: 5,
   },
-  // Legacy labels (kept for backwards compat with old pipelines)
+  // ── Current FUOTA labels (from stage_defs.py) ──
   MFG_BASE: {
-    name: 'MFG Base', description: 'Legacy (now MFG_BUMP)', group: 'legacy',
-    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
+    name: 'MFG Flash',
+    description: 'Manufacturing firmware — J-Link flash base for FUOTA',
+    group: 'mfg', groupTitle: '1. Manufacturing', fuotaStep: 1, priority: 0,
   },
+  FUT_VERBOSE_A: {
+    name: 'Verbose A',
+    description: 'App firmware with UART logging — FUOTA source',
+    group: 'verbose', groupTitle: '2. App Verbose (UART Logging)', fuotaStep: 2, priority: 6,
+  },
+  FUT_VERBOSE_B: {
+    name: 'Verbose B',
+    description: 'App firmware with UART logging — FUOTA target (version bumped)',
+    group: 'verbose', groupTitle: '2. App Verbose (UART Logging)', fuotaStep: 2, priority: 7,
+  },
+  FUT_QUIET_A: {
+    name: 'Quiet A',
+    description: 'App firmware without UART — FUOTA source',
+    group: 'quiet', groupTitle: '3. App Quiet (No Logging)', fuotaStep: 3, priority: 8,
+  },
+  FUT_QUIET_B: {
+    name: 'Quiet B',
+    description: 'App firmware without UART — FUOTA target (version bumped)',
+    group: 'quiet', groupTitle: '3. App Quiet (No Logging)', fuotaStep: 3, priority: 9,
+  },
+  MAIN_BASELINE: {
+    name: 'Mainline Base',
+    description: 'Mainline debug build — regression baseline (boot check)',
+    group: 'mainline', groupTitle: '4. Mainline Regression', fuotaStep: 4, priority: 10,
+  },
+  MAIN_MERGED: {
+    name: 'Mainline Merged',
+    description: 'Post-merge build — verify merged code compiles and boots',
+    group: 'mainline', groupTitle: '4. Mainline Regression', fuotaStep: 4, priority: 11,
+  },
+  // ── Legacy labels (backwards compat with old pipelines) ──
   FLASH_BASE_DEBUG: {
-    name: 'Baseline Debug', description: 'Legacy (removed)', group: 'legacy',
+    name: 'Baseline Debug', description: 'Legacy', group: 'legacy',
     groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
   FLASH_BASE_RELEASE: {
-    name: 'Baseline Release', description: 'Legacy (removed)', group: 'legacy',
+    name: 'Baseline Release', description: 'Legacy', group: 'legacy',
     groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
   FUOTA_TARGET_DEBUG: {
-    name: 'FUOTA Debug', description: 'Legacy (now PROD_VERBOSE)', group: 'legacy',
+    name: 'FUOTA Debug', description: 'Legacy', group: 'legacy',
     groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
   FUOTA_TARGET_RELEASE: {
-    name: 'FUOTA Release', description: 'Legacy (now PROD_QUIET)', group: 'legacy',
+    name: 'FUOTA Release', description: 'Legacy', group: 'legacy',
     groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
   FUT_DEBUG_A: {
-    name: 'Debug v1', description: 'Legacy', group: 'debug',
+    name: 'Debug v1', description: 'Legacy', group: 'legacy',
     groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
   FUT_DEBUG_B: {
-    name: 'Debug v2', description: 'Legacy', group: 'debug',
+    name: 'Debug v2', description: 'Legacy', group: 'legacy',
     groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
   FUT_RELEASE_A: {
-    name: 'Release v1', description: 'Legacy', group: 'release',
+    name: 'Release v1', description: 'Legacy', group: 'legacy',
     groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
   FUT_RELEASE_B: {
-    name: 'Release v2', description: 'Legacy', group: 'release',
-    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
-  },
-  MAIN_BASELINE: {
-    name: 'Baseline', description: 'Legacy', group: 'baseline',
-    groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
-  },
-  MAIN_MERGED: {
-    name: 'Merged', description: 'Legacy', group: 'baseline',
+    name: 'Release v2', description: 'Legacy', group: 'legacy',
     groupTitle: 'Legacy', fuotaStep: 99, priority: 99,
   },
 };
@@ -194,11 +222,11 @@ export const MATRIX_LABEL_DISPLAY: Record<MatrixLabel, {
 // FUOTA validation order: which firmware transitions to which
 // All transitions use release-flagged firmware (-B or -BM). No D-flag.
 export const FUOTA_TRANSITIONS: Array<{ from: MatrixLabel; to: MatrixLabel; purpose: string }> = [
-  { from: 'MFG_FLASH', to: 'MFG_BUMP', purpose: 'MFG→MFG FUOTA (version bump sanity)' },
-  { from: 'MFG_FLASH', to: 'PROD_VERBOSE', purpose: 'MFG→Prod FUOTA (with UART logs)' },
-  { from: 'PROD_VERBOSE', to: 'PROD_VERBOSE_BUMP', purpose: 'Prod→Prod verbose FUOTA' },
-  { from: 'MFG_FLASH', to: 'PROD_QUIET', purpose: 'MFG→Prod FUOTA (no logs, current-only check)' },
-  { from: 'PROD_QUIET', to: 'PROD_QUIET_BUMP', purpose: 'Prod→Prod quiet FUOTA' },
+  { from: 'MFG_BASE', to: 'MFG_BUMP', purpose: 'MFG→MFG FUOTA (version bump sanity)' },
+  { from: 'MFG_BASE', to: 'FUT_VERBOSE_A', purpose: 'MFG→App FUOTA (with UART logs)' },
+  { from: 'FUT_VERBOSE_A', to: 'FUT_VERBOSE_B', purpose: 'App→App verbose FUOTA (version bump)' },
+  { from: 'MFG_BASE', to: 'FUT_QUIET_A', purpose: 'MFG→App FUOTA (no logs, cloud-only check)' },
+  { from: 'FUT_QUIET_A', to: 'FUT_QUIET_B', purpose: 'App→App quiet FUOTA (version bump)' },
 ];
 
 export interface BuildRunDetail {
