@@ -63,11 +63,15 @@
   let branches = $state<string[]>([]);
   let branchesLoading = $state(false);
 
+  // Fresh secrets (re-fetched when wizard opens, not stale from parent)
+  let liveSecrets = $state<Secret[]>([]);
+  let secretsLoading = $state(false);
+
   const stageName = $derived(STAGE_NAMES[stage] || `Stage ${stage}`);
   const stageDesc = $derived(STAGE_DESCRIPTIONS[stage] || '');
-  const signingKeys = $derived(secrets.filter((s) => s.type === 'signing_key'));
+  const signingKeys = $derived(liveSecrets.filter((s) => s.type === 'signing_key'));
   const selectedRevision = $derived(revisions.find((r) => r.id === formRevisionId));
-  const selectedKey = $derived(secrets.find((s) => s.id === formSigningKeyId));
+  const selectedKey = $derived(liveSecrets.find((s) => s.id === formSigningKeyId));
   const hasSchedule = $derived(formTriggerTypes.includes('schedule'));
 
   // Revision is locked when the wizard was opened from a specific revision row
@@ -111,8 +115,21 @@
 
       loadBranches();
       loadRecipe();
+      loadSecrets();
     }
   });
+
+  async function loadSecrets() {
+    secretsLoading = true;
+    try {
+      const res = await apiFetch<ApiResponse<Secret[]>>('/v2/system/secrets');
+      liveSecrets = Array.isArray(res.data) ? res.data : (res.data as any)?.data ?? [];
+    } catch {
+      liveSecrets = [];
+    } finally {
+      secretsLoading = false;
+    }
+  }
 
   async function loadBranches() {
     if (!fwRepoSlug) return;
@@ -439,7 +456,11 @@
             </p>
           </div>
 
-          {#if signingKeys.length === 0}
+          {#if secretsLoading}
+            <div class="flex items-center gap-2 py-8 text-sm text-text-tertiary justify-center">
+              <Loader2 size={16} class="animate-spin" /> Loading signing keys...
+            </div>
+          {:else if signingKeys.length === 0}
             <div class="rounded-xl border-2 border-warning/40 bg-warning-muted px-6 py-5">
               <div class="flex items-center gap-3 mb-2">
                 <ShieldAlert size={22} class="text-warning" />
