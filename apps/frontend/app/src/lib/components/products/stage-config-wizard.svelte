@@ -353,7 +353,7 @@
 
       const rev = selectedRevision;
       // Get container image from product config or default
-      const containerImage = (product as any)?.builderImage || 'containers.ad.corekinect.com/ncs-fw-dev:2.7.0';
+      const containerImage = 'From devcontainer.json (resolved at build time)';
       testBuildLogs = [
         `\x1b[36m▸ Test build started\x1b[0m`,
         `\x1b[36m  Board:      \x1b[0m${data.board}`,
