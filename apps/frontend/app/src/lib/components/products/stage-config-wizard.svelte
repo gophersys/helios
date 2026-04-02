@@ -63,6 +63,55 @@
   let cursorLine = $state(1);
   let cursorCol = $state(1);
 
+  // Dynamic recipe analysis — updates as user types
+  const recipeChecks = $derived.by(() => {
+    const r = recipe || '';
+    return [
+      { label: 'Shebang (#!/bin/bash)', ok: r.includes('#!/bin/bash') || r.includes('#!/usr/bin/env bash'), required: true },
+      { label: 'Error handling (set -eo pipefail)', ok: r.includes('set -eo pipefail'), required: false },
+      { label: 'Source Concord SDK', ok: r.includes('concord-build.sh') || r.includes('concord_build'), required: true },
+      { label: 'Initialize (concord_init)', ok: r.includes('concord_init'), required: true },
+      { label: 'Collect HEX artifacts', ok: r.includes('concord_collect_hex'), required: false },
+      { label: 'Collect CFW artifacts', ok: r.includes('concord_collect_cfw'), required: false },
+      { label: 'Finalize (concord_finalize)', ok: r.includes('concord_finalize'), required: true },
+    ];
+  });
+  const requiredChecksPassing = $derived(recipeChecks.filter((c) => c.required).every((c) => c.ok));
+  const allChecksPassing = $derived(recipeChecks.every((c) => c.ok));
+
+  // Expected outputs based on selected revision's targets
+  const expectedOutputs = $derived.by(() => {
+    if (!selectedRevision?.targets?.length) return [];
+    return selectedRevision.targets.map((t) => ({
+      role: t.role,
+      soc: t.soc,
+      appId: t.appId,
+      hasHex: recipe.includes(`${t.appId}`) && recipe.includes('collect_hex'),
+      hasCfw: recipe.includes(`${t.appId}`) && recipe.includes('collect_cfw'),
+    }));
+  });
+
+  // Known Concord env var values for hover tooltips
+  const envVarValues: Record<string, string> = $derived.by(() => {
+    const rev = selectedRevision;
+    return {
+      CONCORD_FW_TYPE: 'app or mfg (set by build system)',
+      CONCORD_BOARD: rev?.ckBoardsName || '(selected revision)',
+      CONCORD_VARIANT: 'debug / release',
+      CONCORD_BRANCH: formBranch || 'main',
+      CONCORD_TARGETS: rev?.targets ? JSON.stringify(rev.targets.map((t) => ({ role: t.role, appId: t.appId, soc: t.soc }))) : '[]',
+      CONCORD_REPO_DIR: '/workspace/{jobId}/{repo}',
+      CONCORD_BUILD_DIR: '/workspace/{jobId}/{repo}/build',
+      CONCORD_OUTPUT_DIR: '/workspace/{jobId}/artifacts',
+      CONCORD_CONFIG_LOG: 'y or n',
+      CONCORD_PRODUCES_HEX: 'true',
+      CONCORD_PRODUCES_CFW: 'true',
+      CONCORD_COMMIT_SHA: '(commit hash)',
+      CONCORD_MATRIX_LABEL: '(e.g., MFG_BASE, FUT_VERBOSE_A)',
+      CONCORD_PRODUCT: selectedRevision ? 'alpha' : '(product name)',
+    };
+  });
+
   // Branch loading
   let branches = $state<string[]>([]);
   let branchesLoading = $state(false);
@@ -295,8 +344,8 @@
   ];
 </script>
 
-<Modal {open} onclose={onClose} size="full" title="" noPadding>
-  <div class="flex flex-col h-[85vh]">
+<Modal {open} onclose={onClose} size="full" title="" noPadding showCloseButton={false}>
+  <div class="flex flex-col h-[90vh]">
     <!-- Header (compact) -->
     <div class="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
       <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-accent/10">
@@ -559,88 +608,154 @@
         </div>
 
       {:else if currentStep === 3}
-        <!-- Step 3: Build Recipe — full height editor -->
-        <div class="flex flex-col h-full -my-6 -mx-8">
-          <!-- Editor toolbar -->
-          <div class="flex items-center justify-between px-4 py-2 bg-[#181825] border-b border-[#313244] shrink-0">
-            <div class="flex items-center gap-3">
-              <span class="text-xs font-medium text-[#cdd6f4]">build.sh</span>
-              <span class="text-[10px] text-[#585b70]">Concord Build SDK</span>
-              {#if recipeDirty}
-                <span class="rounded bg-[#f9e2af]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#f9e2af]">Modified</span>
-              {/if}
-            </div>
-            <div class="flex items-center gap-2">
-              <button
-                onclick={validateRecipe}
-                disabled={recipeValidating || !recipe.trim()}
-                class="flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-medium text-[#a6adc8] hover:text-[#cdd6f4] hover:bg-[#313244] transition-colors disabled:opacity-40"
-              >
-                {#if recipeValidating}
-                  <Loader2 size={12} class="animate-spin" />
-                {:else}
-                  <Check size={12} />
+        <!-- Step 3: Build Recipe — split layout: editor + sidebar -->
+        <div class="flex h-full -my-4 -mx-6">
+          <!-- Left: Editor -->
+          <div class="flex-1 flex flex-col min-w-0 border-r border-[#313244]">
+            <!-- Toolbar -->
+            <div class="flex items-center justify-between px-3 py-1.5 bg-[#181825] border-b border-[#313244] shrink-0">
+              <div class="flex items-center gap-2">
+                <FileCode size={13} class="text-[#89b4fa]" />
+                <span class="text-xs font-medium text-[#cdd6f4]">build.sh</span>
+                {#if recipeDirty}
+                  <span class="w-2 h-2 rounded-full bg-[#f9e2af]" title="Modified"></span>
                 {/if}
-                Validate
-              </button>
-              <span class="text-[10px] text-[#585b70] font-mono">Ln {cursorLine}, Col {cursorCol}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  onclick={validateRecipe}
+                  disabled={recipeValidating || !recipe.trim()}
+                  class="flex items-center gap-1.5 rounded-md bg-[#313244] px-2.5 py-1 text-[11px] font-medium text-[#cdd6f4] hover:bg-[#45475a] transition-colors disabled:opacity-40"
+                >
+                  {#if recipeValidating}
+                    <Loader2 size={11} class="animate-spin" />
+                  {:else}
+                    <Check size={11} />
+                  {/if}
+                  Validate
+                </button>
+                <span class="text-[10px] text-[#585b70] font-mono">Ln {cursorLine}:{cursorCol}</span>
+              </div>
             </div>
+
+            <!-- Editor body -->
+            {#if recipeLoading}
+              <div class="flex-1 flex items-center justify-center bg-[#1e1e2e]">
+                <Loader2 size={20} class="animate-spin text-[#585b70]" />
+              </div>
+            {:else if !recipe.trim()}
+              <div class="flex-1 flex flex-col items-center justify-center bg-[#1e1e2e] text-center px-6">
+                <FileCode size={32} class="mb-2 text-[#585b70]" />
+                <p class="text-sm text-[#a6adc8]">No build recipe</p>
+                <p class="text-[11px] text-[#585b70] mt-1 mb-3">Use the Concord Build SDK, or skip for external CI.</p>
+                <button
+                  onclick={() => {
+                    recipe = '#!/bin/bash\nset -eo pipefail\n\n# Source the Concord Build SDK\nsource concord-build.sh\nconcord_init\n\n# Build firmware\n# west build -b $CONCORD_BOARD ...\n\n# Collect artifacts\n# concord_collect_hex <appId> <file.hex> <role> <processor>\n# concord_collect_cfw <appId> <file.cfw> <role> <processor>\n\nconcord_finalize\n';
+                    recipeDirty = true;
+                  }}
+                  class="flex items-center gap-2 rounded-lg bg-[#313244] px-3 py-1.5 text-xs font-medium text-[#cdd6f4] hover:bg-[#45475a] transition-colors"
+                >
+                  <FileCode size={13} /> Start with template
+                </button>
+              </div>
+            {:else}
+              <div class="flex-1 min-h-0">
+                <CodeEditor
+                  value={recipe}
+                  height="100%"
+                  completions={concordCompletions}
+                  onchange={(v) => { recipe = v; recipeDirty = true; recipeValidation = null; }}
+                  oncursorchange={(l, c) => { cursorLine = l; cursorCol = c; }}
+                  class="h-full"
+                />
+              </div>
+            {/if}
           </div>
 
-          <!-- Validation results -->
-          {#if recipeValidation}
-            <div class="px-4 py-2 bg-[#181825] border-b border-[#313244] shrink-0">
-              {#if recipeValidation.valid && recipeValidation.warnings.length === 0}
-                <div class="flex items-center gap-2 text-xs text-[#a6e3a1]">
-                  <Check size={14} /> Recipe is valid — all required SDK functions present
+          <!-- Right: Checklist sidebar -->
+          <div class="w-72 shrink-0 flex flex-col bg-[#181825] text-[#cdd6f4] overflow-y-auto">
+            <!-- SDK Requirements -->
+            <div class="px-4 py-3 border-b border-[#313244]">
+              <h4 class="text-[11px] font-semibold uppercase tracking-wider text-[#a6adc8] mb-2">SDK Requirements</h4>
+              <div class="space-y-1.5">
+                {#each recipeChecks as check}
+                  <div class="flex items-start gap-2">
+                    <div class="mt-0.5 shrink-0">
+                      {#if check.ok}
+                        <div class="w-4 h-4 rounded-full bg-[#a6e3a1]/15 flex items-center justify-center">
+                          <Check size={10} class="text-[#a6e3a1]" />
+                        </div>
+                      {:else if check.required}
+                        <div class="w-4 h-4 rounded-full bg-[#f38ba8]/15 flex items-center justify-center">
+                          <X size={10} class="text-[#f38ba8]" />
+                        </div>
+                      {:else}
+                        <div class="w-4 h-4 rounded-full bg-[#313244] flex items-center justify-center">
+                          <div class="w-1.5 h-1.5 rounded-full bg-[#585b70]"></div>
+                        </div>
+                      {/if}
+                    </div>
+                    <span class="text-[11px] {check.ok ? 'text-[#a6adc8]' : check.required ? 'text-[#f38ba8]' : 'text-[#585b70]'}">
+                      {check.label}
+                      {#if check.required && !check.ok}
+                        <span class="text-[#f38ba8]">*</span>
+                      {/if}
+                    </span>
+                  </div>
+                {/each}
+              </div>
+              {#if requiredChecksPassing}
+                <div class="mt-2 flex items-center gap-1.5 text-[10px] text-[#a6e3a1]">
+                  <Check size={10} /> All required checks passing
                 </div>
-              {:else}
-                {#each recipeValidation.errors as err}
-                  <div class="flex items-center gap-2 text-xs text-[#f38ba8] mb-0.5">
-                    <AlertTriangle size={12} /> {err}
-                  </div>
-                {/each}
-                {#each recipeValidation.warnings as warn}
-                  <div class="flex items-center gap-2 text-xs text-[#f9e2af] mb-0.5">
-                    <AlertTriangle size={12} /> {warn}
-                  </div>
-                {/each}
+              {:else if recipe.trim()}
+                <div class="mt-2 flex items-center gap-1.5 text-[10px] text-[#f38ba8]">
+                  <AlertTriangle size={10} /> Missing required SDK calls
+                </div>
               {/if}
             </div>
-          {/if}
 
-          <!-- Editor -->
-          {#if recipeLoading}
-            <div class="flex-1 flex items-center justify-center bg-[#1e1e2e]">
-              <Loader2 size={24} class="animate-spin text-[#585b70]" />
+            <!-- Expected Build Outputs -->
+            {#if expectedOutputs.length > 0}
+              <div class="px-4 py-3 border-b border-[#313244]">
+                <h4 class="text-[11px] font-semibold uppercase tracking-wider text-[#a6adc8] mb-2">Expected Outputs</h4>
+                <div class="space-y-2">
+                  {#each expectedOutputs as out}
+                    <div class="rounded-md bg-[#1e1e2e] px-3 py-2">
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-medium capitalize text-[#cdd6f4]">{out.role}</span>
+                        <span class="text-[10px] font-mono text-[#585b70]">AppID {out.appId}</span>
+                      </div>
+                      <div class="text-[10px] font-mono text-[#585b70] mb-1.5">{out.soc}</div>
+                      <div class="flex gap-2">
+                        <div class="flex items-center gap-1 text-[10px] {out.hasHex ? 'text-[#a6e3a1]' : 'text-[#585b70]'}">
+                          {#if out.hasHex}<Check size={9} />{:else}<div class="w-2.5 h-2.5 rounded-full border border-[#585b70]"></div>{/if}
+                          .hex
+                        </div>
+                        <div class="flex items-center gap-1 text-[10px] {out.hasCfw ? 'text-[#a6e3a1]' : 'text-[#585b70]'}">
+                          {#if out.hasCfw}<Check size={9} />{:else}<div class="w-2.5 h-2.5 rounded-full border border-[#585b70]"></div>{/if}
+                          .cfw
+                        </div>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+
+            <!-- Environment Variables -->
+            <div class="px-4 py-3">
+              <h4 class="text-[11px] font-semibold uppercase tracking-wider text-[#a6adc8] mb-2">Environment Variables</h4>
+              <div class="space-y-1">
+                {#each Object.entries(envVarValues) as [name, val]}
+                  <div class="group">
+                    <div class="text-[10px] font-mono text-[#89b4fa]">${name}</div>
+                    <div class="text-[10px] text-[#585b70] truncate" title={val}>{val}</div>
+                  </div>
+                {/each}
+              </div>
             </div>
-          {:else if !recipe.trim()}
-            <div class="flex-1 flex flex-col items-center justify-center bg-[#1e1e2e] text-center px-8">
-              <FileCode size={36} class="mb-3 text-[#585b70]" />
-              <p class="text-sm text-[#a6adc8]">No build recipe configured</p>
-              <p class="text-xs text-[#585b70] mt-1 mb-4">Write a bash script using the Concord Build SDK, or skip if using external CI.</p>
-              <button
-                onclick={() => {
-                  recipe = '#!/bin/bash\nset -eo pipefail\n\n# Source the Concord Build SDK\nsource concord-build.sh\nconcord_init\n\n# Build firmware\n# west build -b $CONCORD_BOARD ...\n\n# Collect artifacts\n# concord_collect_hex <appId> <file.hex> <role> <processor>\n# concord_collect_cfw <appId> <file.cfw> <role> <processor>\n\nconcord_finalize\n';
-                  recipeDirty = true;
-                }}
-                class="flex items-center gap-2 rounded-lg bg-[#313244] px-4 py-2 text-xs font-medium text-[#cdd6f4] hover:bg-[#45475a] transition-colors"
-              >
-                <FileCode size={14} /> Start with template
-              </button>
-            </div>
-          {:else}
-            <div class="flex-1 min-h-0">
-              <CodeEditor
-                value={recipe}
-                height="100%"
-                completions={concordCompletions}
-                onchange={(v) => { recipe = v; recipeDirty = true; recipeValidation = null; }}
-                oncursorchange={(l, c) => { cursorLine = l; cursorCol = c; }}
-                class="h-full"
-              />
-            </div>
-          {/if}
+          </div>
         </div>
 
       {:else if currentStep === 4}
