@@ -5,11 +5,13 @@
   import {
     ArrowLeft, Check, ExternalLink, GitBranch, GitCommit,
     GitPullRequest, Loader2, X, Clock, Package, RefreshCw,
+    Ban, RotateCcw, Zap,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { BuildRunDetail } from '$lib/types/ci';
   import type { Pagination } from '$lib/types/models';
-  import { fetchBuildRuns } from '$lib/services/ci';
+  import { fetchBuildRuns, cancelPipeline } from '$lib/services/ci';
+  import { api } from '$lib/api';
   import { formatTimeAgo, formatDateTime, formatDuration } from '$lib/utils/formatting';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
@@ -17,6 +19,7 @@
   import EmptyState from '$lib/components/ui/empty-state.svelte';
 
   const auth = getAuth();
+  const canManage = $derived(auth.hasPermission('builds:manage'));
   const productId = $derived(page.params.productId);
   const prNumber = $derived(Number(page.params.prNumber));
 
@@ -113,6 +116,21 @@
 
   function isActive(status: string): boolean {
     return ['BUILDING', 'PENDING', 'VALIDATING'].includes(status);
+  }
+
+  let cancellingId = $state<string | null>(null);
+
+  async function handleCancel(runId: string, e: Event) {
+    e.stopPropagation();
+    cancellingId = runId;
+    try {
+      await cancelPipeline(runId);
+      await loadRuns();
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to cancel';
+    } finally {
+      cancellingId = null;
+    }
   }
 
   function getBitbucketCommitUrl(sha: string): string {
@@ -317,6 +335,22 @@
 
                       <!-- Status text -->
                       <StatusBadge status={run.status} />
+
+                      <!-- Cancel button (for active builds) -->
+                      {#if canManage && isActive(run.status)}
+                        <button
+                          onclick={(e) => handleCancel(run.id, e)}
+                          disabled={cancellingId === run.id}
+                          class="rounded p-1 text-text-tertiary hover:text-error hover:bg-error-muted transition-colors"
+                          title="Cancel this build run"
+                        >
+                          {#if cancellingId === run.id}
+                            <Loader2 size={12} class="animate-spin" />
+                          {:else}
+                            <Ban size={12} />
+                          {/if}
+                        </button>
+                      {/if}
                     </div>
                   </button>
                 {/each}

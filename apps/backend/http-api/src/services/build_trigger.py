@@ -231,9 +231,15 @@ def trigger_stage_build(
 
         # Build cache: check if an identical build already exists
         # Uses repo URL + commit SHA + board + variant + config flags
-        # For git_ref="main" builds, the commit is the mainline HEAD which
-        # doesn't change between PR commits — these get cached automatically.
-        cache_commit = commit_sha if build_def.git_ref == "pr" else git_ref
+        #
+        # Cache key logic:
+        #   git_ref="main" → use "main" (doesn't change between PR commits)
+        #   git_ref="pr" + fw_type="mfg" → use "main" (mfg repo always cloned at main)
+        #   git_ref="pr" + fw_type="app" → use PR commit SHA (changes per push)
+        if build_def.git_ref != "pr" or build_def.fw_type == "mfg":
+            cache_commit = git_ref  # "main" — stable across PR commits
+        else:
+            cache_commit = commit_sha  # PR commit — changes per push
         fingerprint = compute_build_fingerprint(
             repo_url=repo_url,
             commit_sha=cache_commit or "",
