@@ -1,27 +1,11 @@
-"""Product-agnostic artifact resolution for validation tests.
+"""Product-agnostic artifact resolution via build.json manifests.
 
-Every artifact is discovered through the build.json manifest's targets[] array
-— no hardcoded App IDs, chip names, or filename conventions.
+Artifacts are discovered through the manifest's targets[] array --
+no hardcoded App IDs, chip names, or filename conventions.
 
-Usage:
-    resolver = ArtifactResolver(
-        pipeline_id="build-42",
-        api_url="https://concord.local",
-        api_key="ck_run_..."
-    )
-
-    # Get parsed manifest
-    manifest = resolver.get_manifest("MFG_BASE")
-
-    # Download artifact by role + type
+    resolver = ArtifactResolver("build-42", api_url, api_key)
     app_hex = resolver.get_artifact("MFG_BASE", role="app", artifact_type="plaintextHex")
-
-    # Get all CFWs
     cfws = resolver.get_artifacts("MFG_BASE", artifact_type="encryptedCfw")
-
-    # Get target metadata without downloading
-    target = resolver.get_target("MFG_BASE", role="app")
-    # target.app_id == 109, target.host_type == "HOST_TYPE_NRF52840"
 """
 
 import json
@@ -54,7 +38,7 @@ except ImportError:
 
 @dataclass
 class StorageConfig:
-    """MinIO storage configuration."""
+    """MinIO connection config (from env vars or explicit)."""
 
     url: Optional[str] = None
     access_key: Optional[str] = None
@@ -78,7 +62,7 @@ class StorageConfig:
 
 @dataclass
 class ManifestTarget:
-    """A single build target from the build.json manifest."""
+    """Single build target from a build.json manifest (role, processor, app ID, artifacts)."""
 
     role: str
     processor: str
@@ -111,7 +95,7 @@ class ManifestTarget:
 
 @dataclass
 class BuildManifest:
-    """Parsed build.json manifest."""
+    """Parsed build.json manifest with targets, version, and corecloud metadata."""
 
     schema_version: int
     product: str
@@ -172,11 +156,7 @@ class BuildManifest:
     def _infer_targets_from_artifacts(
         data: dict, artifact_names: List[str]
     ) -> List["ManifestTarget"]:
-        """Infer targets from legacy build artifact filenames.
-
-        Legacy artifacts follow: {appId}.{version}-{track}.{hex|cfw}
-        Known app IDs: 109=nRF52840 (app), 108=nRF9151 (comms).
-        """
+        """Infer targets from legacy artifact filenames ({appId}.{version}-{track}.{ext})."""
         # Map of known app IDs to role/processor/hostType/jlinkFamily
         APP_ID_MAP = {
             109: ("app", "nrf52840", "HOST_TYPE_NRF52840", "NRF52"),
@@ -312,14 +292,10 @@ class ResolvedArtifact:
 
 
 class ArtifactResolver:
-    """Product-agnostic artifact resolver.
+    """Fetch pipeline builds and resolve artifacts by role + type.
 
-    Fetches pipeline builds from the Concord API, downloads build.json
-    manifests, and resolves artifacts by role + type using the manifest's
-    targets[] array.
-
-    Every build must include a build.json manifest. Builds without a
-    manifest are invalid and will raise an error.
+    All artifact discovery goes through build.json manifests --
+    no hardcoded filenames or app IDs.
     """
 
     def __init__(
@@ -591,15 +567,7 @@ class ArtifactResolver:
         return self._builds
 
     def get_manifest(self, label: str) -> BuildManifest:
-        """Get parsed build.json manifest for a build.
-
-        Returns:
-            BuildManifest instance.
-
-        Raises:
-            KeyError: If build label not found.
-            ValueError: If build has no build.json manifest.
-        """
+        """Return parsed BuildManifest. Raises KeyError/ValueError if missing."""
         manifest = self._get_or_load_manifest(label)
 
         if manifest is None:
@@ -617,20 +585,12 @@ class ArtifactResolver:
         role: str,
         artifact_type: str,
     ) -> str:
-        """Download and return local path to an artifact.
+        """Download artifact and return local path.
 
         Args:
-            label: Build matrix label (e.g., "MFG_BASE", "FUT_VERBOSE_A")
-            role: Target role (e.g., "app", "comms")
-            artifact_type: "plaintextHex" or "encryptedCfw"
-
-        Returns:
-            Local file path to the downloaded artifact.
-
-        Raises:
-            KeyError: Build label not found.
-            ValueError: Artifact not found for the given role + type,
-                or build has no manifest.
+            label: Build matrix label (e.g., "MFG_BASE").
+            role: "app" or "comms".
+            artifact_type: "plaintextHex" or "encryptedCfw".
         """
         build = self._get_build(label)
         manifest = self._get_or_load_manifest(label)
@@ -650,15 +610,7 @@ class ArtifactResolver:
         label: str,
         artifact_type: str,
     ) -> List[str]:
-        """Download all artifacts of a type from a build.
-
-        Returns:
-            List of local file paths.
-
-        Raises:
-            KeyError: Build label not found.
-            ValueError: Build has no manifest.
-        """
+        """Download all artifacts of a type from a build. Returns local paths."""
         build = self._get_build(label)
         manifest = self._get_or_load_manifest(label)
 
@@ -682,28 +634,17 @@ class ArtifactResolver:
         return paths
 
     def get_targets(self, label: str) -> List[ManifestTarget]:
-        """Get all build targets from the manifest.
-
-        Returns:
-            List of ManifestTarget with role, processor, appId, hostType, etc.
-
-        Raises:
-            KeyError: Build label not found.
-        """
+        """Return all ManifestTargets for a build label."""
         manifest = self.get_manifest(label)
         return manifest.targets
 
     def get_target(self, label: str, role: str) -> Optional[ManifestTarget]:
-        """Get a single target by role.
-
-        Returns:
-            ManifestTarget or None if role not found.
-        """
+        """Return ManifestTarget by role, or None if not found."""
         manifest = self.get_manifest(label)
         return manifest.get_target(role)
 
     def get_version(self, label: str) -> str:
-        """Get version string for a build."""
+        """Return version string for a build label."""
         build = self._get_build(label)
         manifest = self._get_or_load_manifest(label)
         if manifest is not None:
@@ -711,11 +652,7 @@ class ArtifactResolver:
         return build.version_string or ""
 
     def get_modem_firmware(self, label: str) -> Optional[str]:
-        """Download modem firmware from the manifest.
-
-        Returns:
-            Local path to modem firmware zip, or None if not specified.
-        """
+        """Download modem firmware from the manifest. Returns local path or None."""
         build = self._get_build(label)
         manifest = self._get_or_load_manifest(label)
 
@@ -738,14 +675,7 @@ class ArtifactResolver:
 
     @property
     def modem_firmware_info(self) -> Optional[Dict[str, Any]]:
-        """Get modem firmware metadata without downloading.
-
-        Checks pipeline triggerData first, then falls back to the first
-        build manifest that has modemFirmware info.
-
-        Returns:
-            Dict with name, version, storageKey etc., or None.
-        """
+        """Return modem firmware metadata without downloading. None if unavailable."""
         # Try triggerData first
         self._ensure_pipeline()
         url = f"{self._api_url}/v2/builds/runs/{self._pipeline_id}"
@@ -771,14 +701,7 @@ class ArtifactResolver:
         return None
 
     def get_modem_firmware_from_trigger(self) -> Optional[str]:
-        """Download modem firmware from pipeline triggerData.
-
-        Some pipelines carry modem firmware in triggerData rather than
-        per-build manifests. This method handles that case.
-
-        Returns:
-            Local path or None.
-        """
+        """Download modem firmware from pipeline triggerData. Returns local path or None."""
         self._ensure_pipeline()
 
         # Access raw pipeline data — we need triggerData
@@ -801,7 +724,7 @@ class ArtifactResolver:
             return None
 
     def has_all_builds(self) -> bool:
-        """Check if the pipeline has the minimum required builds."""
+        """Return True if all pipeline builds are SUCCESS or CACHED."""
         builds = self.builds
         if len(builds) < 2:
             return False
@@ -813,7 +736,7 @@ class ArtifactResolver:
         return True
 
     def summary(self) -> str:
-        """Human-readable summary of pipeline builds."""
+        """Return human-readable summary of pipeline builds."""
         lines = [f"Pipeline: {self._pipeline_id}"]
         for label, build in sorted(self.builds.items(), key=lambda x: x[1].matrix_index):
             status_icon = "OK" if build.status in ("SUCCESS", "CACHED") else "FAIL"
@@ -832,7 +755,7 @@ class ArtifactResolver:
     # ─────────────────────────────────────────────────────────────────────
 
     def cleanup(self) -> None:
-        """Remove all downloaded temp files and directories."""
+        """Remove all downloaded temp files."""
         for path in list(self._temp_dirs):
             try:
                 if os.path.isdir(path):

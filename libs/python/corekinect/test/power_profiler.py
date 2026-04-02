@@ -18,7 +18,7 @@ log = Logger(log_name="power_profiler")
 
 @dataclass
 class PowerMeasurement:
-    """Aggregated power measurement statistics."""
+    """Aggregated power stats from a measurement window."""
     avg_current_ma: float
     peak_current_ma: float
     min_current_ma: float
@@ -30,15 +30,15 @@ class PowerMeasurement:
 
 @dataclass
 class PowerTrace:
-    """Full power trace with individual samples and aggregated stats."""
+    """Power trace with individual samples and computed stats."""
     samples: List[Tuple[float, float, float]] = field(default_factory=list)
-    """List of (timestamp_s, voltage_mv, current_ma) tuples."""
+    """(timestamp_s, voltage_mv, current_ma) tuples."""
 
     measurement: Optional[PowerMeasurement] = None
-    """Aggregated statistics computed when trace is finalized."""
+    """Stats computed by compute_stats()."""
 
     def compute_stats(self) -> PowerMeasurement:
-        """Compute statistics from the sample buffer."""
+        """Compute aggregate stats from the sample buffer."""
         if not self.samples:
             self.measurement = PowerMeasurement(
                 avg_current_ma=0, peak_current_ma=0, min_current_ma=0,
@@ -69,15 +69,10 @@ class PowerTrace:
 
 
 class PowerProfiler:
-    """Power measurement wrapper for Stage 4 power budget tests.
+    """Power measurement via MTIB.
 
-    Provides two modes:
-    - measure(): Single bounded measurement via PowerMeasure RPC.
-    - start_continuous() / stop_continuous(): Long-duration streaming
-      via PowerStream RPC for sleep mode and background current tests.
-
-    Args:
-        mtib: Connected MtibV1Client instance.
+    Two modes: measure() for bounded readings, or start_continuous() /
+    stop_continuous() for long-duration streaming (sleep mode tests).
     """
 
     def __init__(self, mtib: MtibV1Client):
@@ -87,14 +82,10 @@ class PowerProfiler:
         self._stream_thread: Optional[threading.Thread] = None
 
     def measure(self, channel: int = 0, duration_s: float = 10) -> PowerMeasurement:
-        """Take a bounded power measurement. Returns aggregated statistics.
-
-        Uses MTIB V1 PowerMeasure RPC which samples at ~100Hz for the
-        specified duration and returns server-side aggregated stats.
+        """Take a bounded power measurement (~100Hz sampling).
 
         Args:
-            channel: Power channel (0=DUT, 1=charger).
-            duration_s: Measurement duration in seconds.
+            channel: 0=DUT, 1=charger.
         """
         result, err = self._mtib.PowerMeasure(channel=channel, duration_s=duration_s)
         if err:
@@ -111,11 +102,9 @@ class PowerProfiler:
         )
 
     def start_continuous(self, channel: int = 0) -> None:
-        """Start continuous power sampling in background.
+        """Start continuous power sampling in a background thread.
 
-        Uses PowerStream RPC for long-duration measurements (sleep mode
-        current tests). Samples are buffered and stats are computed on
-        stop_continuous().
+        Call stop_continuous() to get the trace with computed stats.
         """
         if self._streaming:
             raise RuntimeError("Continuous measurement already in progress")
@@ -132,11 +121,7 @@ class PowerProfiler:
         log.info("Continuous power sampling started on channel %d", channel)
 
     def stop_continuous(self) -> PowerTrace:
-        """Stop continuous sampling, return full trace with stats.
-
-        Returns:
-            PowerTrace with samples and computed statistics.
-        """
+        """Stop continuous sampling and return full trace with computed stats."""
         if not self._streaming:
             raise RuntimeError("No continuous measurement in progress")
 
@@ -179,7 +164,7 @@ class PowerProfiler:
                 log.error("Power stream error: %s", e)
 
     def quick_read(self, channel: int = 0) -> Tuple[float, float, float]:
-        """Single instantaneous power read. Returns (voltage_mv, current_ma, power_mw)."""
+        """Return (voltage_mv, current_ma, power_mw) from a single read."""
         result, err = self._mtib.PowerRead(channel=channel)
         if err:
             raise RuntimeError(f"PowerRead failed: {err}")

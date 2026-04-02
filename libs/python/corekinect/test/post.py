@@ -1,17 +1,11 @@
-"""Shared POST (Power-On Self-Test) — hardware verification after flash.
+"""Power-On Self-Test -- hardware verification after flash.
 
-Runs chip ID, BMS, charger, GPS, modem, IMEI/ICCID, and external flash
-verification on both processors. Used by both manufacturing and validation.
-
-Usage:
-    from corekinect.test.post import run_post, PostResult
+Checks chip IDs, BMS, charger, GPS, modem, IMEI/ICCID, and external
+flash on both processors.
 
     result = run_post(mtib_client)
     assert result.passed, result.summary()
-
-    # Access individual results
     print(f"IMEI: {result.imei}")
-    print(f"ICCIDs: {result.iccids}")
 """
 
 import time
@@ -27,7 +21,7 @@ log = Logger(log_name="post")
 
 @dataclass
 class PostStepResult:
-    """Result of a single POST step."""
+    """Single POST step result (name, pass/fail, message)."""
     name: str
     passed: bool
     message: str
@@ -36,7 +30,7 @@ class PostStepResult:
 
 @dataclass
 class PostResult:
-    """Aggregate result of the full POST suite."""
+    """Aggregate result of all POST steps, plus collected device data."""
     passed: bool = False
     steps: List[PostStepResult] = field(default_factory=list)
     # Collected data from POST (used by subsequent validation steps)
@@ -70,26 +64,12 @@ def _step(result: PostResult, name: str, passed: bool, message: str, duration_ms
 def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
     """Run the full POST suite on both processors.
 
-    Sequence:
-        1. Boot + lock shells (comms + app)
-        2. Comms chip IDs (external flash)
-        3. App chip IDs (external flash + BLE MAC)
-        4. BMS (gas gauge)
-        5. Charger (BQ25180)
-        6. GPS module
-        7. Modem firmware version
-        8. IMEI + ICCIDs
-        9. External flash (comms + app) [optional]
-
-    Personalization and IPC rekey are NOT included — those are separate
-    steps in the validation flow that depend on POST passing first.
+    Covers: boot + shell lock, chip IDs, BMS, charger, GPS, modem,
+    IMEI/ICCIDs, and external flash. Personalization is NOT included --
+    it depends on POST passing first.
 
     Args:
-        mtib_client: Connected MtibV1Client.
-        skip_ext_flash: Skip external flash test (faster, for debug runs).
-
-    Returns:
-        PostResult with pass/fail status and collected device data.
+        skip_ext_flash: Skip external flash test (faster for debug runs).
     """
     result = PostResult()
 

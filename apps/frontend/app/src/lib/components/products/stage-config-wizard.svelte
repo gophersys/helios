@@ -500,7 +500,7 @@
     recipeValidating = true;
     recipeValidation = null;
     try {
-      const res = await api.post(`/v2/products/${productId}/recipe/validate', { content: recipe, stage });
+      const res = await api.post(`/v2/products/${productId}/recipe/validate`, { content: recipe, stage });
       recipeValidation = (res as any).data ?? res;
     } catch {
       // Client-side fallback validation
@@ -565,7 +565,8 @@
 
       // Save recipe draft if modified (does NOT create a new version)
       if (recipeDirty && recipe.trim()) {
-        await api.put(`/v2/products/${productId}/recipe?stage=${stage}`, { content: recipe });
+        const recipeUrl = '/v2/products/' + productId + '/recipe?stage=' + stage;
+        await api.put(recipeUrl, { content: recipe });
       }
 
       onSaved();

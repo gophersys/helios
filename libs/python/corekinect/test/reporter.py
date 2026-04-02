@@ -1,53 +1,18 @@
-"""Concord Reporter — pytest plugin that reports results to the Concord HTTP API.
+"""Pytest plugin that reports test results to the Concord HTTP API.
 
-Opt-in activation via environment variables:
-    CONCORD_RUN_ID:  The validation run ID (from POST /v2/sessions).
-    CONCORD_API_URL: Base URL of the Concord HTTP API (e.g., http://concord-api:9001).
-    CONCORD_API_KEY: API key for authentication (ApiKey header).
+Activated by env vars: CONCORD_RUN_ID, CONCORD_API_URL, CONCORD_API_KEY.
+When not set, the plugin is inert -- tests run normally with zero overhead.
 
-When these are NOT set, the reporter does absolutely nothing — tests run
-exactly as they always have. This is the "offline mode" for local
-development and SSH-based runs.
+All HTTP calls are fire-and-forget. The reporter never causes a test to fail.
 
-When activated, the reporter makes HTTP calls to the callback endpoints:
-    POST /v2/sessions/<id>/report/start
-    POST /v2/sessions/<id>/report/test-start
-    POST /v2/sessions/<id>/report/test-result
-    POST /v2/sessions/<id>/report/step-start
-    POST /v2/sessions/<id>/report/step-result
-    POST /v2/sessions/<id>/report/finish
-    POST /v2/sessions/<id>/report/log-chunk  (live streaming)
+Features:
+  - Test start/result/finish callbacks to /v2/sessions/<id>/report/*
+  - Live stdout/stderr streaming via log-chunk endpoint
+  - Sub-step reporting via ``report.step("name")`` context manager
+  - Multi-device support via ``reporter.set_device(serial)``
 
-All HTTP calls are fire-and-forget with error handling — the reporter NEVER
-causes a test to fail. If the API is unreachable, errors are logged and
-the test suite continues normally.
-
-Live Log Streaming:
-    When enabled, stdout/stderr are captured in real-time and streamed to the
-    API via log-chunk endpoint. Each chunk is tagged with the currently running
-    test name (and step index if inside a step) so the frontend can display
-    per-test/per-step logs live.
-
-Sub-Step Reporting:
-    Tests can break their execution into named sub-steps using the
-    ``report.step("name")`` context manager. Each step fires step-start and
-    step-result callbacks, and log chunks within a step include the step index
-    for fine-grained routing.
-
-Multi-Device Support:
-    For manufacturing panels with multiple DUTs, call ``reporter.set_device(serial)``
-    to tag all subsequent callbacks with a device serial. For single-device
-    validation runs, set it once in conftest. If never set, ``deviceSerial``
-    is omitted from payloads for backwards compatibility.
-
-Registration:
-    Add to conftest.py (already done):
-        from .reporter import ConcordReporter
-        def pytest_configure(config):
-            config.pluginmanager.register(ConcordReporter(config), "concord_reporter")
-
-    Or via pytest_plugins in conftest.py:
-        pytest_plugins = ["corekinect.test.reporter"]
+Registration (in conftest.py):
+    pytest_plugins = ["corekinect.test.reporter"]
 """
 
 import base64
@@ -80,7 +45,7 @@ except ImportError:
 
 
 class StreamCapture(io.TextIOBase):
-    """Capture stream writes and forward to a callback while also writing to original stream."""
+    """Tee stream writes to a callback while passing through to the original stream."""
 
     def __init__(self, original_stream, callback):
         self.original = original_stream
@@ -112,11 +77,9 @@ class StreamCapture(io.TextIOBase):
 
 
 class StepReporter:
-    """Context manager for sub-step tracking within a test.
+    """Context manager for sub-step tracking. Fires step-start/step-result callbacks.
 
-    Used via ``reporter.step("name")``. Fires step-start on entry and
-    step-result on exit. If the block raises, the step is marked as failed
-    and the exception propagates normally.
+    If the block raises, the step is marked failed and the exception propagates.
     """
 
     def __init__(self, reporter: "ConcordReporter", step_name: str):
@@ -148,7 +111,7 @@ class StepReporter:
 
 
 class NoOpStepReporter:
-    """No-op step context manager returned by NoOpReporter.step()."""
+    """No-op step context manager for offline mode."""
 
     def __enter__(self):
         return self
@@ -158,11 +121,7 @@ class NoOpStepReporter:
 
 
 class NoOpReporter:
-    """No-op reporter for offline/local runs where ConcordReporter is not active.
-
-    Returned by the ``report`` fixture when CONCORD_RUN_ID is not set.
-    Has the same interface as ConcordReporter so test code works unchanged.
-    """
+    """No-op reporter for offline/local runs. Same interface as ConcordReporter."""
 
     def step(self, name: str) -> NoOpStepReporter:
         """Return a no-op step context manager."""
@@ -174,27 +133,13 @@ class NoOpReporter:
 
 
 class ConcordReporter:
-    """pytest plugin that streams validation results to the Concord HTTP API.
+    """Pytest plugin that streams test results to the Concord API.
 
-    When activated (CONCORD_RUN_ID + CONCORD_API_URL set), this plugin hooks
-    into pytest's session lifecycle to report test starts, results, sub-steps,
-    and live log output back to the Concord backend. All HTTP calls are
-    fire-and-forget so the reporter never interferes with test execution.
-
-    When not activated, the plugin is inert and imposes no overhead.
+    Inert when CONCORD_RUN_ID is not set. All HTTP calls are fire-and-forget.
     """
 
     def __init__(self, config: Optional[Any] = None):
-        """Initialize the reporter from environment variables.
-
-        Reads CONCORD_RUN_ID, CONCORD_API_URL, and CONCORD_API_KEY from the
-        environment to determine whether reporting is active. Sets up internal
-        counters, per-test tracking dicts, sub-step state, and live log
-        streaming infrastructure (stream capture + background flush thread).
-
-        If ``config`` is provided, stores a reference on it so the ``report``
-        fixture can locate this instance later.
-        """
+        """Initialize from CONCORD_* env vars. Inert if CONCORD_RUN_ID not set."""
         self.run_id = os.environ.get("CONCORD_RUN_ID") or ""
         self.api_url = (os.environ.get("CONCORD_API_URL") or "").rstrip("/")
         self.api_key = os.environ.get("CONCORD_API_KEY") or ""
@@ -255,27 +200,13 @@ class ConcordReporter:
     # -- Multi-device support -----------------------------------------
 
     def set_device(self, serial: str) -> None:
-        """Set the currently active device serial.
-
-        For single-device validation runs, call once in conftest setup.
-        For multi-device manufacturing, call per-parametrized DUT.
-        """
+        """Set the active device serial for subsequent callbacks."""
         self._current_device = serial
 
     # -- Sub-step support ---------------------------------------------
 
     def step(self, name: str) -> StepReporter:
-        """Create a sub-step context manager.
-
-        Usage::
-
-            with reporter.step("Boot DUT"):
-                dut.power_enable(0, 4.5)
-                time.sleep(3)
-
-            with reporter.step("Verify chip IDs"):
-                assert dut.read_chip_id() == expected_id
-        """
+        """Return a sub-step context manager that fires step-start/step-result."""
         return StepReporter(self, name)
 
     def _next_step_index(self) -> int:
@@ -296,7 +227,7 @@ class ConcordReporter:
         return headers
 
     def _post(self, path: str, json_data: Dict[str, Any]) -> Optional[Dict]:
-        """POST to Concord API. Returns response JSON or None on failure."""
+        """POST to Concord API. Returns JSON or None on failure."""
         url = f"{self.api_url}/v2/sessions/{self.run_id}/{path}"
         try:
             resp = requests.post(url, json=json_data, headers=self._headers(), timeout=10, verify=_TLS_VERIFY)
@@ -313,14 +244,7 @@ class ConcordReporter:
             return None
 
     def _fire_callback(self, endpoint: str, payload: Dict[str, Any]) -> None:
-        """Fire-and-forget POST to a report callback endpoint.
-
-        Strips None-valued keys from the payload for backwards compatibility
-        (e.g., omits ``deviceSerial`` when no device is set).
-
-        Errors are swallowed intentionally — the reporter must never cause
-        a test to fail. See ``_post()`` for the same rationale.
-        """
+        """Fire-and-forget POST. Strips None keys for backward compat."""
         if not self.enabled:
             return
         # Remove None values so the backend doesn't receive explicit nulls
@@ -342,13 +266,7 @@ class ConcordReporter:
                 self._test_output[nodeid] = prev + data
 
     def _flush_log_buffer(self) -> None:
-        """Drain the log buffer and POST it to the log-chunk endpoint.
-
-        Encoding pipeline: raw str -> UTF-8 bytes -> base64 ASCII. The base64
-        step ensures binary-safe transport over JSON. The ``offset`` field
-        tracks cumulative byte position so the backend can reassemble the
-        full output stream in order.
-        """
+        """Drain log buffer and POST base64-encoded content to log-chunk."""
         with self._log_buffer_lock:
             if not self._log_buffer:
                 return
@@ -492,12 +410,7 @@ class ConcordReporter:
     # -- Report helpers (extracted from pytest_runtest_makereport) -------
 
     def _handle_skip_result(self, item: pytest.Item) -> None:
-        """Report a skipped test result to the API.
-
-        Called when a test is skipped during the setup phase (e.g., via
-        ``pytest.mark.skip`` or ``skipIf``). Since no call phase follows,
-        we report immediately with ``skipped=True``.
-        """
+        """Report a skipped test (setup-phase skip, no call phase follows)."""
         self._total += 1
         payload: Dict[str, Any] = {
             "testName": item.name,
@@ -512,11 +425,7 @@ class ConcordReporter:
         self._post("report/test-result", payload)
 
     def _accumulate_output(self, item: pytest.Item, report) -> None:
-        """Accumulate captured stdout, stderr, caplog, and sections from a test phase.
-
-        Called for every phase (setup/call/teardown) so that the final
-        test-result payload contains the full log output across all phases.
-        """
+        """Accumulate captured output from a test phase (setup/call/teardown)."""
         captured = ""
         if report.capstdout:
             captured += report.capstdout
@@ -533,12 +442,7 @@ class ConcordReporter:
             self._test_output[item.nodeid] = prev + captured
 
     def _report_test_result(self, item: pytest.Item, report) -> None:
-        """Build and send the test-result payload for a completed test.
-
-        Called once during the ``call`` phase. Gathers duration, error
-        message, log output, power measurements, and module name, then
-        POSTs the result to the Concord API.
-        """
+        """Build and POST test-result payload (called once during the call phase)."""
         self._total += 1
         test_name = item.name
         passed = report.passed
@@ -667,19 +571,13 @@ class ConcordReporter:
 
 @pytest.fixture
 def report(request):
-    """Sub-step reporter for the current test.
-
-    Returns the active ConcordReporter (with ``.step()`` and ``.set_device()``
-    methods) when running inside a Concord session, or a NoOpReporter when
-    running locally / offline so test code doesn't need conditionals.
+    """Active ConcordReporter or NoOpReporter for offline mode.
 
     Usage::
 
         def test_boot(report, dut):
             with report.step("Power on"):
                 dut.power_enable(0, 4.5)
-            with report.step("Verify UART"):
-                assert dut.uart_read() == "OK"
     """
     reporter = getattr(request.config, "_concord_reporter", None)
     if reporter is None:

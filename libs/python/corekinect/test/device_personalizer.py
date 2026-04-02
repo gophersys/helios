@@ -1,36 +1,17 @@
-"""Automated device re-personalization for validation test cycles.
+"""Automated device re-personalization after J-Link flash.
 
-After every firmware flash via J-Link (--chiperase), the device loses
-its personalization (EC keypair, device ID, IPC keys). This module
-automates the full re-personalization sequence using the V1 MTIB client.
+Every --chiperase wipes the EC keypair, device ID, and IPC keys.
+This module automates the full restore sequence via MTIB + CoreOps.
 
-Uses CoreOpsClient for all CoreOps API calls (device ID assignment,
-key upload, ICCID registration). CoreOps credentials must be set via
-COREOPS_* environment variables.
-
-CRITICAL: The device's public key MUST be uploaded to CoreCloud for:
-- FUOTA (firmware updates) to work
-- Device telemetry to be authenticated
-- Any CoreCloud communication to succeed
-
-The key upload is MANDATORY by default (require_corecloud_key=True).
-If the key upload fails, repersonalize() returns an error. This prevents
-silent failures where FUOTA appears to work but the device can't communicate.
-
-Typical usage (after firmware flash):
-    personalizer = DevicePersonalizer(
-        mtib=ctx.mtib,
-        snr="0964",
-        # db_env defaults to "VAL_1_0"
-        # require_corecloud_key defaults to True
-    )
+    personalizer = DevicePersonalizer(mtib=ctx.mtib, snr="0964")
     result, error = personalizer.repersonalize()
     assert error is None, f"Re-personalization failed: {error}"
 
-Environment variables required:
-    VAL_1_0_API_KEY, VAL_1_0_API_AUTH_SERVER_HOST_NAME,
-    VAL_1_0_API_REST_SERVER_HOST_NAME, VAL_1_0_API_AUTH_USERNAME,
-    VAL_1_0_API_AUTH_PASSWORD
+The public key upload to CoreCloud is mandatory by default
+(require_corecloud_key=True) because FUOTA and telemetry won't
+work without it.
+
+Requires COREOPS_* env vars for CoreOps API access.
 """
 
 import datetime
@@ -81,7 +62,7 @@ if os.environ.get("PERSONALIZE_VIA_APP") == "1":
 
 @dataclass
 class PersonalizationResult:
-    """Result of a full re-personalization cycle."""
+    """Output from a successful repersonalize() call."""
     device_id: str = ""
     pub_key_hex: str = ""
     pub_key_base64: str = ""
@@ -90,30 +71,20 @@ class PersonalizationResult:
 
 
 class DevicePersonalizer:
-    """Automated re-personalization using V1 MTIB client.
+    """Full post-flash re-personalization via MTIB.
 
-    Wraps the full post-flash personalization sequence:
-      1. Power cycle + lock manufacturing shells
-      2. Read IMEI/ICCIDs from modem (if not provided)
-      3. Get device ID from CoreOps (deterministic per SNR)
-      4. Personalize device via UART (generates new EC keypair)
-      5. Upload public key to CoreOps
-      6. Save SIM info to CoreOps
-      7. **Upload public key to CoreCloud (REQUIRED for FUOTA)**
-      8. Rekey IPC (replace hardcoded keys with device-specific)
+    Sequence: power cycle -> lock shells -> read IMEI/ICCIDs ->
+    get device ID from CoreOps -> personalize via UART (new EC keypair) ->
+    upload keys to CoreOps + CoreCloud.
 
     Args:
-        mtib: Connected V1 MTIB client.
-        snr: Device serial number (J-Link probe serial, e.g., "0964").
-        imei: Pre-known IMEI (skip modem read if provided).
-        iccids: Pre-known ICCIDs (skip modem read if provided).
-        db_env: CoreCloud API environment (default "VAL_1_0"). REQUIRED for FUOTA.
-        logger: Parent Logger instance (creates child logger if provided).
-        proxy_url: DEPRECATED - no longer used, CoreOpsClient handles this.
-        known_device_id: Pre-known device ID (skip CoreOps lookup if provided).
-        require_corecloud_key: If True (default), FAIL if key upload fails.
-            This prevents silent failures where FUOTA won't work because
-            CoreCloud doesn't have the device's public key.
+        snr: J-Link probe serial (e.g., "0964").
+        imei: Skip modem read if provided.
+        iccids: Skip modem read if provided.
+        db_env: CoreCloud environment. Default "VAL_1_0".
+        known_device_id: Skip CoreOps lookup if provided.
+        require_corecloud_key: If True (default), fail if key upload
+            fails -- FUOTA won't work without the key in CoreCloud.
     """
 
     def __init__(
@@ -164,17 +135,7 @@ class DevicePersonalizer:
         lock_shells: bool = True,
         boot_wait_s: float = 3.0,
     ) -> Tuple[Optional[PersonalizationResult], Optional[str]]:
-        """Execute full re-personalization sequence.
-
-        Args:
-            power_cycle: Whether to power cycle the DUT first.
-            lock_shells: Whether to lock manufacturing shells.
-            boot_wait_s: Seconds to wait after power-on for boot.
-
-        Returns:
-            (PersonalizationResult, None) on success.
-            (None, error_string) on failure.
-        """
+        """Run full re-personalization. Returns (result, None) or (None, error)."""
         # Step 1: Power cycle with shell lock
         # Manufacturing pattern: open UART -> power on -> wait 3s -> lock shells
         if power_cycle:

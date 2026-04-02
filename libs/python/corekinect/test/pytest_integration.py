@@ -1,21 +1,8 @@
-"""Pytest integration for capability-based test skipping.
+"""Capability-based test skipping for pytest.
 
-Provides decorators that integrate the capability system with pytest's
-skip mechanism. Tests decorated with @requires_capability will skip
-gracefully when the fixture lacks required hardware — never crash.
-
-The decorators work with ALL test patterns:
-  - Function-based: def test_foo(fixture): ...
-  - Class-based with fixture param: def test_foo(self, fixture): ...
-  - Class-based with ctx: def test_foo(self, ctx): ...
-  - Class-based with self.ctx: def test_foo(self): ... (ctx set by autouse fixture)
-
-Capabilities are plain strings (e.g., "button", "ppg_servo"). This decouples
-product test apps from the Capability enum — products define their own
-capability strings in fixture YAML.
-
-Usage:
-    from corekinect.test.pytest_integration import requires_capability
+Tests skip gracefully when the fixture lacks required hardware.
+Capabilities are plain strings (e.g., "button", "ppg_servo") defined
+in product fixture YAML.
 
     @requires_capability("button")
     def test_button_press(fixture):
@@ -35,17 +22,7 @@ import pytest
 
 
 def _find_fixture(func: Callable, args: tuple, kwargs: dict):
-    """Find the fixture controller from test arguments.
-
-    Searches in order:
-    1. kwargs: fixture, validation_fixture, fixture_controller
-    2. kwargs: ctx.fixture
-    3. args[0].ctx.fixture (class-based test with self.ctx)
-    4. args positional match by parameter name
-
-    Returns:
-        Fixture controller instance, or None if not found.
-    """
+    """Find fixture controller from test args/kwargs. Returns None if not found."""
     # Direct fixture kwargs
     fixture = (
         kwargs.get("fixture")
@@ -91,24 +68,13 @@ def _cap_to_str(cap) -> str:
 
 
 def requires_capability(*caps: str) -> Callable:
-    """Decorator that skips tests if fixture lacks required capabilities.
+    """Skip test if fixture lacks any of the listed capabilities.
 
     Works with function-based tests, class-based tests with fixture/ctx
-    parameters, and class-based tests with self.ctx (set by autouse fixture).
+    params, and class-based tests with self.ctx.
 
     Args:
-        *caps: One or more capability strings (e.g., "button", "ppg_servo").
-            Also accepts Capability enum values for backward compatibility.
-
-    Usage:
-        @requires_capability("button")
-        def test_button_press(fixture):
-            fixture.press_button()
-
-        class TestSomething:
-            @requires_capability("ppg_servo")
-            def test_on_skin(self):
-                self.ctx.fixture.simulate_on_skin(True)
+        *caps: Capability strings (e.g., "button", "ppg_servo").
     """
     cap_strings = [_cap_to_str(c) for c in caps]
 
@@ -143,10 +109,7 @@ def requires_capability(*caps: str) -> Callable:
 
 
 def requires_feature(feature) -> Callable:
-    """Decorator that skips tests if feature cannot be tested.
-
-    .. deprecated:: Use @requires_capability with string capabilities instead.
-    """
+    """Deprecated. Use @requires_capability with string capabilities instead."""
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -164,18 +127,10 @@ def requires_feature(feature) -> Callable:
 
 
 def get_required_capabilities(func: Callable) -> List[str]:
-    """Get capability requirements from a decorated function.
-
-    Returns:
-        List of required capability strings, or empty list.
-    """
+    """Return list of required capability strings from a decorated function."""
     return getattr(func, "_required_capabilities", [])
 
 
 def get_required_feature(func: Callable) -> Optional[str]:
-    """Get feature requirement from a decorated function.
-
-    Returns:
-        Required feature string, or None.
-    """
+    """Return required feature string from a decorated function, or None."""
     return getattr(func, "_required_feature", None)

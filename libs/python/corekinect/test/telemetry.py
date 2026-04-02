@@ -1,45 +1,17 @@
 """Real-time telemetry streaming for device data (UART, power, sensors).
 
 Dual-path delivery:
-  1. WebSocket relay (live) — batched POST to backend every 200ms
-  2. MinIO storage (persistent) — per-channel JSONL files + manifest
+  1. WebSocket relay (live) -- batched POST to backend every 200ms
+  2. MinIO storage (persistent) -- per-channel JSONL files + manifest
 
-Every sample is timestamped (POSIX seconds with microsecond precision) and
-belongs to a named channel. Channels are auto-discovered from sample types:
-  - "power" → channel "power"
-  - "power_chg" → channel "power_chg"
-  - "uart" + target "app" → channel "uart_app"
-  - "accel" → channel "accel"
-  - Any new type → channel auto-created (no code changes needed)
+Channels are auto-discovered from sample types. Adding a new data stream
+is just ``streamer.push("adc", {"value": 3.3}, target="ch0")``.
 
-Storage layout (MinIO):
-  sessions/{run_id}/telemetry/
-    manifest.json       ← channel index + step boundaries + time ranges
-    power.jsonl         ← {t, mA, mV}
-    power_chg.jsonl     ← {t, mA, mV}
-    uart_app.jsonl      ← {t, line}
-    uart_comms.jsonl    ← {t, line}
-    accel.jsonl         ← {t, x, y, z}  (future)
-    adc_ch0.jsonl       ← (future — no code changes needed)
-
-The manifest enables post-analysis: the frontend loads it on page open,
-then lazy-loads channel files for the selected time range.
-
-Usage:
     streamer = TelemetryStreamer(run_id, api_url, api_key)
     streamer.start()
-
-    # Wire data sources
     uart_demuxer.on_line = streamer.push_uart
-    # power_profiler.on_sample = streamer.push_power
-
-    # Track test steps (called by pytest lifecycle hooks)
-    streamer.set_test("test_02_flash_firmware", module="test_01_mfg_to_mfg_fuota")
+    streamer.set_test("test_02_flash_firmware")
     # ... test runs, data flows ...
-    streamer.set_test("test_03_verify_boot", module="test_01_mfg_to_mfg_fuota")
-    # ...
-    streamer.set_test(None)  # marks last step as finished
-
     streamer.stop()  # writes channel files + manifest to MinIO
 """
 
@@ -63,23 +35,12 @@ _TLS_VERIFY = os.environ.get("TLS_VERIFY", "true").lower() in ("1", "true", "yes
 
 
 class TelemetryStreamer:
-    """Batched telemetry streaming with dual-path delivery.
-
-    Samples are routed to channels based on their type + target:
-      - type="power" → channel "power"
-      - type="uart", target="app" → channel "uart_app"
-      - type="accel" → channel "accel"
-
-    Adding a new channel requires only a new push call — no other changes.
+    """Batched telemetry streaming with live + persistent delivery.
 
     Args:
-        run_id: Validation run ID (for MinIO paths and WebSocket routing).
-        api_url: Concord API base URL (for WebSocket relay).
-        api_key: API key for authentication.
-        on_flush_storage: Callback to write content to persistent storage.
-            Signature: (object_path: str, content_bytes: bytes) -> None
-            If None, persistent storage is disabled (live-only mode).
-        flush_interval_s: How often to flush WebSocket batches (seconds).
+        on_flush_storage: Callback (object_path, content_bytes) -> None
+            for MinIO writes. None = live-only mode.
+        flush_interval_s: WebSocket batch flush interval.
     """
 
     def __init__(
@@ -156,7 +117,7 @@ class TelemetryStreamer:
     # ── Lifecycle ─────────────────────────────────────────────
 
     def start(self) -> None:
-        """Start the background flush thread."""
+        """Start background WebSocket flush thread."""
         if self._started or not self.enabled:
             return
 
@@ -170,7 +131,7 @@ class TelemetryStreamer:
                  self._run_id, self._flush_interval * 1000)
 
     def stop(self) -> None:
-        """Stop the flush thread, write channel files + manifest to storage."""
+        """Stop flush thread, write channel JSONL files + manifest to storage."""
         if not self._started:
             return
 
@@ -202,13 +163,7 @@ class TelemetryStreamer:
         test_name: Optional[str],
         module: Optional[str] = None,
     ) -> None:
-        """Set the current test step. Records step boundaries for the manifest.
-
-        Called by pytest lifecycle hooks:
-          - set_test("test_02_flash", module="test_01_mfg_to_mfg_fuota")
-          - set_test("test_03_boot", module="test_01_mfg_to_mfg_fuota")
-          - set_test(None) on session end
-        """
+        """Set current test name for step boundaries. Pass None on session end."""
         # Close previous step
         if self._current_test:
             self._close_step()
@@ -235,13 +190,7 @@ class TelemetryStreamer:
     # ── Data ingestion ────────────────────────────────────────
 
     def push_uart(self, target_name: str, posix_us: int, line: str) -> None:
-        """Push a UART line. Called by UartDemuxer.on_line callback.
-
-        Args:
-            target_name: "app" or "comms"
-            posix_us: POSIX timestamp in microseconds
-            line: UART line content
-        """
+        """Push a UART line (called by UartDemuxer.on_line callback)."""
         t = posix_us / 1_000_000
         channel = self._channel_name("uart", target_name)
 
@@ -263,13 +212,7 @@ class TelemetryStreamer:
         self._total_samples += 1
 
     def push_power(self, timestamp_s: float, current_ma: float, voltage_mv: float) -> None:
-        """Push a power measurement sample.
-
-        Args:
-            timestamp_s: POSIX timestamp in seconds
-            current_ma: Current in milliamps
-            voltage_mv: Voltage in millivolts
-        """
+        """Push a power measurement sample."""
         mA = round(current_ma, 2)
         mV = round(voltage_mv, 1)
 
@@ -289,15 +232,12 @@ class TelemetryStreamer:
 
     def push(self, sample_type: str, data: Dict[str, Any],
              target: Optional[str] = None) -> None:
-        """Push a generic telemetry sample.
-
-        Works for any sensor type — the channel is auto-created on first push.
-        Adding a new data stream is just: streamer.push("adc", {"value": 3.3}, target="ch0")
+        """Push a generic telemetry sample. Channel is auto-created on first push.
 
         Args:
             sample_type: e.g., "power_chg", "accel", "temp", "adc", "gpio"
-            data: Payload dict (must NOT include "t" — timestamp is added automatically)
-            target: Optional sub-target (e.g., "ch0" for ADC channels)
+            data: Payload dict (don't include "t" -- added automatically).
+            target: Optional sub-target (e.g., "ch0" for ADC channels).
         """
         t = time.time()
         channel = self._channel_name(sample_type, target)
