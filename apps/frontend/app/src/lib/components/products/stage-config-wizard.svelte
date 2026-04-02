@@ -829,21 +829,22 @@
                 <div class="flex items-center gap-2">
                   <FileCode size={12} class="text-[#89b4fa]" />
                   <span class="text-[11px] font-medium text-[#cdd6f4]">build.sh</span>
-                  <span class="text-[9px] px-1.5 py-0.5 rounded font-medium
-                    {recipeDirty ? 'bg-[#f9e2af]/15 text-[#f9e2af]' : 'bg-[#313244] text-[#585b70]'}">
-                    {recipeDirty ? 'Modified' : 'Saved'}
-                  </span>
-                  {#if recipeSavedVersion}
+                  {#if recipeDirty}
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#f9e2af]/15 text-[#f9e2af] font-medium">
+                      Unsaved changes
+                    </span>
+                  {:else if recipeSavedVersion}
                     <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#a6e3a1]/10 text-[#a6e3a1] font-medium">
                       Published v{recipeSavedVersion}
                     </span>
+                  {:else if recipeLastSaved}
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#89b4fa]/10 text-[#89b4fa] font-medium">
+                      Draft saved
+                    </span>
                   {:else}
                     <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#313244] text-[#585b70] font-medium">
-                      Draft (unpublished)
+                      New
                     </span>
-                  {/if}
-                  {#if recipeLastSaved}
-                    <span class="text-[9px] text-[#585b70]">saved {recipeLastSaved}</span>
                   {/if}
                 </div>
                 <!-- Right: actions + cursor -->
