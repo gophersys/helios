@@ -79,17 +79,27 @@
   let unsubscribeBuild: (() => void) | null = null;
   let terminalEl: HTMLDivElement | null = $state(null);
 
-  // Dynamic recipe analysis — updates as user types
+  // Dynamic recipe analysis — only matches actual calls, not comments
+  function hasCall(script: string, fn: string): boolean {
+    // Match function call at start of line (ignoring whitespace), not in comments
+    for (const line of script.split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('#')) continue; // skip comments
+      if (trimmed.includes(fn) && !trimmed.startsWith('#')) return true;
+    }
+    return false;
+  }
+
   const recipeChecks = $derived.by(() => {
     const r = recipe || '';
     return [
-      { label: 'Shebang (#!/bin/bash)', ok: r.includes('#!/bin/bash') || r.includes('#!/usr/bin/env bash'), required: true },
-      { label: 'Error handling (set -eo pipefail)', ok: r.includes('set -eo pipefail'), required: false },
-      { label: 'Source Concord SDK', ok: r.includes('concord-build.sh') || r.includes('concord_build'), required: true },
-      { label: 'Initialize (concord_init)', ok: r.includes('concord_init'), required: true },
-      { label: 'Collect HEX artifacts', ok: r.includes('concord_collect_hex'), required: false },
-      { label: 'Collect CFW artifacts', ok: r.includes('concord_collect_cfw'), required: false },
-      { label: 'Finalize (concord_finalize)', ok: r.includes('concord_finalize'), required: true },
+      { label: 'Shebang (#!/bin/bash)', ok: r.startsWith('#!/bin/bash') || r.startsWith('#!/usr/bin/env bash'), required: true },
+      { label: 'Error handling (set -eo pipefail)', ok: hasCall(r, 'set -eo pipefail'), required: false },
+      { label: 'Source Concord SDK', ok: hasCall(r, 'source') && hasCall(r, 'concord-build.sh'), required: true },
+      { label: 'Initialize (concord_init)', ok: hasCall(r, 'concord_init'), required: true },
+      { label: 'Collect HEX artifacts', ok: hasCall(r, 'concord_collect_hex'), required: false },
+      { label: 'Collect CFW artifacts', ok: hasCall(r, 'concord_collect_cfw'), required: false },
+      { label: 'Finalize (concord_finalize)', ok: hasCall(r, 'concord_finalize'), required: true },
     ];
   });
   const requiredChecksPassing = $derived(recipeChecks.filter((c) => c.required).every((c) => c.ok));
@@ -102,8 +112,8 @@
       role: t.role,
       soc: t.soc,
       appId: t.appId,
-      hasHex: recipe.includes(`${t.appId}`) && recipe.includes('collect_hex'),
-      hasCfw: recipe.includes(`${t.appId}`) && recipe.includes('collect_cfw'),
+      hasHex: hasCall(recipe, `concord_collect_hex`) && hasCall(recipe, `${t.appId}`),
+      hasCfw: hasCall(recipe, `concord_collect_cfw`) && hasCall(recipe, `${t.appId}`),
     }));
   });
 
@@ -219,18 +229,17 @@
     recipeSavedVersion = null;
     recipeLastSaved = null;
     try {
-      // Load latest version
-      const versionsRes = await apiFetch<ApiResponse<any[]>>(`/v2/products/${productId}/recipe/versions`);
+      // Load published recipe from MinIO (source of truth for builds)
+      const res = await apiFetch<ApiResponse<{ content: string }>>(`/v2/products/${productId}/recipe`);
+      const data = res.data as any;
+      recipe = data?.content ?? '';
+      if (typeof recipe !== 'string') recipe = '';
+
+      // Get latest version number for display
+      const versionsRes = await apiFetch<ApiResponse<any[]>>(`/v2/products/${productId}/recipe/versions?limit=1`);
       const versions = Array.isArray(versionsRes.data) ? versionsRes.data : (versionsRes.data as any)?.data ?? [];
       if (versions.length > 0) {
-        const latest = versions[0]; // sorted desc by version
-        recipe = latest.content ?? '';
-        recipeSavedVersion = latest.version;
-      } else {
-        // Fallback to the recipe endpoint
-        const res = await apiFetch<ApiResponse<{ content: string }>>(`/v2/products/${productId}/recipe`);
-        recipe = (res.data as any)?.content ?? res.data ?? '';
-        if (typeof recipe !== 'string') recipe = '';
+        recipeSavedVersion = versions[0].version;
       }
     } catch {
       recipe = '';
@@ -294,7 +303,7 @@
     error = null;
 
     try {
-      // Save recipe first
+      // Save draft first so build service gets the latest content
       if (recipeDirty) await saveRecipe();
 
       const res = await api.post(`/v2/products/${productId}/recipe/test-build`, {
@@ -408,22 +417,42 @@
   }
 
   async function saveRecipe(): Promise<void> {
+    // Save = overwrite the working draft in MinIO (no new version)
     if (!recipe.trim() || recipeSaving) return;
     recipeSaving = true;
     error = null;
     try {
-      const res = await api.post(`/v2/products/${productId}/recipe/save`, {
-        content: recipe,
-        changeNote: `Stage ${stage} ${stageName} recipe update`,
-      });
-      const data = (res as any).data ?? res;
-      recipeSavedVersion = data?.version ?? null;
+      await api.put(`/v2/products/${productId}/recipe`, { content: recipe });
       recipeLastSaved = new Date().toLocaleTimeString();
       recipeDirty = false;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to save recipe';
     } finally {
       recipeSaving = false;
+    }
+  }
+
+  let publishing = $state(false);
+
+  async function publishRecipe(): Promise<void> {
+    // Publish = save as a new numbered version (permanent snapshot)
+    if (!recipe.trim() || publishing) return;
+    publishing = true;
+    error = null;
+    try {
+      // Save draft first
+      if (recipeDirty) await saveRecipe();
+      // Then create a versioned snapshot
+      const res = await api.post(`/v2/products/${productId}/recipe/save`, {
+        content: recipe,
+        changeNote: `Published for Stage ${stage} ${stageName}`,
+      });
+      const data = (res as any).data ?? res;
+      recipeSavedVersion = data?.version ?? null;
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to publish recipe';
+    } finally {
+      publishing = false;
     }
   }
 
@@ -501,12 +530,9 @@
         await createStageConfig(productId, { stage, name: stageName, ...data });
       }
 
-      // Save recipe as a new version if it was modified but not yet saved
+      // Save recipe draft if modified (does NOT create a new version)
       if (recipeDirty && recipe.trim()) {
-        await api.post(`/v2/products/${productId}/recipe/save`, {
-          content: recipe,
-          changeNote: `Stage ${stage} ${stageName} — saved with config`,
-        });
+        await api.put(`/v2/products/${productId}/recipe`, { content: recipe });
       }
 
       onSaved();
@@ -816,8 +842,13 @@
                   </button>
                   <button onclick={saveRecipe} disabled={recipeSaving || !recipeDirty || !recipe.trim()}
                     class="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors disabled:opacity-25
-                      {recipeDirty ? 'text-[#89b4fa] hover:bg-[#89b4fa]/15' : 'text-[#585b70]'}" title="Ctrl+S">
+                      {recipeDirty ? 'text-[#89b4fa] hover:bg-[#89b4fa]/15' : 'text-[#585b70]'}" title="Save draft (Ctrl+S)">
                     {#if recipeSaving}<Loader2 size={10} class="animate-spin" />{:else}<FileCode size={10} />{/if} Save
+                  </button>
+                  <button onclick={publishRecipe} disabled={publishing || !recipe.trim()}
+                    class="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-[#a6e3a1] hover:bg-[#a6e3a1]/15 transition-colors disabled:opacity-25"
+                    title="Publish as new version (v{(recipeSavedVersion ?? 0) + 1})">
+                    {#if publishing}<Loader2 size={10} class="animate-spin" />{:else}<Check size={10} />{/if} Publish
                   </button>
                   <div class="w-px h-3 bg-[#313244] mx-0.5"></div>
                   <button

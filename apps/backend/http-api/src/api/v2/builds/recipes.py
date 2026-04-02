@@ -584,26 +584,8 @@ def test_recipe_build(product_id: str):
     if not revision:
         return bad_request("Board revision not found")
 
-    # Save recipe as a new version
-    user = getattr(g, "current_user", None)
-    user_id = user["sub"] if user else None
-
-    latest = db.recipeversion.find_first(
-        where={"productId": product_id},
-        order={"version": "desc"},
-    )
-    next_version = (latest.version + 1) if latest else 1
-
-    recipe_ver = db.recipeversion.create(data={
-        "productId": product_id,
-        "version": next_version,
-        "content": content,
-        "status": "draft",
-        "changeNote": f"Test build (v{next_version})",
-        "createdById": user_id,
-    })
-
-    # Also write to MinIO so the build service can fetch it
+    # Write recipe to MinIO so the build service can fetch it
+    # Does NOT create a version — test builds use the editor content directly
     try:
         storage = get_storage_client()
         bucket = get_bucket_name()
@@ -659,7 +641,6 @@ def test_recipe_build(product_id: str):
         "matrixLabel": "TEST_BUILD",
         "configFlags": Json({
             "test_build": True,
-            "recipe_version": next_version,
             "config_log": True,
             "produces_hex": True,
             "produces_cfw": False,
@@ -679,12 +660,10 @@ def test_recipe_build(product_id: str):
 
     log_audit("recipe.test_build", "BuildJob", build_job.id, {
         "productId": product_id,
-        "recipeVersion": next_version,
         "board": revision.ckBoardsName,
     })
 
     return jsonify(ApiResponse.ok({
         "buildJobId": build_job.id,
-        "recipeVersion": next_version,
         "board": revision.ckBoardsName,
     }).to_dict()), 201
