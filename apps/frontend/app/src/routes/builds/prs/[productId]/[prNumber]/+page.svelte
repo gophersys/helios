@@ -120,14 +120,14 @@
     return `https://bitbucket.org/${BITBUCKET_WORKSPACE}/${slug}/commits/${sha}`;
   }
 
-  // Auto-refresh while builds are active
+  // Auto-refresh: always poll to catch new commits + build progress
   let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
   onMount(() => {
     loadRuns();
     refreshInterval = setInterval(() => {
-      if (hasActiveBuilds) loadRuns();
-    }, 10000);
+      loadRuns();
+    }, 5000);
     return () => { if (refreshInterval) clearInterval(refreshInterval); };
   });
 </script>

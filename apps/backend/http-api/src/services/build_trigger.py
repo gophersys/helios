@@ -193,14 +193,25 @@ def trigger_stage_build(
     logger.info("Created BuildRun %s for %s stage %s (%d jobs)",
                 build_run.id, product.name, stage_config.name, len(build_defs))
 
-    # Create BuildJobs
+    # Create BuildJobs — with build cache check
+    from src.api.v2.builds.build_cache import compute_build_fingerprint, find_cached_build
+
     jobs_created = []
+    cached_count = 0
+
     for i, build_def in enumerate(build_defs):
         # Determine which repo to clone
         if build_def.fw_type == "mfg":
             repo_url = mfg_repo or fw_repo
         else:
             repo_url = fw_repo
+
+        # Determine git ref
+        git_ref = branch
+        if build_def.git_ref == "main":
+            git_ref = "main"
+        elif build_def.git_ref == "merge":
+            git_ref = branch
 
         # Determine initial status (version-bumped builds start BLOCKED)
         initial_status = "BLOCKED" if build_def.is_version_bump else "QUEUED"
@@ -212,46 +223,112 @@ def trigger_stage_build(
             if base_job:
                 base_job_id = base_job["id"]
 
-        # Determine git ref
-        git_ref = branch
-        if build_def.git_ref == "main":
-            git_ref = "main"
-        elif build_def.git_ref == "merge":
-            git_ref = branch  # In a PR context, this would be the merge commit
+        config_flags_dict = {
+            "config_log": getattr(build_def, "config_log", True),
+            "produces_hex": getattr(build_def, "produces_hex", True),
+            "produces_cfw": getattr(build_def, "produces_cfw", False),
+        }
 
-        job = db.buildjob.create(
-            data={
-                "productId": product_id,
-                "board": board,
-                "target": build_def.fw_type,
-                "variant": build_def.variant,
-                "branch": git_ref,
-                "status": initial_status,
-                "matrixLabel": build_def.label,
-                "matrixIndex": i,
-                "configFlags": Json({
-                    "config_log": getattr(build_def, "config_log", True),
-                    "produces_hex": getattr(build_def, "produces_hex", True),
-                    "produces_cfw": getattr(build_def, "produces_cfw", False),
-                }),
-                "versionBump": build_def.is_version_bump,
-                "baseJobId": base_job_id,
-                "buildRunId": build_run.id,
-                "webhookData": Json({
-                    "repoUrl": repo_url,
-                    "fwRepoUrl": fw_repo,
-                    "mfgRepoUrl": mfg_repo,
-                    "fwRepoSlug": product.fwRepoSlug,
-                    "mfgRepoSlug": product.mfgFwRepoSlug,
-                    "builderImage": builder_image,
-                    "signingKeyId": stage_config.signingKeyId,
-                    "signingKeyValue": stage_config.signingKey.value if stage_config.signingKey else None,
-                    "boardRevisionId": revision.id,
-                    "ckBoardsName": board,
-                }),
-            },
+        # Build cache: check if an identical build already exists
+        # Uses repo URL + commit SHA + board + variant + config flags
+        # For git_ref="main" builds, the commit is the mainline HEAD which
+        # doesn't change between PR commits — these get cached automatically.
+        cache_commit = commit_sha if build_def.git_ref == "pr" else git_ref
+        fingerprint = compute_build_fingerprint(
+            repo_url=repo_url,
+            commit_sha=cache_commit or "",
+            board=board,
+            variant=build_def.variant,
+            config_flags=config_flags_dict,
         )
+
+        cached_build = None
+        if not build_def.is_version_bump:
+            cached_build = find_cached_build(db, fingerprint)
+
+        if cached_build:
+            # Cache hit — create job as CACHED, reuse artifacts
+            job = db.buildjob.create(
+                data={
+                    "productId": product_id,
+                    "board": board,
+                    "target": build_def.fw_type,
+                    "variant": build_def.variant,
+                    "branch": git_ref,
+                    "status": "CACHED",
+                    "matrixLabel": build_def.label,
+                    "matrixIndex": i,
+                    "configFlags": Json(config_flags_dict),
+                    "buildFingerprint": fingerprint,
+                    "reusedFromId": cached_build.id,
+                    "versionString": cached_build.versionString,
+                    "versionBump": False,
+                    "buildRunId": build_run.id,
+                    "webhookData": Json({"cached": True, "reusedFrom": cached_build.id}),
+                },
+            )
+
+            # Copy artifacts from cached build
+            if cached_build.artifacts:
+                for art in cached_build.artifacts:
+                    db.buildartifact.create(
+                        data={
+                            "buildJobId": job.id,
+                            "name": art.name,
+                            "storageKey": art.storageKey,
+                            "sizeBytes": art.sizeBytes,
+                            "checksum": art.checksum,
+                            "role": art.role,
+                            "processor": art.processor,
+                            "artifactType": art.artifactType,
+                            "contentType": art.contentType,
+                        },
+                    )
+
+            cached_count += 1
+            logger.info("Build cache HIT: %s (%s) → reused from %s",
+                        build_def.label, fingerprint[:12], cached_build.id[:8])
+        else:
+            # Cache miss — create as normal QUEUED/BLOCKED job
+            job = db.buildjob.create(
+                data={
+                    "productId": product_id,
+                    "board": board,
+                    "target": build_def.fw_type,
+                    "variant": build_def.variant,
+                    "branch": git_ref,
+                    "status": initial_status,
+                    "matrixLabel": build_def.label,
+                    "matrixIndex": i,
+                    "configFlags": Json(config_flags_dict),
+                    "buildFingerprint": fingerprint,
+                    "versionBump": build_def.is_version_bump,
+                    "baseJobId": base_job_id,
+                    "buildRunId": build_run.id,
+                    "webhookData": Json({
+                        "repoUrl": repo_url,
+                        "fwRepoUrl": fw_repo,
+                        "mfgRepoUrl": mfg_repo,
+                        "fwRepoSlug": product.fwRepoSlug,
+                        "mfgRepoSlug": product.mfgFwRepoSlug,
+                        "builderImage": builder_image,
+                        "signingKeyId": stage_config.signingKeyId,
+                        "signingKeyValue": stage_config.signingKey.value if stage_config.signingKey else None,
+                        "boardRevisionId": revision.id,
+                        "ckBoardsName": board,
+                    }),
+                },
+            )
+
         jobs_created.append({"id": job.id, "matrixLabel": build_def.label})
+
+    if cached_count > 0:
+        # Update completed count for cached builds
+        db.buildrun.update(
+            where={"id": build_run.id},
+            data={"completedBuilds": cached_count},
+        )
+        logger.info("Build cache: %d/%d jobs cached (instant)", cached_count, len(build_defs))
 
     log_audit("buildRun.trigger", "BuildRun", build_run.id, {
         "product": product.name,
