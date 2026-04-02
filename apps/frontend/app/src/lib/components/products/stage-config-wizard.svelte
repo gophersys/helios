@@ -312,10 +312,16 @@
       unsubscribeBuild?.();
       unsubscribeBuild = subscribeCiBuild(testBuildId!, {
         onLog: (evt: CiBuildLogEvent) => {
-          const line = evt.line || evt.data || '';
-          testBuildLogs = [...testBuildLogs, line];
-          // Auto-scroll terminal
-          if (terminalEl) terminalEl.scrollTop = terminalEl.scrollHeight;
+          const chunk = evt.chunk || '';
+          // Split chunk into lines (build service sends multi-line chunks)
+          const lines = chunk.split('\n').filter((l) => l.length > 0);
+          if (lines.length > 0) {
+            testBuildLogs = [...testBuildLogs, ...lines];
+            // Auto-scroll terminal
+            requestAnimationFrame(() => {
+              if (terminalEl) terminalEl.scrollTop = terminalEl.scrollHeight;
+            });
+          }
         },
         onComplete: (evt: any) => {
           testBuildRunning = false;
@@ -340,24 +346,41 @@
 
   async function pollTestBuild() {
     if (!testBuildId) return;
+    let lastLogLength = 0;
+
     const poll = async () => {
       if (!testBuildRunning) return;
       try {
         const res = await apiFetch<ApiResponse<any>>(`/v2/builds/${testBuildId}`);
         const job = res.data;
+
+        // Pull logs from the build job if WebSocket isn't delivering them
+        if (job?.buildLog && job.buildLog.length > lastLogLength) {
+          const newChunk = job.buildLog.substring(lastLogLength);
+          lastLogLength = job.buildLog.length;
+          const lines = newChunk.split('\n').filter((l: string) => l.length > 0);
+          if (lines.length > 0) {
+            testBuildLogs = [...testBuildLogs, ...lines];
+            requestAnimationFrame(() => {
+              if (terminalEl) terminalEl.scrollTop = terminalEl.scrollHeight;
+            });
+          }
+        }
+
         if (job && (job.status === 'SUCCESS' || job.status === 'FAILED' || job.status === 'CANCELLED')) {
           testBuildRunning = false;
           testBuildStatus = job.status === 'SUCCESS' ? 'success' : 'failed';
-          if (testBuildLogs.length < 3) {
-            testBuildLogs = [...testBuildLogs, `\x1b[${job.status === 'SUCCESS' ? '32' : '31'}m▸ Build ${job.status}\x1b[0m`];
-          }
+          testBuildLogs = [...testBuildLogs, '', `\x1b[${job.status === 'SUCCESS' ? '32' : '31'}m▸ Build ${job.status}${job.durationSeconds ? ` (${job.durationSeconds}s)` : ''}\x1b[0m`];
+          requestAnimationFrame(() => {
+            if (terminalEl) terminalEl.scrollTop = terminalEl.scrollHeight;
+          });
           loadTestArtifacts();
           return;
         }
       } catch { /* ignore */ }
-      setTimeout(poll, 3000);
+      setTimeout(poll, 2000);
     };
-    setTimeout(poll, 5000);
+    setTimeout(poll, 3000);
   }
 
   async function loadTestArtifacts() {
