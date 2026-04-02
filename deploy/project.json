@@ -25,7 +25,7 @@
             "echo '    git-poller     → running'",
             "echo '    postgres       → localhost:5433'",
             "echo '    minio          → localhost:8675 (console: 8676)'",
-            "echo '    pypi           → localhost:8090'",
+            "echo '    pypi           → localhost:8091'",
             "echo ''",
             "echo '  Start UIs manually:'",
             "echo '    nx serve app   → localhost:4200'",

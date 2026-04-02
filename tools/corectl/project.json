@@ -25,9 +25,19 @@
       "defaultConfiguration": "development",
       "options": { "cwd": "tools/corectl" },
       "configurations": {
-        "development": { "command": "twine upload --repository-url http://localhost:8090 dist/*.whl" },
-        "staging": { "command": "twine upload --repository-url https://pypi.staging.concord.local dist/*.whl" },
-        "production": { "command": "twine upload --repository-url https://pypi.concord.local dist/*.whl" }
+        "development": { "command": "twine upload --repository-url http://localhost:8091 --username '' --password '' --disable-progress-bar dist/*.whl" },
+        "staging": { "commands": [
+          "kubectl port-forward -n staging svc/concord-pypi 18080:8080 &",
+          "sleep 2",
+          "twine upload --repository-url http://localhost:18080 --username '' --password '' --disable-progress-bar dist/*.whl",
+          "kill %1 2>/dev/null || true"
+        ] },
+        "production": { "commands": [
+          "kubectl port-forward -n production svc/concord-pypi 18081:8080 &",
+          "sleep 2",
+          "twine upload --repository-url http://localhost:18081 --username '' --password '' --disable-progress-bar dist/*.whl",
+          "kill %1 2>/dev/null || true"
+        ] }
       }
     },
     "serve": {

@@ -335,24 +335,30 @@ class BuildWorkerLoop:
                 return False
 
             # 4.5. Fetch product targets for SDK env vars (appId, role, processor)
+            # Only include targets from the revision matching the job's board name
             import json as _json
             targets_json = "[]"
             if product_id:
                 prod_result = self.client.api_get(f"/v2/products/{product_id}")
                 if prod_result and prod_result.get("data"):
                     prod_data = prod_result["data"]
+                    job_board = job.board  # e.g., "alpha_b0"
                     targets = []
                     for board in (prod_data.get("boards") or []):
                         for rev in (board.get("revisions") or []):
-                            for t in (rev.get("targets") or []):
-                                targets.append({
-                                    "role": t.get("role", ""),
-                                    "appId": t.get("appId", 0),
-                                    "processor": t.get("processor") or t.get("soc", ""),
-                                })
+                            # Only include targets from the matching board revision
+                            if rev.get("ckBoardsName") == job_board:
+                                for t in (rev.get("targets") or []):
+                                    targets.append({
+                                        "role": t.get("role", ""),
+                                        "appId": t.get("appId", 0),
+                                        "processor": t.get("processor") or t.get("soc", ""),
+                                    })
                     if targets:
                         targets_json = _json.dumps(targets)
-                        log.info("Product targets: %s", targets_json)
+                        log.info("Product targets for %s: %s", job_board, targets_json)
+                    else:
+                        log.warning("No targets found for board %s — check product revision config", job_board)
             if not job.config_flags:
                 job.config_flags = {}
             job.config_flags["_targets_json"] = targets_json

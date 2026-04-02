@@ -33,7 +33,7 @@ services:
   pypi:
     image: pypiserver/pypiserver:latest
     ports:
-      - "8090:8080"
+      - "8091:8080"
     volumes:
       - pypi_packages:/data/packages
     command: run -P . -a . /data/packages
@@ -55,7 +55,7 @@ services:
       STORAGE_ACCESS_KEY: concord
       STORAGE_SECRET_ACCESS_KEY: concordstorage!
       STORAGE_BUCKET_NAME: concord
-      PYPI_URL: http://pypi:8080/simple
+      PYPI_URL: http://pypi:8080
       JWT_SECRET_KEY: concord-dev-jwt-secret-change-in-production
       SERVER_PORT: "9001"
       LOG_LEVEL: "4"
