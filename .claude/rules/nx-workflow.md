@@ -12,13 +12,13 @@ Nx provides caching, dependency tracking, and parallel execution. Running raw co
 
 ```bash
 # Start development infrastructure (DB, MinIO, InfluxDB)
-./deploy/ctl.sh development up
+nx start platform
 
 # Run backend locally (after infra is up)
 npx nx serve http-api
 
 # Run frontend locally
-npx nx dev app
+npx nx serve app
 
 # Run both in parallel
 npx nx run-many -t serve dev -p http-api app

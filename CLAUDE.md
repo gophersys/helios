@@ -20,11 +20,11 @@ deploy/                          # Helm charts, Docker Compose, deployment CLI
 
 ```bash
 # Start development infrastructure
-./deploy/ctl.sh development up
+nx start platform
 
 # Run apps via Nx (after infra is up)
 npx nx serve http-api              # Backend on :9001
-npx nx dev app              # Frontend on :4200
+npx nx serve app              # Frontend on :4200
 
 # Tests and type checking
 npx nx test http-api
@@ -62,7 +62,7 @@ npx nx run database:migrate
 
 | Env | Purpose | Config Source | Command |
 |-----|---------|---------------|---------|
-| `development` | Local iteration | `.env` / Docker Compose | `./deploy/ctl.sh development up` + `npx nx serve` |
+| `development` | Local iteration | `.env` / Docker Compose | `nx start platform` + `npx nx serve` |
 | `staging` | Pre-prod validation | `deploy/helm/values-staging.yaml` | `./deploy/ctl.sh staging deploy` |
 | `production` | Live system | `deploy/helm/values-production.yaml` | `./deploy/ctl.sh production deploy` |
 

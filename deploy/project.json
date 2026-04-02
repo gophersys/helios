@@ -28,7 +28,7 @@
             "echo '    pypi           → localhost:8090'",
             "echo ''",
             "echo '  Start UIs manually:'",
-            "echo '    nx dev app     → localhost:4200'",
+            "echo '    nx serve app   → localhost:4200'",
             "echo '    nx serve docs  → localhost:4000'"
           ]
         },

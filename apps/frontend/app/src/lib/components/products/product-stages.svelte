@@ -211,6 +211,7 @@
   config={wizardConfig}
   targetRevision={wizardRevision}
   {productId}
+  {fwRepoSlug}
   {revisions}
   {secrets}
   onClose={() => (wizardOpen = false)}

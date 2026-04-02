@@ -22,11 +22,11 @@ Concord runs in **three environments**: `development`, `staging`, `production`. 
 
 ```bash
 # 1. Start infrastructure (DB, MinIO, InfluxDB)
-./deploy/ctl.sh development up
+nx start platform
 
 # 2. Run apps via Nx
 npx nx serve http-api         # Backend on :9001
-npx nx dev app         # Frontend on :4200
+npx nx serve app         # Frontend on :4200
 ```
 
 ## Wiring Config Fields End-to-End

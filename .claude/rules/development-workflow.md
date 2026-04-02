@@ -6,7 +6,7 @@ Three environments, strict promotion gates, quality checks at each stage.
 
 | Environment | Purpose | Infrastructure | Deploy Method |
 |------------|---------|---------------|---------------|
-| **Development** | Local testing, fast iteration | Docker Compose | `./deploy/ctl.sh development up` |
+| **Development** | Local testing, fast iteration | Docker Compose | `nx start platform` |
 | **Staging** | Integration testing, pre-prod validation | Kubernetes | `./deploy/ctl.sh staging deploy` |
 | **Production** | Live system | Kubernetes | `./deploy/ctl.sh production deploy` |
 
@@ -18,11 +18,11 @@ Three environments, strict promotion gates, quality checks at each stage.
 
 ```bash
 # 1. Start infrastructure (DB, MinIO, InfluxDB)
-./deploy/ctl.sh development up
+nx start platform
 
 # 2. Run apps via Nx
 npx nx serve http-api        # Backend on :9001
-npx nx dev app        # Frontend on :4200
+npx nx serve app        # Frontend on :4200
 ```
 
 ### Before Committing
@@ -137,10 +137,10 @@ helm rollback concord -n production
 
 | Action | Command |
 |--------|---------|
-| Start dev infra | `./deploy/ctl.sh development up` |
-| Stop dev infra | `./deploy/ctl.sh development down` |
+| Start dev infra | `nx start platform` |
+| Stop dev infra | `nx stop platform` |
 | Run backend | `npx nx serve http-api` |
-| Run frontend | `npx nx dev app` |
+| Run frontend | `npx nx serve app` |
 | Run tests | `npx nx test http-api` |
 | Type check | `npx nx typecheck http-api` |
 | Build staging | `npx nx run http-api:containerize -c staging` |

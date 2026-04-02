@@ -6,7 +6,7 @@
   import {
     ChevronRight, ChevronLeft, Check, CircuitBoard, GitBranch, Key,
     Zap, Clock, Hand, GitPullRequest, GitMerge, Loader2, FlaskConical,
-    FileCode, AlertTriangle, ShieldAlert,
+    FileCode, ShieldAlert, ChevronDown, RefreshCw,
   } from 'lucide-svelte';
   import type { ProductStageConfig, Secret } from '$lib/types/stages';
   import { STAGE_NAMES, STAGE_DESCRIPTIONS } from '$lib/types/stages';
@@ -18,11 +18,10 @@
   interface Props {
     open: boolean;
     stage: number;
-    /** Existing config for this stage+revision combo, or undefined for new */
     config: ProductStageConfig | undefined;
-    /** Pre-selected revision (from the stages tab grouping) */
     targetRevision: BoardRevision | null;
     productId: string;
+    fwRepoSlug: string;
     revisions: BoardRevision[];
     secrets: Secret[];
     onClose: () => void;
@@ -31,7 +30,7 @@
 
   let {
     open, stage, config, targetRevision,
-    productId, revisions, secrets, onClose, onSaved,
+    productId, fwRepoSlug, revisions, secrets, onClose, onSaved,
   }: Props = $props();
 
   // ── Wizard state ───────────────────────────────────────
@@ -39,29 +38,37 @@
   let saving = $state(false);
   let error = $state<string | null>(null);
 
-  // Step 1: Target & Config
+  // Step 1
   let formRevisionId = $state('');
   let formBranch = $state('main');
   let formTriggerTypes = $state<string[]>(['manual']);
+  let formCronExpression = $state('0 2 * * *'); // default: 2am daily
 
-  // Step 2: Signing
+  // Step 2
   let formSigningKeyId = $state('');
 
-  // Step 3: Build recipe
+  // Step 3
   let recipe = $state('');
   let recipeLoading = $state(false);
   let recipeDirty = $state(false);
+
+  // Branch loading
+  let branches = $state<string[]>([]);
+  let branchesLoading = $state(false);
 
   const stageName = $derived(STAGE_NAMES[stage] || `Stage ${stage}`);
   const stageDesc = $derived(STAGE_DESCRIPTIONS[stage] || '');
   const signingKeys = $derived(secrets.filter((s) => s.type === 'signing_key'));
   const selectedRevision = $derived(revisions.find((r) => r.id === formRevisionId));
   const selectedKey = $derived(secrets.find((s) => s.id === formSigningKeyId));
+  const hasSchedule = $derived(formTriggerTypes.includes('schedule'));
+
+  // Revision is locked when the wizard was opened from a specific revision row
+  const revisionLocked = $derived(!!targetRevision);
 
   // Step gating
   const step1Valid = $derived(!!formRevisionId && formBranch.trim().length > 0);
   const step2Valid = $derived(signingKeys.length === 0 || !!formSigningKeyId);
-  const step2Required = $derived(signingKeys.length > 0);
 
   const triggerOptions = [
     { value: 'pr_push', label: 'Pull Request', icon: GitPullRequest, desc: 'Run when a PR targeting the branch is opened or updated' },
@@ -81,20 +88,38 @@
       currentStep = 1;
       error = null;
       recipeDirty = false;
+
+      // Lock to target revision if provided
+      formRevisionId = targetRevision?.id || config?.boardRevisionId || revisions.find((r) => r.status === 'ACTIVE')?.id || '';
+
       if (config) {
-        formRevisionId = config.boardRevisionId || targetRevision?.id || '';
         formBranch = config.watchBranch || 'main';
         formTriggerTypes = config.triggerTypes?.length ? [...config.triggerTypes] : defaultTriggers[stage] || ['manual'];
         formSigningKeyId = config.signingKeyId || '';
       } else {
-        formRevisionId = targetRevision?.id || revisions.find((r) => r.status === 'ACTIVE')?.id || '';
         formBranch = 'main';
         formTriggerTypes = defaultTriggers[stage] || ['manual'];
         formSigningKeyId = '';
       }
+
+      loadBranches();
       loadRecipe();
     }
   });
+
+  async function loadBranches() {
+    if (!fwRepoSlug) return;
+    branchesLoading = true;
+    try {
+      const res = await apiFetch<ApiResponse<{ branches: string[] }>>(`/v2/products/repos/branches?slug=${fwRepoSlug}`);
+      const data = res.data as any;
+      branches = data?.branches ?? [];
+    } catch {
+      branches = [];
+    } finally {
+      branchesLoading = false;
+    }
+  }
 
   async function loadRecipe() {
     recipeLoading = true;
@@ -143,11 +168,7 @@
       if (config) {
         await updateStageConfig(productId, stage, data);
       } else {
-        await createStageConfig(productId, {
-          stage,
-          name: stageName,
-          ...data,
-        });
+        await createStageConfig(productId, { stage, name: stageName, ...data });
       }
 
       if (recipeDirty && recipe.trim()) {
@@ -185,7 +206,7 @@
         <p class="text-sm text-text-tertiary">{stageDesc}</p>
       </div>
       {#if selectedRevision}
-        <div class="flex items-center gap-2 rounded-lg border border-border bg-surface-0 px-3 py-2">
+        <div class="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-muted px-3 py-2">
           <CircuitBoard size={14} class="text-accent" />
           <span class="text-sm font-semibold text-text-primary">{selectedRevision.version}</span>
           <span class="font-mono text-2xs text-text-tertiary">{selectedRevision.ckBoardsName}</span>
@@ -222,60 +243,94 @@
       {/each}
     </div>
 
-    <!-- Content area (scrollable) -->
+    <!-- Content area -->
     <div class="flex-1 overflow-y-auto px-8 py-6">
       <ErrorAlert message={error} />
 
       {#if currentStep === 1}
-        <!-- ═══ STEP 1: Target & Triggers ═══ -->
         <div class="max-w-3xl space-y-6">
-          <!-- Target revision -->
+          <!-- Target revision (locked or selectable) -->
           <div>
             <h3 class="text-sm font-semibold text-text-primary mb-1">Target Hardware Revision</h3>
-            <p class="text-2xs text-text-tertiary mb-3">Which board revision to build firmware for and test against.</p>
-            <div class="grid gap-2 sm:grid-cols-2">
-              {#each revisions.filter(r => r.status === 'ACTIVE' || r.status === 'DRAFT') as rev}
-                <button
-                  onclick={() => (formRevisionId = rev.id)}
-                  class="flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-all
-                    {formRevisionId === rev.id ? 'border-accent bg-accent-muted shadow-sm' : 'border-border bg-surface-0 hover:border-text-tertiary'}"
-                >
-                  <CircuitBoard size={20} class={formRevisionId === rev.id ? 'text-accent' : 'text-text-tertiary'} />
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                      <span class="text-sm font-bold text-text-primary">{rev.version}</span>
-                      <StatusBadge status={rev.status} />
-                    </div>
-                    <div class="font-mono text-2xs text-text-tertiary">{rev.ckBoardsName}</div>
-                    {#if rev.targets?.length}
-                      <div class="mt-1.5 flex flex-wrap gap-1.5">
-                        {#each rev.targets as t}
-                          <span class="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">{t.role}: {t.soc}</span>
-                        {/each}
-                      </div>
-                    {/if}
+            {#if revisionLocked && selectedRevision}
+              <!-- Locked — show confirmed revision -->
+              <div class="flex items-center gap-3 rounded-lg border-2 border-accent bg-accent-muted p-4">
+                <CircuitBoard size={20} class="text-accent" />
+                <div class="flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-text-primary">{selectedRevision.version}</span>
+                    <StatusBadge status={selectedRevision.status} />
+                    <span class="font-mono text-2xs text-text-tertiary">{selectedRevision.ckBoardsName}</span>
                   </div>
-                  {#if formRevisionId === rev.id}
-                    <Check size={18} class="text-accent shrink-0" />
+                  {#if selectedRevision.targets?.length}
+                    <div class="mt-1 flex gap-2">
+                      {#each selectedRevision.targets as t}
+                        <span class="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">{t.role}: {t.soc}</span>
+                      {/each}
+                    </div>
                   {/if}
-                </button>
-              {/each}
-            </div>
+                </div>
+                <Check size={18} class="text-accent" />
+              </div>
+            {:else}
+              <!-- Selectable -->
+              <p class="text-2xs text-text-tertiary mb-3">Which board revision to build firmware for and test against.</p>
+              <div class="grid gap-2 sm:grid-cols-2">
+                {#each revisions.filter(r => r.status === 'ACTIVE' || r.status === 'DRAFT') as rev}
+                  <button
+                    onclick={() => (formRevisionId = rev.id)}
+                    class="flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-all
+                      {formRevisionId === rev.id ? 'border-accent bg-accent-muted shadow-sm' : 'border-border bg-surface-0 hover:border-text-tertiary'}"
+                  >
+                    <CircuitBoard size={20} class={formRevisionId === rev.id ? 'text-accent' : 'text-text-tertiary'} />
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm font-bold text-text-primary">{rev.version}</span>
+                        <StatusBadge status={rev.status} />
+                      </div>
+                      <div class="font-mono text-2xs text-text-tertiary">{rev.ckBoardsName}</div>
+                    </div>
+                    {#if formRevisionId === rev.id}
+                      <Check size={18} class="text-accent shrink-0" />
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+            {/if}
           </div>
 
-          <!-- Watch branch -->
+          <!-- Watch branch — dropdown from repo -->
           <div>
             <h3 class="text-sm font-semibold text-text-primary mb-1">Watch Branch</h3>
-            <p class="text-2xs text-text-tertiary mb-3">Git branch to monitor for changes. PRs targeting this branch will trigger builds.</p>
+            <p class="text-2xs text-text-tertiary mb-3">Git branch to monitor. PRs targeting this branch will trigger builds.</p>
             <div class="flex items-center gap-3 max-w-md">
               <GitBranch size={18} class="text-text-tertiary shrink-0" />
-              <input
-                type="text"
-                bind:value={formBranch}
-                placeholder="e.g. main, develop, concord-main"
-                class="w-full rounded-lg border border-border bg-surface-0 px-4 py-2.5 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-              />
+              {#if branchesLoading}
+                <div class="flex items-center gap-2 text-sm text-text-tertiary">
+                  <Loader2 size={14} class="animate-spin" /> Loading branches...
+                </div>
+              {:else if branches.length > 0}
+                <select
+                  bind:value={formBranch}
+                  class="w-full rounded-lg border border-border bg-surface-0 px-4 py-2.5 text-sm font-mono text-text-primary focus:border-accent focus:outline-none appearance-none"
+                >
+                  {#each branches as branch}
+                    <option value={branch}>{branch}</option>
+                  {/each}
+                </select>
+              {:else}
+                <!-- Fallback to text input if repo not configured or no branches -->
+                <input
+                  type="text"
+                  bind:value={formBranch}
+                  placeholder="e.g. main, master, concord-main"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-4 py-2.5 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                />
+              {/if}
             </div>
+            {#if !fwRepoSlug}
+              <p class="mt-1.5 text-2xs text-warning">No firmware repo configured — set it in the product settings to see available branches.</p>
+            {/if}
           </div>
 
           <!-- Triggers -->
@@ -304,12 +359,28 @@
                 </button>
               {/each}
             </div>
+
+            <!-- Cron expression (if schedule selected) -->
+            {#if hasSchedule}
+              <div class="mt-4 ml-14 max-w-md">
+                <label class="block">
+                  <span class="mb-1 block text-2xs font-medium text-text-tertiary">Cron Expression</span>
+                  <input
+                    type="text"
+                    bind:value={formCronExpression}
+                    placeholder="0 2 * * *"
+                    class="w-full rounded-lg border border-border bg-surface-0 px-4 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                  />
+                  <span class="mt-1 block text-2xs text-text-tertiary">Default: <code class="bg-surface-2 px-1 rounded">0 2 * * *</code> (daily at 2:00 AM UTC)</span>
+                </label>
+              </div>
+            {/if}
           </div>
         </div>
 
       {:else if currentStep === 2}
-        <!-- ═══ STEP 2: Signing Key ═══ -->
-        <div class="max-w-3xl space-y-6">
+        <!-- Step 2: Signing Key (unchanged) -->
+        <div class="max-w-3xl space-y-4">
           <div>
             <h3 class="text-sm font-semibold text-text-primary mb-1">Signing Key</h3>
             <p class="text-2xs text-text-tertiary mb-3">
@@ -325,7 +396,6 @@
               </div>
               <p class="text-sm text-text-secondary">
                 Go to <strong>Settings → Secrets</strong> to add a signing key before you can enable builds for this stage.
-                Without a signing key, firmware cannot be signed and devices will reject it.
               </p>
             </div>
           {:else}
@@ -355,16 +425,15 @@
         </div>
 
       {:else if currentStep === 3}
-        <!-- ═══ STEP 3: Build Recipe ═══ -->
+        <!-- Step 3: Build Recipe -->
         <div class="space-y-4">
           <div class="flex items-center justify-between">
             <div>
               <h3 class="text-sm font-semibold text-text-primary">Build Recipe</h3>
               <p class="text-2xs text-text-tertiary mt-0.5">
-                Bash script using the Concord Build SDK. Uses
-                <code class="font-mono bg-surface-2 px-1 rounded text-accent">concord_init</code>,
+                Bash script using the Concord Build SDK (<code class="font-mono bg-surface-2 px-1 rounded text-accent">concord_init</code>,
                 <code class="font-mono bg-surface-2 px-1 rounded text-accent">concord_collect_hex</code>,
-                <code class="font-mono bg-surface-2 px-1 rounded text-accent">concord_finalize</code>.
+                <code class="font-mono bg-surface-2 px-1 rounded text-accent">concord_finalize</code>).
               </p>
             </div>
             {#if recipeDirty}
@@ -396,10 +465,9 @@
         </div>
 
       {:else if currentStep === 4}
-        <!-- ═══ STEP 4: Review ═══ -->
+        <!-- Step 4: Review -->
         <div class="max-w-3xl space-y-6">
           <h3 class="text-sm font-semibold text-text-primary">Review Configuration</h3>
-          <p class="text-2xs text-text-tertiary">Verify your stage settings before saving.</p>
 
           <div class="rounded-xl border border-border overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-surface-0/50">
@@ -423,7 +491,13 @@
                 {/each}
               </div>
             </div>
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle">
+            {#if hasSchedule}
+              <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle">
+                <span class="text-sm text-text-secondary">Cron Schedule</span>
+                <span class="font-mono text-sm text-text-primary">{formCronExpression}</span>
+              </div>
+            {/if}
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle {hasSchedule ? 'bg-surface-0/50' : ''}">
               <span class="text-sm text-text-secondary">Signing Key</span>
               <span class="text-sm font-medium text-text-primary">{selectedKey?.name || 'None'}</span>
             </div>
@@ -453,7 +527,7 @@
 
       <div class="flex items-center gap-3">
         {#if currentStep === 1 && !step1Valid}
-          <span class="text-2xs text-text-tertiary">Select a revision and branch to continue</span>
+          <span class="text-2xs text-text-tertiary">Select a branch to continue</span>
         {/if}
         {#if currentStep === 2 && !step2Valid}
           <span class="text-2xs text-warning">A signing key is required</span>
