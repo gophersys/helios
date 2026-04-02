@@ -462,10 +462,17 @@ class BuildWorkerLoop:
                                    f"Failed to pull builder image: {builder_image}")
                     return False
 
-                # Store primary slug in config_flags for executor's Docker path mapping
+                # Store builder image and primary slug in config_flags
                 if not job.config_flags:
                     job.config_flags = {}
                 job.config_flags["_primary_slug"] = primary_slug
+                job.config_flags["_builder_image"] = builder_image
+
+                # Write builder image to the job record so the UI can display it
+                self.client.api_patch(f"/v2/builds/{job.id}", {
+                    "configFlags": job.config_flags,
+                })
+                log.info("Builder image: %s", builder_image)
 
             # 7. Run build
             self.update_job(job.id, "BUILDING")

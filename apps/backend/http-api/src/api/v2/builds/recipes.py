@@ -689,7 +689,14 @@ def test_recipe_build(product_id: str):
         "board": revision.ckBoardsName,
     })
 
+    # Resolve container image from product config or devcontainer.json
+    container_image = product.builderImage or None
+    if not container_image and product.fwRepoSlug:
+        # Try to read from the cloned repo's devcontainer.json via build service
+        container_image = "Resolved from devcontainer.json at build time"
+
     return jsonify(ApiResponse.ok({
         "buildJobId": build_job.id,
         "board": revision.ckBoardsName,
+        "containerImage": container_image or "Default NCS builder",
     }).to_dict()), 201

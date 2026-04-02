@@ -352,14 +352,12 @@
       testBuildStarting = false;
 
       const rev = selectedRevision;
-      // Get container image from product config or default
-      const containerImage = 'From devcontainer.json (resolved at build time)';
       testBuildLogs = [
         `\x1b[36m▸ Test build started\x1b[0m`,
         `\x1b[36m  Board:      \x1b[0m${data.board}`,
         `\x1b[36m  Revision:   \x1b[0m${rev?.version ?? '?'} (${rev?.ckBoardsName ?? '?'})`,
         `\x1b[36m  Targets:    \x1b[0m${rev?.targets?.map((t: any) => `${t.role}:${t.soc} (AppID ${t.appId})`).join(', ') ?? 'none'}`,
-        `\x1b[36m  Container:  \x1b[0m${containerImage}`,
+        `\x1b[36m  Container:  \x1b[0mResolving...`,
         `\x1b[36m  Source:     \x1b[0mDraft (editor content)`,
         `\x1b[36m  Job:        \x1b[0m${newBuildId}`,
         '',
@@ -411,6 +409,14 @@
 
         // Guard again after async
         if (testBuildId !== buildId) return;
+
+        // Update container image in terminal header when resolved
+        const configFlags = typeof job?.configFlags === 'string' ? JSON.parse(job.configFlags) : job?.configFlags;
+        const builderImage = configFlags?._builder_image;
+        if (builderImage && testBuildLogs[4]?.includes('Resolving...')) {
+          testBuildLogs[4] = `\x1b[36m  Container:  \x1b[0m${builderImage}`;
+          testBuildLogs = [...testBuildLogs]; // trigger reactivity
+        }
 
         // Pull logs if WebSocket isn't delivering them
         if (job?.buildLog && job.buildLog.length > lastLogLength) {
