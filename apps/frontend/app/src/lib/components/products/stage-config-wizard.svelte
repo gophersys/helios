@@ -6,7 +6,7 @@
   import {
     ChevronRight, ChevronLeft, Check, CircuitBoard, GitBranch, Key,
     Zap, Clock, Hand, GitPullRequest, GitMerge, Loader2, FlaskConical,
-    FileCode, ShieldAlert, ChevronDown, RefreshCw,
+    FileCode, ShieldAlert, ChevronDown, RefreshCw, Power, AlertTriangle, X,
   } from 'lucide-svelte';
   import type { ProductStageConfig, Secret } from '$lib/types/stages';
   import { STAGE_NAMES, STAGE_DESCRIPTIONS } from '$lib/types/stages';
@@ -38,11 +38,18 @@
   let saving = $state(false);
   let error = $state<string | null>(null);
 
+  // Disable confirmation
+  let showDisableConfirm = $state(false);
+  let disableConfirmText = $state('');
+  let disabling = $state(false);
+  const disablePhrase = $derived(`disable ${stageName.toLowerCase()}`);
+  const canDisable = $derived(disableConfirmText.toLowerCase() === disablePhrase);
+
   // Step 1
   let formRevisionId = $state('');
   let formBranch = $state('main');
   let formTriggerTypes = $state<string[]>(['manual']);
-  let formCronExpression = $state('0 2 * * *'); // default: 2am daily
+  let formCronExpression = $state('0 2 * * *');
 
   // Step 2
   let formSigningKeyId = $state('');
@@ -153,6 +160,23 @@
     if (currentStep > 1) currentStep--;
   }
 
+  async function handleDisable(): Promise<void> {
+    if (!canDisable || !config) return;
+    disabling = true;
+    error = null;
+    try {
+      await updateStageConfig(productId, stage, { enabled: false });
+      showDisableConfirm = false;
+      disableConfirmText = '';
+      onSaved();
+      onClose();
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to disable stage';
+    } finally {
+      disabling = false;
+    }
+  }
+
   async function handleSave(): Promise<void> {
     saving = true;
     error = null;
@@ -205,13 +229,24 @@
         </h2>
         <p class="text-sm text-text-tertiary">{stageDesc}</p>
       </div>
-      {#if selectedRevision}
-        <div class="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-muted px-3 py-2">
-          <CircuitBoard size={14} class="text-accent" />
-          <span class="text-sm font-semibold text-text-primary">{selectedRevision.version}</span>
-          <span class="font-mono text-2xs text-text-tertiary">{selectedRevision.ckBoardsName}</span>
-        </div>
-      {/if}
+      <div class="flex items-center gap-3">
+        {#if selectedRevision}
+          <div class="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-muted px-3 py-2">
+            <CircuitBoard size={14} class="text-accent" />
+            <span class="text-sm font-semibold text-text-primary">{selectedRevision.version}</span>
+            <span class="font-mono text-2xs text-text-tertiary">{selectedRevision.ckBoardsName}</span>
+          </div>
+        {/if}
+        {#if config?.enabled}
+          <button
+            onclick={() => { showDisableConfirm = true; disableConfirmText = ''; }}
+            class="flex items-center gap-2 rounded-lg border-2 border-error/30 bg-error-muted px-4 py-2 text-sm font-medium text-error hover:bg-error/15 transition-colors"
+          >
+            <Power size={16} />
+            Disable Stage
+          </button>
+        {/if}
+      </div>
     </div>
 
     <!-- Step indicator -->
@@ -341,40 +376,56 @@
               {#each triggerOptions as opt}
                 {@const TIcon = opt.icon}
                 {@const active = formTriggerTypes.includes(opt.value)}
-                <button
-                  onclick={() => toggleTrigger(opt.value)}
-                  class="flex w-full items-center gap-4 rounded-lg border-2 px-4 py-3 text-left transition-all
-                    {active ? 'border-accent bg-accent-muted' : 'border-border bg-surface-0 hover:border-text-tertiary'}"
-                >
-                  <div class="flex items-center justify-center w-9 h-9 rounded-lg {active ? 'bg-accent/15' : 'bg-surface-2'}">
-                    <TIcon size={18} class={active ? 'text-accent' : 'text-text-tertiary'} />
-                  </div>
-                  <div class="flex-1">
-                    <div class="text-sm font-medium text-text-primary">{opt.label}</div>
-                    <div class="text-2xs text-text-tertiary">{opt.desc}</div>
-                  </div>
-                  {#if active}
-                    <Check size={16} class="text-accent shrink-0" />
+                <div>
+                  <button
+                    onclick={() => toggleTrigger(opt.value)}
+                    class="flex w-full items-center gap-4 rounded-lg border-2 px-4 py-3 text-left transition-all
+                      {active ? 'border-accent bg-accent-muted rounded-b-none' : 'border-border bg-surface-0 hover:border-text-tertiary'}
+                      {active && opt.value === 'schedule' ? 'border-b-0' : ''}
+                      {active && opt.value === 'pr_push' ? 'border-b-0' : ''}"
+                  >
+                    <div class="flex items-center justify-center w-9 h-9 rounded-lg {active ? 'bg-accent/15' : 'bg-surface-2'}">
+                      <TIcon size={18} class={active ? 'text-accent' : 'text-text-tertiary'} />
+                    </div>
+                    <div class="flex-1">
+                      <div class="text-sm font-medium text-text-primary">{opt.label}</div>
+                      <div class="text-2xs text-text-tertiary">{opt.desc}</div>
+                    </div>
+                    {#if active}
+                      <Check size={16} class="text-accent shrink-0" />
+                    {/if}
+                  </button>
+
+                  <!-- Inline settings per trigger -->
+                  {#if active && opt.value === 'schedule'}
+                    <div class="border-2 border-t-0 border-accent bg-accent-muted rounded-b-lg px-4 py-3 ml-0">
+                      <label class="block">
+                        <span class="mb-1 block text-2xs font-medium text-text-primary">Cron Expression</span>
+                        <input
+                          type="text"
+                          bind:value={formCronExpression}
+                          placeholder="0 2 * * *"
+                          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                        />
+                        <span class="mt-1 block text-2xs text-text-tertiary">
+                          Examples: <code class="bg-surface-2 px-1 rounded">0 2 * * *</code> daily 2am ·
+                          <code class="bg-surface-2 px-1 rounded">0 */6 * * *</code> every 6h ·
+                          <code class="bg-surface-2 px-1 rounded">0 0 * * 1</code> weekly Monday
+                        </span>
+                      </label>
+                    </div>
                   {/if}
-                </button>
+
+                  {#if active && opt.value === 'pr_push'}
+                    <div class="border-2 border-t-0 border-accent bg-accent-muted rounded-b-lg px-4 py-3">
+                      <span class="text-2xs text-text-secondary">
+                        Builds will trigger when PRs target the <strong class="font-mono text-text-primary">{formBranch || 'selected'}</strong> branch above.
+                      </span>
+                    </div>
+                  {/if}
+                </div>
               {/each}
             </div>
-
-            <!-- Cron expression (if schedule selected) -->
-            {#if hasSchedule}
-              <div class="mt-4 ml-14 max-w-md">
-                <label class="block">
-                  <span class="mb-1 block text-2xs font-medium text-text-tertiary">Cron Expression</span>
-                  <input
-                    type="text"
-                    bind:value={formCronExpression}
-                    placeholder="0 2 * * *"
-                    class="w-full rounded-lg border border-border bg-surface-0 px-4 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-                  />
-                  <span class="mt-1 block text-2xs text-text-tertiary">Default: <code class="bg-surface-2 px-1 rounded">0 2 * * *</code> (daily at 2:00 AM UTC)</span>
-                </label>
-              </div>
-            {/if}
           </div>
         </div>
 
@@ -558,3 +609,56 @@
     </div>
   </div>
 </Modal>
+
+<!-- Disable confirmation dialog (AWS-style) -->
+{#if showDisableConfirm}
+  <div class="fixed inset-0 z-[500] flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-overlay" onclick={() => { showDisableConfirm = false; }} role="presentation" tabindex="-1"></div>
+    <div class="relative w-full max-w-md rounded-xl border border-border bg-surface-1 shadow-2xl" role="dialog" aria-modal="true">
+      <div class="flex items-center justify-between border-b border-border px-5 py-4">
+        <div class="flex items-center gap-3">
+          <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-error-muted">
+            <AlertTriangle size={20} class="text-error" />
+          </div>
+          <h2 class="text-sm font-semibold text-text-primary">Disable Stage {stage}: {stageName}</h2>
+        </div>
+        <button onclick={() => { showDisableConfirm = false; }} class="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-2 hover:text-text-primary">
+          <X size={20} />
+        </button>
+      </div>
+      <div class="p-5">
+        <p class="mb-4 text-sm text-text-secondary">
+          This will disable all builds and validation runs for <strong class="text-text-primary">{stageName}</strong>
+          {#if selectedRevision}
+            on <strong class="text-text-primary">{selectedRevision.version}</strong>
+          {/if}.
+          Existing data will be preserved but no new runs will be triggered.
+        </p>
+        <label for="disable-confirm-input" class="mb-1 block text-2xs font-medium text-text-tertiary">
+          Type <span class="font-mono text-error">{disablePhrase}</span> to confirm
+        </label>
+        <input
+          id="disable-confirm-input"
+          type="text"
+          bind:value={disableConfirmText}
+          onkeydown={(e) => { if (e.key === 'Enter' && canDisable) handleDisable(); }}
+          placeholder={disablePhrase}
+          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          autofocus
+        />
+      </div>
+      <div class="flex justify-end gap-2 border-t border-border px-5 py-4">
+        <button onclick={() => { showDisableConfirm = false; }} class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2">
+          Cancel
+        </button>
+        <button
+          onclick={handleDisable}
+          disabled={!canDisable || disabling}
+          class="rounded-lg bg-error px-4 py-2 text-sm font-medium text-white hover:bg-error-hover disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {disabling ? 'Disabling...' : 'Disable Stage'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
