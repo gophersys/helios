@@ -58,6 +58,9 @@
   let recipe = $state('');
   let recipeLoading = $state(false);
   let recipeDirty = $state(false);
+  let recipeSaving = $state(false);
+  let recipeSavedVersion = $state<number | null>(null);
+  let recipeLastSaved = $state<string | null>(null);
   let recipeValidating = $state(false);
   let recipeValidation = $state<{ valid: boolean; errors: string[]; warnings: string[] } | null>(null);
   let cursorLine = $state(1);
@@ -200,10 +203,22 @@
 
   async function loadRecipe() {
     recipeLoading = true;
+    recipeSavedVersion = null;
+    recipeLastSaved = null;
     try {
-      const res = await apiFetch<ApiResponse<{ content: string }>>(`/v2/products/${productId}/recipe`);
-      recipe = (res.data as any)?.content ?? res.data ?? '';
-      if (typeof recipe !== 'string') recipe = '';
+      // Load latest version
+      const versionsRes = await apiFetch<ApiResponse<any[]>>(`/v2/products/${productId}/recipe/versions`);
+      const versions = Array.isArray(versionsRes.data) ? versionsRes.data : (versionsRes.data as any)?.data ?? [];
+      if (versions.length > 0) {
+        const latest = versions[0]; // sorted desc by version
+        recipe = latest.content ?? '';
+        recipeSavedVersion = latest.version;
+      } else {
+        // Fallback to the recipe endpoint
+        const res = await apiFetch<ApiResponse<{ content: string }>>(`/v2/products/${productId}/recipe`);
+        recipe = (res.data as any)?.content ?? res.data ?? '';
+        if (typeof recipe !== 'string') recipe = '';
+      }
     } catch {
       recipe = '';
     } finally {
@@ -254,6 +269,33 @@
         { label: 'CONCORD_PRODUCES_CFW', type: 'variable', detail: 'true/false' },
       ],
     };
+  }
+
+  async function saveRecipe(): Promise<void> {
+    if (!recipe.trim() || recipeSaving) return;
+    recipeSaving = true;
+    error = null;
+    try {
+      const res = await api.post(`/v2/products/${productId}/recipe/save`, {
+        content: recipe,
+        changeNote: `Stage ${stage} ${stageName} recipe update`,
+      });
+      const data = (res as any).data ?? res;
+      recipeSavedVersion = data?.version ?? null;
+      recipeLastSaved = new Date().toLocaleTimeString();
+      recipeDirty = false;
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to save recipe';
+    } finally {
+      recipeSaving = false;
+    }
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      if (currentStep === 3 && recipeDirty) saveRecipe();
+    }
   }
 
   async function validateRecipe(): Promise<void> {
@@ -323,8 +365,12 @@
         await createStageConfig(productId, { stage, name: stageName, ...data });
       }
 
+      // Save recipe as a new version if it was modified but not yet saved
       if (recipeDirty && recipe.trim()) {
-        await api.put(`/v2/products/${productId}/recipe`, { content: recipe });
+        await api.post(`/v2/products/${productId}/recipe/save`, {
+          content: recipe,
+          changeNote: `Stage ${stage} ${stageName} — saved with config`,
+        });
       }
 
       onSaved();
@@ -343,6 +389,8 @@
     { num: 4, label: 'Review & Save' },
   ];
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <Modal {open} onclose={onClose} size="full" title="" noPadding showCloseButton={false}>
   <div class="flex flex-col h-[90vh]">
@@ -614,26 +662,50 @@
           <div class="flex-1 flex flex-col min-w-0 border-r border-[#313244]">
             <!-- Toolbar -->
             <div class="flex items-center justify-between px-3 py-1.5 bg-[#181825] border-b border-[#313244] shrink-0">
-              <div class="flex items-center gap-2">
-                <FileCode size={13} class="text-[#89b4fa]" />
-                <span class="text-xs font-medium text-[#cdd6f4]">build.sh</span>
-                {#if recipeDirty}
-                  <span class="w-2 h-2 rounded-full bg-[#f9e2af]" title="Modified"></span>
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1.5">
+                  <FileCode size={13} class="text-[#89b4fa]" />
+                  <span class="text-xs font-medium text-[#cdd6f4]">build.sh</span>
+                  {#if recipeDirty}
+                    <span class="w-2 h-2 rounded-full bg-[#f9e2af]" title="Unsaved changes"></span>
+                  {/if}
+                </div>
+                {#if recipeSavedVersion}
+                  <span class="text-[10px] text-[#585b70]">v{recipeSavedVersion}</span>
+                {/if}
+                {#if recipeLastSaved}
+                  <span class="text-[10px] text-[#585b70]">Saved {recipeLastSaved}</span>
                 {/if}
               </div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1.5">
                 <button
                   onclick={validateRecipe}
                   disabled={recipeValidating || !recipe.trim()}
-                  class="flex items-center gap-1.5 rounded-md bg-[#313244] px-2.5 py-1 text-[11px] font-medium text-[#cdd6f4] hover:bg-[#45475a] transition-colors disabled:opacity-40"
+                  class="flex items-center gap-1.5 rounded-md bg-[#313244] px-2.5 py-1 text-[11px] font-medium text-[#a6adc8] hover:text-[#cdd6f4] hover:bg-[#45475a] transition-colors disabled:opacity-40"
+                  title="Validate recipe structure"
                 >
                   {#if recipeValidating}
                     <Loader2 size={11} class="animate-spin" />
                   {:else}
                     <Check size={11} />
                   {/if}
-                  Validate
+                  Check
                 </button>
+                <button
+                  onclick={saveRecipe}
+                  disabled={recipeSaving || !recipeDirty || !recipe.trim()}
+                  class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-30
+                    {recipeDirty ? 'bg-[#89b4fa]/20 text-[#89b4fa] hover:bg-[#89b4fa]/30' : 'bg-[#313244] text-[#585b70]'}"
+                  title="Save recipe (Ctrl+S)"
+                >
+                  {#if recipeSaving}
+                    <Loader2 size={11} class="animate-spin" />
+                  {:else}
+                    <FileCode size={11} />
+                  {/if}
+                  Save
+                </button>
+                <div class="w-px h-4 bg-[#313244]"></div>
                 <span class="text-[10px] text-[#585b70] font-mono">Ln {cursorLine}:{cursorCol}</span>
               </div>
             </div>
