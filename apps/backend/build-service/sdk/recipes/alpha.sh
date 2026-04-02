@@ -1,145 +1,118 @@
 #!/bin/bash
-# ─────────────────────────────────────────────────────────────────────────────
-# Alpha Build Recipe — Concord platform
-#
-# Builds Alpha firmware for both processors:
-#   nRF52840 (app) + nRF9151 (comms coprocessor)
-#
-# Handles both firmware types via CONCORD_FW_TYPE:
-#   app → production/validation firmware from alpha_fw repo
-#   mfg → manufacturing firmware from alpha_mfg_fw repo
-#
-# Signing keys are managed by Concord Secrets and deployed by the orchestrator
-# to both repos before this recipe runs. The sysbuild.conf references are
-# fixed by the SDK's concord_init.
-# ─────────────────────────────────────────────────────────────────────────────
+set -eo pipefail
+
+# Alpha Build Recipe
+# Builds nRF52840 (app) + nRF9151 (comms) firmware
+# Uses CONCORD_FW_TYPE to handle app vs mfg firmware
 
 source /app/sdk/concord-build.sh
 concord_init
 
-REPO="${CONCORD_REPO_DIR}"
-BOARD="${CONCORD_BOARD}"
+REPO="$CONCORD_REPO_DIR"
+BOARD="$CONCORD_BOARD"
 COMMS_SOC="${CONCORD_COMMS_SOC:-nrf9151}"
-COMMS_DIR="${REPO}/comm_coproc_mfg"
+COMMS_DIR="$REPO/comm_coproc_mfg"
+REPO_NAME=$(basename "$REPO")
 
-# ── Extra config files ──────────────────────────────────────────────────────
+# ── Config files ─────────────────────────────────────────
 
-EXTRA_CONF="${REPO}/version.conf"
+APP_CONF="$REPO/version.conf"
+COMMS_CONF="$REPO/version.conf"
 
-# Add logging.conf for UART output on verbose/debug builds
-if [ "$CONCORD_CONFIG_LOG" = "y" ] && [ -f "${REPO}/logging.conf" ]; then
-    EXTRA_CONF="${EXTRA_CONF};${REPO}/logging.conf"
+# Verbose builds get UART logging
+if [ "$CONCORD_CONFIG_LOG" = "y" ] && [ -f "$REPO/logging.conf" ]; then
+    APP_CONF="$APP_CONF;$REPO/logging.conf"
 fi
 
-# Add default personalization for comms processor
-COMMS_EXTRA="${REPO}/version.conf"
-if [ -f "${REPO}/default_personalization.conf" ]; then
-    COMMS_EXTRA="${COMMS_EXTRA};${REPO}/default_personalization.conf"
+# Comms gets default personalization
+if [ -f "$REPO/default_personalization.conf" ]; then
+    COMMS_CONF="$COMMS_CONF;$REPO/default_personalization.conf"
 fi
 
-# MFG builds enable the manufacturing shell via dev.conf
+# MFG builds enable the manufacturing shell
 COMMS_OVERLAY=""
 if [ "$CONCORD_FW_TYPE" = "mfg" ]; then
     COMMS_OVERLAY="dev.conf"
 fi
 
-# ── Build Application Processor (nRF52840) ──────────────────────────────────
+# DTS overlays (only if they exist)
+APP_OVERLAY="$REPO/boards/${BOARD}_nrf52840.overlay"
+[ ! -f "$APP_OVERLAY" ] && APP_OVERLAY=""
 
-echo -e "${CYAN}Building Application (nRF52840)...${NC}"
+COMMS_DTS_OVERLAY="$REPO/boards/${BOARD}_${COMMS_SOC}_ns.overlay"
+[ ! -f "$COMMS_DTS_OVERLAY" ] && COMMS_DTS_OVERLAY=""
 
-# DTS overlay for APP processor — configures UART pins, I2C sensors, etc.
-# Without this, UART TX/RX are on wrong pins and shell output is silent.
-# Only pass if the file exists (alpha_fw has it, alpha_mfg_fw may not)
-APP_DTC_OVERLAY="${REPO}/boards/${BOARD}_nrf52840.overlay"
-if [ ! -f "$APP_DTC_OVERLAY" ]; then APP_DTC_OVERLAY=""; fi
+# ── Build App (nRF52840) ─────────────────────────────────
+
+echo "Building app (nRF52840)..."
 
 west build --pristine \
-    -d ${REPO}/build/app \
-    -b ${BOARD}/nrf52840 \
-    --sysbuild ${REPO} \
-    -- -DBOARD_ROOT=${REPO}/ck_boards/current/ \
-       -DEXTRA_CONF_FILE="${EXTRA_CONF}" \
-       ${APP_DTC_OVERLAY:+-DDTC_OVERLAY_FILE=${APP_DTC_OVERLAY}}
+    -d "$REPO/build/app" \
+    -b "$BOARD/nrf52840" \
+    --sysbuild "$REPO" \
+    -- -DBOARD_ROOT="$REPO/ck_boards/current/" \
+       -DEXTRA_CONF_FILE="$APP_CONF" \
+       ${APP_OVERLAY:+-DDTC_OVERLAY_FILE="$APP_OVERLAY"}
 
-# Merge PSP hex (vitals processing library)
-PSP_HEX="${REPO}/vsm_drv/src/corekinect/module/vsm/threads/vitals/lib/bin/psp.hex"
+# Merge PSP hex (vitals processing library) if present
+PSP_HEX="$REPO/vsm_drv/src/corekinect/module/vsm/threads/vitals/lib/bin/psp.hex"
 if [ -f "$PSP_HEX" ]; then
-    mergehex -m ${REPO}/build/app/merged.hex "$PSP_HEX" -o ${REPO}/build/app/merged.hex
+    mergehex -m "$REPO/build/app/merged.hex" "$PSP_HEX" -o "$REPO/build/app/merged.hex"
 fi
 
-# ── Build Communications Coprocessor (nRF9151) ──────────────────────────────
+# ── Build Comms (nRF9151) ────────────────────────────────
 
-echo -e "${CYAN}Building Comms (${COMMS_SOC})...${NC}"
+echo "Building comms ($COMMS_SOC)..."
 
-# Fix encryption key path (SDK already deployed the key, just fix the config path)
-sed -i "s|/workspaces/[a-z_]*/comms_encryption_key.pem|${REPO}/comms_encryption_key.pem|g" \
-    ${COMMS_DIR}/sysbuild.conf 2>/dev/null || true
+# Fix encryption key path to match deployed location
+sed -i "s|/workspaces/[a-z_]*/comms_encryption_key.pem|$REPO/comms_encryption_key.pem|g" \
+    "$COMMS_DIR/sysbuild.conf" 2>/dev/null || true
 
-# Clear FIPS hash for first build
-echo "# FIPS placeholder" > ${COMMS_DIR}/fips.conf
+# Clear FIPS hash placeholder for first build
+echo "# FIPS placeholder" > "$COMMS_DIR/fips.conf"
 
-# DTS overlay for COMMS processor — UART pins, sensor config
-# Only pass if the file exists
-COMMS_DTC_OVERLAY="${REPO}/boards/${BOARD}_${COMMS_SOC}_ns.overlay"
-if [ ! -f "$COMMS_DTC_OVERLAY" ]; then COMMS_DTC_OVERLAY=""; fi
-
-# First comms build
 west build --pristine \
-    -d ${COMMS_DIR}/build \
-    -b ${BOARD}/${COMMS_SOC}/ns \
-    --sysbuild ${COMMS_DIR} \
-    -- -DBOARD_ROOT=${REPO}/ck_boards/current/ \
-       ${COMMS_OVERLAY:+-DOVERLAY_CONFIG=${COMMS_OVERLAY}} \
-       -DEXTRA_CONF_FILE="${COMMS_EXTRA}" \
-       ${COMMS_DTC_OVERLAY:+-DDTC_OVERLAY_FILE=${COMMS_DTC_OVERLAY}}
+    -d "$COMMS_DIR/build" \
+    -b "$BOARD/$COMMS_SOC/ns" \
+    --sysbuild "$COMMS_DIR" \
+    -- -DBOARD_ROOT="$REPO/ck_boards/current/" \
+       ${COMMS_OVERLAY:+-DOVERLAY_CONFIG="$COMMS_OVERLAY"} \
+       -DEXTRA_CONF_FILE="$COMMS_CONF" \
+       ${COMMS_DTS_OVERLAY:+-DDTC_OVERLAY_FILE="$COMMS_DTS_OVERLAY"}
 
-# ── FIPS Hash + Rebuild ─────────────────────────────────────────────────────
+# ── FIPS hash + rebuild ──────────────────────────────────
 
-echo -e "${CYAN}Calculating FIPS hash...${NC}"
-python3 ${COMMS_DIR}/wolfssl/scripts/gen_fips_hash.py \
-    ${COMMS_DIR}/build/merged.hex \
-    ${COMMS_DIR}/build/comm_coproc_mfg/zephyr/zephyr.map > ${COMMS_DIR}/fips.conf
+echo "Calculating FIPS hash..."
 
-if grep -q "Errno" ${COMMS_DIR}/fips.conf 2>/dev/null; then
-    echo -e "${RED}FIPS hash generation failed${NC}"
-    cat ${COMMS_DIR}/fips.conf
+python3 "$COMMS_DIR/wolfssl/scripts/gen_fips_hash.py" \
+    "$COMMS_DIR/build/merged.hex" \
+    "$COMMS_DIR/build/comm_coproc_mfg/zephyr/zephyr.map" > "$COMMS_DIR/fips.conf"
+
+if grep -q "Errno" "$COMMS_DIR/fips.conf" 2>/dev/null; then
+    echo "ERROR: FIPS hash generation failed"
+    cat "$COMMS_DIR/fips.conf"
     exit 1
 fi
 
-# Rebuild with FIPS hash
 FIPS_OVERLAY="fips.conf"
-if [ -n "$COMMS_OVERLAY" ]; then
-    FIPS_OVERLAY="${COMMS_OVERLAY};fips.conf"
-fi
+[ -n "$COMMS_OVERLAY" ] && FIPS_OVERLAY="$COMMS_OVERLAY;fips.conf"
 
 west build \
-    -d ${COMMS_DIR}/build \
-    -b ${BOARD}/${COMMS_SOC}/ns \
-    --sysbuild ${COMMS_DIR} \
-    -- -DBOARD_ROOT=${REPO}/ck_boards/current/ \
-       -DOVERLAY_CONFIG="${FIPS_OVERLAY}" \
-       -DEXTRA_CONF_FILE="${COMMS_EXTRA}" \
-       ${COMMS_DTC_OVERLAY:+-DDTC_OVERLAY_FILE=${COMMS_DTC_OVERLAY}}
+    -d "$COMMS_DIR/build" \
+    -b "$BOARD/$COMMS_SOC/ns" \
+    --sysbuild "$COMMS_DIR" \
+    -- -DBOARD_ROOT="$REPO/ck_boards/current/" \
+       -DOVERLAY_CONFIG="$FIPS_OVERLAY" \
+       -DEXTRA_CONF_FILE="$COMMS_CONF" \
+       ${COMMS_DTS_OVERLAY:+-DDTC_OVERLAY_FILE="$COMMS_DTS_OVERLAY"}
 
-# ── Collect Artifacts ────────────────────────────────────────────────────────
+# ── Collect artifacts ────────────────────────────────────
 
-echo -e "${CYAN}Collecting artifacts...${NC}"
+echo "Collecting artifacts..."
 
-# App hex — always at ${REPO}/build/app/merged.hex
-concord_collect_hex app ${REPO}/build/app/merged.hex
-
-# Comms hex — always at ${COMMS_DIR}/build/merged.hex
-concord_collect_hex comms ${COMMS_DIR}/build/merged.hex
-
-# App CFW — the sysbuild project name matches the repo directory name
-# alpha_fw → build/app/alpha_fw/zephyr/zephyr.signed.encrypted.bin
-# alpha_mfg_fw → build/app/alpha_mfg_fw/zephyr/zephyr.signed.encrypted.bin
-REPO_NAME=$(basename ${REPO})
-APP_BIN="${REPO}/build/app/${REPO_NAME}/zephyr/zephyr.signed.encrypted.bin"
-concord_collect_cfw app "$APP_BIN"
-
-# Comms CFW — always comm_coproc_mfg
-COMMS_BIN="${COMMS_DIR}/build/comm_coproc_mfg/zephyr/zephyr.signed.encrypted.bin"
-concord_collect_cfw comms "$COMMS_BIN"
+concord_collect_hex app   "$REPO/build/app/merged.hex"
+concord_collect_hex comms "$COMMS_DIR/build/merged.hex"
+concord_collect_cfw app   "$REPO/build/app/$REPO_NAME/zephyr/zephyr.signed.encrypted.bin"
+concord_collect_cfw comms "$COMMS_DIR/build/comm_coproc_mfg/zephyr/zephyr.signed.encrypted.bin"
 
 concord_finalize
