@@ -474,11 +474,17 @@
 
 <div class="animate-fade-in">
   <button
-    onclick={() => goto('/builds')}
+    onclick={() => {
+      if (buildRun?.prNumber && buildRun?.productId) {
+        goto(`/builds/prs/${buildRun.productId}/${buildRun.prNumber}`);
+      } else {
+        goto('/builds');
+      }
+    }}
     class="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary transition-colors mb-3"
   >
     <ArrowLeft size={14} />
-    All Builds
+    {buildRun?.prNumber ? `PR #${buildRun.prNumber}` : 'All Builds'}
   </button>
 
   {#if loading || !initialLoadComplete}

@@ -750,7 +750,10 @@
     {:else}
       <div class="space-y-2">
         {#each prPipelines as pr (pr.prNumber + '-' + pr.productId)}
-          <div class="rounded-lg border border-border bg-surface-0 px-4 py-3 transition-colors hover:bg-surface-1">
+          <button
+            onclick={() => goto(`/builds/prs/${pr.productId}/${pr.prNumber}`)}
+            class="w-full text-left rounded-lg border border-border bg-surface-0 px-4 py-3 transition-colors hover:bg-surface-1 cursor-pointer"
+          >
             <!-- Top row: PR info -->
             <div class="flex items-start justify-between gap-4 mb-2">
               <div class="flex items-center gap-3 min-w-0 flex-1">
@@ -840,7 +843,7 @@
                 {/if}
               {/each}
             </div>
-          </div>
+          </button>
         {/each}
       </div>
     {/if}
