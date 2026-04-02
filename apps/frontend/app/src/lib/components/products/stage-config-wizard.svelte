@@ -1016,25 +1016,101 @@
                 </div>
               {/if}
 
-              <!-- Test Build Artifacts (when available) -->
-              {#if testBuildArtifacts.length > 0}
+              <!-- Test Build Verification (after build completes) -->
+              {#if testBuildStatus === 'success' || testBuildArtifacts.length > 0}
                 <div class="px-3 py-2.5 border-b border-[#313244]">
-                  <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[#a6e3a1] mb-1.5">Build Artifacts</h4>
-                  {#each testBuildArtifacts as art}
-                    <div class="flex items-center gap-1.5 mb-1">
-                      <Check size={9} class="text-[#a6e3a1] shrink-0" />
-                      <span class="text-[10px] font-mono text-[#cdd6f4] truncate flex-1">{art.name}</span>
-                      <span class="text-[9px] text-[#585b70]">{formatBytes(Number(art.sizeBytes || 0))}</span>
+                  <h4 class="text-[10px] font-semibold uppercase tracking-wider mb-1.5
+                    {testBuildStatus === 'success' ? 'text-[#a6e3a1]' : 'text-[#a6adc8]'}">
+                    {testBuildStatus === 'success' ? '✓ Build Verified' : 'Build Artifacts'}
+                  </h4>
+
+                  {#if testBuildArtifacts.length > 0}
+                    <!-- Artifact list with validation -->
+                    {#each testBuildArtifacts.filter(a => a.artifactType !== 'log') as art}
+                      {@const size = Number(art.sizeBytes || 0)}
+                      {@const isHex = art.artifactType === 'plaintextHex'}
+                      {@const isCfw = art.artifactType === 'encryptedCfw'}
+                      {@const isManifest = art.artifactType === 'manifest'}
+                      {@const sizeOk = isManifest ? size > 50 : size > 1024}
+                      <div class="rounded bg-[#1e1e2e] px-2 py-1.5 mb-1.5">
+                        <div class="flex items-center gap-1.5">
+                          {#if sizeOk}
+                            <Check size={9} class="text-[#a6e3a1] shrink-0" />
+                          {:else}
+                            <AlertTriangle size={9} class="text-[#f9e2af] shrink-0" />
+                          {/if}
+                          <span class="text-[10px] font-mono text-[#cdd6f4] truncate flex-1">{art.name}</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-0.5 ml-4">
+                          <span class="text-[9px] text-[#585b70]">
+                            {isHex ? '.hex' : isCfw ? '.cfw' : isManifest ? 'manifest' : art.artifactType ?? 'file'}
+                            {art.role ? ` · ${art.role}` : ''}
+                          </span>
+                          <span class="text-[9px] {sizeOk ? 'text-[#a6adc8]' : 'text-[#f9e2af]'}">{formatBytes(size)}</span>
+                        </div>
+                      </div>
+                    {/each}
+
+                    <!-- Verification summary -->
+                    {@const hexArts = testBuildArtifacts.filter(a => a.artifactType === 'plaintextHex')}
+                    {@const cfwArts = testBuildArtifacts.filter(a => a.artifactType === 'encryptedCfw')}
+                    {@const hasManifest = testBuildArtifacts.some(a => a.artifactType === 'manifest')}
+                    {@const expectedTargetCount = selectedRevision?.targets?.length ?? 0}
+                    <div class="mt-2 space-y-0.5">
+                      <div class="flex items-center gap-1.5 text-[9px]
+                        {hexArts.length >= expectedTargetCount ? 'text-[#a6e3a1]' : 'text-[#f9e2af]'}">
+                        {hexArts.length >= expectedTargetCount ? '✓' : '⚠'}
+                        {hexArts.length} .hex file{hexArts.length !== 1 ? 's' : ''} (expected {expectedTargetCount})
+                      </div>
+                      {#if cfwArts.length > 0}
+                        <div class="flex items-center gap-1.5 text-[9px] text-[#a6e3a1]">
+                          ✓ {cfwArts.length} .cfw file{cfwArts.length !== 1 ? 's' : ''}
+                        </div>
+                      {/if}
+                      <div class="flex items-center gap-1.5 text-[9px]
+                        {hasManifest ? 'text-[#a6e3a1]' : 'text-[#f38ba8]'}">
+                        {hasManifest ? '✓' : '✗'} build.json manifest
+                      </div>
                     </div>
-                  {/each}
+                  {:else if testBuildStatus === 'success'}
+                    <div class="text-[10px] text-[#585b70]">Loading artifacts...</div>
+                  {/if}
+                </div>
+
+                <!-- Next steps -->
+                {#if testBuildStatus === 'success'}
+                  <div class="px-3 py-2.5 border-b border-[#313244]">
+                    <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[#89b4fa] mb-1.5">Next Steps</h4>
+                    <div class="space-y-1.5">
+                      <div class="flex items-start gap-1.5">
+                        <span class="text-[9px] text-[#89b4fa] mt-0.5 shrink-0">1.</span>
+                        <span class="text-[9px] text-[#a6adc8]">
+                          {recipeMatchesPublished ? 'Recipe is published ✓' : 'Click Publish to version this recipe'}
+                        </span>
+                      </div>
+                      <div class="flex items-start gap-1.5">
+                        <span class="text-[9px] text-[#89b4fa] mt-0.5 shrink-0">2.</span>
+                        <span class="text-[9px] text-[#a6adc8]">Go to step 4 → Save & Enable Stage</span>
+                      </div>
+                      <div class="flex items-start gap-1.5">
+                        <span class="text-[9px] text-[#89b4fa] mt-0.5 shrink-0">3.</span>
+                        <span class="text-[9px] text-[#a6adc8]">PRs targeting <span class="font-mono text-[#89b4fa]">{formBranch}</span> will trigger builds</span>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              {:else if testBuildStatus === 'failed'}
+                <div class="px-3 py-2.5 border-b border-[#313244]">
+                  <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[#f38ba8] mb-1.5">Build Failed</h4>
+                  <p class="text-[9px] text-[#a6adc8]">Check the terminal output for errors. Fix the recipe and run again.</p>
                 </div>
               {/if}
 
-              <!-- Env Vars -->
+              <!-- Env Vars (collapsed when artifacts are showing) -->
               <div class="px-3 py-2.5 flex-1">
                 <h4 class="text-[10px] font-semibold uppercase tracking-wider text-[#a6adc8] mb-1.5">Variables</h4>
                 <div class="space-y-0.5">
-                  {#each Object.entries(envVarValues).slice(0, 8) as [name, val]}
+                  {#each Object.entries(envVarValues).slice(0, testBuildArtifacts.length > 0 ? 5 : 8) as [name, val]}
                     <div title="{name}={val}">
                       <span class="text-[9px] font-mono text-[#89b4fa]">${name.replace('CONCORD_', '')}</span>
                       <span class="text-[9px] text-[#585b70] ml-1 truncate">{val}</span>
