@@ -29,7 +29,7 @@ class MtibV1ProviderConfig:
     MOTION_ENABLED: bool
 
 
-# GPIO pin map — identical across REV 1.1 and REV 1.2
+# GPIO pin map (REV 1.2)
 GPIO_PIN_MAP = {
     0: Pin.SODIMM_206,
     1: Pin.SODIMM_208,

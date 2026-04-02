@@ -200,132 +200,131 @@ def trigger_stage_build(
     cached_count = 0
 
     for i, build_def in enumerate(build_defs):
-        # Determine which repo to clone
-        if build_def.fw_type == "mfg":
-            repo_url = mfg_repo or fw_repo
-        else:
-            repo_url = fw_repo
+        try:
+            # Determine which repo to clone
+            if build_def.fw_type == "mfg":
+                repo_url = mfg_repo or fw_repo
+            else:
+                repo_url = fw_repo
 
-        # Determine git ref
-        git_ref = branch
-        if build_def.git_ref == "main":
-            git_ref = "main"
-        elif build_def.git_ref == "merge":
+            # Determine git ref
             git_ref = branch
+            if build_def.git_ref == "main":
+                git_ref = "main"
+            elif build_def.git_ref == "merge":
+                git_ref = branch
 
-        # Determine initial status (version-bumped builds start BLOCKED)
-        initial_status = "BLOCKED" if build_def.is_version_bump else "QUEUED"
+            # Determine initial status (version-bumped builds start BLOCKED)
+            initial_status = "BLOCKED" if build_def.is_version_bump else "QUEUED"
 
-        # Find base job ID for version-bumped builds
-        base_job_id = None
-        if build_def.base_label:
-            base_job = next((j for j in jobs_created if j["matrixLabel"] == build_def.base_label), None)
-            if base_job:
-                base_job_id = base_job["id"]
+            # Find base job ID for version-bumped builds
+            base_job_id = None
+            if build_def.base_label:
+                base_job = next((j for j in jobs_created if j["matrixLabel"] == build_def.base_label), None)
+                if base_job:
+                    base_job_id = base_job["id"]
 
-        config_flags_dict = {
-            "config_log": getattr(build_def, "config_log", True),
-            "produces_hex": getattr(build_def, "produces_hex", True),
-            "produces_cfw": getattr(build_def, "produces_cfw", False),
-            "label": build_def.label,  # Include label in fingerprint so MFG_BASE ≠ MFG_BUMP
-        }
+            config_flags_dict = {
+                "config_log": getattr(build_def, "config_log", True),
+                "produces_hex": getattr(build_def, "produces_hex", True),
+                "produces_cfw": getattr(build_def, "produces_cfw", False),
+                "label": build_def.label,
+            }
 
-        # Build cache: check if an identical build already exists
-        # Uses repo URL + commit SHA + board + variant + config flags
-        #
-        # Cache key logic:
-        #   git_ref="main" → use "main" (doesn't change between PR commits)
-        #   git_ref="pr" + fw_type="mfg" → use "main" (mfg repo always cloned at main)
-        #   git_ref="pr" + fw_type="app" → use PR commit SHA (changes per push)
-        if build_def.git_ref != "pr" or build_def.fw_type == "mfg":
-            cache_commit = git_ref  # "main" — stable across PR commits
-        else:
-            cache_commit = commit_sha  # PR commit — changes per push
-        fingerprint = compute_build_fingerprint(
-            repo_url=repo_url,
-            commit_sha=cache_commit or "",
-            board=board,
-            variant=build_def.variant,
-            config_flags=config_flags_dict,
-        )
-
-        cached_build = find_cached_build(db, fingerprint)
-
-        if cached_build:
-            # Cache hit — create job as CACHED, reuse artifacts
-            job = db.buildjob.create(
-                data={
-                    "productId": product_id,
-                    "board": board,
-                    "target": build_def.fw_type,
-                    "variant": build_def.variant,
-                    "branch": git_ref,
-                    "status": "CACHED",
-                    "matrixLabel": build_def.label,
-                    "matrixIndex": i,
-                    "configFlags": Json(config_flags_dict),
-                    "buildFingerprint": fingerprint,
-                    "reusedFromId": cached_build.id,
-                    "versionString": cached_build.versionString,
-                    "versionBump": False,
-                    "buildRunId": build_run.id,
-                    "webhookData": Json({"cached": True, "reusedFrom": cached_build.id}),
-                },
+            # Build cache key logic:
+            #   fw_type="mfg" → "main" (mfg repo always at main)
+            #   git_ref="main" or "merge" → "main" (stable across PR commits)
+            #   git_ref="pr" + fw_type="app" → PR commit SHA (changes per push)
+            if build_def.fw_type == "mfg" or build_def.git_ref in ("main", "merge"):
+                cache_commit = "main"
+            else:
+                cache_commit = commit_sha
+            fingerprint = compute_build_fingerprint(
+                repo_url=repo_url,
+                commit_sha=cache_commit or "",
+                board=board,
+                variant=build_def.variant,
+                config_flags=config_flags_dict,
             )
 
-            # Copy artifacts from cached build
-            if cached_build.artifacts:
-                for art in cached_build.artifacts:
-                    db.buildartifact.create(
-                        data={
-                            "buildJobId": job.id,
-                            "name": art.name,
-                            "storageKey": art.storageKey,
-                            "sizeBytes": art.sizeBytes,
-                            "checksum": art.checksum,
-                            "role": art.role,
-                            "processor": art.processor,
-                            "artifactType": art.artifactType,
-                            "contentType": art.contentType,
-                        },
-                    )
+            cached_build = find_cached_build(db, fingerprint)
 
-            cached_count += 1
-            logger.info("Build cache HIT: %s (%s) → reused from %s",
-                        build_def.label, fingerprint[:12], cached_build.id[:8])
-        else:
-            # Cache miss — create as normal QUEUED/BLOCKED job
-            job = db.buildjob.create(
-                data={
-                    "productId": product_id,
-                    "board": board,
-                    "target": build_def.fw_type,
-                    "variant": build_def.variant,
-                    "branch": git_ref,
-                    "status": initial_status,
-                    "matrixLabel": build_def.label,
-                    "matrixIndex": i,
-                    "configFlags": Json(config_flags_dict),
-                    "buildFingerprint": fingerprint,
-                    "versionBump": build_def.is_version_bump,
-                    "baseJobId": base_job_id,
-                    "buildRunId": build_run.id,
-                    "webhookData": Json({
-                        "repoUrl": repo_url,
-                        "fwRepoUrl": fw_repo,
-                        "mfgRepoUrl": mfg_repo,
-                        "fwRepoSlug": product.fwRepoSlug,
-                        "mfgRepoSlug": product.mfgFwRepoSlug,
-                        "builderImage": builder_image,
-                        "signingKeyId": stage_config.signingKeyId,
-                        "signingKeyValue": stage_config.signingKey.value if stage_config.signingKey else None,
-                        "boardRevisionId": revision.id,
-                        "ckBoardsName": board,
-                    }),
-                },
-            )
+            if cached_build:
+                # Cache hit — create job as CACHED, reuse artifacts
+                job = db.buildjob.create(
+                    data={
+                        "productId": product_id,
+                        "board": board,
+                        "target": build_def.fw_type,
+                        "variant": build_def.variant,
+                        "branch": git_ref,
+                        "status": "CACHED",
+                        "matrixLabel": build_def.label,
+                        "matrixIndex": i,
+                        "configFlags": Json(config_flags_dict),
+                        "buildFingerprint": fingerprint,
+                        "reusedFromId": cached_build.id,
+                        "versionString": cached_build.versionString,
+                        "versionBump": False,
+                        "buildRunId": build_run.id,
+                        "webhookData": Json({"cached": True, "reusedFrom": cached_build.id}),
+                    },
+                )
 
-        jobs_created.append({"id": job.id, "matrixLabel": build_def.label})
+                # Copy artifacts from cached build
+                if cached_build.artifacts:
+                    for art in cached_build.artifacts:
+                        db.buildartifact.create(
+                            data={
+                                "buildJobId": job.id,
+                                "name": art.name,
+                                "storageKey": art.storageKey,
+                                "sizeBytes": art.sizeBytes,
+                                "checksum": art.checksum,
+                                "role": art.role,
+                                "processor": art.processor,
+                                "artifactType": art.artifactType,
+                            },
+                        )
+
+                cached_count += 1
+                logger.info("Build cache HIT: %s (%s) → reused from %s",
+                            build_def.label, fingerprint[:12], cached_build.id[:8])
+            else:
+                # Cache miss — create as normal QUEUED/BLOCKED job
+                job = db.buildjob.create(
+                    data={
+                        "productId": product_id,
+                        "board": board,
+                        "target": build_def.fw_type,
+                        "variant": build_def.variant,
+                        "branch": git_ref,
+                        "status": initial_status,
+                        "matrixLabel": build_def.label,
+                        "matrixIndex": i,
+                        "configFlags": Json(config_flags_dict),
+                        "buildFingerprint": fingerprint,
+                        "versionBump": build_def.is_version_bump,
+                        "baseJobId": base_job_id,
+                        "buildRunId": build_run.id,
+                        "webhookData": Json({
+                            "repoUrl": repo_url,
+                            "fwRepoUrl": fw_repo,
+                            "mfgRepoUrl": mfg_repo,
+                            "fwRepoSlug": product.fwRepoSlug,
+                            "mfgRepoSlug": product.mfgFwRepoSlug,
+                            "builderImage": builder_image,
+                            "signingKeyId": stage_config.signingKeyId,
+                            "signingKeyValue": stage_config.signingKey.value if stage_config.signingKey else None,
+                            "boardRevisionId": revision.id,
+                            "ckBoardsName": board,
+                        }),
+                    },
+                )
+
+            jobs_created.append({"id": job.id, "matrixLabel": build_def.label})
+        except Exception:
+            logger.exception("Failed to create BuildJob for %s (index %d)", build_def.label, i)
 
     if cached_count > 0:
         # Update completed count for cached builds

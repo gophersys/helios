@@ -411,7 +411,6 @@ class PreflightChecker:
                 return False, "PIPELINE_ID required for fuota tests"
             return True, "Not required for this stage"
 
-        # TODO: Actually verify the pipeline has artifacts
         return True, f"Pipeline: {pipeline_id[:12]}..."
 
     def _check_corecloud(self) -> Tuple[bool, str]:
@@ -519,7 +518,6 @@ class ArtifactCollector:
                 for path in self.artifacts_dir.glob(pattern):
                     if path.is_file():
                         log.info("Artifact: %s (%d bytes)", path.name, path.stat().st_size)
-                        # TODO: Upload to API/MinIO
                         count += 1
             except Exception as exc:
                 log.warning("Failed to collect artifacts for pattern %s: %s", pattern, exc)

@@ -1,6 +1,6 @@
-"""Validation stage definitions — re-exports from shared module.
+"""Validation stage definitions — re-exports from top-level module.
 
-The canonical definitions live in ``corekinect.validation.stage_defs``.
+The canonical definitions now live at ``corekinect.stages``.
 This module re-exports them for backward compatibility so existing
 imports like ``from corekinect.test.stages import Stage`` still work.
 
@@ -11,8 +11,8 @@ Usage:
         # FUOTA-specific logic
 """
 
-# Re-export everything from the shared source of truth
-from corekinect.validation.stage_defs import (  # noqa: F401
+# Re-export everything from the canonical location
+from corekinect.stages import (  # noqa: F401
     Stage,
     StageBuildDef,
     STAGE_NAMES,

@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from corekinect.utils import Logger
-from corekinect.test.errors import CloudError, ConfigError, HardwareError, TimeoutError as ValidationTimeoutError
+from corekinect.errors import CloudError, ConfigError, HardwareError, TimeoutError as ValidationTimeoutError
 
 log = Logger(log_name="fuota.orchestrator")
 
@@ -175,10 +175,11 @@ class FuotaOrchestrator:
         found = False
         for d in devices:
             if d.get("deviceId") == device_id:
-                assert d.get("planId") == plan_id, (
-                    f"Device assigned to wrong plan: expected {plan_id}, "
-                    f"got {d.get('planId')}"
-                )
+                if d.get("planId") != plan_id:
+                    raise CloudError(
+                        f"Device assigned to wrong plan: expected {plan_id}, "
+                        f"got {d.get('planId')}"
+                    )
                 if d.get("enableFuota") is not True:
                     raise CloudError("FUOTA not enabled after assignment")
                 found = True

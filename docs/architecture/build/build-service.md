@@ -81,7 +81,6 @@ class BuildRequest:
     git_ref: str              # commit SHA or branch name
     build_num: int            # BUILD_NUM to inject
     is_manufacturing: bool    # IS_MANUFACTURING flag
-    mtib_rev: str = "1.2"    # MTIB hardware revision
     triggered_by: str = ""   # PR number, webhook ID, or manual
 
 @dataclass
@@ -192,7 +191,6 @@ message BuildRequest {
     string git_ref = 4;           // commit SHA or branch
     int32  build_num = 5;
     bool   is_manufacturing = 6;
-    string mtib_rev = 7;
     string triggered_by = 8;
 }
 
@@ -534,7 +532,6 @@ def _execute_build(self, req: BuildRequest) -> BuildResult:
     build_args = [
         f"--product {req.product}",
         f"--variant {req.variant}",
-        f"--mtib-rev {req.mtib_rev}",
         f"--build-num {req.build_num}",
     ]
     if not req.is_manufacturing:
@@ -694,7 +691,6 @@ model BuildJob {
     board           String          // "alpha_b0"
     target          String          // "app", "mfg", "all"
     variant         String          @default("release")
-    mtibRev         String          @default("1.2")
     branch          String
     commitSha       String?
     status          BuildJobStatus  @default(QUEUED)

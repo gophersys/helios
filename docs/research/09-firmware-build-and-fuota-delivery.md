@@ -20,9 +20,9 @@ the NCS (nRF Connect SDK) toolchain image to guarantee reproducible builds.
 ./apps/firmware/products/ctl.sh build-all alpha
 
 # Build specific target
-./apps/firmware/products/ctl.sh build alpha --target mfg --mtib-rev 1.2
-./apps/firmware/products/ctl.sh build alpha --target app --mtib-rev 1.2 --variant debug
-./apps/firmware/products/ctl.sh build alpha --target app --mtib-rev 1.2 --variant release
+./apps/firmware/products/ctl.sh build alpha --target mfg
+./apps/firmware/products/ctl.sh build alpha --target app --variant debug
+./apps/firmware/products/ctl.sh build alpha --target app --variant release
 
 # Parallel build (mfg + app groups concurrently)
 ./apps/firmware/products/ctl.sh build-all alpha --parallel
@@ -44,16 +44,13 @@ Each firmware submodule specifies its NCS Docker image in
 
 ### Build Matrix (Alpha)
 
-| Target | MTIB Rev | Variant | Output |
-|--------|----------|---------|--------|
-| mfg | 1.1 | — | `alpha_mfg_fw/alpha_b0/{app_nrf52840,comms_nrf9151}.hex` |
-| mfg | 1.2 | — | Same (different overlay) |
-| app | 1.1 | debug | `alpha_fw/alpha_b0/{app_nrf52840,comms_nrf9151}.hex` |
-| app | 1.2 | debug | Same (different overlay) |
-| app | 1.1 | release | Same |
-| app | 1.2 | release | Same |
+| Target | Variant | Output |
+|--------|---------|--------|
+| mfg | — | `alpha_mfg_fw/alpha_b0/{app_nrf52840,comms_nrf9151}.hex` |
+| app | debug | `alpha_fw/alpha_b0/{app_nrf52840,comms_nrf9151}.hex` |
+| app | release | Same |
 
-6 build invocations, each producing 2 MCU hex files = 12 total hex files.
+3 build invocations, each producing 2 MCU hex files = 6 total hex files.
 
 ### Encryption Keys
 

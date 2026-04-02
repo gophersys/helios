@@ -11,8 +11,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from corekinect.capabilities import Capability
 from corekinect.test.profiles import (
-    Capability,
     FixtureProfile,
     PowerConfig,
     DutConfig,

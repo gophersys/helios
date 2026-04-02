@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
-from corekinect.test.errors import CloudError
+from corekinect.errors import CloudError
 from corekinect.test.fuota_client import FuotaClient
 from corekinect.utils import Logger
 

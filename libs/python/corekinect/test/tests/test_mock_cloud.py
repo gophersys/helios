@@ -245,28 +245,29 @@ class TestMockCloudClientInjection:
     def test_inject_boot_then_wait(self, client):
         client.inject(MessageFactory.boot(device_id=0x1234))
         msg = client.wait_for_boot(timeout_s=1)
-        assert msg.device_id == 0x1234
+        assert "recordId" in msg
+        assert msg["bootReason"] == "Normal"
 
     def test_inject_multiple_boots_returns_first(self, client):
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=0))
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=1))
         msg = client.wait_for_boot(timeout_s=1)
-        assert msg.boot_reason == 0
+        assert msg["bootReason"] == "Normal"
 
     def test_wait_for_boot_with_reason_filter(self, client):
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=0))
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=2))
         msg = client.wait_for_boot(boot_reason=2, timeout_s=1)
-        assert msg.boot_reason == 2
+        assert msg["bootReason"] == "Fuota"
 
     def test_wait_for_position_with_predicate(self, client):
         client.inject(MessageFactory.position(device_id=0x1234, is_in_motion=False))
         client.inject(MessageFactory.position(device_id=0x1234, is_in_motion=True))
         msg = client.wait_for_position(
-            predicate=lambda m: m.is_in_motion,
+            predicate=lambda m: m.get("isInMotion"),
             timeout_s=1,
         )
-        assert msg.is_in_motion is True
+        assert msg["isInMotion"] is True
 
     def test_wait_for_biometric_on_body(self, client):
         client.inject(MessageFactory.biometric(device_id=0x1234, on_body=False))
@@ -275,7 +276,7 @@ class TestMockCloudClientInjection:
             predicate=lambda m: m.on_body,
             timeout_s=1,
         )
-        assert msg.on_body is True
+        assert msg["onSkin"] is True
 
     def test_check_hw_failures_returns_injected(self, client):
         client.inject(MessageFactory.hw_failure(device_id=0x1234, gps_fails=0x80))
@@ -456,10 +457,10 @@ class TestMockCloudClientIntegration:
         client.mark_test_start()
         engine.load(Scenario.motion_detected(device_id=0x1234))
         msg = client.wait_for_position(
-            predicate=lambda m: m.is_in_motion,
+            predicate=lambda m: m.get("isInMotion"),
             timeout_s=5,
         )
-        assert msg.is_in_motion is True
+        assert msg["isInMotion"] is True
 
     def test_stationary_no_motion_pattern(self):
         """Simulates test_motion.py::test_stationary_no_false_motion."""
@@ -469,7 +470,7 @@ class TestMockCloudClientIntegration:
         client.mark_test_start()
         engine.load(Scenario.clean_operation(device_id=0x1234))
         msg = client.wait_for_position(timeout_s=1)
-        assert msg.is_in_motion is False
+        assert msg["isInMotion"] is False
 
     def test_biometric_on_skin_pattern(self):
         """Simulates test_biometric.py::test_on_skin_detected."""
@@ -482,7 +483,7 @@ class TestMockCloudClientIntegration:
             predicate=lambda m: m.on_body,
             timeout_s=5,
         )
-        assert msg.on_body is True
+        assert msg["onSkin"] is True
 
     def test_no_hw_failures_pattern(self):
         """Simulates test_boot.py::test_no_hw_failures_after_boot."""
@@ -513,9 +514,9 @@ class TestMockCloudClientIntegration:
         client.mark_test_start()
         engine.load(Scenario.happy_boot(device_id=0x1234))
         msg = client.wait_for_network_status(timeout_s=5)
-        assert msg.did_lte_conn is True
-        assert msg.did_sock_conn is True
-        assert msg.send_success is True
+        assert msg["didLteConn"] is True
+        assert msg["didSockConn"] is True
+        assert msg["sendSuccess"] is True
 
     def test_fuota_reboot_pattern(self):
         """Simulates FUOTA complete → device reboots with reason=2."""
@@ -525,7 +526,7 @@ class TestMockCloudClientIntegration:
         client.mark_test_start()
         engine.load(Scenario.fuota_reboot(device_id=0x1234))
         msg = client.wait_for_boot(boot_reason=2, timeout_s=5)
-        assert msg.boot_reason == 2
+        assert msg["bootReason"] == "Fuota"
 
     def test_environmental_data_pattern(self):
         """Simulates test_environmental.py temperature/pressure/humidity checks."""
@@ -535,9 +536,9 @@ class TestMockCloudClientIntegration:
         client.mark_test_start()
         engine.load(Scenario.clean_operation(device_id=0x1234))
         msg = client.wait_for_biometric(timeout_s=5)
-        assert msg.temperature is not None
-        assert msg.pressure is not None
-        assert msg.humidity is not None
+        assert msg["temperature"] is not None
+        assert msg["pressure"] is not None
+        assert msg["humidity"] is not None
 
     def test_sequential_test_isolation(self):
         """Each mark_test_start creates a clean window — previous messages hidden."""

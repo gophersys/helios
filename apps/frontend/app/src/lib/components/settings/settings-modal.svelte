@@ -612,7 +612,7 @@
                   <button
                     type="submit"
                     disabled={submitting}
-                    class="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover disabled:opacity-50"
+                    class="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
                   >
                     {submitting ? 'Creating...' : 'Create key'}
                   </button>

@@ -82,7 +82,13 @@
     editingRevisionId = rev.id;
     editRevDeviceType = rev.deviceType ?? 0;
     editRevDeviceVariant = rev.deviceVariant ?? 0;
-    editRevTargets = (rev.targets || []).map((t) => ({ ...t }));
+    // Structurally clone targets to escape Svelte proxy (avoids state_unsafe_mutation)
+    editRevTargets = (rev.targets || []).map((t) => ({
+      id: t.id,
+      role: t.role,
+      soc: t.soc,
+      appId: t.appId,
+    }));
     error = null;
   }
 
@@ -443,7 +449,7 @@
                       />
                     </label>
                   </div>
-                  {#each editRevTargets.sort((a, b) => a.role === 'app' ? -1 : b.role === 'app' ? 1 : 0) as target}
+                  {#each [...editRevTargets].sort((a, b) => a.role === 'app' ? -1 : b.role === 'app' ? 1 : 0) as target}
                     <div class="rounded border border-border-subtle bg-surface-1 p-2">
                       <div class="mb-1.5 flex items-center gap-1.5">
                         <Cpu size={12} class="text-accent" />

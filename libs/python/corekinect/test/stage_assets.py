@@ -43,8 +43,8 @@ from typing import Any, Dict, List, Optional, Set, TYPE_CHECKING
 if TYPE_CHECKING:
     from corekinect.test.artifact_resolver import ArtifactResolver
 
-from corekinect.test.errors import ConfigError
-from corekinect.validation.stage_defs import Stage, get_required_labels as _get_required_labels
+from corekinect.errors import ConfigError
+from corekinect.stages import Stage, get_required_labels as _get_required_labels
 from corekinect.utils import Logger
 
 log = Logger(log_name="stage_assets")

@@ -460,7 +460,7 @@ class TestConfigMethods:
 
     def test_get_config_raises_on_non_200(self):
         """Raises CloudError when API returns a non-200 status code."""
-        from corekinect.test.errors import CloudError
+        from corekinect.errors import CloudError
 
         client = self._make_client()
         api, patcher = self._mock_api(client)
@@ -516,43 +516,57 @@ class TestConfigMethods:
 
     # -- set_ground_mode_config -----------------------------------------------
 
-    def test_set_config_calls_put_with_correct_payload(self):
-        """Calls PUT with deviceId merged into config_values."""
+    def test_set_config_calls_put_with_merged_payload(self):
+        """Reads current config, merges changes, PUTs full object."""
         client = self._make_client()
         api, patcher = self._mock_api(client)
 
-        resp = MagicMock()
-        resp.status_code = 200
-        api.request.return_value = resp
+        # Mock: first call = Search (read current), second call = PUT (write)
+        current_config = {
+            "deviceId": self.DEVICE_HEX,
+            "gpsHeartbeatPeriod": 60,
+            "stopMotionTimeout": 60,
+            "continuousMotionPeriod": 30,
+        }
+        search_resp = MagicMock()
+        search_resp.status_code = 200
+        search_resp.json.return_value = {"groundModeConfigurations": [current_config]}
 
-        config_values = {"gpsHeartbeatPeriod": 120, "stopMotionTimeout": 45}
+        put_resp = MagicMock()
+        put_resp.status_code = 200
+
+        api.request.side_effect = [search_resp, put_resp]
 
         try:
-            client.set_ground_mode_config(config_values)
+            client.set_ground_mode_config({"gpsHeartbeatPeriod": 120, "stopMotionTimeout": 45})
         finally:
             patcher.stop()
 
-        api.request.assert_called_once_with(
-            "PUT",
-            "/System/Devices/Configurations/GroundModeV2",
-            json={
-                "deviceId": self.DEVICE_HEX,
-                "gpsHeartbeatPeriod": 120,
-                "stopMotionTimeout": 45,
-            },
-        )
+        # The PUT should have the full merged config
+        put_call = api.request.call_args_list[1]
+        assert put_call[0] == ("PUT", "/System/Devices/Configurations/GroundModeV2")
+        payload = put_call[1]["json"]
+        assert payload["gpsHeartbeatPeriod"] == 120  # updated
+        assert payload["stopMotionTimeout"] == 45  # updated
+        assert payload["continuousMotionPeriod"] == 30  # kept from current
 
     def test_set_config_accepts_204(self):
-        """204 is also a valid success status code."""
+        """204 is also a valid success status code for the PUT."""
         client = self._make_client()
         api, patcher = self._mock_api(client)
 
-        resp = MagicMock()
-        resp.status_code = 204
-        api.request.return_value = resp
+        current_config = {"deviceId": self.DEVICE_HEX, "gpsHeartbeatPeriod": 60}
+        search_resp = MagicMock()
+        search_resp.status_code = 200
+        search_resp.json.return_value = {"groundModeConfigurations": [current_config]}
+
+        put_resp = MagicMock()
+        put_resp.status_code = 204
+
+        api.request.side_effect = [search_resp, put_resp]
 
         try:
-            client.set_ground_mode_config({"gpsHeartbeatPeriod": 60})
+            client.set_ground_mode_config({"gpsHeartbeatPeriod": 120})
         finally:
             patcher.stop()
 
@@ -560,7 +574,7 @@ class TestConfigMethods:
 
     def test_set_config_raises_on_non_200_204(self):
         """Raises CloudError when API returns a non-200/204 status code."""
-        from corekinect.test.errors import CloudError
+        from corekinect.errors import CloudError
 
         client = self._make_client()
         api, patcher = self._mock_api(client)
@@ -578,7 +592,7 @@ class TestConfigMethods:
 
     def test_set_config_raises_when_api_unavailable(self):
         """Raises CloudError when _get_api returns None."""
-        from corekinect.test.errors import CloudError
+        from corekinect.errors import CloudError
 
         client = self._make_client()
         with patch.object(client, "_get_api", return_value=None):

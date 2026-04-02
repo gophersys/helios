@@ -200,6 +200,8 @@ def create_kubernetes_job(
     # Validation stage and image tag
     stage: str = "fuota",
     image_tag: Optional[str] = None,
+    # Test package version (downloaded by generic runner at startup)
+    test_package_version: Optional[str] = None,
     # Test filtering
     pytest_filter: Optional[str] = None,
     fuota_label: Optional[str] = None,
@@ -294,6 +296,9 @@ def create_kubernetes_job(
         # Test filtering (temporary — revert once FUOTA debug-flag issue is resolved)
         job_yaml = job_yaml.replace("{{PYTEST_FILTER}}", pytest_filter or "")
         job_yaml = job_yaml.replace("{{FUOTA_LABEL}}", fuota_label or "")
+
+        # Test package version (for generic runner to download)
+        job_yaml = job_yaml.replace("{{TEST_PACKAGE_VERSION}}", test_package_version or "latest")
 
         # Stage config: test directory and marker from ProductStageConfig
         job_yaml = job_yaml.replace("{{PYTEST_DIR}}", test_directory or "")

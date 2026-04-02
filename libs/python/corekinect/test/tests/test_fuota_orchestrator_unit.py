@@ -8,8 +8,8 @@ import inspect
 
 import pytest
 
-from corekinect.test.errors import ConfigError
-from corekinect.test.errors import TimeoutError as ValidationTimeoutError
+from corekinect.errors import ConfigError
+from corekinect.errors import TimeoutError as ValidationTimeoutError
 from corekinect.test.fuota_orchestrator import FuotaOrchestrator, personalize_with_retry
 from corekinect.test.stage_assets import BuildAsset
 from corekinect.test.tests.stubs import StubArtifactResolver, StubFuotaClient

@@ -34,12 +34,11 @@ Environment variables required:
 """
 
 import datetime
+import os
 import threading
 import time
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
-
-import os
 
 import requests
 

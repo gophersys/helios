@@ -362,7 +362,7 @@ class ArtifactResolver:
         if self._pipeline_fetched:
             return
 
-        url = f"{self._api_url}/v2/builds/pipelines/{self._pipeline_id}"
+        url = f"{self._api_url}/v2/builds/runs/{self._pipeline_id}"
         self._log.info("Fetching pipeline %s", self._pipeline_id)
 
         resp = self._session.get(url, timeout=30)
@@ -748,7 +748,7 @@ class ArtifactResolver:
         """
         # Try triggerData first
         self._ensure_pipeline()
-        url = f"{self._api_url}/v2/builds/pipelines/{self._pipeline_id}"
+        url = f"{self._api_url}/v2/builds/runs/{self._pipeline_id}"
         try:
             resp = self._session.get(url, timeout=30)
             if resp.status_code == 200:
@@ -782,7 +782,7 @@ class ArtifactResolver:
         self._ensure_pipeline()
 
         # Access raw pipeline data — we need triggerData
-        url = f"{self._api_url}/v2/builds/pipelines/{self._pipeline_id}"
+        url = f"{self._api_url}/v2/builds/runs/{self._pipeline_id}"
         try:
             resp = self._session.get(url, timeout=30)
             if resp.status_code != 200:

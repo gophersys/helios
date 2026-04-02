@@ -6,7 +6,7 @@ from corekinect.test.stages.
 
 import pytest
 
-from corekinect.test.stages import Stage, STAGE_NUMBERS, STAGE_NAMES
+from corekinect.stages import Stage, STAGE_NUMBERS, STAGE_NAMES
 
 
 class TestStageEnum:

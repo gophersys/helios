@@ -50,7 +50,7 @@ spec:
           hostPort: 50053
         env:
         - name: HARDWARE_VERSION
-          value: "REV1.1"
+          value: "REV1.2"
         - name: LOG_LEVEL
           value: "{{LOG_LEVEL}}"
         - name: LOG_PATH

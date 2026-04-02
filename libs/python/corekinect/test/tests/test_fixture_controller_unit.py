@@ -9,11 +9,11 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
-from corekinect.test.errors import HardwareError
+from corekinect.errors import HardwareError
 from corekinect.test.fixture_controller import FixtureController
+from corekinect.capabilities import Capability
 from corekinect.test.profiles import (
     ButtonConfig,
-    Capability,
     ChargerRelayConfig,
     DutConfig,
     FixtureProfile,

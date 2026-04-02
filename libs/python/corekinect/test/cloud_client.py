@@ -11,7 +11,7 @@ import re
 import time
 from typing import Any, Callable, Dict, List, Optional
 
-from corekinect.test.errors import CloudError
+from corekinect.errors import CloudError
 from corekinect.utils import Logger
 from corekinect.utils.timeutil.formaters import auto_format_time_elapsed
 
@@ -195,6 +195,7 @@ class CloudClient:
 
         Returns:
             Boot info dict with keys: recordId, timeOfBoot, bootReason.
+            Also has typed accessors: result["bootReason"] or result.boot_reason.
         """
         reason_map = {0: "Normal", 1: "Exception", 2: "Fuota", 3: "Charger"}
         reason_str = reason_map.get(boot_reason) if boot_reason is not None else None

@@ -1,6 +1,9 @@
 <script lang="ts">
-  import { Code, Save, CheckCircle, AlertCircle, Download, Upload, RefreshCw } from 'lucide-svelte';
+  import { Code, Save, CheckCircle, AlertCircle, RefreshCw, Maximize2 } from 'lucide-svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
+  import Card from '$lib/components/ui/card.svelte';
+  import CodeEditor from '$lib/components/ui/code-editor.svelte';
+  import BuildScriptEditor from './build-script-editor.svelte';
   import { apiFetch, api } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
 
@@ -19,6 +22,7 @@
   let validating = $state(false);
   let error = $state<string | null>(null);
   let validationResult = $state<{ valid: boolean; errors: string[]; warnings: string[] } | null>(null);
+  let showFullEditor = $state(false);
   let hasChanges = $derived(recipe !== originalRecipe);
 
   async function loadRecipe() {
@@ -65,6 +69,12 @@
     }
   }
 
+  function handleFullEditorSave(content: string): void {
+    recipe = content;
+    originalRecipe = content;
+    validationResult = null;
+  }
+
   $effect(() => {
     loadRecipe();
   });
@@ -85,9 +95,18 @@
     <div class="flex items-center gap-2">
       {#if canManage}
         <button
+          onclick={() => (showFullEditor = true)}
+          class="btn btn-sm btn-ghost"
+          title="Open full editor"
+          aria-label="Open full editor"
+        >
+          <Maximize2 class="h-4 w-4" />
+          Full Editor
+        </button>
+        <button
           onclick={validateRecipe}
           disabled={validating || !recipe}
-          class="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-2 disabled:opacity-50"
+          class="btn btn-sm btn-secondary"
         >
           {#if validating}
             <RefreshCw class="h-4 w-4 animate-spin" />
@@ -99,7 +118,7 @@
         <button
           onclick={saveRecipe}
           disabled={saving || !hasChanges}
-          class="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+          class="btn btn-sm btn-primary"
         >
           {#if saving}
             <RefreshCw class="h-4 w-4 animate-spin" />
@@ -134,7 +153,7 @@
   {/if}
 
   <!-- Code Editor -->
-  <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
+  <Card size="sm" class="overflow-hidden !p-0">
     <div class="flex items-center justify-between border-b border-border bg-surface-2 px-4 py-2">
       <div class="flex items-center gap-2">
         <Code class="h-4 w-4 text-text-tertiary" />
@@ -147,21 +166,17 @@
     {#if loading}
       <div class="p-8 text-center text-text-tertiary">Loading recipe...</div>
     {:else}
-      <textarea
-        bind:value={recipe}
-        disabled={!canManage}
-        spellcheck="false"
-        class="w-full min-h-[500px] bg-surface-0 p-4 font-mono text-sm text-text-primary
-               placeholder:text-text-tertiary focus:outline-none resize-y
-               disabled:opacity-60 disabled:cursor-not-allowed"
-        placeholder="#!/bin/bash&#10;source /app/sdk/concord-build.sh&#10;concord_init&#10;&#10;# Your build commands here...&#10;&#10;concord_finalize"
-      ></textarea>
+      <CodeEditor
+        value={recipe}
+        onchange={(v) => (recipe = v)}
+        readonly={!canManage}
+        maxHeight="500px"
+      />
     {/if}
-  </div>
+  </Card>
 
   <!-- SDK Reference -->
-  <div class="rounded-lg border border-border-subtle bg-surface-1 p-4">
-    <h4 class="text-sm font-medium text-text-secondary mb-2">Concord Build SDK Reference</h4>
+  <Card title="Concord Build SDK Reference" size="sm">
     <div class="grid grid-cols-2 gap-3 text-2xs font-mono text-text-tertiary">
       <div>
         <span class="text-accent">concord_init</span> — setup workspace, extract version, fix paths
@@ -181,5 +196,15 @@
       <code class="text-accent">$CONCORD_FW_TYPE</code>, <code class="text-accent">$CONCORD_REPO_DIR</code>,
       <code class="text-accent">$CONCORD_COMMS_SOC</code>, <code class="text-accent">$CONCORD_CONFIG_LOG</code>
     </div>
-  </div>
+  </Card>
 </div>
+
+<!-- Full-screen build script editor overlay -->
+<BuildScriptEditor
+  open={showFullEditor}
+  {productId}
+  {productName}
+  initialContent={recipe}
+  onClose={() => (showFullEditor = false)}
+  onSave={handleFullEditorSave}
+/>

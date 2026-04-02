@@ -252,7 +252,7 @@ class TestArtifactResolverManifest:
         pipeline_resp = _make_pipeline_response(builds)
 
         def mock_get(url, **kwargs):
-            if "/builds/pipelines/" in url:
+            if "/builds/runs/" in url:
                 return MockResponse(pipeline_resp)
             if "/artifacts" in url:
                 # Return artifacts for a build
@@ -425,7 +425,7 @@ class TestArtifactResolverNoManifest:
         pipeline_resp = _make_pipeline_response(builds)
 
         def mock_get(url, **kwargs):
-            if "/builds/pipelines/" in url:
+            if "/builds/runs/" in url:
                 return MockResponse(pipeline_resp)
             if "/artifacts" in url:
                 for b in builds:
@@ -495,7 +495,7 @@ class TestArtifactResolverErrors:
         pipeline_resp = _make_pipeline_response(builds)
 
         def mock_get(url, **kwargs):
-            if "/builds/pipelines/" in url:
+            if "/builds/runs/" in url:
                 return MockResponse(pipeline_resp)
             return MockResponse(None, 404)
 

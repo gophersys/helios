@@ -82,7 +82,6 @@ class TestCiTriggerRequest:
         assert req.repo_slug == "alpha_fw"
         assert req.branch == "concord-main"
         assert req.variant == "debug"
-        assert req.mtib_rev == "1.2"
 
     def test_missing_product_id(self):
         data = {"repoSlug": "alpha_fw", "branch": "main"}

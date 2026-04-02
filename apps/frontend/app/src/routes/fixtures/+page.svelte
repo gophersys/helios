@@ -157,7 +157,7 @@
         {#if canManage && !showForm && !selectedFixture}
           <button
             onclick={() => { resetForm(); showForm = true; }}
-            class="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+            class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
           >
             <Plus size={16} />
             Create Fixture

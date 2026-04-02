@@ -5,6 +5,7 @@
   import {
     AlertTriangle,
     ArrowLeft,
+    Ban,
     Check,
     CheckCircle2,
     ChevronDown,
@@ -21,6 +22,7 @@
     Loader2,
     Package,
     RefreshCw,
+    RotateCcw,
     ShieldCheck,
     X,
     XCircle,
@@ -28,7 +30,7 @@
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { BuildRunDetail, PipelineBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
-  import { fetchBuildRun, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadBuildRunArtifacts, downloadSingleArtifact, triggerBuildRunValidation, validateBuildRunArtifacts, fetchBuildRunSessions } from '$lib/services/ci';
+  import { fetchBuildRun, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadBuildRunArtifacts, downloadSingleArtifact, triggerBuildRunValidation, validateBuildRunArtifacts, fetchBuildRunSessions, cancelPipeline, retriggerPipeline } from '$lib/services/ci';
   import type { BuildRunSessionSummary, ArtifactValidationReport } from '$lib/services/ci';
   import { getTriggerConfig, getProductInfo } from '$lib/constants/builds';
   import type { BuildArtifact } from '$lib/types/ci';
@@ -210,6 +212,46 @@
     } finally {
       resettingBuilds.delete(buildId);
       resettingBuilds = new Set(resettingBuilds);
+    }
+  }
+
+  let cancelling = $state(false);
+  let retriggering = $state(false);
+  const canManage = $derived(auth.hasPermission('builds:manage'));
+
+  // Can cancel: run is active
+  const canCancel = $derived(
+    canManage && buildRun && ['BUILDING', 'PENDING', 'VALIDATING'].includes(buildRun.status ?? '')
+  );
+
+  // Can retrigger: run is in terminal state and has a stageConfigId
+  const canRetrigger = $derived(
+    canManage && buildRun && ['SUCCESS', 'FAILED', 'BUILD_FAILED', 'CANCELLED'].includes(buildRun.status ?? '')
+  );
+
+  async function handleCancel(): Promise<void> {
+    if (!buildRun || cancelling) return;
+    cancelling = true;
+    try {
+      await cancelPipeline(buildRun.id);
+      buildRun = await fetchBuildRun(runId);
+      error = null;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to cancel pipeline';
+    } finally {
+      cancelling = false;
+    }
+  }
+
+  async function handleRetrigger(): Promise<void> {
+    if (!buildRun || retriggering) return;
+    retriggering = true;
+    try {
+      const result = await retriggerPipeline(buildRun.id);
+      goto(`/builds/runs/${result.buildRunId}`);
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to retrigger pipeline';
+      retriggering = false;
     }
   }
 
@@ -615,6 +657,38 @@
         <span title={formatDateTime(buildRun.createdAt)}>
           {formatTimeAgo(buildRun.createdAt)}
         </span>
+        <!-- Cancel button -->
+        {#if canCancel}
+          <button
+            onclick={handleCancel}
+            disabled={cancelling}
+            class="btn btn-sm flex items-center gap-1.5 text-error hover:bg-error-muted"
+            title="Cancel this pipeline"
+          >
+            {#if cancelling}
+              <Loader2 size={14} class="animate-spin" />
+            {:else}
+              <Ban size={14} />
+            {/if}
+            Cancel
+          </button>
+        {/if}
+        <!-- Retrigger button -->
+        {#if canRetrigger}
+          <button
+            onclick={handleRetrigger}
+            disabled={retriggering}
+            class="btn btn-sm flex items-center gap-1.5"
+            title="Re-trigger this pipeline with the same configuration"
+          >
+            {#if retriggering}
+              <Loader2 size={14} class="animate-spin" />
+            {:else}
+              <RotateCcw size={14} />
+            {/if}
+            Re-trigger
+          </button>
+        {/if}
         <!-- Validate Artifacts button -->
         {#if hasAnyArtifacts}
           <button

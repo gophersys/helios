@@ -29,7 +29,8 @@ from typing import Callable, List, Optional
 
 import pytest
 
-from .profiles import Capability, Feature, FEATURE_REQUIREMENTS, ValidationConfig
+from corekinect.capabilities import Capability, Feature, FEATURE_REQUIREMENTS
+from .profiles import ValidationConfig
 
 
 def _find_fixture(func: Callable, args: tuple, kwargs: dict):

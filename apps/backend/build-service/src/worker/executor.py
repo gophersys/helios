@@ -31,7 +31,6 @@ class BuildJob:
     board: str
     target: str
     variant: str
-    mtib_rev: str
     branch: str
     commit_sha: str
     status: str
@@ -114,7 +113,6 @@ class BuildExecutor:
         # Legacy env vars (backward compat with existing build scripts)
         env.update({
             "VARIANT": job.variant if job.variant != "mfg" else "",
-            "MTIB_REV": job.mtib_rev,
             "COMMIT_SHA": job.commit_sha or "",
             "BRANCH": job.branch,
             "TARGET": build_target,
@@ -178,7 +176,7 @@ class BuildExecutor:
             script = f"/workspace/{job.id}/scripts/build.sh"
         else:
             script = str(script_path)
-        cmd = ["bash", script, build_target, "--mtib-rev", job.mtib_rev, "-b", job.board]
+        cmd = ["bash", script, build_target, "-b", job.board]
         if job.variant and job.variant not in ("mfg", "release"):
             cmd.extend(["--variant", job.variant])
 
@@ -243,8 +241,8 @@ class BuildExecutor:
             else:
                 log.warning("Could not get base build version for bump, using default")
 
-        # Build command: bash scripts/build.sh <target> --mtib-rev <rev> [--variant <variant>] [--force-log]
-        cmd = ["bash", str(script_path), build_target, "--mtib-rev", job.mtib_rev, "-b", job.board]
+        # Build command: bash scripts/build.sh <target> [--variant <variant>] [--force-log]
+        cmd = ["bash", str(script_path), build_target, "-b", job.board]
         if job.variant and job.variant not in ("mfg", "release"):
             cmd.extend(["--variant", job.variant])
 

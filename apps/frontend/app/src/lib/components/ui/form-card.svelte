@@ -18,9 +18,10 @@
     </h3>
     <button
       onclick={onClose}
-      class="rounded-lg p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
+      class="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
+      aria-label="Close"
     >
-      <X size={16} />
+      <X size={18} />
     </button>
   </div>
   {@render children()}

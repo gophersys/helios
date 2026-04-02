@@ -51,8 +51,8 @@ def _serialize_session(s: Any, include_executions: bool = False) -> dict:
         data["product"] = {"id": s.product.id, "name": s.product.name}
     if hasattr(s, "createdBy") and s.createdBy is not None:
         data["createdBy"] = {"id": s.createdBy.id, "name": s.createdBy.name, "email": s.createdBy.email}
-    if hasattr(s, "pipeline") and s.buildRun is not None:
-        data["pipeline"] = _serialize_build_run(s.pipeline)
+    if hasattr(s, "buildRun") and s.buildRun is not None:
+        data["buildRun"] = _serialize_build_run(s.buildRun)
     if hasattr(s, "devices") and s.devices is not None:
         data["devices"] = [_serialize_device(d) for d in s.devices]
     if include_executions and hasattr(s, "devices") and s.devices is not None:

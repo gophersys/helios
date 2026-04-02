@@ -45,6 +45,8 @@
     UNASSIGNED: 'bg-surface-2 text-text-tertiary',
     EMPTY: 'bg-surface-2 text-text-tertiary',
     UNKNOWN: 'bg-surface-2 text-text-tertiary',
+    // Recipe version statuses
+    PUBLISHED: 'bg-success-muted text-success',
   };
 
   let { status }: { status: string } = $props();

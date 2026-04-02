@@ -6,7 +6,6 @@
   import { apiFetch, api } from '$lib/api';
   import { PageHeader, ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog } from '$lib/components/ui';
   import ProductCard from '$lib/components/products/product-card.svelte';
-  import ProductDetail from '$lib/components/products/product-detail.svelte';
   import ProductCreationWizard from '$lib/components/products/product-creation-wizard.svelte';
   import type { Product } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
@@ -21,9 +20,6 @@
   // Delete confirmation
   let deleteTarget = $state<{ id: string; name: string } | null>(null);
 
-  // Detail state
-  let selectedProduct = $state<Product | null>(null);
-
   // Wizard state
   let showWizard = $state(false);
 
@@ -36,15 +32,6 @@
       error = err instanceof Error ? err.message : 'Failed to load products';
     } finally {
       loading = false;
-    }
-  }
-
-  async function fetchDetail(id: string) {
-    try {
-      const res = await apiFetch<ApiResponse<Product>>(`/v2/products/${id}`);
-      selectedProduct = res.data;
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load product';
     }
   }
 
@@ -65,7 +52,6 @@
     error = null;
     try {
       await api.delete(`/v2/products/${id}`);
-      if (selectedProduct?.id === id) selectedProduct = null;
       fetchProducts();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete';
@@ -87,13 +73,6 @@
 
   {#if loading}
     <LoadingState message="Loading products..." />
-  {:else if selectedProduct}
-    <ProductDetail
-      product={selectedProduct}
-      {canManage}
-      onBack={() => (selectedProduct = null)}
-      onRefresh={() => fetchDetail(selectedProduct!.id)}
-    />
   {:else}
     <ErrorAlert message={error} />
 
@@ -102,7 +81,7 @@
       <div class="mb-4 flex justify-end">
         <button
           onclick={() => { showWizard = true; }}
-          class="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+          class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
         >
           <Plus size={16} />
           New Product
@@ -129,7 +108,7 @@
             product={p}
             {canManage}
             onDelete={promptDelete}
-            onSelect={(prod) => fetchDetail(prod.id)}
+            onSelect={(prod) => goto(`/products/${prod.id}`)}
           />
         {/each}
       </div>

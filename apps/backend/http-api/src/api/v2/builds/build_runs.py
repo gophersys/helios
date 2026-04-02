@@ -267,6 +267,54 @@ def cancel_build_run(run_id: str):
         return internal_error("Failed to cancel pipeline")
 
 
+@require_permissions(Permissions.BUILDS_MANAGE)
+def retrigger_build_run(run_id: str):
+    """POST /v2/builds/runs/<id>/retrigger — Re-trigger a pipeline with the same config."""
+    db = get_db_client()
+
+    build_run = db.buildrun.find_unique(
+        where={"id": run_id},
+        include={"product": True},
+    )
+    if not build_run:
+        return not_found(f"Pipeline not found: {run_id}")
+
+    if not build_run.stageConfigId:
+        return bad_request("Cannot retrigger: no stage config associated with this run")
+
+    # Reconstruct event metadata from the original run
+    event_metadata = {
+        "source": "retrigger",
+        "source_commit": build_run.commitSha,
+        "pr_id": build_run.prNumber,
+        "pr_title": build_run.prTitle,
+        "pr_author": build_run.prAuthor,
+        "source_branch": build_run.sourceBranch,
+        "target_branch": build_run.targetBranch,
+        "pr_url": build_run.prUrl,
+    }
+
+    from src.services.build_trigger import trigger_stage_build
+    try:
+        result = trigger_stage_build(
+            product_id=build_run.productId,
+            stage_config_id=build_run.stageConfigId,
+            event_metadata=event_metadata,
+        )
+        if not result:
+            return internal_error("Failed to trigger build — check product config")
+
+        log_audit("ci.pipeline.retrigger", "BuildRun", result["buildRunId"], {
+            "originalRunId": run_id,
+            "jobCount": result["jobCount"],
+        })
+
+        return jsonify(ApiResponse.ok(result).to_dict()), 201
+    except Exception as e:
+        logger.exception("Failed to retrigger pipeline %s", run_id)
+        return internal_error("Failed to retrigger pipeline")
+
+
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_build_run_sessions(run_id: str):
     """GET /v2/builds/pipelines/<id>/sessions — List sessions triggered by this pipeline."""

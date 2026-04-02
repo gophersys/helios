@@ -11,7 +11,7 @@ No hardware, no network — everything in-memory via stubs.
 
 import pytest
 
-from corekinect.test.errors import (
+from corekinect.errors import (
     CloudError,
     ConfigError,
     TimeoutError as ValidationTimeoutError,

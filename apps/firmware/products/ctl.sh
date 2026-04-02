@@ -262,7 +262,6 @@ cmd_build() {
 
   # Parse options
   local target="all"
-  local mtib_rev=""
   local variant=""
   local pristine=""
   local no_docker=false
@@ -271,7 +270,6 @@ cmd_build() {
   while [[ $# -gt 0 ]]; do
     case $1 in
       --target)     target="$2"; shift 2 ;;
-      --mtib-rev)   mtib_rev="$2"; shift 2 ;;
       --variant)    variant="$2"; shift 2 ;;
       --pristine)   pristine="yes"; shift ;;
       --no-docker)  no_docker=true; shift ;;
@@ -292,7 +290,7 @@ cmd_build() {
   esac
 
   for t in "${targets[@]}"; do
-    _build_one "$product" "$product_dir" "$t" "$mtib_rev" "$variant" "$pristine" "$no_docker" "${extra_args[@]+"${extra_args[@]}"}"
+    _build_one "$product" "$product_dir" "$t" "$variant" "$pristine" "$no_docker" "${extra_args[@]+"${extra_args[@]}"}"
   done
 
   echo ""
@@ -304,11 +302,10 @@ _build_one() {
   local product="$1"
   local product_dir="$2"
   local target="$3"
-  local mtib_rev="$4"
-  local variant="$5"
-  local pristine="$6"
-  local no_docker="$7"
-  shift 7
+  local variant="$4"
+  local pristine="$5"
+  local no_docker="$6"
+  shift 6
   local extra_args=("$@")
 
   local fw_submodule
@@ -317,12 +314,11 @@ _build_one() {
   echo ""
   info "═══════════════════════════════════════════════"
   info "  Building ${fw_submodule}"
-  info "  target=${target}  mtib_rev=${mtib_rev:-default}  variant=${variant:-release}"
+  info "  target=${target}  variant=${variant:-release}"
   info "═══════════════════════════════════════════════"
 
   # Assemble build.sh arguments
   local build_args=("$target")
-  [[ -n "$mtib_rev" ]]  && build_args+=(--mtib-rev "$mtib_rev")
   [[ -n "$variant" ]]   && build_args+=(--variant "$variant")
   [[ -n "$pristine" ]]  && build_args+=(--pristine)
   build_args+=("${extra_args[@]+"${extra_args[@]}"}")
@@ -417,17 +413,13 @@ cmd_build_all() {
   local app_matrix=()
   case "$product" in
     alpha)
-      # Alpha: 3 variants (mfg/debug/release) × 2 MTIB revisions = 6 invocations
-      # Each invocation produces 2 MCU hex files = 12 total
+      # Alpha: 3 variants (mfg/debug/release), 2 MCU hex files each = 6 total
       mfg_matrix=(
-        "mfg    --mtib-rev 1.1"
-        "mfg    --mtib-rev 1.2"
+        "mfg"
       )
       app_matrix=(
-        "app    --mtib-rev 1.1 --variant debug"
-        "app    --mtib-rev 1.2 --variant debug"
-        "app    --mtib-rev 1.1"
-        "app    --mtib-rev 1.2"
+        "app    --variant debug"
+        "app"
       )
       ;;
     sigma5)
@@ -556,7 +548,7 @@ cmd_collect() {
 
   case "$product" in
     alpha)
-      # Collect alpha artifacts with naming: alpha_<variant>_<mcu>_rev<mtib_rev>.hex
+      # Collect alpha artifacts: alpha_<variant>_<mcu>.hex
       _collect_alpha_variant "$product_dir" "$dest_dir" "alpha_fw"  "release" && true
       _collect_alpha_variant "$product_dir" "$dest_dir" "alpha_fw"  "debug"   && true
       _collect_alpha_variant "$product_dir" "$dest_dir" "alpha_mfg_fw" "mfg"  && true
@@ -592,9 +584,7 @@ _collect_alpha_variant() {
     return 0
   fi
 
-  # Determine MTIB revisions by checking what overlays were used
-  # Artifacts are at artifacts/<fw_name>/<board>/ — the build.sh collects them there
-  # We need to look at what was actually built
+  # Collect hex files from build artifacts
   for hex in "${src_dir}"/*.hex; do
     [[ -f "$hex" ]] || continue
     local basename
@@ -802,7 +792,6 @@ $(for d in "${SCRIPT_DIR}"/*/; do
 
 ${BOLD}Build Options:${NC}
   ${CYAN}--target app|mfg|all${NC}     Which firmware to build (default: all)
-  ${CYAN}--mtib-rev 1.1|1.2${NC}       MTIB hardware revision (alpha only)
   ${CYAN}--variant debug|release${NC}   Build variant (default: release)
   ${CYAN}--pristine${NC}               Force clean rebuild
   ${CYAN}--no-docker${NC}              Build locally instead of in Docker
@@ -816,9 +805,9 @@ ${BOLD}Docker Image Resolution:${NC}
 
 ${BOLD}Examples:${NC}
   # Single build
-  ./apps/firmware/products/ctl.sh build alpha --target mfg --mtib-rev 1.2
+  ./apps/firmware/products/ctl.sh build alpha --target mfg
 
-  # All alpha variants (6 builds → 12 hex files)
+  # All alpha variants (3 builds → 6 hex files)
   ./apps/firmware/products/ctl.sh build-all alpha
 
   # Parallel: mfg + app groups run concurrently (~2x faster)

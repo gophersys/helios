@@ -9,7 +9,7 @@ These tests verify that the programmable fixture correctly:
 
 import pytest
 
-from corekinect.test.profiles import Capability, Feature
+from corekinect.capabilities import Capability, Feature
 from corekinect.test.programmable_fixture import (
     ProgrammableFixture,
     FixtureBuilder,

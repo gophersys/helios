@@ -121,6 +121,9 @@ class TelemetryStreamer:
         self._test_data: Dict[str, List[Dict[str, Any]]] = {}
         self._test_lock = threading.Lock()
 
+        # Cached env var — read once, not on every flush
+        self._host_header: Optional[str] = os.environ.get("CONCORD_API_HOST")
+
         # Flush thread
         self._flush_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
@@ -377,9 +380,8 @@ class TelemetryStreamer:
                 else:
                     headers["Authorization"] = f"Bearer {self._api_key}"
 
-            host_header = os.environ.get("CONCORD_API_HOST")
-            if host_header:
-                headers["Host"] = host_header
+            if self._host_header:
+                headers["Host"] = self._host_header
 
             _requests.post(
                 f"{self._api_url}/v2/sessions/{self._run_id}/report/telemetry",

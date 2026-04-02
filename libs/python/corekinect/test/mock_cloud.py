@@ -688,39 +688,102 @@ class MockCloudClient:
         )
 
     # ── CloudClient-compatible interface ──────────────────────────
+    #
+    # Returns DICTS matching the real CloudClient's REST API response shape.
+    # This ensures tests don't need isinstance() checks to handle both
+    # mock and real clients — the interface is identical.
 
     def wait_for_boot(
         self,
         boot_reason: Optional[int] = None,
         timeout_s: float = 120,
-    ) -> BootMsgV2:
+    ) -> Dict[str, Any]:
+        """Wait for boot event — returns dict matching CloudClient interface."""
+        reason_map = {0: "Normal", 1: "Exception", 2: "Fuota", 3: "Charger"}
+
         def pred(b: BootMsgV2) -> bool:
             if boot_reason is not None and b.boot_reason != boot_reason:
                 return False
             return True
-        return self._poll(BootMsgV2, pred, timeout_s)
+
+        msg = self._poll(BootMsgV2, pred, timeout_s)
+
+        # Convert to dict matching REST API response shape
+        return {
+            "recordId": getattr(msg, "record_id", 0),
+            "timeOfBoot": getattr(msg, "time_of_event", ""),
+            "bootReason": reason_map.get(getattr(msg, "boot_reason", 0), "Unknown"),
+        }
 
     def wait_for_position(
         self,
-        predicate: Optional[Callable[[PositionMsgV6], bool]] = None,
+        predicate: Optional[Callable] = None,
         timeout_s: float = 300,
-    ) -> PositionMsgV6:
-        return self._poll(PositionMsgV6, predicate, timeout_s)
+    ) -> Dict[str, Any]:
+        """Wait for position event — returns dict matching CloudClient interface."""
+        # Wrap user predicate to work with message objects
+        msg_pred = None
+        if predicate is not None:
+            # Convert message to dict before passing to predicate —
+            # matches real CloudClient which always returns dicts
+            def msg_pred(pos: PositionMsgV6) -> bool:
+                return predicate(self._position_to_dict(pos))
+
+        msg = self._poll(PositionMsgV6, msg_pred, timeout_s)
+        return self._position_to_dict(msg)
+
+    @staticmethod
+    def _position_to_dict(msg: PositionMsgV6) -> Dict[str, Any]:
+        """Convert PositionMsgV6 to dict matching REST API shape."""
+        return {
+            "recordId": getattr(msg, "record_id", 0),
+            "timeOfFix": str(getattr(msg, "time_of_event", "")),
+            "latitude": getattr(msg, "latitude", 0),
+            "longitude": getattr(msg, "longitude", 0),
+            "gpsAltitude": getattr(msg, "gps_altitude", 0),
+            "horizontalAccuracy": getattr(msg, "horizontal_accuracy", 255),
+            "verticalAccuracy": getattr(msg, "vertical_accuracy", 255),
+            "battPercent": getattr(msg, "battery_percent", 0),
+            "battVoltage": getattr(msg, "battery_voltage", 0),
+            "updateReason": getattr(msg, "update_reason_str", "Unknown"),
+            "isInMotion": getattr(msg, "is_in_motion", False),
+            "isInSosMode": getattr(msg, "is_sos", False),
+            "externalTemperature": getattr(msg, "ext_temperature", 0),
+            "pressure": getattr(msg, "pressure", 0),
+            "humidity": getattr(msg, "humidity", 0),
+        }
 
     def wait_for_biometric(
         self,
         predicate: Optional[Callable[[BiometricDataMsg], bool]] = None,
         timeout_s: float = 120,
-    ) -> BiometricDataMsg:
-        # MockBiometricDataMsg is a subclass of BiometricDataMsg, so isinstance works
-        return self._poll(BiometricDataMsg, predicate, timeout_s)
+    ) -> Dict[str, Any]:
+        """Wait for biometric data — returns dict matching CloudClient interface."""
+        msg = self._poll(BiometricDataMsg, predicate, timeout_s)
+        return {
+            "recordId": getattr(msg, "record_id", 0),
+            "timeOfEvent": str(getattr(msg, "time_of_event", "")),
+            "heartRate": getattr(msg, "heart_rate", 0),
+            "skinTemperature": getattr(msg, "skin_temperature", 0),
+            "onSkin": getattr(msg, "on_body", False),
+            "temperature": getattr(msg, "temperature", None),
+            "pressure": getattr(msg, "pressure", None),
+            "humidity": getattr(msg, "humidity", None),
+        }
 
     def wait_for_network_status(
         self, timeout_s: float = 120
-    ) -> NetworkStatusMsgV4:
+    ) -> Dict[str, Any]:
+        """Wait for network status — returns dict matching CloudClient interface."""
         def pred(n: NetworkStatusMsgV4) -> bool:
             return bool(n.did_lte_conn and n.did_sock_conn and n.send_success)
-        return self._poll(NetworkStatusMsgV4, pred, timeout_s)
+        msg = self._poll(NetworkStatusMsgV4, pred, timeout_s)
+        return {
+            "recordId": getattr(msg, "record_id", 0),
+            "didLteConn": getattr(msg, "did_lte_conn", False),
+            "didSockConn": getattr(msg, "did_sock_conn", False),
+            "sendSuccess": getattr(msg, "send_success", False),
+        }
 
     def check_hw_failures(self) -> Dict[str, Any]:
         """Check app hardware failures — returns dict matching CloudClient interface.

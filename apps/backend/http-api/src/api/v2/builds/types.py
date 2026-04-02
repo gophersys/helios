@@ -85,7 +85,6 @@ class CiTriggerRequest:
     repo_slug: str
     branch: str
     variant: str = "debug"
-    mtib_rev: str = "1.2"
     commit_sha: Optional[str] = None
     firmware_version: Optional[str] = None
 
@@ -112,8 +111,6 @@ class CiTriggerRequest:
         if variant not in ("debug", "release"):
             return None, "variant must be 'debug' or 'release'"
 
-        mtib_rev = (data.get("mtibRev") or "1.2").strip()
-
         commit_sha = data.get("commitSha")
         if commit_sha:
             commit_sha = commit_sha.strip()
@@ -127,7 +124,6 @@ class CiTriggerRequest:
             repo_slug=repo_slug,
             branch=branch,
             variant=variant,
-            mtib_rev=mtib_rev,
             commit_sha=commit_sha,
             firmware_version=firmware_version,
         ), None
@@ -142,7 +138,6 @@ class BuildCreateRequest:
     target: str
     variant: str
     branch: str
-    mtib_rev: str = "1.2"
     commit_sha: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
     version_override: Optional[str] = None
@@ -185,8 +180,6 @@ class BuildCreateRequest:
         if not branch:
             return None, "branch is required"
 
-        mtib_rev = (data.get("mtibRev") or "1.2").strip()
-
         commit_sha = data.get("commitSha")
         if commit_sha is not None:
             commit_sha = commit_sha.strip() or None
@@ -213,7 +206,6 @@ class BuildCreateRequest:
             target=target,
             variant=variant,
             branch=branch,
-            mtib_rev=mtib_rev,
             commit_sha=commit_sha,
             config=config,
             version_override=version_override,

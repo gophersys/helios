@@ -19,7 +19,7 @@ import threading
 import time
 from typing import Dict, List, Optional, Pattern
 
-from corekinect.test.errors import FirmwareError
+from corekinect.errors import FirmwareError
 from corekinect.utils import Logger
 
 log = Logger(log_name="version_detector")

@@ -128,6 +128,10 @@ class QueueEntryStatus(StrEnum):
     FAILED = 'FAILED'
     CANCELLED = 'CANCELLED'
 
+class TestPackageStatus(StrEnum):
+    DEVELOPMENT = 'DEVELOPMENT'
+    RELEASED = 'RELEASED'
+
 class BuildRunStatus(StrEnum):
     PENDING = 'PENDING'
     BUILDING = 'BUILDING'

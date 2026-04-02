@@ -177,8 +177,8 @@ def _trigger_validation_job(
     # Stage name for K8s job (needed for session creation too)
     stage_name = STAGE_NAMES.get(stage, "validation")
 
-    # Create Session record first
-    run_id = _create_validation_run(db, entry_id, pipeline, fixture, stage, stage_name)
+    # Create Session record
+    run_id = _create_validation_run(db, entry_id, build_run, fixture, stage, stage_name)
     if not run_id:
         logger.error(f"Failed to create validation run for queue entry {entry_id}")
         return None
@@ -192,20 +192,62 @@ def _trigger_validation_job(
         "http://concord-http-api.staging.svc.cluster.local:9001"
     )
 
-    # Get DUT info from fixture's first active slot
+    # Get DUT info from fixture — try slots first, fall back to fixture-level fields
     slots = fixture.slots or []
     first_slot = slots[0] if slots else None
 
-    # Extract MTIB address from slot's node
+    # MTIB address: from slot's node, or from fixture metadata
     mtib_host = ""
     if first_slot and hasattr(first_slot, "node") and first_slot.node:
         mtib_host = first_slot.node.ipAddress or ""
+    if not mtib_host and hasattr(fixture, "metadata") and fixture.metadata:
+        mtib_host = fixture.metadata.get("mtibAddress", "")
 
-    dut_device_id = first_slot.dutDeviceId if first_slot else None
-    dut_snr = first_slot.dutSnr if first_slot else None
+    # DUT identity: from slot or fixture metadata
+    dut_device_id = getattr(first_slot, "dutDeviceId", None) if first_slot else None
+    dut_snr = getattr(first_slot, "dutSnr", None) if first_slot else None
+    if not dut_device_id and hasattr(fixture, "metadata") and fixture.metadata:
+        dut_device_id = fixture.metadata.get("dutDeviceId")
+        dut_snr = fixture.metadata.get("dutSnr")
 
-    # Product slug for catalog lookup (build_run.product is a string like "alpha_b0")
-    product_slug = build_run.product if hasattr(pipeline, "product") else None
+    # Product slug for catalog lookup
+    product_slug = None
+    if hasattr(build_run, "product") and build_run.product:
+        product_slug = build_run.product
+
+    # Look up latest RELEASED test package for this product
+    test_package_version = "latest"
+    try:
+        product_record = db.product.find_unique(where={"id": build_run.productId})
+        if product_record:
+            product_slug = product_slug or product_record.slug or product_record.name.lower()
+            latest_tp = db.testpackage.find_first(
+                where={
+                    "productId": product_record.id,
+                    "status": "RELEASED",
+                },
+                order={"createdAt": "desc"},
+            )
+            if latest_tp:
+                test_package_version = latest_tp.version
+                logger.info(
+                    "Using test package %s@%s for session %s",
+                    product_slug, test_package_version, run_id,
+                )
+            else:
+                # Fall back to latest dev package
+                dev_tp = db.testpackage.find_first(
+                    where={"productId": product_record.id},
+                    order={"createdAt": "desc"},
+                )
+                if dev_tp:
+                    test_package_version = dev_tp.version
+                    logger.info(
+                        "No RELEASED test package — using dev %s@%s",
+                        product_slug, test_package_version,
+                    )
+    except Exception as e:
+        logger.warning("Failed to look up test package: %s", e)
 
     # Compute fixture profile path from design
     fixture_profile_path = None
@@ -220,7 +262,7 @@ def _trigger_validation_job(
         test_type="validation",
         test_enable={},
         firmware_version="",
-        run_id=run_id,  # Use Session ID, not entry_id
+        run_id=run_id,
         api_key=api_key,
         api_url=api_url,
         mtib_address=mtib_host,
@@ -231,6 +273,7 @@ def _trigger_validation_job(
         pipeline_id=build_run.id,
         product_slug=product_slug,
         stage=stage_name,
+        test_package_version=test_package_version,
     )
 
     if not job_name:
@@ -398,11 +441,11 @@ def on_build_complete(build_run_id: str) -> Optional[str]:
         },
     )
 
-    if not pipeline:
+    if not build_run:
         return None
 
     # Check if all non-cancelled builds are complete
-    builds = pipeline.builds or []
+    builds = build_run.builds or []
     active_builds = [b for b in builds if b.status not in ("CANCELLED",)]
     failed = [b for b in active_builds if b.status == "FAILED"]
 
@@ -416,7 +459,7 @@ def on_build_complete(build_run_id: str) -> Optional[str]:
         return None  # Still building
 
     # All builds done and successful -- check if stage needs a bench
-    stage_config = pipeline.stageConfig if hasattr(pipeline, "stageConfig") else None
+    stage_config = build_run.stageConfig if hasattr(build_run, "stageConfig") else None
     if stage_config and not stage_config.requiresBench:
         return None  # Stage 1 (Smoke) doesn't need queue
 
@@ -432,16 +475,16 @@ def on_build_complete(build_run_id: str) -> Optional[str]:
 
     # Create queue entry
     priority = stage_config.priority if stage_config else 50
-    stage = pipeline.stage or 4
+    stage = getattr(build_run, "stage", None) or (stage_config.stage if stage_config else 4)
 
     try:
         entry = db.validationqueueentry.create(
             data={
                 "buildRunId": build_run_id,
-                "stageConfigId": pipeline.stageConfigId,
+                "stageConfigId": getattr(build_run, "stageConfigId", None),
                 "stage": stage,
                 "priority": priority,
-                "reason": f"Pipeline {pipeline.name or build_run.id} builds complete",
+                "reason": f"Build run {build_run.id} complete — all builds SUCCESS",
             },
         )
 

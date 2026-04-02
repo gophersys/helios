@@ -1,11 +1,7 @@
-/* REV 1.2 MFG overlay: sensors + explicit UART pin config (board defaults).
+/* MFG APP overlay: I2C sensors for manufacturing test.
  *
- * The submodule's boards/alpha_b0_nrf52840.overlay swaps TX/RX for REV 1.1.
- * Sysbuild auto-detects that overlay despite -DDTC_OVERLAY_FILE, causing
- * FUOTA'd firmware to have wrong UART pins on REV 1.2 hardware.
- *
- * Fix: explicitly set the correct board-default pins here (TX=P0.23, RX=P0.25)
- * so this overlay is self-contained and overrides any auto-detected pin swap.
+ * Defines GPIO-I2C bus for MLX90614 IR temp sensor and
+ * hardware-I2C peripherals (BME280, LP5814, PAH8151).
  */
 / {
     aliases {
@@ -57,28 +53,5 @@
         led-current-ir = <255>;
         led-current-red = <255>;
         led-current-green = <255>;
-    };
-};
-
-/* UART0 pinctrl: REV 1.2 board-default pins (no swap).
- * TX=P0.23, RX=P0.25 — matches alpha_b0_nrf52840-pinctrl.dtsi defaults.
- * Must be explicit here to override auto-detected boards/ overlay. */
-&pinctrl {
-    uart0_default: uart0_default {
-        group1 {
-            psels = <NRF_PSEL(UART_TX, 0, 23)>;
-        };
-        group2 {
-            psels = <NRF_PSEL(UART_RX, 0, 25)>;
-            bias-pull-up;
-        };
-    };
-
-    uart0_sleep: uart0_sleep {
-        group1 {
-            psels = <NRF_PSEL(UART_TX, 0, 23)>,
-                    <NRF_PSEL(UART_RX, 0, 25)>;
-            low-power-enable;
-        };
     };
 };

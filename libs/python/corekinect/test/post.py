@@ -102,34 +102,64 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
 
         # CRITICAL: Power cycle BEFORE opening UART streams.
         # The mfg shell activates ~0.4s after boot and auto-deactivates at ~8s.
-        # By the time POST runs (after flash + verify_boot), the device has been
-        # up for 15+ seconds — the shell window is already closed.
-        # Power cycle gives us a fresh boot with the full shell window.
+        # Fast fail-and-retry: 10s lock timeout per attempt, power cycle on
+        # failure. Same pattern as DevicePersonalizer._power_cycle_and_lock_shells.
         from corekinect.mtib_client.v1.client.types import (
             PowerChannel, GpioDirection, GpioResistorConfig,
         )
-        log.info("Power cycling DUT for fresh shell window...")
-        mtib_client.PowerDisable(channel=PowerChannel.DUT)
-        mtib_client.PowerDisable(channel=PowerChannel.CHARGER)
-        time.sleep(2)
 
-        # Start UART streams BEFORE power-on (capture boot output from byte 0)
-        log.info("Starting UART streams...")
-        comms.start()
-        app.start()
-        time.sleep(0.5)  # Let gRPC streams initialize
+        max_attempts = 3
+        comms_locked = False
+        app_locked = False
 
-        # Power on
-        for gpio in (0, 1):
-            mtib_client.GpioConfig(gpio, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
-            mtib_client.GpioWrite(gpio, False)
-        mtib_client.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
-        mtib_client.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
-        time.sleep(5)  # Wait for boot + shell activation (APP may take longer after FUOTA swap)
+        for attempt in range(1, max_attempts + 1):
+            log.info("Power cycling DUT for shell lock (attempt %d/%d)...", attempt, max_attempts)
+            mtib_client.PowerDisable(channel=PowerChannel.DUT)
+            mtib_client.PowerDisable(channel=PowerChannel.CHARGER)
+            time.sleep(2)
 
-        log.info("Locking manufacturing shells...")
-        comms_locked = comms.lock(timeout_s=10)
-        app_locked = app.lock(timeout_s=10)
+            # Start/restart UART streams BEFORE power-on
+            if attempt == 1:
+                comms.start()
+                app.start()
+            else:
+                comms.reset_stream()
+                app.reset_stream()
+            time.sleep(0.5)
+
+            # Configure GPIOs + power on
+            for gpio in (0, 1):
+                mtib_client.GpioConfig(gpio, GpioDirection.OUTPUT, GpioResistorConfig.NONE)
+                mtib_client.GpioWrite(gpio, False)
+            mtib_client.PowerEnable(channel=PowerChannel.DUT, voltage_v=4.5)
+            mtib_client.PowerEnable(channel=PowerChannel.CHARGER, voltage_v=5.0)
+            time.sleep(0.5)  # Brief settle — lock commands are spammed immediately
+
+            log.info("Locking manufacturing shells...")
+            # Lock both concurrently with 10s timeout (shell window is ~7s)
+            import threading
+            lock_results = {}
+
+            def _lock_shell(name, shell):
+                lock_results[name] = shell.lock(timeout_s=10)
+
+            t_app = threading.Thread(target=_lock_shell, args=("app", app))
+            t_comms = threading.Thread(target=_lock_shell, args=("comms", comms))
+            t_app.start()
+            t_comms.start()
+            t_app.join(timeout=15)
+            t_comms.join(timeout=15)
+
+            comms_locked = lock_results.get("comms", False)
+            app_locked = lock_results.get("app", False)
+
+            log.info("Lock attempt %d: comms=%s, app=%s",
+                     attempt,
+                     "locked" if comms_locked else "FAILED",
+                     "locked" if app_locked else "FAILED")
+
+            if comms_locked and app_locked:
+                break
 
         if not comms_locked or not app_locked:
             msg = f"comms={'locked' if comms_locked else 'FAILED'}, app={'locked' if app_locked else 'FAILED'}"

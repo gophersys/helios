@@ -7,10 +7,8 @@ device profile registry.
 
 import pytest
 
+from corekinect.capabilities import Capability, Feature, FEATURE_REQUIREMENTS
 from corekinect.test.profiles import (
-    Capability,
-    Feature,
-    FEATURE_REQUIREMENTS,
     ButtonConfig,
     PpgSimulatorConfig,
     PeltierConfig,
@@ -39,6 +37,7 @@ class TestCapabilityEnum:
             "POWER", "BUTTON", "PELTIER", "CHARGER_RELAY",
             "PPG_SERVO", "PPG_LED", "LED_PHOTODIODE", "NFC_READER",
             "MOTION_ACTUATOR", "HAPTIC_SENSOR", "JLINK",
+            "JOULESCOPE", "BATTERY", "GNSS_SIMULATOR", "ENVIRONMENTAL_CHAMBER",
         }
         assert {m.name for m in Capability} == expected
 

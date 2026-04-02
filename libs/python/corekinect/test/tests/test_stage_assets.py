@@ -11,7 +11,7 @@ import os
 
 import pytest
 
-from corekinect.test.errors import ConfigError
+from corekinect.errors import ConfigError
 from corekinect.test.stage_assets import (
     BuildAsset,
     STAGE_REQUIRED_LABELS,

@@ -8,8 +8,7 @@ The MTIB (Manufacturing Test & Integration Bench) is a gRPC server running on em
 
 - **SoM**: Verdin iMX8M Mini (ARM Cortex-A53)
 - **OS**: Custom Yocto (Torizon-based) with K3s
-- **Current Revision**: REV 1.2
-- **Previous**: REV 1.1
+- **Revision**: REV 1.2
 
 ### REV 1.2 Hardware
 - MCP4017 potentiometer (10kΩ)
@@ -18,11 +17,6 @@ The MTIB (Manufacturing Test & Integration Bench) is a gRPC server running on em
 - J-Link mux via TCA9534A P0
 - Motor power switch via TCA9534A P2
 - Fixed UART pin assignments
-
-### REV 1.1 Hardware
-- Different potentiometer (100kΩ)
-- No GPIO expander, EEPROM, or J-Link mux
-- Reversed UART pins (required DTS overlay)
 
 ## Server Versions
 
@@ -183,7 +177,6 @@ This is the bridge between K8s-orchestrated tests and physical hardware.
 3. **UART streaming**: Essential for Twister console harness - bidirectional with timestamps
 4. **Power measurement**: Can validate power consumption during tests (up to 100kHz)
 5. **Protocol decoding**: Can decode I2C/SPI traffic for driver-level validation
-6. **Dual revision support**: Tests may need to account for REV 1.1 vs 1.2 hardware differences
 7. **Privileged containers**: Required for hardware access - security consideration
 8. **MCP server**: 22 tools for AI-assisted debugging - could augment test failure analysis
 9. **J-Link integration**: Flash and debug any nRF target directly

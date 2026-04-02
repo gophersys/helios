@@ -200,8 +200,8 @@ class MtibV1Provider(MtibV1Servicer):
 
     def _config_gpio(self) -> Optional[str]:
         """Configure the GPIOs."""
-        if self.config.HARDWARE_VERSION not in ("REV1.1", "REV1.2"):
-            return f"Unsupported hardware version: {self.config.HARDWARE_VERSION}"
+        if self.config.HARDWARE_VERSION != "REV1.2":
+            return f"Unsupported hardware version: {self.config.HARDWARE_VERSION} (only REV1.2 is supported)"
 
         # Initialize all GPIOs as INPUTs by default
         for logical_num, pin in GPIO_PIN_MAP.items():
@@ -215,21 +215,17 @@ class MtibV1Provider(MtibV1Servicer):
         return None
 
     def _init_hw_extensions(self) -> Optional[str]:
-        """Initialize REV 1.2 hardware extensions (TCA9534A GPIO expander)."""
-        if self.config.HARDWARE_VERSION != "REV1.2":
-            self.logger.info("Hardware version is not REV1.2, skipping TCA9534A init")
-            return None
-
+        """Initialize hardware extensions (TCA9534A GPIO expander)."""
         try:
             from src.drivers.tca9534a import TCA9534A
             self._gpio_expander = TCA9534A(self._i2c_bus)
-            self.logger.info("TCA9534A GPIO expander initialized (REV 1.2)")
+            self.logger.info("TCA9534A GPIO expander initialized")
             return None
         except ImportError:
-            self.logger.warning("TCA9534A driver not available, REV 1.2 features disabled")
+            self.logger.warning("TCA9534A driver not available")
             return None
         except Exception as e:
-            self.logger.warning(f"TCA9534A init failed: {e}. REV 1.2 features disabled.")
+            self.logger.warning(f"TCA9534A init failed: {e}")
             self._gpio_expander = None
             return None
 

@@ -71,7 +71,7 @@
       <div class="relative mt-auto" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
         <button
           onclick={(e) => { e.stopPropagation(); revDropdown = !revDropdown; }}
-          class="flex w-full items-center justify-between rounded-lg border border-border bg-surface-0 px-2.5 py-1.5 text-2xs text-text-secondary hover:border-text-tertiary"
+          class="flex w-full items-center justify-between rounded-lg border border-border bg-surface-0 px-3 py-2 text-2xs text-text-secondary hover:border-text-tertiary"
         >
           <span class="flex items-center gap-1.5">
             <span class="font-medium">{selectedRev?.version || revisions[0].version}</span>
@@ -92,7 +92,7 @@
             {#each revisions as rev (rev.id)}
               <button
                 onclick={(e) => { e.stopPropagation(); handleRevisionSelect(rev); }}
-                class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-2xs hover:bg-surface-2"
+                class="flex w-full items-center gap-2 px-3 py-2 text-left text-2xs hover:bg-surface-2"
               >
                 <span class="font-medium text-text-primary">{rev.version}</span>
                 <StatusBadge status={rev.status} />

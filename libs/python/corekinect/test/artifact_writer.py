@@ -488,7 +488,10 @@ class ArtifactWriter:
             sample_rate_hz,
             start_timestamp_us,
         )
-        assert len(header) == POWER_HEADER_SIZE
+        if len(header) != POWER_HEADER_SIZE:
+            raise ValueError(
+                f"Power header size mismatch: got {len(header)}, expected {POWER_HEADER_SIZE}"
+            )
 
         object_name = self._object_path(filename, test_name)
 

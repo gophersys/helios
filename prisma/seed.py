@@ -1108,6 +1108,164 @@ def seed():
         print(f"CI API key ready: {ci_api_key.keyPrefix}... (id: {ci_api_key.id})")
         print(f"  Use this key for testing: {ci_key}")
 
+        # ── Recipe Templates ──
+        print("\n=== Seeding Recipe Templates ===")
+
+        dual_core_template = '''\
+#!/bin/bash
+# Concord Build Recipe — Dual-Core (nRF52840 + nRF9151)
+# Builds both application and communications processor firmware
+# using Zephyr west with the Concord Build SDK.
+set -eo pipefail
+
+# Source the Concord Build SDK
+source /app/sdk/concord-build.sh
+
+# Initialize build environment (parses BOARD, VARIANT, VERSION, etc.)
+concord_init
+
+# ── Application Processor (nRF52840) ──
+echo "Building application firmware..."
+west build -b "${BOARD}/nrf52840" app/ \\
+    -d build/app \\
+    -- \\
+    -DBOARD_ROOT="${BOARD_ROOT}" \\
+    -DCONFIG_APP_VERSION="${VERSION}"
+
+concord_collect_hex app build/app/zephyr/merged.hex
+
+# ── Communications Processor (nRF9151) ──
+echo "Building comms firmware..."
+west build -b "${BOARD}/nrf9151" comms/ \\
+    -d build/comms \\
+    -- \\
+    -DBOARD_ROOT="${BOARD_ROOT}" \\
+    -DCONFIG_APP_VERSION="${VERSION}"
+
+concord_collect_hex comms build/comms/zephyr/merged.hex
+
+# Generate CFW packages for FUOTA delivery
+if [ "${GENERATE_CFW}" = "true" ]; then
+    echo "Generating CFW packages..."
+    concord_generate_cfw app build/app/zephyr/app_update.bin
+    concord_generate_cfw comms build/comms/zephyr/app_update.bin
+fi
+
+# Finalize — upload artifacts, update build status
+concord_finalize
+'''
+
+        single_core_template = '''\
+#!/bin/bash
+# Concord Build Recipe — Single-Core (nRF52840)
+# Builds a single-processor Zephyr application with the Concord Build SDK.
+set -eo pipefail
+
+# Source the Concord Build SDK
+source /app/sdk/concord-build.sh
+
+# Initialize build environment
+concord_init
+
+# ── Build firmware ──
+echo "Building firmware for ${BOARD}..."
+west build -b "${BOARD}" app/ \\
+    -d build/app \\
+    -- \\
+    -DBOARD_ROOT="${BOARD_ROOT}" \\
+    -DCONFIG_APP_VERSION="${VERSION}"
+
+concord_collect_hex app build/app/zephyr/merged.hex
+
+# Generate CFW if requested
+if [ "${GENERATE_CFW}" = "true" ]; then
+    echo "Generating CFW package..."
+    concord_generate_cfw app build/app/zephyr/app_update.bin
+fi
+
+# Finalize
+concord_finalize
+'''
+
+        cmake_template = '''\
+#!/bin/bash
+# Concord Build Recipe — CMake Project
+# For products that use plain CMake instead of Zephyr west.
+# Adapts a standard CMake workflow to the Concord Build SDK.
+set -eo pipefail
+
+# Source the Concord Build SDK
+source /app/sdk/concord-build.sh
+
+# Initialize build environment
+concord_init
+
+# ── Configure ──
+echo "Configuring CMake project..."
+cmake -B build \\
+    -DCMAKE_BUILD_TYPE="${VARIANT:-Release}" \\
+    -DAPP_VERSION="${VERSION}" \\
+    -DBOARD="${BOARD}" \\
+    .
+
+# ── Build ──
+echo "Building..."
+cmake --build build --parallel "$(nproc)"
+
+# ── Collect artifacts ──
+# Adjust the path to match your project output
+if [ -f build/firmware.hex ]; then
+    concord_collect_hex app build/firmware.hex
+elif [ -f build/firmware.bin ]; then
+    echo "Converting bin to hex..."
+    objcopy -I binary -O ihex build/firmware.bin build/firmware.hex
+    concord_collect_hex app build/firmware.hex
+else
+    echo "ERROR: No firmware output found in build/"
+    exit 1
+fi
+
+# Finalize
+concord_finalize
+'''
+
+        for tmpl in [
+            {
+                "name": "Dual-Core (nRF52840 + nRF9151)",
+                "description": "Standard recipe for dual-processor products using Zephyr west. Builds both app and comms targets.",
+                "content": dual_core_template,
+                "category": "zephyr",
+                "sortOrder": 1,
+            },
+            {
+                "name": "Single-Core (nRF52840)",
+                "description": "Simplified recipe for single-processor products using Zephyr west.",
+                "content": single_core_template,
+                "category": "zephyr",
+                "sortOrder": 2,
+            },
+            {
+                "name": "CMake Project",
+                "description": "Recipe for products that use plain CMake instead of Zephyr west.",
+                "content": cmake_template,
+                "category": "general",
+                "sortOrder": 3,
+            },
+        ]:
+            db.recipetemplate.upsert(
+                where={"name": tmpl["name"]},
+                data={
+                    "create": tmpl,
+                    "update": {
+                        "description": tmpl["description"],
+                        "content": tmpl["content"],
+                        "category": tmpl["category"],
+                        "sortOrder": tmpl["sortOrder"],
+                    },
+                },
+            )
+            print(f"  Recipe template: {tmpl['name']}")
+
     finally:
         db.disconnect()
 

@@ -278,6 +278,11 @@ export async function cancelPipeline(id: string): Promise<BuildRunDetail> {
   return res.data;
 }
 
+export async function retriggerPipeline(id: string): Promise<{ buildRunId: string; jobCount: number }> {
+  const res = await api.post<ApiResponse<{ buildRunId: string; jobCount: number }>>(`/v2/builds/runs/${id}/retrigger`, {});
+  return res.data;
+}
+
 export async function triggerBuildRunValidation(
   runId: string
 ): Promise<{ runId: string; validationRunId: string; status: string }> {

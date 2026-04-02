@@ -255,6 +255,7 @@ from .builds.build_runs import (
     get_build_run as get_ci_build_run,
     create_build_run as create_ci_build_run,
     cancel_build_run as cancel_ci_build_run,
+    retrigger_build_run as retrigger_ci_build_run,
     download_build_run_artifacts as download_ci_build_run_artifacts,
     validate_build_run as validate_ci_build_run,
     validate_build_run_artifacts_endpoint as validate_ci_build_run_artifacts,
@@ -285,7 +286,13 @@ from .builds.stage_config import (
 from .builds.pr_builds import list_pr_pipelines, get_build_summary
 
 # Build recipes (product build scripts stored in MinIO)
-from .builds.recipes import get_recipe, update_recipe, validate_recipe
+from .builds.recipes import (
+    get_recipe, update_recipe, validate_recipe,
+    list_recipe_versions, get_recipe_version, save_recipe_version,
+    publish_recipe, diff_recipe_versions,
+    get_stage_defs,
+    list_recipe_templates, get_recipe_template,
+)
 
 # Run manifest (execution graph for validation pipeline stages)
 from .builds.manifest import get_run_manifest
@@ -405,6 +412,11 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/recipe",                                             endpoint="get_recipe",               view_func=get_recipe,            methods=["GET"])
     v2.add_url_rule("/products/<product_id>/recipe",                                             endpoint="update_recipe",            view_func=update_recipe,         methods=["PUT"])
     v2.add_url_rule("/products/<product_id>/recipe/validate",                                    endpoint="validate_recipe",          view_func=validate_recipe,       methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/recipe/versions",                                    endpoint="list_recipe_versions",     view_func=list_recipe_versions,  methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/recipe/versions/<int:version_num>",                   endpoint="get_recipe_version",       view_func=get_recipe_version,    methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/recipe/save",                                        endpoint="save_recipe_version",      view_func=save_recipe_version,   methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/recipe/publish",                                     endpoint="publish_recipe",           view_func=publish_recipe,        methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/recipe/diff",                                        endpoint="diff_recipe_versions",     view_func=diff_recipe_versions,  methods=["GET"])
 
     # Products - Run Manifest (execution graph for validation pipeline)
     v2.add_url_rule("/products/<product_id>/manifest",                                           endpoint="get_product_manifest",     view_func=get_run_manifest,      methods=["GET"])
@@ -634,6 +646,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/builds/runs",                                                        endpoint="create_ci_pipeline",       view_func=create_ci_build_run,    methods=["POST"])
     v2.add_url_rule("/builds/runs/<run_id>",                                          endpoint="get_ci_pipeline",          view_func=get_ci_build_run,       methods=["GET"])
     v2.add_url_rule("/builds/runs/<run_id>/cancel",                                   endpoint="cancel_ci_pipeline",       view_func=cancel_ci_build_run,    methods=["POST"])
+    v2.add_url_rule("/builds/runs/<run_id>/retrigger",                               endpoint="retrigger_ci_pipeline",    view_func=retrigger_ci_build_run, methods=["POST"])
     v2.add_url_rule("/builds/runs/<run_id>/validate",                                endpoint="validate_ci_pipeline",     view_func=validate_ci_build_run,  methods=["POST"])
     v2.add_url_rule("/builds/runs/<run_id>/artifacts/download",                       endpoint="download_ci_pipeline_artifacts", view_func=download_ci_build_run_artifacts, methods=["GET"])
     v2.add_url_rule("/builds/runs/<run_id>/sessions",                               endpoint="list_ci_pipeline_sessions",view_func=list_ci_build_run_sessions, methods=["GET"])
@@ -651,6 +664,13 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Builds - Overlays
     v2.add_url_rule("/builds/overlays/<product>",                                               endpoint="get_overlays",             view_func=get_overlays,          methods=["GET"])
     v2.add_url_rule("/builds/overlays/<product>/list",                                          endpoint="list_overlays",            view_func=list_overlays,         methods=["GET"])
+
+    # Builds - Stage Definitions
+    v2.add_url_rule("/builds/stage-defs",                                                       endpoint="get_stage_defs",           view_func=get_stage_defs,        methods=["GET"])
+
+    # Builds - Recipe Templates
+    v2.add_url_rule("/builds/recipe-templates",                                                 endpoint="list_recipe_templates",    view_func=list_recipe_templates, methods=["GET"])
+    v2.add_url_rule("/builds/recipe-templates/<template_id>",                                   endpoint="get_recipe_template",      view_func=get_recipe_template,   methods=["GET"])
 
     # WebSocket handlers
     register_log_handlers(socketio)

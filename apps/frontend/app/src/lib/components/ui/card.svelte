@@ -95,10 +95,10 @@
           <button
             type="button"
             onclick={onclose}
-            class="shrink-0 rounded-lg p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
             aria-label="Close"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         {/if}
       </div>

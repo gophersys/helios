@@ -10,13 +10,11 @@
 #   bash scripts/build.sh clean             # Remove all build dirs and artifacts
 #   bash scripts/build.sh all --pristine    # Force clean rebuild of everything
 #
-# MTIB revision and variant support:
-#   bash scripts/build.sh app --mtib-rev 1.2              # Production release for REV 1.2
-#   bash scripts/build.sh app --mtib-rev 1.1 --variant debug  # Debug build for REV 1.1
-#   bash scripts/build.sh mfg --mtib-rev 1.2              # Mfg firmware for REV 1.2
+# Variant support:
+#   bash scripts/build.sh app --variant debug   # Debug build with UART logging
 #
 # CI worker mode (set env vars):
-#   REPO_DIR=/path/to/cloned/repo OUTPUT_DIR=/path/to/artifacts BOARD=alpha_b0 VARIANT=debug MTIB_REV=1.2 bash build.sh
+#   REPO_DIR=/path/to/cloned/repo OUTPUT_DIR=/path/to/artifacts BOARD=alpha_b0 VARIANT=debug bash build.sh
 
 set -eo pipefail
 
@@ -46,7 +44,6 @@ if [ "$CI_MODE" == "true" ]; then
 
     # Use env vars for build config
     BOARD="${BOARD:-alpha_b0}"
-    MTIB_REV="${MTIB_REV:-1.2}"
     VARIANT="${VARIANT:-}"
     ARTIFACTS_DIR="${OUTPUT_DIR:-${REPO_DIR}/artifacts}"
     OVERLAYS_DIR="${REPO_DIR}/overlays"  # May not exist in standalone repos
@@ -116,7 +113,6 @@ else
 
     BOARD="alpha_b0"
     PRISTINE=""
-    MTIB_REV="1.1"       # Default: REV 1.1 (pin swap) for backward compatibility
     VARIANT=""            # Default: release-like (no extra logging). Options: debug
     FORCE_LOG=""          # --force-log: add logging.conf to release builds (UART output without debug CFW flags)
 
@@ -124,7 +120,6 @@ else
         case $1 in
             -b|--board)     BOARD="$2"; shift 2 ;;
             --pristine)     PRISTINE="--pristine"; shift ;;
-            --mtib-rev)     MTIB_REV="$2"; shift 2 ;;
             --variant)      VARIANT="$2"; shift 2 ;;
             --force-log)    FORCE_LOG="true"; shift ;;
             *)              echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
@@ -132,34 +127,17 @@ else
     done
 fi
 
-# Validate MTIB revision
-case $MTIB_REV in
-    1.1|1.2) ;;
-    *)
-        echo -e "${RED}Unsupported MTIB revision: ${MTIB_REV}${NC}"
-        echo "Supported revisions: 1.1, 1.2"
-        exit 1
-        ;;
-esac
-
-echo -e "${CYAN}MTIB revision: REV ${MTIB_REV}${NC}"
 if [ -n "$VARIANT" ]; then
     echo -e "${CYAN}Build variant: ${VARIANT}${NC}"
 fi
 
 # ---------- Create overlays ----------
-# Always create overlays dir (needed for REV 1.2 MFG sensor overlay)
+# Create overlays dir for MFG sensor overlay
 mkdir -p "$OVERLAYS_DIR"
 
-# REV 1.2 MFG APP overlay: I2C sensors + explicit UART pins (board defaults).
-# The submodule's boards/alpha_b0_nrf52840.overlay gets auto-detected by Zephyr
-# and swaps UART TX/RX (for REV 1.1 wiring). Sysbuild auto-detection bypasses
-# -DDTC_OVERLAY_FILE, so we MUST explicitly set the correct REV 1.2 pins here
-# AND remove the auto-detected overlay (done in build_mfg below).
-cat > "${OVERLAYS_DIR}/mfg_app_rev12.overlay" << 'OVERLAY_EOF'
-/* REV 1.2 MFG overlay: sensors + explicit UART pins (board defaults).
- * Must include pinctrl to override any auto-detected boards/ overlay
- * that swaps TX/RX for REV 1.1. */
+# MFG APP overlay: I2C sensors + UART pins (board defaults).
+cat > "${OVERLAYS_DIR}/mfg_app.overlay" << 'OVERLAY_EOF'
+/* MFG overlay: I2C sensors + UART pins (board defaults). */
 / {
     aliases {
         ioexpander = &lp5814;
@@ -213,9 +191,8 @@ cat > "${OVERLAYS_DIR}/mfg_app_rev12.overlay" << 'OVERLAY_EOF'
     };
 };
 
-/* UART0 pinctrl: REV 1.2 board-default pins (no swap).
- * TX=P0.23, RX=P0.25 — matches alpha_b0_nrf52840-pinctrl.dtsi.
- * Must be explicit to override auto-detected boards/ overlay. */
+/* UART0 pinctrl: board-default pins.
+ * TX=P0.23, RX=P0.25 — matches alpha_b0_nrf52840-pinctrl.dtsi. */
 &pinctrl {
     uart0_default: uart0_default {
         group1 {
@@ -756,7 +733,6 @@ print(f'{appid} {major} {minor} {build} {imglen}')
   "board": "${BOARD}",
   "variant": "${VARIANT:-release}",
   "variant_folder": "${variant_folder}",
-  "mtib_rev": "${MTIB_REV}",
   "version": "${version_string}",
   "cfw_flags": ${cfw_flags},
   "cfw_track": "${track_str}",
@@ -777,24 +753,12 @@ build_app_fw() {
     local FW_DIR="$APP_FW_DIR"
     local COMM_DIR="${FW_DIR}/comm_coproc_mfg"
 
-    # --- Resolve DTS overlays based on MTIB revision ---
-    # Overlays are in overlays/ (repo level), NOT in the submodule.
-    # Submodule overlay files are referenced read-only when combining.
+    # --- Resolve DTS overlays ---
+    # Let Zephyr auto-discover the submodule's boards/alpha_b0_nrf52840.overlay
+    # which has I2C sensor definitions.
     local APP_DTS_OVERLAY=""
+    # No DTS overlay needed for comms (base DTS pins are correct)
     local COMMS_DTS_OVERLAY=""
-    if [[ "$MTIB_REV" == "1.1" ]]; then
-        # REV 1.1: submodule I2C overlay + repo-level pin swap overlay
-        APP_DTS_OVERLAY="-DDTC_OVERLAY_FILE=${FW_DIR}/boards/${BOARD}_nrf52840.overlay;${OVERLAYS_DIR}/nrf52840_pinswap.overlay"
-        # nRF9151 needs pin swap overlay for REV 1.1
-        COMMS_DTS_OVERLAY="-DDTC_OVERLAY_FILE=${OVERLAYS_DIR}/nrf9151_ns_pinswap.overlay"
-    else
-        # REV 1.2: auto-discovered overlay from submodule (I2C only, no pin swap)
-        # Don't pass -DDTC_OVERLAY_FILE so Zephyr auto-discovers the submodule's
-        # boards/alpha_b0_nrf52840.overlay which has I2C sensors but no pin swap.
-        APP_DTS_OVERLAY=""
-        # No DTS overlay needed for comms on REV 1.2 (base DTS pins are correct)
-        COMMS_DTS_OVERLAY=""
-    fi
 
     # --- Resolve extra configs based on variant ---
     local APP_EXTRA_CONF="${FW_DIR}/version.conf"
@@ -822,7 +786,7 @@ build_app_fw() {
 
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
     echo -e "${CYAN}  Building alpha_fw (${BOARD} / ${COMM_SOC})${NC}"
-    echo -e "${CYAN}  MTIB REV ${MTIB_REV} | variant: ${VARIANT:-release}${NC}"
+    echo -e "${CYAN}  variant: ${VARIANT:-release}${NC}"
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
 
     # --- Resolve version and patch VersionDevice.h BEFORE compilation ---
@@ -911,24 +875,11 @@ build_mfg_fw() {
     local MFG_BOARD="alpha_b0"
     local MFG_SOC="nrf9151"
 
-    # --- Resolve DTS overlays based on MTIB revision ---
-    # The submodule's boards/alpha_b0_nrf52840.overlay has TWO things:
-    #   1. I2C sensor definitions (pah8151, mlx90614, bme280, lp5814) — needed always
-    #   2. UART TX/RX pin swap — needed for REV 1.1, BREAKS REV 1.2
-    # Zephyr auto-detects overlays in boards/ by board name, so we MUST explicitly
-    # set DTC_OVERLAY_FILE to suppress auto-detection and control what gets applied.
-    local APP_DTS_OVERLAY=""
+    # --- Resolve DTS overlays ---
+    # Use explicit sensors overlay to suppress Zephyr auto-detection of the
+    # submodule's boards/ overlay.
+    local APP_DTS_OVERLAY="-DDTC_OVERLAY_FILE=${OVERLAYS_DIR}/mfg_app.overlay"
     local COMMS_DTS_OVERLAY=""
-    if [[ "$MTIB_REV" == "1.1" ]]; then
-        # REV 1.1: use submodule overlay as-is (sensors + UART pin swap)
-        APP_DTS_OVERLAY="-DDTC_OVERLAY_FILE=${FW_DIR}/boards/alpha_b0_nrf52840.overlay"
-        COMMS_DTS_OVERLAY="-DDTC_OVERLAY_FILE=${FW_DIR}/boards/alpha_b0_nrf9151_ns.overlay"
-    else
-        # REV 1.2: use sensors-only overlay (no UART pin swap).
-        # This suppresses Zephyr auto-detection of the submodule overlay.
-        APP_DTS_OVERLAY="-DDTC_OVERLAY_FILE=${OVERLAYS_DIR}/mfg_app_rev12.overlay"
-        COMMS_DTS_OVERLAY=""
-    fi
 
     # --- Resolve extra configs for comms ---
     # dev.conf enables shell + logging for MFG firmware. Must use EXTRA_CONF_FILE
@@ -946,7 +897,6 @@ build_mfg_fw() {
 
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
     echo -e "${CYAN}  Building alpha_mfg_fw (${MFG_BOARD})${NC}"
-    echo -e "${CYAN}  MTIB REV ${MTIB_REV}${NC}"
     echo -e "${CYAN}══════════════════════════════════════════${NC}"
 
     # --- Resolve version and patch VersionDevice.h BEFORE compilation ---
@@ -956,19 +906,6 @@ build_mfg_fw() {
 
     # --- Fix key paths in sysbuild configs (CI clones to different path) ---
     fix_sysbuild_key_path "${FW_DIR}/sysbuild.conf" "${FW_DIR}"
-
-    # --- Remove auto-detected board overlay for REV 1.2 ---
-    # Zephyr/sysbuild auto-detects boards/<board>.overlay even when DTC_OVERLAY_FILE
-    # is explicitly set. The submodule's overlay swaps UART TX/RX pins for REV 1.1,
-    # which breaks REV 1.2 UART communication (especially after FUOTA).
-    # Remove it so only the explicit mfg_app_rev12.overlay is applied.
-    if [[ "$MTIB_REV" != "1.1" ]]; then
-        local auto_overlay="${FW_DIR}/boards/alpha_b0_nrf52840.overlay"
-        if [ -f "$auto_overlay" ]; then
-            echo -e "${CYAN}Removing auto-detected overlay (REV 1.2 build): ${auto_overlay}${NC}"
-            rm -f "$auto_overlay"
-        fi
-    fi
 
     # --- Parallel build: APP (nRF52840) + COMMS first pass (nRF9151) ---
     # These are fully independent — different source trees, build dirs, and boards.
@@ -1090,7 +1027,7 @@ case $TARGET in
     all)   build_app_fw && build_mfg_fw ;;
     clean) do_clean ;;
     *)
-        echo "Usage: $0 {all|app|mfg|clean} [-b BOARD] [--mtib-rev 1.1|1.2] [--variant debug] [--pristine]"
+        echo "Usage: $0 {all|app|mfg|clean} [-b BOARD] [--variant debug] [--pristine]"
         echo ""
         echo "Targets:"
         echo "  all    Build both alpha_fw and alpha_mfg_fw"
@@ -1101,9 +1038,6 @@ case $TARGET in
         echo "Options:"
         echo "  -b, --board BOARD       Board variant (default: alpha_b0)"
         echo "                          Supported: alpha_a0, alpha_b0"
-        echo "  --mtib-rev 1.1|1.2      MTIB hardware revision (default: 1.1)"
-        echo "                          1.1 = UART pin swap overlay applied"
-        echo "                          1.2 = default pins (no swap)"
         echo "  --variant debug         Build variant for production firmware"
         echo "                          debug = UART logging + shell enabled"
         echo "                          (omit for release: UART silent)"

@@ -47,6 +47,8 @@ spec:
           value: "4"
         - name: PIPELINE_ID
           value: "{{PIPELINE_ID}}"
+        - name: TEST_PACKAGE_VERSION
+          value: "{{TEST_PACKAGE_VERSION}}"
         - name: PRODUCT
           value: "{{PRODUCT}}"
         - name: CONCORD_API_URL

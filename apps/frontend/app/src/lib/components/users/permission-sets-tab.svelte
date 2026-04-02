@@ -445,7 +445,7 @@
           resetForm();
           showForm = true;
         }}
-        class="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover"
+        class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
       >
         <Plus size={16} />
         New set
@@ -506,7 +506,7 @@
           <button
             type="submit"
             disabled={formPermissions.size === 0 || submitting}
-            class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-surface-0 transition-colors hover:bg-accent-hover disabled:opacity-50"
+            class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
           >
             <Check size={16} />
             {submitting ? 'Saving...' : editingId ? 'Save changes' : 'Create'}

@@ -12,10 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from corekinect.capabilities import Capability, Feature, FEATURE_REQUIREMENTS
 from corekinect.test.profiles import (
-    Capability,
-    Feature,
-    FEATURE_REQUIREMENTS,
     FixtureProfile,
     DeviceProfile,
     ValidationConfig,

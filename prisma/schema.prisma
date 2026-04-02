@@ -155,16 +155,17 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  boards        Board[]
-  firmwareSets  FirmwareSet[]
-  fixtures      Fixture[]
-  tests         Test[]
-  sessions      Session[]
-  buildJobs     BuildJob[]
-  buildRuns     BuildRun[]
-  deployments   Deployment[]
-  stageConfigs  ProductStageConfig[]
-  testPackages  TestPackage[]
+  boards         Board[]
+  firmwareSets   FirmwareSet[]
+  fixtures       Fixture[]
+  tests          Test[]
+  sessions       Session[]
+  buildJobs      BuildJob[]
+  buildRuns      BuildRun[]
+  deployments    Deployment[]
+  stageConfigs   ProductStageConfig[]
+  testPackages   TestPackage[]
+  recipeVersions RecipeVersion[]
 
   @@map("products")
 }
@@ -784,7 +785,7 @@ model Node {
   type             NodeType
   status           NodeStatus @default(OFFLINE)
   ipAddress        String?
-  hardwareRevision String? /// "REV1.1", "REV1.2"
+  hardwareRevision String? /// "REV1.2"
   metadata         Json? /// K8s labels, capabilities, gRPC port, etc.
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
@@ -1013,6 +1014,7 @@ model User {
   testPackages   TestPackage[]
   auditLogs      AuditLog[]
   secrets        Secret[]
+  recipeVersions RecipeVersion[]
 
   @@map("users")
 }
@@ -1127,4 +1129,38 @@ model PollCache {
 
   @@unique([repoSlug, prId])
   @@map("poll_cache")
+}
+
+/// A versioned snapshot of a product's build recipe (shell script).
+/// Tracks drafts and published versions for the build script editor.
+model RecipeVersion {
+  id          String   @id @default(cuid())
+  productId   String
+  version     Int
+  content     String   @db.Text
+  status      String   @default("draft")
+  changeNote  String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation(fields: [createdById], references: [id])
+
+  @@index([productId, version])
+  @@index([productId, status])
+  @@map("recipe_versions")
+}
+
+/// A reusable recipe template for bootstrapping new product build scripts.
+model RecipeTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  content     String   @db.Text
+  category    String   @default("general")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("recipe_templates")
 }

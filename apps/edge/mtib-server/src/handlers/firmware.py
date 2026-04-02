@@ -56,8 +56,8 @@ class FirmwareHandler:
         # Track active firmware files
         self.active_files: Dict[str, Tuple[Path, HostType]] = {}  # Maps filename to (temp file path, target)
 
-        # REV 1.2 J-Link mux support (set via set_hw_context)
-        self._gpio_expander = None  # TCA9534A instance, None on REV 1.1
+        # J-Link mux support via TCA9534A (set via set_hw_context)
+        self._gpio_expander = None
 
     def set_gpio_expander(self, gpio_expander) -> None:
         """Set the TCA9534A GPIO expander for REV 1.2 J-Link mux control.
@@ -74,7 +74,7 @@ class FirmwareHandler:
         Returns error string on failure, None on success.
         """
         if self._gpio_expander is None:
-            return None  # REV 1.1: no mux, single target
+            return None  # No GPIO expander configured
 
         try:
             # REV 1.2: P0 controls SN74CBT3257C mux
@@ -151,7 +151,7 @@ class FirmwareHandler:
                         self.logger.debug(f"Error scanning J-Link {serial}: {e}")
             return
 
-        # REV 1.1 (no mux): detect which device is connected to each J-Link
+        # Fallback (no mux): detect which device is connected to each J-Link
         for serial in serials:
             # Skip if already successfully detected
             if serial in self.programmers:

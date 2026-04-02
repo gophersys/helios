@@ -62,8 +62,7 @@ time.sleep(5)                                  # Wait for boot + charger takeove
 | `uart0` | `/dev/verdin-uart1` | nRF9151 comms coprocessor |
 | `uart1` | `/dev/verdin-uart2` | nRF52840 app processor |
 
-- REV 1.1: Firmware needed DTS overlay to swap UART TX/RX pins (hardware had them reversed)
-- REV 1.2: Fixed in hardware — firmware uses board default pins, no overlay needed
+UART TX/RX pins are correct in hardware — firmware uses board default pins, no overlay needed.
 
 ## UART Session — MUST Open Before Boot
 
@@ -91,16 +90,14 @@ The MTIB server currently delivers UART data byte-by-byte rather than in buffere
 - After locking, send `debug_enable 0` to reduce UART noise
 - TX backlog drain can take 1-5 minutes at 115200 baud due to byte-by-byte MTIB streaming
 
-## Hardware Revisions
+## Hardware Features (REV 1.2)
 
-| Feature | REV 1.1 | REV 1.2 |
-|---------|---------|---------|
-| MCP4017 potentiometer | 100kΩ | 10kΩ |
-| TCA9534A GPIO expander | No | Yes (0x38) |
-| EEPROM | No | Yes (0x50) |
-| J-Link mux | No | Yes (TCA9534A P0) |
-| Motor power switch | No | Yes (TCA9534A P2) |
-| UART pin swap needed | Yes (DTS overlay) | No (fixed in HW) |
+- MCP4017 potentiometer: 10kΩ
+- TCA9534A GPIO expander: I2C address 0x38
+- EEPROM: I2C address 0x50
+- J-Link mux: TCA9534A P0
+- Motor power switch: TCA9534A P2
+- UART pins: Fixed in hardware (no overlay needed)
 
 ## J-Link Flashing Rules
 
@@ -129,7 +126,6 @@ nrfjprog --program <file.hex> --chiperase --verify --reset --snr <PROBE_SERIAL> 
 | Address | Revision | DUT SNR | Device ID | Notes |
 |---------|----------|---------|-----------|-------|
 | 10.4.45.33 | REV 1.2 | 0964 | `70B3D584C01E1FCC` | K8s pod runs MTIB server. SSH: torizon@10.4.45.33 (pass: corekinect). |
-| 10.4.45.32 | REV 1.1 | 097D | `70B3D584C01E20A2` | K8s pod runs MTIB server. SSH: torizon@10.4.45.32 (pass: corekinect). |
 
 ## V1 Client API Quick Reference
 
@@ -151,16 +147,16 @@ err = client.connect()  # MUST call before any RPC
 
 ## ADC Channel Mapping (Measured)
 
-| Channel | REV 1.2 Reading | REV 1.1 Reading | Likely Signal |
-|---------|----------------|----------------|---------------|
-| Ch 0 | 4.52V | 4.49V | Power rail (DUT voltage) |
-| Ch 1 | 2.52V | 2.54V | Battery voltage divider |
-| Ch 2 | 4.51V | 4.48V | Backup power rail |
-| Ch 3 | 0.01V | 0.02V | Unused / unconnected |
-| Ch 4 | 0.01V | 0.01V | Unused / unconnected |
-| Ch 5 | 0.01V | 0.01V | Unused / unconnected |
-| Ch 6 | 0.01V | 0.02V | Unused / unconnected |
-| Ch 7 | 3.30V | 3.31V | 3.3V reference rail |
+| Channel | Reading | Likely Signal |
+|---------|---------|---------------|
+| Ch 0 | 4.52V | Power rail (DUT voltage) |
+| Ch 1 | 2.52V | Battery voltage divider |
+| Ch 2 | 4.51V | Backup power rail |
+| Ch 3 | 0.01V | Unused / unconnected |
+| Ch 4 | 0.01V | Unused / unconnected |
+| Ch 5 | 0.01V | Unused / unconnected |
+| Ch 6 | 0.01V | Unused / unconnected |
+| Ch 7 | 3.30V | 3.3V reference rail |
 
 **Note:** Manufacturing code labels differ (BATT_SYS=1, SYS=3, 3V3=0, VBCKP=2). Actual mapping may depend on fixture wiring.
 

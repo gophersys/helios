@@ -8,10 +8,12 @@
     open: boolean;
     title?: string;
     onclose?: () => void;
-    size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+    size?: 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'editor';
     closeOnBackdrop?: boolean;
     closeOnEscape?: boolean;
     showCloseButton?: boolean;
+    /** Remove default body padding and max-height for custom layouts */
+    noPadding?: boolean;
     header?: Snippet;
     footer?: Snippet;
     children: Snippet;
@@ -25,6 +27,7 @@
     closeOnBackdrop = true,
     closeOnEscape = true,
     showCloseButton = true,
+    noPadding = false,
     header,
     footer,
     children
@@ -47,7 +50,8 @@
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-2xl',
-    full: 'max-w-[90vw] max-h-[90vh]'
+    full: 'max-w-[90vw] max-h-[90vh]',
+    editor: 'max-w-[1400px] max-h-[90vh]'
   };
 </script>
 
@@ -73,7 +77,7 @@
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
-      class="pointer-events-auto w-full {sizeClasses[size]} rounded-xl border border-border bg-surface-1 shadow-2xl overflow-hidden"
+      class="pointer-events-auto w-full {sizeClasses[size]} rounded-xl border border-border bg-surface-1 shadow-2xl overflow-hidden {noPadding ? 'flex flex-col' : ''}"
       in:fly={modalIn}
       out:fly={modalOut}
       onclick={(e) => e.stopPropagation()}
@@ -104,7 +108,7 @@
       {/if}
 
       <!-- Body -->
-      <div class="p-5 max-h-[70vh] overflow-y-auto">
+      <div class={noPadding ? 'flex-1 min-h-0 overflow-hidden' : 'p-5 max-h-[70vh] overflow-y-auto'}>
         {@render children()}
       </div>
 

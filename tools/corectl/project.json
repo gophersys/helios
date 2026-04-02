@@ -1,0 +1,37 @@
+{
+  "name": "corectl",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/corectl",
+  "projectType": "application",
+  "tags": ["scope:tools", "type:cli"],
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "tools/corectl",
+        "command": "pip install -e . && corectl --help"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "tools/corectl",
+        "command": "pip install -e . && corectl --version && corectl auth status"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "tools/corectl",
+        "command": "pip install build && python -m build"
+      }
+    },
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "tools/corectl",
+        "command": "pip install -e ."
+      }
+    }
+  }
+}

@@ -5,9 +5,8 @@ Tests the @requires_capability and @requires_feature decorators.
 
 import pytest
 
+from corekinect.capabilities import Capability, Feature
 from corekinect.test.profiles import (
-    Capability,
-    Feature,
     DeviceProfile,
     ValidationConfig,
 )

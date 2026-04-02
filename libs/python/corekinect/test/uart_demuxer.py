@@ -20,11 +20,16 @@ import queue
 import re
 import threading
 import time
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client
 from corekinect.utils import Logger
 from protocols.mtib.mtib_pb2 import HostType, UartStreamRequest
+
+# Target can be a HostType enum or a string shorthand ("app", "comms").
+# HostType is a protobuf EnumTypeWrapper, not a standard type — use string
+# annotation in Union to avoid runtime TypeError.
+TargetType = Union["HostType", str]
 
 log = Logger(log_name="uart_demuxer")
 
@@ -160,7 +165,7 @@ class UartDemuxer:
 
     # ── Command sending ─────────────────────────────────────
 
-    def send(self, target, command: str) -> None:
+    def send(self, target: TargetType, command: str) -> None:
         """Queue a command to be sent on the target's next pump cycle.
 
         Wraps the command with \\r for shell input. Use send_bytes() for raw data.
@@ -173,14 +178,16 @@ class UartDemuxer:
         data = f"\r{command}\r".encode("utf-8")
         self._cmd_queues[t].put(data)
 
-    def send_bytes(self, target, data: bytes) -> None:
+    def send_bytes(self, target: TargetType, data: bytes) -> None:
         """Queue raw bytes to be sent (no wrapping)."""
         t = self._resolve_target(target)
         self._cmd_queues[t].put(data)
 
     # ── Log retrieval ───────────────────────────────────────
 
-    def get_logs(self, target=None, since: Optional[float] = None) -> list:
+    def get_logs(
+        self, target: Optional[TargetType] = None, since: Optional[float] = None
+    ) -> Union[List[str], List[Tuple[str, str]]]:
         """Return captured log lines.
 
         Args:
@@ -277,7 +284,7 @@ class UartDemuxer:
             for t in self._targets:
                 self._buffers[t] = []
 
-    def dump_to_file(self, path: str, target=None) -> None:
+    def dump_to_file(self, path: str, target: Optional[TargetType] = None) -> None:
         """Write buffered logs to file.
 
         Args:
@@ -306,7 +313,7 @@ class UartDemuxer:
 
     # ── Internal ────────────────────────────────────────────
 
-    def _resolve_target(self, target) -> HostType:
+    def _resolve_target(self, target: TargetType) -> HostType:
         """Convert string shorthand to HostType."""
         if isinstance(target, str):
             name_to_type = {v: k for k, v in self.TARGET_NAMES.items()}

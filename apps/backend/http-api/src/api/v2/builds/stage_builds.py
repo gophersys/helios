@@ -4,7 +4,7 @@ The canonical definitions live at libs/python/corekinect/validation/stage_defs.p
 This module re-exports them for backward compatibility within the http-api.
 """
 
-from corekinect.validation.stage_defs import (
+from corekinect.stages import (
     Stage,
     StageBuildDef,
     get_stage_build_defs,

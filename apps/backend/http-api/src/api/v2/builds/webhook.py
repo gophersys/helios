@@ -273,7 +273,7 @@ def trigger_build_run():
                 "board": board,
                 "target": "app",
                 "variant": data.variant,
-                "mtibRev": data.mtib_rev,
+                "mtibRev": "1.2",
                 "branch": data.branch,
                 "commitSha": data.commit_sha,
                 "status": "QUEUED",

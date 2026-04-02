@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from corekinect.test.errors import ConfigError
+from corekinect.errors import ConfigError
 from corekinect.test.profile_schema import (
     VALID_CAPABILITIES,
     load_validated_profile,

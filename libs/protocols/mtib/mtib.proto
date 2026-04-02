@@ -74,7 +74,7 @@ message Empty {}
 message HealthCheckResponse {
   bool ready = 1;
   repeated string errors = 2;
-  string hw_revision = 3;           // "REV1.1" or "REV1.2"
+  string hw_revision = 3;           // "REV1.2"
   repeated string capabilities = 4;  // ["power", "gpio", "adc", "uart", "flash", "motion", "observability"]
 }
 

@@ -84,6 +84,16 @@ class BaseProduct(_PrismaModel):
         return actions.ProductActions[_PrismaModelT](client or get_client(), cls)
 
 
+class BaseTestPackage(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['TestPackage']] = 'TestPackage'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.TestPackageActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.TestPackageActions[_PrismaModelT](client or get_client(), cls)
+
+
 class BaseProductTarget(_PrismaModel):
     __prisma_model__: ClassVar[Literal['ProductTarget']] = 'ProductTarget'  # pyright: ignore[reportIncompatibleVariableOverride]
 
@@ -382,5 +392,35 @@ class BaseLog(_PrismaModel):
         from .client import get_client
 
         return actions.LogActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BasePollCache(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['PollCache']] = 'PollCache'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.PollCacheActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.PollCacheActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseRecipeVersion(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['RecipeVersion']] = 'RecipeVersion'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.RecipeVersionActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.RecipeVersionActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseRecipeTemplate(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['RecipeTemplate']] = 'RecipeTemplate'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.RecipeTemplateActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.RecipeTemplateActions[_PrismaModelT](client or get_client(), cls)
 
 

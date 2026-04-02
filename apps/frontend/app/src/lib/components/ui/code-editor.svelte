@@ -1,66 +1,70 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view';
-  import { EditorState } from '@codemirror/state';
+  import { EditorState, type Extension, Compartment } from '@codemirror/state';
   import { defaultKeymap, indentWithTab } from '@codemirror/commands';
   import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, StreamLanguage } from '@codemirror/language';
   import { oneDark } from '@codemirror/theme-one-dark';
+  import { shell } from '@codemirror/legacy-modes/mode/shell';
+  import { autocompletion, type CompletionSource } from '@codemirror/autocomplete';
+  import { search, searchKeymap } from '@codemirror/search';
+  import { setDiagnostics, lintGutter, type Diagnostic } from '@codemirror/lint';
 
   interface Props {
     value: string;
     readonly?: boolean;
     maxHeight?: string;
+    height?: string;
+    class?: string;
+    completions?: CompletionSource;
+    diagnostics?: Diagnostic[];
     onchange?: (value: string) => void;
+    oncursorchange?: (line: number, col: number) => void;
   }
 
-  let { value, readonly = false, maxHeight = '500px', onchange }: Props = $props();
+  let {
+    value,
+    readonly = false,
+    maxHeight = '500px',
+    height,
+    class: className = '',
+    completions,
+    diagnostics,
+    onchange,
+    oncursorchange,
+  }: Props = $props();
 
   let container: HTMLDivElement;
   let view: EditorView | undefined;
-
-  // Simple shell/bash highlighting via StreamLanguage
-  const shellLanguage = StreamLanguage.define({
-    token(stream) {
-      // Comments
-      if (stream.match('#')) {
-        stream.skipToEnd();
-        return 'comment';
-      }
-      // Strings
-      if (stream.match(/"([^"\\]|\\.)*"/)) return 'string';
-      if (stream.match(/'([^'\\]|\\.)*'/)) return 'string';
-      // Variables
-      if (stream.match(/\$\{[^}]+\}/)) return 'variableName.special';
-      if (stream.match(/\$[A-Za-z_][A-Za-z0-9_]*/)) return 'variableName.special';
-      // Keywords
-      if (stream.match(/\b(if|then|else|elif|fi|for|do|done|while|until|case|esac|function|return|local|export|source|set|unset|shift|break|continue|exit|trap|eval|exec|declare|readonly|typeset)\b/)) return 'keyword';
-      // Builtins
-      if (stream.match(/\b(echo|printf|cd|pwd|ls|cp|mv|rm|mkdir|chmod|chown|cat|grep|sed|awk|find|test|true|false|read|wait|sleep|kill|basename|dirname)\b/)) return 'atom';
-      // Numbers
-      if (stream.match(/\b\d+\b/)) return 'number';
-      // Operators
-      if (stream.match(/[|&;><(){}\[\]]/)) return 'operator';
-      // Skip
-      stream.next();
-      return null;
-    },
-    startState() { return {}; },
-  });
+  const diagnosticsCompartment = new Compartment();
 
   onMount(() => {
-    const extensions = [
+    const extensions: Extension[] = [
       lineNumbers(),
       syntaxHighlighting(defaultHighlightStyle),
       bracketMatching(),
       oneDark,
-      shellLanguage,
+      StreamLanguage.define(shell),
+      search(),
+      keymap.of(searchKeymap),
+      lintGutter(),
+      diagnosticsCompartment.of([]),
       EditorView.theme({
-        '&': { fontSize: '13px', maxHeight, overflow: 'auto' },
+        '&': {
+          fontSize: '13px',
+          ...(height ? { height } : {}),
+          ...(maxHeight && !height ? { maxHeight } : {}),
+          overflow: 'auto',
+        },
         '.cm-scroller': { overflow: 'auto' },
         '.cm-content': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' },
         '.cm-gutters': { borderRight: '1px solid #333', minWidth: '40px' },
       }),
     ];
+
+    if (completions) {
+      extensions.push(autocompletion({ override: [completions] }));
+    }
 
     if (readonly) {
       extensions.push(EditorState.readOnly.of(true), EditorView.editable.of(false));
@@ -72,6 +76,11 @@
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onchange?.(update.state.doc.toString());
+          }
+          if (update.selectionSet || update.docChanged) {
+            const pos = update.state.selection.main.head;
+            const line = update.state.doc.lineAt(pos);
+            oncursorchange?.(line.number, pos - line.from + 1);
           }
         }),
       );
@@ -95,6 +104,13 @@
       });
     }
   });
+
+  // Update diagnostics when prop changes
+  $effect(() => {
+    if (view && diagnostics) {
+      view.dispatch(setDiagnostics(view.state, diagnostics));
+    }
+  });
 </script>
 
-<div bind:this={container} class="rounded border border-border overflow-hidden"></div>
+<div bind:this={container} class="rounded border border-border overflow-hidden {className}"></div>

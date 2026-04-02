@@ -7,6 +7,7 @@ from __future__ import annotations
 
 PRISMA_MODELS: set[str] = {
     'Product',
+    'TestPackage',
     'ProductTarget',
     'Board',
     'BoardRevision',
@@ -37,6 +38,9 @@ PRISMA_MODELS: set[str] = {
     'Secret',
     'Setting',
     'Log',
+    'PollCache',
+    'RecipeVersion',
+    'RecipeTemplate',
 }
 
 RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
@@ -50,6 +54,13 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'buildRuns': 'BuildRun',
         'deployments': 'Deployment',
         'stageConfigs': 'ProductStageConfig',
+        'testPackages': 'TestPackage',
+        'recipeVersions': 'RecipeVersion',
+    },
+    'TestPackage': {
+        'product': 'Product',
+        'createdBy': 'User',
+        'sessions': 'Session',
     },
     'ProductTarget': {
         'boardRevision': 'BoardRevision',
@@ -108,6 +119,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'product': 'Product',
         'fixture': 'Fixture',
         'pipeline': 'BuildRun',
+        'testPackage': 'TestPackage',
         'createdBy': 'User',
         'devices': 'Device',
         'queueEntry': 'ValidationQueueEntry',
@@ -171,8 +183,10 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'sessions': 'Session',
         'deployments': 'Deployment',
         'testExecutions': 'TestExecution',
+        'testPackages': 'TestPackage',
         'auditLogs': 'AuditLog',
         'secrets': 'Secret',
+        'recipeVersions': 'RecipeVersion',
     },
     'PermissionSet': {
         'users': 'User',
@@ -191,6 +205,14 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     },
     'Log': {
         'execution': 'TestExecution',
+    },
+    'PollCache': {
+    },
+    'RecipeVersion': {
+        'product': 'Product',
+        'createdBy': 'User',
+    },
+    'RecipeTemplate': {
     },
 }
 

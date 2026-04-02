@@ -95,6 +95,7 @@ class Prisma(SyncBasePrisma):
     # Note: these property names can be customised using `/// @Python(instance_name: '...')`
     # https://prisma-client-py.readthedocs.io/en/stable/reference/schema-extensions/#instance_name
     product: 'actions.ProductActions[models.Product]'
+    testpackage: 'actions.TestPackageActions[models.TestPackage]'
     producttarget: 'actions.ProductTargetActions[models.ProductTarget]'
     board: 'actions.BoardActions[models.Board]'
     boardrevision: 'actions.BoardRevisionActions[models.BoardRevision]'
@@ -125,9 +126,13 @@ class Prisma(SyncBasePrisma):
     secret: 'actions.SecretActions[models.Secret]'
     setting: 'actions.SettingActions[models.Setting]'
     log: 'actions.LogActions[models.Log]'
+    pollcache: 'actions.PollCacheActions[models.PollCache]'
+    recipeversion: 'actions.RecipeVersionActions[models.RecipeVersion]'
+    recipetemplate: 'actions.RecipeTemplateActions[models.RecipeTemplate]'
 
     __slots__ = (
         'product',
+        'testpackage',
         'producttarget',
         'board',
         'boardrevision',
@@ -158,6 +163,9 @@ class Prisma(SyncBasePrisma):
         'secret',
         'setting',
         'log',
+        'pollcache',
+        'recipeversion',
+        'recipetemplate',
     )
 
     def __init__(
@@ -189,6 +197,7 @@ class Prisma(SyncBasePrisma):
         )
 
         self.product = actions.ProductActions[models.Product](self, models.Product)
+        self.testpackage = actions.TestPackageActions[models.TestPackage](self, models.TestPackage)
         self.producttarget = actions.ProductTargetActions[models.ProductTarget](self, models.ProductTarget)
         self.board = actions.BoardActions[models.Board](self, models.Board)
         self.boardrevision = actions.BoardRevisionActions[models.BoardRevision](self, models.BoardRevision)
@@ -219,6 +228,9 @@ class Prisma(SyncBasePrisma):
         self.secret = actions.SecretActions[models.Secret](self, models.Secret)
         self.setting = actions.SettingActions[models.Setting](self, models.Setting)
         self.log = actions.LogActions[models.Log](self, models.Log)
+        self.pollcache = actions.PollCacheActions[models.PollCache](self, models.PollCache)
+        self.recipeversion = actions.RecipeVersionActions[models.RecipeVersion](self, models.RecipeVersion)
+        self.recipetemplate = actions.RecipeTemplateActions[models.RecipeTemplate](self, models.RecipeTemplate)
 
         if auto_register:
             register(self)
@@ -370,6 +382,7 @@ TransactionManager = SyncTransactionManager[Prisma]
 # TODO: don't require copy-pasting arguments between actions and batch actions
 class Batch:
     product: 'ProductBatchActions'
+    testpackage: 'TestPackageBatchActions'
     producttarget: 'ProductTargetBatchActions'
     board: 'BoardBatchActions'
     boardrevision: 'BoardRevisionBatchActions'
@@ -400,12 +413,16 @@ class Batch:
     secret: 'SecretBatchActions'
     setting: 'SettingBatchActions'
     log: 'LogBatchActions'
+    pollcache: 'PollCacheBatchActions'
+    recipeversion: 'RecipeVersionBatchActions'
+    recipetemplate: 'RecipeTemplateBatchActions'
 
     def __init__(self, client: Prisma) -> None:
         self.__client = client
         self.__queries: List[str] = []
         self._active_provider = client._active_provider
         self.product = ProductBatchActions(self)
+        self.testpackage = TestPackageBatchActions(self)
         self.producttarget = ProductTargetBatchActions(self)
         self.board = BoardBatchActions(self)
         self.boardrevision = BoardRevisionBatchActions(self)
@@ -436,6 +453,9 @@ class Batch:
         self.secret = SecretBatchActions(self)
         self.setting = SettingBatchActions(self)
         self.log = LogBatchActions(self)
+        self.pollcache = PollCacheBatchActions(self)
+        self.recipeversion = RecipeVersionBatchActions(self)
+        self.recipetemplate = RecipeTemplateBatchActions(self)
 
     def _add(self, **kwargs: Any) -> None:
         builder = QueryBuilder(
@@ -593,6 +613,117 @@ class ProductBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.Product,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class TestPackageBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.TestPackageCreateInput,
+        include: Optional[types.TestPackageInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.TestPackage,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.TestPackageCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.TestPackage,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.TestPackageWhereUniqueInput,
+        include: Optional[types.TestPackageInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.TestPackage,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.TestPackageUpdateInput,
+        where: types.TestPackageWhereUniqueInput,
+        include: Optional[types.TestPackageInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.TestPackage,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.TestPackageWhereUniqueInput,
+        data: types.TestPackageUpsertInput,
+        include: Optional[types.TestPackageInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.TestPackage,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.TestPackageUpdateManyMutationInput,
+        where: types.TestPackageWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.TestPackage,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.TestPackageWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.TestPackage,
             arguments={'where': where},
             root_selection=['count'],
         )
@@ -3923,6 +4054,339 @@ class LogBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.Log,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class PollCacheBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.PollCacheCreateInput,
+        include: Optional[types.PollCacheInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.PollCache,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.PollCacheCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.PollCache,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.PollCacheWhereUniqueInput,
+        include: Optional[types.PollCacheInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.PollCache,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.PollCacheUpdateInput,
+        where: types.PollCacheWhereUniqueInput,
+        include: Optional[types.PollCacheInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.PollCache,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.PollCacheWhereUniqueInput,
+        data: types.PollCacheUpsertInput,
+        include: Optional[types.PollCacheInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.PollCache,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.PollCacheUpdateManyMutationInput,
+        where: types.PollCacheWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.PollCache,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.PollCacheWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.PollCache,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class RecipeVersionBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.RecipeVersionCreateInput,
+        include: Optional[types.RecipeVersionInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.RecipeVersion,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.RecipeVersionCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.RecipeVersion,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.RecipeVersionWhereUniqueInput,
+        include: Optional[types.RecipeVersionInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.RecipeVersion,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.RecipeVersionUpdateInput,
+        where: types.RecipeVersionWhereUniqueInput,
+        include: Optional[types.RecipeVersionInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.RecipeVersion,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.RecipeVersionWhereUniqueInput,
+        data: types.RecipeVersionUpsertInput,
+        include: Optional[types.RecipeVersionInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.RecipeVersion,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.RecipeVersionUpdateManyMutationInput,
+        where: types.RecipeVersionWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.RecipeVersion,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.RecipeVersionWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.RecipeVersion,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class RecipeTemplateBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.RecipeTemplateCreateInput,
+        include: Optional[types.RecipeTemplateInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.RecipeTemplate,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.RecipeTemplateCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.RecipeTemplate,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.RecipeTemplateWhereUniqueInput,
+        include: Optional[types.RecipeTemplateInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.RecipeTemplate,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.RecipeTemplateUpdateInput,
+        where: types.RecipeTemplateWhereUniqueInput,
+        include: Optional[types.RecipeTemplateInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.RecipeTemplate,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.RecipeTemplateWhereUniqueInput,
+        data: types.RecipeTemplateUpsertInput,
+        include: Optional[types.RecipeTemplateInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.RecipeTemplate,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.RecipeTemplateUpdateManyMutationInput,
+        where: types.RecipeTemplateWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.RecipeTemplate,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.RecipeTemplateWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.RecipeTemplate,
             arguments={'where': where},
             root_selection=['count'],
         )

@@ -11,9 +11,8 @@ This catches bugs in test logic BEFORE burning hardware time.
 import pytest
 from unittest.mock import MagicMock, patch
 
+from corekinect.capabilities import Capability, Feature
 from corekinect.test.profiles import (
-    Capability,
-    Feature,
     DeviceProfile,
     ValidationConfig,
 )

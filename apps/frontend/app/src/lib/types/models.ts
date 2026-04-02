@@ -1005,3 +1005,23 @@ export interface UnregisteredMtib {
   labels: Record<string, string>;
   ready: boolean;
 }
+
+// ── Build Script Editor types ───────────────────────────────
+
+export interface RecipeVersion {
+  id: string;
+  version: number;
+  status: 'draft' | 'published';
+  changeNote: string | null;
+  createdBy: { id: string; name: string } | null;
+  createdAt: string;
+  content?: string;
+}
+
+export interface RecipeTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  content: string;
+}

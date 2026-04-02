@@ -127,7 +127,6 @@ class BuildWorkerLoop:
                 board=j["board"],
                 target=j["target"],
                 variant=j["variant"],
-                mtib_rev=j["mtibRev"],
                 branch=j["branch"],
                 commit_sha=j["commitSha"] or "",
                 status=j["status"],

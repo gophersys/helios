@@ -20,7 +20,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from corekinect.test.errors import ConfigError
+from corekinect.errors import ConfigError
 
 
 # =============================================================================

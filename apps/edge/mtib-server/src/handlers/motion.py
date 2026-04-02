@@ -55,20 +55,19 @@ class MotionHandler:
     def set_gpio_expander(self, gpio_expander) -> None:
         """Set the TCA9534A GPIO expander for REV 1.2 motor power control.
 
-        On REV 1.2, the motor power MOSFET (VMM_EN) is controlled by TCA9534A P2.
-        It must be enabled before any FluidNC commands. On REV 1.1, the motor is
-        always powered when the system is powered (no MOSFET), so this is a no-op.
+        The motor power MOSFET (VMM_EN) is controlled by TCA9534A P2.
+        It must be enabled before any FluidNC commands.
         """
         self._gpio_expander = gpio_expander
         self.logger.info("Motor power switch support enabled via TCA9534A")
 
     def _set_motor_power(self, enable: bool) -> Optional[str]:
-        """Enable/disable motor power on REV 1.2. No-op on REV 1.1.
+        """Enable/disable motor power via TCA9534A.
 
         Returns error string on failure, None on success.
         """
         if self._gpio_expander is None:
-            return None  # REV 1.1: motor always powered
+            return None  # No GPIO expander configured
         try:
             self._gpio_expander.set_motor_power(enable)
             self.logger.info(f"Motor power {'enabled' if enable else 'disabled'}")

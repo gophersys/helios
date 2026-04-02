@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from corekinect.test.errors import CloudError
+from corekinect.errors import CloudError
 from corekinect.utils import Logger
 
 # TLS verification — enabled by default, can be disabled for local dev with self-signed certs

@@ -40,7 +40,7 @@ The backend maintains a **bare git clone** of the ck_boards repository. For read
 
 - Board name and description
 - SoC list (e.g., `nrf52840`, `nrf9151`)
-- Hardware revisions (e.g., `rev1.1`, `rev1.2`)
+- Hardware revisions (e.g., `rev1.2`)
 - Variants (e.g., `alpha_b0`, `alpha_b1`)
 
 **DTS files** — Device Tree Source files for each revision. Parsed for `compatible` strings to extract the peripheral manifest:
@@ -97,7 +97,7 @@ Checks out the requested branch, scans all board directories, returns a summary 
     {
       "board": "alpha",
       "socs": ["nrf52840", "nrf9151"],
-      "revisions": ["rev1.1", "rev1.2"],
+      "revisions": ["rev1.2"],
       "variants": ["alpha_b0"]
     },
     {
@@ -265,7 +265,7 @@ Build configuration is stored as a JSON blob in `Product.buildConfig`. It is aut
 - **`overlays` is a per-target list** — additional DTS overlay files applied during `west build`. These are board-level overlays (e.g., enabling a peripheral), not test fixture adaptations.
 - **`postBuild` is an ordered list** — steps run after `west build` completes. Product-agnostic steps like MCUboot signing are shared; product-specific steps like VSM merge are conditional on `hasVsmMerge`.
 - **AppIDs come from humans** — ck_boards has no concept of CoreCloud AppIDs. These are assigned during product creation and stored here.
-- **No MTIB/fixture config in builds** — MTIB hardware revision (1.1 vs 1.2) is a test fixture property, not a product property. Pin swap overlays, GPIO mappings, and other fixture-specific adaptations are handled at test time via fixture profiles, not at build time. The build system builds firmware for a *board*; the test fixture adapts for the *test hardware*.
+- **No MTIB/fixture config in builds** — MTIB hardware revision is a test fixture property, not a product property. GPIO mappings and other fixture-specific adaptations are handled at test time via fixture profiles, not at build time. The build system builds firmware for a *board*; the test fixture adapts for the *test hardware*.
 
 ---
 

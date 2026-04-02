@@ -10,7 +10,7 @@
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { BuildRunDetail } from '$lib/types/ci';
   import type { Pagination } from '$lib/types/models';
-  import { fetchBuildRuns, cancelPipeline } from '$lib/services/ci';
+  import { fetchBuildRuns, cancelPipeline, retriggerPipeline } from '$lib/services/ci';
   import { api } from '$lib/api';
   import { formatTimeAgo, formatDateTime, formatDuration } from '$lib/utils/formatting';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
@@ -119,6 +119,7 @@
   }
 
   let cancellingId = $state<string | null>(null);
+  let retriggeringId = $state<string | null>(null);
 
   async function handleCancel(runId: string, e: Event) {
     e.stopPropagation();
@@ -130,6 +131,19 @@
       error = err instanceof Error ? err.message : 'Failed to cancel';
     } finally {
       cancellingId = null;
+    }
+  }
+
+  async function handleRetrigger(runId: string, e: Event) {
+    e.stopPropagation();
+    retriggeringId = runId;
+    try {
+      const result = await retriggerPipeline(runId);
+      await loadRuns();
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : 'Failed to retrigger';
+    } finally {
+      retriggeringId = null;
     }
   }
 
@@ -353,11 +367,16 @@
                           </button>
                         {:else if run.status === 'FAILED' || run.status === 'BUILD_FAILED' || run.status === 'CANCELLED'}
                           <button
-                            onclick={(e) => { e.stopPropagation(); goto(`/builds/runs/${run.id}`); }}
+                            onclick={(e) => handleRetrigger(run.id, e)}
+                            disabled={retriggeringId === run.id}
                             class="rounded p-1 text-text-tertiary hover:text-accent hover:bg-accent-muted transition-colors"
-                            title="View details"
+                            title="Re-trigger"
                           >
-                            <RotateCcw size={12} />
+                            {#if retriggeringId === run.id}
+                              <Loader2 size={12} class="animate-spin" />
+                            {:else}
+                              <RotateCcw size={12} />
+                            {/if}
                           </button>
                         {/if}
                       {/if}

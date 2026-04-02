@@ -46,7 +46,7 @@ function makePipelineBase(overrides: Partial<BuildRunDetail> = {}): BuildRunDeta
     branch: 'main',
     commitSha: 'abc123',
     status: 'BUILDING',
-    triggerTypes: 'webhook',
+    triggerType: 'webhook',
     expectedBuilds: 1,
     completedBuilds: 0,
     validationRunId: null,
