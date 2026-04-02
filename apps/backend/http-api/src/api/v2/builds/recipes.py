@@ -614,7 +614,41 @@ def test_recipe_build(product_id: str):
     except Exception:
         logger.exception("Failed to write recipe to MinIO for test build")
 
-    # Create a test BuildJob — use main/master as branch since test-build doesn't exist in the repo
+    # Look up signing key — check stage config first, then any signing_key secret
+    signing_key_value = None
+    stage_config_id = data.get("stageConfigId")
+
+    if stage_config_id:
+        # Use the specific stage config's signing key
+        stage_cfg = db.productstageconfig.find_unique(
+            where={"id": stage_config_id},
+            include={"signingKey": True},
+        )
+        if stage_cfg and stage_cfg.signingKey:
+            signing_key_value = stage_cfg.signingKey.value
+    else:
+        # Find any stage config for this product+revision with a signing key
+        stage_cfg = db.productstageconfig.find_first(
+            where={
+                "productId": product_id,
+                "boardRevisionId": revision_id,
+                "signingKeyId": {"not": None},
+            },
+            include={"signingKey": True},
+        )
+        if stage_cfg and stage_cfg.signingKey:
+            signing_key_value = stage_cfg.signingKey.value
+
+    # If still no key from stage config, try any signing_key secret
+    if not signing_key_value:
+        any_key = db.secret.find_first(where={"type": "signing_key"})
+        if any_key:
+            signing_key_value = any_key.value
+
+    if not signing_key_value:
+        logger.warning("No signing key found for test build — build may fail on signing step")
+
+    # Create a test BuildJob
     build_job = db.buildjob.create(data={
         "productId": product_id,
         "board": revision.ckBoardsName,
@@ -638,6 +672,7 @@ def test_recipe_build(product_id: str):
             "mfgRepoSlug": product.mfgFwRepoSlug,
             "builderImage": product.builderImage,
             "ckBoardsName": revision.ckBoardsName,
+            "signingKeyValue": signing_key_value,
             "testBuild": True,
         }),
     })
