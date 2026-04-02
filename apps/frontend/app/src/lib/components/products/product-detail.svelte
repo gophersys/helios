@@ -77,7 +77,7 @@
   const tabs: { key: Tab; label: string; icon: typeof Package }[] = [
     { key: 'overview', label: 'Overview', icon: LayoutDashboard },
     { key: 'hardware', label: 'Hardware', icon: CircuitBoard },
-    { key: 'stages', label: 'Stages', icon: FlaskConical },
+    { key: 'stages', label: 'Validation', icon: FlaskConical },
     { key: 'assets', label: 'Assets', icon: Package },
     { key: 'manufacturing', label: 'Manufacturing', icon: Factory },
   ];

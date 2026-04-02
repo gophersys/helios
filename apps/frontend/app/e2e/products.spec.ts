@@ -90,7 +90,7 @@ test.describe('Product Detail', () => {
   });
 
   test('shows all five tabs', async ({ page }) => {
-    for (const tab of ['Overview', 'Hardware', 'Stages', 'Assets', 'Manufacturing']) {
+    for (const tab of ['Overview', 'Hardware', 'Validation', 'Assets', 'Manufacturing']) {
       await expect(page.locator('button').filter({ hasText: tab }).first()).toBeVisible();
     }
   });
@@ -225,7 +225,7 @@ test.describe('Product Tabs', () => {
   });
 
   test('can switch between all tabs', async ({ page }) => {
-    for (const tab of ['Hardware', 'Stages', 'Assets', 'Manufacturing', 'Overview']) {
+    for (const tab of ['Hardware', 'Validation', 'Assets', 'Manufacturing', 'Overview']) {
       await page.locator('button').filter({ hasText: tab }).first().click();
       await page.waitForTimeout(200);
     }
