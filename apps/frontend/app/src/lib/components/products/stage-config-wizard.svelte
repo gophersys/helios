@@ -230,7 +230,7 @@
   async function loadLastTestBuild() {
     // Check if there's a recent test build for this product
     try {
-      const res = await apiFetch<ApiResponse<any>>('/v2/builds?status=BUILDING,QUEUED,SUCCESS,FAILED&limit=5&product=alpha');
+      const res = await apiFetch<ApiResponse<any>>(`/v2/builds?limit=10&productId=${productId}`);
       const data = res.data;
       const builds = Array.isArray(data) ? data : data?.data ?? [];
       const testBuild = builds.find((b: any) => b.matrixLabel === 'TEST_BUILD');
