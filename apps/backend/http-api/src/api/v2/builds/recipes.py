@@ -519,3 +519,124 @@ def get_recipe_template(template_id: str):
     return jsonify(ApiResponse.ok(
         _serialize_template(template, include_content=True)
     ).to_dict()), 200
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def test_recipe_build(product_id: str):
+    """POST /v2/products/<id>/recipe/test-build — Run a test build with the current recipe.
+
+    Creates a single BuildJob that the build service picks up and executes.
+    The recipe content is saved as a new version before the build starts.
+    Logs stream via WebSocket (ci_build_log events).
+
+    Body: {
+        "content": "#!/bin/bash\n...",
+        "boardRevisionId": "rev-id",
+        "stageConfigId": "stage-id" (optional)
+    }
+    Returns: { "buildJobId": "...", "recipeVersion": N }
+    """
+    from flask import g
+    from database import Json
+
+    db = get_db_client()
+    product = db.product.find_unique(
+        where={"id": product_id},
+        include={"boards": {"include": {"revisions": {"include": {"targets": True}}}}},
+    )
+    if not product:
+        return not_found("Product not found")
+
+    data = request.get_json()
+    if not data:
+        return bad_request("Request body required")
+
+    content = data.get("content", "").strip()
+    if not content or len(content) < 10:
+        return bad_request("Recipe content is required (min 10 chars)")
+
+    revision_id = data.get("boardRevisionId")
+    if not revision_id:
+        return bad_request("boardRevisionId is required")
+
+    # Find the target revision
+    revision = None
+    board = None
+    for b in (product.boards or []):
+        for r in (b.revisions or []):
+            if r.id == revision_id:
+                revision = r
+                board = b
+                break
+
+    if not revision:
+        return bad_request("Board revision not found")
+
+    # Save recipe as a new version
+    user = getattr(g, "current_user", None)
+    user_id = user["sub"] if user else None
+
+    latest = db.recipeversion.find_first(
+        where={"productId": product_id},
+        order={"version": "desc"},
+    )
+    next_version = (latest.version + 1) if latest else 1
+
+    recipe_ver = db.recipeversion.create(data={
+        "productId": product_id,
+        "version": next_version,
+        "content": content,
+        "status": "draft",
+        "changeNote": f"Test build (v{next_version})",
+        "createdById": user_id,
+    })
+
+    # Also write to MinIO so the build service can fetch it
+    try:
+        storage = get_storage_client()
+        bucket = get_bucket_name()
+        slug = product.slug or product.name.lower().replace(" ", "-")
+        key = storage_key(StoragePrefixes.RECIPES, f"{slug}/build.sh")
+        storage.put_object(bucket, key, io.BytesIO(content.encode()), len(content), content_type="text/x-shellscript")
+    except Exception:
+        logger.exception("Failed to write recipe to MinIO for test build")
+
+    # Create a test BuildJob
+    build_job = db.buildjob.create(data={
+        "productId": product_id,
+        "board": revision.ckBoardsName,
+        "target": "app",
+        "variant": "debug",
+        "branch": "test-build",
+        "status": "QUEUED",
+        "matrixLabel": "TEST_BUILD",
+        "configFlags": Json({
+            "test_build": True,
+            "recipe_version": next_version,
+            "config_log": True,
+            "produces_hex": True,
+            "produces_cfw": False,
+        }),
+        "webhookData": Json({
+            "repoUrl": f"git@bitbucket.org:corekinect/{product.fwRepoSlug}.git" if product.fwRepoSlug else None,
+            "fwRepoUrl": f"git@bitbucket.org:corekinect/{product.fwRepoSlug}.git" if product.fwRepoSlug else None,
+            "mfgRepoUrl": f"git@bitbucket.org:corekinect/{product.mfgFwRepoSlug}.git" if product.mfgFwRepoSlug else None,
+            "fwRepoSlug": product.fwRepoSlug,
+            "mfgRepoSlug": product.mfgFwRepoSlug,
+            "builderImage": product.builderImage,
+            "ckBoardsName": revision.ckBoardsName,
+            "testBuild": True,
+        }),
+    })
+
+    log_audit("recipe.test_build", "BuildJob", build_job.id, {
+        "productId": product_id,
+        "recipeVersion": next_version,
+        "board": revision.ckBoardsName,
+    })
+
+    return jsonify(ApiResponse.ok({
+        "buildJobId": build_job.id,
+        "recipeVersion": next_version,
+        "board": revision.ckBoardsName,
+    }).to_dict()), 201

@@ -290,7 +290,7 @@ from .builds.pr_builds import list_pr_pipelines, get_build_summary
 from .builds.recipes import (
     get_recipe, update_recipe, validate_recipe,
     list_recipe_versions, get_recipe_version, save_recipe_version,
-    publish_recipe, diff_recipe_versions,
+    publish_recipe, diff_recipe_versions, test_recipe_build,
     get_stage_defs,
     list_recipe_templates, get_recipe_template,
 )
@@ -414,6 +414,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/recipe",                                             endpoint="get_recipe",               view_func=get_recipe,            methods=["GET"])
     v2.add_url_rule("/products/<product_id>/recipe",                                             endpoint="update_recipe",            view_func=update_recipe,         methods=["PUT"])
     v2.add_url_rule("/products/<product_id>/recipe/validate",                                    endpoint="validate_recipe",          view_func=validate_recipe,       methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/recipe/test-build",                                  endpoint="test_recipe_build",        view_func=test_recipe_build,     methods=["POST"])
     v2.add_url_rule("/products/<product_id>/recipe/versions",                                    endpoint="list_recipe_versions",     view_func=list_recipe_versions,  methods=["GET"])
     v2.add_url_rule("/products/<product_id>/recipe/versions/<int:version_num>",                   endpoint="get_recipe_version",       view_func=get_recipe_version,    methods=["GET"])
     v2.add_url_rule("/products/<product_id>/recipe/save",                                        endpoint="save_recipe_version",      view_func=save_recipe_version,   methods=["POST"])

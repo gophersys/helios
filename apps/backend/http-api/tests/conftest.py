@@ -31,6 +31,7 @@ def pytest_configure(config):
         "STORAGE_ACCESS_KEY": "minioadmin",
         "STORAGE_SECRET_ACCESS_KEY": "minioadmin",
         "STORAGE_BUCKET_NAME": "test-bucket",
+        "AUTH_ENABLED": "true",
         "AUTH_SERVER_URL": "",
         "AUTH_SERVER_API_KEY": "",
     }

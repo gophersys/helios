@@ -2,7 +2,7 @@
 Concord platform permissions.
 
 Format: module:action
-Modules: products, builds, validation, manufacturing, fixtures, devices, kubernetes, users, permissions, api-keys, system
+Modules: products, builds, validation, fixtures, devices, kubernetes, users, permissions, api-keys, system
 Actions: view, manage, trigger, run
 """
 
@@ -19,10 +19,6 @@ class Permissions:
     VALIDATION_VIEW = "validation:view"
     VALIDATION_RUN = "validation:run"
     VALIDATION_MANAGE = "validation:manage"
-    MANUFACTURING_VIEW = "manufacturing:view"
-    MANUFACTURING_RUN = "manufacturing:run"
-    MANUFACTURING_MANAGE = "manufacturing:manage"
-
     # Infrastructure
     FIXTURES_VIEW = "fixtures:view"
     FIXTURES_MANAGE = "fixtures:manage"
@@ -58,10 +54,6 @@ PERMISSION_REGISTRY = {
     "validation:view": {"module": "Testing", "label": "View Validation", "description": "View validation runs, results, test catalog"},
     "validation:run": {"module": "Testing", "label": "Run Validation", "description": "Trigger validation runs and test executions"},
     "validation:manage": {"module": "Testing", "label": "Manage Validation", "description": "Configure validation designs, manage test catalog"},
-    "manufacturing:view": {"module": "Testing", "label": "View Manufacturing", "description": "View manufacturing sessions and device status"},
-    "manufacturing:run": {"module": "Testing", "label": "Run Manufacturing", "description": "Execute manufacturing tests and sessions"},
-    "manufacturing:manage": {"module": "Testing", "label": "Manage Manufacturing", "description": "Configure manufacturing fixtures and test definitions"},
-
     # Infrastructure
     "fixtures:view": {"module": "Infrastructure", "label": "View Fixtures", "description": "View fixtures, test benches, designs, slots, and assignments"},
     "fixtures:manage": {"module": "Infrastructure", "label": "Manage Fixtures", "description": "Create, configure, and manage fixtures and test benches"},
@@ -91,20 +83,19 @@ DEFAULT_ROLES = {
     "Engineer": [
         "products:view", "builds:view", "builds:trigger",
         "validation:view", "validation:run",
-        "manufacturing:view", "manufacturing:run",
         "fixtures:view", "devices:view",
         "kubernetes:view", "system:view",
         "api-keys:view", "api-keys:manage",
     ],
     "Operator": [
         "products:view", "builds:view",
-        "validation:view", "manufacturing:view", "manufacturing:run",
+        "validation:view",
         "fixtures:view", "devices:view",
         "system:view",
     ],
     "Viewer": [
         "products:view", "builds:view",
-        "validation:view", "manufacturing:view",
+        "validation:view",
         "fixtures:view", "devices:view",
         "system:view",
     ],

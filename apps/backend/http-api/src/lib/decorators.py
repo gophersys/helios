@@ -6,6 +6,7 @@ from functools import wraps
 
 from flask import g, request
 
+from config.env import env_config
 from src.lib.errors import forbidden, unauthorized
 from src.services.auth.jwt import verify_token
 from src.services.database.prisma import get_db_client
@@ -48,6 +49,15 @@ def require_auth(f):
 
     @wraps(f)
     def decorated(*args, **kwargs):
+        if not env_config.AUTH_ENABLED:
+            g.current_user = {
+                "sub": "00000000-0000-0000-0000-000000000000",
+                "email": "admin@concord.local",
+                "name": "Admin (auth disabled)",
+                "permissionSetId": None,
+            }
+            return f(*args, **kwargs)
+
         auth_header = request.headers.get("Authorization")
         if not auth_header:
             return unauthorized("Missing authorization header")
@@ -107,6 +117,9 @@ def require_permissions(*permission_strings):
         @wraps(f)
         @require_auth
         def decorated(*args, **kwargs):
+            if not env_config.AUTH_ENABLED:
+                return f(*args, **kwargs)
+
             user = getattr(g, "current_user", None)
             if not user:
                 return unauthorized("Unauthorized")

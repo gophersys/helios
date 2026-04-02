@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "libs", "python
 
 from database import Prisma, Json
 
-# Every permission that exists in the system (26 total)
+# Every permission that exists in the system (23 total)
 # Organized by functional group for clarity
 ALL_PERMISSIONS = [
     # Products & Builds
@@ -37,9 +37,6 @@ ALL_PERMISSIONS = [
     "validation:view",
     "validation:run",
     "validation:manage",
-    "manufacturing:view",
-    "manufacturing:run",
-    "manufacturing:manage",
     # Infrastructure
     "fixtures:view",
     "fixtures:manage",
@@ -70,8 +67,6 @@ ENGINEER_PERMISSIONS = [
     "builds:trigger",
     "validation:view",
     "validation:run",
-    "manufacturing:view",
-    "manufacturing:run",
     "fixtures:view",
     "devices:view",
     "kubernetes:view",
@@ -84,8 +79,6 @@ OPERATOR_PERMISSIONS = [
     "products:view",
     "builds:view",
     "validation:view",
-    "manufacturing:view",
-    "manufacturing:run",
     "fixtures:view",
     "devices:view",
     "system:view",
@@ -95,7 +88,6 @@ VIEWER_PERMISSIONS = [
     "products:view",
     "builds:view",
     "validation:view",
-    "manufacturing:view",
     "fixtures:view",
     "devices:view",
     "system:view",
@@ -164,11 +156,11 @@ def seed():
             data={
                 "create": {
                     "name": "Operator",
-                    "description": "Manufacturing operator — view products, run manufacturing tests",
+                    "description": "Operator — view products, run validation tests",
                     "permissions": OPERATOR_PERMISSIONS,
                 },
                 "update": {
-                    "description": "Manufacturing operator — view products, run manufacturing tests",
+                    "description": "Operator — view products, run validation tests",
                     "permissions": OPERATOR_PERMISSIONS,
                 },
             },

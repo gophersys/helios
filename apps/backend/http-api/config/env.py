@@ -25,6 +25,9 @@ class AppConfig(EnvConfig):
     # In production and staging, set JWT_SECRET_KEY to a strong, unique value (32+ chars).
     JWT_SECRET_KEY: str = "concord-dev-jwt-secret-change-in-production"
 
+    # Auth toggle — set to false to disable auth entirely (development only)
+    AUTH_ENABLED: bool = True
+
     # Core Cloud auth server (email/password login)
     AUTH_SERVER_URL: str = ""
     AUTH_SERVER_API_KEY: str = ""
