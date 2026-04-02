@@ -601,13 +601,13 @@ def test_recipe_build(product_id: str):
     except Exception:
         logger.exception("Failed to write recipe to MinIO for test build")
 
-    # Create a test BuildJob
+    # Create a test BuildJob — use main/master as branch since test-build doesn't exist in the repo
     build_job = db.buildjob.create(data={
         "productId": product_id,
         "board": revision.ckBoardsName,
         "target": "app",
         "variant": "debug",
-        "branch": "test-build",
+        "branch": "main",
         "status": "QUEUED",
         "matrixLabel": "TEST_BUILD",
         "configFlags": Json({
