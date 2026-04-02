@@ -307,14 +307,14 @@ class BuildWorkerLoop:
             # Try API recipe first (stored in MinIO via Products → Build Config)
             # Stage-specific recipes: firmware/recipes/{slug}/stage-{N}/build.sh
             if product_id:
-                # Get stage number from the build run or webhook data
-                job_stage = None
-                if job.build_run_id:
-                    run_result = self.client.api_get(f"/v2/builds/runs/{job.build_run_id}")
-                    if run_result and run_result.get("data"):
-                        job_stage = run_result["data"].get("stage")
+                # Get stage number from webhook data or the build run
+                job_stage = _webhook_data.get("stage")
                 if not job_stage:
-                    job_stage = _webhook_data.get("stage")
+                    build_run_id = getattr(job, 'buildRunId', None) or getattr(job, 'build_run_id', None)
+                    if build_run_id:
+                        run_result = self.client.api_get(f"/v2/builds/runs/{build_run_id}")
+                        if run_result and run_result.get("data"):
+                            job_stage = run_result["data"].get("stage")
 
                 # Try stage-specific recipe first, then fall back to product-level
                 recipe_url = f"/v2/products/{product_id}/recipe"

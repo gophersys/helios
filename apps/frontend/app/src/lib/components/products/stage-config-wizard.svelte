@@ -79,6 +79,7 @@
   let terminalOpen = $state(false);
   let terminalHeight = $state(192);
   let dragging = $state(false);
+  let testBuildContainerImage = $state<string | null>(null);
   let unsubscribeBuild: (() => void) | null = null;
   let pollTimer: ReturnType<typeof setTimeout> | null = null;
   let terminalEl: HTMLDivElement | null = $state(null);
@@ -241,7 +242,8 @@
 
       // Parse config flags for builder image
       const flags = typeof testBuild.configFlags === 'string' ? JSON.parse(testBuild.configFlags) : testBuild.configFlags;
-      const builderImage = flags?._builder_image || 'Resolving...';
+      const builderImage = flags?._builder_image || null;
+      testBuildContainerImage = builderImage;
 
       testBuildStatus = isActive ? 'running' : testBuild.status === 'SUCCESS' ? 'success' : 'failed';
       testBuildRunning = isActive;
@@ -482,12 +484,24 @@
         // Guard again after async
         if (testBuildId !== buildId) return;
 
-        // Update container image in terminal header when resolved
+        // Update container image when resolved by build service
         const configFlags = typeof job?.configFlags === 'string' ? JSON.parse(job.configFlags) : job?.configFlags;
         const builderImage = configFlags?._builder_image;
-        if (builderImage && testBuildLogs[4]?.includes('Resolving...')) {
-          testBuildLogs[4] = `\x1b[36m  Container:  \x1b[0m${builderImage}`;
-          testBuildLogs = [...testBuildLogs]; // trigger reactivity
+        if (builderImage) {
+          testBuildContainerImage = builderImage;
+          // Update terminal header line
+          if (testBuildLogs[4]?.includes('Resolving...')) {
+            testBuildLogs[4] = `\x1b[36m  Container:  \x1b[0m${builderImage}`;
+            testBuildLogs = [...testBuildLogs];
+          }
+        }
+
+        // Show error message if build failed
+        if (job?.errorMessage && (job.status === 'FAILED')) {
+          const hasError = testBuildLogs.some(l => l.includes(job.errorMessage));
+          if (!hasError) {
+            testBuildLogs = [...testBuildLogs, `\x1b[31m▸ Error: ${job.errorMessage}\x1b[0m`];
+          }
         }
 
         // Pull logs if WebSocket isn't delivering them
@@ -1238,6 +1252,10 @@
                   <span class="text-[#a6e3a1]">✓ Build succeeded</span>
                 {:else if testBuildStatus === 'failed'}
                   <span class="text-[#f38ba8]">✗ Build failed</span>
+                {/if}
+                {#if testBuildContainerImage}
+                  <span class="text-[#585b70]">·</span>
+                  <span class="text-[#585b70] font-mono truncate max-w-[300px]">{testBuildContainerImage}</span>
                 {/if}
                 {#if testBuildLogs.length > 0}
                   <span class="text-[#585b70]">({testBuildLogs.length} lines)</span>
