@@ -669,7 +669,7 @@ def test_recipe_build(product_id: str):
             "test_build": True,
             "config_log": True,
             "produces_hex": True,
-            "produces_cfw": False,
+            "produces_cfw": True,
         }),
         "webhookData": Json({
             "repoUrl": f"git@bitbucket.org:corekinect/{product.fwRepoSlug}.git" if product.fwRepoSlug else None,

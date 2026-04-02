@@ -458,6 +458,70 @@
     testBuildId = null;
   }
 
+  /** Classify a log line for visual treatment */
+  function classifyLogLine(line: string): 'header' | 'clone' | 'build' | 'sdk' | 'error' | 'normal' {
+    const l = line.trim();
+    if (l.startsWith('▸') || l.startsWith('\x1b[36m▸')) return 'header';
+    if (l.includes('[clone]') || l.startsWith('Cloning into') || l.startsWith('Receiving objects') || l.startsWith('Resolving deltas') || l.includes('Initializing submodules') || l.includes('ready')) return 'clone';
+    if (l.includes('concord_init') || l.includes('concord_finalize') || l.includes('Resolved version') || l.includes('Generated build.json') || l.includes('concord_collect')) return 'sdk';
+    if (l.toLowerCase().includes('error') || l.toLowerCase().includes('fatal') || l.includes('FAILED')) return 'error';
+    return l.includes('west build') || l.includes('ninja') || l.includes('Compiling') || l.includes('Linking') || l.includes('Memory region') ? 'build' : 'normal';
+  }
+
+  /** Format ANSI escape codes to HTML spans */
+  function ansiToHtml(line: string): string {
+    return line
+      .replace(/\x1b\[36m/g, '<span style="color:#89dceb">')
+      .replace(/\x1b\[32m/g, '<span style="color:#a6e3a1">')
+      .replace(/\x1b\[31m/g, '<span style="color:#f38ba8">')
+      .replace(/\x1b\[33m/g, '<span style="color:#f9e2af">')
+      .replace(/\x1b\[0m/g, '</span>');
+  }
+
+  // Processed log lines — filters git noise, adds section headers
+  const processedLogs = $derived.by(() => {
+    const out: { html: string; type: string }[] = [];
+    let inCloneSection = false;
+    let cloneLineCount = 0;
+
+    for (const line of testBuildLogs) {
+      const cls = classifyLogLine(line);
+
+      if (cls === 'clone') {
+        if (!inCloneSection) {
+          inCloneSection = true;
+          cloneLineCount = 0;
+          out.push({ html: '<span style="color:#585b70">── Cloning repositories ──</span>', type: 'section' });
+        }
+        cloneLineCount++;
+        // Only show key clone lines, skip progress (Receiving/Resolving)
+        if (line.includes('[clone]') || line.includes('Cloning into') || line.includes('ready')) {
+          out.push({ html: '<span style="color:#585b70">' + line.replace(/</g, '&lt;') + '</span>', type: 'clone' });
+        }
+        continue;
+      }
+
+      if (inCloneSection && cls !== 'clone') {
+        if (cloneLineCount > 3) {
+          out.push({ html: `<span style="color:#585b70">  (${cloneLineCount} lines)</span>`, type: 'clone' });
+        }
+        inCloneSection = false;
+        out.push({ html: '<span style="color:#585b70">── Build output ──</span>', type: 'section' });
+      }
+
+      if (cls === 'sdk') {
+        out.push({ html: '<span style="color:#89dceb">' + ansiToHtml(line) + '</span>', type: 'sdk' });
+      } else if (cls === 'error') {
+        out.push({ html: '<span style="color:#f38ba8">' + line.replace(/</g, '&lt;') + '</span>', type: 'error' });
+      } else if (cls === 'header') {
+        out.push({ html: ansiToHtml(line), type: 'header' });
+      } else {
+        out.push({ html: ansiToHtml(line), type: 'normal' });
+      }
+    }
+    return out;
+  });
+
   function formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -1169,8 +1233,12 @@
                     Click <span class="text-[#a6e3a1]">▸ Run</span> in the toolbar to start a test build
                   </div>
                 {:else}
-                  {#each testBuildLogs as line}
-                    <div class="whitespace-pre-wrap break-all">{@html line.replace(/\x1b\[36m/g, '<span style="color:#89dceb">').replace(/\x1b\[32m/g, '<span style="color:#a6e3a1">').replace(/\x1b\[31m/g, '<span style="color:#f38ba8">').replace(/\x1b\[33m/g, '<span style="color:#f9e2af">').replace(/\x1b\[0m/g, '</span>')}</div>
+                  {#each processedLogs as entry}
+                    {#if entry.type === 'section'}
+                      <div class="my-1 text-[10px]">{@html entry.html}</div>
+                    {:else}
+                      <div class="whitespace-pre-wrap break-all {entry.type === 'clone' ? 'text-[10px] opacity-60' : ''}">{@html entry.html}</div>
+                    {/if}
                   {/each}
                 {/if}
               </div>
