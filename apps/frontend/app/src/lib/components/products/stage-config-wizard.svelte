@@ -58,6 +58,10 @@
   let recipe = $state('');
   let recipeLoading = $state(false);
   let recipeDirty = $state(false);
+  let recipeValidating = $state(false);
+  let recipeValidation = $state<{ valid: boolean; errors: string[]; warnings: string[] } | null>(null);
+  let cursorLine = $state(1);
+  let cursorCol = $state(1);
 
   // Branch loading
   let branches = $state<string[]>([]);
@@ -177,6 +181,64 @@
     if (currentStep > 1) currentStep--;
   }
 
+  // Concord Build SDK autocomplete
+  function concordCompletions(context: any) {
+    const word = context.matchBefore(/\w*/);
+    if (!word || (word.from === word.to && !context.explicit)) return null;
+    return {
+      from: word.from,
+      options: [
+        { label: 'concord_init', type: 'function', detail: 'Initialize build environment', info: 'Parse env vars, extract version, fix sysbuild paths, deploy signing keys' },
+        { label: 'concord_collect_hex', type: 'function', detail: 'Register .hex artifact', info: 'concord_collect_hex <appId> <file.hex> <role> <processor>' },
+        { label: 'concord_collect_cfw', type: 'function', detail: 'Register .cfw artifact', info: 'concord_collect_cfw <appId> <file.cfw> <role> <processor>' },
+        { label: 'concord_finalize', type: 'function', detail: 'Generate build manifest', info: 'Creates build.json with all collected artifacts' },
+        { label: 'CONCORD_FW_TYPE', type: 'variable', detail: 'app or mfg' },
+        { label: 'CONCORD_BOARD', type: 'variable', detail: 'Board name (e.g. alpha_b0)' },
+        { label: 'CONCORD_VARIANT', type: 'variable', detail: 'Build variant' },
+        { label: 'CONCORD_BRANCH', type: 'variable', detail: 'Git branch' },
+        { label: 'CONCORD_TARGETS', type: 'variable', detail: 'JSON array of targets' },
+        { label: 'CONCORD_REPO_DIR', type: 'variable', detail: 'Cloned repo path' },
+        { label: 'CONCORD_BUILD_DIR', type: 'variable', detail: 'Build output path' },
+        { label: 'CONCORD_OUTPUT_DIR', type: 'variable', detail: 'Artifact output path' },
+        { label: 'CONCORD_CONFIG_LOG', type: 'variable', detail: 'y/n — enable logging' },
+        { label: 'CONCORD_PRODUCES_HEX', type: 'variable', detail: 'true/false' },
+        { label: 'CONCORD_PRODUCES_CFW', type: 'variable', detail: 'true/false' },
+      ],
+    };
+  }
+
+  async function validateRecipe(): Promise<void> {
+    recipeValidating = true;
+    recipeValidation = null;
+    try {
+      const res = await api.post(`/v2/products/${productId}/recipe/validate`, { content: recipe });
+      recipeValidation = (res as any).data ?? res;
+    } catch {
+      // Client-side fallback validation
+      const errors: string[] = [];
+      const warnings: string[] = [];
+      const lines = recipe.trim();
+      if (!lines) {
+        errors.push('Recipe is empty');
+      } else {
+        if (!lines.includes('concord_init')) errors.push('Missing concord_init — must be called to initialize the build environment');
+        if (!lines.includes('concord_finalize')) errors.push('Missing concord_finalize — must be called to generate the build manifest');
+        if (!lines.includes('concord_collect_hex') && !lines.includes('concord_collect_cfw')) {
+          warnings.push('No artifact collection — call concord_collect_hex or concord_collect_cfw to register build outputs');
+        }
+        if (!lines.includes('#!/bin/bash') && !lines.includes('#!/usr/bin/env bash')) {
+          warnings.push('Missing shebang (#!/bin/bash) — recommended for portability');
+        }
+        if (lines.includes('set -e') && !lines.includes('set -eo pipefail')) {
+          warnings.push('Consider using set -eo pipefail instead of set -e for better error handling in pipes');
+        }
+      }
+      recipeValidation = { valid: errors.length === 0, errors, warnings };
+    } finally {
+      recipeValidating = false;
+    }
+  }
+
   async function handleDisable(): Promise<void> {
     if (!canDisable || !config) return;
     disabling = true;
@@ -235,16 +297,16 @@
 
 <Modal {open} onclose={onClose} size="full" title="" noPadding>
   <div class="flex flex-col h-[85vh]">
-    <!-- Header -->
-    <div class="flex items-center gap-4 px-8 py-5 border-b border-border shrink-0">
-      <div class="flex items-center justify-center w-11 h-11 rounded-xl bg-accent/10">
-        <FlaskConical size={22} class="text-accent" />
+    <!-- Header (compact) -->
+    <div class="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
+      <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-accent/10">
+        <FlaskConical size={18} class="text-accent" />
       </div>
-      <div class="flex-1">
-        <h2 class="text-lg font-semibold text-text-primary">
+      <div class="flex-1 min-w-0">
+        <h2 class="text-sm font-semibold text-text-primary">
           {config ? 'Edit' : 'Configure'} Stage {stage}: {stageName}
         </h2>
-        <p class="text-sm text-text-tertiary">{stageDesc}</p>
+        <p class="text-2xs text-text-tertiary truncate">{stageDesc}</p>
       </div>
       <div class="flex items-center gap-3">
         {#if selectedRevision}
@@ -266,8 +328,8 @@
       </div>
     </div>
 
-    <!-- Step indicator -->
-    <div class="flex items-center gap-3 px-8 py-4 border-b border-border-subtle bg-surface-0/50 shrink-0">
+    <!-- Step indicator (compact) -->
+    <div class="flex items-center gap-2 px-6 py-2.5 border-b border-border-subtle bg-surface-0/50 shrink-0">
       {#each steps as s}
         {@const isComplete = currentStep > s.num}
         {@const isCurrent = currentStep === s.num}
@@ -296,7 +358,7 @@
     </div>
 
     <!-- Content area -->
-    <div class="flex-1 overflow-y-auto px-8 py-6">
+    <div class="flex-1 overflow-y-auto px-6 py-4">
       <ErrorAlert message={error} />
 
       {#if currentStep === 1}
@@ -497,41 +559,86 @@
         </div>
 
       {:else if currentStep === 3}
-        <!-- Step 3: Build Recipe -->
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-sm font-semibold text-text-primary">Build Recipe</h3>
-              <p class="text-2xs text-text-tertiary mt-0.5">
-                Bash script using the Concord Build SDK (<code class="font-mono bg-surface-2 px-1 rounded text-accent">concord_init</code>,
-                <code class="font-mono bg-surface-2 px-1 rounded text-accent">concord_collect_hex</code>,
-                <code class="font-mono bg-surface-2 px-1 rounded text-accent">concord_finalize</code>).
-              </p>
+        <!-- Step 3: Build Recipe — full height editor -->
+        <div class="flex flex-col h-full -my-6 -mx-8">
+          <!-- Editor toolbar -->
+          <div class="flex items-center justify-between px-4 py-2 bg-[#181825] border-b border-[#313244] shrink-0">
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-medium text-[#cdd6f4]">build.sh</span>
+              <span class="text-[10px] text-[#585b70]">Concord Build SDK</span>
+              {#if recipeDirty}
+                <span class="rounded bg-[#f9e2af]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#f9e2af]">Modified</span>
+              {/if}
             </div>
-            {#if recipeDirty}
-              <span class="rounded-full bg-warning-muted px-2.5 py-1 text-2xs font-medium text-warning">Unsaved changes</span>
-            {/if}
+            <div class="flex items-center gap-2">
+              <button
+                onclick={validateRecipe}
+                disabled={recipeValidating || !recipe.trim()}
+                class="flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-medium text-[#a6adc8] hover:text-[#cdd6f4] hover:bg-[#313244] transition-colors disabled:opacity-40"
+              >
+                {#if recipeValidating}
+                  <Loader2 size={12} class="animate-spin" />
+                {:else}
+                  <Check size={12} />
+                {/if}
+                Validate
+              </button>
+              <span class="text-[10px] text-[#585b70] font-mono">Ln {cursorLine}, Col {cursorCol}</span>
+            </div>
           </div>
 
-          {#if recipeLoading}
-            <div class="flex items-center justify-center py-16">
-              <Loader2 size={24} class="animate-spin text-text-tertiary" />
-            </div>
-          {:else}
-            <div class="rounded-lg border border-border overflow-hidden">
-              <CodeEditor
-                value={recipe}
-                height="calc(85vh - 340px)"
-                onchange={(v) => { recipe = v; recipeDirty = true; }}
-              />
+          <!-- Validation results -->
+          {#if recipeValidation}
+            <div class="px-4 py-2 bg-[#181825] border-b border-[#313244] shrink-0">
+              {#if recipeValidation.valid && recipeValidation.warnings.length === 0}
+                <div class="flex items-center gap-2 text-xs text-[#a6e3a1]">
+                  <Check size={14} /> Recipe is valid — all required SDK functions present
+                </div>
+              {:else}
+                {#each recipeValidation.errors as err}
+                  <div class="flex items-center gap-2 text-xs text-[#f38ba8] mb-0.5">
+                    <AlertTriangle size={12} /> {err}
+                  </div>
+                {/each}
+                {#each recipeValidation.warnings as warn}
+                  <div class="flex items-center gap-2 text-xs text-[#f9e2af] mb-0.5">
+                    <AlertTriangle size={12} /> {warn}
+                  </div>
+                {/each}
+              {/if}
             </div>
           {/if}
 
-          {#if !recipe.trim() && !recipeLoading}
-            <div class="rounded-lg border border-border-subtle bg-surface-0 p-6 text-center">
-              <FileCode size={28} class="mx-auto mb-2 text-text-tertiary" />
-              <p class="text-sm text-text-secondary">No build recipe configured.</p>
-              <p class="text-2xs text-text-tertiary mt-1">Skip this step if using TeamCity or an external CI system to upload builds.</p>
+          <!-- Editor -->
+          {#if recipeLoading}
+            <div class="flex-1 flex items-center justify-center bg-[#1e1e2e]">
+              <Loader2 size={24} class="animate-spin text-[#585b70]" />
+            </div>
+          {:else if !recipe.trim()}
+            <div class="flex-1 flex flex-col items-center justify-center bg-[#1e1e2e] text-center px-8">
+              <FileCode size={36} class="mb-3 text-[#585b70]" />
+              <p class="text-sm text-[#a6adc8]">No build recipe configured</p>
+              <p class="text-xs text-[#585b70] mt-1 mb-4">Write a bash script using the Concord Build SDK, or skip if using external CI.</p>
+              <button
+                onclick={() => {
+                  recipe = '#!/bin/bash\nset -eo pipefail\n\n# Source the Concord Build SDK\nsource concord-build.sh\nconcord_init\n\n# Build firmware\n# west build -b $CONCORD_BOARD ...\n\n# Collect artifacts\n# concord_collect_hex <appId> <file.hex> <role> <processor>\n# concord_collect_cfw <appId> <file.cfw> <role> <processor>\n\nconcord_finalize\n';
+                  recipeDirty = true;
+                }}
+                class="flex items-center gap-2 rounded-lg bg-[#313244] px-4 py-2 text-xs font-medium text-[#cdd6f4] hover:bg-[#45475a] transition-colors"
+              >
+                <FileCode size={14} /> Start with template
+              </button>
+            </div>
+          {:else}
+            <div class="flex-1 min-h-0">
+              <CodeEditor
+                value={recipe}
+                height="100%"
+                completions={concordCompletions}
+                onchange={(v) => { recipe = v; recipeDirty = true; recipeValidation = null; }}
+                oncursorchange={(l, c) => { cursorLine = l; cursorCol = c; }}
+                class="h-full"
+              />
             </div>
           {/if}
         </div>
@@ -587,8 +694,8 @@
       {/if}
     </div>
 
-    <!-- Footer -->
-    <div class="flex items-center justify-between px-8 py-4 border-t border-border bg-surface-0/50 shrink-0">
+    <!-- Footer (compact) -->
+    <div class="flex items-center justify-between px-6 py-3 border-t border-border bg-surface-0/50 shrink-0">
       <button
         onclick={currentStep === 1 ? onClose : prevStep}
         class="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-2 transition-colors"
