@@ -1,41 +1,12 @@
-"""Validation test framework — shared infrastructure for product test apps.
+"""Validation test framework for product test apps.
 
-This library provides everything a product validation app needs:
+Shared infrastructure for hardware validation: MTIB control, UART capture,
+power profiling, artifact resolution, FUOTA orchestration, and pytest
+integration. Product apps (e.g., Alpha B0) build on top of this.
 
-**Core**:
-- Stage enum and metadata (stages.py)
-- Generic hardware assertions (assertions.py)
-- Base timing utilities (timing.py)
-- CFW binary header parsing (cfw.py)
-
-**Hardware**:
-- Capability/Feature system for test gating (profiles.py)
-- Hardware abstraction via MTIB (fixture_controller.py)
-- Programmable test stub (programmable_fixture.py)
-- UART capture and demuxing (uart_demuxer.py)
-- Power measurement (power_profiler.py)
-
-**Artifacts & Storage**:
-- Build manifest parsing (artifact_resolver.py)
-- Stage-aware asset resolution (stage_assets.py)
-- Firmware lifecycle management (firmware.py)
-- MinIO artifact persistence (artifact_writer.py)
-
-**FUOTA & Cloud**:
-- High-level FUOTA workflow (fuota_orchestrator.py)
-- UART boot version capture (version_detector.py)
-- CoreCloud device polling (cloud_client.py)
-- CoreCloud FUOTA API (fuota_client.py)
-- Device provisioning (device_personalizer.py)
-
-**Pytest Integration**:
-- Concord API result reporting (reporter.py)
-- Fail-fast sequential plugin (sequential.py)
-- Capability-based test decorators (pytest_integration.py)
-
-**Orchestration**:
-- Unified test runner (runner.py)
-- Test session context (context.py)
+    from corekinect.test.context import TestContext
+    from corekinect.test.stage_assets import StageAssets
+    from corekinect.test.pytest_integration import requires_capability
 """
 
 __version__ = "0.1.0"

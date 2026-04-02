@@ -5,7 +5,7 @@
   "sourceRoot": "docs",
   "targets": {
     "serve": {
-      "command": "zensical serve -a 0.0.0.0:4000",
+      "command": "PYTHONPATH=libs/python:libs:libs/protocols mkdocs serve -a 0.0.0.0:4000",
       "options": {
         "cwd": "{workspaceRoot}"
       }

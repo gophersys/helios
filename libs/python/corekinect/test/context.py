@@ -1,13 +1,15 @@
-"""Unified test context for Stage 4 product validation.
+"""Unified test context for product validation.
 
 Composes MTIB client, CloudClient, fixture controller, UartDemuxer,
-and PowerProfiler into a single object passed to every test via
-pytest fixture.
+and PowerProfiler into a single object shared across all tests.
 
-The fixture parameter is duck-typed — any object with the standard
-fixture interface (power_on, power_off, press_button, has_capability,
-etc.) works. Product test apps inject their own fixture implementation
-via from_env(fixture_factory=...).
+    ctx = TestContext.from_env(fixture_factory=AlphaFixture)
+    ctx.connect()
+    # ... run tests ...
+    ctx.disconnect()
+
+The fixture parameter is duck-typed. Product test apps inject their
+own fixture via from_env(fixture_factory=...).
 """
 
 import os
@@ -32,25 +34,20 @@ log = Logger(log_name="test_context")
 
 
 class TestContext:
-    """Unified test context for Stage 4 product validation.
+    """Composes all test infrastructure into a single session-scoped object.
 
-    Composes all test infrastructure components into a single object.
-    Created once per session via from_env(), shared across all tests.
-
-    Stage 3 extension: adding ``harness: HarnessTransport`` is a
-    single-field addition. No other changes needed.
+    Created once via from_env(), shared across all tests in a session.
 
     Attributes:
-        mtib: MTIB V1 gRPC client (hardware control).
-        cloud: CoreCloud polling client (message verification).
-        fixture: Physical stimulus controller (GPIO/power/motion).
-        uart: UART log capture (debug builds only).
+        mtib: MTIB V1 gRPC client.
+        cloud: CoreCloud polling client.
+        fixture: Physical stimulus controller (duck-typed).
+        uart: Dual-target UART capture.
         power: Power measurement profiler.
-        accel: Accelerometer profiler (optional, started only if hardware supports it).
-        firmware: Firmware asset manager (MinIO → MTIB upload/cleanup).
-        artifacts: Simple file uploader (legacy).
-        artifact_writer: Unified artifact writer with streaming support.
-        product: Product context from Concord catalog (deviceTypeId, appIds, etc.).
+        accel: Accelerometer profiler (None if hardware doesn't support it).
+        firmware: Firmware asset manager (MinIO upload/cleanup).
+        artifact_writer: Streaming artifact writer.
+        product: Product context from Concord catalog.
     """
 
     def __init__(
@@ -101,14 +98,10 @@ class TestContext:
 
     @staticmethod
     def _load_mtib_config() -> Tuple[str, int]:
-        """Parse MTIB host and port from environment variables.
+    """Parse MTIB host/port from env vars.
 
-        MTIB_ADDRESS (set by bench scheduler) takes precedence over MTIB_HOST.
-        MTIB_ADDRESS can include port as ``host:port``; otherwise MTIB_PORT
-        is read separately (default 50053).
-
-        Returns:
-            Tuple of (host, port).
+        MTIB_ADDRESS takes precedence over MTIB_HOST and can include
+        port as ``host:port``. Falls back to MTIB_PORT (default 50053).
 
         Raises:
             ValueError: If neither MTIB_ADDRESS nor MTIB_HOST is set.
@@ -129,19 +122,7 @@ class TestContext:
         api_url: Optional[str],
         api_key: Optional[str],
     ):
-        """Load product metadata from the Concord catalog API.
-
-        Attempts an API lookup first. If that fails or credentials are missing,
-        builds a default ProductContext from the slug (``product_board``).
-
-        Args:
-            product_slug: Product identifier like ``alpha_b0``.
-            api_url: Concord API base URL (optional).
-            api_key: Concord API key (optional).
-
-        Returns:
-            A ProductContext instance (from API or defaults).
-        """
+    """Load product metadata from Concord catalog, falling back to defaults."""
         from .runner import ProductContext
 
         if api_url and api_key:

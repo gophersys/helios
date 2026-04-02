@@ -270,10 +270,11 @@
 
   function toggleTrigger(value: string) {
     if (formTriggerTypes.includes(value)) {
+      // Don't allow deselecting the last trigger
+      if (formTriggerTypes.length <= 1) return;
       formTriggerTypes = formTriggerTypes.filter((t) => t !== value);
-      if (formTriggerTypes.length === 0) formTriggerTypes = ['manual'];
     } else {
-      formTriggerTypes = [...formTriggerTypes.filter((t) => t !== 'manual'), value];
+      formTriggerTypes = [...formTriggerTypes, value];
     }
   }
 

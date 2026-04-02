@@ -30,13 +30,6 @@ class HardwareError(ValidationError):
 class FirmwareError(ValidationError):
     """Firmware flash, boot, version, or CFW parsing failure.
 
-    Raised when:
-    - Flash operation fails
-    - DUT does not boot after power cycle
-    - Firmware version doesn't match expected
-    - CFW header is corrupt or malformed
-    - MCUboot swap does not complete
-
     Attributes:
         expected: Expected value (version, state, etc.).
         actual: Actual observed value.
@@ -54,29 +47,15 @@ class FirmwareError(ValidationError):
 
 
 class CloudError(ValidationError):
-    """CoreCloud API or FUOTA delivery failure.
-
-    Raised when:
-    - CoreCloud API returns an error
-    - Device registration fails
-    - FUOTA plan creation or assignment fails
-    - FUOTA plan target mismatch (D-flag stripping)
-    - CFW upload fails
-    """
+    """CoreCloud API or FUOTA delivery failure."""
 
 
 class TimeoutError(ValidationError):
-    """Polling timeout for any asynchronous operation.
-
-    Raised when:
-    - Device does not check into CoreCloud within deadline
-    - FUOTA delivery does not complete within deadline
-    - Boot version not detected within deadline
-    - FUOTA delivery never starts (stale data)
+    """Polling timeout for any async operation (cloud, FUOTA, boot).
 
     Attributes:
         timeout_s: The timeout that was exceeded.
-        elapsed_s: Actual elapsed time when timeout was raised.
+        elapsed_s: Actual elapsed time when raised.
     """
 
     def __init__(
