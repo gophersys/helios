@@ -11,7 +11,7 @@
       "options": {
         "cwd": "libs/python",
         "commands": [
-          "python3 -m build --wheel --outdir dist/"
+          "rm -rf protocols && cp -r ../protocols protocols && python3 -m build --wheel --outdir dist/ && rm -rf protocols"
         ]
       },
       "configurations": {

@@ -92,8 +92,10 @@ services:
 
   build-service:
     image: concord/build-service:development
+    network_mode: host
     environment:
-      CONCORD_API_URL: http://http-api:9001
+      # host network mode — API runs on host via nx serve
+      CONCORD_API_URL: http://localhost:9001
       CONCORD_API_KEY: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG
       WORKER_ID: dev-builder-1
       POLL_INTERVAL: "5"

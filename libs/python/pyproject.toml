@@ -13,17 +13,22 @@ dependencies = [
     "requests>=2.31.0",
     "minio>=7.2.0",
     "pyyaml>=6.0",
-]
-
-[project.optional-dependencies]
-test = [
+    "python-dotenv>=1.0.0",
+    "termcolor>=2.0",
+    "sqlalchemy>=2.0",
+    "sshtunnel>=0.4.0",
+    "paramiko>=3.0,<4.0",
     "pytest>=8.0",
     "pytest-timeout>=2.0",
 ]
+
+[project.optional-dependencies]
+vault = ["hvac>=2.0"]
+pandas = ["pandas>=2.0"]
 
 [tool.setuptools.dynamic]
 version = {attr = "corekinect.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["corekinect*"]
+include = ["corekinect*", "protocols*", "mtib*"]

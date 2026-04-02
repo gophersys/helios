@@ -59,8 +59,26 @@ spec:
               value: "host"
             - name: BUILDER_TIMEOUT
               value: "1800"
+            - name: WORKSPACE_DIR
+              value: "/tmp/builds"
+            # In K8s, builder containers share workspace via hostPath
+            # The build service and builder containers both see /tmp/concord-builds on the host
+            - name: WORKSPACE_VOLUME
+              value: ""
+            - name: CCACHE_VOLUME
+              value: ""
+            - name: WORKSPACE_HOST_PATH
+              value: "/tmp/concord-builds"
+            - name: CCACHE_HOST_PATH
+              value: "/tmp/concord-ccache"
             - name: SSH_KEY_PATH
               value: "/root/.ssh/id_rsa"
+            - name: BITBUCKET_SSH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bitbucket-ssh-key
+                  key: ssh-private-key
+                  optional: true
           ports:
             - containerPort: 9002
               name: http

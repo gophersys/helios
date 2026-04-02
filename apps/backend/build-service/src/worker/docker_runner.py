@@ -227,14 +227,28 @@ class DockerBuildRunner:
         if self.builder_network:
             docker_cmd.extend(["--network", self.builder_network])
 
-        # Volume mounts — use named Docker volumes for shared data
+        # Volume mounts — named Docker volumes (dev) or hostPath bind mounts (K8s)
+        workspace_host_path = os.environ.get("WORKSPACE_HOST_PATH", "")
+        ccache_host_path = os.environ.get("CCACHE_HOST_PATH", "")
+
         if self.workspace_volume:
+            # Development: use named Docker volumes
             docker_cmd.extend([
                 "--mount", f"type=volume,source={self.workspace_volume},target=/workspace",
             ])
+        elif workspace_host_path:
+            # K8s: use host path bind mount (same path the build service sees)
+            docker_cmd.extend([
+                "-v", f"{workspace_host_path}:/workspace",
+            ])
+
         if self.ccache_volume:
             docker_cmd.extend([
                 "--mount", f"type=volume,source={self.ccache_volume},target=/ccache",
+            ])
+        elif ccache_host_path:
+            docker_cmd.extend([
+                "-v", f"{ccache_host_path}:/ccache",
             ])
 
         # NOTE: SDK is copied into the workspace volume by the orchestrator
