@@ -315,7 +315,7 @@
       testBuildRunning = true;
       testBuildStarting = false;
 
-      testBuildLogs = [...testBuildLogs, `\x1b[36m▸ Test build started (v${data.recipeVersion}) for ${data.board}\x1b[0m`, ''];
+      testBuildLogs = [...testBuildLogs, `\x1b[36m▸ Test build started for ${data.board} (draft)\x1b[0m`, ''];
 
       // Subscribe to WebSocket log stream
       unsubscribeBuild?.();
@@ -823,21 +823,33 @@
           <div class="flex flex-1 min-h-0">
             <!-- Left: Editor -->
             <div class="flex-1 flex flex-col min-w-0 border-r border-[#313244]">
-              <!-- Toolbar -->
+              <!-- Status bar -->
               <div class="flex items-center justify-between px-3 py-1 bg-[#181825] border-b border-[#313244] shrink-0">
+                <!-- Left: file + version status -->
                 <div class="flex items-center gap-2">
                   <FileCode size={12} class="text-[#89b4fa]" />
                   <span class="text-[11px] font-medium text-[#cdd6f4]">build.sh</span>
-                  {#if recipeDirty}
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#f9e2af]" title="Unsaved"></span>
-                  {/if}
+                  <span class="text-[9px] px-1.5 py-0.5 rounded font-medium
+                    {recipeDirty ? 'bg-[#f9e2af]/15 text-[#f9e2af]' : 'bg-[#313244] text-[#585b70]'}">
+                    {recipeDirty ? 'Modified' : 'Saved'}
+                  </span>
                   {#if recipeSavedVersion}
-                    <span class="text-[10px] text-[#585b70]">v{recipeSavedVersion}</span>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#a6e3a1]/10 text-[#a6e3a1] font-medium">
+                      Published v{recipeSavedVersion}
+                    </span>
+                  {:else}
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#313244] text-[#585b70] font-medium">
+                      Draft (unpublished)
+                    </span>
+                  {/if}
+                  {#if recipeLastSaved}
+                    <span class="text-[9px] text-[#585b70]">saved {recipeLastSaved}</span>
                   {/if}
                 </div>
+                <!-- Right: actions + cursor -->
                 <div class="flex items-center gap-1">
                   <button onclick={validateRecipe} disabled={recipeValidating || !recipe.trim()}
-                    class="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-[#a6adc8] hover:bg-[#313244] disabled:opacity-40" title="Check SDK usage">
+                    class="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-[#a6adc8] hover:bg-[#313244] disabled:opacity-40" title="Validate SDK usage">
                     {#if recipeValidating}<Loader2 size={10} class="animate-spin" />{:else}<Check size={10} />{/if} Check
                   </button>
                   <button onclick={saveRecipe} disabled={recipeSaving || !recipeDirty || !recipe.trim()}
@@ -845,9 +857,9 @@
                       {recipeDirty ? 'text-[#89b4fa] hover:bg-[#89b4fa]/15' : 'text-[#585b70]'}" title="Save draft (Ctrl+S)">
                     {#if recipeSaving}<Loader2 size={10} class="animate-spin" />{:else}<FileCode size={10} />{/if} Save
                   </button>
-                  <button onclick={publishRecipe} disabled={publishing || !recipe.trim()}
+                  <button onclick={publishRecipe} disabled={publishing || !recipe.trim() || recipeDirty}
                     class="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-[#a6e3a1] hover:bg-[#a6e3a1]/15 transition-colors disabled:opacity-25"
-                    title="Publish as new version (v{(recipeSavedVersion ?? 0) + 1})">
+                    title={recipeDirty ? 'Save first, then publish' : `Publish as v${(recipeSavedVersion ?? 0) + 1}`}>
                     {#if publishing}<Loader2 size={10} class="animate-spin" />{:else}<Check size={10} />{/if} Publish
                   </button>
                   <div class="w-px h-3 bg-[#313244] mx-0.5"></div>
@@ -856,7 +868,7 @@
                     disabled={testBuildStarting || (!testBuildRunning && !recipe.trim())}
                     class="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors disabled:opacity-25
                       {testBuildRunning ? 'text-[#f38ba8] hover:bg-[#f38ba8]/15' : 'text-[#a6e3a1] hover:bg-[#a6e3a1]/15'}"
-                    title={testBuildRunning ? 'Stop build' : 'Run test build'}
+                    title={testBuildRunning ? 'Stop build' : 'Test build with current editor content (draft)'}
                   >
                     {#if testBuildStarting}
                       <Loader2 size={10} class="animate-spin" />

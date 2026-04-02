@@ -144,5 +144,25 @@ nav:
     - stories/index.md
     - "US-001: Adding a Product": stories/US-001-adding-a-product.md
 
+  - API Reference:
+    - api/index.md
+    - Test Framework:
+      - TestContext: api/test/context.md
+      - CloudClient: api/test/cloud-client.md
+      - UartDemuxer: api/test/uart-demuxer.md
+      - PowerProfiler: api/test/power-profiler.md
+      - StageAssets: api/test/stage-assets.md
+      - DevicePersonalizer: api/test/device-personalizer.md
+      - Reporter: api/test/reporter.md
+      - POST: api/test/post.md
+      - Telemetry: api/test/telemetry.md
+      - Pytest Integration: api/test/pytest-integration.md
+    - Stages & Errors:
+      - Stages: api/stages.md
+      - Errors: api/errors.md
+    - CoreCloud:
+      - Client: api/core-cloud/client.md
+      - Models: api/core-cloud/models.md
+
   - Journals:
     - journals/README.md
