@@ -227,6 +227,7 @@ def trigger_stage_build(
             "config_log": getattr(build_def, "config_log", True),
             "produces_hex": getattr(build_def, "produces_hex", True),
             "produces_cfw": getattr(build_def, "produces_cfw", False),
+            "label": build_def.label,  # Include label in fingerprint so MFG_BASE ≠ MFG_BUMP
         }
 
         # Build cache: check if an identical build already exists
@@ -248,9 +249,7 @@ def trigger_stage_build(
             config_flags=config_flags_dict,
         )
 
-        cached_build = None
-        if not build_def.is_version_bump:
-            cached_build = find_cached_build(db, fingerprint)
+        cached_build = find_cached_build(db, fingerprint)
 
         if cached_build:
             # Cache hit — create job as CACHED, reuse artifacts
