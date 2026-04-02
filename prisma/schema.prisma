@@ -182,13 +182,13 @@ model Product {
 model TestPackage {
   id               String            @id @default(cuid())
   productId        String
-  version          String            /// "1.2.0" (release) or "dev-abc12345" (development)
+  version          String /// "1.2.0" (release) or "dev-abc12345" (development)
   status           TestPackageStatus @default(DEVELOPMENT)
-  storageKey       String            /// MinIO path: test-packages/{slug}/{version}/package.tar.gz
-  frameworkVersion String            /// corekinect version tests were validated against
-  manifestHash     String?           /// SHA-256 of concord.test.yaml for change detection
+  storageKey       String /// MinIO path: test-packages/{slug}/{version}/package.tar.gz
+  frameworkVersion String /// corekinect version tests were validated against
+  manifestHash     String? /// SHA-256 of concord.test.yaml for change detection
   testCount        Int               @default(0) /// Number of tests collected
-  stagesEnabled    Json?             /// Which stages are enabled: {"smoke": true, "fuota": true, ...}
+  stagesEnabled    Json? /// Which stages are enabled: {"smoke": true, "fuota": true, ...}
   notes            String?
   createdById      String?
   createdAt        DateTime          @default(now())
@@ -380,7 +380,7 @@ model ProductStageConfig {
   buildRuns     BuildRun[]
   queueEntries  ValidationQueueEntry[]
 
-  @@unique([productId, stage])
+  @@unique([productId, stage, boardRevisionId])
   @@index([productId])
   @@map("product_stage_configs")
 }
@@ -596,7 +596,7 @@ model Session {
   fixtureId String?
 
   // Pipeline link (CI trigger)
-  buildRunId    String?
+  buildRunId String?
 
   // Test package (which test code version was used)
   testPackageId String?

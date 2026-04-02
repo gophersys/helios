@@ -9,7 +9,10 @@
   import StageConfigWizard from './stage-config-wizard.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
-  import { Loader2, Settings, CircuitBoard, GitBranch, Zap, Clock, Hand, GitPullRequest, GitMerge } from 'lucide-svelte';
+  import {
+    Loader2, Settings, CircuitBoard, GitBranch, Zap, Clock, Hand,
+    GitPullRequest, GitMerge, Plus,
+  } from 'lucide-svelte';
 
   interface Props {
     productId: string;
@@ -29,8 +32,10 @@
   // Wizard state
   let wizardOpen = $state(false);
   let wizardStage = $state(1);
+  let wizardConfig = $state<ProductStageConfig | undefined>(undefined);
+  let wizardRevision = $state<BoardRevision | null>(null);
 
-  const enabledCount = $derived(configs.filter((c) => c.enabled).length);
+  const activeRevisions = $derived(revisions.filter((r) => r.status === 'ACTIVE'));
 
   onMount(async () => {
     await Promise.all([loadConfigs(), loadSecrets()]);
@@ -69,23 +74,21 @@
     }
   }
 
-  function getConfig(stage: number): ProductStageConfig | undefined {
-    return configs.find((c) => c.stage === stage);
+  /** Get all configs for a given stage number (could be multiple — one per revision) */
+  function getConfigsForStage(stageNum: number): ProductStageConfig[] {
+    return configs.filter((c) => c.stage === stageNum);
   }
 
-  function openWizard(stage: number) {
-    wizardStage = stage;
+  /** Get a specific config for stage + revision */
+  function getConfig(stageNum: number, revId: string): ProductStageConfig | undefined {
+    return configs.find((c) => c.stage === stageNum && c.boardRevisionId === revId);
+  }
+
+  function openWizard(stageNum: number, rev: BoardRevision | null, existingConfig?: ProductStageConfig) {
+    wizardStage = stageNum;
+    wizardRevision = rev;
+    wizardConfig = existingConfig;
     wizardOpen = true;
-  }
-
-  async function handleQuickToggle(stage: number, enabled: boolean) {
-    error = null;
-    try {
-      await updateStageConfig(productId, stage, { enabled });
-      await loadConfigs();
-    } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Failed to update stage';
-    }
   }
 
   function triggerIcon(type: string) {
@@ -101,7 +104,7 @@
   function revisionLabel(revId: string | null | undefined): string {
     if (!revId) return '—';
     const rev = revisions.find((r) => r.id === revId);
-    return rev ? `${rev.version} (${rev.ckBoardsName})` : '—';
+    return rev ? rev.version : '—';
   }
 </script>
 
@@ -115,101 +118,98 @@
   {:else if configs.length === 0}
     <div class="text-center py-8">
       <p class="text-sm text-text-secondary mb-2">No validation stages configured for {productName}.</p>
-      <p class="text-2xs text-text-tertiary mb-4">Initialize the 5 standard stages, then configure the ones you need.</p>
-      <button
-        class="btn btn-sm btn-primary"
-        disabled={initializing}
-        onclick={handleInitialize}
-      >
+      <p class="text-2xs text-text-tertiary mb-4">Initialize the 5 standard stages, then configure them per hardware revision.</p>
+      <button class="btn btn-sm btn-primary" disabled={initializing} onclick={handleInitialize}>
         {initializing ? 'Initializing...' : 'Initialize Stages'}
       </button>
     </div>
   {:else}
-    <div class="flex items-center justify-between mb-2">
-      <h3 class="text-sm font-semibold text-text-primary">Validation Stages</h3>
-      <span class="text-2xs text-text-tertiary">{enabledCount} of {configs.length} enabled</span>
-    </div>
+    <!-- Stage list — grouped by stage number, showing per-revision configs -->
+    {#each [1, 2, 3, 4, 5] as stageNum}
+      {@const stageConfigs = getConfigsForStage(stageNum)}
+      {@const name = STAGE_NAMES[stageNum] || `Stage ${stageNum}`}
+      {@const desc = STAGE_DESCRIPTIONS[stageNum] || ''}
+      {@const hasAnyEnabled = stageConfigs.some((c) => c.enabled)}
 
-    <div class="rounded-lg border border-border overflow-hidden">
-      {#each [1, 2, 3, 4, 5] as stageNum}
-        {@const cfg = getConfig(stageNum)}
-        {@const name = STAGE_NAMES[stageNum] || `Stage ${stageNum}`}
-        <div class="flex items-center gap-4 px-4 py-3 border-b border-border-subtle last:border-b-0 hover:bg-surface-2/30 transition-colors">
-          <!-- Stage number pill -->
-          <div class="w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold shrink-0
-            {cfg?.enabled ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
+      <div class="rounded-lg border border-border overflow-hidden">
+        <!-- Stage header -->
+        <div class="flex items-center gap-4 px-4 py-3 bg-surface-0/50">
+          <div class="w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold shrink-0
+            {hasAnyEnabled ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
             {stageNum}
           </div>
-
-          <!-- Name + status -->
-          <div class="min-w-0 flex-1">
+          <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-text-primary">{name}</span>
-              {#if cfg?.enabled}
+              <span class="text-sm font-semibold text-text-primary">{name}</span>
+              {#if hasAnyEnabled}
                 <StatusBadge status="ACTIVE" />
-              {:else}
-                <span class="text-2xs text-text-tertiary">Disabled</span>
               {/if}
             </div>
-
-            {#if cfg?.enabled}
-              <!-- Config summary -->
-              <div class="mt-0.5 flex items-center gap-3 text-2xs text-text-tertiary">
-                {#if cfg.boardRevisionId}
-                  <span class="flex items-center gap-1">
-                    <CircuitBoard size={10} />
-                    {revisionLabel(cfg.boardRevisionId)}
-                  </span>
-                {/if}
-                {#if cfg.watchBranch}
-                  <span class="flex items-center gap-1 font-mono">
-                    <GitBranch size={10} />
-                    {cfg.watchBranch}
-                  </span>
-                {/if}
-                {#if cfg.triggerTypes?.length}
-                  <span class="flex items-center gap-1">
-                    {#each cfg.triggerTypes.slice(0, 3) as t}
-                      {@const TIcon = triggerIcon(t)}
-                      <TIcon size={10} />
-                    {/each}
-                  </span>
-                {/if}
-              </div>
-            {/if}
+            <p class="text-2xs text-text-tertiary truncate">{desc}</p>
           </div>
-
-          <!-- Enable/disable toggle -->
-          <button
-            onclick={() => cfg && handleQuickToggle(stageNum, !cfg.enabled)}
-            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0
-              {cfg?.enabled ? 'bg-accent' : 'bg-surface-3'}"
-            title={cfg?.enabled ? 'Disable stage' : 'Enable stage'}
-          >
-            <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform
-              {cfg?.enabled ? 'translate-x-4.5' : 'translate-x-0.5'}" />
-          </button>
-
-          <!-- Configure button -->
-          <button
-            onclick={() => openWizard(stageNum)}
-            class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs font-medium text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors shrink-0"
-            title="Configure stage"
-          >
-            <Settings size={12} />
-            Configure
-          </button>
         </div>
-      {/each}
-    </div>
+
+        <!-- Per-revision configs -->
+        <div class="divide-y divide-border-subtle">
+          {#each activeRevisions as rev}
+            {@const cfg = getConfig(stageNum, rev.id)}
+            <div class="flex items-center gap-4 px-4 py-2.5 hover:bg-surface-2/30 transition-colors">
+              <!-- Revision badge -->
+              <div class="flex items-center gap-2 min-w-[120px]">
+                <CircuitBoard size={14} class="text-text-tertiary" />
+                <span class="text-sm font-medium text-text-primary">{rev.version}</span>
+                <span class="font-mono text-2xs text-text-tertiary">{rev.ckBoardsName}</span>
+              </div>
+
+              {#if cfg && cfg.enabled}
+                <!-- Enabled — show config summary -->
+                <div class="flex-1 flex items-center gap-3 text-2xs text-text-tertiary">
+                  {#if cfg.watchBranch}
+                    <span class="flex items-center gap-1 font-mono">
+                      <GitBranch size={10} /> {cfg.watchBranch}
+                    </span>
+                  {/if}
+                  {#if cfg.triggerTypes?.length}
+                    <span class="flex items-center gap-1">
+                      {#each cfg.triggerTypes as t}
+                        {@const TIcon = triggerIcon(t)}
+                        <TIcon size={10} />
+                      {/each}
+                    </span>
+                  {/if}
+                </div>
+                <StatusBadge status="ACTIVE" />
+                <button
+                  onclick={() => openWizard(stageNum, rev, cfg)}
+                  class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs font-medium text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors"
+                >
+                  <Settings size={12} /> Edit
+                </button>
+              {:else}
+                <!-- Not configured for this revision -->
+                <div class="flex-1">
+                  <span class="text-2xs text-text-tertiary">Not configured</span>
+                </div>
+                <button
+                  onclick={() => openWizard(stageNum, rev, cfg)}
+                  class="flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-muted px-3 py-1.5 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors"
+                >
+                  <Plus size={12} /> Configure
+                </button>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/each}
   {/if}
 </div>
 
-<!-- Stage Configuration Wizard -->
 <StageConfigWizard
   open={wizardOpen}
   stage={wizardStage}
-  config={getConfig(wizardStage)}
+  config={wizardConfig}
+  targetRevision={wizardRevision}
   {productId}
   {revisions}
   {secrets}

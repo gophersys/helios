@@ -380,7 +380,7 @@ model ProductStageConfig {
   buildRuns     BuildRun[]
   queueEntries  ValidationQueueEntry[]
 
-  @@unique([productId, stage])
+  @@unique([productId, stage, boardRevisionId])
   @@index([productId])
   @@map("product_stage_configs")
 }
