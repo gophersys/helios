@@ -77,10 +77,18 @@
   let testBuildLogs = $state<string[]>([]);
   let testBuildArtifacts = $state<any[]>([]);
   let terminalOpen = $state(false);
-  let terminalHeight = $state(192); // default 192px
+  let terminalHeight = $state(192);
   let dragging = $state(false);
   let unsubscribeBuild: (() => void) | null = null;
+  let pollTimer: ReturnType<typeof setTimeout> | null = null;
   let terminalEl: HTMLDivElement | null = $state(null);
+
+  /** Clean up all test build subscriptions and timers */
+  function cleanupTestBuild() {
+    unsubscribeBuild?.();
+    unsubscribeBuild = null;
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  }
 
   function startDrag(e: MouseEvent) {
     e.preventDefault();
@@ -315,25 +323,31 @@
   }
 
   async function startTestBuild(): Promise<void> {
-    if (testBuildRunning || !recipe.trim() || !formRevisionId) return;
+    if (!recipe.trim() || !formRevisionId) return;
+
+    // Full reset — kill old subscriptions, clear state
+    cleanupTestBuild();
+    testBuildId = null;
     testBuildStarting = true;
+    testBuildRunning = false;
+    testBuildStatus = 'running';
     testBuildLogs = [];
     testBuildArtifacts = [];
-    testBuildStatus = 'running';
     terminalOpen = true;
     error = null;
 
     try {
-      // Save draft first so build service gets the latest content
       if (recipeDirty) await saveRecipe();
 
-      const res = await api.post(`/v2/products/${productId}/recipe/test-build`, {
+      const recipeUrl = '/v2/products/' + productId + '/recipe/test-build';
+      const res = await api.post(recipeUrl, {
         content: recipe,
         stage,
         boardRevisionId: formRevisionId,
       });
       const data = (res as any).data ?? res;
-      testBuildId = data.buildJobId;
+      const newBuildId = data.buildJobId;
+      testBuildId = newBuildId;
       testBuildRunning = true;
       testBuildStarting = false;
 
@@ -344,37 +358,35 @@
         `\x1b[36m  Revision:  \x1b[0m${rev?.version ?? '?'} (${rev?.ckBoardsName ?? '?'})`,
         `\x1b[36m  Targets:   \x1b[0m${rev?.targets?.map((t: any) => `${t.role}:${t.soc}`).join(', ') ?? 'none'}`,
         `\x1b[36m  Source:    \x1b[0mDraft (editor content)`,
-        `\x1b[36m  Job:       \x1b[0m${testBuildId}`,
+        `\x1b[36m  Job:       \x1b[0m${newBuildId}`,
         '',
       ];
 
       // Subscribe to WebSocket log stream
-      unsubscribeBuild?.();
-      unsubscribeBuild = subscribeCiBuild(testBuildId!, {
+      unsubscribeBuild = subscribeCiBuild(newBuildId, {
         onLog: (evt: CiBuildLogEvent) => {
+          if (testBuildId !== newBuildId) return; // stale subscription
           const chunk = evt.chunk || '';
-          // Split chunk into lines (build service sends multi-line chunks)
           const lines = chunk.split('\n').filter((l) => l.length > 0);
           if (lines.length > 0) {
             testBuildLogs = [...testBuildLogs, ...lines];
-            // Auto-scroll terminal
             requestAnimationFrame(() => {
               if (terminalEl) terminalEl.scrollTop = terminalEl.scrollHeight;
             });
           }
         },
         onComplete: (evt: any) => {
+          if (testBuildId !== newBuildId) return; // stale
           testBuildRunning = false;
           testBuildStatus = evt.status === 'SUCCESS' ? 'success' : 'failed';
           testBuildLogs = [...testBuildLogs, '', `\x1b[${evt.status === 'SUCCESS' ? '32' : '31'}m▸ Build ${evt.status} (${evt.durationSeconds ?? '?'}s)\x1b[0m`];
           if (terminalEl) terminalEl.scrollTop = terminalEl.scrollHeight;
-          // Fetch artifacts
           loadTestArtifacts();
         },
       });
 
-      // Fallback: poll for completion if WebSocket doesn't fire
-      pollTestBuild();
+      // Fallback poll — scoped to this specific build ID
+      pollTestBuild(newBuildId);
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to start test build';
       testBuildStatus = 'failed';
@@ -384,17 +396,20 @@
     }
   }
 
-  async function pollTestBuild() {
-    if (!testBuildId) return;
+  function pollTestBuild(buildId: string) {
     let lastLogLength = 0;
 
     const poll = async () => {
-      if (!testBuildRunning) return;
+      // Stop if this build is no longer the active one
+      if (testBuildId !== buildId || !testBuildRunning) return;
       try {
-        const res = await apiFetch<ApiResponse<any>>(`/v2/builds/${testBuildId}`);
+        const res = await apiFetch<ApiResponse<any>>(`/v2/builds/${buildId}`);
         const job = res.data;
 
-        // Pull logs from the build job if WebSocket isn't delivering them
+        // Guard again after async
+        if (testBuildId !== buildId) return;
+
+        // Pull logs if WebSocket isn't delivering them
         if (job?.buildLog && job.buildLog.length > lastLogLength) {
           const newChunk = job.buildLog.substring(lastLogLength);
           lastLogLength = job.buildLog.length;
@@ -418,9 +433,9 @@
           return;
         }
       } catch { /* ignore */ }
-      setTimeout(poll, 2000);
+      pollTimer = setTimeout(poll, 2000);
     };
-    setTimeout(poll, 3000);
+    pollTimer = setTimeout(poll, 3000);
   }
 
   async function loadTestArtifacts() {
@@ -434,11 +449,13 @@
   }
 
   function stopTestBuild() {
-    unsubscribeBuild?.();
-    unsubscribeBuild = null;
+    cleanupTestBuild();
     testBuildRunning = false;
+    testBuildStarting = false;
     testBuildStatus = 'failed';
     testBuildLogs = [...testBuildLogs, '\x1b[33m▸ Build stopped by user\x1b[0m'];
+    // Clear the build ID so the next run starts fresh
+    testBuildId = null;
   }
 
   function formatBytes(bytes: number): string {
