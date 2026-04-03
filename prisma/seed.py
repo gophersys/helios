@@ -110,7 +110,7 @@ LEGACY_VIEWER_PERMISSIONS = [
     "system:view",
 ]
 
-# Team members to seed with roles and product access
+# Real team members (seeded in staging + production)
 TEAM = [
     {"email": "mateo@corekinect.com", "name": "Mateo Segura", "role": "ADMIN"},
     {"email": "jared@corekinect.com", "name": "Jared Walton", "role": "ADMIN"},
@@ -118,6 +118,14 @@ TEAM = [
     {"email": "chris@corekinect.com", "name": "Chris Burns", "role": "DEVELOPER"},
     {"email": "christian@corekinect.com", "name": "Christian Cortes", "role": "DEVELOPER"},
     {"email": "gwen@corekinect.com", "name": "Gwen Eging", "role": "OPERATOR"},
+]
+
+# Dev-only sample users (one per role, for local dev login picker)
+DEV_USERS = [
+    {"email": "admin@concord.dev", "name": "Admin User", "role": "ADMIN"},
+    {"email": "maintainer@concord.dev", "name": "Maintainer User", "role": "MAINTAINER"},
+    {"email": "developer@concord.dev", "name": "Developer User", "role": "DEVELOPER"},
+    {"email": "operator@concord.dev", "name": "Operator User", "role": "OPERATOR"},
 ]
 
 # Product access level per role
@@ -138,25 +146,8 @@ def seed():
 
     try:
         # ── Permission Sets (role-based) ──
-        # These map 1:1 to the Role enum. The "Super Admin" set is kept as
-        # a superset alias for the "Admin" role (same permissions).
+        # 4 permission sets matching the 4 roles
         print("=== Seeding Permission Sets ===")
-
-        super_admin_set = db.permissionset.upsert(
-            where={"name": "Super Admin"},
-            data={
-                "create": {
-                    "name": "Super Admin",
-                    "description": "Unrestricted access — all permissions (alias for Admin role)",
-                    "permissions": ALL_PERMISSIONS,
-                },
-                "update": {
-                    "description": "Unrestricted access — all permissions (alias for Admin role)",
-                    "permissions": ALL_PERMISSIONS,
-                },
-            },
-        )
-        print(f"  Permission set 'Super Admin' ready (id: {super_admin_set.id})")
 
         admin_set = db.permissionset.upsert(
             where={"name": "Admin"},
@@ -262,7 +253,7 @@ def seed():
             if existing:
                 db.user.update(
                     where={"id": existing.id},
-                    data={"permissionSetId": super_admin_set.id, "role": "ADMIN"},
+                    data={"permissionSetId": admin_set.id, "role": "ADMIN"},
                 )
                 print(f"  Super admin: {existing.email} (updated)")
             else:
@@ -271,7 +262,7 @@ def seed():
                         "email": email.lower(),
                         "name": name,
                         "role": "ADMIN",
-                        "permissionSetId": super_admin_set.id,
+                        "permissionSetId": admin_set.id,
                         "active": True,
                     }
                 )
@@ -288,12 +279,12 @@ def seed():
                     "email": "admin@concord.local",
                     "name": "Dev Admin",
                     "role": "ADMIN",
-                    "permissionSetId": super_admin_set.id,
+                    "permissionSetId": admin_set.id,
                     "active": True,
                 },
                 "update": {
                     "role": "ADMIN",
-                    "permissionSetId": super_admin_set.id,
+                    "permissionSetId": admin_set.id,
                     "active": True,
                 },
             },
@@ -1090,11 +1081,11 @@ def seed():
                 "create": {
                     "email": "system@concord.local",
                     "name": "System",
-                    "permissionSetId": super_admin_set.id,
+                    "permissionSetId": admin_set.id,
                     "active": True,
                 },
                 "update": {
-                    "permissionSetId": super_admin_set.id,
+                    "permissionSetId": admin_set.id,
                 },
             },
         )
@@ -1277,8 +1268,40 @@ concord_finalize
             )
             print(f"  Recipe template: {tmpl['name']}")
 
-        # ── Product Access for Dev Users ──
-        # Give all dev users access to all products for role-based testing
+        # ── Dev Sample Users (development only) ──
+        # One user per role for the dev login picker
+        is_dev = os.environ.get("ENVIRONMENT", "development") == "development"
+        if is_dev:
+            print("\n=== Seeding Dev Users ===")
+            role_to_perm_set = {
+                "ADMIN": admin_set,
+                "MAINTAINER": maintainer_set,
+                "DEVELOPER": developer_set,
+                "OPERATOR": operator_set,
+            }
+            for dev_user in DEV_USERS:
+                perm_set = role_to_perm_set.get(dev_user["role"], developer_set)
+                u = db.user.upsert(
+                    where={"email": dev_user["email"]},
+                    data={
+                        "create": {
+                            "email": dev_user["email"],
+                            "name": dev_user["name"],
+                            "role": dev_user["role"],
+                            "permissionSetId": perm_set.id,
+                            "active": True,
+                        },
+                        "update": {
+                            "name": dev_user["name"],
+                            "role": dev_user["role"],
+                            "permissionSetId": perm_set.id,
+                        },
+                    },
+                )
+                print(f"  {dev_user['role']:12s} {dev_user['name']} ({dev_user['email']})")
+
+        # ── Product Access ──
+        # Give all users access to all products based on their role
         print("\n=== Seeding Product Access ===")
         all_products = db.product.find_many()
         all_dev_users = db.user.find_many(where={"active": True})

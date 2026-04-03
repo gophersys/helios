@@ -22,6 +22,7 @@
     permissionSet: string | null;
   }
   let devUsers = $state<DevUser[]>([]);
+  let devEnvironment = $state('');
   let isDevMode = $state(false);
   let devLoading = $state<string | null>(null);
 
@@ -286,7 +287,8 @@
       const res = await fetch('/v2/auth/dev-users');
       if (res.ok) {
         const data = await res.json();
-        devUsers = data.data || [];
+        devUsers = data.data?.users || [];
+        devEnvironment = data.data?.environment || 'development';
         isDevMode = true;
       }
     } catch {
@@ -383,8 +385,9 @@
         />
       </div>
       {#if isDevMode}
-        <div class="inline-flex items-center gap-2 rounded-full bg-warning-muted px-3 py-1 text-xs font-medium text-warning">
-          Development Mode
+        <div class="inline-flex items-center gap-2 rounded-full bg-warning-muted px-3 py-1.5 text-xs font-medium text-warning">
+          <span class="h-2 w-2 rounded-full bg-warning animate-pulse"></span>
+          {devEnvironment.toUpperCase()}
         </div>
       {:else}
         <p class="text-base text-text-secondary">
@@ -401,54 +404,40 @@
       {/if}
 
       {#if isDevMode}
-        <!-- Dev mode: user picker -->
-        <div class="space-y-4">
-          <p class="text-sm text-text-secondary text-center">
-            Select a user to login instantly
+        <!-- Dev mode: one user per role -->
+        <div class="space-y-3">
+          <p class="text-sm text-text-secondary text-center mb-4">
+            Pick a role to login as
           </p>
 
-          {#each groupedUsers as [role, users]}
-            {@const config = getRoleConfig(role)}
-            <div class="space-y-2">
-              <div class="flex items-center gap-2">
-                <span class="text-2xs font-medium uppercase tracking-widest {config.color}">{config.label}</span>
-                <div class="flex-1 border-t border-border"></div>
+          {#each devUsers as user}
+            {@const config = getRoleConfig(user.role)}
+            <button
+              onclick={() => handleDevLogin(user.email)}
+              disabled={devLoading !== null}
+              class="group w-full flex items-center gap-3 rounded-lg border border-border bg-surface-0 px-4 py-3 text-left transition-all hover:border-accent hover:bg-surface-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {config.bgColor} text-sm font-semibold {config.color}">
+                {config.label.charAt(0)}
               </div>
-              {#each users as user}
-                <button
-                  onclick={() => handleDevLogin(user.email)}
-                  disabled={devLoading !== null}
-                  class="group w-full flex items-center gap-3 rounded-lg border border-border bg-surface-0 px-4 py-3 text-left transition-all hover:border-accent hover:bg-surface-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <!-- Avatar -->
-                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full {config.bgColor} text-sm font-semibold {config.color}">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
 
-                  <!-- Info -->
-                  <div class="min-w-0 flex-1">
-                    <div class="text-sm font-medium text-text-primary truncate">
-                      {user.name}
-                    </div>
-                    <div class="text-2xs text-text-tertiary truncate">
-                      {user.email}
-                      {#if user.permissionSet}
-                        <span class="text-text-tertiary/60"> &middot; {user.permissionSet}</span>
-                      {/if}
-                    </div>
-                  </div>
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-medium text-text-primary">
+                  {config.label}
+                </div>
+                <div class="text-2xs text-text-tertiary">
+                  {user.permissionSet || user.role}
+                </div>
+              </div>
 
-                  <!-- Loading/Arrow -->
-                  {#if devLoading === user.email}
-                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent shrink-0"></div>
-                  {:else}
-                    <svg class="h-4 w-4 shrink-0 text-text-tertiary group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  {/if}
-                </button>
-              {/each}
-            </div>
+              {#if devLoading === user.email}
+                <div class="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent shrink-0"></div>
+              {:else}
+                <svg class="h-4 w-4 shrink-0 text-text-tertiary group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              {/if}
+            </button>
           {/each}
         </div>
       {:else if loading}
