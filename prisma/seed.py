@@ -938,15 +938,13 @@ def seed():
                     "jlinkCommsSerial": "821009541",
                     "uartAppPath": "/dev/verdin-uart2",
                     "uartCommsPath": "/dev/verdin-uart1",
-                    "nodeId": "node_mtib_rev12",
-                },
+                                    },
                 "update": {
                     "dutDeviceId": "70B3D584C01E1FCC",
                     "dutSnr": "0964",
                     "dutImei": "355025931735979",
                     "dutIccids": ["89148000009808558441", "89457300000037582833"],
-                    "nodeId": "node_mtib_rev12",
-                },
+                                    },
             },
         )
         print(f"Fixture: {fixture_33.stationId} (product: {alpha_product.name})")
@@ -1053,118 +1051,26 @@ def seed():
         # === Seeding Stage Configs ===
         print("\n=== Seeding Stage Configs ===")
 
-        # Read Alpha build script from repo
-        build_script_path = os.path.join(os.path.dirname(__file__), "..", "apps", "firmware", "products", "alpha", "scripts", "build.sh")
-        alpha_build_script = ""
-        if os.path.exists(build_script_path):
-            with open(build_script_path) as f:
-                alpha_build_script = f.read()
-            print(f"  Loaded build script: {len(alpha_build_script)} bytes")
-        else:
-            print(f"  WARNING: Build script not found at {build_script_path}")
-
-        alpha_stages = [
-            {
-                "stage": 1, "name": "Smoke", "enabled": False,
-                "priority": 10, "blocksMerge": True, "requiresFuota": False, "requiresBench": False,
-                "testTimeout": 120, "maxDurationSec": 300,
-                "buildScript": alpha_build_script or None,
-                "buildTarget": "alpha_b0",
-                "buildVariant": "debug",
-                "fwRepoUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
-                "fwRepoBranch": "concord-main",
-                "description": "Quick smoke build to verify compilation",
-                "buildMatrix": Json([
-                    {"role": "app", "firmware": "alpha_fw", "source": "head",
-                     "description": "Build app firmware from triggering commit"},
-                ]),
-            },
-            {
-                "stage": 2, "name": "Silicon", "enabled": False,
-                "priority": 20, "blocksMerge": True, "requiresFuota": False, "requiresBench": False,
-                "testTimeout": 300, "maxDurationSec": 600,
-                "buildTarget": "native_sim",
-                "buildVariant": "test",
-                "testDirectory": "tests/unit/",
-                "testMarker": "-m unit",
-                "description": "Native simulator unit tests",
-                "buildMatrix": Json([]),
-            },
-            {
-                "stage": 3, "name": "Integration", "enabled": False,
-                "priority": 30, "blocksMerge": True, "requiresFuota": False, "requiresBench": True,
-                "testTimeout": 600, "maxDurationSec": 1200,
-                "buildTarget": "alpha_b0",
-                "buildVariant": "debug",
-                "testDirectory": "tests/integration/",
-                "testMarker": "-m integration",
-                "description": "Subsystem integration tests with harness instrumentation",
-                "buildMatrix": Json([
-                    {"role": "mfg", "firmware": "alpha_mfg_fw", "source": "head",
-                     "description": "Manufacturing firmware for J-Link flash + personalization"},
-                    {"role": "app", "firmware": "alpha_fw", "source": "head",
-                     "description": "Application firmware from triggering commit"},
-                ]),
-            },
-            {
-                "stage": 4, "name": "Nightly", "enabled": False,
-                "priority": 40, "blocksMerge": False, "requiresFuota": False, "requiresBench": True,
-                "testTimeout": 1800, "maxDurationSec": 3600,
-                "buildTarget": "alpha_b0",
-                "buildVariant": "debug",
-                "fwRepoUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
-                "fwRepoBranch": "concord-main",
-                "mfgRepoUrl": "git@bitbucket.org:corekinect/alpha_mfg_fw.git",
-                "mfgRepoBranch": "concord-main",
-                "testDirectory": "tests/nightly/",
-                "testMarker": "-m nightly",
-                "description": "Extended nightly test suite with power profiling",
-                "buildMatrix": Json([
-                    {"role": "mfg", "firmware": "alpha_mfg_fw", "source": "head",
-                     "description": "Manufacturing firmware for J-Link flash + personalization"},
-                    {"role": "app", "firmware": "alpha_fw", "source": "head",
-                     "description": "Application firmware from triggering commit"},
-                ]),
-            },
-            {
-                "stage": 5, "name": "FUOTA", "enabled": True,
-                "priority": 100, "blocksMerge": True, "requiresFuota": True, "requiresBench": True,
-                "testTimeout": 600, "maxDurationSec": 900,
-                "buildScript": alpha_build_script or None,
-                "buildTarget": "alpha_b0",
-                "buildVariant": "release",
-                "fwRepoUrl": "git@bitbucket.org:corekinect/alpha_fw.git",
-                "fwRepoBranch": "concord-main",
-                "mfgRepoUrl": "git@bitbucket.org:corekinect/alpha_mfg_fw.git",
-                "mfgRepoBranch": "concord-main",
-                "testDirectory": "tests/fuota/",
-                "testMarker": "-m fuota",
-                "description": "FUOTA delivery verification and boot confirmation",
-                "buildMatrix": Json([
-                    {"role": "mfg_flash", "firmware": "alpha_mfg_fw", "source": "latest_prev",
-                     "description": "Older MFG firmware to flash via J-Link (FUOTA base, N-1)"},
-                    {"role": "mfg_base", "firmware": "alpha_mfg_fw", "source": "latest",
-                     "description": "Newer MFG firmware CFW for MFG-to-MFG FUOTA test (N)"},
-                    {"role": "flash_base", "firmware": "alpha_fw", "source": "latest",
-                     "description": "Previous production firmware (cached baseline)"},
-                    {"role": "fuota_target", "firmware": "alpha_fw", "source": "head",
-                     "description": "New production firmware CFW for OTA delivery"},
-                ]),
-            },
-        ]
-
         # Find Alpha product ID
         alpha_product_for_stages = db.product.find_first(where={"slug": {"startswith": "alpha"}})
         if alpha_product_for_stages:
             # Delete existing configs first (idempotent re-seed)
             db.productstageconfig.delete_many(where={"productId": alpha_product_for_stages.id})
 
-            for stage_data in alpha_stages:
+            # Seed stage configs with only valid schema fields
+            stage_defs = [
+                {"stage": 1, "name": "Smoke", "enabled": True, "triggerTypes": ["pr_push"]},
+                {"stage": 2, "name": "Silicon", "enabled": False, "triggerTypes": ["manual"]},
+                {"stage": 3, "name": "Integration", "enabled": False, "triggerTypes": ["manual"]},
+                {"stage": 4, "name": "Nightly", "enabled": False, "triggerTypes": ["schedule"]},
+                {"stage": 5, "name": "FUOTA", "enabled": True, "triggerTypes": ["pr_merge", "manual"]},
+            ]
+            for sd in stage_defs:
                 db.productstageconfig.create(data={
                     "productId": alpha_product_for_stages.id,
-                    **stage_data,
+                    **sd,
                 })
-            print(f"  Alpha: {len(alpha_stages)} stage configs seeded")
+            print(f"  Alpha: {len(stage_defs)} stage configs seeded")
         else:
             print("  WARNING: Alpha product not found, skipping stage config seed")
 
@@ -1195,24 +1101,21 @@ def seed():
         print(f"System user ready: {system_user.email}")
 
         from datetime import datetime, timezone
-        ci_api_key = db.apikey.upsert(
-            where={"id": "ci_admin_key_001"},
-            data={
-                "create": {
-                    "id": "ci_admin_key_001",
-                    "name": "CI Admin Key",
-                    "keyHash": ci_key_hash,
-                    "keyPrefix": ci_key[:12],
-                    "userId": system_user.id,
-                    "expiresAt": datetime.now(timezone.utc) + timedelta(days=365),
-                },
-                "update": {
-                    "keyHash": ci_key_hash,
-                    "keyPrefix": ci_key[:12],
-                    "expiresAt": datetime.now(timezone.utc) + timedelta(days=365),
-                },
-            },
-        )
+        # Upsert by keyHash (unique) — safe for re-seeding
+        existing_key = db.apikey.find_first(where={"keyHash": ci_key_hash})
+        if existing_key:
+            ci_api_key = db.apikey.update(
+                where={"id": existing_key.id},
+                data={"expiresAt": datetime.now(timezone.utc) + timedelta(days=365)},
+            )
+        else:
+            ci_api_key = db.apikey.create(data={
+                "name": "CI Admin Key",
+                "keyHash": ci_key_hash,
+                "keyPrefix": ci_key[:12],
+                "userId": system_user.id,
+                "expiresAt": datetime.now(timezone.utc) + timedelta(days=365),
+            })
         print(f"CI API key ready: {ci_api_key.keyPrefix}... (id: {ci_api_key.id})")
         print(f"  Use this key for testing: {ci_key}")
 
