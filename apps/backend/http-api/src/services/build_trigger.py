@@ -15,17 +15,17 @@ from database import Json
 
 from src.lib.audit import log_audit
 from src.services.database.prisma import get_db_client
-from src.api.v2.builds.stage_builds import ValidationStage, get_stage_build_defs
+from corekinect.stages import Stage, get_stage_build_defs
 
 logger = logging.getLogger(__name__)
 
-# Map stage numbers to ValidationStage enum
+# Map stage numbers to Stage enum
 _STAGE_MAP = {
-    1: ValidationStage.SMOKE,
-    2: ValidationStage.SILICON,
-    3: ValidationStage.INTEGRATION,
-    4: ValidationStage.NIGHTLY,
-    5: ValidationStage.FUOTA,
+    1: Stage.SMOKE,
+    2: Stage.SILICON,
+    3: Stage.INTEGRATION,
+    4: Stage.NIGHTLY,
+    5: Stage.FUOTA,
 }
 
 

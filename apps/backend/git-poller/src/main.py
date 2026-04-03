@@ -192,7 +192,7 @@ class GitPoller:
             return False
 
         try:
-            url = f"{self.config.api_url}/v2/builds/pipelines"
+            url = f"{self.config.api_url}/v2/builds/trigger"
             headers = {
                 "Authorization": f"ApiKey {self.config.api_key}",
                 "Content-Type": "application/json",

@@ -60,7 +60,6 @@ from .pytest_integration import (
     get_required_capabilities,
     get_required_feature,
     requires_capability,
-    requires_feature,
 )
 
 # Note: CapabilityNotAvailable is imported from profiles (defined there),
@@ -114,5 +113,4 @@ __all__ = [
     "get_required_capabilities",
     "get_required_feature",
     "requires_capability",
-    "requires_feature",
 ]

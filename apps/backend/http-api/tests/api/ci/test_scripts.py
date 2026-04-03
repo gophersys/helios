@@ -183,43 +183,6 @@ class TestGetBuildScript:
 
 
 # ---------------------------------------------------------------------------
-#  PUT /v2/builds/scripts/<product> — Upload build script (not implemented)
-# ---------------------------------------------------------------------------
-
-class TestUploadBuildScript:
-    """Tests for PUT /v2/builds/scripts/<product>."""
-
-    def test_upload_script_not_implemented(self, authed_client, mock_db):
-        """Upload build script returns 501 Not Implemented."""
-        response = authed_client.put(
-            "/v2/builds/scripts/alpha_fw",
-            data=json.dumps({"content": "#!/bin/bash"}),
-        )
-        assert response.status_code == 501
-
-        body = json.loads(response.data)
-        assert len(body["errors"]) > 0
-        assert "stages" in body["errors"][0]["message"].lower() or "stage" in body["errors"][0]["message"].lower()
-
-
-# ---------------------------------------------------------------------------
-#  DELETE /v2/builds/scripts/<product> — Delete build script (not implemented)
-# ---------------------------------------------------------------------------
-
-class TestDeleteBuildScript:
-    """Tests for DELETE /v2/builds/scripts/<product>."""
-
-    def test_delete_script_not_implemented(self, authed_client, mock_db):
-        """Delete build script returns 501 directing to stage config API."""
-        response = authed_client.delete("/v2/builds/scripts/alpha_fw")
-        assert response.status_code == 501
-
-        body = json.loads(response.data)
-        assert len(body["errors"]) > 0
-        assert "stages" in body["errors"][0]["message"].lower() or "stage" in body["errors"][0]["message"].lower()
-
-
-# ---------------------------------------------------------------------------
 #  _normalize_product_key helper
 # ---------------------------------------------------------------------------
 

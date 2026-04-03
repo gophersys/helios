@@ -362,19 +362,25 @@ class TestGetRunDetail:
         assert "not found" in body["errors"][0]["message"].lower()
 
     def test_get_run_includes_executions(self, authed_client, mock_db):
-        """Get detail includes nested executions with test info and results."""
-        result = make_obj(
+        """Get detail includes nested executions with test info and steps."""
+        step = make_obj(
             id="r1",
             executionId="exec-1",
             stepIndex=0,
-            groupIndex=0,
+            name="power_cycle",
+            status="PASSED",
             passed=True,
-            result={},
+            errorMessage=None,
+            measurements=None,
+            logOutput=None,
+            durationMs=None,
+            startedAt=None,
+            finishedAt=None,
             createdAt=NOW,
         )
         execution = _make_execution(
             test=_make_test(),
-            results=[result],
+            steps=[step],
         )
         device = _make_device(executions=[execution])
         session = _make_session(devices=[device])

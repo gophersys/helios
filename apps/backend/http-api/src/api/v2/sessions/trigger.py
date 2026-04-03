@@ -192,8 +192,6 @@ def trigger_run(run_id: str):
         existing_config["fixtureId"] = bench["id"]
         existing_config["fixtureStationId"] = bench.get("stationId")
         existing_config["mtibAddress"] = bench.get("mtibAddress")
-        # Backward compat: keep benchId key for in-flight runs
-        existing_config["benchId"] = bench["id"]
 
         db.session.update(
             where={"id": run_id},

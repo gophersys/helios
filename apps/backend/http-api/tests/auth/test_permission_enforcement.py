@@ -277,22 +277,6 @@ class TestBuildScriptsPermissions:
         response = client.get("/v2/builds/scripts", headers=auth_headers)
         _assert_not_denied(response)
 
-    def test_upload_script_view_only(self, client, auth_headers, mock_db):
-        """builds:view should NOT allow uploading scripts (needs builds:manage)."""
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "builds:view",
-        )
-        response = client.put("/v2/builds/scripts/alpha",
-                              data=json.dumps({}), headers=auth_headers)
-        _assert_403(response)
-
-    def test_delete_script_view_only(self, client, auth_headers, mock_db):
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "builds:view",
-        )
-        response = client.delete("/v2/builds/scripts/alpha", headers=auth_headers)
-        _assert_403(response)
-
 
 # ---------------------------------------------------------------------------
 # Module: Validation Runs

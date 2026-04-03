@@ -65,14 +65,6 @@ enum TestExecutionStatus {
   ERROR
 }
 
-enum LogLevel {
-  DEBUG
-  INFO
-  WARN
-  ERROR
-  FATAL
-}
-
 enum LifecycleStatus {
   DRAFT
   ACTIVE
@@ -958,7 +950,6 @@ model TestExecution {
   slot        FixtureSlot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
   triggeredBy User?        @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
   steps       TestStep[]
-  logs        Log[]
 
   @@index([status])
   @@index([testId])
@@ -1117,35 +1108,6 @@ model Secret {
   stageConfigs ProductStageConfig[]
 
   @@map("secrets")
-}
-
-/// Key-value configuration store for system-wide settings
-/// (thresholds, feature flags, UI preferences, etc.).
-model Setting {
-  key         String   @id
-  value       String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("settings")
-}
-
-/// System and execution logs. Can be free-standing (system
-/// events) or linked to a specific test execution.
-model Log {
-  id          String   @id @default(cuid())
-  level       LogLevel @default(INFO)
-  message     String
-  source      String? /// service name, module path, etc.
-  executionId String?
-  createdAt   DateTime @default(now())
-
-  execution TestExecution? @relation(fields: [executionId], references: [id], onDelete: SetNull)
-
-  @@index([createdAt])
-  @@index([level])
-  @@map("logs")
 }
 
 /// Caches the last-seen commit SHA per PR for the Bitbucket poller.

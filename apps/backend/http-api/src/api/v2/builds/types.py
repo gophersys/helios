@@ -274,7 +274,7 @@ class PipelineCreateRequest:
         if validation_config is not None and not isinstance(validation_config, dict):
             return None, "validationConfig must be an object"
 
-        # Build matrix mode — must match ValidationStage enum names (lowercase)
+        # Build matrix mode — must match Stage enum names (lowercase)
         matrix_mode = (data.get("matrixMode") or "fuota").strip()
         valid_modes = ("smoke", "silicon", "integration", "nightly", "fuota")
         if matrix_mode not in valid_modes:

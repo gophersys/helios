@@ -15,7 +15,6 @@ in product fixture YAML.
 """
 
 import functools
-import warnings
 from typing import Callable, List, Optional
 
 import pytest
@@ -107,23 +106,6 @@ def requires_capability(*caps: str) -> Callable:
 
     return decorator
 
-
-def requires_feature(feature) -> Callable:
-    """Deprecated. Use @requires_capability with string capabilities instead."""
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            warnings.warn(
-                "requires_feature is deprecated. Use @requires_capability with strings.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return func(*args, **kwargs)
-
-        wrapper._required_feature = feature
-        return wrapper
-
-    return decorator
 
 
 def get_required_capabilities(func: Callable) -> List[str]:

@@ -16,7 +16,7 @@ from src.lib.audit import log_audit
 from src.services.database.prisma import get_db_client
 
 from src.api.v2.builds.build_cache import compute_build_fingerprint, find_cached_build
-from src.api.v2.builds.stage_builds import ValidationStage
+from corekinect.stages import Stage
 
 logger = logging.getLogger(__name__)
 
@@ -251,14 +251,14 @@ def resolve_pipeline_context(db, data) -> Dict[str, Any]:
     mfg_fw = data.mfg_repo_slug or f"{repo_base}_mfg_fw"
 
     stage_map = {
-        "smoke": ValidationStage.SMOKE,
-        "silicon": ValidationStage.SILICON,
-        "integration": ValidationStage.INTEGRATION,
-        "nightly": ValidationStage.NIGHTLY,
-        "fuota": ValidationStage.FUOTA,
+        "smoke": Stage.SMOKE,
+        "silicon": Stage.SILICON,
+        "integration": Stage.INTEGRATION,
+        "nightly": Stage.NIGHTLY,
+        "fuota": Stage.FUOTA,
     }
     stage_number = data.validation_config.get("stage") if data.validation_config else None
-    stage = stage_map.get(data.matrix_mode, ValidationStage.FUOTA)
+    stage = stage_map.get(data.matrix_mode, Stage.FUOTA)
 
     stage_config = None
     stage_config_matrix = None

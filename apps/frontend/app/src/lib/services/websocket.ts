@@ -535,57 +535,6 @@ export interface TelemetryEvent {
 }
 
 /**
- * Subscribe to real-time validation run events using the /kubernetes namespace.
- * Receives test-start, test-result, and run-finish events as they happen.
- *
- * @deprecated Use subscribeValidationRunWithLogs for room-based subscription with log streaming.
- */
-export function subscribeValidationRun(
-  runId: string,
-  callbacks: {
-    onTestStart?: (data: ValidationTestStartEvent) => void;
-    onTestResult?: (data: ValidationTestResultEvent) => void;
-    onRunFinish?: (data: ValidationRunFinishEvent) => void;
-    onRunStart?: (data: { runId: string; status: string }) => void;
-  },
-  onError?: (message: string) => void
-): () => void {
-  const socket = getSystemSocket();
-  if (!socket) {
-    onError?.('WebSocket not available');
-    return () => {};
-  }
-
-  const runStartHandler = (data: { runId: string; status: string }) => {
-    if (data.runId === runId) callbacks.onRunStart?.(data);
-  };
-
-  const testStartHandler = (data: ValidationTestStartEvent) => {
-    if (data.runId === runId) callbacks.onTestStart?.(data);
-  };
-
-  const testResultHandler = (data: ValidationTestResultEvent) => {
-    if (data.runId === runId) callbacks.onTestResult?.(data);
-  };
-
-  const runFinishHandler = (data: ValidationRunFinishEvent) => {
-    if (data.runId === runId) callbacks.onRunFinish?.(data);
-  };
-
-  socket.on('validation_run_start', runStartHandler);
-  socket.on('validation_test_start', testStartHandler);
-  socket.on('validation_test_result', testResultHandler);
-  socket.on('validation_run_finish', runFinishHandler);
-
-  return () => {
-    socket.off('validation_run_start', runStartHandler);
-    socket.off('validation_test_start', testStartHandler);
-    socket.off('validation_test_result', testResultHandler);
-    socket.off('validation_run_finish', runFinishHandler);
-  };
-}
-
-/**
  * Subscribe to real-time validation run events using the /validation namespace.
  * Uses room-based subscription for efficient event delivery.
  * Supports log streaming alongside test events.

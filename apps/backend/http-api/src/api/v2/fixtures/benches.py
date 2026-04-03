@@ -1,13 +1,12 @@
 """Fixture-backed bench endpoints for validation infrastructure.
 
 Legacy bench CRUD — now delegates to the unified Fixture model.
-The find_available_bench() helper is still used by trigger.py and scheduler.py.
 """
 
 import logging
 import math
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from database import Json
 from flask import jsonify, request
@@ -484,76 +483,6 @@ def unlock_bench(bench_id: str):
     except Exception as e:
         logger.error("Failed to unlock bench %s: %s", bench_id, e)
         return internal_error("Failed to unlock bench")
-
-
-def find_available_bench(
-    product: str,
-    revision: Optional[str] = None,
-    capabilities: Optional[List[str]] = None,
-) -> Optional[Dict[str, Any]]:
-    """Find an available fixture matching requirements, returned as legacy bench dict.
-
-    Used by CI pipeline scheduler and trigger.py.
-
-    Args:
-        product: Product name (e.g., "alpha", "Alpha B0")
-        revision: Optional revision (e.g., "b0")
-        capabilities: Required capabilities list
-
-    Returns:
-        Serialized bench dict if found, None otherwise
-    """
-    db = get_db_client()
-
-    # Normalize product name: "Alpha B0" -> "alpha", "alpha_fw" -> "alpha"
-    product_base = product.lower().replace(" ", "").replace("_fw", "").replace("_mfg", "")
-    for rev in ["b0", "b1", "a0", "a1", "3b4"]:
-        product_base = product_base.replace(rev, "")
-    product_base = product_base.strip()
-
-    where: Dict[str, Any] = {
-        "status": "AVAILABLE",
-        "active": True,
-    }
-
-    try:
-        # Try to match product by slug
-        fixtures = db.fixture.find_many(
-            where=where,
-            include={
-                "product": True,
-                "design": True,
-                "slots": {
-                    "where": {"active": True},
-                    "order_by": {"slotIndex": "asc"},
-                    "include": {"node": True},
-                },
-            },
-        )
-
-        # Find matching fixture by product slug
-        matched = None
-        for f in fixtures:
-            if hasattr(f, "product") and f.product:
-                slug = f.product.slug or ""
-                if product_base in slug or slug.startswith(product_base[:5]):
-                    # Check capabilities if needed
-                    if capabilities and hasattr(f, "design") and f.design:
-                        design_caps = f.design.capabilities or []
-                        if not all(cap in design_caps for cap in capabilities):
-                            continue
-                    # Check revision if needed
-                    if revision and hasattr(f, "design") and f.design:
-                        if f.design.revision.lower() != revision.lower():
-                            continue
-                    matched = f
-                    break
-
-        return _serialize_bench(matched) if matched else None
-
-    except Exception as e:
-        logger.error("Failed to find available bench: %s", e)
-        return None
 
 
 @require_permissions(Permissions.FIXTURES_VIEW)

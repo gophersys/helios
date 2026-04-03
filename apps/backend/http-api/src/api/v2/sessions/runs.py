@@ -99,12 +99,6 @@ def _serialize_execution(ex: Any, include_results: bool = False) -> dict:
         data["stepsPassed"] = sum(1 for step in ex.steps if step.passed)
         if include_results:
             data["steps"] = [_serialize_step(step) for step in ex.steps]
-    # Backward compat: also check legacy 'results' relation name
-    elif hasattr(ex, "results") and ex.results is not None:
-        data["stepCount"] = len(ex.results)
-        data["stepsPassed"] = sum(1 for r in ex.results if r.passed)
-        if include_results:
-            data["steps"] = [_serialize_step(r) for r in ex.results]
     return data
 
 

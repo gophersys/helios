@@ -104,21 +104,3 @@ DEFAULT_ROLES = {
         "manufacturing:view", "manufacturing:run", "manufacturing:manage",
     ],
 }
-
-# Legacy roles kept for backward compatibility during migration
-LEGACY_ROLES = {
-    "Super Admin": list(Permissions.all()),
-    "Engineer": [
-        "products:view", "builds:view", "builds:trigger",
-        "validation:view", "validation:run",
-        "fixtures:view", "devices:view",
-        "kubernetes:view", "system:view",
-        "api-keys:view", "api-keys:manage",
-    ],
-    "Viewer": [
-        "products:view", "builds:view",
-        "validation:view",
-        "fixtures:view", "devices:view",
-        "system:view",
-    ],
-}

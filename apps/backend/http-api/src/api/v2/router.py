@@ -274,8 +274,6 @@ from .builds.build_runs import (
 from .builds.scripts import (
     list_build_scripts,
     get_build_script,
-    upload_build_script,
-    delete_build_script,
 )
 from .builds.overlays import (
     get_overlays,
@@ -677,8 +675,6 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Builds - Scripts
     v2.add_url_rule("/builds/scripts",                                                          endpoint="list_build_scripts",       view_func=list_build_scripts,    methods=["GET"])
     v2.add_url_rule("/builds/scripts/<product>",                                                endpoint="get_build_script",         view_func=get_build_script,      methods=["GET"])
-    v2.add_url_rule("/builds/scripts/<product>",                                                endpoint="upload_build_script",      view_func=upload_build_script,   methods=["PUT"])
-    v2.add_url_rule("/builds/scripts/<product>",                                                endpoint="delete_build_script",      view_func=delete_build_script,   methods=["DELETE"])
 
     # Builds - Overlays
     v2.add_url_rule("/builds/overlays/<product>",                                               endpoint="get_overlays",             view_func=get_overlays,          methods=["GET"])

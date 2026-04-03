@@ -86,30 +86,6 @@ OPERATOR_PERMISSIONS = [
     "manufacturing:manage",
 ]
 
-# Legacy sets kept for backward compatibility
-LEGACY_ENGINEER_PERMISSIONS = [
-    "products:view",
-    "builds:view",
-    "builds:trigger",
-    "validation:view",
-    "validation:run",
-    "fixtures:view",
-    "devices:view",
-    "kubernetes:view",
-    "system:view",
-    "api-keys:view",
-    "api-keys:manage",
-]
-
-LEGACY_VIEWER_PERMISSIONS = [
-    "products:view",
-    "builds:view",
-    "validation:view",
-    "fixtures:view",
-    "devices:view",
-    "system:view",
-]
-
 # Real team members (seeded in staging + production)
 TEAM = [
     {"email": "mateo@corekinect.com", "name": "Mateo Segura", "role": "ADMIN"},
@@ -212,23 +188,6 @@ def seed():
             },
         )
         print(f"  Permission set 'Operator' ready (id: {operator_set.id})")
-
-        # Legacy permission sets (kept for backward compat, will be removed after migration)
-        db.permissionset.upsert(
-            where={"name": "Engineer"},
-            data={
-                "create": {"name": "Engineer", "description": "[Legacy] Engineering access", "permissions": LEGACY_ENGINEER_PERMISSIONS},
-                "update": {"description": "[Legacy] Engineering access", "permissions": LEGACY_ENGINEER_PERMISSIONS},
-            },
-        )
-        db.permissionset.upsert(
-            where={"name": "Viewer"},
-            data={
-                "create": {"name": "Viewer", "description": "[Legacy] Read-only access", "permissions": LEGACY_VIEWER_PERMISSIONS},
-                "update": {"description": "[Legacy] Read-only access", "permissions": LEGACY_VIEWER_PERMISSIONS},
-            },
-        )
-        print("  Legacy sets (Engineer, Viewer) updated")
 
         # Map role names to permission set objects
         role_to_perm_set = {
