@@ -92,6 +92,29 @@ nav:
       - Test Runner: architecture/validation/test-runner.md
     - CoreCloud: architecture/platform/corecloud-library.md
 
+  - Admin Guide:
+    - admin/index.md
+    - Initial Setup: admin/setup.md
+    - Users & Roles: admin/users.md
+    - Production Operations: admin/production.md
+
+  - Maintainer Guide:
+    - maintainer/index.md
+    - Products: maintainer/products.md
+    - Fixtures & MTIBs: maintainer/fixtures.md
+    - Build System: maintainer/builds.md
+
+  - Developer Guide:
+    - developer/index.md
+    - Getting Started: developer/getting-started.md
+    - Builds: developer/builds.md
+    - Validation: developer/validation.md
+    - Writing Tests: developer/writing-tests.md
+
+  - Operator Guide:
+    - operator/index.md
+    - Manufacturing: operator/manufacturing.md
+
   - API Reference:
     - api/index.md
     - Test Framework:
