@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "libs", "python
 
 from database import Prisma, Json
 
-# Every permission that exists in the system (23 total)
+# Every permission that exists in the system (26 total)
 # Organized by functional group for clarity
 ALL_PERMISSIONS = [
     # Products & Builds
@@ -37,6 +37,10 @@ ALL_PERMISSIONS = [
     "validation:view",
     "validation:run",
     "validation:manage",
+    # Manufacturing
+    "manufacturing:view",
+    "manufacturing:run",
+    "manufacturing:manage",
     # Infrastructure
     "fixtures:view",
     "fixtures:manage",
@@ -54,14 +58,36 @@ ALL_PERMISSIONS = [
     "system:manage",
 ]
 
-# Default permission sets
-ADMIN_PERMISSIONS = [p for p in ALL_PERMISSIONS if p not in (
-    "kubernetes:manage",
-    "system:manage",
-    "permissions:manage",
-)]
+# Role-based permission sets (maps to Role enum: ADMIN, MAINTAINER, DEVELOPER, OPERATOR)
+ADMIN_PERMISSIONS = ALL_PERMISSIONS  # All permissions
 
-ENGINEER_PERMISSIONS = [
+MAINTAINER_PERMISSIONS = [
+    p for p in ALL_PERMISSIONS
+    if p not in ("users:manage", "permissions:manage", "system:manage", "kubernetes:manage")
+]
+
+DEVELOPER_PERMISSIONS = [
+    "products:view",
+    "builds:view",
+    "builds:trigger",
+    "builds:manage",
+    "validation:view",
+    "validation:run",
+    "manufacturing:view",
+    "fixtures:view",
+    "devices:view",
+    "api-keys:view",
+    "api-keys:manage",
+]
+
+OPERATOR_PERMISSIONS = [
+    "manufacturing:view",
+    "manufacturing:run",
+    "manufacturing:manage",
+]
+
+# Legacy sets kept for backward compatibility
+LEGACY_ENGINEER_PERMISSIONS = [
     "products:view",
     "builds:view",
     "builds:trigger",
@@ -75,7 +101,7 @@ ENGINEER_PERMISSIONS = [
     "api-keys:manage",
 ]
 
-OPERATOR_PERMISSIONS = [
+LEGACY_VIEWER_PERMISSIONS = [
     "products:view",
     "builds:view",
     "validation:view",
@@ -84,14 +110,23 @@ OPERATOR_PERMISSIONS = [
     "system:view",
 ]
 
-VIEWER_PERMISSIONS = [
-    "products:view",
-    "builds:view",
-    "validation:view",
-    "fixtures:view",
-    "devices:view",
-    "system:view",
+# Team members to seed with roles and product access
+TEAM = [
+    {"email": "mateo@corekinect.com", "name": "Mateo Segura", "role": "ADMIN"},
+    {"email": "jared@corekinect.com", "name": "Jared Walton", "role": "ADMIN"},
+    {"email": "mitchel@corekinect.com", "name": "Mitchel Kelley", "role": "ADMIN"},
+    {"email": "chris@corekinect.com", "name": "Chris Burns", "role": "DEVELOPER"},
+    {"email": "christian@corekinect.com", "name": "Christian Cortes", "role": "DEVELOPER"},
+    {"email": "gwen@corekinect.com", "name": "Gwen Eging", "role": "OPERATOR"},
 ]
+
+# Product access level per role
+ROLE_ACCESS_LEVEL = {
+    "ADMIN": "admin",
+    "MAINTAINER": "admin",
+    "DEVELOPER": "develop",
+    "OPERATOR": "operate",
+}
 
 
 def seed():
@@ -102,122 +137,147 @@ def seed():
     db.connect()
 
     try:
-        # Create default permission sets
+        # ── Permission Sets (role-based) ──
+        # These map 1:1 to the Role enum. The "Super Admin" set is kept as
+        # a superset alias for the "Admin" role (same permissions).
+        print("=== Seeding Permission Sets ===")
+
         super_admin_set = db.permissionset.upsert(
             where={"name": "Super Admin"},
             data={
                 "create": {
                     "name": "Super Admin",
-                    "description": "Unrestricted access — all permissions",
+                    "description": "Unrestricted access — all permissions (alias for Admin role)",
                     "permissions": ALL_PERMISSIONS,
                 },
                 "update": {
-                    "description": "Unrestricted access — all permissions",
+                    "description": "Unrestricted access — all permissions (alias for Admin role)",
                     "permissions": ALL_PERMISSIONS,
                 },
             },
         )
-        print(f"Permission set 'Super Admin' ready (id: {super_admin_set.id})")
+        print(f"  Permission set 'Super Admin' ready (id: {super_admin_set.id})")
 
         admin_set = db.permissionset.upsert(
             where={"name": "Admin"},
             data={
                 "create": {
                     "name": "Admin",
-                    "description": "Full access except cluster, system, and permission management",
+                    "description": "Full platform access — all permissions",
                     "permissions": ADMIN_PERMISSIONS,
                 },
                 "update": {
-                    "description": "Full access except cluster, system, and permission management",
+                    "description": "Full platform access — all permissions",
                     "permissions": ADMIN_PERMISSIONS,
                 },
             },
         )
-        print(f"Permission set 'Admin' ready (id: {admin_set.id})")
+        print(f"  Permission set 'Admin' ready (id: {admin_set.id})")
 
-        engineer_set = db.permissionset.upsert(
-            where={"name": "Engineer"},
+        maintainer_set = db.permissionset.upsert(
+            where={"name": "Maintainer"},
             data={
                 "create": {
-                    "name": "Engineer",
-                    "description": "Engineering access — build, test, and monitor products",
-                    "permissions": ENGINEER_PERMISSIONS,
+                    "name": "Maintainer",
+                    "description": "Full product access — everything except user/permission/system/cluster management",
+                    "permissions": MAINTAINER_PERMISSIONS,
                 },
                 "update": {
-                    "description": "Engineering access — build, test, and monitor products",
-                    "permissions": ENGINEER_PERMISSIONS,
+                    "description": "Full product access — everything except user/permission/system/cluster management",
+                    "permissions": MAINTAINER_PERMISSIONS,
                 },
             },
         )
-        print(f"Permission set 'Engineer' ready (id: {engineer_set.id})")
+        print(f"  Permission set 'Maintainer' ready (id: {maintainer_set.id})")
+
+        developer_set = db.permissionset.upsert(
+            where={"name": "Developer"},
+            data={
+                "create": {
+                    "name": "Developer",
+                    "description": "Build, test, and monitor products — no admin access",
+                    "permissions": DEVELOPER_PERMISSIONS,
+                },
+                "update": {
+                    "description": "Build, test, and monitor products — no admin access",
+                    "permissions": DEVELOPER_PERMISSIONS,
+                },
+            },
+        )
+        print(f"  Permission set 'Developer' ready (id: {developer_set.id})")
 
         operator_set = db.permissionset.upsert(
             where={"name": "Operator"},
             data={
                 "create": {
                     "name": "Operator",
-                    "description": "Operator — view products, run validation tests",
+                    "description": "Manufacturing operations — view, run, and manage manufacturing sessions",
                     "permissions": OPERATOR_PERMISSIONS,
                 },
                 "update": {
-                    "description": "Operator — view products, run validation tests",
+                    "description": "Manufacturing operations — view, run, and manage manufacturing sessions",
                     "permissions": OPERATOR_PERMISSIONS,
                 },
             },
         )
-        print(f"Permission set 'Operator' ready (id: {operator_set.id})")
+        print(f"  Permission set 'Operator' ready (id: {operator_set.id})")
 
-        viewer_set = db.permissionset.upsert(
+        # Legacy permission sets (kept for backward compat, will be removed after migration)
+        db.permissionset.upsert(
+            where={"name": "Engineer"},
+            data={
+                "create": {"name": "Engineer", "description": "[Legacy] Engineering access", "permissions": LEGACY_ENGINEER_PERMISSIONS},
+                "update": {"description": "[Legacy] Engineering access", "permissions": LEGACY_ENGINEER_PERMISSIONS},
+            },
+        )
+        db.permissionset.upsert(
             where={"name": "Viewer"},
             data={
-                "create": {
-                    "name": "Viewer",
-                    "description": "Read-only access",
-                    "permissions": VIEWER_PERMISSIONS,
-                },
-                "update": {
-                    "description": "Read-only access",
-                    "permissions": VIEWER_PERMISSIONS,
-                },
+                "create": {"name": "Viewer", "description": "[Legacy] Read-only access", "permissions": LEGACY_VIEWER_PERMISSIONS},
+                "update": {"description": "[Legacy] Read-only access", "permissions": LEGACY_VIEWER_PERMISSIONS},
             },
         )
-        print(f"Permission set 'Viewer' ready (id: {viewer_set.id})")
+        print("  Legacy sets (Engineer, Viewer) updated")
+
+        # Map role names to permission set objects
+        role_to_perm_set = {
+            "ADMIN": admin_set,
+            "MAINTAINER": maintainer_set,
+            "DEVELOPER": developer_set,
+            "OPERATOR": operator_set,
+        }
 
         # Backfill existing users that have no permission set
         users_without_set = db.user.find_many(where={"permissionSetId": None})
         for user in users_without_set:
-            # Default unassigned users to Viewer
             db.user.update(
                 where={"id": user.id},
-                data={"permissionSetId": viewer_set.id},
+                data={"permissionSetId": developer_set.id},
             )
-            print(f"Assigned '{user.email}' to Viewer permission set")
+            print(f"  Assigned '{user.email}' to Developer permission set (backfill)")
 
         # Create super admin user if email provided
         if email:
             existing = db.user.find_unique(where={"email": email.lower()})
             if existing:
-                if existing.permissionSetId != super_admin_set.id:
-                    db.user.update(
-                        where={"id": existing.id},
-                        data={"permissionSetId": super_admin_set.id},
-                    )
-                    print(f"Updated '{existing.email}' to Super Admin permission set")
-                else:
-                    print(f"Super admin user already exists: {existing.email}")
+                db.user.update(
+                    where={"id": existing.id},
+                    data={"permissionSetId": super_admin_set.id, "role": "ADMIN"},
+                )
+                print(f"  Super admin: {existing.email} (updated)")
             else:
                 user = db.user.create(
                     data={
                         "email": email.lower(),
                         "name": name,
+                        "role": "ADMIN",
                         "permissionSetId": super_admin_set.id,
                         "active": True,
                     }
                 )
-                print(f"Created super admin user: {user.email} (id: {user.id})")
+                print(f"  Super admin: {user.email} (created, id: {user.id})")
         else:
-            print("SEED_ADMIN_EMAIL not set. Skipping admin user creation.")
-            print("Usage: SEED_ADMIN_EMAIL=you@company.com python3 seed.py")
+            print("  SEED_ADMIN_EMAIL not set. Skipping admin user creation.")
 
         # Development admin user (admin@concord.local / admin)
         # Available in all environments for seeding, but login only works in development
@@ -227,16 +287,22 @@ def seed():
                 "create": {
                     "email": "admin@concord.local",
                     "name": "Dev Admin",
+                    "role": "ADMIN",
                     "permissionSetId": super_admin_set.id,
                     "active": True,
                 },
                 "update": {
+                    "role": "ADMIN",
                     "permissionSetId": super_admin_set.id,
                     "active": True,
                 },
             },
         )
-        print(f"Dev admin user ready: admin@concord.local (id: {dev_admin.id})")
+        print(f"  Dev admin: admin@concord.local (id: {dev_admin.id})")
+
+        # ── Team Members ──
+        # Seed all team members with roles, permission sets, and product access.
+        # Product access is seeded after products are created (see below).
 
         # ── Products + Boards ──
         print("\n=== Seeding Products & Boards ===")
@@ -616,6 +682,56 @@ def seed():
             },
         )
         print(f"  Board: {iwsck_board.name} / A1")
+
+        # ── Team Members + Product Access ──
+        # Now that products exist, seed team members with their roles and product access.
+        print("\n=== Seeding Team Members ===")
+        all_products = db.product.find_many()
+        product_ids = [p.id for p in all_products]
+
+        for member in TEAM:
+            perm_set = role_to_perm_set.get(member["role"], developer_set)
+            u = db.user.upsert(
+                where={"email": member["email"]},
+                data={
+                    "create": {
+                        "email": member["email"],
+                        "name": member["name"],
+                        "role": member["role"],
+                        "permissionSetId": perm_set.id,
+                        "active": True,
+                    },
+                    "update": {
+                        "name": member["name"],
+                        "role": member["role"],
+                        "permissionSetId": perm_set.id,
+                        "active": True,
+                    },
+                },
+            )
+
+            # Create product access for all products
+            access_level = ROLE_ACCESS_LEVEL.get(member["role"], "view")
+            for pid in product_ids:
+                db.productaccess.upsert(
+                    where={"userId_productId": {"userId": u.id, "productId": pid}},
+                    data={
+                        "create": {"userId": u.id, "productId": pid, "level": access_level},
+                        "update": {"level": access_level},
+                    },
+                )
+            print(f"  {u.name}: {member['role']} ({perm_set.name}), {len(product_ids)} products ({access_level})")
+
+        # Also grant dev admin access to all products
+        for pid in product_ids:
+            db.productaccess.upsert(
+                where={"userId_productId": {"userId": dev_admin.id, "productId": pid}},
+                data={
+                    "create": {"userId": dev_admin.id, "productId": pid, "level": "admin"},
+                    "update": {"level": "admin"},
+                },
+            )
+        print(f"  Dev Admin: {len(product_ids)} products (admin)")
 
         # ── Fixture Designs ──
         print("\n=== Seeding Fixture Designs ===")
@@ -1257,6 +1373,39 @@ concord_finalize
                 },
             )
             print(f"  Recipe template: {tmpl['name']}")
+
+        # ── Product Access for Dev Users ──
+        # Give all dev users access to all products for role-based testing
+        print("\n=== Seeding Product Access ===")
+        all_products = db.product.find_many()
+        all_dev_users = db.user.find_many(where={"active": True})
+
+        # Map role to access level
+        ROLE_ACCESS_LEVEL = {
+            "ADMIN": "admin",
+            "MAINTAINER": "admin",
+            "DEVELOPER": "develop",
+            "OPERATOR": "operate",
+        }
+
+        for u in all_dev_users:
+            user_role = getattr(u, "role", "DEVELOPER") or "DEVELOPER"
+            level = ROLE_ACCESS_LEVEL.get(user_role, "view")
+            for p in all_products:
+                db.productaccess.upsert(
+                    where={
+                        "userId_productId": {"userId": u.id, "productId": p.id},
+                    },
+                    data={
+                        "create": {
+                            "userId": u.id,
+                            "productId": p.id,
+                            "level": level,
+                        },
+                        "update": {"level": level},
+                    },
+                )
+            print(f"Product access: {u.name} -> {len(all_products)} products ({level})")
 
     finally:
         db.disconnect()

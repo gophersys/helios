@@ -1,15 +1,18 @@
 import hashlib
+import logging
 import threading
 import time
 from datetime import datetime, timezone
 from functools import wraps
 
-from flask import g, request
+from flask import g, jsonify, request
 
 from config.env import env_config
 from src.lib.errors import forbidden, unauthorized
 from src.services.auth.jwt import verify_token
 from src.services.database.prisma import get_db_client
+
+logger = logging.getLogger(__name__)
 
 # In-memory permission set cache: {permissionSetId: (permissions_list, fetched_at)}
 _permission_set_cache: dict[str, tuple[list[str], float]] = {}
@@ -54,6 +57,7 @@ def require_auth(f):
                 "sub": "00000000-0000-0000-0000-000000000000",
                 "email": "admin@concord.local",
                 "name": "Admin (auth disabled)",
+                "role": "ADMIN",
                 "permissionSetId": None,
             }
             return f(*args, **kwargs)
@@ -67,6 +71,9 @@ def require_auth(f):
             payload, error = verify_token(token)
             if error:
                 return unauthorized(error)
+            # Ensure role is present (tokens created before RBAC won't have it)
+            if "role" not in payload:
+                payload["role"] = "DEVELOPER"
             g.current_user = payload
 
         elif auth_header.startswith("ApiKey "):
@@ -98,6 +105,7 @@ def require_auth(f):
                 "sub": api_key.user.id,
                 "email": api_key.user.email,
                 "name": api_key.user.name,
+                "role": getattr(api_key.user, "role", "DEVELOPER"),
                 "permissionSetId": api_key.user.permissionSetId,
             }
 
@@ -111,19 +119,34 @@ def require_auth(f):
 
 def require_permissions(*permission_strings):
     """Check that the authenticated user's permission set includes the required permissions.
-    Must be applied AFTER @require_auth (or wraps it automatically)."""
+    Must be applied AFTER @require_auth (or wraps it automatically).
+
+    Admin/Maintainer roles bypass permission set checks entirely (they have implicit
+    full access). This provides backward compat: endpoints using @require_permissions
+    work with both the old permission-set model and the new role model.
+    """
 
     def decorator(f):
         @wraps(f)
         @require_auth
         def decorated(*args, **kwargs):
             if not env_config.AUTH_ENABLED:
+                g.effective_role = "ADMIN"
                 return f(*args, **kwargs)
 
             user = getattr(g, "current_user", None)
             if not user:
                 return unauthorized("Unauthorized")
 
+            # Resolve effective role (supports X-View-As-Role for Admin/Maintainer)
+            effective_role = _resolve_effective_role(user)
+            g.effective_role = effective_role
+
+            # New role system: Admin and Maintainer bypass permission set checks
+            if effective_role in ("ADMIN", "MAINTAINER"):
+                return f(*args, **kwargs)
+
+            # Fall back to legacy permission set check
             perm_set_id = user.get("permissionSetId")
             if not perm_set_id:
                 return forbidden("No permission set assigned")
@@ -140,4 +163,106 @@ def require_permissions(*permission_strings):
 
         return decorated
 
+    return decorator
+
+
+# ---------------------------------------------------------------------------
+# Role-based access control decorators
+# ---------------------------------------------------------------------------
+
+ROLE_HIERARCHY = {
+    "ADMIN": 4,
+    "MAINTAINER": 3,
+    "DEVELOPER": 2,
+    "OPERATOR": 1,
+}
+
+
+def _resolve_effective_role(user: dict) -> str:
+    """Resolve effective role, applying X-View-As-Role header for Admin/Maintainer."""
+    actual_role = user.get("role", "DEVELOPER")
+    view_as = request.headers.get("X-View-As-Role")
+    if view_as and actual_role in ("ADMIN", "MAINTAINER") and view_as in ROLE_HIERARCHY:
+        return view_as
+    return actual_role
+
+
+def require_role(min_role: str):
+    """Require minimum role level. Admin > Maintainer > Developer > Operator.
+
+    Supports X-View-As-Role header: Admin/Maintainer can send this header to
+    have the backend treat them as a lower role for permission checks and
+    UI filtering. The effective role is stored on g for downstream use.
+    """
+
+    def decorator(f):
+        @wraps(f)
+        @require_auth
+        def wrapper(*args, **kwargs):
+            if not env_config.AUTH_ENABLED:
+                g.effective_role = "ADMIN"
+                return f(*args, **kwargs)
+
+            user = g.current_user
+            effective_role = _resolve_effective_role(user)
+            g.effective_role = effective_role
+
+            if ROLE_HIERARCHY.get(effective_role, 0) < ROLE_HIERARCHY.get(min_role, 0):
+                return jsonify({"data": None, "errors": [{"message": f"Requires {min_role} role or higher"}]}), 403
+
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def require_product_access(min_level: str, product_param: str = "product_id"):
+    """Require product-level access. Admin/Maintainer bypass the check.
+
+    Args:
+        min_level: Minimum access level required ("view", "operate", "develop", "admin").
+        product_param: Name of the route parameter or query param containing the product ID.
+    """
+    LEVEL_HIERARCHY = {"admin": 4, "develop": 3, "operate": 2, "view": 1}
+
+    def decorator(f):
+        @wraps(f)
+        @require_auth
+        def wrapper(*args, **kwargs):
+            if not env_config.AUTH_ENABLED:
+                g.effective_role = "ADMIN"
+                return f(*args, **kwargs)
+
+            user = g.current_user
+            effective_role = _resolve_effective_role(user)
+            g.effective_role = effective_role
+
+            # Admin and Maintainer bypass product access checks
+            # (unless using View As to simulate a lower role)
+            if effective_role in ("ADMIN", "MAINTAINER"):
+                return f(*args, **kwargs)
+
+            # Get product ID from route params
+            product_id = kwargs.get(product_param)
+            if not product_id:
+                # Try query params or request body
+                product_id = request.args.get("productId")
+
+            if not product_id:
+                # Non-product-scoped endpoint — allow through
+                return f(*args, **kwargs)
+
+            # Check ProductAccess
+            db = get_db_client()
+            access = db.productaccess.find_first(
+                where={"userId": user["sub"], "productId": product_id}
+            )
+
+            if not access:
+                return jsonify({"data": None, "errors": [{"message": "No access to this product"}]}), 403
+
+            if LEVEL_HIERARCHY.get(access.level, 0) < LEVEL_HIERARCHY.get(min_level, 0):
+                return jsonify({"data": None, "errors": [{"message": f"Requires '{min_level}' access level for this product"}]}), 403
+
+            return f(*args, **kwargs)
+        return wrapper
     return decorator

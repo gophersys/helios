@@ -7,6 +7,7 @@ from flask_socketio import SocketIO
 
 # Auth handlers
 from .auth.api_keys import create_api_key, delete_api_key, list_api_keys
+from .auth.dev_login import dev_login, dev_users
 from .auth.login import login
 from .auth.me import me
 from .auth.permission_sets import (
@@ -16,7 +17,15 @@ from .auth.permission_sets import (
     update_permission_set,
 )
 from .auth.permissions_list import list_permissions
-from .auth.users import users_create, users_delete, users_list, users_update
+from .auth.users import (
+    users_create,
+    users_delete,
+    users_get_product_access,
+    users_list,
+    users_set_product_access,
+    users_set_role,
+    users_update,
+)
 
 # Health
 from .healthcheck import healthcheck
@@ -337,11 +346,18 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/auth/login",           view_func=login,          methods=["POST"])
     v2.add_url_rule("/auth/me",              view_func=me,             methods=["GET"])
 
+    # Dev-only auth (no-password login, only works when AUTH_ENABLED=false)
+    v2.add_url_rule("/auth/dev-users",       view_func=dev_users,      methods=["GET"])
+    v2.add_url_rule("/auth/dev-login",       view_func=dev_login,      methods=["POST"])
+
     # Users (was /auth/users)
     v2.add_url_rule("/users",           view_func=users_list,     methods=["GET"])
     v2.add_url_rule("/users",           view_func=users_create,   methods=["POST"])
     v2.add_url_rule("/users/<user_id>", view_func=users_update,   methods=["PUT"])
     v2.add_url_rule("/users/<user_id>", view_func=users_delete,   methods=["DELETE"])
+    v2.add_url_rule("/users/<user_id>/role",           view_func=users_set_role,            methods=["PUT"])
+    v2.add_url_rule("/users/<user_id>/product-access", view_func=users_get_product_access, methods=["GET"])
+    v2.add_url_rule("/users/<user_id>/product-access", view_func=users_set_product_access, methods=["PUT"])
 
     # Permissions (was /auth/permission-sets + /auth/permissions)
     v2.add_url_rule("/permissions",          view_func=list_permission_sets,   methods=["GET"])

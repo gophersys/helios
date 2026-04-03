@@ -25,6 +25,7 @@ class UserResponse:
     id: str
     email: str
     name: str
+    role: str
     permissionSetId: Optional[str]
     permissionSetName: Optional[str]
     active: bool
@@ -41,6 +42,7 @@ class UserResponse:
             id=user.id,
             email=user.email,
             name=user.name,
+            role=getattr(user, "role", "DEVELOPER") or "DEVELOPER",
             permissionSetId=user.permissionSetId,
             permissionSetName=perm_set_name,
             active=user.active,
@@ -54,6 +56,7 @@ class UserResponse:
             "id": self.id,
             "email": self.email,
             "name": self.name,
+            "role": self.role,
             "permissionSetId": self.permissionSetId,
             "permissionSetName": self.permissionSetName,
             "active": self.active,
@@ -69,6 +72,7 @@ class UserResponse:
 class UserCreateRequest:
     email: str
     name: str
+    role: Optional[str]
     permissionSetId: Optional[str]
 
     @classmethod
@@ -78,6 +82,9 @@ class UserCreateRequest:
 
         email = data.get("email", "").strip().lower()
         name = data.get("name", "").strip()
+        role = data.get("role")
+        if isinstance(role, str):
+            role = role.strip().upper() or None
         permission_set_id = data.get("permissionSetId")
         if isinstance(permission_set_id, str):
             permission_set_id = permission_set_id.strip() or None
@@ -87,15 +94,17 @@ class UserCreateRequest:
         if not name:
             return None, "Name is required"
 
-        return cls(email=email, name=name, permissionSetId=permission_set_id), None
+        return cls(email=email, name=name, role=role, permissionSetId=permission_set_id), None
 
 
 @dataclass
 class UserUpdateRequest:
     name: Optional[str] = None
+    role: Optional[str] = None
     permissionSetId: Optional[str] = None
     active: Optional[bool] = None
     _has_permission_set_id: bool = False
+    _has_role: bool = False
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["UserUpdateRequest"], Optional[str]]:
@@ -108,6 +117,11 @@ class UserUpdateRequest:
             if not name:
                 return None, "Name cannot be empty"
 
+        role = data.get("role")
+        has_role = "role" in data
+        if role is not None:
+            role = role.strip().upper() if isinstance(role, str) else role
+
         permission_set_id = data.get("permissionSetId")
         has_permission_set_id = "permissionSetId" in data
 
@@ -115,16 +129,25 @@ class UserUpdateRequest:
         if active is not None and not isinstance(active, bool):
             return None, "Active must be a boolean"
 
-        if name is None and not has_permission_set_id and active is None:
+        if name is None and not has_permission_set_id and active is None and not has_role:
             return None, "No fields to update"
 
-        req = cls(name=name, permissionSetId=permission_set_id, active=active, _has_permission_set_id=has_permission_set_id)
+        req = cls(
+            name=name,
+            role=role,
+            permissionSetId=permission_set_id,
+            active=active,
+            _has_permission_set_id=has_permission_set_id,
+            _has_role=has_role,
+        )
         return req, None
 
     def to_update_data(self) -> Dict[str, Any]:
         update_data = {}
         if self.name is not None:
             update_data["name"] = self.name
+        if self._has_role and self.role is not None:
+            update_data["role"] = self.role
         if self._has_permission_set_id:
             update_data["permissionSetId"] = self.permissionSetId
         if self.active is not None:
@@ -230,3 +253,36 @@ class ApiKeyCreateRequest:
         expires_at = data.get("expiresAt")
 
         return cls(name=name, expiresAt=expires_at), None
+
+
+VALID_ACCESS_LEVELS = {"admin", "develop", "operate", "view"}
+
+
+@dataclass
+class ProductAccessSetRequest:
+    access: List[Dict[str, str]]
+
+    @classmethod
+    def from_json(cls, data: dict) -> Tuple[Optional["ProductAccessSetRequest"], Optional[str]]:
+        if not data:
+            return None, "Request body must contain JSON data"
+
+        access = data.get("access")
+        if access is None:
+            return None, "'access' field is required"
+        if not isinstance(access, list):
+            return None, "'access' must be an array"
+
+        validated = []
+        for i, entry in enumerate(access):
+            if not isinstance(entry, dict):
+                return None, f"access[{i}] must be an object"
+            product_id = (entry.get("productId") or "").strip()
+            level = (entry.get("level") or "").strip().lower()
+            if not product_id:
+                return None, f"access[{i}].productId is required"
+            if level not in VALID_ACCESS_LEVELS:
+                return None, f"access[{i}].level must be one of: {', '.join(sorted(VALID_ACCESS_LEVELS))}"
+            validated.append({"productId": product_id, "level": level})
+
+        return cls(access=validated), None

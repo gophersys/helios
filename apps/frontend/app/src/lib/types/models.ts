@@ -6,6 +6,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  role: string;
   permissionSetId: string | null;
   permissionSetName: string | null;
   permissions: string[];

@@ -105,6 +105,7 @@ class Product(bases.BaseProduct):
     stageConfigs: Optional[List['models.ProductStageConfig']] = None
     testPackages: Optional[List['models.TestPackage']] = None
     recipeVersions: Optional[List['models.RecipeVersion']] = None
+    productAccess: Optional[List['models.ProductAccess']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -4191,12 +4192,14 @@ class User(bases.BaseUser):
     """Google sub ID, set on first login
     """
 
+    role: 'enums.Role'
     permissionSetId: Optional[_str] = None
     active: _bool
     lastSeenAt: Optional[datetime.datetime] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     permissionSet: Optional['models.PermissionSet'] = None
+    productAccess: Optional[List['models.ProductAccess']] = None
     apiKeys: Optional[List['models.ApiKey']] = None
     sessions: Optional[List['models.Session']] = None
     deployments: Optional[List['models.Deployment']] = None
@@ -4324,6 +4327,147 @@ class User(bases.BaseUser):
                 'name': name,
                 'fields': cast(Mapping[str, PartialModelField], fields),
                 'from_model': 'User',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class ProductAccess(bases.BaseProductAccess):
+    """Product-level access control. Each entry grants a user a specific access level
+    (view, operate, develop, admin) to a specific product. Admin/Maintainer roles
+    bypass product access checks entirely.
+    """
+
+    id: _str
+    userId: _str
+    productId: _str
+    level: _str
+    """"view", "operate", "develop", "admin"
+    """
+
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    user: Optional['models.User'] = None
+    product: Optional['models.Product'] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.ProductAccessKeys']] = None,
+        exclude: Optional[Iterable['types.ProductAccessKeys']] = None,
+        required: Optional[Iterable['types.ProductAccessKeys']] = None,
+        optional: Optional[Iterable['types.ProductAccessKeys']] = None,
+        relations: Optional[Mapping['types.ProductAccessRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.ProductAccessKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _ProductAccess_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _ProductAccess_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _ProductAccess_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _ProductAccess_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _ProductAccess_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _ProductAccess_relational_fields:
+                        raise errors.UnknownRelationalFieldError('ProductAccess', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid ProductAccess / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'ProductAccess',
             }
         )
         _created_partial_types.add(name)
@@ -5543,6 +5687,7 @@ _Product_relational_fields: Set[str] = {
         'stageConfigs',
         'testPackages',
         'recipeVersions',
+        'productAccess',
     }
 _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
     [
@@ -5727,6 +5872,14 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.RecipeVersion\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('productAccess', {
+            'name': 'productAccess',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ProductAccess\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -9119,6 +9272,7 @@ _TestStep_fields: Dict['types.TestStepKeys', PartialModelField] = OrderedDict(
 
 _User_relational_fields: Set[str] = {
         'permissionSet',
+        'productAccess',
         'apiKeys',
         'sessions',
         'deployments',
@@ -9161,6 +9315,14 @@ _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
             'type': '_str',
             'is_relational': False,
             'documentation': '''Google sub ID, set on first login''',
+        }),
+        ('role', {
+            'name': 'role',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.Role',
+            'is_relational': False,
+            'documentation': None,
         }),
         ('permissionSetId', {
             'name': 'permissionSetId',
@@ -9207,6 +9369,14 @@ _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
             'is_list': False,
             'optional': True,
             'type': 'models.PermissionSet',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('productAccess', {
+            'name': 'productAccess',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ProductAccess\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -9271,6 +9441,79 @@ _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.RecipeVersion\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_ProductAccess_relational_fields: Set[str] = {
+        'user',
+        'product',
+    }
+_ProductAccess_fields: Dict['types.ProductAccessKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('userId', {
+            'name': 'userId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('productId', {
+            'name': 'productId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('level', {
+            'name': 'level',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"view", "operate", "develop", "admin"''',
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('updatedAt', {
+            'name': 'updatedAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('user', {
+            'name': 'user',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('product', {
+            'name': 'product',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.Product',
             'is_relational': True,
             'documentation': None,
         }),
@@ -9938,6 +10181,7 @@ model_rebuild(Test)
 model_rebuild(TestExecution)
 model_rebuild(TestStep)
 model_rebuild(User)
+model_rebuild(ProductAccess)
 model_rebuild(PermissionSet)
 model_rebuild(ApiKey)
 model_rebuild(AuditLog)

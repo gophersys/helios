@@ -131,6 +131,13 @@ enum BuildRunStatus {
   CANCELLED // Pipeline cancelled
 }
 
+enum Role {
+  ADMIN
+  MAINTAINER
+  DEVELOPER
+  OPERATOR
+}
+
 // =============================================================================
 //
 //  PRODUCTS
@@ -166,6 +173,7 @@ model Product {
   stageConfigs   ProductStageConfig[]
   testPackages   TestPackage[]
   recipeVersions RecipeVersion[]
+  productAccess  ProductAccess[]
 
   @@map("products")
 }
@@ -1000,6 +1008,7 @@ model User {
   email           String    @unique
   name            String
   externalId      String?   @unique /// Google sub ID, set on first login
+  role            Role      @default(DEVELOPER)
   permissionSetId String?
   active          Boolean   @default(true)
   lastSeenAt      DateTime?
@@ -1007,6 +1016,7 @@ model User {
   updatedAt       DateTime  @updatedAt
 
   permissionSet  PermissionSet?  @relation(fields: [permissionSetId], references: [id])
+  productAccess  ProductAccess[]
   apiKeys        ApiKey[]
   sessions       Session[]
   deployments    Deployment[]
@@ -1017,6 +1027,26 @@ model User {
   recipeVersions RecipeVersion[]
 
   @@map("users")
+}
+
+/// Product-level access control. Each entry grants a user a specific access level
+/// (view, operate, develop, admin) to a specific product. Admin/Maintainer roles
+/// bypass product access checks entirely.
+model ProductAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  level     String   @default("view") /// "view", "operate", "develop", "admin"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("product_access")
 }
 
 /// A named set of permissions assignable to users.

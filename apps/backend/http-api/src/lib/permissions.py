@@ -19,6 +19,12 @@ class Permissions:
     VALIDATION_VIEW = "validation:view"
     VALIDATION_RUN = "validation:run"
     VALIDATION_MANAGE = "validation:manage"
+
+    # Manufacturing
+    MANUFACTURING_VIEW = "manufacturing:view"
+    MANUFACTURING_RUN = "manufacturing:run"
+    MANUFACTURING_MANAGE = "manufacturing:manage"
+
     # Infrastructure
     FIXTURES_VIEW = "fixtures:view"
     FIXTURES_MANAGE = "fixtures:manage"
@@ -54,6 +60,12 @@ PERMISSION_REGISTRY = {
     "validation:view": {"module": "Testing", "label": "View Validation", "description": "View validation runs, results, test catalog"},
     "validation:run": {"module": "Testing", "label": "Run Validation", "description": "Trigger validation runs and test executions"},
     "validation:manage": {"module": "Testing", "label": "Manage Validation", "description": "Configure validation designs, manage test catalog"},
+
+    # Manufacturing
+    "manufacturing:view": {"module": "Manufacturing", "label": "View Manufacturing", "description": "View manufacturing sessions, POST results, and device status"},
+    "manufacturing:run": {"module": "Manufacturing", "label": "Run Manufacturing", "description": "Start manufacturing sessions and run POST tests"},
+    "manufacturing:manage": {"module": "Manufacturing", "label": "Manage Manufacturing", "description": "Configure manufacturing procedures, manage POST sequences"},
+
     # Infrastructure
     "fixtures:view": {"module": "Infrastructure", "label": "View Fixtures", "description": "View fixtures, test benches, designs, slots, and assignments"},
     "fixtures:manage": {"module": "Infrastructure", "label": "Manage Fixtures", "description": "Create, configure, and manage fixtures and test benches"},
@@ -74,24 +86,34 @@ PERMISSION_REGISTRY = {
 
 
 # Default role definitions for seed.py
+# Maps the 4 Role enum values to their permission sets.
 DEFAULT_ROLES = {
-    "Super Admin": list(Permissions.all()),
-    "Admin": [
+    "Admin": list(Permissions.all()),  # All permissions (Super Admin = Admin role)
+    "Maintainer": [
         p for p in Permissions.all()
-        if p not in {"kubernetes:manage", "system:manage", "permissions:manage"}
+        if p not in {"users:manage", "permissions:manage", "system:manage", "kubernetes:manage"}
     ],
+    "Developer": [
+        "products:view", "builds:view", "builds:trigger", "builds:manage",
+        "validation:view", "validation:run",
+        "manufacturing:view",
+        "fixtures:view", "devices:view",
+        "api-keys:view", "api-keys:manage",
+    ],
+    "Operator": [
+        "manufacturing:view", "manufacturing:run", "manufacturing:manage",
+    ],
+}
+
+# Legacy roles kept for backward compatibility during migration
+LEGACY_ROLES = {
+    "Super Admin": list(Permissions.all()),
     "Engineer": [
         "products:view", "builds:view", "builds:trigger",
         "validation:view", "validation:run",
         "fixtures:view", "devices:view",
         "kubernetes:view", "system:view",
         "api-keys:view", "api-keys:manage",
-    ],
-    "Operator": [
-        "products:view", "builds:view",
-        "validation:view",
-        "fixtures:view", "devices:view",
-        "system:view",
     ],
     "Viewer": [
         "products:view", "builds:view",

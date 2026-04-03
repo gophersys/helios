@@ -14,12 +14,35 @@
   let email = $state('');
   let password = $state('');
 
+  // Dev mode state
+  interface DevUser {
+    email: string;
+    name: string;
+    role: string;
+    permissionSet: string | null;
+  }
+  let devUsers = $state<DevUser[]>([]);
+  let isDevMode = $state(false);
+  let devLoading = $state<string | null>(null);
+
   // Redirect if already authenticated (check token directly to avoid timing issues)
   $effect(() => {
     if (auth.isAuthenticated && getToken()) {
       goto('/');
     }
   });
+
+  // Role display config
+  const ROLE_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
+    ADMIN:      { label: 'Admin',     color: 'text-error',   bgColor: 'bg-error-muted' },
+    MAINTAINER: { label: 'Maintainer', color: 'text-warning', bgColor: 'bg-warning-muted' },
+    DEVELOPER:  { label: 'Developer', color: 'text-accent',  bgColor: 'bg-accent-muted' },
+    OPERATOR:   { label: 'Operator',  color: 'text-success', bgColor: 'bg-success-muted' },
+  };
+
+  function getRoleConfig(role: string) {
+    return ROLE_CONFIG[role] || { label: role, color: 'text-text-secondary', bgColor: 'bg-surface-2' };
+  }
 
   // Flying planes animation
   interface Plane {
@@ -253,8 +276,37 @@
   }
 
   onMount(() => {
+    // Check if dev mode is available
+    fetchDevUsers();
     return initPlanesAnimation();
   });
+
+  async function fetchDevUsers() {
+    try {
+      const res = await fetch('/v2/auth/dev-users');
+      if (res.ok) {
+        const data = await res.json();
+        devUsers = data.data || [];
+        isDevMode = true;
+      }
+    } catch {
+      // Not in dev mode, show normal login
+    }
+  }
+
+  async function handleDevLogin(userEmail: string) {
+    devLoading = userEmail;
+    error = null;
+
+    try {
+      await auth.devLogin(userEmail);
+      goto('/');
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Dev login failed';
+    } finally {
+      devLoading = null;
+    }
+  }
 
   async function handleLogin(e: Event) {
     e.preventDefault();
@@ -272,6 +324,26 @@
       loading = false;
     }
   }
+
+  // Group dev users by role for display
+  const groupedUsers = $derived.by(() => {
+    const groups: Record<string, DevUser[]> = {};
+    for (const u of devUsers) {
+      if (!groups[u.role]) groups[u.role] = [];
+      groups[u.role].push(u);
+    }
+    // Sort by role hierarchy
+    const order = ['ADMIN', 'MAINTAINER', 'DEVELOPER', 'OPERATOR'];
+    const sorted: [string, DevUser[]][] = [];
+    for (const role of order) {
+      if (groups[role]) sorted.push([role, groups[role]]);
+    }
+    // Add any remaining roles
+    for (const [role, users] of Object.entries(groups)) {
+      if (!order.includes(role)) sorted.push([role, users]);
+    }
+    return sorted;
+  });
 </script>
 
 <svelte:head>
@@ -289,7 +361,7 @@
   <canvas bind:this={canvas} class="planes-canvas"></canvas>
 
   <!-- Content -->
-  <div class="relative z-10 w-full max-w-md px-4">
+  <div class="relative z-10 w-full px-4" class:max-w-md={!isDevMode} class:max-w-lg={isDevMode}>
     <div class="mb-10 text-center">
       <div class="flex justify-center mb-5">
         <div class="logo-wrapper">
@@ -310,9 +382,15 @@
           class="hidden h-5 dark:block"
         />
       </div>
-      <p class="text-base text-text-secondary">
-        Sign in to continue
-      </p>
+      {#if isDevMode}
+        <div class="inline-flex items-center gap-2 rounded-full bg-warning-muted px-3 py-1 text-xs font-medium text-warning">
+          Development Mode
+        </div>
+      {:else}
+        <p class="text-base text-text-secondary">
+          Sign in to continue
+        </p>
+      {/if}
     </div>
 
     <div class="card card-lg shadow-xl backdrop-blur-md bg-surface-1/80 border border-white/10">
@@ -322,7 +400,58 @@
         </div>
       {/if}
 
-      {#if loading}
+      {#if isDevMode}
+        <!-- Dev mode: user picker -->
+        <div class="space-y-4">
+          <p class="text-sm text-text-secondary text-center">
+            Select a user to login instantly
+          </p>
+
+          {#each groupedUsers as [role, users]}
+            {@const config = getRoleConfig(role)}
+            <div class="space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-2xs font-medium uppercase tracking-widest {config.color}">{config.label}</span>
+                <div class="flex-1 border-t border-border"></div>
+              </div>
+              {#each users as user}
+                <button
+                  onclick={() => handleDevLogin(user.email)}
+                  disabled={devLoading !== null}
+                  class="group w-full flex items-center gap-3 rounded-lg border border-border bg-surface-0 px-4 py-3 text-left transition-all hover:border-accent hover:bg-surface-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <!-- Avatar -->
+                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full {config.bgColor} text-sm font-semibold {config.color}">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+
+                  <!-- Info -->
+                  <div class="min-w-0 flex-1">
+                    <div class="text-sm font-medium text-text-primary truncate">
+                      {user.name}
+                    </div>
+                    <div class="text-2xs text-text-tertiary truncate">
+                      {user.email}
+                      {#if user.permissionSet}
+                        <span class="text-text-tertiary/60"> &middot; {user.permissionSet}</span>
+                      {/if}
+                    </div>
+                  </div>
+
+                  <!-- Loading/Arrow -->
+                  {#if devLoading === user.email}
+                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent shrink-0"></div>
+                  {:else}
+                    <svg class="h-4 w-4 shrink-0 text-text-tertiary group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  {/if}
+                </button>
+              {/each}
+            </div>
+          {/each}
+        </div>
+      {:else if loading}
         <div class="flex items-center justify-center py-4">
           <div class="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent"></div>
           <span class="ml-2 text-sm text-text-secondary">Signing in...</span>
@@ -362,7 +491,7 @@
       {/if}
 
       <p class="mt-4 text-center text-xs text-text-tertiary">
-        Only pre-registered accounts can login
+        {isDevMode ? 'Auth is disabled — click any user to login' : 'Only pre-registered accounts can login'}
       </p>
     </div>
   </div>

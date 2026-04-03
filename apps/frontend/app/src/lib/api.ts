@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 
 const TOKEN_KEY = 'concord-token';
+const VIEW_AS_KEY = 'concord-view-as-role';
 
 export function getToken(): string | null {
   if (!browser) return null;
@@ -30,6 +31,11 @@ export async function apiFetch<T = unknown>(
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const viewAs = browser ? localStorage.getItem(VIEW_AS_KEY) : null;
+  if (viewAs) {
+    headers['X-View-As-Role'] = viewAs;
   }
 
   const res = await fetch(path, { ...options, headers });

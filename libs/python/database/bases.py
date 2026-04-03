@@ -334,6 +334,16 @@ class BaseUser(_PrismaModel):
         return actions.UserActions[_PrismaModelT](client or get_client(), cls)
 
 
+class BaseProductAccess(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['ProductAccess']] = 'ProductAccess'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.ProductAccessActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.ProductAccessActions[_PrismaModelT](client or get_client(), cls)
+
+
 class BasePermissionSet(_PrismaModel):
     __prisma_model__: ClassVar[Literal['PermissionSet']] = 'PermissionSet'  # pyright: ignore[reportIncompatibleVariableOverride]
 

@@ -32,6 +32,7 @@ PRISMA_MODELS: set[str] = {
     'TestExecution',
     'TestStep',
     'User',
+    'ProductAccess',
     'PermissionSet',
     'ApiKey',
     'AuditLog',
@@ -56,6 +57,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'stageConfigs': 'ProductStageConfig',
         'testPackages': 'TestPackage',
         'recipeVersions': 'RecipeVersion',
+        'productAccess': 'ProductAccess',
     },
     'TestPackage': {
         'product': 'Product',
@@ -179,6 +181,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     },
     'User': {
         'permissionSet': 'PermissionSet',
+        'productAccess': 'ProductAccess',
         'apiKeys': 'ApiKey',
         'sessions': 'Session',
         'deployments': 'Deployment',
@@ -187,6 +190,10 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'auditLogs': 'AuditLog',
         'secrets': 'Secret',
         'recipeVersions': 'RecipeVersion',
+    },
+    'ProductAccess': {
+        'user': 'User',
+        'product': 'Product',
     },
     'PermissionSet': {
         'users': 'User',

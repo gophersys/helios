@@ -97,6 +97,7 @@ def auth_headers():
         email="test@example.com",
         name="Test User",
         permission_set_id="test-perm-set-id",
+        role="DEVELOPER",
     )
     return {
         "Authorization": f"Bearer {token}",

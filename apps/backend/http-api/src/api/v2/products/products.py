@@ -2,8 +2,9 @@ import logging
 import math
 from typing import Any
 
-from flask import jsonify, request
+from flask import g, jsonify, request
 
+from config.env import env_config
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, internal_error, not_found
@@ -159,8 +160,25 @@ def list_products():
     limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
     skip = (page - 1) * limit
 
-    total = db.product.count()
+    # Filter by product access for Developer/Operator roles
+    # Uses effective_role (set by require_permissions → _resolve_effective_role)
+    # so the X-View-As-Role header works for product filtering too.
+    where = {}
+    if env_config.AUTH_ENABLED:
+        user = getattr(g, "current_user", None)
+        if user:
+            effective_role = getattr(g, "effective_role", user.get("role", "DEVELOPER"))
+            if effective_role not in ("ADMIN", "MAINTAINER"):
+                # Only show products the user has explicit access to
+                access_entries = db.productaccess.find_many(
+                    where={"userId": user["sub"]},
+                )
+                accessible_ids = [a.productId for a in access_entries]
+                where = {"id": {"in": accessible_ids}}
+
+    total = db.product.count(where=where)
     products = db.product.find_many(
+        where=where,
         skip=skip,
         take=limit,
         order={"name": "asc"},

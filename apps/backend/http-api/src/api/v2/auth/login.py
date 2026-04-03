@@ -66,6 +66,7 @@ def login():
             data={
                 "email": "admin@concord.local",
                 "name": "Dev Admin",
+                "role": "ADMIN",
                 "active": True,
                 "permissionSetId": perm_set.id,
             },
@@ -85,7 +86,8 @@ def login():
     )
 
     # Issue a Concord JWT
-    token = create_token(user.id, user.email, user.name, user.permissionSetId)
+    user_role = getattr(user, "role", "DEVELOPER") or "DEVELOPER"
+    token = create_token(user.id, user.email, user.name, user.permissionSetId, role=user_role)
 
     log_audit("login", "User", user.id, {"email": user.email, "name": user.name})
 
@@ -96,6 +98,7 @@ def login():
                 "id": user.id,
                 "email": user.email,
                 "name": user.name,
+                "role": user_role,
                 "permissionSetId": user.permissionSetId,
                 "permissionSetName": user.permissionSet.name if user.permissionSet else None,
             },

@@ -120,6 +120,7 @@ class Prisma(SyncBasePrisma):
     testexecution: 'actions.TestExecutionActions[models.TestExecution]'
     teststep: 'actions.TestStepActions[models.TestStep]'
     user: 'actions.UserActions[models.User]'
+    productaccess: 'actions.ProductAccessActions[models.ProductAccess]'
     permissionset: 'actions.PermissionSetActions[models.PermissionSet]'
     apikey: 'actions.ApiKeyActions[models.ApiKey]'
     auditlog: 'actions.AuditLogActions[models.AuditLog]'
@@ -157,6 +158,7 @@ class Prisma(SyncBasePrisma):
         'testexecution',
         'teststep',
         'user',
+        'productaccess',
         'permissionset',
         'apikey',
         'auditlog',
@@ -222,6 +224,7 @@ class Prisma(SyncBasePrisma):
         self.testexecution = actions.TestExecutionActions[models.TestExecution](self, models.TestExecution)
         self.teststep = actions.TestStepActions[models.TestStep](self, models.TestStep)
         self.user = actions.UserActions[models.User](self, models.User)
+        self.productaccess = actions.ProductAccessActions[models.ProductAccess](self, models.ProductAccess)
         self.permissionset = actions.PermissionSetActions[models.PermissionSet](self, models.PermissionSet)
         self.apikey = actions.ApiKeyActions[models.ApiKey](self, models.ApiKey)
         self.auditlog = actions.AuditLogActions[models.AuditLog](self, models.AuditLog)
@@ -407,6 +410,7 @@ class Batch:
     testexecution: 'TestExecutionBatchActions'
     teststep: 'TestStepBatchActions'
     user: 'UserBatchActions'
+    productaccess: 'ProductAccessBatchActions'
     permissionset: 'PermissionSetBatchActions'
     apikey: 'ApiKeyBatchActions'
     auditlog: 'AuditLogBatchActions'
@@ -447,6 +451,7 @@ class Batch:
         self.testexecution = TestExecutionBatchActions(self)
         self.teststep = TestStepBatchActions(self)
         self.user = UserBatchActions(self)
+        self.productaccess = ProductAccessBatchActions(self)
         self.permissionset = PermissionSetBatchActions(self)
         self.apikey = ApiKeyBatchActions(self)
         self.auditlog = AuditLogBatchActions(self)
@@ -3388,6 +3393,117 @@ class UserBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.User,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class ProductAccessBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.ProductAccessCreateInput,
+        include: Optional[types.ProductAccessInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.ProductAccess,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.ProductAccessCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.ProductAccess,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.ProductAccessWhereUniqueInput,
+        include: Optional[types.ProductAccessInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.ProductAccess,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.ProductAccessUpdateInput,
+        where: types.ProductAccessWhereUniqueInput,
+        include: Optional[types.ProductAccessInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.ProductAccess,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.ProductAccessWhereUniqueInput,
+        data: types.ProductAccessUpsertInput,
+        include: Optional[types.ProductAccessInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.ProductAccess,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.ProductAccessUpdateManyMutationInput,
+        where: types.ProductAccessWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.ProductAccess,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.ProductAccessWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.ProductAccess,
             arguments={'where': where},
             root_selection=['count'],
         )

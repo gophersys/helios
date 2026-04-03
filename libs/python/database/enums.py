@@ -141,3 +141,9 @@ class BuildRunStatus(StrEnum):
     FAILED = 'FAILED'
     CANCELLED = 'CANCELLED'
 
+class Role(StrEnum):
+    ADMIN = 'ADMIN'
+    MAINTAINER = 'MAINTAINER'
+    DEVELOPER = 'DEVELOPER'
+    OPERATOR = 'OPERATOR'
+

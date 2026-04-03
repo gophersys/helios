@@ -15,6 +15,7 @@
     ChevronUp,
     Shield,
     Factory,
+    ScanEye,
   } from 'lucide-svelte';
   import { PUBLIC_APP_VERSION } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
@@ -47,6 +48,13 @@
 
   let adminExpanded = $state(false);
   let systemExpanded = $state(false);
+  let viewAsOpen = $state(false);
+
+  const VIEW_AS_ROLES = [
+    { value: null,        label: 'Your View' },
+    { value: 'DEVELOPER', label: 'Developer' },
+    { value: 'OPERATOR',  label: 'Operator' },
+  ] as const;
 
   // Primary navigation items
   const primaryItems: NavItem[] = [
@@ -292,6 +300,47 @@
       <Settings size={18} strokeWidth={1.75} class="shrink-0" />
       {#if !collapsed}<span class="truncate">Settings</span>{/if}
     </button>
+
+    <!-- View As (Admin/Maintainer only) -->
+    {#if auth.canViewAs && !collapsed}
+      <div class="relative">
+        <button
+          onclick={() => (viewAsOpen = !viewAsOpen)}
+          title="View as another role"
+          class="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all text-text-secondary hover:bg-sidebar-hover hover:text-text-primary"
+          class:bg-sidebar-active={auth.viewAsRole !== null}
+          class:text-warning={auth.viewAsRole !== null}
+        >
+          <ScanEye size={18} strokeWidth={1.75} class="shrink-0" />
+          <span class="flex-1 truncate text-left">
+            {auth.viewAsRole ? `Viewing as ${auth.viewAsRole.charAt(0) + auth.viewAsRole.slice(1).toLowerCase()}` : 'View as...'}
+          </span>
+        </button>
+        {#if viewAsOpen}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="absolute bottom-full left-0 mb-1 w-full rounded-lg border border-border bg-surface-1 shadow-lg overflow-hidden z-50"
+               onclick={() => (viewAsOpen = false)}>
+            {#each VIEW_AS_ROLES as option}
+              <button
+                onclick={() => { auth.setViewAs(option.value); viewAsOpen = false; window.location.reload(); }}
+                class="flex w-full items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-surface-2"
+                class:text-accent={auth.viewAsRole === option.value}
+                class:font-medium={auth.viewAsRole === option.value}
+                class:text-text-secondary={auth.viewAsRole !== option.value}
+              >
+                {#if auth.viewAsRole === option.value}
+                  <span class="text-accent">&#10003;</span>
+                {:else}
+                  <span class="w-4"></span>
+                {/if}
+                {option.label}{#if option.value === null && auth.user} ({auth.user.role?.charAt(0)}{auth.user.role?.slice(1).toLowerCase()}){/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     <!-- User -->
     {#if auth.user}
