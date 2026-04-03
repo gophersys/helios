@@ -158,4 +158,4 @@ COPY ./apps/firmware/products/alpha/scripts /app/firmware/products/alpha/scripts
 
 EXPOSE 9001
 
-CMD ["python3", "-u", "-m", "src.main"]
+CMD ["python3", "-u", "src/main.py"]
