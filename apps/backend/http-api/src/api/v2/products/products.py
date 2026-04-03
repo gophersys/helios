@@ -48,6 +48,9 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         "fwRepoSlug": getattr(p, "fwRepoSlug", None),
         "mfgFwRepoSlug": getattr(p, "mfgFwRepoSlug", None),
         "builderImage": getattr(p, "builderImage", None),
+        # Derived fields for git-poller and build service
+        "repoSshUrl": f"git@bitbucket.org:corekinect/{p.fwRepoSlug}.git" if getattr(p, "fwRepoSlug", None) else None,
+        "mfgRepoSshUrl": f"git@bitbucket.org:corekinect/{p.mfgFwRepoSlug}.git" if getattr(p, "mfgFwRepoSlug", None) else None,
         "buildConfig": p.buildConfig,
         "metadata": p.metadata,
         "createdAt": p.createdAt.isoformat(),
