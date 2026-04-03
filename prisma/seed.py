@@ -877,6 +877,55 @@ concord_finalize
             )
             print(f"  Recipe template: {tmpl['name']}")
 
+        # ── Signing Keys ──
+        # Seed the bench signing keys from the repo (dev/bench only — production keys are never in the DB)
+        print("\n=== Seeding Signing Keys ===")
+        import base64
+
+        key_files = {
+            "Alpha Bench Signing Key (APP)": "apps/firmware/products/alpha/alpha_fw/encryption_key.pem",
+            "Alpha Bench Signing Key (COMMS)": "apps/firmware/products/alpha/alpha_fw/comms_encryption_key.pem",
+        }
+
+        signing_key_ids = {}
+        for key_name, key_path in key_files.items():
+            full_path = os.path.join(os.path.dirname(__file__), "..", key_path)
+            if os.path.exists(full_path):
+                with open(full_path, "r") as f:
+                    key_value = base64.b64encode(f.read().encode()).decode()
+                secret = db.secret.upsert(
+                    where={"name": key_name},
+                    data={
+                        "create": {
+                            "name": key_name,
+                            "type": "signing_key",
+                            "value": key_value,
+                            "description": f"EC P-256 private key for {key_name.split('(')[0].strip()}",
+                            "createdById": dev_admin.id,
+                        },
+                        "update": {
+                            "value": key_value,
+                        },
+                    },
+                )
+                signing_key_ids[key_name] = secret.id
+                print(f"  {key_name}: {secret.id[:16]}...")
+            else:
+                print(f"  WARNING: {key_path} not found")
+
+        # Link the APP signing key to Alpha stages that need it
+        app_key_id = signing_key_ids.get("Alpha Bench Signing Key (APP)")
+        if app_key_id and alpha_product:
+            stages_needing_key = db.productstageconfig.find_many(
+                where={"productId": alpha_product.id, "signingKeyId": None}
+            )
+            for stage in stages_needing_key:
+                db.productstageconfig.update(
+                    where={"id": stage.id},
+                    data={"signingKeyId": app_key_id},
+                )
+            print(f"  Linked signing key to {len(stages_needing_key)} Alpha stages")
+
         # ── Dev Sample Users (development only) ──
         # One user per role for the dev login picker
         is_dev = os.environ.get("ENVIRONMENT", "development") == "development"
