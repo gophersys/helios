@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import {
     CircuitBoard, FlaskConical, Factory, Hammer, Cpu,
-    GitBranch, ExternalLink,
+    GitBranch, ExternalLink, Layers,
   } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TimeDisplay from '$lib/components/ui/time-display.svelte';
@@ -168,6 +168,12 @@
             <span class="text-sm font-medium text-text-primary">{cfg.name}</span>
             {#if cfg.boardRevisionId && revisionMap[cfg.boardRevisionId]}
               <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-accent-muted text-accent">{revisionMap[cfg.boardRevisionId]}</span>
+            {/if}
+            {#if cfg.buildMatrix?.length}
+              <span class="flex items-center gap-1 text-2xs text-text-tertiary" title="{cfg.buildMatrix.length} build matrix entries">
+                <Layers size={10} />
+                {cfg.buildMatrix.length}
+              </span>
             {/if}
             <div class="flex-1"></div>
             <StatusBadge status={cfg.enabled ? 'ACTIVE' : 'DISABLED'} />

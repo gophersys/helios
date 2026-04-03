@@ -10,6 +10,7 @@ export interface ProductStageConfig {
   triggerTypes: string[];
   signingKeyId: string | null;
   signingKey: { id: string; name: string; type: string } | null;
+  buildMatrix?: import('$lib/types/models').StageBuildMatrixEntry[];
   createdAt: string;
   updatedAt: string;
 }

@@ -1,7 +1,12 @@
-"""Single source of truth for validation stage build definitions.
+"""Validation stage definitions and DEFAULT build matrices.
 
-Both the build service and the test framework import from here.
-No other module should define stage build matrices.
+Stage enum and names are canonical — used everywhere.
+Build matrices (_STAGE_BUILDS) are DEFAULT TEMPLATES — copied to the
+DB (StageBuildMatrix) when a stage is first enabled. After that,
+the DB is the source of truth. Edit via the API or UI, not here.
+
+To change the default matrix for NEW stage enablements, edit here.
+To change an existing product's matrix, use the API.
 
     from corekinect.stages import get_stage_build_defs, Stage
     defs = get_stage_build_defs(Stage.FUOTA)
@@ -368,7 +373,10 @@ _STAGE_CAPABILITIES: Dict[Stage, List[str]] = {
 
 
 def get_stage_build_defs(stage: Stage) -> List[StageBuildDef]:
-    """Return build definitions for a validation stage.
+    """Return DEFAULT build definitions for a stage.
+
+    These are templates for seeding new stage configs. The runtime
+    build matrix comes from the StageBuildMatrix DB table, not here.
 
     Version bump builds start BLOCKED and unblock when their base
     build completes.

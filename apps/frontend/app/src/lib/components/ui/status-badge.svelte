@@ -47,6 +47,13 @@
     UNKNOWN: 'bg-surface-2 text-text-tertiary',
     // Recipe version statuses
     PUBLISHED: 'bg-success-muted text-success',
+    // Asset set statuses
+    COMPLETE: 'bg-success-muted text-success',
+    VALIDATED: 'bg-info-muted text-info',
+    // Asset set source badges
+    BUILD_SERVICE: 'bg-accent-muted text-accent',
+    MANUAL_UPLOAD: 'bg-warning-muted text-warning',
+    EXTERNAL_CI: 'bg-surface-2 text-text-secondary',
   };
 
   let { status }: { status: string } = $props();

@@ -16,7 +16,8 @@ setup(
         "paho-mqtt==2.1.0",
         "PyYAML==6.0.3",
         "termcolor>=2.0.0",
-        "joulescope>=1.3.0",
+        "joulescope>=1.1.0,<1.4.0",
+        "pyjoulescope_driver>=1.10.0,<1.11.0",
         "numpy>=1.24.0",
     ],
 )

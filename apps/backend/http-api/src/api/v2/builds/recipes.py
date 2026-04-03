@@ -502,7 +502,10 @@ def diff_recipe_versions(product_id: str):
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def get_stage_defs():
-    """GET /v2/builds/stage-defs — Return stage build definitions.
+    """GET /v2/builds/stage-defs — Return DEFAULT stage build templates.
+
+    These are the Python-defined defaults used for seeding new stage configs.
+    The actual runtime matrix for a product lives in the StageBuildMatrix DB table.
 
     Optional query param: ?stage=smoke|silicon|integration|nightly|fuota
     """

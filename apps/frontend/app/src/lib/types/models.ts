@@ -687,6 +687,55 @@ export interface TestCatalog {
   stageCount: number;
 }
 
+// ── Build Matrix types ───────────────────────────────────────
+
+export interface StageBuildMatrixEntry {
+  id: string;
+  label: string;
+  fwType: string;
+  variant: string;
+  configLog: boolean;
+  producesHex: boolean;
+  producesCfw: boolean;
+  gitRef: string;
+  isVersionBump: boolean;
+  baseLabel: string | null;
+  description: string | null;
+  sortOrder: number;
+}
+
+// ── Asset Set types ──────────────────────────────────────────
+
+export interface AssetSet {
+  id: string;
+  productId: string;
+  version: string;
+  variant: string;
+  stage: number | null;
+  source: 'BUILD_SERVICE' | 'MANUAL_UPLOAD' | 'EXTERNAL_CI';
+  status: 'PENDING' | 'COMPLETE' | 'VALIDATED' | 'FAILED';
+  buildRunId: string | null;
+  commitSha: string | null;
+  branch: string | null;
+  notes: string | null;
+  boardRevision?: { id: string; version: string; ckBoardsName: string } | null;
+  createdBy?: { id: string; name: string } | null;
+  assets: AssetFile[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssetFile {
+  id: string;
+  label: string;
+  role: string;
+  processor: string | null;
+  artifactType: string;
+  filename: string;
+  sizeBytes: number;
+  checksum: string;
+}
+
 // ── UI utility types ─────────────────────────────────────────
 
 export interface TreeNode {

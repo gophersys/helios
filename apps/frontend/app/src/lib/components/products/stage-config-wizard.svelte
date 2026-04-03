@@ -3,6 +3,7 @@
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import CodeEditor from '$lib/components/ui/code-editor.svelte';
+  import BuildMatrixView from './build-matrix-view.svelte';
   import {
     ChevronRight, ChevronLeft, Check, CircuitBoard, GitBranch, Key,
     Zap, Clock, Hand, GitPullRequest, GitMerge, Loader2, FlaskConical,
@@ -1337,6 +1338,11 @@
               </span>
             </div>
           </div>
+
+          <!-- Build Matrix -->
+          {#if config}
+            <BuildMatrixView {productId} {stage} canManage={true} />
+          {/if}
         </div>
       {/if}
     </div>
