@@ -9,6 +9,7 @@ import logging
 from flask import jsonify, request
 
 from config import env_config
+from src.lib.errors import bad_request, not_found, forbidden
 from src.lib.types import ApiResponse
 from src.services.auth.jwt import create_token
 from src.services.database.prisma import get_db_client
@@ -31,7 +32,7 @@ def dev_users():
     Only available when AUTH_ENABLED=false.
     """
     if env_config.AUTH_ENABLED:
-        return jsonify(ApiResponse.error("Not available in this environment").to_dict()), 403
+        return forbidden("Not available in this environment")
 
     db = get_db_client()
     users = db.user.find_many(
@@ -39,7 +40,6 @@ def dev_users():
         include={"permissionSet": True},
     )
 
-    # Sort by role hierarchy
     role_order = {"ADMIN": 0, "MAINTAINER": 1, "DEVELOPER": 2, "OPERATOR": 3}
     users.sort(key=lambda u: role_order.get(getattr(u, "role", "DEVELOPER"), 99))
 
@@ -67,11 +67,11 @@ def dev_login():
     Only available when AUTH_ENABLED=false.
     """
     if env_config.AUTH_ENABLED:
-        return jsonify(ApiResponse.error("Dev login disabled in this environment").to_dict()), 403
+        return forbidden("Dev login disabled in this environment")
 
     body = request.get_json()
     if not body or not body.get("email"):
-        return jsonify(ApiResponse.error("Email is required").to_dict()), 400
+        return bad_request("Email is required")
 
     email = body["email"].strip().lower()
 
@@ -82,10 +82,10 @@ def dev_login():
     )
 
     if not user:
-        return jsonify(ApiResponse.error(f"User '{email}' not found. Run: python3 prisma/seed.py").to_dict()), 404
+        return not_found(f"User '{email}' not found. Run: python3 prisma/seed.py")
 
     if not user.active:
-        return jsonify(ApiResponse.error("User account is deactivated").to_dict()), 403
+        return forbidden("User account is deactivated")
 
     user_role = getattr(user, "role", "DEVELOPER") or "DEVELOPER"
     token = create_token(user.id, user.email, user.name, user.permissionSetId, role=user_role)

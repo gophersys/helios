@@ -311,7 +311,6 @@ def create_build():
                         "versionString": cached.versionString,
                         "webhookData": Json(config_flags),
                         "configFlags": Json(config_flags),
-                        "triggerType": data.trigger_type,
                         "notes": data.notes,
                     },
                     include={"artifacts": True, "product": True},
@@ -345,7 +344,6 @@ def create_build():
             "buildFingerprint": fingerprint,
             "webhookData": Json(config_flags),
             "configFlags": Json(config_flags),
-            "triggerType": data.trigger_type,
             "notes": data.notes,
             **extra_fields,
         }

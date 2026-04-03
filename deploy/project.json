@@ -102,6 +102,16 @@
       }
     },
 
+    "test:integration": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          "PYTHONPATH=apps/backend/http-api/src:apps/backend/http-api:libs/python:libs:libs/protocols python3 -m pytest tests/integration/ -v --timeout=60"
+        ]
+      }
+    },
+
     "diff": {
       "executor": "nx:run-commands",
       "options": { "cwd": "{workspaceRoot}" },
