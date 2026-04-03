@@ -185,9 +185,9 @@ class TestSeedFileConsistency:
         content = SEED_PATH.read_text()
         assert "buildConfig" in content, "seed.py must set buildConfig on Alpha product"
 
-    def test_seed_file_references_build_matrix_for_stages(self):
+    def test_seed_file_references_trigger_types_for_stages(self):
         content = SEED_PATH.read_text()
-        assert "buildMatrix" in content, "seed.py must set buildMatrix on stage configs"
+        assert "triggerTypes" in content, "seed.py must set triggerTypes on stage configs"
 
     def test_seed_file_defines_all_five_stages(self):
         content = SEED_PATH.read_text()
