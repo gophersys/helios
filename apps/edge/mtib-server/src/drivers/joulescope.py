@@ -81,7 +81,7 @@ class JoulescopeDriver:
                 return "No device found — call scan() first"
 
             try:
-                self._device.open()
+                self._device.open(mode="defaults", timeout=10.0)
                 # Configure for current+voltage measurement
                 try:
                     self._device.parameter_set("i_range", "auto")
