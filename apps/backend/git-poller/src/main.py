@@ -310,8 +310,10 @@ def _setup_ssh_key() -> str:
     """Write SSH key from env var to a file. Returns path to key file."""
     import base64, stat, tempfile
 
-    # If SSH_AUTH_SOCK is set, use agent
-    if os.environ.get("SSH_AUTH_SOCK"):
+    # If SSH_AUTH_SOCK is set and the socket exists, use agent
+    sock = os.environ.get("SSH_AUTH_SOCK", "")
+    if sock and os.path.exists(sock):
+        log.info("Using SSH agent at %s", sock)
         return ""  # No key file needed
 
     # If BITBUCKET_SSH_KEY is set (base64-encoded), write to temp file
