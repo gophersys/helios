@@ -71,10 +71,14 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         stages = p.stageConfigs
         data["stageConfigs"] = [
             {
+                "id": s.id,
                 "stage": s.stage,
                 "name": s.name,
                 "enabled": s.enabled,
-                "triggerTypes": getattr(s, "triggerTypes", "manual"),
+                "triggerTypes": getattr(s, "triggerTypes", []) or [],
+                "watchBranch": getattr(s, "watchBranch", None),
+                "boardRevisionId": getattr(s, "boardRevisionId", None),
+                "signingKeyId": getattr(s, "signingKeyId", None),
             }
             for s in sorted(stages, key=lambda x: x.stage)
         ]
@@ -300,6 +304,9 @@ def get_product(product_id: str):
                     "boardRevision": True,
                 },
             },
+            "stageConfigs": {
+                "order_by": {"stage": "asc"},
+            },
         },
     )
     if not product:
@@ -373,6 +380,7 @@ def get_product_by_slug(slug: str):
         where={"slug": slug},
         include={
             "boards": {"include": {"revisions": {"include": {"targets": True}}}},
+            "stageConfigs": {"order_by": {"stage": "asc"}},
         },
     )
     if not product:
