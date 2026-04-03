@@ -8,6 +8,7 @@ from dataclasses import dataclass
 @dataclass
 class BuildServiceConfig:
     """Configuration loaded from environment variables."""
+    environment: str
     api_url: str
     api_key: str
     worker_id: str
@@ -38,6 +39,7 @@ class BuildServiceConfig:
     @classmethod
     def from_env(cls) -> "BuildServiceConfig":
         return cls(
+            environment=os.environ.get("ENVIRONMENT", "development"),
             api_url=os.environ.get("CONCORD_API_URL", "https://staging.concord.local"),
             api_key=os.environ.get("CONCORD_API_KEY", ""),
             worker_id=os.environ.get("WORKER_ID", socket.gethostname()),
@@ -65,6 +67,10 @@ class BuildServiceConfig:
             engineering_signing_key=os.environ.get("ENGINEERING_SIGNING_KEY", ""),
             production_signing_key=os.environ.get("PRODUCTION_SIGNING_KEY", ""),
         )
+
+    @property
+    def service_name(self) -> str:
+        return "build-service"
 
     def signing_key_for_track(self, track: str) -> str:
         """Get the base64-encoded signing key for a release track."""

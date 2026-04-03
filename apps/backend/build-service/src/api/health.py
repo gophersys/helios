@@ -1,6 +1,6 @@
 """Health and readiness endpoints."""
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, current_app, jsonify
 from datetime import datetime, timezone
 
 health_bp = Blueprint("health", __name__)
@@ -37,6 +37,8 @@ def health():
     return jsonify(
         {
             "status": "healthy",
+            "service": "build-service",
+            "worker_id": getattr(current_app.config.get("BUILD_SERVICE_CONFIG"), "worker_id", "unknown"),
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "database": "connected" if db_ok else "unavailable",
             "workers": workers,

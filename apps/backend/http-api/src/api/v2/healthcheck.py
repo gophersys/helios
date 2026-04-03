@@ -1,3 +1,9 @@
+from flask import jsonify
+
+
 def healthcheck():
-    """This route just returns OK. Yes we're alive."""
-    return "", 200
+    """Return service health status."""
+    return jsonify({
+        "status": "healthy",
+        "service": "http-api",
+    }), 200

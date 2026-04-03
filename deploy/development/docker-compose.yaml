@@ -83,6 +83,8 @@ services:
       CONCORD_API_URL: http://http-api:9001
       CONCORD_API_KEY: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG
       POLL_INTERVAL: "30"
+      SERVICE_PORT: "9003"
+      ENVIRONMENT: development
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY:-}
       BITBUCKET_WORKSPACE: corekinect
     depends_on:

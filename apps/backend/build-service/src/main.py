@@ -40,6 +40,8 @@ def main():
 
     config = BuildServiceConfig.from_env()
     log.info("Build Service starting — worker=%s, mode=%s", config.worker_id, config.builder_mode)
+    log.info("Environment: %s, Worker: %s, Mode: %s, Port: %d",
+             config.environment, config.worker_id, config.builder_mode, config.service_port)
 
     # Setup SSH key from base64 env var
     _setup_ssh_key(config)

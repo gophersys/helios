@@ -1,26 +1,15 @@
-"""Git-based repo poller — polls for new commits via SSH and triggers CI.
+"""Git-based repo poller -- polls for new commits via SSH and triggers CI.
 
-Lightweight alternative to webhooks. Polls every N seconds using git ls-remote.
-Uses SSH key auth, no API tokens needed.
-
-Repo configs are fetched from the Product catalog (/v2/catalog/products).
-Products define their repos via repoSlug, repoSshUrl, repoBranch fields.
-This allows adding new products without changing poller code.
-
-Usage:
-    python -m src.services.git_poller
-
-Environment:
-    SSH_KEY_PATH: Path to SSH private key (default: /root/.ssh/keys/bitbucket)
-    POLL_INTERVAL: Seconds between polls (default: 15)
-    CONCORD_API_URL: Concord API base URL
-    CONCORD_API_KEY: API key for triggering builds
+Polls every N seconds using git ls-remote. Uses SSH key auth.
+Repo configs come from the Product catalog (/v2/catalog/products).
 """
 
 import json
 import logging
 import os
+import signal
 import subprocess
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,10 +23,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%H:%M:%S",
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
-log = logging.getLogger("git_poller")
+log = logging.getLogger("git-poller")
 
 
 @dataclass
@@ -61,17 +49,13 @@ class GitPoller:
 
     def __init__(
         self,
-        ssh_key_path: str = "/root/.ssh/keys/bitbucket",
-        poll_interval: int = 15,
+        config,
+        shutdown_event: threading.Event,
         state_file: str = "/tmp/git_poller_state.json",
-        api_url: str = "https://staging.concord.local",
-        api_key: str = "",
     ):
-        self.ssh_key_path = ssh_key_path
-        self.poll_interval = poll_interval
+        self.config = config
+        self.shutdown = shutdown_event
         self.state_file = Path(state_file)
-        self.api_url = api_url.rstrip("/")
-        self.api_key = api_key
         self.state: Dict[str, str] = {}  # repo_name -> last_commit_sha
         self._repos: List[RepoConfig] = []
         self._repos_loaded_at: float = 0
@@ -106,14 +90,14 @@ class GitPoller:
 
         Only active products with repoSshUrl are polled.
         """
-        if not self.api_key:
+        if not self.config.api_key:
             log.warning("No API key configured, cannot fetch repo configs")
             return []
 
         try:
-            url = f"{self.api_url}/v2/products"
+            url = f"{self.config.api_url}/v2/products"
             headers = {
-                "Authorization": f"ApiKey {self.api_key}",
+                "Authorization": f"ApiKey {self.config.api_key}",
                 "Content-Type": "application/json",
             }
             resp = requests.get(url, headers=headers, timeout=30, verify=False)
@@ -129,14 +113,12 @@ class GitPoller:
 
             repos = []
             for p in products:
-                # Skip inactive products
                 if not p.get("active", True):
                     continue
 
-                # Get repo config from product fields
                 ssh_url = p.get("repoSshUrl", "")
                 if not ssh_url:
-                    continue  # Skip products without SSH URL configured
+                    continue
 
                 repo_slug = p.get("repoSlug") or p.get("slug", "")
                 branch = p.get("repoBranch", "concord-main") or "concord-main"
@@ -171,11 +153,10 @@ class GitPoller:
         """Get latest commit SHA from remote branch via git ls-remote."""
         try:
             env = os.environ.copy()
-            # Use SSH agent if available, fall back to key file
             if os.environ.get("SSH_AUTH_SOCK"):
                 env["GIT_SSH_COMMAND"] = "ssh -o StrictHostKeyChecking=no -o BatchMode=yes"
             else:
-                env["GIT_SSH_COMMAND"] = f"ssh -i {self.ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes"
+                env["GIT_SSH_COMMAND"] = f"ssh -i {self.config.ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes"
 
             result = subprocess.run(
                 ["git", "ls-remote", repo.ssh_url, f"refs/heads/{repo.branch}"],
@@ -189,7 +170,6 @@ class GitPoller:
                 log.error("git ls-remote failed for %s: %s", repo.name, result.stderr)
                 return None
 
-            # Output format: "sha\trefs/heads/branch"
             line = result.stdout.strip()
             if not line:
                 log.warning("Branch %s not found in %s", repo.branch, repo.name)
@@ -206,20 +186,15 @@ class GitPoller:
             return None
 
     def trigger_build(self, repo: RepoConfig, commit_sha: str) -> bool:
-        """Trigger a CI pipeline via Concord API.
-
-        Creates a PipelineRun with build jobs for:
-          1. Production firmware (repo.name)
-          2. Manufacturing firmware (repo.mfg_repo_slug) if configured
-        """
-        if not self.api_key:
+        """Trigger a CI pipeline via Concord API."""
+        if not self.config.api_key:
             log.warning("No API key configured, skipping trigger for %s", repo.name)
             return False
 
         try:
-            url = f"{self.api_url}/v2/builds/pipelines"
+            url = f"{self.config.api_url}/v2/builds/pipelines"
             headers = {
-                "Authorization": f"ApiKey {self.api_key}",
+                "Authorization": f"ApiKey {self.config.api_key}",
                 "Content-Type": "application/json",
             }
             payload = {
@@ -230,10 +205,8 @@ class GitPoller:
                 "board": repo.build_board,
                 "triggerType": "poller",
                 "matrixMode": "fuota",
-                # Include mfg repo info if configured
                 "mfgRepoSlug": repo.mfg_repo_slug or None,
                 "mfgSshUrl": repo.mfg_ssh_url or None,
-                # Stage parameter for buildMatrix lookup
                 "validationConfig": {"stage": 5},
             }
 
@@ -272,76 +245,119 @@ class GitPoller:
             last_sha = self.state.get(repo.name)
 
             if last_sha is None:
-                # First time seeing this repo
                 log.info("[%s] Initial SHA: %s", repo.name, sha[:8])
                 self.state[repo.name] = sha
                 self._save_state()
             elif sha != last_sha:
-                # New commit detected!
                 log.info("[%s] New commit: %s -> %s", repo.name, last_sha[:8], sha[:8])
                 if self.trigger_build(repo, sha):
                     self.state[repo.name] = sha
                     self._save_state()
             else:
-                # No change
                 log.debug("[%s] No change (%s)", repo.name, sha[:8])
 
     def run(self) -> None:
-        """Main polling loop."""
-        log.info("Git poller starting (interval=%ds)", self.poll_interval)
-
-        # Initial fetch to log what we're watching
+        """Main polling loop. Blocks until shutdown event is set."""
         repos = self._get_repos()
         if repos:
             log.info("Watching: %s", ", ".join(r.name for r in repos))
         else:
-            log.warning("No repos loaded from API — will retry")
+            log.warning("No repos loaded from API -- will retry")
 
-        while True:
+        while not self.shutdown.is_set():
             try:
                 self.poll_once()
             except Exception as e:
                 log.exception("Poll cycle failed: %s", e)
 
-            time.sleep(self.poll_interval)
+            self.shutdown.wait(timeout=self.config.poll_interval)
 
 
-def _setup_ssh_key() -> str:
-    """Write SSH key from env var to a file. Returns path to key file."""
-    import base64, stat, tempfile
+def _setup_ssh_key(config) -> None:
+    """Decode base64 SSH key to file if provided via env var."""
+    import base64
+    import stat
 
     # If SSH_AUTH_SOCK is set and the socket exists, use agent
     sock = os.environ.get("SSH_AUTH_SOCK", "")
     if sock and os.path.exists(sock):
         log.info("Using SSH agent at %s", sock)
-        return ""  # No key file needed
+        return
 
-    # If BITBUCKET_SSH_KEY is set (base64-encoded), write to temp file
-    b64_key = os.environ.get("BITBUCKET_SSH_KEY", "").strip()
-    if b64_key:
-        key_dir = os.path.expanduser("~/.ssh")
-        os.makedirs(key_dir, exist_ok=True)
-        key_path = os.path.join(key_dir, "bitbucket_key")
-        with open(key_path, "wb") as f:
-            f.write(base64.b64decode(b64_key))
-        os.chmod(key_path, stat.S_IRUSR)
-        log.info("SSH key written to %s from BITBUCKET_SSH_KEY env var", key_path)
-        return key_path
+    # If BITBUCKET_SSH_KEY is set (base64-encoded), write to key file
+    if config.bitbucket_ssh_key:
+        key_dir = Path(config.ssh_key_path).parent
+        key_dir.mkdir(parents=True, exist_ok=True)
+        key_path = Path(config.ssh_key_path)
+        key_data = base64.b64decode(config.bitbucket_ssh_key)
+        key_path.write_bytes(key_data)
+        key_path.chmod(stat.S_IRUSR)
+        log.info("SSH key written to %s (%d bytes)", config.ssh_key_path, len(key_data))
+    elif not Path(config.ssh_key_path).exists():
+        log.warning("No SSH key available -- git operations will fail")
 
-    # Fall back to default path
-    return os.environ.get("SSH_KEY_PATH", "/root/.ssh/keys/bitbucket")
+
+def _run_health_server(port: int) -> None:
+    """Minimal health endpoint for K8s probes."""
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    import json as _json
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/health":
+                body = _json.dumps({"status": "healthy", "service": "git-poller"})
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body.encode())
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, format, *args):
+            pass  # Suppress access logs
+
+    HTTPServer(("0.0.0.0", port), Handler).serve_forever()
 
 
 def main():
     """Entry point."""
-    ssh_key_path = _setup_ssh_key()
-    poller = GitPoller(
-        ssh_key_path=ssh_key_path,
-        poll_interval=int(os.environ.get("POLL_INTERVAL", "15")),
-        api_url=os.environ.get("CONCORD_API_URL", "https://staging.concord.local"),
-        api_key=os.environ.get("CONCORD_API_KEY", ""),
+    from src.config import GitPollerConfig
+
+    # 1. Load config
+    config = GitPollerConfig()
+
+    # 2. Setup SSH key
+    _setup_ssh_key(config)
+
+    # 3. Log startup
+    log.info("Git poller starting (interval=%ds, env=%s)", config.poll_interval, config.environment)
+
+    # 4. Start health endpoint in daemon thread
+    health_thread = threading.Thread(
+        target=_run_health_server,
+        args=(config.service_port,),
+        daemon=True,
+        name="health-server",
     )
+    health_thread.start()
+    log.info("Health server started on :%d", config.service_port)
+
+    # 5. Setup graceful shutdown
+    shutdown = threading.Event()
+
+    def handle_signal(sig, frame):
+        log.info("Received signal %s, shutting down...", sig)
+        shutdown.set()
+
+    signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
+
+    # 6. Run poller (blocks until shutdown)
+    poller = GitPoller(config=config, shutdown_event=shutdown)
     poller.run()
+
+    log.info("Git poller stopped")
 
 
 if __name__ == "__main__":

@@ -1,13 +1,21 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
+
+ARG APP_VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=unknown
+ENV APP_VERSION=${APP_VERSION}
+ENV GIT_COMMIT=${GIT_COMMIT}
+ENV BUILD_TIME=${BUILD_TIME}
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git openssh-client && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir requests urllib3
-
 WORKDIR /app
+COPY apps/backend/git-poller/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY apps/backend/git-poller/src/ src/
 
-CMD ["python3", "-m", "src.main"]
+EXPOSE 9003
+CMD ["python3", "-u", "-m", "src.main"]
