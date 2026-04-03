@@ -1038,30 +1038,56 @@ def seed():
         )
         print(f"Fixture: {fixture_35.stationId} (product: {theta_product.name})")
 
-        # ── Stage Configs ──
-        # === Seeding Stage Configs ===
+        # ── Stage Configs (Alpha B0 only) ──
         print("\n=== Seeding Stage Configs ===")
 
-        # Find Alpha product ID
-        alpha_product_for_stages = db.product.find_first(where={"slug": {"startswith": "alpha"}})
-        if alpha_product_for_stages:
-            # Delete existing configs first (idempotent re-seed)
-            db.productstageconfig.delete_many(where={"productId": alpha_product_for_stages.id})
+        # Find Alpha B0 board revision for linking stages
+        alpha_b0_rev_for_stages = db.boardrevision.find_first(
+            where={"board": {"product": {"slug": "alpha"}}, "version": "B0"}
+        )
+        b0_rev_id = alpha_b0_rev_for_stages.id if alpha_b0_rev_for_stages else None
 
-            # Seed stage configs with only valid schema fields
+        if alpha_product:
+            # Delete existing configs first (idempotent re-seed)
+            db.productstageconfig.delete_many(where={"productId": alpha_product.id})
+
             stage_defs = [
-                {"stage": 1, "name": "Smoke", "enabled": True, "triggerTypes": ["pr_push"]},
-                {"stage": 2, "name": "Silicon", "enabled": False, "triggerTypes": ["manual"]},
-                {"stage": 3, "name": "Integration", "enabled": False, "triggerTypes": ["manual"]},
-                {"stage": 4, "name": "Nightly", "enabled": False, "triggerTypes": ["schedule"]},
-                {"stage": 5, "name": "FUOTA", "enabled": True, "triggerTypes": ["pr_merge", "manual"]},
+                {
+                    "stage": 1, "name": "Smoke", "enabled": True,
+                    "boardRevisionId": b0_rev_id,
+                    "watchBranch": "main",
+                    "triggerTypes": ["pr_push", "manual"],
+                },
+                {
+                    "stage": 2, "name": "Silicon", "enabled": False,
+                    "boardRevisionId": b0_rev_id,
+                    "triggerTypes": ["manual"],
+                },
+                {
+                    "stage": 3, "name": "Integration", "enabled": False,
+                    "boardRevisionId": b0_rev_id,
+                    "triggerTypes": ["manual"],
+                },
+                {
+                    "stage": 4, "name": "Nightly", "enabled": True,
+                    "boardRevisionId": b0_rev_id,
+                    "watchBranch": "main",
+                    "triggerTypes": ["schedule", "manual"],
+                },
+                {
+                    "stage": 5, "name": "FUOTA", "enabled": True,
+                    "boardRevisionId": b0_rev_id,
+                    "watchBranch": "main",
+                    "triggerTypes": ["pr_merge", "manual"],
+                },
             ]
             for sd in stage_defs:
                 db.productstageconfig.create(data={
-                    "productId": alpha_product_for_stages.id,
+                    "productId": alpha_product.id,
                     **sd,
                 })
-            print(f"  Alpha: {len(stage_defs)} stage configs seeded")
+            enabled = sum(1 for s in stage_defs if s["enabled"])
+            print(f"  Alpha B0: {len(stage_defs)} stages ({enabled} enabled)")
         else:
             print("  WARNING: Alpha product not found, skipping stage config seed")
 

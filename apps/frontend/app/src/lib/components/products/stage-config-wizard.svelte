@@ -821,7 +821,7 @@
           {s.label}
         </button>
         {#if s.num < steps.length}
-          <div class="h-px flex-1 bg-border-subtle max-w-8" />
+          <div class="h-px flex-1 bg-border-subtle max-w-8"></div>
         {/if}
       {/each}
     </div>
@@ -1228,6 +1228,7 @@
           <div class="shrink-0 bg-[#11111b]">
             <!-- Drag handle -->
             {#if terminalOpen}
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
               <div
                 onmousedown={startDrag}
                 class="h-1 cursor-row-resize border-t border-[#313244] hover:bg-[#89b4fa]/30 transition-colors {dragging ? 'bg-[#89b4fa]/30' : ''}"
@@ -1411,6 +1412,7 @@
         <label for="disable-confirm-input" class="mb-1 block text-2xs font-medium text-text-tertiary">
           Type <span class="font-mono text-error">{disablePhrase}</span> to confirm
         </label>
+        <!-- svelte-ignore a11y_autofocus -->
         <input
           id="disable-confirm-input"
           type="text"

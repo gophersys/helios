@@ -71,7 +71,7 @@
             <StatusBadge status={rev.status} />
           </div>
           <span class="font-mono text-2xs text-text-tertiary">{rev.ckBoardsName}</span>
-          <div class="flex-1" />
+          <div class="flex-1"></div>
           {#if rev.targets && rev.targets.length > 0}
             <div class="flex gap-2">
               {#each rev.targets as target}
@@ -101,7 +101,7 @@
             <span class="text-sm font-medium text-text-primary">{cfg.name}</span>
           </div>
           <StatusBadge status={cfg.enabled ? 'ACTIVE' : 'DISABLED'} />
-          <div class="flex-1" />
+          <div class="flex-1"></div>
           {#if cfg.watchBranch}
             <span class="font-mono text-2xs text-text-tertiary">{cfg.watchBranch}</span>
           {/if}

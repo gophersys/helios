@@ -38,14 +38,18 @@
   let view: EditorView | undefined;
   const diagnosticsCompartment = new Compartment();
 
+  // Capture initial prop values for the theme (CodeMirror theme is set once at mount)
+  const initialHeight = height;
+  const initialMaxHeight = maxHeight;
+
   // ── VS Code Dark+ inspired theme ──────────────────────
   const vscodeDarkTheme = EditorView.theme({
     '&': {
       backgroundColor: '#1e1e2e',
       color: '#cdd6f4',
       fontSize: '13px',
-      ...(height ? { height } : {}),
-      ...(maxHeight && !height ? { maxHeight } : {}),
+      ...(initialHeight ? { height: initialHeight } : {}),
+      ...(initialMaxHeight && !initialHeight ? { maxHeight: initialMaxHeight } : {}),
       overflow: 'auto',
     },
     '.cm-content': {

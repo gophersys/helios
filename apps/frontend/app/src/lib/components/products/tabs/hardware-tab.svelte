@@ -270,7 +270,7 @@
                   <Cpu size={14} class="text-accent shrink-0" />
                   <span class="text-sm font-medium capitalize text-text-primary w-16">{target.role}</span>
                   <span class="font-mono text-2xs text-text-tertiary">{target.soc}</span>
-                  <div class="flex-1" />
+                  <div class="flex-1"></div>
                   <label class="flex items-center gap-1.5">
                     <span class="text-2xs text-text-tertiary">AppID</span>
                     <input type="number" min="0" bind:value={target.appId} class="w-20 rounded border border-border bg-surface-0 px-2 py-1 text-xs font-mono text-text-primary focus:border-accent focus:outline-none" />
@@ -336,7 +336,7 @@
                   <Cpu size={14} class="text-accent" />
                   <span class="text-sm font-medium capitalize text-text-primary">{target.role}</span>
                   <span class="font-mono text-2xs text-text-secondary">{target.soc}</span>
-                  <div class="flex-1" />
+                  <div class="flex-1"></div>
                   <span class="font-mono text-2xs text-text-tertiary">AppID {target.appId}</span>
                 </div>
               {/each}

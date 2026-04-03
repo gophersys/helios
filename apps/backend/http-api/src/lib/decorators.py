@@ -53,6 +53,16 @@ def require_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not env_config.AUTH_ENABLED:
+            # If a Bearer token is present, decode it (dev login flow).
+            # Otherwise fall back to the default admin identity.
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ", 1)[1]
+                payload, err = verify_token(token)
+                if payload and not err:
+                    g.current_user = payload
+                    return f(*args, **kwargs)
+
             g.current_user = {
                 "sub": "00000000-0000-0000-0000-000000000000",
                 "email": "admin@concord.local",
