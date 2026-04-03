@@ -1,0 +1,15 @@
+mkdocs-material
+mkdocs-awesome-pages-plugin
+mkdocstrings[python]
+grpcio
+protobuf
+requests
+minio
+pyyaml
+python-dotenv
+termcolor
+sqlalchemy
+sshtunnel
+paramiko<4
+pytest
+pytest-timeout

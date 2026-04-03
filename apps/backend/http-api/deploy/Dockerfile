@@ -156,5 +156,6 @@ COPY ./apps/backend/http-api/src src
 # Copy firmware build scripts (served via /v2/builds/scripts/<product> endpoint)
 COPY ./apps/firmware/products/alpha/scripts /app/firmware/products/alpha/scripts
 
-# Keep the container running
-CMD ["python3", "src/main.py"]
+EXPOSE 9001
+
+CMD ["python3", "-u", "-m", "src.main"]

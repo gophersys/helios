@@ -1,7 +1,7 @@
 site_name: Concord
 site_description: Continuous delivery platform for embedded systems
 docs_dir: docs
-site_dir: apps/docs/site
+site_dir: apps/frontend/docs/site
 
 theme:
   name: material

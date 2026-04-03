@@ -5,9 +5,25 @@
   "projectType": "application",
   "tags": ["scope:backend", "type:app"],
   "targets": {
+    "get-build-info": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          "echo \"APP_VERSION=$(git describe --tags --always 2>/dev/null || echo dev)\"",
+          "echo \"GIT_COMMIT=$(git rev-parse --short=7 HEAD)\"",
+          "echo \"GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)\"",
+          "echo \"GIT_DIRTY=$([ -n \"$(git status --porcelain)\" ] && echo true || echo false)\"",
+          "echo \"BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
+          "echo \"BUILD_HOST=$(hostname)\""
+        ]
+      }
+    },
     "build": {
       "executor": "nx:run-commands",
       "defaultConfiguration": "development",
+      "dependsOn": ["get-build-info"],
       "options": {
         "cwd": "{workspaceRoot}"
       },
@@ -25,7 +41,15 @@
         "cwd": "{workspaceRoot}",
         "file": "apps/backend/git-poller/deploy/Dockerfile",
         "push": false,
-        "load": true
+        "load": true,
+        "build-args": [
+          "APP_VERSION",
+          "ENVIRONMENT",
+          "GIT_COMMIT",
+          "GIT_BRANCH",
+          "BUILD_TIME",
+          "BUILD_HOST"
+        ]
       },
       "configurations": {
         "development": {
@@ -76,11 +100,29 @@
         "command": "PYTHONPATH=src:. python3 -m src.main"
       }
     },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/git-poller",
+        "command": "echo 'No tests yet'"
+      }
+    },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/backend/git-poller",
         "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
+      }
+    },
+    "check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          { "command": "nx typecheck git-poller" },
+          { "command": "nx test git-poller" }
+        ]
       }
     }
   }

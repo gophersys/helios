@@ -4,9 +4,25 @@
   "projectType": "application",
   "sourceRoot": "apps/backend/build-service/src",
   "targets": {
+    "get-build-info": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          "echo \"APP_VERSION=$(git describe --tags --always 2>/dev/null || echo dev)\"",
+          "echo \"GIT_COMMIT=$(git rev-parse --short=7 HEAD)\"",
+          "echo \"GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)\"",
+          "echo \"GIT_DIRTY=$([ -n \"$(git status --porcelain)\" ] && echo true || echo false)\"",
+          "echo \"BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
+          "echo \"BUILD_HOST=$(hostname)\""
+        ]
+      }
+    },
     "build": {
       "executor": "nx:run-commands",
       "defaultConfiguration": "development",
+      "dependsOn": ["get-build-info"],
       "options": {
         "cwd": "{workspaceRoot}"
       },
@@ -21,36 +37,35 @@
       "defaultConfiguration": "development",
       "options": {
         "file": "apps/backend/build-service/deploy/Dockerfile",
-        "context": ".",
+        "context": "{workspaceRoot}",
+        "cwd": "{workspaceRoot}",
         "push": false,
         "load": true,
         "build-args": [
-          "APP_VERSION=${APP_VERSION:-dev}",
-          "GIT_COMMIT=${GIT_COMMIT:-unknown}",
-          "GIT_BRANCH=${GIT_BRANCH:-unknown}",
-          "BUILD_TIME=${BUILD_TIME:-unknown}",
-          "BUILD_HOST=${BUILD_HOST:-unknown}"
+          "APP_VERSION",
+          "ENVIRONMENT",
+          "GIT_COMMIT",
+          "GIT_BRANCH",
+          "BUILD_TIME",
+          "BUILD_HOST"
         ]
       },
       "configurations": {
         "development": {
           "tags": ["concord/build-service:development"],
-          "build-args": ["ENVIRONMENT=development"],
           "platforms": []
         },
         "staging": {
           "tags": [
             "concord/build-service:staging",
             "containers.ad.corekinect.com/concord-build-service:staging"
-          ],
-          "build-args": ["ENVIRONMENT=staging"]
+          ]
         },
         "production": {
           "tags": [
             "concord/build-service:production",
             "containers.ad.corekinect.com/concord-build-service:production"
           ],
-          "build-args": ["ENVIRONMENT=production"],
           "platforms": ["linux/amd64"]
         }
       }
