@@ -7,7 +7,7 @@
   import ProductStagesTab from './tabs/stages-tab.svelte';
   import ProductAssetsTab from './tabs/assets-tab.svelte';
   import {
-    Pencil, Check, X, ExternalLink,
+    Pencil, Check, X,
     LayoutDashboard, CircuitBoard, FlaskConical, Package, Factory,
   } from 'lucide-svelte';
   import type { Product } from '$lib/types/models';
@@ -68,10 +68,6 @@
     } finally {
       savingProduct = false;
     }
-  }
-
-  function bitbucketUrl(slug: string): string {
-    return `https://bitbucket.org/corekinect/${slug}`;
   }
 
   const tabs: { key: Tab; label: string; icon: typeof Package }[] = [
@@ -149,20 +145,6 @@
           {#if product.description}
             <p class="mt-1 text-sm text-text-secondary">{product.description}</p>
           {/if}
-          <div class="mt-3 flex flex-wrap items-center gap-3 text-2xs">
-            {#if product.fwRepoSlug}
-              <a href={bitbucketUrl(product.fwRepoSlug)} target="_blank" rel="noopener noreferrer"
-                class="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 font-mono text-text-secondary hover:text-accent transition-colors">
-                {product.fwRepoSlug} <ExternalLink size={10} class="opacity-60" />
-              </a>
-            {/if}
-            {#if product.mfgFwRepoSlug}
-              <a href={bitbucketUrl(product.mfgFwRepoSlug)} target="_blank" rel="noopener noreferrer"
-                class="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 font-mono text-text-secondary hover:text-accent transition-colors">
-                {product.mfgFwRepoSlug} <ExternalLink size={10} class="opacity-60" />
-              </a>
-            {/if}
-          </div>
         </div>
       </div>
     {/if}

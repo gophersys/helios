@@ -23,6 +23,11 @@
   const stageConfigs = $derived((product as any).stageConfigs || []);
   const enabledStages = $derived(stageConfigs.filter((s: any) => s.enabled));
 
+  // Map revision IDs to version names for stage display
+  const revisionMap = $derived(
+    Object.fromEntries(revisions.map((r) => [r.id, r.version]))
+  );
+
   let recentBuilds = $state<any[]>([]);
   let recentRuns = $state<any[]>([]);
   let totalBuilds = $state(0);
@@ -160,7 +165,11 @@
             <div class="w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold {cfg.enabled ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
               {cfg.stage}
             </div>
-            <span class="text-sm font-medium text-text-primary flex-1">{cfg.name}</span>
+            <span class="text-sm font-medium text-text-primary">{cfg.name}</span>
+            {#if cfg.boardRevisionId && revisionMap[cfg.boardRevisionId]}
+              <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-accent-muted text-accent">{revisionMap[cfg.boardRevisionId]}</span>
+            {/if}
+            <div class="flex-1"></div>
             <StatusBadge status={cfg.enabled ? 'ACTIVE' : 'DISABLED'} />
             {#if cfg.triggerTypes?.length > 0}
               <div class="flex gap-1">
