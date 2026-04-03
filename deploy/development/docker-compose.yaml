@@ -85,6 +85,9 @@ services:
       POLL_INTERVAL: "30"
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY:-}
       BITBUCKET_WORKSPACE: corekinect
+      SSH_AUTH_SOCK: /ssh-agent
+    volumes:
+      - ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent
     depends_on:
       http-api:
         condition: service_started
@@ -109,7 +112,7 @@ services:
       DEFAULT_BUILDER_IMAGE: containers.ad.corekinect.com/ncs-fw-dev:2.7.0
       BUILDER_NETWORK: host
       BUILDER_TIMEOUT: "1800"
-      SSH_KEY_PATH: /root/.ssh/id_rsa
+      SSH_AUTH_SOCK: /ssh-agent
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY:-}
       BITBUCKET_WORKSPACE: corekinect
       BENCH_SIGNING_KEY: ${BENCH_SIGNING_KEY:-}
@@ -117,6 +120,7 @@ services:
       PRODUCTION_SIGNING_KEY: ${PRODUCTION_SIGNING_KEY:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent
       - build_workspace:/tmp/builds
       - ccache_data:/ccache
     ports:

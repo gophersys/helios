@@ -171,7 +171,11 @@ class GitPoller:
         """Get latest commit SHA from remote branch via git ls-remote."""
         try:
             env = os.environ.copy()
-            env["GIT_SSH_COMMAND"] = f"ssh -i {self.ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes"
+            # Use SSH agent if available, fall back to key file
+            if os.environ.get("SSH_AUTH_SOCK"):
+                env["GIT_SSH_COMMAND"] = "ssh -o StrictHostKeyChecking=no -o BatchMode=yes"
+            else:
+                env["GIT_SSH_COMMAND"] = f"ssh -i {self.ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes"
 
             result = subprocess.run(
                 ["git", "ls-remote", repo.ssh_url, f"refs/heads/{repo.branch}"],
@@ -302,10 +306,35 @@ class GitPoller:
             time.sleep(self.poll_interval)
 
 
+def _setup_ssh_key() -> str:
+    """Write SSH key from env var to a file. Returns path to key file."""
+    import base64, stat, tempfile
+
+    # If SSH_AUTH_SOCK is set, use agent
+    if os.environ.get("SSH_AUTH_SOCK"):
+        return ""  # No key file needed
+
+    # If BITBUCKET_SSH_KEY is set (base64-encoded), write to temp file
+    b64_key = os.environ.get("BITBUCKET_SSH_KEY", "").strip()
+    if b64_key:
+        key_dir = os.path.expanduser("~/.ssh")
+        os.makedirs(key_dir, exist_ok=True)
+        key_path = os.path.join(key_dir, "bitbucket_key")
+        with open(key_path, "wb") as f:
+            f.write(base64.b64decode(b64_key))
+        os.chmod(key_path, stat.S_IRUSR)
+        log.info("SSH key written to %s from BITBUCKET_SSH_KEY env var", key_path)
+        return key_path
+
+    # Fall back to default path
+    return os.environ.get("SSH_KEY_PATH", "/root/.ssh/keys/bitbucket")
+
+
 def main():
     """Entry point."""
+    ssh_key_path = _setup_ssh_key()
     poller = GitPoller(
-        ssh_key_path=os.environ.get("SSH_KEY_PATH", "/root/.ssh/keys/bitbucket"),
+        ssh_key_path=ssh_key_path,
         poll_interval=int(os.environ.get("POLL_INTERVAL", "15")),
         api_url=os.environ.get("CONCORD_API_URL", "https://staging.concord.local"),
         api_key=os.environ.get("CONCORD_API_KEY", ""),
