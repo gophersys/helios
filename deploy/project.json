@@ -112,6 +112,36 @@
       }
     },
 
+    "test:e2e": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          "PYTHONPATH=apps/backend/http-api/src:libs/python:libs:libs/protocols python3 -m pytest tests/e2e/ -v --timeout=300 -x"
+        ]
+      }
+    },
+
+    "test:smoke": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "staging",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "staging": {
+          "commands": [
+            "python3 -m pytest tests/smoke/ -v --timeout=30 --target-url=https://staging.concord.local --api-key=ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG"
+          ]
+        },
+        "production": {
+          "commands": [
+            "python3 -m pytest tests/smoke/ -v --timeout=30 --target-url=https://concord.local --api-key=ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG"
+          ]
+        }
+      }
+    },
+
     "diff": {
       "executor": "nx:run-commands",
       "options": { "cwd": "{workspaceRoot}" },
@@ -236,6 +266,7 @@
             "nx run platform:push-all -c staging",
             "nx run platform:deploy-all -c staging",
             "nx run platform:status -c staging",
+            "nx run platform:test:smoke -c staging",
             "echo '=== Staging release complete ==='"
           ]
         },
@@ -247,6 +278,7 @@
             "nx run platform:push-all -c production",
             "nx run platform:deploy-all -c production",
             "nx run platform:status -c production",
+            "nx run platform:test:smoke -c production",
             "echo '=== Production release complete ==='"
           ]
         }
