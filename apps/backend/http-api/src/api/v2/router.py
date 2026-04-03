@@ -310,7 +310,8 @@ from .builds.pr_builds import list_pr_pipelines, get_build_summary
 # Build recipes (product build scripts stored in MinIO)
 from .builds.recipes import (
     get_recipe, update_recipe, validate_recipe,
-    list_recipe_versions, get_recipe_version, save_recipe_version,
+    list_recipe_versions, get_recipe_version, get_recipe_version_by_id,
+    save_recipe_version,
     publish_recipe, diff_recipe_versions, test_recipe_build,
     get_stage_defs,
     list_recipe_templates, get_recipe_template,
@@ -461,6 +462,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/recipe/test-build",                                  endpoint="test_recipe_build",        view_func=test_recipe_build,     methods=["POST"])
     v2.add_url_rule("/products/<product_id>/recipe/versions",                                    endpoint="list_recipe_versions",     view_func=list_recipe_versions,  methods=["GET"])
     v2.add_url_rule("/products/<product_id>/recipe/versions/<int:version_num>",                   endpoint="get_recipe_version",       view_func=get_recipe_version,    methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/recipe/versions/by-id/<version_id>",                 endpoint="get_recipe_version_by_id", view_func=get_recipe_version_by_id, methods=["GET"])
     v2.add_url_rule("/products/<product_id>/recipe/save",                                        endpoint="save_recipe_version",      view_func=save_recipe_version,   methods=["POST"])
     v2.add_url_rule("/products/<product_id>/recipe/publish",                                     endpoint="publish_recipe",           view_func=publish_recipe,        methods=["POST"])
     v2.add_url_rule("/products/<product_id>/recipe/diff",                                        endpoint="diff_recipe_versions",     view_func=diff_recipe_versions,  methods=["GET"])

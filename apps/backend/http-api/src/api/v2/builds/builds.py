@@ -82,6 +82,7 @@ def _serialize_build_job(b: Any) -> dict:
         "configFlags": getattr(b, "configFlags", None),
         "reusedFromId": getattr(b, "reusedFromId", None),
         "buildFingerprint": getattr(b, "buildFingerprint", None),
+        "recipeVersionId": getattr(b, "recipeVersionId", None),
         "triggerTypes": getattr(b, "triggerType", "worker"),
         "notes": getattr(b, "notes", None),
     }

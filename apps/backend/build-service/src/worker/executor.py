@@ -40,6 +40,7 @@ class BuildJob:
     version_override: str = None  # Explicit version override (e.g., "0.5.0")
     config_flags: dict = None  # Extra build flags (e.g., {"forceLog": true})
     product_id: str = None  # DB product ID for fetching buildConfig
+    recipe_version_id: str = None  # Pinned recipe version for reproducibility
 
 
 def _extract_version_override(job_data: dict) -> Optional[str]:

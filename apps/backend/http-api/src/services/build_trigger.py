@@ -15,7 +15,7 @@ from database import Json
 
 from src.lib.audit import log_audit
 from src.services.database.prisma import get_db_client
-from corekinect.stages import Stage, get_stage_build_defs
+from corekinect.stages import Stage, StageBuildDef, get_stage_build_defs
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +79,49 @@ def trigger_stage_build(
         logger.error("Unknown stage number: %s", stage_config.stage)
         return None
 
-    # Get build recipe for this stage
-    build_defs = get_stage_build_defs(stage_enum)
+    # Get build recipe for this stage — prefer DB matrix, fall back to Python defaults
+    matrix_entries = db.stagebuildmatrix.find_many(
+        where={"stageConfigId": stage_config_id},
+        order={"sortOrder": "asc"},
+    )
+
+    if matrix_entries:
+        build_defs = [
+            StageBuildDef(
+                label=e.label,
+                fw_type=e.fwType,
+                variant=e.variant,
+                config_log=e.configLog,
+                produces_hex=e.producesHex,
+                produces_cfw=e.producesCfw,
+                git_ref=e.gitRef,
+                is_version_bump=e.isVersionBump,
+                base_label=e.baseLabel,
+                description=e.description or "",
+            )
+            for e in matrix_entries
+        ]
+        logger.info("Loaded %d build defs from DB for stage config %s", len(build_defs), stage_config_id)
+    else:
+        build_defs = get_stage_build_defs(stage_enum)
+        logger.info("No DB matrix for stage config %s, using Python defaults (%d defs)",
+                     stage_config_id, len(build_defs))
+
     if not build_defs:
         logger.error("No build definitions for stage %s", stage_enum)
         return None
+
+    # Resolve recipe version — pin at trigger time for reproducibility
+    recipe_version_id = None
+    if getattr(stage_config, "recipeVersionId", None):
+        recipe_version_id = stage_config.recipeVersionId
+    else:
+        latest_recipe = db.recipeversion.find_first(
+            where={"productId": product_id, "status": "published"},
+            order={"version": "desc"},
+        )
+        if latest_recipe:
+            recipe_version_id = latest_recipe.id
 
     # Determine repos
     fw_repo = f"git@bitbucket.org:corekinect/{product.fwRepoSlug}.git" if product.fwRepoSlug else None
@@ -187,6 +225,7 @@ def trigger_stage_build(
                 "builderImage": builder_image,
             }),
             "matrixMode": stage_enum.value,
+            "recipeVersionId": recipe_version_id,
         },
     )
 
@@ -267,6 +306,7 @@ def trigger_stage_build(
                         "versionString": cached_build.versionString,
                         "versionBump": False,
                         "buildRunId": build_run.id,
+                        "recipeVersionId": recipe_version_id,
                         "webhookData": Json({"cached": True, "reusedFrom": cached_build.id}),
                     },
                 )
@@ -307,6 +347,7 @@ def trigger_stage_build(
                         "versionBump": build_def.is_version_bump,
                         "baseJobId": base_job_id,
                         "buildRunId": build_run.id,
+                        "recipeVersionId": recipe_version_id,
                         "webhookData": Json({
                             "repoUrl": repo_url,
                             "fwRepoUrl": fw_repo,

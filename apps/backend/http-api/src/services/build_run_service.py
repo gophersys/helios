@@ -72,6 +72,7 @@ def serialize_build_run(p) -> Dict[str, Any]:
         "validationRunId": p.validationRunId,
         "matrixMode": getattr(p, "matrixMode", None),
         "autoValidate": getattr(p, "autoValidate", False),
+        "recipeVersionId": getattr(p, "recipeVersionId", None),
         "buildMatrix": p.buildMatrix if hasattr(p, "buildMatrix") else None,
         "triggerData": p.triggerData if hasattr(p, "triggerData") else None,
         # PR context
@@ -130,6 +131,7 @@ def serialize_build_run_summary(p) -> Dict[str, Any]:
         "completedBuilds": p.completedBuilds,
         "matrixMode": getattr(p, "matrixMode", None),
         "autoValidate": getattr(p, "autoValidate", False),
+        "recipeVersionId": getattr(p, "recipeVersionId", None),
         "validationRunId": getattr(p, "validationRunId", None),
         # PR context
         "prNumber": getattr(p, "prNumber", None),
@@ -704,6 +706,16 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
                 logger.warning("BuildRun %s promotion returned no results", run_id)
         except Exception as promo_err:
             logger.error("BuildRun %s promotion failed (non-blocking): %s", run_id, promo_err)
+
+        # Create unified AssetSet from build artifacts
+        try:
+            from src.services.build_promotion import create_asset_set_from_build_run
+            asset_result = create_asset_set_from_build_run(run_id)
+            if asset_result:
+                logger.info("BuildRun %s → AssetSet %s (%d assets)",
+                           run_id, asset_result["assetSetId"], asset_result["assetCount"])
+        except Exception as asset_err:
+            logger.error("BuildRun %s AssetSet creation failed (non-blocking): %s", run_id, asset_err)
 
         if getattr(pipeline, "autoValidate", False):
             new_status = "VALIDATING"

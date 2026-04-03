@@ -528,6 +528,28 @@ class TestPowerEnableJoulescope(unittest.TestCase):
         assert resp.success is True
         assert "always-on" in resp.message.lower()
 
+    def test_enable_joulescope_with_voltage_still_noop(self):
+        """Voltage parameter is ignored for Joulescope — still a no-op."""
+        js = _make_mock_joulescope()
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE, voltage_v=4.5)
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is True
+        assert "always-on" in resp.message.lower()
+        # Must NOT have called voltage control or GPIO
+        handler._mock_mcp4017.set_step.assert_not_called()
+
+    def test_enable_joulescope_without_driver_still_succeeds(self):
+        """Enable on Joulescope channel succeeds even without driver (no-op before check)."""
+        handler = _make_handler_with_joulescope(joulescope=None)
+
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE, voltage_v=0.0)
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is True
+
     def test_disable_joulescope_is_noop(self):
         js = _make_mock_joulescope()
         handler = _make_handler_with_joulescope(joulescope=js)
@@ -553,11 +575,30 @@ class TestPowerReadJoulescope(unittest.TestCase):
         resp = handler.power_read(req, self._make_ctx())
 
         assert resp.success is True
+        assert resp.enabled is True  # Joulescope always reports enabled
         assert abs(resp.voltage_v - 4.5) < 0.001
-        # 25 µA = 0.025 mA
+        # 25 µA = 0.000025 A → current_ma = 0.025, current_na = 25000
         assert abs(resp.current_ma - 0.025) < 0.001
-        # current_na should be 25000 nA
         assert abs(resp.current_na - 25000.0) < 1.0
+        # power_mw = power_w * 1000 = 0.0001125 * 1000 = 0.1125
+        assert abs(resp.power_mw - 0.1125) < 0.01
+
+    def test_read_joulescope_unit_conversion_math(self):
+        """Verify all unit conversions from amps to mA, nA, and mW."""
+        # 1.5 mA = 0.0015 A at 3.3V
+        js = _make_mock_joulescope(read_returns=[
+            (None, 3.3, 0.0015, 0.00495)  # 1.5 mA, 3.3 V, 4.95 mW
+        ])
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is True
+        assert abs(resp.current_ma - 1.5) < 0.001        # 0.0015 * 1000
+        assert abs(resp.current_na - 1500000.0) < 1.0    # 0.0015 * 1e9
+        assert abs(resp.power_mw - 4.95) < 0.01          # 0.00495 * 1000
+        assert abs(resp.voltage_v - 3.3) < 0.001
 
     def test_read_joulescope_not_connected(self):
         js = _make_mock_joulescope()
@@ -589,6 +630,28 @@ class TestPowerReadJoulescope(unittest.TestCase):
         assert resp.success is False
         assert "USB disconnected" in resp.message
 
+    def test_read_joulescope_exception_caught(self):
+        """Exception raised by driver (not error tuple) must be caught."""
+        js = _make_mock_joulescope()
+        js.read.side_effect = RuntimeError("segfault in USB driver")
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "segfault" in resp.message
+
+    def test_read_joulescope_none_returns_not_connected(self):
+        """With no driver, error message mentions 'not connected'."""
+        handler = _make_handler_with_joulescope(joulescope=None)
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "not connected" in resp.message.lower()
+
 
 class TestPowerMeasureJoulescope(unittest.TestCase):
     """Test PowerMeasure for Joulescope channel."""
@@ -607,12 +670,17 @@ class TestPowerMeasureJoulescope(unittest.TestCase):
 
         assert resp.success is True
         assert resp.sample_count == 1000
-        # 25 µA = 0.025 mA average
+        assert resp.duration_s == 1.0
+        # 25 µA = 0.000025 A → 0.025 mA average
         assert abs(resp.average_ma - 0.025) < 0.001
+        assert abs(resp.min_ma - 0.01) < 0.001       # 10 µA
+        assert abs(resp.max_ma - 0.05) < 0.001       # 50 µA
+        # voltage: 4.5 V → 4500 mV
+        assert abs(resp.average_mv - 4500.0) < 1.0
         # nA fields
-        assert abs(resp.average_na - 25000.0) < 1.0
-        assert abs(resp.min_na - 10000.0) < 1.0
-        assert abs(resp.max_na - 50000.0) < 1.0
+        assert abs(resp.average_na - 25000.0) < 1.0  # 0.000025 * 1e9
+        assert abs(resp.min_na - 10000.0) < 1.0      # 0.00001 * 1e9
+        assert abs(resp.max_na - 50000.0) < 1.0      # 0.00005 * 1e9
 
     def test_measure_joulescope_not_connected(self):
         js = _make_mock_joulescope()
@@ -634,6 +702,27 @@ class TestPowerMeasureJoulescope(unittest.TestCase):
 
         assert resp.success is False
 
+    def test_measure_joulescope_exception_caught(self):
+        """Exception from read_statistics must be caught."""
+        js = _make_mock_joulescope()
+        js.read_statistics.side_effect = RuntimeError("device yanked")
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE, duration_s=1.0)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "device yanked" in resp.message
+
+    def test_measure_joulescope_none_returns_not_connected(self):
+        handler = _make_handler_with_joulescope(joulescope=None)
+
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE, duration_s=1.0)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "not connected" in resp.message.lower()
+
 
 class TestPowerSnapshotJoulescope(unittest.TestCase):
     """Test snapshot includes Joulescope when connected."""
@@ -649,8 +738,27 @@ class TestPowerSnapshotJoulescope(unittest.TestCase):
         data = handler.get_snapshot_data()
 
         assert len(data) == 3
-        channels = {d.channel for d in data}
-        assert PowerChannel.POWER_CHANNEL_JOULESCOPE in channels
+        by_ch = {d.channel: d for d in data}
+        assert PowerChannel.POWER_CHANNEL_JOULESCOPE in by_ch
+
+        js_snap = by_ch[PowerChannel.POWER_CHANNEL_JOULESCOPE]
+        assert js_snap.enabled is True
+        assert abs(js_snap.voltage_v - 4.5) < 0.001
+        # 0.000025 A → 0.025 mA
+        assert abs(js_snap.current_ma - 0.025) < 0.001
+
+    def test_snapshot_joulescope_read_error_excluded(self):
+        """If Joulescope read fails during snapshot, it's silently excluded."""
+        readings = [
+            (None, 4.5, 25.0, 112.5),
+            (None, 5.0, 10.0, 50.0),
+        ]
+        js = _make_mock_joulescope(read_returns=[("USB error", 0.0, 0.0, 0.0)])
+        handler = _make_handler_with_joulescope(joulescope=js, ina_read_returns=readings)
+
+        data = handler.get_snapshot_data()
+
+        assert len(data) == 2  # Only INA219 channels
 
     def test_snapshot_excludes_joulescope_when_not_connected(self):
         readings = [

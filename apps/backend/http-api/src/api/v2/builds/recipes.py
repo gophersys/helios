@@ -287,6 +287,27 @@ def get_recipe_version(product_id: str, version_num: int):
     return jsonify(ApiResponse.ok(_serialize_version(version, include_content=True)).to_dict()), 200
 
 
+@require_permissions(Permissions.BUILDS_VIEW)
+def get_recipe_version_by_id(product_id: str, version_id: str):
+    """GET /v2/products/<id>/recipe/versions/by-id/<version_id> — Get recipe version by record ID.
+
+    Used by the build worker to fetch a pinned recipe version.
+    """
+    db = get_db_client()
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+
+    version = db.recipeversion.find_unique(
+        where={"id": version_id},
+        include={"createdBy": True},
+    )
+    if not version or version.productId != product_id:
+        return not_found(f"Recipe version {version_id} not found for this product")
+
+    return jsonify(ApiResponse.ok(_serialize_version(version, include_content=True)).to_dict()), 200
+
+
 @require_permissions(Permissions.BUILDS_MANAGE)
 def save_recipe_version(product_id: str):
     """POST /v2/products/<id>/recipe/save — Save a new draft version.

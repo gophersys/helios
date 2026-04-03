@@ -332,6 +332,7 @@ class TestPower(unittest.TestCase):
         resp.voltage_v = 4.5
         resp.current_ma = 17.0
         resp.power_mw = 76.5
+        resp.current_na = 0.0
         self.client.client.PowerRead.return_value = resp
 
         result, err = self.client.PowerRead(channel=0)
@@ -340,6 +341,40 @@ class TestPower(unittest.TestCase):
         assert result.voltage_v == 4.5
         assert result.current_ma == 17.0
         assert result.power_mw == 76.5
+        assert result.current_na == 0.0  # INA219 has no nA reading
+
+    def test_power_read_maps_current_na(self):
+        """PowerRead must map current_na from response to result."""
+        resp = MagicMock()
+        resp.success = True
+        resp.message = ""
+        resp.enabled = True
+        resp.voltage_v = 4.5
+        resp.current_ma = 0.025
+        resp.power_mw = 0.1125
+        resp.current_na = 25000.0  # Joulescope nanoamp reading
+        self.client.client.PowerRead.return_value = resp
+
+        result, err = self.client.PowerRead(channel=2)  # Joulescope channel
+        assert err is None
+        assert result.current_na == 25000.0
+        assert result.current_ma == 0.025
+
+    def test_power_read_joulescope_channel_makes_grpc_call(self):
+        """PowerRead on channel 2 should pass through to gRPC."""
+        resp = MagicMock()
+        resp.success = True
+        resp.message = ""
+        resp.enabled = True
+        resp.voltage_v = 3.3
+        resp.current_ma = 0.001
+        resp.power_mw = 0.0033
+        resp.current_na = 1000.0
+        self.client.client.PowerRead.return_value = resp
+
+        result, err = self.client.PowerRead(channel=2)
+        assert err is None
+        self.client.client.PowerRead.assert_called_once()
 
     def test_power_read_invalid_channel(self):
         result, err = self.client.PowerRead(channel=3)
@@ -366,12 +401,87 @@ class TestPower(unittest.TestCase):
         resp.max_ma = 30.0
         resp.average_mv = 4500.0
         resp.sample_count = 100
+        resp.average_na = 0.0
+        resp.min_na = 0.0
+        resp.max_na = 0.0
         self.client.client.PowerMeasure.return_value = resp
 
         result, err = self.client.PowerMeasure(channel=0, duration_s=1.0)
         assert err is None
         assert result.average_ma == 20.0
         assert result.sample_count == 100
+        assert result.average_na == 0.0  # INA219 channels have no nA data
+
+    def test_power_measure_maps_nanoamp_fields(self):
+        """PowerMeasure must map average_na, min_na, max_na from response."""
+        resp = MagicMock()
+        resp.success = True
+        resp.message = ""
+        resp.duration_s = 5.0
+        resp.average_ma = 0.025
+        resp.min_ma = 0.01
+        resp.max_ma = 0.05
+        resp.average_mv = 4500.0
+        resp.sample_count = 5000
+        resp.average_na = 25000.0
+        resp.min_na = 10000.0
+        resp.max_na = 50000.0
+        self.client.client.PowerMeasure.return_value = resp
+
+        result, err = self.client.PowerMeasure(channel=2, duration_s=5.0)
+        assert err is None
+        assert result.average_na == 25000.0
+        assert result.min_na == 10000.0
+        assert result.max_na == 50000.0
+        assert result.average_ma == 0.025
+
+    def test_power_enable_joulescope_channel(self):
+        """PowerEnable on channel 2 should make the gRPC call."""
+        resp = MagicMock()
+        resp.success = True
+        resp.message = "always-on"
+        self.client.client.PowerEnable.return_value = resp
+
+        err = self.client.PowerEnable(channel=2, voltage_v=0.0)
+        assert err is None
+        self.client.client.PowerEnable.assert_called_once()
+
+    def test_power_disable_joulescope_channel(self):
+        """PowerDisable on channel 2 should make the gRPC call."""
+        resp = MagicMock()
+        resp.success = True
+        resp.message = "always-on"
+        self.client.client.PowerDisable.return_value = resp
+
+        err = self.client.PowerDisable(channel=2)
+        assert err is None
+        self.client.client.PowerDisable.assert_called_once()
+
+
+class TestPowerTypes(unittest.TestCase):
+    """Test PowerReadResult and PowerMeasureResult construction."""
+
+    def test_power_read_result_defaults(self):
+        from corekinect.mtib_client.v1.client.types import PowerReadResult
+        r = PowerReadResult()
+        assert r.enabled is False
+        assert r.voltage_v == 0.0
+        assert r.current_ma == 0.0
+        assert r.power_mw == 0.0
+        assert r.current_na == 0.0
+
+    def test_power_measure_result_defaults(self):
+        from corekinect.mtib_client.v1.client.types import PowerMeasureResult
+        r = PowerMeasureResult()
+        assert r.average_na == 0.0
+        assert r.min_na == 0.0
+        assert r.max_na == 0.0
+
+    def test_power_channel_enum_values(self):
+        from corekinect.mtib_client.v1.client.types import PowerChannel
+        assert PowerChannel.DUT == 0
+        assert PowerChannel.CHARGER == 1
+        assert PowerChannel.JOULESCOPE == 2
 
 
 class TestSensors(unittest.TestCase):

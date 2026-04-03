@@ -136,6 +136,7 @@ class BuildWorkerLoop:
                 version_override=_extract_version_override(j),
                 config_flags=j.get("configFlags") or {},
                 product_id=j.get("productId"),
+                recipe_version_id=j.get("recipeVersionId"),
             )
 
         return None  # All queued jobs are for incompatible NCS versions
@@ -307,29 +308,43 @@ class BuildWorkerLoop:
             # Try API recipe first (stored in MinIO via Products → Build Config)
             # Stage-specific recipes: firmware/recipes/{slug}/stage-{N}/build.sh
             if product_id:
-                # Get stage number from webhook data or the build run
-                job_stage = _webhook_data.get("stage")
-                if not job_stage:
-                    build_run_id = getattr(job, 'buildRunId', None) or getattr(job, 'build_run_id', None)
-                    if build_run_id:
-                        run_result = self.client.api_get(f"/v2/builds/runs/{build_run_id}")
-                        if run_result and run_result.get("data"):
-                            job_stage = run_result["data"].get("stage")
+                # If a pinned recipe version exists, fetch that specific version
+                recipe_version_id = job.recipe_version_id
+                if recipe_version_id:
+                    result = self.client.api_get(
+                        f"/v2/products/{product_id}/recipe/versions/by-id/{recipe_version_id}"
+                    )
+                    if result and result.get("data"):
+                        content = result["data"].get("content")
+                        if content:
+                            recipe_path.write_text(content)
+                            recipe_path.chmod(0o755)
+                            recipe_found = True
+                            log.info("Build recipe loaded from pinned version %s", recipe_version_id)
 
-                # Try stage-specific recipe first, then fall back to product-level
-                recipe_url = f"/v2/products/{product_id}/recipe"
-                if job_stage:
-                    recipe_url += f"?stage={job_stage}"
+                # Fall back to stage-specific or product-level recipe
+                if not recipe_found:
+                    job_stage = _webhook_data.get("stage")
+                    if not job_stage:
+                        build_run_id = getattr(job, 'buildRunId', None) or getattr(job, 'build_run_id', None)
+                        if build_run_id:
+                            run_result = self.client.api_get(f"/v2/builds/runs/{build_run_id}")
+                            if run_result and run_result.get("data"):
+                                job_stage = run_result["data"].get("stage")
 
-                result = self.client.api_get(recipe_url)
-                if result and result.get("data"):
-                    content = result["data"].get("content")
-                    if content:
-                        recipe_path.write_text(content)
-                        recipe_path.chmod(0o755)
-                        recipe_found = True
-                        stage_label = f"stage {job_stage}" if job_stage else "product-level"
-                        log.info("Build recipe loaded from API (%s)", stage_label)
+                    recipe_url = f"/v2/products/{product_id}/recipe"
+                    if job_stage:
+                        recipe_url += f"?stage={job_stage}"
+
+                    result = self.client.api_get(recipe_url)
+                    if result and result.get("data"):
+                        content = result["data"].get("content")
+                        if content:
+                            recipe_path.write_text(content)
+                            recipe_path.chmod(0o755)
+                            recipe_found = True
+                            stage_label = f"stage {job_stage}" if job_stage else "product-level"
+                            log.info("Build recipe loaded from API (%s)", stage_label)
 
             # Fall back to repo's own build script
             if not recipe_found:

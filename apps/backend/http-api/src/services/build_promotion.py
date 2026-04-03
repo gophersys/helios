@@ -1,10 +1,11 @@
-"""Build promotion — converts BuildRun artifacts into FirmwareSets.
+"""Build promotion — converts BuildRun artifacts into FirmwareSets and AssetSets.
 
 When all BuildJobs in a BuildRun succeed, this service:
 1. Groups BuildArtifacts by variant (debug, release, mfg)
 2. Creates FirmwareSet records for each group
 3. Creates FirmwareBuild records linked to ProductTargets
-4. The firmware then appears in the product's Firmware tab
+4. Creates a unified AssetSet with Asset records for downstream consumption
+5. The firmware then appears in the product's Firmware tab
 """
 
 import logging
@@ -165,3 +166,109 @@ def promote_build_run_to_firmware(run_id: str) -> Optional[List[Dict[str, Any]]]
                      run_id, variant, fw_set.id)
 
     return created_sets
+
+
+def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
+    """Create an AssetSet from a completed BuildRun.
+
+    Groups all BuildJob artifacts into a single AssetSet for downstream
+    consumption by validation sessions and manufacturing.
+
+    Returns {"assetSetId": "...", "assetCount": N} on success, None on failure.
+    """
+    db = get_db_client()
+
+    build_run = db.buildrun.find_unique(
+        where={"id": run_id},
+        include={
+            "builds": {"include": {"artifacts": True}},
+            "product": True,
+        },
+    )
+    if not build_run:
+        logger.error("BuildRun %s not found for AssetSet creation", run_id)
+        return None
+
+    if not build_run.builds:
+        logger.warning("BuildRun %s has no builds for AssetSet creation", run_id)
+        return None
+
+    # Check if an AssetSet already exists for this run (idempotency)
+    existing = db.assetset.find_first(where={"buildRunId": run_id})
+    if existing:
+        logger.info("AssetSet %s already exists for BuildRun %s", existing.id, run_id)
+        return {"assetSetId": existing.id, "assetCount": 0, "deduplicated": True}
+
+    # Resolve board revision
+    board_revision_id = None
+    if build_run.stageConfigId:
+        stage_config = db.productstageconfig.find_unique(
+            where={"id": build_run.stageConfigId}
+        )
+        if stage_config:
+            board_revision_id = stage_config.boardRevisionId
+
+    if not board_revision_id and build_run.board:
+        revision = db.boardrevision.find_first(
+            where={"ckBoardsName": build_run.board}
+        )
+        if revision:
+            board_revision_id = revision.id
+
+    # Extract version from the first build with a version string
+    version = "0.0.0"
+    for build in build_run.builds:
+        if build.versionString:
+            parts = build.versionString.split(".")
+            if len(parts) >= 4:
+                version = f"{parts[1]}.{parts[2]}.{parts[3].split('-')[0]}"
+                break
+
+    # Determine primary variant (prefer "debug" or first non-mfg variant)
+    variants = set(b.variant or "debug" for b in build_run.builds)
+    if "debug" in variants:
+        primary_variant = "debug"
+    elif "release" in variants:
+        primary_variant = "release"
+    else:
+        primary_variant = next(iter(variants), "debug")
+
+    # Create the AssetSet
+    asset_set = db.assetset.create(data={
+        "productId": build_run.productId,
+        "boardRevisionId": board_revision_id,
+        "version": version,
+        "variant": primary_variant,
+        "stage": getattr(build_run, "stage", None),
+        "source": "BUILD_SERVICE",
+        "buildRunId": build_run.id,
+        "commitSha": build_run.commitSha,
+        "branch": build_run.branch,
+        "recipeVersionId": getattr(build_run, "recipeVersionId", None),
+        "status": "COMPLETE",
+    })
+
+    # Create Asset records from each job's artifacts
+    asset_count = 0
+    for job in build_run.builds:
+        if not job.artifacts:
+            continue
+        for artifact in job.artifacts:
+            db.asset.create(data={
+                "assetSetId": asset_set.id,
+                "label": getattr(job, "matrixLabel", None) or "UNKNOWN",
+                "role": artifact.role or "unknown",
+                "processor": artifact.processor,
+                "artifactType": artifact.artifactType or "unknown",
+                "storageKey": artifact.storageKey,
+                "filename": artifact.name,
+                "sizeBytes": artifact.sizeBytes,
+                "checksum": artifact.checksum or "",
+                "contentType": getattr(artifact, "contentType", None),
+            })
+            asset_count += 1
+
+    logger.info("Created AssetSet %s from BuildRun %s (%d assets)",
+                asset_set.id, run_id, asset_count)
+
+    return {"assetSetId": asset_set.id, "assetCount": asset_count}
