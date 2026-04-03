@@ -1380,8 +1380,7 @@ concord_finalize
         all_products = db.product.find_many()
         all_dev_users = db.user.find_many(where={"active": True})
 
-        # Map role to access level
-        ROLE_ACCESS_LEVEL = {
+        role_to_level = {
             "ADMIN": "admin",
             "MAINTAINER": "admin",
             "DEVELOPER": "develop",
@@ -1390,7 +1389,7 @@ concord_finalize
 
         for u in all_dev_users:
             user_role = getattr(u, "role", "DEVELOPER") or "DEVELOPER"
-            level = ROLE_ACCESS_LEVEL.get(user_role, "view")
+            level = role_to_level.get(user_role, "view")
             for p in all_products:
                 db.productaccess.upsert(
                     where={
