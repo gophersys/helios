@@ -37,11 +37,12 @@ PRISMA_MODELS: set[str] = {
     'ApiKey',
     'AuditLog',
     'Secret',
-    'Setting',
-    'Log',
     'PollCache',
     'RecipeVersion',
     'RecipeTemplate',
+    'StageBuildMatrix',
+    'AssetSet',
+    'Asset',
 }
 
 RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
@@ -58,6 +59,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'testPackages': 'TestPackage',
         'recipeVersions': 'RecipeVersion',
         'productAccess': 'ProductAccess',
+        'assetSets': 'AssetSet',
     },
     'TestPackage': {
         'product': 'Product',
@@ -77,6 +79,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'targets': 'ProductTarget',
         'firmwareSets': 'FirmwareSet',
         'stageConfigs': 'ProductStageConfig',
+        'assetSets': 'AssetSet',
     },
     'FirmwareSet': {
         'product': 'Product',
@@ -91,8 +94,10 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'product': 'Product',
         'boardRevision': 'BoardRevision',
         'signingKey': 'Secret',
+        'recipeVersion': 'RecipeVersion',
         'buildRuns': 'BuildRun',
         'queueEntries': 'ValidationQueueEntry',
+        'buildMatrixEntries': 'StageBuildMatrix',
     },
     'ValidationQueueEntry': {
         'buildRun': 'BuildRun',
@@ -103,13 +108,16 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     'BuildRun': {
         'product': 'Product',
         'stageConfig': 'ProductStageConfig',
+        'recipeVersion': 'RecipeVersion',
         'builds': 'BuildJob',
         'sessions': 'Session',
         'queueEntries': 'ValidationQueueEntry',
+        'assetSet': 'AssetSet',
     },
     'BuildJob': {
         'buildRun': 'BuildRun',
         'product': 'Product',
+        'recipeVersion': 'RecipeVersion',
         'artifacts': 'BuildArtifact',
         'reusedFrom': 'BuildJob',
         'reusedBy': 'BuildJob',
@@ -122,6 +130,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'fixture': 'Fixture',
         'pipeline': 'BuildRun',
         'testPackage': 'TestPackage',
+        'assetSet': 'AssetSet',
         'createdBy': 'User',
         'devices': 'Device',
         'queueEntry': 'ValidationQueueEntry',
@@ -174,7 +183,6 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'slot': 'FixtureSlot',
         'triggeredBy': 'User',
         'steps': 'TestStep',
-        'logs': 'Log',
     },
     'TestStep': {
         'execution': 'TestExecution',
@@ -190,6 +198,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'auditLogs': 'AuditLog',
         'secrets': 'Secret',
         'recipeVersions': 'RecipeVersion',
+        'assetSets': 'AssetSet',
     },
     'ProductAccess': {
         'user': 'User',
@@ -208,18 +217,32 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'createdBy': 'User',
         'stageConfigs': 'ProductStageConfig',
     },
-    'Setting': {
-    },
-    'Log': {
-        'execution': 'TestExecution',
-    },
     'PollCache': {
     },
     'RecipeVersion': {
         'product': 'Product',
         'createdBy': 'User',
+        'stageConfigs': 'ProductStageConfig',
+        'buildRuns': 'BuildRun',
+        'buildJobs': 'BuildJob',
+        'assetSets': 'AssetSet',
     },
     'RecipeTemplate': {
+    },
+    'StageBuildMatrix': {
+        'stageConfig': 'ProductStageConfig',
+    },
+    'AssetSet': {
+        'product': 'Product',
+        'boardRevision': 'BoardRevision',
+        'buildRun': 'BuildRun',
+        'recipeVersion': 'RecipeVersion',
+        'createdBy': 'User',
+        'assets': 'Asset',
+        'sessions': 'Session',
+    },
+    'Asset': {
+        'assetSet': 'AssetSet',
     },
 }
 

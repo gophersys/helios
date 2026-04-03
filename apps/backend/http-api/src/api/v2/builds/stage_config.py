@@ -26,7 +26,7 @@ DEFAULT_STAGES = [
     {"stage": 5, "name": "FUOTA"},
 ]
 
-_INCLUDE = {"boardRevision": True, "signingKey": True}
+_INCLUDE = {"boardRevision": True, "signingKey": True, "buildMatrixEntries": True}
 
 
 def _serialize_stage_config(cfg) -> dict:
@@ -59,6 +59,11 @@ def _serialize_stage_config(cfg) -> dict:
         }
     else:
         data["signingKey"] = None
+    if hasattr(cfg, "buildMatrixEntries") and cfg.buildMatrixEntries:
+        data["buildMatrix"] = [
+            _serialize_build_matrix_entry(e)
+            for e in sorted(cfg.buildMatrixEntries, key=lambda x: x.sortOrder)
+        ]
     return data
 
 
@@ -216,3 +221,160 @@ def initialize_stages(product_id: str):
         created.append(_serialize_stage_config(config))
     log_audit("stageConfig.initialize", "ProductStageConfig", product_id, {"stages": len(created)})
     return jsonify(ApiResponse.ok(created).to_dict()), 201
+
+
+# =============================================================================
+# Build Matrix — per-stage build definitions
+# =============================================================================
+
+def _serialize_build_matrix_entry(entry) -> dict:
+    return {
+        "id": entry.id,
+        "stageConfigId": entry.stageConfigId,
+        "sortOrder": entry.sortOrder,
+        "label": entry.label,
+        "fwType": entry.fwType,
+        "variant": entry.variant,
+        "configLog": entry.configLog,
+        "producesHex": entry.producesHex,
+        "producesCfw": entry.producesCfw,
+        "gitRef": entry.gitRef,
+        "isVersionBump": entry.isVersionBump,
+        "baseLabel": entry.baseLabel,
+        "description": entry.description,
+    }
+
+
+@require_permissions(Permissions.BUILDS_VIEW)
+def get_stage_build_matrix(product_id: str, stage: str):
+    """GET /products/<id>/stages/<stage>/build-matrix — return build matrix for a stage."""
+    db = get_db_client()
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+    try:
+        stage_num = int(stage)
+    except ValueError:
+        return bad_request("Stage must be a number")
+    config = db.productstageconfig.find_first(
+        where={"productId": product_id, "stage": stage_num},
+    )
+    if not config:
+        return not_found(f"Stage {stage} config not found")
+    entries = db.stagebuildmatrix.find_many(
+        where={"stageConfigId": config.id},
+        order={"sortOrder": "asc"},
+    )
+    return jsonify(ApiResponse.ok([_serialize_build_matrix_entry(e) for e in entries]).to_dict()), 200
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def update_stage_build_matrix(product_id: str, stage: str):
+    """PUT /products/<id>/stages/<stage>/build-matrix — replace build matrix entries."""
+    db = get_db_client()
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+    try:
+        stage_num = int(stage)
+    except ValueError:
+        return bad_request("Stage must be a number")
+    config = db.productstageconfig.find_first(
+        where={"productId": product_id, "stage": stage_num},
+    )
+    if not config:
+        return not_found(f"Stage {stage} config not found")
+
+    data = request.get_json()
+    if not data or not isinstance(data.get("entries"), list):
+        return bad_request("Request body must contain 'entries' array")
+
+    entries = data["entries"]
+    # Validate entries
+    seen_labels = set()
+    for i, entry in enumerate(entries):
+        label = (entry.get("label") or "").strip()
+        if not label:
+            return bad_request(f"Entry {i}: label is required")
+        if label in seen_labels:
+            return bad_request(f"Entry {i}: duplicate label '{label}'")
+        seen_labels.add(label)
+        fw_type = (entry.get("fwType") or "").strip()
+        if not fw_type:
+            return bad_request(f"Entry {i}: fwType is required")
+        variant = (entry.get("variant") or "").strip()
+        if not variant:
+            return bad_request(f"Entry {i}: variant is required")
+
+    # Replace: delete old, create new
+    db.stagebuildmatrix.delete_many(where={"stageConfigId": config.id})
+    created = []
+    for i, entry in enumerate(entries):
+        row = db.stagebuildmatrix.create(data={
+            "stageConfigId": config.id,
+            "sortOrder": entry.get("sortOrder", i),
+            "label": entry["label"].strip(),
+            "fwType": entry["fwType"].strip(),
+            "variant": entry["variant"].strip(),
+            "configLog": entry.get("configLog", True),
+            "producesHex": entry.get("producesHex", True),
+            "producesCfw": entry.get("producesCfw", False),
+            "gitRef": entry.get("gitRef", "pr"),
+            "isVersionBump": entry.get("isVersionBump", False),
+            "baseLabel": entry.get("baseLabel"),
+            "description": entry.get("description"),
+        })
+        created.append(_serialize_build_matrix_entry(row))
+
+    log_audit("stageConfig.buildMatrix.update", "ProductStageConfig", config.id, {"count": len(created)})
+    return jsonify(ApiResponse.ok(created).to_dict()), 200
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def reset_stage_build_matrix(product_id: str, stage: str):
+    """POST /products/<id>/stages/<stage>/build-matrix/reset — reset to Python defaults."""
+    from corekinect.stages import Stage, get_stage_build_defs
+
+    db = get_db_client()
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+    try:
+        stage_num = int(stage)
+    except ValueError:
+        return bad_request("Stage must be a number")
+    config = db.productstageconfig.find_first(
+        where={"productId": product_id, "stage": stage_num},
+    )
+    if not config:
+        return not_found(f"Stage {stage} config not found")
+
+    stage_enum_map = {1: Stage.SMOKE, 2: Stage.SILICON, 3: Stage.INTEGRATION, 4: Stage.NIGHTLY, 5: Stage.FUOTA}
+    stage_enum = stage_enum_map.get(stage_num)
+    if not stage_enum:
+        return bad_request(f"No default build definitions for stage {stage_num}")
+
+    build_defs = get_stage_build_defs(stage_enum)
+
+    # Replace existing entries
+    db.stagebuildmatrix.delete_many(where={"stageConfigId": config.id})
+    created = []
+    for i, bd in enumerate(build_defs):
+        row = db.stagebuildmatrix.create(data={
+            "stageConfigId": config.id,
+            "sortOrder": i,
+            "label": bd.label,
+            "fwType": bd.fw_type,
+            "variant": bd.variant,
+            "configLog": bd.config_log,
+            "producesHex": bd.produces_hex,
+            "producesCfw": bd.produces_cfw,
+            "gitRef": bd.git_ref,
+            "isVersionBump": bd.is_version_bump,
+            "baseLabel": bd.base_label,
+            "description": bd.description,
+        })
+        created.append(_serialize_build_matrix_entry(row))
+
+    log_audit("stageConfig.buildMatrix.reset", "ProductStageConfig", config.id, {"count": len(created)})
+    return jsonify(ApiResponse.ok(created).to_dict()), 200

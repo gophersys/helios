@@ -91,8 +91,9 @@ class MtibV1ServerInfo:
 
 
 class PowerChannel(IntEnum):
-    DUT = 0       # POWER_CHANNEL_DUT
-    CHARGER = 1   # POWER_CHANNEL_CHARGER
+    DUT = 0           # POWER_CHANNEL_DUT
+    CHARGER = 1       # POWER_CHANNEL_CHARGER
+    JOULESCOPE = 2    # POWER_CHANNEL_JOULESCOPE (optional USB power analyzer)
 
 
 class GpioDirection(IntEnum):
@@ -246,6 +247,7 @@ class PowerReadResult:
     voltage_v: float = 0.0
     current_ma: float = 0.0
     power_mw: float = 0.0
+    current_na: float = 0.0  # Nanoamp resolution (Joulescope only)
 
 
 @dataclass
@@ -256,6 +258,9 @@ class PowerMeasureResult:
     max_ma: float = 0.0
     average_mv: float = 0.0
     sample_count: int = 0
+    average_na: float = 0.0  # Nanoamp resolution (Joulescope only)
+    min_na: float = 0.0
+    max_na: float = 0.0
 
 
 @dataclass

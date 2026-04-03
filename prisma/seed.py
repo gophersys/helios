@@ -590,7 +590,11 @@ def seed():
         b0_rev_id = alpha_b0_rev_for_stages.id if alpha_b0_rev_for_stages else None
 
         if alpha_product:
-            # Delete existing configs first (idempotent re-seed)
+            # Delete existing build matrix entries first (FK constraint)
+            existing_configs = db.productstageconfig.find_many(where={"productId": alpha_product.id})
+            for ec in existing_configs:
+                db.stagebuildmatrix.delete_many(where={"stageConfigId": ec.id})
+            # Delete existing configs (idempotent re-seed)
             db.productstageconfig.delete_many(where={"productId": alpha_product.id})
 
             stage_defs = [
@@ -623,11 +627,41 @@ def seed():
                     "triggerTypes": ["pr_merge", "manual"],
                 },
             ]
+
+            # Import stage build definitions for seeding build matrix
+            from corekinect.stages import Stage, get_stage_build_defs
+            STAGE_ENUM_MAP = {1: Stage.SMOKE, 2: Stage.SILICON, 3: Stage.INTEGRATION, 4: Stage.NIGHTLY, 5: Stage.FUOTA}
+
+            created_stages = []
             for sd in stage_defs:
-                db.productstageconfig.create(data={
+                config = db.productstageconfig.create(data={
                     "productId": alpha_product.id,
                     **sd,
                 })
+                created_stages.append((config, sd["stage"]))
+
+            # Seed build matrix entries for each stage
+            for config, stage_num in created_stages:
+                stage_enum = STAGE_ENUM_MAP.get(stage_num)
+                if stage_enum:
+                    build_defs = get_stage_build_defs(stage_enum)
+                    for i, bd in enumerate(build_defs):
+                        db.stagebuildmatrix.create(data={
+                            "stageConfigId": config.id,
+                            "sortOrder": i,
+                            "label": bd.label,
+                            "fwType": bd.fw_type,
+                            "variant": bd.variant,
+                            "configLog": bd.config_log,
+                            "producesHex": bd.produces_hex,
+                            "producesCfw": bd.produces_cfw,
+                            "gitRef": bd.git_ref,
+                            "isVersionBump": bd.is_version_bump,
+                            "baseLabel": bd.base_label,
+                            "description": bd.description,
+                        })
+                    print(f"    {config.name}: {len(build_defs)} build matrix entries")
+
             enabled = sum(1 for s in stage_defs if s["enabled"])
             print(f"  Alpha B0: {len(stage_defs)} stages ({enabled} enabled)")
         else:

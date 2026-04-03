@@ -297,9 +297,9 @@ class TestPower(unittest.TestCase):
         assert err is None
 
     def test_power_enable_invalid_channel(self):
-        err = self.client.PowerEnable(channel=2, voltage_v=4.5)
+        err = self.client.PowerEnable(channel=3, voltage_v=4.5)
         assert err is not None
-        assert "2" in err
+        assert "3" in err
 
     def test_power_enable_invalid_voltage(self):
         err = self.client.PowerEnable(channel=0, voltage_v=7.0)
@@ -637,9 +637,10 @@ class TestValidation(unittest.TestCase):
     def test_validate_power_channel_valid(self):
         assert self.client._validate_power_channel(0) is None
         assert self.client._validate_power_channel(1) is None
+        assert self.client._validate_power_channel(2) is None  # Joulescope
 
     def test_validate_power_channel_invalid(self):
-        assert self.client._validate_power_channel(2) is not None
+        assert self.client._validate_power_channel(3) is not None
         assert self.client._validate_power_channel(-1) is not None
 
     def test_validate_voltage_valid(self):

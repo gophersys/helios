@@ -483,5 +483,218 @@ class TestPowerInternalHelpers(unittest.TestCase):
         assert handler._chg_enabled is True  # unaffected
 
 
+def _make_mock_joulescope(read_returns=None):
+    """Build a mock JoulescopeDriver."""
+    js = MagicMock()
+    js.is_connected = True
+    js.serial_number = "JS220-001998"
+    if read_returns is None:
+        js.read.return_value = (None, 4.5, 0.000025, 0.0001125)  # 25 µA, 4.5 V
+    else:
+        js.read.side_effect = list(read_returns)
+    js.read_statistics.return_value = (None, {
+        "average_a": 0.000025,
+        "min_a": 0.00001,
+        "max_a": 0.00005,
+        "average_v": 4.5,
+        "sample_count": 1000,
+        "duration_s": 1.0,
+    })
+    return js
+
+
+def _make_handler_with_joulescope(joulescope=None, ina_read_returns=None):
+    """Construct a PowerHandler with Joulescope support."""
+    handler = _make_handler(ina_read_returns=ina_read_returns)
+    handler._joulescope = joulescope
+    return handler
+
+
+class TestPowerEnableJoulescope(unittest.TestCase):
+    """Test PowerEnable/Disable for Joulescope channel (always-on no-op)."""
+
+    def _make_ctx(self):
+        ctx = MagicMock()
+        ctx.is_active.return_value = True
+        return ctx
+
+    def test_enable_joulescope_is_noop(self):
+        js = _make_mock_joulescope()
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerEnableRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE, voltage_v=0.0)
+        resp = handler.power_enable(req, self._make_ctx())
+
+        assert resp.success is True
+        assert "always-on" in resp.message.lower()
+
+    def test_disable_joulescope_is_noop(self):
+        js = _make_mock_joulescope()
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerDisableRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE)
+        resp = handler.power_disable(req, self._make_ctx())
+
+        assert resp.success is True
+        assert "always-on" in resp.message.lower()
+
+
+class TestPowerReadJoulescope(unittest.TestCase):
+    """Test PowerRead for Joulescope channel."""
+
+    def _make_ctx(self):
+        return MagicMock()
+
+    def test_read_joulescope_success(self):
+        js = _make_mock_joulescope()
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is True
+        assert abs(resp.voltage_v - 4.5) < 0.001
+        # 25 µA = 0.025 mA
+        assert abs(resp.current_ma - 0.025) < 0.001
+        # current_na should be 25000 nA
+        assert abs(resp.current_na - 25000.0) < 1.0
+
+    def test_read_joulescope_not_connected(self):
+        js = _make_mock_joulescope()
+        js.is_connected = False
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "not connected" in resp.message.lower()
+
+    def test_read_joulescope_none(self):
+        """No Joulescope driver at all."""
+        handler = _make_handler_with_joulescope(joulescope=None)
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is False
+
+    def test_read_joulescope_driver_error(self):
+        js = _make_mock_joulescope(read_returns=[("USB disconnected", 0.0, 0.0, 0.0)])
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerReadRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE)
+        resp = handler.power_read(req, self._make_ctx())
+
+        assert resp.success is False
+        assert "USB disconnected" in resp.message
+
+
+class TestPowerMeasureJoulescope(unittest.TestCase):
+    """Test PowerMeasure for Joulescope channel."""
+
+    def _make_ctx(self, active=True):
+        ctx = MagicMock()
+        ctx.is_active.return_value = active
+        return ctx
+
+    def test_measure_joulescope_success(self):
+        js = _make_mock_joulescope()
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE, duration_s=1.0)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is True
+        assert resp.sample_count == 1000
+        # 25 µA = 0.025 mA average
+        assert abs(resp.average_ma - 0.025) < 0.001
+        # nA fields
+        assert abs(resp.average_na - 25000.0) < 1.0
+        assert abs(resp.min_na - 10000.0) < 1.0
+        assert abs(resp.max_na - 50000.0) < 1.0
+
+    def test_measure_joulescope_not_connected(self):
+        js = _make_mock_joulescope()
+        js.is_connected = False
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE, duration_s=1.0)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is False
+
+    def test_measure_joulescope_driver_error(self):
+        js = _make_mock_joulescope()
+        js.read_statistics.return_value = ("USB error", None)
+        handler = _make_handler_with_joulescope(joulescope=js)
+
+        req = PowerMeasureRequest(channel=PowerChannel.POWER_CHANNEL_JOULESCOPE, duration_s=1.0)
+        resp = handler.power_measure(req, self._make_ctx())
+
+        assert resp.success is False
+
+
+class TestPowerSnapshotJoulescope(unittest.TestCase):
+    """Test snapshot includes Joulescope when connected."""
+
+    def test_snapshot_includes_joulescope(self):
+        readings = [
+            (None, 4.5, 25.0, 112.5),  # DUT
+            (None, 5.0, 10.0, 50.0),   # CHARGER
+        ]
+        js = _make_mock_joulescope()
+        handler = _make_handler_with_joulescope(joulescope=js, ina_read_returns=readings)
+
+        data = handler.get_snapshot_data()
+
+        assert len(data) == 3
+        channels = {d.channel for d in data}
+        assert PowerChannel.POWER_CHANNEL_JOULESCOPE in channels
+
+    def test_snapshot_excludes_joulescope_when_not_connected(self):
+        readings = [
+            (None, 4.5, 25.0, 112.5),
+            (None, 5.0, 10.0, 50.0),
+        ]
+        js = _make_mock_joulescope()
+        js.is_connected = False
+        handler = _make_handler_with_joulescope(joulescope=js, ina_read_returns=readings)
+
+        data = handler.get_snapshot_data()
+
+        assert len(data) == 2
+
+    def test_snapshot_excludes_joulescope_when_none(self):
+        readings = [
+            (None, 4.5, 25.0, 112.5),
+            (None, 5.0, 10.0, 50.0),
+        ]
+        handler = _make_handler_with_joulescope(joulescope=None, ina_read_returns=readings)
+
+        data = handler.get_snapshot_data()
+
+        assert len(data) == 2
+
+
+class TestJoulescopeAvailableProperty(unittest.TestCase):
+    """Test joulescope_available property."""
+
+    def test_available_when_connected(self):
+        js = _make_mock_joulescope()
+        handler = _make_handler_with_joulescope(joulescope=js)
+        assert handler.joulescope_available is True
+
+    def test_not_available_when_disconnected(self):
+        js = _make_mock_joulescope()
+        js.is_connected = False
+        handler = _make_handler_with_joulescope(joulescope=js)
+        assert handler.joulescope_available is False
+
+    def test_not_available_when_none(self):
+        handler = _make_handler_with_joulescope(joulescope=None)
+        assert handler.joulescope_available is False
+
+
 if __name__ == "__main__":
     unittest.main()

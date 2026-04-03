@@ -1,15 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Activity } from 'lucide-svelte';
-  import type { PowerSample } from './types';
+  import type { PowerSample, JoulescopeSample } from './types';
 
   interface Props {
     samples: PowerSample[];
     chgSamples: PowerSample[];
+    jsSamples?: JoulescopeSample[];
     windowSeconds?: number;
   }
 
-  let { samples, chgSamples, windowSeconds = 60 }: Props = $props();
+  let { samples, chgSamples, jsSamples = [], windowSeconds = 60 }: Props = $props();
 
   let canvas: HTMLCanvasElement;
   let containerEl: HTMLElement;
@@ -20,6 +21,7 @@
   // Track data version to know when to redraw
   let lastDrawnSamplesLen = 0;
   let lastDrawnChgLen = 0;
+  let lastDrawnJsLen = 0;
   let lastDrawnW = 0;
   let lastDrawnH = 0;
   let rafId: number | null = null;
@@ -169,6 +171,23 @@
       ctx.globalAlpha = 1;
     }
 
+    // Joulescope line (green) — plotted in mA scale (uA / 1000) for same Y-axis
+    const jsSorted = [...jsSamples].sort((a, b) => a.t - b.t);
+    const jsWindow = jsSorted.filter(s => s.t >= (windowSamples[0]?.t ?? tMin0) && s.t <= tMax);
+    if (jsWindow.length > 1) {
+      ctx.beginPath();
+      const jsToMA = (s: JoulescopeSample) => s.uA / 1000; // uA → mA for shared Y-axis
+      ctx.moveTo(toX(jsWindow[0].t), toY(jsToMA(jsWindow[0])));
+      for (let j = 1; j < jsWindow.length; j++) {
+        ctx.lineTo(toX(jsWindow[j].t), toY(jsToMA(jsWindow[j])));
+      }
+      ctx.strokeStyle = '#4ade80';
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.8;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
     // Cursor crosshair
     if (mouseX !== null && mouseX >= pad.left && mouseX <= pad.left + pw) {
       // Vertical dashed line
@@ -200,6 +219,14 @@
         if (d < bestDist) { bestDist = d; nearestChg = s; }
       }
 
+      // Find nearest Joulescope sample
+      let nearestJs: JoulescopeSample | null = null;
+      bestDist = Infinity;
+      for (const s of jsWindow) {
+        const d = Math.abs(s.t - cursorT);
+        if (d < bestDist) { bestDist = d; nearestJs = s; }
+      }
+
       // Draw intersection dots
       if (nearestDut) {
         const dx = toX(nearestDut.t);
@@ -223,12 +250,24 @@
         ctx.lineWidth = 1;
         ctx.stroke();
       }
+      if (nearestJs) {
+        const jx = toX(nearestJs.t);
+        const jy = toY(nearestJs.uA / 1000);
+        ctx.beginPath();
+        ctx.arc(jx, jy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#4ade80';
+        ctx.fill();
+        ctx.strokeStyle = '#0d1117';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
 
       // Tooltip box
       const tooltipLines: string[] = [];
       tooltipLines.push(formatTime(cursorT));
       if (nearestDut) tooltipLines.push(`DUT: ${nearestDut.mA.toFixed(1)} mA`);
       if (nearestChg) tooltipLines.push(`CHG: ${nearestChg.mA.toFixed(1)} mA`);
+      if (nearestJs) tooltipLines.push(`JS: ${nearestJs.uA.toFixed(1)} \u00B5A`);
 
       const lineH = 16;
       const tooltipPad = 8;
@@ -257,6 +296,7 @@
         const line = tooltipLines[i];
         if (line.startsWith('DUT:')) ctx.fillStyle = '#22d3ee';
         else if (line.startsWith('CHG:')) ctx.fillStyle = '#fb923c';
+        else if (line.startsWith('JS:')) ctx.fillStyle = '#4ade80';
         else ctx.fillStyle = '#9ca3af';
         ctx.fillText(line, tx + tooltipPad, ty + tooltipPad + i * lineH);
       }
@@ -274,6 +314,7 @@
     const needsRedraw =
       samples.length !== lastDrawnSamplesLen ||
       chgSamples.length !== lastDrawnChgLen ||
+      jsSamples.length !== lastDrawnJsLen ||
       w !== lastDrawnW ||
       h !== lastDrawnH ||
       mouseX !== lastDrawnMouseX ||
@@ -283,6 +324,7 @@
     if (needsRedraw) {
       lastDrawnSamplesLen = samples.length;
       lastDrawnChgLen = chgSamples.length;
+      lastDrawnJsLen = jsSamples.length;
       lastDrawnW = w;
       lastDrawnH = h;
       lastDrawnMouseX = mouseX;
@@ -348,14 +390,22 @@
         <span class="inline-block w-3 h-0.5 rounded" style="background: #fb923c;"></span>
         <span class="text-2xs text-text-tertiary">CHG</span>
       </span>
+      {#if jsSamples.length > 0}
+        <span class="flex items-center gap-1">
+          <span class="inline-block w-3 h-0.5 rounded" style="background: #4ade80;"></span>
+          <span class="text-2xs text-text-tertiary">JS</span>
+        </span>
+      {/if}
     </span>
     {#if samples.length > 0}
       {@const last = samples[samples.length - 1]}
       {@const lastChg = chgSamples.length > 0 ? chgSamples[chgSamples.length - 1] : null}
+      {@const lastJs = jsSamples.length > 0 ? jsSamples[jsSamples.length - 1] : null}
       <span class="ml-auto text-2xs font-mono">
         <span class="text-cyan-400">{last.mA.toFixed(1)}</span>
         {#if lastChg}<span class="text-text-tertiary"> / </span><span class="text-orange-400">{lastChg.mA.toFixed(1)}</span>{/if}
         <span class="text-text-tertiary"> mA</span>
+        {#if lastJs}<span class="text-text-tertiary"> | </span><span class="text-green-400">{lastJs.uA.toFixed(1)} &micro;A</span>{/if}
       </span>
     {:else}
       <span class="ml-auto text-2xs text-text-tertiary">No data</span>

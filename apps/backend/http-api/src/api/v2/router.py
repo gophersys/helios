@@ -288,7 +288,21 @@ from .builds.stage_config import (
     update_stage_config,
     delete_stage_config,
     initialize_stages,
+    get_stage_build_matrix,
+    update_stage_build_matrix,
+    reset_stage_build_matrix,
 )
+
+# Asset set handlers (unified firmware asset containers)
+from .assets.asset_sets import (
+    list_asset_sets,
+    create_asset_set,
+    create_external_asset_set,
+    get_asset_set,
+    complete_asset_set,
+    delete_asset_set,
+)
+from .assets.assets import upload_asset
 
 # PR pipeline + summary endpoints
 from .builds.pr_builds import list_pr_pipelines, get_build_summary
@@ -423,6 +437,22 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/stages/<stage>",                                    endpoint="get_stage_config",         view_func=get_stage_config,      methods=["GET"])
     v2.add_url_rule("/products/<product_id>/stages/<stage>",                                    endpoint="update_stage_config",      view_func=update_stage_config,   methods=["PUT"])
     v2.add_url_rule("/products/<product_id>/stages/<stage>",                                    endpoint="delete_stage_config",      view_func=delete_stage_config,   methods=["DELETE"])
+
+    # Products - Stage Build Matrix (per-stage build definitions)
+    v2.add_url_rule("/products/<product_id>/stages/<stage>/build-matrix",                       endpoint="get_stage_build_matrix",   view_func=get_stage_build_matrix,    methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/stages/<stage>/build-matrix",                       endpoint="update_stage_build_matrix", view_func=update_stage_build_matrix, methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/stages/<stage>/build-matrix/reset",                 endpoint="reset_stage_build_matrix", view_func=reset_stage_build_matrix,  methods=["POST"])
+
+    # Products - Asset Sets (unified firmware asset containers)
+    v2.add_url_rule("/products/<product_id>/asset-sets",                                        endpoint="list_asset_sets",          view_func=list_asset_sets,           methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/asset-sets",                                        endpoint="create_asset_set",         view_func=create_asset_set,          methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/asset-sets/external",                               endpoint="create_external_asset_set", view_func=create_external_asset_set, methods=["POST"])
+
+    # Asset Sets (top-level — not nested under product)
+    v2.add_url_rule("/asset-sets/<asset_set_id>",                                               endpoint="get_asset_set",            view_func=get_asset_set,             methods=["GET"])
+    v2.add_url_rule("/asset-sets/<asset_set_id>",                                               endpoint="delete_asset_set",         view_func=delete_asset_set,          methods=["DELETE"])
+    v2.add_url_rule("/asset-sets/<asset_set_id>/assets",                                        endpoint="upload_asset",             view_func=upload_asset,              methods=["POST"])
+    v2.add_url_rule("/asset-sets/<asset_set_id>/complete",                                      endpoint="complete_asset_set",       view_func=complete_asset_set,        methods=["POST"])
 
     # Products - Build Recipe (product build script stored in MinIO)
     v2.add_url_rule("/products/<product_id>/recipe",                                             endpoint="get_recipe",               view_func=get_recipe,            methods=["GET"])

@@ -50,10 +50,11 @@ _MAX_VOLTAGE_V = 5.5
 
 
 class PowerHandler:
-    def __init__(self, logger: Logger, mcp4017: MCP4017):
+    def __init__(self, logger: Logger, mcp4017: MCP4017, joulescope=None):
         self.logger = logger
         self.mcp4017 = mcp4017
         self._ina219 = INA219(logger)
+        self._joulescope = joulescope
 
         # We use GPIOs to control the power to the DUT and the charging power to the DUT.
         self.dut_pwr_en = Gpio(consumer="mtib-dut-pwr-en", pin=Pin.SODIMM_55, direction=gpiod.line.Direction.OUTPUT)
@@ -82,6 +83,11 @@ class PowerHandler:
         # Multi-subscriber power streaming
         self._power_broadcasters: Dict[int, StreamBroadcaster] = {}
         self._broadcaster_lock = threading.Lock()
+
+    @property
+    def joulescope_available(self) -> bool:
+        """True when a Joulescope is connected and ready to read."""
+        return self._joulescope is not None and self._joulescope.is_connected
 
     # -------------------------------------------------
     #                           Internal helpers
@@ -178,6 +184,10 @@ class PowerHandler:
         """Enable power on a channel."""
         self.logger.info(f"PowerEnable: channel={request.channel}, voltage={request.voltage_v}V")
 
+        # Joulescope is always-on when connected — no-op
+        if request.channel == PowerChannel.POWER_CHANNEL_JOULESCOPE:
+            return PowerResponse(success=True, message="Joulescope is always-on when connected")
+
         # Bounds check voltage before setting power
         if request.voltage_v < _MIN_VOLTAGE_V or request.voltage_v > _MAX_VOLTAGE_V:
             return PowerResponse(
@@ -203,6 +213,11 @@ class PowerHandler:
     def power_disable(self, request: PowerDisableRequest, context: grpc.ServicerContext) -> PowerResponse:
         """Disable power on a channel ."""
         self.logger.info(f"PowerDisable: channel={request.channel}")
+
+        # Joulescope is always-on when connected — no-op
+        if request.channel == PowerChannel.POWER_CHANNEL_JOULESCOPE:
+            return PowerResponse(success=True, message="Joulescope is always-on when connected")
+
         try:
             gpio, label = self._get_en_gpio(request.channel)
             if err := gpio.write(False):
@@ -215,6 +230,11 @@ class PowerHandler:
     def power_read(self, request: PowerReadRequest, context: grpc.ServicerContext) -> PowerReadResponse:
         """Read power status for a channel ."""
         self.logger.info(f"PowerRead: channel={request.channel}")
+
+        # Joulescope channel — route to USB driver
+        if request.channel == PowerChannel.POWER_CHANNEL_JOULESCOPE:
+            return self._read_joulescope()
+
         try:
             addr = self._get_ina_addr(request.channel)
             if addr is None:
@@ -233,9 +253,39 @@ class PowerHandler:
         except Exception as e:
             return PowerReadResponse(success=False, message=str(e))
 
+    def _read_joulescope(self) -> PowerReadResponse:
+        """Read from Joulescope, converting amps to mA/nA."""
+        if self._joulescope is None or not self._joulescope.is_connected:
+            return PowerReadResponse(success=False, message="Joulescope not connected")
+
+        try:
+            err, voltage_v, current_a, power_w = self._joulescope.read()
+            if err:
+                return PowerReadResponse(success=False, message=f"Joulescope read failed: {err}")
+
+            current_ma = current_a * 1000.0
+            current_na = current_a * 1e9
+            power_mw = power_w * 1000.0
+
+            return PowerReadResponse(
+                success=True,
+                enabled=True,  # Joulescope is always-on
+                voltage_v=voltage_v,
+                current_ma=current_ma,
+                current_na=current_na,
+                power_mw=power_mw,
+            )
+        except Exception as e:
+            return PowerReadResponse(success=False, message=str(e))
+
     def power_measure(self, request: PowerMeasureRequest, context: grpc.ServicerContext) -> PowerMeasureResponse:
         """Measure power over a duration and compute statistics ."""
         self.logger.info(f"PowerMeasure: channel={request.channel}, duration={request.duration_s}s")
+
+        # Joulescope channel — use driver statistics
+        if request.channel == PowerChannel.POWER_CHANNEL_JOULESCOPE:
+            return self._measure_joulescope(request.duration_s)
+
         try:
             addr = self._get_ina_addr(request.channel)
             if addr is None:
@@ -270,6 +320,32 @@ class PowerHandler:
             )
         except Exception as e:
             self.logger.error(f"PowerMeasure error: {e}")
+            return PowerMeasureResponse(success=False, message=str(e))
+
+    def _measure_joulescope(self, duration_s: float) -> PowerMeasureResponse:
+        """Collect Joulescope statistics over a duration."""
+        if self._joulescope is None or not self._joulescope.is_connected:
+            return PowerMeasureResponse(success=False, message="Joulescope not connected")
+
+        try:
+            err, stats = self._joulescope.read_statistics(duration_s)
+            if err:
+                return PowerMeasureResponse(success=False, message=f"Joulescope measure failed: {err}")
+
+            return PowerMeasureResponse(
+                success=True,
+                duration_s=stats["duration_s"],
+                average_ma=stats["average_a"] * 1000.0,
+                min_ma=stats["min_a"] * 1000.0,
+                max_ma=stats["max_a"] * 1000.0,
+                average_mv=stats["average_v"] * 1000.0,
+                sample_count=stats["sample_count"],
+                average_na=stats["average_a"] * 1e9,
+                min_na=stats["min_a"] * 1e9,
+                max_na=stats["max_a"] * 1e9,
+            )
+        except Exception as e:
+            self.logger.error(f"Joulescope measure error: {e}")
             return PowerMeasureResponse(success=False, message=str(e))
 
     def _get_or_create_broadcaster(self, channel: int) -> StreamBroadcaster:
@@ -399,4 +475,19 @@ class PowerHandler:
                 voltage_v=voltage_v,
                 current_ma=current_ma,
             ))
+
+        # Include Joulescope if connected
+        if self.joulescope_available:
+            try:
+                err, voltage_v, current_a, _ = self._joulescope.read()
+                if not err:
+                    result.append(SnapshotPower(
+                        channel=PowerChannel.POWER_CHANNEL_JOULESCOPE,
+                        enabled=True,
+                        voltage_v=voltage_v,
+                        current_ma=current_a * 1000.0,
+                    ))
+            except Exception:
+                pass
+
         return result

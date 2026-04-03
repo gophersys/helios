@@ -149,13 +149,13 @@ class MtibV1Client:
         """Validate power channel number is within valid range.
 
         Args:
-            channel: Power channel number to validate (0=DUT, 1=CHARGER).
+            channel: Power channel number to validate (0=DUT, 1=CHARGER, 2=JOULESCOPE).
 
         Returns:
             None if valid, error message string if invalid.
         """
-        if not 0 <= channel <= 1:
-            return f"Power channel {channel} out of valid range (0-1)"
+        if not 0 <= channel <= 2:
+            return f"Power channel {channel} out of valid range (0-2)"
         return None
 
     def _validate_voltage(self, voltage_v: float) -> Optional[str]:
@@ -610,6 +610,7 @@ class MtibV1Client:
                 voltage_v=response.voltage_v,
                 current_ma=response.current_ma,
                 power_mw=response.power_mw,
+                current_na=response.current_na,
             ), None
         except grpc.RpcError as e:
             return None, f"gRPC error for PowerRead at {self.config.net.addr}. Error: {str(e.details())}"
@@ -640,6 +641,9 @@ class MtibV1Client:
                 max_ma=response.max_ma,
                 average_mv=response.average_mv,
                 sample_count=response.sample_count,
+                average_na=response.average_na,
+                min_na=response.min_na,
+                max_na=response.max_na,
             ), None
         except grpc.RpcError as e:
             return None, f"gRPC error for PowerMeasure at {self.config.net.addr}. Error: {str(e.details())}"

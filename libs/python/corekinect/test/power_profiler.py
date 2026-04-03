@@ -26,6 +26,9 @@ class PowerMeasurement:
     energy_mwh: float
     duration_s: float
     samples: int
+    avg_current_na: float = 0.0   # Nanoamp resolution (Joulescope only)
+    min_current_na: float = 0.0
+    max_current_na: float = 0.0
 
 
 @dataclass
@@ -99,6 +102,9 @@ class PowerProfiler:
             energy_mwh=0,  # not provided by server
             duration_s=result.duration_s,
             samples=result.sample_count,
+            avg_current_na=result.average_na,
+            min_current_na=result.min_na,
+            max_current_na=result.max_na,
         )
 
     def start_continuous(self, channel: int = 0) -> None:
@@ -162,6 +168,18 @@ class PowerProfiler:
         except Exception as e:
             if self._streaming:
                 log.error("Power stream error: %s", e)
+
+    def measure_joulescope(self, duration_s: float = 10) -> PowerMeasurement:
+        """Take a Joulescope power measurement with nanoamp resolution.
+
+        Args:
+            duration_s: Measurement window in seconds.
+
+        Raises:
+            RuntimeError: If Joulescope is not connected or measurement fails.
+        """
+        from corekinect.mtib_client.v1.client.types import PowerChannel
+        return self.measure(channel=PowerChannel.JOULESCOPE, duration_s=duration_s)
 
     def quick_read(self, channel: int = 0) -> Tuple[float, float, float]:
         """Return (voltage_mv, current_ma, power_mw) from a single read."""

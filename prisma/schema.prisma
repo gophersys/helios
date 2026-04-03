@@ -99,6 +99,19 @@ enum BuildJobStatus {
   CACHED // Reused from a previous build with same fingerprint
 }
 
+enum AssetSetSource {
+  BUILD_SERVICE
+  MANUAL_UPLOAD
+  EXTERNAL_CI
+}
+
+enum AssetSetStatus {
+  PENDING
+  COMPLETE
+  VALIDATED
+  FAILED
+}
+
 enum QueueEntryStatus {
   QUEUED
   ASSIGNED
@@ -166,6 +179,7 @@ model Product {
   testPackages   TestPackage[]
   recipeVersions RecipeVersion[]
   productAccess  ProductAccess[]
+  assetSets      AssetSet[]
 
   @@map("products")
 }
@@ -263,6 +277,7 @@ model BoardRevision {
   targets      ProductTarget[]
   firmwareSets FirmwareSet[]
   stageConfigs ProductStageConfig[]
+  assetSets    AssetSet[]
 
   @@unique([boardId, version])
   @@unique([ckBoardsName])
@@ -374,11 +389,16 @@ model ProductStageConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  product       Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
-  boardRevision BoardRevision?         @relation(fields: [boardRevisionId], references: [id])
-  signingKey    Secret?                @relation(fields: [signingKeyId], references: [id])
-  buildRuns     BuildRun[]
-  queueEntries  ValidationQueueEntry[]
+  // Per-stage recipe override (optional — falls back to product-level recipe)
+  recipeVersionId String?
+
+  product            Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  boardRevision      BoardRevision?         @relation(fields: [boardRevisionId], references: [id])
+  signingKey         Secret?                @relation(fields: [signingKeyId], references: [id])
+  recipeVersion      RecipeVersion?         @relation("StageConfigRecipe", fields: [recipeVersionId], references: [id])
+  buildRuns          BuildRun[]
+  queueEntries       ValidationQueueEntry[]
+  buildMatrixEntries StageBuildMatrix[]
 
   @@unique([productId, stage, boardRevisionId])
   @@index([productId])
@@ -479,11 +499,16 @@ model BuildRun {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  product      Product                @relation(fields: [productId], references: [id])
-  stageConfig  ProductStageConfig?    @relation(fields: [stageConfigId], references: [id])
-  builds       BuildJob[]
-  sessions     Session[]
-  queueEntries ValidationQueueEntry[]
+  // Recipe pinning — which recipe version was used for this build run
+  recipeVersionId String?
+
+  product         Product                @relation(fields: [productId], references: [id])
+  stageConfig     ProductStageConfig?    @relation(fields: [stageConfigId], references: [id])
+  recipeVersion   RecipeVersion?         @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id])
+  builds          BuildJob[]
+  sessions        Session[]
+  queueEntries    ValidationQueueEntry[]
+  assetSet        AssetSet?
 
   @@index([productId, branch])
   @@index([productId, prNumber])
@@ -539,10 +564,14 @@ model BuildJob {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  product    Product         @relation(fields: [productId], references: [id])
-  artifacts  BuildArtifact[]
-  reusedFrom BuildJob?       @relation("BuildReuse", fields: [reusedFromId], references: [id])
-  reusedBy   BuildJob[]      @relation("BuildReuse")
+  // Recipe pinning
+  recipeVersionId String?
+
+  product         Product         @relation(fields: [productId], references: [id])
+  recipeVersion   RecipeVersion?  @relation("BuildJobRecipe", fields: [recipeVersionId], references: [id])
+  artifacts       BuildArtifact[]
+  reusedFrom      BuildJob?       @relation("BuildReuse", fields: [reusedFromId], references: [id])
+  reusedBy        BuildJob[]      @relation("BuildReuse")
 
   @@index([productId, branch])
   @@index([matrixLabel])
@@ -618,10 +647,14 @@ model Session {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  // Asset set — which firmware assets this session consumed
+  assetSetId String?
+
   product     Product               @relation(fields: [productId], references: [id])
   fixture     Fixture?              @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
   pipeline    BuildRun?             @relation(fields: [buildRunId], references: [id], onDelete: SetNull)
   testPackage TestPackage?          @relation(fields: [testPackageId], references: [id], onDelete: SetNull)
+  assetSet    AssetSet?             @relation(fields: [assetSetId], references: [id])
   createdBy   User?                 @relation(fields: [createdById], references: [id])
   devices     Device[]
   queueEntry  ValidationQueueEntry?
@@ -1016,6 +1049,7 @@ model User {
   auditLogs      AuditLog[]
   secrets        Secret[]
   recipeVersions RecipeVersion[]
+  assetSets      AssetSet[]
 
   @@map("users")
 }
@@ -1135,8 +1169,12 @@ model RecipeVersion {
   createdById String?
   createdAt   DateTime @default(now())
 
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdBy User?   @relation(fields: [createdById], references: [id])
+  product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdBy    User?                @relation(fields: [createdById], references: [id])
+  stageConfigs ProductStageConfig[] @relation("StageConfigRecipe")
+  buildRuns    BuildRun[]           @relation("BuildRunRecipe")
+  buildJobs    BuildJob[]           @relation("BuildJobRecipe")
+  assetSets    AssetSet[]
 
   @@index([productId, version])
   @@index([productId, status])
@@ -1155,4 +1193,106 @@ model RecipeTemplate {
   updatedAt   DateTime @updatedAt
 
   @@map("recipe_templates")
+}
+
+// =============================================================================
+//
+//  STAGE BUILD MATRIX
+//  Per-stage build definitions — what firmware to build for each validation stage.
+//  Replaces hardcoded _STAGE_BUILDS in stages.py with DB-driven config.
+//
+// =============================================================================
+
+/// A single build definition within a stage's build matrix.
+/// Maps 1:1 to StageBuildDef from corekinect.stages — same fields,
+/// but stored per-product in the database instead of hardcoded.
+model StageBuildMatrix {
+  id            String  @id @default(cuid())
+  stageConfigId String
+  sortOrder     Int     @default(0)
+  label         String /// "MFG_BASE", "FUT_VERBOSE_A", etc.
+  fwType        String /// "mfg", "app"
+  variant       String /// "mfg", "debug", "release"
+  configLog     Boolean @default(true)
+  producesHex   Boolean @default(true)
+  producesCfw   Boolean @default(false)
+  gitRef        String  @default("pr") /// "pr", "main", "merge"
+  isVersionBump Boolean @default(false)
+  baseLabel     String? /// Required when isVersionBump=true
+  description   String?
+
+  stageConfig ProductStageConfig @relation(fields: [stageConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([stageConfigId, label])
+  @@index([stageConfigId])
+  @@map("stage_build_matrix")
+}
+
+// =============================================================================
+//
+//  ASSET SETS
+//  Unified firmware asset containers — one model for build service output,
+//  manual uploads, and external CI imports.
+//
+// =============================================================================
+
+/// A versioned set of firmware assets for a product.
+/// Created by the build service on success, by manual upload, or by external CI webhook.
+/// Validation sessions and manufacturing link to an AssetSet to track which firmware they used.
+model AssetSet {
+  id              String         @id @default(cuid())
+  productId       String
+  boardRevisionId String?
+  version         String /// Firmware version, e.g. "0.5.2"
+  variant         String         @default("debug") /// "debug", "release", "mfg"
+  stage           Int? /// Validation stage (1-5) this asset set targets
+
+  source          AssetSetSource /// How the assets entered the system
+  buildRunId      String?        @unique /// 1:1 with BuildRun (if from build service)
+  externalBuildId String? /// External CI build ID (TeamCity, Jenkins)
+  commitSha       String?
+  branch          String?
+  recipeVersionId String?
+
+  status          AssetSetStatus @default(PENDING)
+  notes           String?
+  createdById     String?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  product         Product        @relation(fields: [productId], references: [id])
+  boardRevision   BoardRevision? @relation(fields: [boardRevisionId], references: [id])
+  buildRun        BuildRun?      @relation(fields: [buildRunId], references: [id])
+  recipeVersion   RecipeVersion? @relation(fields: [recipeVersionId], references: [id])
+  createdBy       User?          @relation(fields: [createdById], references: [id])
+  assets          Asset[]
+  sessions        Session[]
+
+  @@index([productId, stage, status])
+  @@index([productId, version])
+  @@map("asset_sets")
+}
+
+/// An individual firmware artifact within an AssetSet.
+/// Stored in MinIO, referenced by storageKey.
+model Asset {
+  id           String   @id @default(cuid())
+  assetSetId   String
+  label        String /// Build matrix label, e.g. "MFG_BASE", "FUT_VERBOSE_A"
+  role         String /// "app", "comms", "modem"
+  processor    String? /// "nrf52840", "nrf9151"
+  artifactType String /// "plaintextHex", "encryptedCfw", "manifest"
+  storageKey   String /// MinIO path
+  filename     String
+  sizeBytes    BigInt
+  checksum     String /// SHA-256
+  contentType  String?
+  createdAt    DateTime @default(now())
+
+  assetSet     AssetSet @relation(fields: [assetSetId], references: [id], onDelete: Cascade)
+
+  @@index([assetSetId])
+  @@index([assetSetId, label, artifactType])
+  @@map("assets")
 }

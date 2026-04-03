@@ -10,6 +10,7 @@
   <PowerChart
     samples={ctx.effectivePower}
     chgSamples={ctx.effectivePowerChg}
+    jsSamples={ctx.effectivePowerJs}
     windowSeconds={ctx.analysisMode ? 99999 : ctx.POWER_WINDOW_S}
   />
 </div>

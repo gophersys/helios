@@ -2,7 +2,7 @@ import { getContext, setContext } from 'svelte';
 import { apiFetch, api, getToken } from '$lib/api';
 import type { ValidationRun } from '$lib/types/models';
 import type { ApiResponse } from '$lib/types';
-import type { PowerSample, AccelSample } from './types';
+import type { PowerSample, AccelSample, JoulescopeSample } from './types';
 import type { TelemetryManifest, TimeRange, StepInfo } from './time-context';
 import {
   subscribeValidationRunWithLogs,
@@ -131,6 +131,7 @@ class RunContext {
   // Power / accel profiler data
   powerSamples = $state<PowerSample[]>([]);
   powerChgSamples = $state<PowerSample[]>([]);
+  powerJsSamples = $state<JoulescopeSample[]>([]);
   accelSamples = $state<AccelSample[]>([]);
   readonly POWER_WINDOW_S = 60;
 
@@ -139,6 +140,7 @@ class RunContext {
   selectedRange = $state<TimeRange | null>(null);
   historicalPower = $state<PowerSample[]>([]);
   historicalPowerChg = $state<PowerSample[]>([]);
+  historicalPowerJs = $state<JoulescopeSample[]>([]);
   historicalUartAppTs = $state<TimestampedLine[]>([]);
   historicalUartCommsTs = $state<TimestampedLine[]>([]);
   telemetryLoading = $state(false);
@@ -226,6 +228,11 @@ class RunContext {
     return this.historicalPowerChg.filter(s => s.t >= this.selectedRange!.start && s.t <= this.selectedRange!.end);
   });
 
+  readonly filteredPowerJs = $derived.by(() => {
+    if (!this.selectedRange) return this.historicalPowerJs;
+    return this.historicalPowerJs.filter(s => s.t >= this.selectedRange!.start && s.t <= this.selectedRange!.end);
+  });
+
   readonly filteredUartApp = $derived.by(() => {
     if (!this.selectedRange || this.historicalUartAppTs.length === 0) return this.historicalUartApp;
     return this.historicalUartAppTs
@@ -252,6 +259,11 @@ class RunContext {
     if (this.analysisMode) return this.filteredPowerChg;
     if (this.selectedRange) return this.powerChgSamples.filter(s => s.t >= this.selectedRange!.start && s.t <= this.selectedRange!.end);
     return this.powerChgSamples;
+  });
+  readonly effectivePowerJs = $derived.by(() => {
+    if (this.analysisMode) return this.filteredPowerJs;
+    if (this.selectedRange) return this.powerJsSamples.filter(s => s.t >= this.selectedRange!.start && s.t <= this.selectedRange!.end);
+    return this.powerJsSamples;
   });
   readonly effectiveUartApp = $derived.by(() => {
     if (this.analysisMode) return this.filteredUartApp.length > 0 ? this.filteredUartApp : this.uartAppLines;
@@ -833,6 +845,16 @@ class RunContext {
             }
             if (name === 'power') this.historicalPower = samples;
             else this.historicalPowerChg = samples;
+          } else if (name === 'power_js') {
+            const samples: JoulescopeSample[] = [];
+            for (const line of text.split('\n')) {
+              if (!line.trim()) continue;
+              try {
+                const s = JSON.parse(line);
+                samples.push({ t: s.t, uA: s.uA ?? 0, mV: s.mV ?? 0, nA: s.nA });
+              } catch { /* skip malformed */ }
+            }
+            this.historicalPowerJs = samples;
           } else if (name === 'uart_app' || name === 'uart_comms') {
             const tsLines: TimestampedLine[] = [];
             for (const line of text.split('\n')) {
@@ -1032,6 +1054,14 @@ class RunContext {
             } else if (s.type === 'power_chg') {
               this.powerChgSamples.push({ t: s.t!, mA: s.mA!, mV: s.mV! });
               powerChanged = true;
+            } else if (s.type === 'power_js') {
+              this.powerJsSamples.push({
+                t: s.t!,
+                uA: (s as any).uA ?? 0,
+                mV: (s as any).mV ?? 0,
+                nA: (s as any).nA,
+              });
+              powerChanged = true;
             } else if (s.type === 'accel') {
               this.accelSamples.push({ t: s.t!, x: (s as any).x ?? 0, y: (s as any).y ?? 0, z: (s as any).z ?? 0 });
             }
@@ -1041,8 +1071,10 @@ class RunContext {
             const cutoff = (this.powerSamples.at(-1)?.t ?? 0) - 60;
             if (this.powerSamples.length > 120) this.powerSamples = this.powerSamples.filter(s => s.t > cutoff).slice(-120);
             if (this.powerChgSamples.length > 120) this.powerChgSamples = this.powerChgSamples.filter(s => s.t > cutoff).slice(-120);
+            if (this.powerJsSamples.length > 120) this.powerJsSamples = this.powerJsSamples.filter(s => s.t > cutoff).slice(-120);
             this.powerSamples = this.powerSamples;
             this.powerChgSamples = this.powerChgSamples;
+            this.powerJsSamples = this.powerJsSamples;
           }
 
           // Trim accel samples to 60s sliding window + trigger reactivity

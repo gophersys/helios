@@ -125,11 +125,12 @@ class Prisma(SyncBasePrisma):
     apikey: 'actions.ApiKeyActions[models.ApiKey]'
     auditlog: 'actions.AuditLogActions[models.AuditLog]'
     secret: 'actions.SecretActions[models.Secret]'
-    setting: 'actions.SettingActions[models.Setting]'
-    log: 'actions.LogActions[models.Log]'
     pollcache: 'actions.PollCacheActions[models.PollCache]'
     recipeversion: 'actions.RecipeVersionActions[models.RecipeVersion]'
     recipetemplate: 'actions.RecipeTemplateActions[models.RecipeTemplate]'
+    stagebuildmatrix: 'actions.StageBuildMatrixActions[models.StageBuildMatrix]'
+    assetset: 'actions.AssetSetActions[models.AssetSet]'
+    asset: 'actions.AssetActions[models.Asset]'
 
     __slots__ = (
         'product',
@@ -163,11 +164,12 @@ class Prisma(SyncBasePrisma):
         'apikey',
         'auditlog',
         'secret',
-        'setting',
-        'log',
         'pollcache',
         'recipeversion',
         'recipetemplate',
+        'stagebuildmatrix',
+        'assetset',
+        'asset',
     )
 
     def __init__(
@@ -229,11 +231,12 @@ class Prisma(SyncBasePrisma):
         self.apikey = actions.ApiKeyActions[models.ApiKey](self, models.ApiKey)
         self.auditlog = actions.AuditLogActions[models.AuditLog](self, models.AuditLog)
         self.secret = actions.SecretActions[models.Secret](self, models.Secret)
-        self.setting = actions.SettingActions[models.Setting](self, models.Setting)
-        self.log = actions.LogActions[models.Log](self, models.Log)
         self.pollcache = actions.PollCacheActions[models.PollCache](self, models.PollCache)
         self.recipeversion = actions.RecipeVersionActions[models.RecipeVersion](self, models.RecipeVersion)
         self.recipetemplate = actions.RecipeTemplateActions[models.RecipeTemplate](self, models.RecipeTemplate)
+        self.stagebuildmatrix = actions.StageBuildMatrixActions[models.StageBuildMatrix](self, models.StageBuildMatrix)
+        self.assetset = actions.AssetSetActions[models.AssetSet](self, models.AssetSet)
+        self.asset = actions.AssetActions[models.Asset](self, models.Asset)
 
         if auto_register:
             register(self)
@@ -415,11 +418,12 @@ class Batch:
     apikey: 'ApiKeyBatchActions'
     auditlog: 'AuditLogBatchActions'
     secret: 'SecretBatchActions'
-    setting: 'SettingBatchActions'
-    log: 'LogBatchActions'
     pollcache: 'PollCacheBatchActions'
     recipeversion: 'RecipeVersionBatchActions'
     recipetemplate: 'RecipeTemplateBatchActions'
+    stagebuildmatrix: 'StageBuildMatrixBatchActions'
+    assetset: 'AssetSetBatchActions'
+    asset: 'AssetBatchActions'
 
     def __init__(self, client: Prisma) -> None:
         self.__client = client
@@ -456,11 +460,12 @@ class Batch:
         self.apikey = ApiKeyBatchActions(self)
         self.auditlog = AuditLogBatchActions(self)
         self.secret = SecretBatchActions(self)
-        self.setting = SettingBatchActions(self)
-        self.log = LogBatchActions(self)
         self.pollcache = PollCacheBatchActions(self)
         self.recipeversion = RecipeVersionBatchActions(self)
         self.recipetemplate = RecipeTemplateBatchActions(self)
+        self.stagebuildmatrix = StageBuildMatrixBatchActions(self)
+        self.assetset = AssetSetBatchActions(self)
+        self.asset = AssetBatchActions(self)
 
     def _add(self, **kwargs: Any) -> None:
         builder = QueryBuilder(
@@ -3956,228 +3961,6 @@ class SecretBatchActions:
 
 # NOTE: some arguments are meaningless in this context but are included
 # for completeness sake
-class SettingBatchActions:
-    def __init__(self, batcher: Batch) -> None:
-        self._batcher = batcher
-
-    def create(
-        self,
-        data: types.SettingCreateInput,
-        include: Optional[types.SettingInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='create',
-            model=models.Setting,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-
-    def create_many(
-        self,
-        data: List[types.SettingCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> None:
-        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
-
-        self._batcher._add(
-            method='create_many',
-            model=models.Setting,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-
-    def delete(
-        self,
-        where: types.SettingWhereUniqueInput,
-        include: Optional[types.SettingInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete',
-            model=models.Setting,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def update(
-        self,
-        data: types.SettingUpdateInput,
-        where: types.SettingWhereUniqueInput,
-        include: Optional[types.SettingInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='update',
-            model=models.Setting,
-            arguments={
-                'data': data,
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def upsert(
-        self,
-        where: types.SettingWhereUniqueInput,
-        data: types.SettingUpsertInput,
-        include: Optional[types.SettingInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='upsert',
-            model=models.Setting,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-
-    def update_many(
-        self,
-        data: types.SettingUpdateManyMutationInput,
-        where: types.SettingWhereInput,
-    ) -> None:
-        self._batcher._add(
-            method='update_many',
-            model=models.Setting,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-
-    def delete_many(
-        self,
-        where: Optional[types.SettingWhereInput] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete_many',
-            model=models.Setting,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-
-
-
-# NOTE: some arguments are meaningless in this context but are included
-# for completeness sake
-class LogBatchActions:
-    def __init__(self, batcher: Batch) -> None:
-        self._batcher = batcher
-
-    def create(
-        self,
-        data: types.LogCreateInput,
-        include: Optional[types.LogInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='create',
-            model=models.Log,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-
-    def create_many(
-        self,
-        data: List[types.LogCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> None:
-        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
-
-        self._batcher._add(
-            method='create_many',
-            model=models.Log,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-
-    def delete(
-        self,
-        where: types.LogWhereUniqueInput,
-        include: Optional[types.LogInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete',
-            model=models.Log,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def update(
-        self,
-        data: types.LogUpdateInput,
-        where: types.LogWhereUniqueInput,
-        include: Optional[types.LogInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='update',
-            model=models.Log,
-            arguments={
-                'data': data,
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def upsert(
-        self,
-        where: types.LogWhereUniqueInput,
-        data: types.LogUpsertInput,
-        include: Optional[types.LogInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='upsert',
-            model=models.Log,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-
-    def update_many(
-        self,
-        data: types.LogUpdateManyMutationInput,
-        where: types.LogWhereInput,
-    ) -> None:
-        self._batcher._add(
-            method='update_many',
-            model=models.Log,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-
-    def delete_many(
-        self,
-        where: Optional[types.LogWhereInput] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete_many',
-            model=models.Log,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-
-
-
-# NOTE: some arguments are meaningless in this context but are included
-# for completeness sake
 class PollCacheBatchActions:
     def __init__(self, batcher: Batch) -> None:
         self._batcher = batcher
@@ -4503,6 +4286,339 @@ class RecipeTemplateBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.RecipeTemplate,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class StageBuildMatrixBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.StageBuildMatrixCreateInput,
+        include: Optional[types.StageBuildMatrixInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.StageBuildMatrix,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.StageBuildMatrixCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.StageBuildMatrix,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.StageBuildMatrixWhereUniqueInput,
+        include: Optional[types.StageBuildMatrixInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.StageBuildMatrix,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.StageBuildMatrixUpdateInput,
+        where: types.StageBuildMatrixWhereUniqueInput,
+        include: Optional[types.StageBuildMatrixInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.StageBuildMatrix,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.StageBuildMatrixWhereUniqueInput,
+        data: types.StageBuildMatrixUpsertInput,
+        include: Optional[types.StageBuildMatrixInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.StageBuildMatrix,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.StageBuildMatrixUpdateManyMutationInput,
+        where: types.StageBuildMatrixWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.StageBuildMatrix,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.StageBuildMatrixWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.StageBuildMatrix,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class AssetSetBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.AssetSetCreateInput,
+        include: Optional[types.AssetSetInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.AssetSet,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.AssetSetCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.AssetSet,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.AssetSetWhereUniqueInput,
+        include: Optional[types.AssetSetInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.AssetSet,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.AssetSetUpdateInput,
+        where: types.AssetSetWhereUniqueInput,
+        include: Optional[types.AssetSetInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.AssetSet,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.AssetSetWhereUniqueInput,
+        data: types.AssetSetUpsertInput,
+        include: Optional[types.AssetSetInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.AssetSet,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.AssetSetUpdateManyMutationInput,
+        where: types.AssetSetWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.AssetSet,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.AssetSetWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.AssetSet,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class AssetBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.AssetCreateInput,
+        include: Optional[types.AssetInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.Asset,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.AssetCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.Asset,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.AssetWhereUniqueInput,
+        include: Optional[types.AssetInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.Asset,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.AssetUpdateInput,
+        where: types.AssetWhereUniqueInput,
+        include: Optional[types.AssetInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.Asset,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.AssetWhereUniqueInput,
+        data: types.AssetUpsertInput,
+        include: Optional[types.AssetInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.Asset,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.AssetUpdateManyMutationInput,
+        where: types.AssetWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.Asset,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.AssetWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.Asset,
             arguments={'where': where},
             root_selection=['count'],
         )

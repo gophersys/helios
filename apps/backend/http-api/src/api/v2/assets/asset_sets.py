@@ -1,0 +1,246 @@
+"""Asset set endpoints — unified firmware asset containers.
+
+CRUD for asset sets that hold firmware artifacts from build service,
+manual uploads, or external CI. Validation sessions link to an asset
+set to track which firmware they consumed.
+"""
+
+import logging
+from flask import g, jsonify, request
+
+from src.lib.audit import log_audit
+from src.lib.decorators import require_permissions
+from src.lib.errors import bad_request, not_found
+from src.lib.permissions import Permissions
+from src.lib.types import ApiResponse
+from src.services.database.prisma import get_db_client
+
+from .types import AssetSetCreateRequest, ExternalAssetSetCreateRequest
+
+logger = logging.getLogger(__name__)
+
+_ASSET_SET_INCLUDE = {
+    "product": True,
+    "boardRevision": True,
+    "buildRun": True,
+    "createdBy": True,
+    "assets": True,
+}
+
+
+def _serialize_asset(asset) -> dict:
+    return {
+        "id": asset.id,
+        "assetSetId": asset.assetSetId,
+        "label": asset.label,
+        "role": asset.role,
+        "processor": asset.processor,
+        "artifactType": asset.artifactType,
+        "storageKey": asset.storageKey,
+        "filename": asset.filename,
+        "sizeBytes": int(asset.sizeBytes),
+        "checksum": asset.checksum,
+        "contentType": asset.contentType,
+        "createdAt": asset.createdAt.isoformat() if hasattr(asset.createdAt, "isoformat") else asset.createdAt,
+    }
+
+
+def _serialize_asset_set(asset_set) -> dict:
+    data = {
+        "id": asset_set.id,
+        "productId": asset_set.productId,
+        "boardRevisionId": asset_set.boardRevisionId,
+        "version": asset_set.version,
+        "variant": asset_set.variant,
+        "stage": asset_set.stage,
+        "source": asset_set.source,
+        "buildRunId": asset_set.buildRunId,
+        "externalBuildId": asset_set.externalBuildId,
+        "commitSha": asset_set.commitSha,
+        "branch": asset_set.branch,
+        "recipeVersionId": asset_set.recipeVersionId,
+        "status": asset_set.status,
+        "notes": asset_set.notes,
+        "createdById": asset_set.createdById,
+        "createdAt": asset_set.createdAt.isoformat() if hasattr(asset_set.createdAt, "isoformat") else asset_set.createdAt,
+        "updatedAt": asset_set.updatedAt.isoformat() if hasattr(asset_set.updatedAt, "isoformat") else asset_set.updatedAt,
+    }
+    if hasattr(asset_set, "product") and asset_set.product:
+        data["product"] = {"id": asset_set.product.id, "name": asset_set.product.name, "slug": asset_set.product.slug}
+    if hasattr(asset_set, "boardRevision") and asset_set.boardRevision:
+        data["boardRevision"] = {
+            "id": asset_set.boardRevision.id,
+            "version": asset_set.boardRevision.version,
+            "ckBoardsName": asset_set.boardRevision.ckBoardsName,
+        }
+    else:
+        data["boardRevision"] = None
+    if hasattr(asset_set, "createdBy") and asset_set.createdBy:
+        data["createdBy"] = {"id": asset_set.createdBy.id, "name": asset_set.createdBy.name}
+    else:
+        data["createdBy"] = None
+    if hasattr(asset_set, "assets") and asset_set.assets:
+        data["assets"] = [_serialize_asset(a) for a in asset_set.assets]
+    else:
+        data["assets"] = []
+    return data
+
+
+@require_permissions(Permissions.BUILDS_VIEW)
+def list_asset_sets(product_id: str):
+    """GET /products/<id>/asset-sets — list asset sets for a product."""
+    db = get_db_client()
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
+    skip = (page - 1) * limit
+
+    where = {"productId": product_id}
+
+    # Optional filters
+    stage = request.args.get("stage", type=int)
+    if stage is not None:
+        where["stage"] = stage
+    status = request.args.get("status")
+    if status:
+        where["status"] = status.upper()
+    source = request.args.get("source")
+    if source:
+        where["source"] = source.upper()
+
+    total = db.assetset.count(where=where)
+    asset_sets = db.assetset.find_many(
+        where=where,
+        include=_ASSET_SET_INCLUDE,
+        order={"createdAt": "desc"},
+        skip=skip,
+        take=limit,
+    )
+
+    pages = (total + limit - 1) // limit if total > 0 else 0
+    return jsonify(ApiResponse.ok(
+        [_serialize_asset_set(a) for a in asset_sets],
+        pagination={"page": page, "limit": limit, "total": total, "pages": pages},
+    ).to_dict()), 200
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def create_asset_set(product_id: str):
+    """POST /products/<id>/asset-sets — create a new asset set (manual or build service)."""
+    db = get_db_client()
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+
+    req, err = AssetSetCreateRequest.from_json(request.get_json())
+    if err:
+        return bad_request(err)
+
+    create_data = {
+        "productId": product_id,
+        "version": req.version,
+        "variant": req.variant,
+        "source": req.source,
+        "stage": req.stage,
+        "boardRevisionId": req.boardRevisionId,
+        "commitSha": req.commitSha,
+        "branch": req.branch,
+        "recipeVersionId": req.recipeVersionId,
+        "notes": req.notes,
+    }
+
+    # Try to get user from auth context
+    user = getattr(g, "current_user", None)
+    if user and isinstance(user, dict):
+        create_data["createdById"] = user.get("userId")
+
+    asset_set = db.assetset.create(data=create_data, include=_ASSET_SET_INCLUDE)
+    log_audit("assetSet.create", "AssetSet", asset_set.id, {"version": req.version, "source": req.source})
+    return jsonify(ApiResponse.ok(_serialize_asset_set(asset_set)).to_dict()), 201
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def create_external_asset_set(product_id: str):
+    """POST /products/<id>/asset-sets/external — create asset set from external CI."""
+    db = get_db_client()
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+
+    req, err = ExternalAssetSetCreateRequest.from_json(request.get_json())
+    if err:
+        return bad_request(err)
+
+    create_data = {
+        "productId": product_id,
+        "version": req.version,
+        "variant": req.variant,
+        "source": "EXTERNAL_CI",
+        "externalBuildId": req.externalBuildId,
+        "stage": req.stage,
+        "boardRevisionId": req.boardRevisionId,
+        "commitSha": req.commitSha,
+        "branch": req.branch,
+        "notes": req.notes,
+    }
+
+    user = getattr(g, "current_user", None)
+    if user and isinstance(user, dict):
+        create_data["createdById"] = user.get("userId")
+
+    asset_set = db.assetset.create(data=create_data, include=_ASSET_SET_INCLUDE)
+    log_audit("assetSet.createExternal", "AssetSet", asset_set.id, {
+        "version": req.version,
+        "externalBuildId": req.externalBuildId,
+    })
+    return jsonify(ApiResponse.ok(_serialize_asset_set(asset_set)).to_dict()), 201
+
+
+@require_permissions(Permissions.BUILDS_VIEW)
+def get_asset_set(asset_set_id: str):
+    """GET /asset-sets/<id> — get a single asset set with all assets."""
+    db = get_db_client()
+    asset_set = db.assetset.find_unique(where={"id": asset_set_id}, include=_ASSET_SET_INCLUDE)
+    if not asset_set:
+        return not_found("Asset set not found")
+    return jsonify(ApiResponse.ok(_serialize_asset_set(asset_set)).to_dict()), 200
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def complete_asset_set(asset_set_id: str):
+    """POST /asset-sets/<id>/complete — mark asset set as complete."""
+    db = get_db_client()
+    asset_set = db.assetset.find_unique(where={"id": asset_set_id})
+    if not asset_set:
+        return not_found("Asset set not found")
+    if asset_set.status != "PENDING":
+        return bad_request(f"Asset set is already {asset_set.status}")
+
+    updated = db.assetset.update(
+        where={"id": asset_set_id},
+        data={"status": "COMPLETE"},
+        include=_ASSET_SET_INCLUDE,
+    )
+    log_audit("assetSet.complete", "AssetSet", asset_set_id, {"status": "COMPLETE"})
+    return jsonify(ApiResponse.ok(_serialize_asset_set(updated)).to_dict()), 200
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def delete_asset_set(asset_set_id: str):
+    """DELETE /asset-sets/<id> — delete an asset set and all its assets."""
+    db = get_db_client()
+    asset_set = db.assetset.find_unique(where={"id": asset_set_id})
+    if not asset_set:
+        return not_found("Asset set not found")
+
+    # Check if any sessions reference this asset set
+    linked_sessions = db.session.count(where={"assetSetId": asset_set_id})
+    if linked_sessions > 0:
+        return bad_request(f"Cannot delete — {linked_sessions} session(s) reference this asset set")
+
+    db.assetset.delete(where={"id": asset_set_id})
+    log_audit("assetSet.delete", "AssetSet", asset_set_id, {"version": asset_set.version})
+    return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200

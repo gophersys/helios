@@ -91,6 +91,7 @@ class TestContext:
         # Background power polling state — initialized in connect(), checked in disconnect()
         self._power_poll_stop: Optional[threading.Event] = None
         self._power_poll_thread: Optional[threading.Thread] = None
+        self._has_joulescope: bool = False
 
     # ═══════════════════════════════════════════════════════════════════════
     # from_env() and its helper methods
@@ -213,12 +214,19 @@ class TestContext:
         if err:
             raise ConnectionError(f"MTIB connection failed: {err}")
 
-        # Verify MTIB is healthy
+        # Verify MTIB is healthy and check capabilities
         ready, errors, err = self.mtib.HealthCheck()
         if err:
             raise ConnectionError(f"MTIB health check failed: {err}")
         if not ready:
             raise ConnectionError(f"MTIB not ready: {errors}")
+
+        # Check for Joulescope capability
+        ext, ext_err = self.mtib.HealthCheckExtended()
+        if not ext_err and ext and ext.capabilities:
+            self._has_joulescope = "joulescope" in ext.capabilities
+            if self._has_joulescope:
+                log.info("Joulescope detected — enabling high-resolution power polling")
 
         log.info("Connected to MTIB, starting UART capture")
         self.uart.start()
@@ -267,8 +275,9 @@ class TestContext:
         log.info("Disconnected from MTIB")
 
     def _power_poll_loop(self) -> None:
-        """Poll both power channels at ~2 Hz and push to telemetry.
+        """Poll power channels at ~2 Hz and push to telemetry.
 
+        Reads DUT + Charger always, and Joulescope when available.
         Errors are logged at debug level to avoid flooding during
         power cycling between tests.
         """
@@ -288,6 +297,19 @@ class TestContext:
                     self.telemetry.push(
                         "power_chg", {"mA": round(ch1.current_ma, 2), "mV": round(ch1.voltage_v * 1000, 1)},
                     )
+
+                # Read Joulescope channel (ch2) when available — nanoamp resolution
+                if self._has_joulescope:
+                    js, err_js = self.mtib.PowerRead(channel=PowerChannel.JOULESCOPE)
+                    if not err_js and js:
+                        self.telemetry.push(
+                            "power_js",
+                            {
+                                "uA": round(js.current_ma * 1000, 2),  # mA → µA
+                                "mV": round(js.voltage_v * 1000, 1),
+                                "nA": round(js.current_na, 0),
+                            },
+                        )
             except Exception as exc:
                 log.debug("Power poll read error: %s", exc)
 

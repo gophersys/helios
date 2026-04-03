@@ -177,8 +177,9 @@ message PowerResponse {
 }
 
 enum PowerChannel {
-  POWER_CHANNEL_DUT = 0;      // Main DUT power (INA219 @ 0x40, MCP4017)
-  POWER_CHANNEL_CHARGER = 1;  // Charge rail (INA219 @ 0x41)
+  POWER_CHANNEL_DUT = 0;          // Main DUT power (INA219 @ 0x40, MCP4017)
+  POWER_CHANNEL_CHARGER = 1;      // Charge rail (INA219 @ 0x41)
+  POWER_CHANNEL_JOULESCOPE = 2;   // USB-attached Joulescope JS220 (optional, always-on when connected)
 }
 
 message PowerEnableRequest {
@@ -201,6 +202,7 @@ message PowerReadResponse {
   double voltage_v = 4;
   double current_ma = 5;
   double power_mw = 6;
+  double current_na = 7;    // Nanoamp-resolution reading (Joulescope only, 0 for INA219)
 }
 
 message PowerMeasureRequest {
@@ -217,12 +219,16 @@ message PowerMeasureResponse {
   float max_ma = 6;
   float average_mv = 7;
   uint32 sample_count = 8;
+  float average_na = 9;     // Nanoamp-resolution average (Joulescope only)
+  float min_na = 10;        // Nanoamp-resolution min (Joulescope only)
+  float max_na = 11;        // Nanoamp-resolution max (Joulescope only)
 }
 
 message PowerSample {
   uint64 timestamp_ms = 1;
   float voltage_mv = 2;
   float current_ma = 3;
+  float current_na = 4;    // Nanoamp-resolution sample (Joulescope only)
 }
 
 message PowerStreamRequest {

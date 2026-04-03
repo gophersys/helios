@@ -126,6 +126,7 @@ def grpc_method(func: Callable) -> Callable:
 _BASE_CAPABILITIES = ["power", "gpio", "adc", "uart", "flash"]
 _MOTION_CAPABILITY = "motion"
 _NFC_CAPABILITY = "nfc"
+_JOULESCOPE_CAPABILITY = "joulescope"
 _OBSERVABILITY_CAPABILITY = "observability"
 
 
@@ -251,9 +252,26 @@ class MtibV1Provider(MtibV1Servicer):
         if bme280 is None:
             self.logger.warning("BME280 sensor not found on I2C bus")
 
+        # Try to initialize Joulescope USB driver (optional)
+        joulescope_driver = None
+        try:
+            from src.drivers.joulescope import JoulescopeDriver
+            js = JoulescopeDriver(self.logger)
+            if js.scan():
+                err = js.open()
+                if not err:
+                    joulescope_driver = js
+                    self.logger.info("Joulescope JS220 detected and opened: %s", js.serial_number)
+                else:
+                    self.logger.warning("Joulescope found but failed to open: %s", err)
+        except ImportError:
+            self.logger.info("pyjoulescope_driver not installed — Joulescope support disabled")
+        except Exception as e:
+            self.logger.warning("Joulescope init failed: %s", e)
+
         self._gpio_handlers = GpioHandler(self._gpios, self.logger)
         self._adc_handlers = AdcHandler(self.logger)
-        self._power_handlers = PowerHandler(self.logger, mcp4017)
+        self._power_handlers = PowerHandler(self.logger, mcp4017, joulescope=joulescope_driver)
         self._firmware_handlers = FirmwareHandler(self.logger)
         self._sensors_handlers = SensorsHandler(self.logger, bme280)
         self._uart_handlers = UartHandler(self.logger)
@@ -420,6 +438,8 @@ class MtibV1Provider(MtibV1Servicer):
             caps.append(_MOTION_CAPABILITY)
         if self._nfc_handlers and self._nfc_handlers.is_available:
             caps.append(_NFC_CAPABILITY)
+        if self._power_handlers.joulescope_available:
+            caps.append(_JOULESCOPE_CAPABILITY)
         caps.append(_OBSERVABILITY_CAPABILITY)
         return caps
 

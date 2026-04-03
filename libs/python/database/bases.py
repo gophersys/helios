@@ -384,26 +384,6 @@ class BaseSecret(_PrismaModel):
         return actions.SecretActions[_PrismaModelT](client or get_client(), cls)
 
 
-class BaseSetting(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['Setting']] = 'Setting'  # pyright: ignore[reportIncompatibleVariableOverride]
-
-    @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.SettingActions[_PrismaModelT]':
-        from .client import get_client
-
-        return actions.SettingActions[_PrismaModelT](client or get_client(), cls)
-
-
-class BaseLog(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['Log']] = 'Log'  # pyright: ignore[reportIncompatibleVariableOverride]
-
-    @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.LogActions[_PrismaModelT]':
-        from .client import get_client
-
-        return actions.LogActions[_PrismaModelT](client or get_client(), cls)
-
-
 class BasePollCache(_PrismaModel):
     __prisma_model__: ClassVar[Literal['PollCache']] = 'PollCache'  # pyright: ignore[reportIncompatibleVariableOverride]
 
@@ -432,5 +412,35 @@ class BaseRecipeTemplate(_PrismaModel):
         from .client import get_client
 
         return actions.RecipeTemplateActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseStageBuildMatrix(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['StageBuildMatrix']] = 'StageBuildMatrix'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.StageBuildMatrixActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.StageBuildMatrixActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseAssetSet(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['AssetSet']] = 'AssetSet'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.AssetSetActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.AssetSetActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseAsset(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['Asset']] = 'Asset'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.AssetActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.AssetActions[_PrismaModelT](client or get_client(), cls)
 
 

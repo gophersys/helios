@@ -106,6 +106,7 @@ class Product(bases.BaseProduct):
     testPackages: Optional[List['models.TestPackage']] = None
     recipeVersions: Optional[List['models.RecipeVersion']] = None
     productAccess: Optional[List['models.ProductAccess']] = None
+    assetSets: Optional[List['models.AssetSet']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -735,6 +736,7 @@ class BoardRevision(bases.BaseBoardRevision):
     targets: Optional[List['models.ProductTarget']] = None
     firmwareSets: Optional[List['models.FirmwareSet']] = None
     stageConfigs: Optional[List['models.ProductStageConfig']] = None
+    assetSets: Optional[List['models.AssetSet']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -1254,11 +1256,14 @@ class ProductStageConfig(bases.BaseProductStageConfig):
 
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    recipeVersionId: Optional[_str] = None
     product: Optional['models.Product'] = None
     boardRevision: Optional['models.BoardRevision'] = None
     signingKey: Optional['models.Secret'] = None
+    recipeVersion: Optional['models.RecipeVersion'] = None
     buildRuns: Optional[List['models.BuildRun']] = None
     queueEntries: Optional[List['models.ValidationQueueEntry']] = None
+    buildMatrixEntries: Optional[List['models.StageBuildMatrix']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -1647,11 +1652,14 @@ class BuildRun(bases.BaseBuildRun):
     finishedAt: Optional[datetime.datetime] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    recipeVersionId: Optional[_str] = None
     product: Optional['models.Product'] = None
     stageConfig: Optional['models.ProductStageConfig'] = None
+    recipeVersion: Optional['models.RecipeVersion'] = None
     builds: Optional[List['models.BuildJob']] = None
     sessions: Optional[List['models.Session']] = None
     queueEntries: Optional[List['models.ValidationQueueEntry']] = None
+    assetSet: Optional['models.AssetSet'] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -1838,7 +1846,9 @@ class BuildJob(bases.BaseBuildJob):
     durationSeconds: Optional[_int] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    recipeVersionId: Optional[_str] = None
     product: Optional['models.Product'] = None
+    recipeVersion: Optional['models.RecipeVersion'] = None
     artifacts: Optional[List['models.BuildArtifact']] = None
     reusedFrom: Optional['models.BuildJob'] = None
     reusedBy: Optional[List['models.BuildJob']] = None
@@ -2144,10 +2154,12 @@ class Session(bases.BaseSession):
     durationMs: Optional[_int] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    assetSetId: Optional[_str] = None
     product: Optional['models.Product'] = None
     fixture: Optional['models.Fixture'] = None
     pipeline: Optional['models.BuildRun'] = None
     testPackage: Optional['models.TestPackage'] = None
+    assetSet: Optional['models.AssetSet'] = None
     createdBy: Optional['models.User'] = None
     devices: Optional[List['models.Device']] = None
     queueEntry: Optional['models.ValidationQueueEntry'] = None
@@ -3911,7 +3923,6 @@ class TestExecution(bases.BaseTestExecution):
     slot: Optional['models.FixtureSlot'] = None
     triggeredBy: Optional['models.User'] = None
     steps: Optional[List['models.TestStep']] = None
-    logs: Optional[List['models.Log']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -4208,6 +4219,7 @@ class User(bases.BaseUser):
     auditLogs: Optional[List['models.AuditLog']] = None
     secrets: Optional[List['models.Secret']] = None
     recipeVersions: Optional[List['models.RecipeVersion']] = None
+    assetSets: Optional[List['models.AssetSet']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -5064,255 +5076,6 @@ class Secret(bases.BaseSecret):
         _created_partial_types.add(name)
 
 
-class Setting(bases.BaseSetting):
-    """Key-value configuration store for system-wide settings
-    (thresholds, feature flags, UI preferences, etc.).
-    """
-
-    key: _str
-    value: _str
-    description: Optional[_str] = None
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-
-    # take *args and **kwargs so that other metaclasses can define arguments
-    def __init_subclass__(
-        cls,
-        *args: Any,
-        warn_subclass: Optional[bool] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__()
-        if warn_subclass is not None:
-            warnings.warn(
-                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-
-    @staticmethod
-    def create_partial(
-        name: str,
-        include: Optional[Iterable['types.SettingKeys']] = None,
-        exclude: Optional[Iterable['types.SettingKeys']] = None,
-        required: Optional[Iterable['types.SettingKeys']] = None,
-        optional: Optional[Iterable['types.SettingKeys']] = None,
-        relations: Optional[Mapping['types.SettingRelationalFieldKeys', str]] = None,
-        exclude_relational_fields: bool = False,
-    ) -> None:
-        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
-            raise RuntimeError(
-                'Attempted to create a partial type outside of client generation.'
-            )
-
-        if name in _created_partial_types:
-            raise ValueError(f'Partial type "{name}" has already been created.')
-
-        if include is not None:
-            if exclude is not None:
-                raise TypeError('Exclude and include are mutually exclusive.')
-            if exclude_relational_fields is True:
-                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
-
-        if required and optional:
-            shared = set(required) & set(optional)
-            if shared:
-                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
-
-        if exclude_relational_fields and relations:
-            raise ValueError(
-                'exclude_relational_fields and relations are mutually exclusive'
-            )
-
-        fields: Dict['types.SettingKeys', PartialModelField] = OrderedDict()
-
-        try:
-            if include:
-                for field in include:
-                    fields[field] = _Setting_fields[field].copy()
-            elif exclude:
-                for field in exclude:
-                    if field not in _Setting_fields:
-                        raise KeyError(field)
-
-                fields = {
-                    key: data.copy()
-                    for key, data in _Setting_fields.items()
-                    if key not in exclude
-                }
-            else:
-                fields = {
-                    key: data.copy()
-                    for key, data in _Setting_fields.items()
-                }
-
-            if required:
-                for field in required:
-                    fields[field]['optional'] = False
-
-            if optional:
-                for field in optional:
-                    fields[field]['optional'] = True
-
-
-            if relations:
-                raise ValueError('Model: "Setting" has no relational fields.')
-        except KeyError as exc:
-            raise ValueError(
-                f'{exc.args[0]} is not a valid Setting / {name} field.'
-            ) from None
-
-        models = partial_models_ctx.get()
-        models.append(
-            {
-                'name': name,
-                'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'Setting',
-            }
-        )
-        _created_partial_types.add(name)
-
-
-class Log(bases.BaseLog):
-    """System and execution logs. Can be free-standing (system
-    events) or linked to a specific test execution.
-    """
-
-    id: _str
-    level: 'enums.LogLevel'
-    message: _str
-    source: Optional[_str] = None
-    """service name, module path, etc.
-    """
-
-    executionId: Optional[_str] = None
-    createdAt: datetime.datetime
-    execution: Optional['models.TestExecution'] = None
-
-    # take *args and **kwargs so that other metaclasses can define arguments
-    def __init_subclass__(
-        cls,
-        *args: Any,
-        warn_subclass: Optional[bool] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__()
-        if warn_subclass is not None:
-            warnings.warn(
-                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-
-    @staticmethod
-    def create_partial(
-        name: str,
-        include: Optional[Iterable['types.LogKeys']] = None,
-        exclude: Optional[Iterable['types.LogKeys']] = None,
-        required: Optional[Iterable['types.LogKeys']] = None,
-        optional: Optional[Iterable['types.LogKeys']] = None,
-        relations: Optional[Mapping['types.LogRelationalFieldKeys', str]] = None,
-        exclude_relational_fields: bool = False,
-    ) -> None:
-        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
-            raise RuntimeError(
-                'Attempted to create a partial type outside of client generation.'
-            )
-
-        if name in _created_partial_types:
-            raise ValueError(f'Partial type "{name}" has already been created.')
-
-        if include is not None:
-            if exclude is not None:
-                raise TypeError('Exclude and include are mutually exclusive.')
-            if exclude_relational_fields is True:
-                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
-
-        if required and optional:
-            shared = set(required) & set(optional)
-            if shared:
-                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
-
-        if exclude_relational_fields and relations:
-            raise ValueError(
-                'exclude_relational_fields and relations are mutually exclusive'
-            )
-
-        fields: Dict['types.LogKeys', PartialModelField] = OrderedDict()
-
-        try:
-            if include:
-                for field in include:
-                    fields[field] = _Log_fields[field].copy()
-            elif exclude:
-                for field in exclude:
-                    if field not in _Log_fields:
-                        raise KeyError(field)
-
-                fields = {
-                    key: data.copy()
-                    for key, data in _Log_fields.items()
-                    if key not in exclude
-                }
-            else:
-                fields = {
-                    key: data.copy()
-                    for key, data in _Log_fields.items()
-                }
-
-            if required:
-                for field in required:
-                    fields[field]['optional'] = False
-
-            if optional:
-                for field in optional:
-                    fields[field]['optional'] = True
-
-            if exclude_relational_fields:
-                fields = {
-                    key: data
-                    for key, data in fields.items()
-                    if key not in _Log_relational_fields
-                }
-
-            if relations:
-                for field, type_ in relations.items():
-                    if field not in _Log_relational_fields:
-                        raise errors.UnknownRelationalFieldError('Log', field)
-
-                    # TODO: this method of validating types is not ideal
-                    # as it means we cannot two create partial types that
-                    # reference each other
-                    if type_ not in _created_partial_types:
-                        raise ValueError(
-                            f'Unknown partial type: "{type_}". '
-                            f'Did you remember to generate the {type_} type before this one?'
-                        )
-
-                    # TODO: support non prisma.partials models
-                    info = fields[field]
-                    if info['is_list']:
-                        info['type'] = f'List[\'partials.{type_}\']'
-                    else:
-                        info['type'] = f'\'partials.{type_}\''
-        except KeyError as exc:
-            raise ValueError(
-                f'{exc.args[0]} is not a valid Log / {name} field.'
-            ) from None
-
-        models = partial_models_ctx.get()
-        models.append(
-            {
-                'name': name,
-                'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'Log',
-            }
-        )
-        _created_partial_types.add(name)
-
-
 class PollCache(bases.BasePollCache):
     """Caches the last-seen commit SHA per PR for the Bitbucket poller.
     Replaces fragile /tmp file-based caching — survives pod restarts and horizontal scaling.
@@ -5438,6 +5201,10 @@ class RecipeVersion(bases.BaseRecipeVersion):
     createdAt: datetime.datetime
     product: Optional['models.Product'] = None
     createdBy: Optional['models.User'] = None
+    stageConfigs: Optional[List['models.ProductStageConfig']] = None
+    buildRuns: Optional[List['models.BuildRun']] = None
+    buildJobs: Optional[List['models.BuildJob']] = None
+    assetSets: Optional[List['models.AssetSet']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -5674,6 +5441,497 @@ class RecipeTemplate(bases.BaseRecipeTemplate):
         _created_partial_types.add(name)
 
 
+class StageBuildMatrix(bases.BaseStageBuildMatrix):
+    """A single build definition within a stage's build matrix.
+    Maps 1:1 to StageBuildDef from corekinect.stages — same fields,
+    but stored per-product in the database instead of hardcoded.
+    """
+
+    id: _str
+    stageConfigId: _str
+    sortOrder: _int
+    label: _str
+    """"MFG_BASE", "FUT_VERBOSE_A", etc.
+    """
+
+    fwType: _str
+    """"mfg", "app"
+    """
+
+    variant: _str
+    """"mfg", "debug", "release"
+    """
+
+    configLog: _bool
+    producesHex: _bool
+    producesCfw: _bool
+    gitRef: _str
+    """"pr", "main", "merge"
+    """
+
+    isVersionBump: _bool
+    baseLabel: Optional[_str] = None
+    """Required when isVersionBump=true
+    """
+
+    description: Optional[_str] = None
+    stageConfig: Optional['models.ProductStageConfig'] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.StageBuildMatrixKeys']] = None,
+        exclude: Optional[Iterable['types.StageBuildMatrixKeys']] = None,
+        required: Optional[Iterable['types.StageBuildMatrixKeys']] = None,
+        optional: Optional[Iterable['types.StageBuildMatrixKeys']] = None,
+        relations: Optional[Mapping['types.StageBuildMatrixRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.StageBuildMatrixKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _StageBuildMatrix_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _StageBuildMatrix_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _StageBuildMatrix_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _StageBuildMatrix_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _StageBuildMatrix_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _StageBuildMatrix_relational_fields:
+                        raise errors.UnknownRelationalFieldError('StageBuildMatrix', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid StageBuildMatrix / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'StageBuildMatrix',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class AssetSet(bases.BaseAssetSet):
+    """A versioned set of firmware assets for a product.
+    Created by the build service on success, by manual upload, or by external CI webhook.
+    Validation sessions and manufacturing link to an AssetSet to track which firmware they used.
+    """
+
+    id: _str
+    productId: _str
+    boardRevisionId: Optional[_str] = None
+    version: _str
+    """Firmware version, e.g. "0.5.2"
+    """
+
+    variant: _str
+    """"debug", "release", "mfg"
+    """
+
+    stage: Optional[_int] = None
+    """Validation stage (1-5) this asset set targets
+    """
+
+    source: 'enums.AssetSetSource'
+    """How the assets entered the system
+    """
+
+    buildRunId: Optional[_str] = None
+    """1:1 with BuildRun (if from build service)
+    """
+
+    externalBuildId: Optional[_str] = None
+    """External CI build ID (TeamCity, Jenkins)
+    """
+
+    commitSha: Optional[_str] = None
+    branch: Optional[_str] = None
+    recipeVersionId: Optional[_str] = None
+    status: 'enums.AssetSetStatus'
+    notes: Optional[_str] = None
+    createdById: Optional[_str] = None
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    product: Optional['models.Product'] = None
+    boardRevision: Optional['models.BoardRevision'] = None
+    buildRun: Optional['models.BuildRun'] = None
+    recipeVersion: Optional['models.RecipeVersion'] = None
+    createdBy: Optional['models.User'] = None
+    assets: Optional[List['models.Asset']] = None
+    sessions: Optional[List['models.Session']] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.AssetSetKeys']] = None,
+        exclude: Optional[Iterable['types.AssetSetKeys']] = None,
+        required: Optional[Iterable['types.AssetSetKeys']] = None,
+        optional: Optional[Iterable['types.AssetSetKeys']] = None,
+        relations: Optional[Mapping['types.AssetSetRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _AssetSet_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _AssetSet_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _AssetSet_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _AssetSet_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _AssetSet_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _AssetSet_relational_fields:
+                        raise errors.UnknownRelationalFieldError('AssetSet', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid AssetSet / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'AssetSet',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class Asset(bases.BaseAsset):
+    """An individual firmware artifact within an AssetSet.
+    Stored in MinIO, referenced by storageKey.
+    """
+
+    id: _str
+    assetSetId: _str
+    label: _str
+    """Build matrix label, e.g. "MFG_BASE", "FUT_VERBOSE_A"
+    """
+
+    role: _str
+    """"app", "comms", "modem"
+    """
+
+    processor: Optional[_str] = None
+    """"nrf52840", "nrf9151"
+    """
+
+    artifactType: _str
+    """"plaintextHex", "encryptedCfw", "manifest"
+    """
+
+    storageKey: _str
+    """MinIO path
+    """
+
+    filename: _str
+    sizeBytes: _int
+    checksum: _str
+    """SHA-256
+    """
+
+    contentType: Optional[_str] = None
+    createdAt: datetime.datetime
+    assetSet: Optional['models.AssetSet'] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.AssetKeys']] = None,
+        exclude: Optional[Iterable['types.AssetKeys']] = None,
+        required: Optional[Iterable['types.AssetKeys']] = None,
+        optional: Optional[Iterable['types.AssetKeys']] = None,
+        relations: Optional[Mapping['types.AssetRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.AssetKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _Asset_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _Asset_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _Asset_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _Asset_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _Asset_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _Asset_relational_fields:
+                        raise errors.UnknownRelationalFieldError('Asset', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid Asset / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'Asset',
+            }
+        )
+        _created_partial_types.add(name)
+
+
 
 _Product_relational_fields: Set[str] = {
         'boards',
@@ -5688,6 +5946,7 @@ _Product_relational_fields: Set[str] = {
         'testPackages',
         'recipeVersions',
         'productAccess',
+        'assetSets',
     }
 _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
     [
@@ -5880,6 +6139,14 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.ProductAccess\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('assetSets', {
+            'name': 'assetSets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.AssetSet\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -6191,6 +6458,7 @@ _BoardRevision_relational_fields: Set[str] = {
         'targets',
         'firmwareSets',
         'stageConfigs',
+        'assetSets',
     }
 _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = OrderedDict(
     [
@@ -6327,6 +6595,14 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.ProductStageConfig\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('assetSets', {
+            'name': 'assetSets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.AssetSet\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -6636,8 +6912,10 @@ _ProductStageConfig_relational_fields: Set[str] = {
         'product',
         'boardRevision',
         'signingKey',
+        'recipeVersion',
         'buildRuns',
         'queueEntries',
+        'buildMatrixEntries',
     }
 _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelField] = OrderedDict(
     [
@@ -6729,6 +7007,14 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_relational': False,
             'documentation': None,
         }),
+        ('recipeVersionId', {
+            'name': 'recipeVersionId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('product', {
             'name': 'product',
             'is_list': False,
@@ -6753,6 +7039,14 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_relational': True,
             'documentation': None,
         }),
+        ('recipeVersion', {
+            'name': 'recipeVersion',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.RecipeVersion',
+            'is_relational': True,
+            'documentation': None,
+        }),
         ('buildRuns', {
             'name': 'buildRuns',
             'is_list': True,
@@ -6766,6 +7060,14 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.ValidationQueueEntry\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('buildMatrixEntries', {
+            'name': 'buildMatrixEntries',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.StageBuildMatrix\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -6954,9 +7256,11 @@ _ValidationQueueEntry_fields: Dict['types.ValidationQueueEntryKeys', PartialMode
 _BuildRun_relational_fields: Set[str] = {
         'product',
         'stageConfig',
+        'recipeVersion',
         'builds',
         'sessions',
         'queueEntries',
+        'assetSet',
     }
 _BuildRun_fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict(
     [
@@ -7176,6 +7480,14 @@ _BuildRun_fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('recipeVersionId', {
+            'name': 'recipeVersionId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('product', {
             'name': 'product',
             'is_list': False,
@@ -7189,6 +7501,14 @@ _BuildRun_fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict(
             'is_list': False,
             'optional': True,
             'type': 'models.ProductStageConfig',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('recipeVersion', {
+            'name': 'recipeVersion',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.RecipeVersion',
             'is_relational': True,
             'documentation': None,
         }),
@@ -7216,12 +7536,21 @@ _BuildRun_fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
+        ('assetSet', {
+            'name': 'assetSet',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.AssetSet',
+            'is_relational': True,
+            'documentation': None,
+        }),
     ],
 )
 
 _BuildJob_relational_fields: Set[str] = {
         'buildRun',
         'product',
+        'recipeVersion',
         'artifacts',
         'reusedFrom',
         'reusedBy',
@@ -7476,11 +7805,27 @@ _BuildJob_fields: Dict['types.BuildJobKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('recipeVersionId', {
+            'name': 'recipeVersionId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('product', {
             'name': 'product',
             'is_list': False,
             'optional': True,
             'type': 'models.Product',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('recipeVersion', {
+            'name': 'recipeVersion',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.RecipeVersion',
             'is_relational': True,
             'documentation': None,
         }),
@@ -7612,6 +7957,7 @@ _Session_relational_fields: Set[str] = {
         'fixture',
         'pipeline',
         'testPackage',
+        'assetSet',
         'createdBy',
         'devices',
         'queueEntry',
@@ -7786,6 +8132,14 @@ _Session_fields: Dict['types.SessionKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('assetSetId', {
+            'name': 'assetSetId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('product', {
             'name': 'product',
             'is_list': False,
@@ -7815,6 +8169,14 @@ _Session_fields: Dict['types.SessionKeys', PartialModelField] = OrderedDict(
             'is_list': False,
             'optional': True,
             'type': 'models.TestPackage',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('assetSet', {
+            'name': 'assetSet',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.AssetSet',
             'is_relational': True,
             'documentation': None,
         }),
@@ -8983,7 +9345,6 @@ _TestExecution_relational_fields: Set[str] = {
         'slot',
         'triggeredBy',
         'steps',
-        'logs',
     }
 _TestExecution_fields: Dict['types.TestExecutionKeys', PartialModelField] = OrderedDict(
     [
@@ -9131,14 +9492,6 @@ _TestExecution_fields: Dict['types.TestExecutionKeys', PartialModelField] = Orde
             'is_relational': True,
             'documentation': None,
         }),
-        ('logs', {
-            'name': 'logs',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.Log\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
     ],
 )
 
@@ -9281,6 +9634,7 @@ _User_relational_fields: Set[str] = {
         'auditLogs',
         'secrets',
         'recipeVersions',
+        'assetSets',
     }
 _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
     [
@@ -9441,6 +9795,14 @@ _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.RecipeVersion\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('assetSets', {
+            'name': 'assetSets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.AssetSet\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -9833,116 +10195,6 @@ _Secret_fields: Dict['types.SecretKeys', PartialModelField] = OrderedDict(
     ],
 )
 
-_Setting_relational_fields: Set[str] = set()  # pyright: ignore[reportUnusedVariable]
-_Setting_fields: Dict['types.SettingKeys', PartialModelField] = OrderedDict(
-    [
-        ('key', {
-            'name': 'key',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('value', {
-            'name': 'value',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('description', {
-            'name': 'description',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('createdAt', {
-            'name': 'createdAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('updatedAt', {
-            'name': 'updatedAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-    ],
-)
-
-_Log_relational_fields: Set[str] = {
-        'execution',
-    }
-_Log_fields: Dict['types.LogKeys', PartialModelField] = OrderedDict(
-    [
-        ('id', {
-            'name': 'id',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('level', {
-            'name': 'level',
-            'is_list': False,
-            'optional': False,
-            'type': 'enums.LogLevel',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('message', {
-            'name': 'message',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('source', {
-            'name': 'source',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''service name, module path, etc.''',
-        }),
-        ('executionId', {
-            'name': 'executionId',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('createdAt', {
-            'name': 'createdAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('execution', {
-            'name': 'execution',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.TestExecution',
-            'is_relational': True,
-            'documentation': None,
-        }),
-    ],
-)
-
 _PollCache_relational_fields: Set[str] = set()  # pyright: ignore[reportUnusedVariable]
 _PollCache_fields: Dict['types.PollCacheKeys', PartialModelField] = OrderedDict(
     [
@@ -9992,6 +10244,10 @@ _PollCache_fields: Dict['types.PollCacheKeys', PartialModelField] = OrderedDict(
 _RecipeVersion_relational_fields: Set[str] = {
         'product',
         'createdBy',
+        'stageConfigs',
+        'buildRuns',
+        'buildJobs',
+        'assetSets',
     }
 _RecipeVersion_fields: Dict['types.RecipeVersionKeys', PartialModelField] = OrderedDict(
     [
@@ -10075,6 +10331,38 @@ _RecipeVersion_fields: Dict['types.RecipeVersionKeys', PartialModelField] = Orde
             'is_relational': True,
             'documentation': None,
         }),
+        ('stageConfigs', {
+            'name': 'stageConfigs',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ProductStageConfig\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('buildRuns', {
+            'name': 'buildRuns',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.BuildRun\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('buildJobs', {
+            'name': 'buildJobs',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.BuildJob\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('assetSets', {
+            'name': 'assetSets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.AssetSet\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
     ],
 )
 
@@ -10148,6 +10436,444 @@ _RecipeTemplate_fields: Dict['types.RecipeTemplateKeys', PartialModelField] = Or
     ],
 )
 
+_StageBuildMatrix_relational_fields: Set[str] = {
+        'stageConfig',
+    }
+_StageBuildMatrix_fields: Dict['types.StageBuildMatrixKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('stageConfigId', {
+            'name': 'stageConfigId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('sortOrder', {
+            'name': 'sortOrder',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('label', {
+            'name': 'label',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"MFG_BASE", "FUT_VERBOSE_A", etc.''',
+        }),
+        ('fwType', {
+            'name': 'fwType',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"mfg", "app"''',
+        }),
+        ('variant', {
+            'name': 'variant',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"mfg", "debug", "release"''',
+        }),
+        ('configLog', {
+            'name': 'configLog',
+            'is_list': False,
+            'optional': False,
+            'type': '_bool',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('producesHex', {
+            'name': 'producesHex',
+            'is_list': False,
+            'optional': False,
+            'type': '_bool',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('producesCfw', {
+            'name': 'producesCfw',
+            'is_list': False,
+            'optional': False,
+            'type': '_bool',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('gitRef', {
+            'name': 'gitRef',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"pr", "main", "merge"''',
+        }),
+        ('isVersionBump', {
+            'name': 'isVersionBump',
+            'is_list': False,
+            'optional': False,
+            'type': '_bool',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('baseLabel', {
+            'name': 'baseLabel',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Required when isVersionBump=true''',
+        }),
+        ('description', {
+            'name': 'description',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('stageConfig', {
+            'name': 'stageConfig',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.ProductStageConfig',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_AssetSet_relational_fields: Set[str] = {
+        'product',
+        'boardRevision',
+        'buildRun',
+        'recipeVersion',
+        'createdBy',
+        'assets',
+        'sessions',
+    }
+_AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('productId', {
+            'name': 'productId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('boardRevisionId', {
+            'name': 'boardRevisionId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('version', {
+            'name': 'version',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Firmware version, e.g. "0.5.2"''',
+        }),
+        ('variant', {
+            'name': 'variant',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"debug", "release", "mfg"''',
+        }),
+        ('stage', {
+            'name': 'stage',
+            'is_list': False,
+            'optional': True,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': '''Validation stage (1-5) this asset set targets''',
+        }),
+        ('source', {
+            'name': 'source',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.AssetSetSource',
+            'is_relational': False,
+            'documentation': '''How the assets entered the system''',
+        }),
+        ('buildRunId', {
+            'name': 'buildRunId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''1:1 with BuildRun (if from build service)''',
+        }),
+        ('externalBuildId', {
+            'name': 'externalBuildId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''External CI build ID (TeamCity, Jenkins)''',
+        }),
+        ('commitSha', {
+            'name': 'commitSha',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('branch', {
+            'name': 'branch',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('recipeVersionId', {
+            'name': 'recipeVersionId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('status', {
+            'name': 'status',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.AssetSetStatus',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('notes', {
+            'name': 'notes',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdById', {
+            'name': 'createdById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('updatedAt', {
+            'name': 'updatedAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('product', {
+            'name': 'product',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.Product',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('boardRevision', {
+            'name': 'boardRevision',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BoardRevision',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('buildRun', {
+            'name': 'buildRun',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BuildRun',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('recipeVersion', {
+            'name': 'recipeVersion',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.RecipeVersion',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('createdBy', {
+            'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('assets', {
+            'name': 'assets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.Asset\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('sessions', {
+            'name': 'sessions',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.Session\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_Asset_relational_fields: Set[str] = {
+        'assetSet',
+    }
+_Asset_fields: Dict['types.AssetKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('assetSetId', {
+            'name': 'assetSetId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('label', {
+            'name': 'label',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Build matrix label, e.g. "MFG_BASE", "FUT_VERBOSE_A"''',
+        }),
+        ('role', {
+            'name': 'role',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"app", "comms", "modem"''',
+        }),
+        ('processor', {
+            'name': 'processor',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"nrf52840", "nrf9151"''',
+        }),
+        ('artifactType', {
+            'name': 'artifactType',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"plaintextHex", "encryptedCfw", "manifest"''',
+        }),
+        ('storageKey', {
+            'name': 'storageKey',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''MinIO path''',
+        }),
+        ('filename', {
+            'name': 'filename',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('sizeBytes', {
+            'name': 'sizeBytes',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('checksum', {
+            'name': 'checksum',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''SHA-256''',
+        }),
+        ('contentType', {
+            'name': 'contentType',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('assetSet', {
+            'name': 'assetSet',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.AssetSet',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
 
 
 # we have to import ourselves as relation types are namespaced to models
@@ -10186,8 +10912,9 @@ model_rebuild(PermissionSet)
 model_rebuild(ApiKey)
 model_rebuild(AuditLog)
 model_rebuild(Secret)
-model_rebuild(Setting)
-model_rebuild(Log)
 model_rebuild(PollCache)
 model_rebuild(RecipeVersion)
 model_rebuild(RecipeTemplate)
+model_rebuild(StageBuildMatrix)
+model_rebuild(AssetSet)
+model_rebuild(Asset)

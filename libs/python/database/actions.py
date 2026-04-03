@@ -32042,2055 +32042,6 @@ class SecretActions(Generic[_PrismaModelT]):
         return resp['data']['result']  # type: ignore[no-any-return]
 
 
-class SettingActions(Generic[_PrismaModelT]):
-    __slots__ = (
-        '_client',
-        '_model',
-    )
-
-    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
-        self._client = client
-        self._model = model
-
-    def query_raw(
-        self,
-        query: LiteralString,
-        *args: Any,
-    ) -> List[_PrismaModelT]:
-        """Execute a raw SQL query
-
-        Parameters
-        ----------
-        query
-            The raw SQL query string to be executed
-        *args
-            Parameters to be passed to the SQL query, these MUST be used over
-            string formatting to avoid an SQL injection vulnerability
-
-        Returns
-        -------
-        List[prisma.models.Setting]
-            The records returned by the SQL query
-
-        Raises
-        ------
-        prisma_errors.RawQueryError
-            This could be due to invalid syntax, mismatched number of parameters or any other error
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        users = Setting.prisma().query_raw(
-            'SELECT * FROM Setting WHERE key = $1',
-            'bcdiiadeae',
-        )
-        ```
-        """
-        return self._client.query_raw(query, *args, model=self._model)
-
-    def query_first(
-        self,
-        query: LiteralString,
-        *args: Any,
-    ) -> Optional[_PrismaModelT]:
-        """Execute a raw SQL query, returning the first result
-
-        Parameters
-        ----------
-        query
-            The raw SQL query string to be executed
-        *args
-            Parameters to be passed to the SQL query, these MUST be used over
-            string formatting to avoid an SQL injection vulnerability
-
-        Returns
-        -------
-        prisma.models.Setting
-            The first record returned by the SQL query
-        None
-            The raw SQL query did not return any records
-
-        Raises
-        ------
-        prisma_errors.RawQueryError
-            This could be due to invalid syntax, mismatched number of parameters or any other error
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        user = Setting.prisma().query_first(
-            'SELECT * FROM Setting WHERE value = $1',
-            'bdhhaeiaif',
-        )
-        ```
-        """
-        return self._client.query_first(query, *args, model=self._model)
-
-    def create(
-        self,
-        data: types.SettingCreateInput,
-        include: Optional[types.SettingInclude] = None
-    ) -> _PrismaModelT:
-        """Create a new Setting record.
-
-        Parameters
-        ----------
-        data
-            Setting record data
-        include
-            Specifies which relations should be loaded on the returned Setting model
-
-        Returns
-        -------
-        prisma.models.Setting
-            The created Setting record
-
-        Raises
-        ------
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # create a Setting record from just the required fields
-        setting = Setting.prisma().create(
-            data={
-                # data to create a Setting record
-                'key': 'caffgabefa',
-                'value': 'bjjajgjbbf',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='create',
-            model=self._model,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def create_many(
-        self,
-        data: List[types.SettingCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> int:
-        """Create multiple Setting records at once.
-
-        This function is *not* available when using SQLite.
-
-        Parameters
-        ----------
-        data
-            List of Setting record data
-        skip_duplicates
-            Boolean flag for ignoring unique constraint errors
-
-        Returns
-        -------
-        int
-            The total number of records created
-
-        Raises
-        ------
-        prisma.errors.UnsupportedDatabaseError
-            Attempting to query when using SQLite
-        prisma.errors.UniqueViolationError
-            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        total = Setting.prisma().create_many(
-            data=[
-                {
-                    # data to create a Setting record
-                    'key': 'jdecjdgii',
-                    'value': 'bcgbcdjjfd',
-                },
-                {
-                    # data to create a Setting record
-                    'key': 'bicgfdhjhe',
-                    'value': 'ihfjdgceh',
-                },
-            ],
-            skip_duplicates=True,
-        )
-        ```
-        """
-        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
-
-        resp = self._client._execute(
-            method='create_many',
-            model=self._model,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-        return int(resp['data']['result']['count'])
-
-    def delete(
-        self,
-        where: types.SettingWhereUniqueInput,
-        include: Optional[types.SettingInclude] = None
-    ) -> Optional[_PrismaModelT]:
-        """Delete a single Setting record.
-
-        Parameters
-        ----------
-        where
-            Setting filter to select the record to be deleted, must be unique
-        include
-            Specifies which relations should be loaded on the returned Setting model
-
-        Returns
-        -------
-        prisma.models.Setting
-            The deleted Setting record
-        None
-            Could not find a record to delete
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        setting = Setting.prisma().delete(
-            where={
-                'key': 'gdaedbiee',
-            },
-        )
-        ```
-        """
-        try:
-            resp = self._client._execute(
-                method='delete',
-                model=self._model,
-                arguments={
-                    'where': where,
-                    'include': include,
-                },
-            )
-        except errors.RecordNotFoundError:
-            return None
-
-        return model_parse(self._model, resp['data']['result'])
-
-    def find_unique(
-        self,
-        where: types.SettingWhereUniqueInput,
-        include: Optional[types.SettingInclude] = None
-    ) -> Optional[_PrismaModelT]:
-        """Find a unique Setting record.
-
-        Parameters
-        ----------
-        where
-            Setting filter to find the record, must be unique
-        include
-            Specifies which relations should be loaded on the returned Setting model
-
-        Returns
-        -------
-        prisma.models.Setting
-            The found Setting record
-        None
-            No record matching the given input could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        setting = Setting.prisma().find_unique(
-            where={
-                'key': 'bibdbbffjh',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_unique',
-            model=self._model,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-        result = resp['data']['result']
-        if result is None:
-            return None
-        return model_parse(self._model, result)
-
-    def find_unique_or_raise(
-        self,
-        where: types.SettingWhereUniqueInput,
-        include: Optional[types.SettingInclude] = None
-    ) -> _PrismaModelT:
-        """Find a unique Setting record. Raises `RecordNotFoundError` if no record is found.
-
-        Parameters
-        ----------
-        where
-            Setting filter to find the record, must be unique
-        include
-            Specifies which relations should be loaded on the returned Setting model
-
-        Returns
-        -------
-        prisma.models.Setting
-            The found Setting record
-
-        Raises
-        ------
-        prisma.errors.RecordNotFoundError
-            No record was found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        setting = Setting.prisma().find_unique_or_raise(
-            where={
-                'key': 'bdjfefjjha',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_unique_or_raise',
-            model=self._model,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def find_many(
-        self,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.SettingWhereInput] = None,
-        cursor: Optional[types.SettingWhereUniqueInput] = None,
-        include: Optional[types.SettingInclude] = None,
-        order: Optional[Union[types.SettingOrderByInput, List[types.SettingOrderByInput]]] = None,
-        distinct: Optional[List[types.SettingScalarFieldKeys]] = None,
-    ) -> List[_PrismaModelT]:
-        """Find multiple Setting records.
-
-        An empty list is returned if no records could be found.
-
-        Parameters
-        ----------
-        take
-            Limit the maximum number of Setting records returned
-        skip
-            Ignore the first N results
-        where
-            Setting filter to select records
-        cursor
-            Specifies the position in the list to start returning results from, (typically an ID field)
-        include
-            Specifies which relations should be loaded on the returned Setting model
-        order
-            Order the returned Setting records by any field
-        distinct
-            Filter Setting records by either a single distinct field or distinct combinations of fields
-
-        Returns
-        -------
-        List[prisma.models.Setting]
-            The list of all Setting records that could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # find the first 10 Setting records
-        settings = Setting.prisma().find_many(take=10)
-
-        # find the first 5 Setting records ordered by the description field
-        settings = Setting.prisma().find_many(
-            take=5,
-            order={
-                'description': 'desc',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_many',
-            model=self._model,
-            arguments={
-                'take': take,
-                'skip': skip,
-                'where': where,
-                'order_by': order,
-                'cursor': cursor,
-                'include': include,
-                'distinct': distinct,
-            },
-        )
-        return [model_parse(self._model, r) for r in resp['data']['result']]
-
-    def find_first(
-        self,
-        skip: Optional[int] = None,
-        where: Optional[types.SettingWhereInput] = None,
-        cursor: Optional[types.SettingWhereUniqueInput] = None,
-        include: Optional[types.SettingInclude] = None,
-        order: Optional[Union[types.SettingOrderByInput, List[types.SettingOrderByInput]]] = None,
-        distinct: Optional[List[types.SettingScalarFieldKeys]] = None,
-    ) -> Optional[_PrismaModelT]:
-        """Find a single Setting record.
-
-        Parameters
-        ----------
-        skip
-            Ignore the first N records
-        where
-            Setting filter to select the record
-        cursor
-            Specifies the position in the list to start returning results from, (typically an ID field)
-        include
-            Specifies which relations should be loaded on the returned Setting model
-        order
-            Order the returned Setting records by any field
-        distinct
-            Filter Setting records by either a single distinct field or distinct combinations of fields
-
-        Returns
-        -------
-        prisma.models.Setting
-            The first Setting record found, matching the given arguments
-        None
-            No record could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # find the second Setting record ordered by the createdAt field
-        setting = Setting.prisma().find_first(
-            skip=1,
-            order={
-                'createdAt': 'desc',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_first',
-            model=self._model,
-            arguments={
-                'skip': skip,
-                'where': where,
-                'order_by': order,
-                'cursor': cursor,
-                'include': include,
-                'distinct': distinct,
-            },
-        )
-        result = resp['data']['result']
-        if result is None:
-            return None
-
-        return model_parse(self._model, result)
-
-    def find_first_or_raise(
-        self,
-        skip: Optional[int] = None,
-        where: Optional[types.SettingWhereInput] = None,
-        cursor: Optional[types.SettingWhereUniqueInput] = None,
-        include: Optional[types.SettingInclude] = None,
-        order: Optional[Union[types.SettingOrderByInput, List[types.SettingOrderByInput]]] = None,
-        distinct: Optional[List[types.SettingScalarFieldKeys]] = None,
-    ) -> _PrismaModelT:
-        """Find a single Setting record. Raises `RecordNotFoundError` if no record was found.
-
-        Parameters
-        ----------
-        skip
-            Ignore the first N records
-        where
-            Setting filter to select the record
-        cursor
-            Specifies the position in the list to start returning results from, (typically an ID field)
-        include
-            Specifies which relations should be loaded on the returned Setting model
-        order
-            Order the returned Setting records by any field
-        distinct
-            Filter Setting records by either a single distinct field or distinct combinations of fields
-
-        Returns
-        -------
-        prisma.models.Setting
-            The first Setting record found, matching the given arguments
-
-        Raises
-        ------
-        prisma.errors.RecordNotFoundError
-            No record was found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # find the second Setting record ordered by the updatedAt field
-        setting = Setting.prisma().find_first_or_raise(
-            skip=1,
-            order={
-                'updatedAt': 'desc',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_first_or_raise',
-            model=self._model,
-            arguments={
-                'skip': skip,
-                'where': where,
-                'order_by': order,
-                'cursor': cursor,
-                'include': include,
-                'distinct': distinct,
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def update(
-        self,
-        data: types.SettingUpdateInput,
-        where: types.SettingWhereUniqueInput,
-        include: Optional[types.SettingInclude] = None
-    ) -> Optional[_PrismaModelT]:
-        """Update a single Setting record.
-
-        Parameters
-        ----------
-        data
-            Setting record data specifying what to update
-        where
-            Setting filter to select the unique record to create / update
-        include
-            Specifies which relations should be loaded on the returned Setting model
-
-        Returns
-        -------
-        prisma.models.Setting
-            The updated Setting record
-        None
-            No record could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        setting = Setting.prisma().update(
-            where={
-                'key': 'bjcjfbafeh',
-            },
-            data={
-                # data to update the Setting record to
-            },
-        )
-        ```
-        """
-        try:
-            resp = self._client._execute(
-                method='update',
-                model=self._model,
-                arguments={
-                    'data': data,
-                    'where': where,
-                    'include': include,
-                },
-            )
-        except errors.RecordNotFoundError:
-            return None
-
-        return model_parse(self._model, resp['data']['result'])
-
-    def upsert(
-        self,
-        where: types.SettingWhereUniqueInput,
-        data: types.SettingUpsertInput,
-        include: Optional[types.SettingInclude] = None,
-    ) -> _PrismaModelT:
-        """Updates an existing record or create a new one
-
-        Parameters
-        ----------
-        where
-            Setting filter to select the unique record to create / update
-        data
-            Data specifying what fields to set on create and update
-        include
-            Specifies which relations should be loaded on the returned Setting model
-
-        Returns
-        -------
-        prisma.models.Setting
-            The created or updated Setting record
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        setting = Setting.prisma().upsert(
-            where={
-                'key': 'bchgjchgjg',
-            },
-            data={
-                'create': {
-                    'key': 'bchgjchgjg',
-                    'value': 'ihfjdgceh',
-                },
-                'update': {
-                    'value': 'ihfjdgceh',
-                },
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='upsert',
-            model=self._model,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def update_many(
-        self,
-        data: types.SettingUpdateManyMutationInput,
-        where: types.SettingWhereInput,
-    ) -> int:
-        """Update multiple Setting records
-
-        Parameters
-        ----------
-        data
-            Setting data to update the selected Setting records to
-        where
-            Filter to select the Setting records to update
-
-        Returns
-        -------
-        int
-            The total number of Setting records that were updated
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # update all Setting records
-        total = Setting.prisma().update_many(
-            data={
-                'key': 'idgcdejfd'
-            },
-            where={}
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='update_many',
-            model=self._model,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-        return int(resp['data']['result']['count'])
-
-    @overload
-    def count(
-        self,
-        select: None = None,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.SettingWhereInput] = None,
-        cursor: Optional[types.SettingWhereUniqueInput] = None,
-    ) -> int:
-        """Count the number of Setting records present in the database
-
-        Parameters
-        ----------
-        select
-            Select the Setting fields to be counted
-        take
-            Limit the maximum result
-        skip
-            Ignore the first N records
-        where
-            Setting filter to find records
-        cursor
-            Specifies the position in the list to start counting results from, (typically an ID field)
-        order
-            This parameter is deprecated and will be removed in a future release
-
-        Returns
-        -------
-        int
-            The total number of records found, returned if `select` is not given
-
-        prisma.types.SettingCountAggregateOutput
-            Data returned when `select` is used, the fields present in this dictionary will
-            match the fields passed in the `select` argument
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # total: int
-        total = Setting.prisma().count()
-
-        # results: prisma.types.SettingCountAggregateOutput
-        results = Setting.prisma().count(
-            select={
-                '_all': True,
-                'value': True,
-            },
-        )
-        ```
-        """
-
-
-    @overload
-    def count(
-        self,
-        select: types.SettingCountAggregateInput,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.SettingWhereInput] = None,
-        cursor: Optional[types.SettingWhereUniqueInput] = None,
-    ) -> types.SettingCountAggregateOutput:
-        ...
-
-    def count(
-        self,
-        select: Optional[types.SettingCountAggregateInput] = None,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.SettingWhereInput] = None,
-        cursor: Optional[types.SettingWhereUniqueInput] = None,
-    ) -> Union[int, types.SettingCountAggregateOutput]:
-        """Count the number of Setting records present in the database
-
-        Parameters
-        ----------
-        select
-            Select the Setting fields to be counted
-        take
-            Limit the maximum result
-        skip
-            Ignore the first N records
-        where
-            Setting filter to find records
-        cursor
-            Specifies the position in the list to start counting results from, (typically an ID field)
-        order
-            This parameter is deprecated and will be removed in a future release
-
-        Returns
-        -------
-        int
-            The total number of records found, returned if `select` is not given
-
-        prisma.types.SettingCountAggregateOutput
-            Data returned when `select` is used, the fields present in this dictionary will
-            match the fields passed in the `select` argument
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # total: int
-        total = Setting.prisma().count()
-
-        # results: prisma.types.SettingCountAggregateOutput
-        results = Setting.prisma().count(
-            select={
-                '_all': True,
-                'description': True,
-            },
-        )
-        ```
-        """
-
-        # TODO: this selection building should be moved to the QueryBuilder
-        #
-        # note the distinction between checking for `not select` here and `select is None`
-        # later is to handle the case that the given select dictionary is empty, this
-        # is a limitation of our types.
-        if not select:
-            root_selection = ['_count { _all }']
-        else:
-
-            root_selection = [
-                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
-            ]
-
-        resp = self._client._execute(
-            method='count',
-            model=self._model,
-            arguments={
-                'take': take,
-                'skip': skip,
-                'where': where,
-                'cursor': cursor,
-            },
-            root_selection=root_selection,
-        )
-
-        if select is None:
-            return cast(int, resp['data']['result']['_count']['_all'])
-        else:
-            return cast(types.SettingCountAggregateOutput, resp['data']['result']['_count'])
-
-    def delete_many(
-        self,
-        where: Optional[types.SettingWhereInput] = None
-    ) -> int:
-        """Delete multiple Setting records.
-
-        Parameters
-        ----------
-        where
-            Optional Setting filter to find the records to be deleted
-
-        Returns
-        -------
-        int
-            The total number of Setting records that were deleted
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # delete all Setting records
-        total = Setting.prisma().delete_many()
-        ```
-        """
-        resp = self._client._execute(
-            method='delete_many',
-            model=self._model,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-        return int(resp['data']['result']['count'])
-
-    # TODO: make this easier to work with safely, currently output fields are typed as
-    #       not required, we should refactor the return type
-    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
-    # TODO: statically type that the order argument is required when take or skip are present
-    def group_by(
-        self,
-        by: List['types.SettingScalarFieldKeys'],
-        *,
-        where: Optional['types.SettingWhereInput'] = None,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        avg: Optional['types.SettingAvgAggregateInput'] = None,
-        sum: Optional['types.SettingSumAggregateInput'] = None,
-        min: Optional['types.SettingMinAggregateInput'] = None,
-        max: Optional['types.SettingMaxAggregateInput'] = None,
-        having: Optional['types.SettingScalarWhereWithAggregatesInput'] = None,
-        count: Optional[Union[bool, 'types.SettingCountAggregateInput']] = None,
-        order: Optional[Union[Mapping['types.SettingScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.SettingScalarFieldKeys', 'types.SortOrder']]]] = None,
-    ) -> List['types.SettingGroupByOutput']:
-        """Group Setting records by one or more field values and perform aggregations
-        each group such as finding the average.
-
-        Parameters
-        ----------
-        by
-            List of scalar Setting fields to group records by
-        where
-            Setting filter to select records
-        take
-            Limit the maximum number of Setting records returned
-        skip
-            Ignore the first N records
-        avg
-            Adds the average of all values of the specified fields to the `_avg` field
-            in the returned data.
-        sum
-            Adds the sum of all values of the specified fields to the `_sum` field
-            in the returned data.
-        min
-            Adds the smallest available value for the specified fields to the `_min` field
-            in the returned data.
-        max
-            Adds the largest available value for the specified fields to the `_max` field
-            in the returned data.
-        count
-            Adds a count of non-fields to the `_count` field in the returned data.
-        having
-            Allows you to filter groups by an aggregate value - for example only return
-            groups having an average age less than 50.
-        order
-            Lets you order the returned list by any property that is also present in `by`.
-            Only **one** field is allowed at a time.
-
-        Returns
-        -------
-        List[prisma.types.SettingGroupByOutput]
-            A list of dictionaries representing the Setting record,
-            this will also have additional fields present if aggregation arguments
-            are used (see the above parameters)
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # group Setting records by createdAt values
-        # and count how many records are in each group
-        results = Setting.prisma().group_by(
-            ['createdAt'],
-            count=True,
-        )
-        ```
-        """
-        if order is None:
-            if take is not None:
-                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
-
-            if skip is not None:
-                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
-
-        root_selection: List[str] = [*by]
-        if avg is not None:
-            root_selection.append(_select_fields('_avg', avg))
-
-        if min is not None:
-            root_selection.append(_select_fields('_min', min))
-
-        if sum is not None:
-            root_selection.append(_select_fields('_sum', sum))
-
-        if max is not None:
-            root_selection.append(_select_fields('_max', max))
-
-        if count is not None:
-            if count is True:
-                root_selection.append('_count { _all }')
-            elif isinstance(count, dict):
-                root_selection.append(_select_fields('_count', count))
-
-        resp = self._client._execute(
-            method='group_by',
-            model=self._model,
-            arguments={
-                'by': by,
-                'take': take,
-                'skip': skip,
-                'where': where,
-                'having': having,
-                'orderBy': order,
-            },
-            root_selection=root_selection,
-        )
-        return resp['data']['result']  # type: ignore[no-any-return]
-
-
-class LogActions(Generic[_PrismaModelT]):
-    __slots__ = (
-        '_client',
-        '_model',
-    )
-
-    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
-        self._client = client
-        self._model = model
-
-    def query_raw(
-        self,
-        query: LiteralString,
-        *args: Any,
-    ) -> List[_PrismaModelT]:
-        """Execute a raw SQL query
-
-        Parameters
-        ----------
-        query
-            The raw SQL query string to be executed
-        *args
-            Parameters to be passed to the SQL query, these MUST be used over
-            string formatting to avoid an SQL injection vulnerability
-
-        Returns
-        -------
-        List[prisma.models.Log]
-            The records returned by the SQL query
-
-        Raises
-        ------
-        prisma_errors.RawQueryError
-            This could be due to invalid syntax, mismatched number of parameters or any other error
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        users = Log.prisma().query_raw(
-            'SELECT * FROM Log WHERE id = $1',
-            'baajcgbaag',
-        )
-        ```
-        """
-        return self._client.query_raw(query, *args, model=self._model)
-
-    def query_first(
-        self,
-        query: LiteralString,
-        *args: Any,
-    ) -> Optional[_PrismaModelT]:
-        """Execute a raw SQL query, returning the first result
-
-        Parameters
-        ----------
-        query
-            The raw SQL query string to be executed
-        *args
-            Parameters to be passed to the SQL query, these MUST be used over
-            string formatting to avoid an SQL injection vulnerability
-
-        Returns
-        -------
-        prisma.models.Log
-            The first record returned by the SQL query
-        None
-            The raw SQL query did not return any records
-
-        Raises
-        ------
-        prisma_errors.RawQueryError
-            This could be due to invalid syntax, mismatched number of parameters or any other error
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        user = Log.prisma().query_first(
-            'SELECT * FROM Log WHERE level = $1',
-            enums.LogLevel.DEBUG,
-        )
-        ```
-        """
-        return self._client.query_first(query, *args, model=self._model)
-
-    def create(
-        self,
-        data: types.LogCreateInput,
-        include: Optional[types.LogInclude] = None
-    ) -> _PrismaModelT:
-        """Create a new Log record.
-
-        Parameters
-        ----------
-        data
-            Log record data
-        include
-            Specifies which relations should be loaded on the returned Log model
-
-        Returns
-        -------
-        prisma.models.Log
-            The created Log record
-
-        Raises
-        ------
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # create a Log record from just the required fields
-        log = Log.prisma().create(
-            data={
-                # data to create a Log record
-                'message': 'eahbafhhf',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='create',
-            model=self._model,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def create_many(
-        self,
-        data: List[types.LogCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> int:
-        """Create multiple Log records at once.
-
-        This function is *not* available when using SQLite.
-
-        Parameters
-        ----------
-        data
-            List of Log record data
-        skip_duplicates
-            Boolean flag for ignoring unique constraint errors
-
-        Returns
-        -------
-        int
-            The total number of records created
-
-        Raises
-        ------
-        prisma.errors.UnsupportedDatabaseError
-            Attempting to query when using SQLite
-        prisma.errors.UniqueViolationError
-            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        total = Log.prisma().create_many(
-            data=[
-                {
-                    # data to create a Log record
-                    'message': 'chbgcaajc',
-                },
-                {
-                    # data to create a Log record
-                    'message': 'baafadjcdh',
-                },
-            ],
-            skip_duplicates=True,
-        )
-        ```
-        """
-        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
-
-        resp = self._client._execute(
-            method='create_many',
-            model=self._model,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-        return int(resp['data']['result']['count'])
-
-    def delete(
-        self,
-        where: types.LogWhereUniqueInput,
-        include: Optional[types.LogInclude] = None
-    ) -> Optional[_PrismaModelT]:
-        """Delete a single Log record.
-
-        Parameters
-        ----------
-        where
-            Log filter to select the record to be deleted, must be unique
-        include
-            Specifies which relations should be loaded on the returned Log model
-
-        Returns
-        -------
-        prisma.models.Log
-            The deleted Log record
-        None
-            Could not find a record to delete
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        log = Log.prisma().delete(
-            where={
-                'id': 'beihjdafig',
-            },
-        )
-        ```
-        """
-        try:
-            resp = self._client._execute(
-                method='delete',
-                model=self._model,
-                arguments={
-                    'where': where,
-                    'include': include,
-                },
-            )
-        except errors.RecordNotFoundError:
-            return None
-
-        return model_parse(self._model, resp['data']['result'])
-
-    def find_unique(
-        self,
-        where: types.LogWhereUniqueInput,
-        include: Optional[types.LogInclude] = None
-    ) -> Optional[_PrismaModelT]:
-        """Find a unique Log record.
-
-        Parameters
-        ----------
-        where
-            Log filter to find the record, must be unique
-        include
-            Specifies which relations should be loaded on the returned Log model
-
-        Returns
-        -------
-        prisma.models.Log
-            The found Log record
-        None
-            No record matching the given input could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        log = Log.prisma().find_unique(
-            where={
-                'id': 'cbdbchfabj',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_unique',
-            model=self._model,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-        result = resp['data']['result']
-        if result is None:
-            return None
-        return model_parse(self._model, result)
-
-    def find_unique_or_raise(
-        self,
-        where: types.LogWhereUniqueInput,
-        include: Optional[types.LogInclude] = None
-    ) -> _PrismaModelT:
-        """Find a unique Log record. Raises `RecordNotFoundError` if no record is found.
-
-        Parameters
-        ----------
-        where
-            Log filter to find the record, must be unique
-        include
-            Specifies which relations should be loaded on the returned Log model
-
-        Returns
-        -------
-        prisma.models.Log
-            The found Log record
-
-        Raises
-        ------
-        prisma.errors.RecordNotFoundError
-            No record was found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        log = Log.prisma().find_unique_or_raise(
-            where={
-                'id': 'bffjafacbg',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_unique_or_raise',
-            model=self._model,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def find_many(
-        self,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.LogWhereInput] = None,
-        cursor: Optional[types.LogWhereUniqueInput] = None,
-        include: Optional[types.LogInclude] = None,
-        order: Optional[Union[types.LogOrderByInput, List[types.LogOrderByInput]]] = None,
-        distinct: Optional[List[types.LogScalarFieldKeys]] = None,
-    ) -> List[_PrismaModelT]:
-        """Find multiple Log records.
-
-        An empty list is returned if no records could be found.
-
-        Parameters
-        ----------
-        take
-            Limit the maximum number of Log records returned
-        skip
-            Ignore the first N results
-        where
-            Log filter to select records
-        cursor
-            Specifies the position in the list to start returning results from, (typically an ID field)
-        include
-            Specifies which relations should be loaded on the returned Log model
-        order
-            Order the returned Log records by any field
-        distinct
-            Filter Log records by either a single distinct field or distinct combinations of fields
-
-        Returns
-        -------
-        List[prisma.models.Log]
-            The list of all Log records that could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # find the first 10 Log records
-        logs = Log.prisma().find_many(take=10)
-
-        # find the first 5 Log records ordered by the message field
-        logs = Log.prisma().find_many(
-            take=5,
-            order={
-                'message': 'desc',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_many',
-            model=self._model,
-            arguments={
-                'take': take,
-                'skip': skip,
-                'where': where,
-                'order_by': order,
-                'cursor': cursor,
-                'include': include,
-                'distinct': distinct,
-            },
-        )
-        return [model_parse(self._model, r) for r in resp['data']['result']]
-
-    def find_first(
-        self,
-        skip: Optional[int] = None,
-        where: Optional[types.LogWhereInput] = None,
-        cursor: Optional[types.LogWhereUniqueInput] = None,
-        include: Optional[types.LogInclude] = None,
-        order: Optional[Union[types.LogOrderByInput, List[types.LogOrderByInput]]] = None,
-        distinct: Optional[List[types.LogScalarFieldKeys]] = None,
-    ) -> Optional[_PrismaModelT]:
-        """Find a single Log record.
-
-        Parameters
-        ----------
-        skip
-            Ignore the first N records
-        where
-            Log filter to select the record
-        cursor
-            Specifies the position in the list to start returning results from, (typically an ID field)
-        include
-            Specifies which relations should be loaded on the returned Log model
-        order
-            Order the returned Log records by any field
-        distinct
-            Filter Log records by either a single distinct field or distinct combinations of fields
-
-        Returns
-        -------
-        prisma.models.Log
-            The first Log record found, matching the given arguments
-        None
-            No record could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # find the second Log record ordered by the source field
-        log = Log.prisma().find_first(
-            skip=1,
-            order={
-                'source': 'desc',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_first',
-            model=self._model,
-            arguments={
-                'skip': skip,
-                'where': where,
-                'order_by': order,
-                'cursor': cursor,
-                'include': include,
-                'distinct': distinct,
-            },
-        )
-        result = resp['data']['result']
-        if result is None:
-            return None
-
-        return model_parse(self._model, result)
-
-    def find_first_or_raise(
-        self,
-        skip: Optional[int] = None,
-        where: Optional[types.LogWhereInput] = None,
-        cursor: Optional[types.LogWhereUniqueInput] = None,
-        include: Optional[types.LogInclude] = None,
-        order: Optional[Union[types.LogOrderByInput, List[types.LogOrderByInput]]] = None,
-        distinct: Optional[List[types.LogScalarFieldKeys]] = None,
-    ) -> _PrismaModelT:
-        """Find a single Log record. Raises `RecordNotFoundError` if no record was found.
-
-        Parameters
-        ----------
-        skip
-            Ignore the first N records
-        where
-            Log filter to select the record
-        cursor
-            Specifies the position in the list to start returning results from, (typically an ID field)
-        include
-            Specifies which relations should be loaded on the returned Log model
-        order
-            Order the returned Log records by any field
-        distinct
-            Filter Log records by either a single distinct field or distinct combinations of fields
-
-        Returns
-        -------
-        prisma.models.Log
-            The first Log record found, matching the given arguments
-
-        Raises
-        ------
-        prisma.errors.RecordNotFoundError
-            No record was found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # find the second Log record ordered by the executionId field
-        log = Log.prisma().find_first_or_raise(
-            skip=1,
-            order={
-                'executionId': 'desc',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_first_or_raise',
-            model=self._model,
-            arguments={
-                'skip': skip,
-                'where': where,
-                'order_by': order,
-                'cursor': cursor,
-                'include': include,
-                'distinct': distinct,
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def update(
-        self,
-        data: types.LogUpdateInput,
-        where: types.LogWhereUniqueInput,
-        include: Optional[types.LogInclude] = None
-    ) -> Optional[_PrismaModelT]:
-        """Update a single Log record.
-
-        Parameters
-        ----------
-        data
-            Log record data specifying what to update
-        where
-            Log filter to select the unique record to create / update
-        include
-            Specifies which relations should be loaded on the returned Log model
-
-        Returns
-        -------
-        prisma.models.Log
-            The updated Log record
-        None
-            No record could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        log = Log.prisma().update(
-            where={
-                'id': 'cbafbcgeab',
-            },
-            data={
-                # data to update the Log record to
-            },
-        )
-        ```
-        """
-        try:
-            resp = self._client._execute(
-                method='update',
-                model=self._model,
-                arguments={
-                    'data': data,
-                    'where': where,
-                    'include': include,
-                },
-            )
-        except errors.RecordNotFoundError:
-            return None
-
-        return model_parse(self._model, resp['data']['result'])
-
-    def upsert(
-        self,
-        where: types.LogWhereUniqueInput,
-        data: types.LogUpsertInput,
-        include: Optional[types.LogInclude] = None,
-    ) -> _PrismaModelT:
-        """Updates an existing record or create a new one
-
-        Parameters
-        ----------
-        where
-            Log filter to select the unique record to create / update
-        data
-            Data specifying what fields to set on create and update
-        include
-            Specifies which relations should be loaded on the returned Log model
-
-        Returns
-        -------
-        prisma.models.Log
-            The created or updated Log record
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        log = Log.prisma().upsert(
-            where={
-                'id': 'bedgbciecc',
-            },
-            data={
-                'create': {
-                    'id': 'bedgbciecc',
-                    'message': 'baafadjcdh',
-                },
-                'update': {
-                    'message': 'baafadjcdh',
-                },
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='upsert',
-            model=self._model,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def update_many(
-        self,
-        data: types.LogUpdateManyMutationInput,
-        where: types.LogWhereInput,
-    ) -> int:
-        """Update multiple Log records
-
-        Parameters
-        ----------
-        data
-            Log data to update the selected Log records to
-        where
-            Filter to select the Log records to update
-
-        Returns
-        -------
-        int
-            The total number of Log records that were updated
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # update all Log records
-        total = Log.prisma().update_many(
-            data={
-                'createdAt': datetime.datetime.utcnow()
-            },
-            where={}
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='update_many',
-            model=self._model,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-        return int(resp['data']['result']['count'])
-
-    @overload
-    def count(
-        self,
-        select: None = None,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.LogWhereInput] = None,
-        cursor: Optional[types.LogWhereUniqueInput] = None,
-    ) -> int:
-        """Count the number of Log records present in the database
-
-        Parameters
-        ----------
-        select
-            Select the Log fields to be counted
-        take
-            Limit the maximum result
-        skip
-            Ignore the first N records
-        where
-            Log filter to find records
-        cursor
-            Specifies the position in the list to start counting results from, (typically an ID field)
-        order
-            This parameter is deprecated and will be removed in a future release
-
-        Returns
-        -------
-        int
-            The total number of records found, returned if `select` is not given
-
-        prisma.types.LogCountAggregateOutput
-            Data returned when `select` is used, the fields present in this dictionary will
-            match the fields passed in the `select` argument
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # total: int
-        total = Log.prisma().count()
-
-        # results: prisma.types.LogCountAggregateOutput
-        results = Log.prisma().count(
-            select={
-                '_all': True,
-                'id': True,
-            },
-        )
-        ```
-        """
-
-
-    @overload
-    def count(
-        self,
-        select: types.LogCountAggregateInput,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.LogWhereInput] = None,
-        cursor: Optional[types.LogWhereUniqueInput] = None,
-    ) -> types.LogCountAggregateOutput:
-        ...
-
-    def count(
-        self,
-        select: Optional[types.LogCountAggregateInput] = None,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.LogWhereInput] = None,
-        cursor: Optional[types.LogWhereUniqueInput] = None,
-    ) -> Union[int, types.LogCountAggregateOutput]:
-        """Count the number of Log records present in the database
-
-        Parameters
-        ----------
-        select
-            Select the Log fields to be counted
-        take
-            Limit the maximum result
-        skip
-            Ignore the first N records
-        where
-            Log filter to find records
-        cursor
-            Specifies the position in the list to start counting results from, (typically an ID field)
-        order
-            This parameter is deprecated and will be removed in a future release
-
-        Returns
-        -------
-        int
-            The total number of records found, returned if `select` is not given
-
-        prisma.types.LogCountAggregateOutput
-            Data returned when `select` is used, the fields present in this dictionary will
-            match the fields passed in the `select` argument
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # total: int
-        total = Log.prisma().count()
-
-        # results: prisma.types.LogCountAggregateOutput
-        results = Log.prisma().count(
-            select={
-                '_all': True,
-                'level': True,
-            },
-        )
-        ```
-        """
-
-        # TODO: this selection building should be moved to the QueryBuilder
-        #
-        # note the distinction between checking for `not select` here and `select is None`
-        # later is to handle the case that the given select dictionary is empty, this
-        # is a limitation of our types.
-        if not select:
-            root_selection = ['_count { _all }']
-        else:
-
-            root_selection = [
-                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
-            ]
-
-        resp = self._client._execute(
-            method='count',
-            model=self._model,
-            arguments={
-                'take': take,
-                'skip': skip,
-                'where': where,
-                'cursor': cursor,
-            },
-            root_selection=root_selection,
-        )
-
-        if select is None:
-            return cast(int, resp['data']['result']['_count']['_all'])
-        else:
-            return cast(types.LogCountAggregateOutput, resp['data']['result']['_count'])
-
-    def delete_many(
-        self,
-        where: Optional[types.LogWhereInput] = None
-    ) -> int:
-        """Delete multiple Log records.
-
-        Parameters
-        ----------
-        where
-            Optional Log filter to find the records to be deleted
-
-        Returns
-        -------
-        int
-            The total number of Log records that were deleted
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # delete all Log records
-        total = Log.prisma().delete_many()
-        ```
-        """
-        resp = self._client._execute(
-            method='delete_many',
-            model=self._model,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-        return int(resp['data']['result']['count'])
-
-    # TODO: make this easier to work with safely, currently output fields are typed as
-    #       not required, we should refactor the return type
-    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
-    # TODO: statically type that the order argument is required when take or skip are present
-    def group_by(
-        self,
-        by: List['types.LogScalarFieldKeys'],
-        *,
-        where: Optional['types.LogWhereInput'] = None,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        avg: Optional['types.LogAvgAggregateInput'] = None,
-        sum: Optional['types.LogSumAggregateInput'] = None,
-        min: Optional['types.LogMinAggregateInput'] = None,
-        max: Optional['types.LogMaxAggregateInput'] = None,
-        having: Optional['types.LogScalarWhereWithAggregatesInput'] = None,
-        count: Optional[Union[bool, 'types.LogCountAggregateInput']] = None,
-        order: Optional[Union[Mapping['types.LogScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.LogScalarFieldKeys', 'types.SortOrder']]]] = None,
-    ) -> List['types.LogGroupByOutput']:
-        """Group Log records by one or more field values and perform aggregations
-        each group such as finding the average.
-
-        Parameters
-        ----------
-        by
-            List of scalar Log fields to group records by
-        where
-            Log filter to select records
-        take
-            Limit the maximum number of Log records returned
-        skip
-            Ignore the first N records
-        avg
-            Adds the average of all values of the specified fields to the `_avg` field
-            in the returned data.
-        sum
-            Adds the sum of all values of the specified fields to the `_sum` field
-            in the returned data.
-        min
-            Adds the smallest available value for the specified fields to the `_min` field
-            in the returned data.
-        max
-            Adds the largest available value for the specified fields to the `_max` field
-            in the returned data.
-        count
-            Adds a count of non-fields to the `_count` field in the returned data.
-        having
-            Allows you to filter groups by an aggregate value - for example only return
-            groups having an average age less than 50.
-        order
-            Lets you order the returned list by any property that is also present in `by`.
-            Only **one** field is allowed at a time.
-
-        Returns
-        -------
-        List[prisma.types.LogGroupByOutput]
-            A list of dictionaries representing the Log record,
-            this will also have additional fields present if aggregation arguments
-            are used (see the above parameters)
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # group Log records by message values
-        # and count how many records are in each group
-        results = Log.prisma().group_by(
-            ['message'],
-            count=True,
-        )
-        ```
-        """
-        if order is None:
-            if take is not None:
-                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
-
-            if skip is not None:
-                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
-
-        root_selection: List[str] = [*by]
-        if avg is not None:
-            root_selection.append(_select_fields('_avg', avg))
-
-        if min is not None:
-            root_selection.append(_select_fields('_min', min))
-
-        if sum is not None:
-            root_selection.append(_select_fields('_sum', sum))
-
-        if max is not None:
-            root_selection.append(_select_fields('_max', max))
-
-        if count is not None:
-            if count is True:
-                root_selection.append('_count { _all }')
-            elif isinstance(count, dict):
-                root_selection.append(_select_fields('_count', count))
-
-        resp = self._client._execute(
-            method='group_by',
-            model=self._model,
-            arguments={
-                'by': by,
-                'take': take,
-                'skip': skip,
-                'where': where,
-                'having': having,
-                'orderBy': order,
-            },
-            root_selection=root_selection,
-        )
-        return resp['data']['result']  # type: ignore[no-any-return]
-
-
 class PollCacheActions(Generic[_PrismaModelT]):
     __slots__ = (
         '_client',
@@ -34133,7 +32084,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         users = PollCache.prisma().query_raw(
             'SELECT * FROM PollCache WHERE id = $1',
-            'bfeehfcihb',
+            'bcdiiadeae',
         )
         ```
         """
@@ -34173,7 +32124,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         user = PollCache.prisma().query_first(
             'SELECT * FROM PollCache WHERE repoSlug = $1',
-            'ibagheidg',
+            'bdhhaeiaif',
         )
         ```
         """
@@ -34212,9 +32163,9 @@ class PollCacheActions(Generic[_PrismaModelT]):
         pollcache = PollCache.prisma().create(
             data={
                 # data to create a PollCache record
-                'repoSlug': 'bibfefchh',
-                'prId': 104486194,
-                'commitSha': 'fibhgbdb',
+                'repoSlug': 'caffgabefa',
+                'prId': 1990969115,
+                'commitSha': 'jdecjdgii',
             },
         )
         ```
@@ -34269,15 +32220,15 @@ class PollCacheActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a PollCache record
-                    'repoSlug': 'bbifhfaabg',
-                    'prId': 2117934137,
-                    'commitSha': 'hddcfecha',
+                    'repoSlug': 'bcgbcdjjfd',
+                    'prId': 1826537974,
+                    'commitSha': 'ihfjdgceh',
                 },
                 {
                     # data to create a PollCache record
-                    'repoSlug': 'bibbehhehb',
-                    'prId': 281540652,
-                    'commitSha': 'ibifgbhib',
+                    'repoSlug': 'gdaedbiee',
+                    'prId': 1813115597,
+                    'commitSha': 'bdjfefjjha',
                 },
             ],
             skip_duplicates=True,
@@ -34331,7 +32282,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         pollcache = PollCache.prisma().delete(
             where={
-                'id': 'bgjehbiaja',
+                'id': 'bjcjfbafeh',
             },
         )
         ```
@@ -34383,7 +32334,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         pollcache = PollCache.prisma().find_unique(
             where={
-                'id': 'cadgbfjjf',
+                'id': 'bchgjchgjg',
             },
         )
         ```
@@ -34434,7 +32385,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         pollcache = PollCache.prisma().find_unique_or_raise(
             where={
-                'id': 'bgceeachbc',
+                'id': 'idgcdejfd',
             },
         )
         ```
@@ -34686,7 +32637,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         pollcache = PollCache.prisma().update(
             where={
-                'id': 'bbcaehffaf',
+                'id': 'baajcgbaag',
             },
             data={
                 # data to update the PollCache record to
@@ -34743,19 +32694,19 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         pollcache = PollCache.prisma().upsert(
             where={
-                'id': 'ddbhhchfi',
+                'id': 'eahbafhhf',
             },
             data={
                 'create': {
-                    'id': 'ddbhhchfi',
-                    'repoSlug': 'bibbehhehb',
-                    'prId': 281540652,
-                    'commitSha': 'ibifgbhib',
+                    'id': 'eahbafhhf',
+                    'repoSlug': 'gdaedbiee',
+                    'prId': 1813115597,
+                    'commitSha': 'bdjfefjjha',
                 },
                 'update': {
-                    'repoSlug': 'bibbehhehb',
-                    'prId': 281540652,
-                    'commitSha': 'ibifgbhib',
+                    'repoSlug': 'gdaedbiee',
+                    'prId': 1813115597,
+                    'commitSha': 'bdjfefjjha',
                 },
             },
         )
@@ -34803,7 +32754,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         # update all PollCache records
         total = PollCache.prisma().update_many(
             data={
-                'id': 'bidbdafbhf'
+                'id': 'chbgcaajc'
             },
             where={}
         )
@@ -35166,7 +33117,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         users = RecipeVersion.prisma().query_raw(
             'SELECT * FROM RecipeVersion WHERE id = $1',
-            'caehibbhia',
+            'baafadjcdh',
         )
         ```
         """
@@ -35206,7 +33157,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         user = RecipeVersion.prisma().query_first(
             'SELECT * FROM RecipeVersion WHERE productId = $1',
-            'iafgcehej',
+            'beihjdafig',
         )
         ```
         """
@@ -35245,9 +33196,9 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         recipeversion = RecipeVersion.prisma().create(
             data={
                 # data to create a RecipeVersion record
-                'productId': 'bbaeaehiec',
-                'version': 259670643,
-                'content': 'biggeddiea',
+                'productId': 'cbdbchfabj',
+                'version': 1559050216,
+                'content': 'cbafbcgeab',
             },
         )
         ```
@@ -35302,15 +33253,15 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a RecipeVersion record
-                    'productId': 'biahhhjceb',
-                    'version': 1399363374,
-                    'content': 'cbaaahdbgh',
+                    'productId': 'bedgbciecc',
+                    'version': 1544752871,
+                    'content': 'ibagheidg',
                 },
                 {
                     # data to create a RecipeVersion record
-                    'productId': 'cahhcbdhii',
-                    'version': 1081267045,
-                    'content': 'dajaaacfa',
+                    'productId': 'bibfefchh',
+                    'version': 104486194,
+                    'content': 'fibhgbdb',
                 },
             ],
             skip_duplicates=True,
@@ -35364,7 +33315,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         recipeversion = RecipeVersion.prisma().delete(
             where={
-                'id': 'gdibgabah',
+                'id': 'bbifhfaabg',
             },
         )
         ```
@@ -35416,7 +33367,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         recipeversion = RecipeVersion.prisma().find_unique(
             where={
-                'id': 'bbdgidjcea',
+                'id': 'cbbhjdebdh',
             },
         )
         ```
@@ -35467,7 +33418,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         recipeversion = RecipeVersion.prisma().find_unique_or_raise(
             where={
-                'id': 'bigggbcjgb',
+                'id': 'hddcfecha',
             },
         )
         ```
@@ -35719,7 +33670,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         recipeversion = RecipeVersion.prisma().update(
             where={
-                'id': 'bfhhaicdhe',
+                'id': 'bibbehhehb',
             },
             data={
                 # data to update the RecipeVersion record to
@@ -35776,19 +33727,19 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         recipeversion = RecipeVersion.prisma().upsert(
             where={
-                'id': 'bgdeigedch',
+                'id': 'cibfeagfc',
             },
             data={
                 'create': {
-                    'id': 'bgdeigedch',
-                    'productId': 'cahhcbdhii',
-                    'version': 1081267045,
-                    'content': 'dajaaacfa',
+                    'id': 'cibfeagfc',
+                    'productId': 'bibfefchh',
+                    'version': 104486194,
+                    'content': 'fibhgbdb',
                 },
                 'update': {
-                    'productId': 'cahhcbdhii',
-                    'version': 1081267045,
-                    'content': 'dajaaacfa',
+                    'productId': 'bibfefchh',
+                    'version': 104486194,
+                    'content': 'fibhgbdb',
                 },
             },
         )
@@ -35836,7 +33787,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         # update all RecipeVersion records
         total = RecipeVersion.prisma().update_many(
             data={
-                'changeNote': 'gedhbbhdc'
+                'changeNote': 'ibifgbhib'
             },
             where={}
         )
@@ -36199,7 +34150,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         users = RecipeTemplate.prisma().query_raw(
             'SELECT * FROM RecipeTemplate WHERE id = $1',
-            'bcgcffdgcj',
+            'bgjehbiaja',
         )
         ```
         """
@@ -36239,7 +34190,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         user = RecipeTemplate.prisma().query_first(
             'SELECT * FROM RecipeTemplate WHERE name = $1',
-            'bihjhiiji',
+            'cadgbfjjf',
         )
         ```
         """
@@ -36278,8 +34229,8 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         recipetemplate = RecipeTemplate.prisma().create(
             data={
                 # data to create a RecipeTemplate record
-                'name': 'ididibbff',
-                'content': 'cgbfcibga',
+                'name': 'bgceeachbc',
+                'content': 'bbcaehffaf',
             },
         )
         ```
@@ -36334,13 +34285,13 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a RecipeTemplate record
-                    'name': 'bcibjgahcj',
-                    'content': 'bbbbedfcda',
+                    'name': 'ddbhhchfi',
+                    'content': 'bidbdafbhf',
                 },
                 {
                     # data to create a RecipeTemplate record
-                    'name': 'gejjhdbid',
-                    'content': 'bjfaacchjg',
+                    'name': 'caehibbhia',
+                    'content': 'iafgcehej',
                 },
             ],
             skip_duplicates=True,
@@ -36394,7 +34345,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         recipetemplate = RecipeTemplate.prisma().delete(
             where={
-                'id': 'beeigdcchh',
+                'id': 'bbaeaehiec',
             },
         )
         ```
@@ -36446,7 +34397,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         recipetemplate = RecipeTemplate.prisma().find_unique(
             where={
-                'id': 'bgihcicggg',
+                'id': 'cfjghaged',
             },
         )
         ```
@@ -36497,7 +34448,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         recipetemplate = RecipeTemplate.prisma().find_unique_or_raise(
             where={
-                'id': 'bjiiifffbf',
+                'id': 'biggeddiea',
             },
         )
         ```
@@ -36749,7 +34700,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         recipetemplate = RecipeTemplate.prisma().update(
             where={
-                'id': 'bgjceijaia',
+                'id': 'biahhhjceb',
             },
             data={
                 # data to update the RecipeTemplate record to
@@ -36806,17 +34757,17 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         recipetemplate = RecipeTemplate.prisma().upsert(
             where={
-                'id': 'hifbdafhh',
+                'id': 'bdjjdgddhe',
             },
             data={
                 'create': {
-                    'id': 'hifbdafhh',
-                    'name': 'gejjhdbid',
-                    'content': 'bjfaacchjg',
+                    'id': 'bdjjdgddhe',
+                    'name': 'caehibbhia',
+                    'content': 'iafgcehej',
                 },
                 'update': {
-                    'name': 'gejjhdbid',
-                    'content': 'bjfaacchjg',
+                    'name': 'caehibbhia',
+                    'content': 'iafgcehej',
                 },
             },
         )
@@ -36864,7 +34815,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         # update all RecipeTemplate records
         total = RecipeTemplate.prisma().update_many(
             data={
-                'sortOrder': 1201820854
+                'sortOrder': 2100073167
             },
             where={}
         )
@@ -37139,6 +35090,3135 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         # and count how many records are in each group
         results = RecipeTemplate.prisma().group_by(
             ['id'],
+            count=True,
+        )
+        ```
+        """
+        if order is None:
+            if take is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
+
+            if skip is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
+
+        root_selection: List[str] = [*by]
+        if avg is not None:
+            root_selection.append(_select_fields('_avg', avg))
+
+        if min is not None:
+            root_selection.append(_select_fields('_min', min))
+
+        if sum is not None:
+            root_selection.append(_select_fields('_sum', sum))
+
+        if max is not None:
+            root_selection.append(_select_fields('_max', max))
+
+        if count is not None:
+            if count is True:
+                root_selection.append('_count { _all }')
+            elif isinstance(count, dict):
+                root_selection.append(_select_fields('_count', count))
+
+        resp = self._client._execute(
+            method='group_by',
+            model=self._model,
+            arguments={
+                'by': by,
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'having': having,
+                'orderBy': order,
+            },
+            root_selection=root_selection,
+        )
+        return resp['data']['result']  # type: ignore[no-any-return]
+
+
+class StageBuildMatrixActions(Generic[_PrismaModelT]):
+    __slots__ = (
+        '_client',
+        '_model',
+    )
+
+    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
+        self._client = client
+        self._model = model
+
+    def query_raw(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> List[_PrismaModelT]:
+        """Execute a raw SQL query
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        List[prisma.models.StageBuildMatrix]
+            The records returned by the SQL query
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        users = StageBuildMatrix.prisma().query_raw(
+            'SELECT * FROM StageBuildMatrix WHERE id = $1',
+            'cahhcbdhii',
+        )
+        ```
+        """
+        return self._client.query_raw(query, *args, model=self._model)
+
+    def query_first(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> Optional[_PrismaModelT]:
+        """Execute a raw SQL query, returning the first result
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        prisma.models.StageBuildMatrix
+            The first record returned by the SQL query
+        None
+            The raw SQL query did not return any records
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        user = StageBuildMatrix.prisma().query_first(
+            'SELECT * FROM StageBuildMatrix WHERE stageConfigId = $1',
+            'baibcghaef',
+        )
+        ```
+        """
+        return self._client.query_first(query, *args, model=self._model)
+
+    def create(
+        self,
+        data: types.StageBuildMatrixCreateInput,
+        include: Optional[types.StageBuildMatrixInclude] = None
+    ) -> _PrismaModelT:
+        """Create a new StageBuildMatrix record.
+
+        Parameters
+        ----------
+        data
+            StageBuildMatrix record data
+        include
+            Specifies which relations should be loaded on the returned StageBuildMatrix model
+
+        Returns
+        -------
+        prisma.models.StageBuildMatrix
+            The created StageBuildMatrix record
+
+        Raises
+        ------
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # create a StageBuildMatrix record from just the required fields
+        stagebuildmatrix = StageBuildMatrix.prisma().create(
+            data={
+                # data to create a StageBuildMatrix record
+                'stageConfigId': 'dajaaacfa',
+                'label': 'gdibgabah',
+                'fwType': 'bbdgidjcea',
+                'variant': 'bigggbcjgb',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='create',
+            model=self._model,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def create_many(
+        self,
+        data: List[types.StageBuildMatrixCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> int:
+        """Create multiple StageBuildMatrix records at once.
+
+        This function is *not* available when using SQLite.
+
+        Parameters
+        ----------
+        data
+            List of StageBuildMatrix record data
+        skip_duplicates
+            Boolean flag for ignoring unique constraint errors
+
+        Returns
+        -------
+        int
+            The total number of records created
+
+        Raises
+        ------
+        prisma.errors.UnsupportedDatabaseError
+            Attempting to query when using SQLite
+        prisma.errors.UniqueViolationError
+            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        total = StageBuildMatrix.prisma().create_many(
+            data=[
+                {
+                    # data to create a StageBuildMatrix record
+                    'stageConfigId': 'bfhhaicdhe',
+                    'label': 'bgdeigedch',
+                    'fwType': 'gedhbbhdc',
+                    'variant': 'bcgcffdgcj',
+                },
+                {
+                    # data to create a StageBuildMatrix record
+                    'stageConfigId': 'bihjhiiji',
+                    'label': 'ididibbff',
+                    'fwType': 'cgbfcibga',
+                    'variant': 'bcibjgahcj',
+                },
+            ],
+            skip_duplicates=True,
+        )
+        ```
+        """
+        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
+
+        resp = self._client._execute(
+            method='create_many',
+            model=self._model,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    def delete(
+        self,
+        where: types.StageBuildMatrixWhereUniqueInput,
+        include: Optional[types.StageBuildMatrixInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Delete a single StageBuildMatrix record.
+
+        Parameters
+        ----------
+        where
+            StageBuildMatrix filter to select the record to be deleted, must be unique
+        include
+            Specifies which relations should be loaded on the returned StageBuildMatrix model
+
+        Returns
+        -------
+        prisma.models.StageBuildMatrix
+            The deleted StageBuildMatrix record
+        None
+            Could not find a record to delete
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        stagebuildmatrix = StageBuildMatrix.prisma().delete(
+            where={
+                'id': 'bbbbedfcda',
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='delete',
+                model=self._model,
+                arguments={
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_unique(
+        self,
+        where: types.StageBuildMatrixWhereUniqueInput,
+        include: Optional[types.StageBuildMatrixInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Find a unique StageBuildMatrix record.
+
+        Parameters
+        ----------
+        where
+            StageBuildMatrix filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned StageBuildMatrix model
+
+        Returns
+        -------
+        prisma.models.StageBuildMatrix
+            The found StageBuildMatrix record
+        None
+            No record matching the given input could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        stagebuildmatrix = StageBuildMatrix.prisma().find_unique(
+            where={
+                'id': 'gejjhdbid',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+        return model_parse(self._model, result)
+
+    def find_unique_or_raise(
+        self,
+        where: types.StageBuildMatrixWhereUniqueInput,
+        include: Optional[types.StageBuildMatrixInclude] = None
+    ) -> _PrismaModelT:
+        """Find a unique StageBuildMatrix record. Raises `RecordNotFoundError` if no record is found.
+
+        Parameters
+        ----------
+        where
+            StageBuildMatrix filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned StageBuildMatrix model
+
+        Returns
+        -------
+        prisma.models.StageBuildMatrix
+            The found StageBuildMatrix record
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        stagebuildmatrix = StageBuildMatrix.prisma().find_unique_or_raise(
+            where={
+                'id': 'bjfaacchjg',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique_or_raise',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_many(
+        self,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.StageBuildMatrixWhereInput] = None,
+        cursor: Optional[types.StageBuildMatrixWhereUniqueInput] = None,
+        include: Optional[types.StageBuildMatrixInclude] = None,
+        order: Optional[Union[types.StageBuildMatrixOrderByInput, List[types.StageBuildMatrixOrderByInput]]] = None,
+        distinct: Optional[List[types.StageBuildMatrixScalarFieldKeys]] = None,
+    ) -> List[_PrismaModelT]:
+        """Find multiple StageBuildMatrix records.
+
+        An empty list is returned if no records could be found.
+
+        Parameters
+        ----------
+        take
+            Limit the maximum number of StageBuildMatrix records returned
+        skip
+            Ignore the first N results
+        where
+            StageBuildMatrix filter to select records
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned StageBuildMatrix model
+        order
+            Order the returned StageBuildMatrix records by any field
+        distinct
+            Filter StageBuildMatrix records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        List[prisma.models.StageBuildMatrix]
+            The list of all StageBuildMatrix records that could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the first 10 StageBuildMatrix records
+        stagebuildmatrixs = StageBuildMatrix.prisma().find_many(take=10)
+
+        # find the first 5 StageBuildMatrix records ordered by the sortOrder field
+        stagebuildmatrixs = StageBuildMatrix.prisma().find_many(
+            take=5,
+            order={
+                'sortOrder': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_many',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return [model_parse(self._model, r) for r in resp['data']['result']]
+
+    def find_first(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.StageBuildMatrixWhereInput] = None,
+        cursor: Optional[types.StageBuildMatrixWhereUniqueInput] = None,
+        include: Optional[types.StageBuildMatrixInclude] = None,
+        order: Optional[Union[types.StageBuildMatrixOrderByInput, List[types.StageBuildMatrixOrderByInput]]] = None,
+        distinct: Optional[List[types.StageBuildMatrixScalarFieldKeys]] = None,
+    ) -> Optional[_PrismaModelT]:
+        """Find a single StageBuildMatrix record.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            StageBuildMatrix filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned StageBuildMatrix model
+        order
+            Order the returned StageBuildMatrix records by any field
+        distinct
+            Filter StageBuildMatrix records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.StageBuildMatrix
+            The first StageBuildMatrix record found, matching the given arguments
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second StageBuildMatrix record ordered by the label field
+        stagebuildmatrix = StageBuildMatrix.prisma().find_first(
+            skip=1,
+            order={
+                'label': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+
+        return model_parse(self._model, result)
+
+    def find_first_or_raise(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.StageBuildMatrixWhereInput] = None,
+        cursor: Optional[types.StageBuildMatrixWhereUniqueInput] = None,
+        include: Optional[types.StageBuildMatrixInclude] = None,
+        order: Optional[Union[types.StageBuildMatrixOrderByInput, List[types.StageBuildMatrixOrderByInput]]] = None,
+        distinct: Optional[List[types.StageBuildMatrixScalarFieldKeys]] = None,
+    ) -> _PrismaModelT:
+        """Find a single StageBuildMatrix record. Raises `RecordNotFoundError` if no record was found.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            StageBuildMatrix filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned StageBuildMatrix model
+        order
+            Order the returned StageBuildMatrix records by any field
+        distinct
+            Filter StageBuildMatrix records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.StageBuildMatrix
+            The first StageBuildMatrix record found, matching the given arguments
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second StageBuildMatrix record ordered by the fwType field
+        stagebuildmatrix = StageBuildMatrix.prisma().find_first_or_raise(
+            skip=1,
+            order={
+                'fwType': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first_or_raise',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update(
+        self,
+        data: types.StageBuildMatrixUpdateInput,
+        where: types.StageBuildMatrixWhereUniqueInput,
+        include: Optional[types.StageBuildMatrixInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Update a single StageBuildMatrix record.
+
+        Parameters
+        ----------
+        data
+            StageBuildMatrix record data specifying what to update
+        where
+            StageBuildMatrix filter to select the unique record to create / update
+        include
+            Specifies which relations should be loaded on the returned StageBuildMatrix model
+
+        Returns
+        -------
+        prisma.models.StageBuildMatrix
+            The updated StageBuildMatrix record
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        stagebuildmatrix = StageBuildMatrix.prisma().update(
+            where={
+                'id': 'beeigdcchh',
+            },
+            data={
+                # data to update the StageBuildMatrix record to
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='update',
+                model=self._model,
+                arguments={
+                    'data': data,
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def upsert(
+        self,
+        where: types.StageBuildMatrixWhereUniqueInput,
+        data: types.StageBuildMatrixUpsertInput,
+        include: Optional[types.StageBuildMatrixInclude] = None,
+    ) -> _PrismaModelT:
+        """Updates an existing record or create a new one
+
+        Parameters
+        ----------
+        where
+            StageBuildMatrix filter to select the unique record to create / update
+        data
+            Data specifying what fields to set on create and update
+        include
+            Specifies which relations should be loaded on the returned StageBuildMatrix model
+
+        Returns
+        -------
+        prisma.models.StageBuildMatrix
+            The created or updated StageBuildMatrix record
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        stagebuildmatrix = StageBuildMatrix.prisma().upsert(
+            where={
+                'id': 'bgihcicggg',
+            },
+            data={
+                'create': {
+                    'id': 'bgihcicggg',
+                    'stageConfigId': 'bihjhiiji',
+                    'label': 'ididibbff',
+                    'fwType': 'cgbfcibga',
+                    'variant': 'bcibjgahcj',
+                },
+                'update': {
+                    'stageConfigId': 'bihjhiiji',
+                    'label': 'ididibbff',
+                    'fwType': 'cgbfcibga',
+                    'variant': 'bcibjgahcj',
+                },
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='upsert',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update_many(
+        self,
+        data: types.StageBuildMatrixUpdateManyMutationInput,
+        where: types.StageBuildMatrixWhereInput,
+    ) -> int:
+        """Update multiple StageBuildMatrix records
+
+        Parameters
+        ----------
+        data
+            StageBuildMatrix data to update the selected StageBuildMatrix records to
+        where
+            Filter to select the StageBuildMatrix records to update
+
+        Returns
+        -------
+        int
+            The total number of StageBuildMatrix records that were updated
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # update all StageBuildMatrix records
+        total = StageBuildMatrix.prisma().update_many(
+            data={
+                'variant': 'bjiiifffbf'
+            },
+            where={}
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='update_many',
+            model=self._model,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    @overload
+    def count(
+        self,
+        select: None = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.StageBuildMatrixWhereInput] = None,
+        cursor: Optional[types.StageBuildMatrixWhereUniqueInput] = None,
+    ) -> int:
+        """Count the number of StageBuildMatrix records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the StageBuildMatrix fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            StageBuildMatrix filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.StageBuildMatrixCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = StageBuildMatrix.prisma().count()
+
+        # results: prisma.types.StageBuildMatrixCountAggregateOutput
+        results = StageBuildMatrix.prisma().count(
+            select={
+                '_all': True,
+                'configLog': True,
+            },
+        )
+        ```
+        """
+
+
+    @overload
+    def count(
+        self,
+        select: types.StageBuildMatrixCountAggregateInput,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.StageBuildMatrixWhereInput] = None,
+        cursor: Optional[types.StageBuildMatrixWhereUniqueInput] = None,
+    ) -> types.StageBuildMatrixCountAggregateOutput:
+        ...
+
+    def count(
+        self,
+        select: Optional[types.StageBuildMatrixCountAggregateInput] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.StageBuildMatrixWhereInput] = None,
+        cursor: Optional[types.StageBuildMatrixWhereUniqueInput] = None,
+    ) -> Union[int, types.StageBuildMatrixCountAggregateOutput]:
+        """Count the number of StageBuildMatrix records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the StageBuildMatrix fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            StageBuildMatrix filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.StageBuildMatrixCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = StageBuildMatrix.prisma().count()
+
+        # results: prisma.types.StageBuildMatrixCountAggregateOutput
+        results = StageBuildMatrix.prisma().count(
+            select={
+                '_all': True,
+                'producesHex': True,
+            },
+        )
+        ```
+        """
+
+        # TODO: this selection building should be moved to the QueryBuilder
+        #
+        # note the distinction between checking for `not select` here and `select is None`
+        # later is to handle the case that the given select dictionary is empty, this
+        # is a limitation of our types.
+        if not select:
+            root_selection = ['_count { _all }']
+        else:
+
+            root_selection = [
+                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
+            ]
+
+        resp = self._client._execute(
+            method='count',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'cursor': cursor,
+            },
+            root_selection=root_selection,
+        )
+
+        if select is None:
+            return cast(int, resp['data']['result']['_count']['_all'])
+        else:
+            return cast(types.StageBuildMatrixCountAggregateOutput, resp['data']['result']['_count'])
+
+    def delete_many(
+        self,
+        where: Optional[types.StageBuildMatrixWhereInput] = None
+    ) -> int:
+        """Delete multiple StageBuildMatrix records.
+
+        Parameters
+        ----------
+        where
+            Optional StageBuildMatrix filter to find the records to be deleted
+
+        Returns
+        -------
+        int
+            The total number of StageBuildMatrix records that were deleted
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # delete all StageBuildMatrix records
+        total = StageBuildMatrix.prisma().delete_many()
+        ```
+        """
+        resp = self._client._execute(
+            method='delete_many',
+            model=self._model,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    # TODO: make this easier to work with safely, currently output fields are typed as
+    #       not required, we should refactor the return type
+    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
+    # TODO: statically type that the order argument is required when take or skip are present
+    def group_by(
+        self,
+        by: List['types.StageBuildMatrixScalarFieldKeys'],
+        *,
+        where: Optional['types.StageBuildMatrixWhereInput'] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        avg: Optional['types.StageBuildMatrixAvgAggregateInput'] = None,
+        sum: Optional['types.StageBuildMatrixSumAggregateInput'] = None,
+        min: Optional['types.StageBuildMatrixMinAggregateInput'] = None,
+        max: Optional['types.StageBuildMatrixMaxAggregateInput'] = None,
+        having: Optional['types.StageBuildMatrixScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.StageBuildMatrixCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.StageBuildMatrixScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.StageBuildMatrixScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.StageBuildMatrixGroupByOutput']:
+        """Group StageBuildMatrix records by one or more field values and perform aggregations
+        each group such as finding the average.
+
+        Parameters
+        ----------
+        by
+            List of scalar StageBuildMatrix fields to group records by
+        where
+            StageBuildMatrix filter to select records
+        take
+            Limit the maximum number of StageBuildMatrix records returned
+        skip
+            Ignore the first N records
+        avg
+            Adds the average of all values of the specified fields to the `_avg` field
+            in the returned data.
+        sum
+            Adds the sum of all values of the specified fields to the `_sum` field
+            in the returned data.
+        min
+            Adds the smallest available value for the specified fields to the `_min` field
+            in the returned data.
+        max
+            Adds the largest available value for the specified fields to the `_max` field
+            in the returned data.
+        count
+            Adds a count of non-fields to the `_count` field in the returned data.
+        having
+            Allows you to filter groups by an aggregate value - for example only return
+            groups having an average age less than 50.
+        order
+            Lets you order the returned list by any property that is also present in `by`.
+            Only **one** field is allowed at a time.
+
+        Returns
+        -------
+        List[prisma.types.StageBuildMatrixGroupByOutput]
+            A list of dictionaries representing the StageBuildMatrix record,
+            this will also have additional fields present if aggregation arguments
+            are used (see the above parameters)
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # group StageBuildMatrix records by producesCfw values
+        # and count how many records are in each group
+        results = StageBuildMatrix.prisma().group_by(
+            ['producesCfw'],
+            count=True,
+        )
+        ```
+        """
+        if order is None:
+            if take is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
+
+            if skip is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
+
+        root_selection: List[str] = [*by]
+        if avg is not None:
+            root_selection.append(_select_fields('_avg', avg))
+
+        if min is not None:
+            root_selection.append(_select_fields('_min', min))
+
+        if sum is not None:
+            root_selection.append(_select_fields('_sum', sum))
+
+        if max is not None:
+            root_selection.append(_select_fields('_max', max))
+
+        if count is not None:
+            if count is True:
+                root_selection.append('_count { _all }')
+            elif isinstance(count, dict):
+                root_selection.append(_select_fields('_count', count))
+
+        resp = self._client._execute(
+            method='group_by',
+            model=self._model,
+            arguments={
+                'by': by,
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'having': having,
+                'orderBy': order,
+            },
+            root_selection=root_selection,
+        )
+        return resp['data']['result']  # type: ignore[no-any-return]
+
+
+class AssetSetActions(Generic[_PrismaModelT]):
+    __slots__ = (
+        '_client',
+        '_model',
+    )
+
+    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
+        self._client = client
+        self._model = model
+
+    def query_raw(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> List[_PrismaModelT]:
+        """Execute a raw SQL query
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        List[prisma.models.AssetSet]
+            The records returned by the SQL query
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        users = AssetSet.prisma().query_raw(
+            'SELECT * FROM AssetSet WHERE id = $1',
+            'bgjceijaia',
+        )
+        ```
+        """
+        return self._client.query_raw(query, *args, model=self._model)
+
+    def query_first(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> Optional[_PrismaModelT]:
+        """Execute a raw SQL query, returning the first result
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        prisma.models.AssetSet
+            The first record returned by the SQL query
+        None
+            The raw SQL query did not return any records
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        user = AssetSet.prisma().query_first(
+            'SELECT * FROM AssetSet WHERE productId = $1',
+            'hifbdafhh',
+        )
+        ```
+        """
+        return self._client.query_first(query, *args, model=self._model)
+
+    def create(
+        self,
+        data: types.AssetSetCreateInput,
+        include: Optional[types.AssetSetInclude] = None
+    ) -> _PrismaModelT:
+        """Create a new AssetSet record.
+
+        Parameters
+        ----------
+        data
+            AssetSet record data
+        include
+            Specifies which relations should be loaded on the returned AssetSet model
+
+        Returns
+        -------
+        prisma.models.AssetSet
+            The created AssetSet record
+
+        Raises
+        ------
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # create a AssetSet record from just the required fields
+        assetset = AssetSet.prisma().create(
+            data={
+                # data to create a AssetSet record
+                'productId': 'bcabicaife',
+                'version': 'ibgjfchfj',
+                'source': enums.AssetSetSource.BUILD_SERVICE,
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='create',
+            model=self._model,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def create_many(
+        self,
+        data: List[types.AssetSetCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> int:
+        """Create multiple AssetSet records at once.
+
+        This function is *not* available when using SQLite.
+
+        Parameters
+        ----------
+        data
+            List of AssetSet record data
+        skip_duplicates
+            Boolean flag for ignoring unique constraint errors
+
+        Returns
+        -------
+        int
+            The total number of records created
+
+        Raises
+        ------
+        prisma.errors.UnsupportedDatabaseError
+            Attempting to query when using SQLite
+        prisma.errors.UniqueViolationError
+            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        total = AssetSet.prisma().create_many(
+            data=[
+                {
+                    # data to create a AssetSet record
+                    'productId': 'bghafddebc',
+                    'version': 'bgaidgfbjh',
+                    'source': enums.AssetSetSource.BUILD_SERVICE,
+                },
+                {
+                    # data to create a AssetSet record
+                    'productId': 'bdejjhhggg',
+                    'version': 'fdahaiafb',
+                    'source': enums.AssetSetSource.BUILD_SERVICE,
+                },
+            ],
+            skip_duplicates=True,
+        )
+        ```
+        """
+        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
+
+        resp = self._client._execute(
+            method='create_many',
+            model=self._model,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    def delete(
+        self,
+        where: types.AssetSetWhereUniqueInput,
+        include: Optional[types.AssetSetInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Delete a single AssetSet record.
+
+        Parameters
+        ----------
+        where
+            AssetSet filter to select the record to be deleted, must be unique
+        include
+            Specifies which relations should be loaded on the returned AssetSet model
+
+        Returns
+        -------
+        prisma.models.AssetSet
+            The deleted AssetSet record
+        None
+            Could not find a record to delete
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        assetset = AssetSet.prisma().delete(
+            where={
+                'id': 'bheidchdbc',
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='delete',
+                model=self._model,
+                arguments={
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_unique(
+        self,
+        where: types.AssetSetWhereUniqueInput,
+        include: Optional[types.AssetSetInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Find a unique AssetSet record.
+
+        Parameters
+        ----------
+        where
+            AssetSet filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned AssetSet model
+
+        Returns
+        -------
+        prisma.models.AssetSet
+            The found AssetSet record
+        None
+            No record matching the given input could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        assetset = AssetSet.prisma().find_unique(
+            where={
+                'id': 'ddecgfgj',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+        return model_parse(self._model, result)
+
+    def find_unique_or_raise(
+        self,
+        where: types.AssetSetWhereUniqueInput,
+        include: Optional[types.AssetSetInclude] = None
+    ) -> _PrismaModelT:
+        """Find a unique AssetSet record. Raises `RecordNotFoundError` if no record is found.
+
+        Parameters
+        ----------
+        where
+            AssetSet filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned AssetSet model
+
+        Returns
+        -------
+        prisma.models.AssetSet
+            The found AssetSet record
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        assetset = AssetSet.prisma().find_unique_or_raise(
+            where={
+                'id': 'baafhjifec',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique_or_raise',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_many(
+        self,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetSetWhereInput] = None,
+        cursor: Optional[types.AssetSetWhereUniqueInput] = None,
+        include: Optional[types.AssetSetInclude] = None,
+        order: Optional[Union[types.AssetSetOrderByInput, List[types.AssetSetOrderByInput]]] = None,
+        distinct: Optional[List[types.AssetSetScalarFieldKeys]] = None,
+    ) -> List[_PrismaModelT]:
+        """Find multiple AssetSet records.
+
+        An empty list is returned if no records could be found.
+
+        Parameters
+        ----------
+        take
+            Limit the maximum number of AssetSet records returned
+        skip
+            Ignore the first N results
+        where
+            AssetSet filter to select records
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned AssetSet model
+        order
+            Order the returned AssetSet records by any field
+        distinct
+            Filter AssetSet records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        List[prisma.models.AssetSet]
+            The list of all AssetSet records that could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the first 10 AssetSet records
+        assetsets = AssetSet.prisma().find_many(take=10)
+
+        # find the first 5 AssetSet records ordered by the boardRevisionId field
+        assetsets = AssetSet.prisma().find_many(
+            take=5,
+            order={
+                'boardRevisionId': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_many',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return [model_parse(self._model, r) for r in resp['data']['result']]
+
+    def find_first(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetSetWhereInput] = None,
+        cursor: Optional[types.AssetSetWhereUniqueInput] = None,
+        include: Optional[types.AssetSetInclude] = None,
+        order: Optional[Union[types.AssetSetOrderByInput, List[types.AssetSetOrderByInput]]] = None,
+        distinct: Optional[List[types.AssetSetScalarFieldKeys]] = None,
+    ) -> Optional[_PrismaModelT]:
+        """Find a single AssetSet record.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            AssetSet filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned AssetSet model
+        order
+            Order the returned AssetSet records by any field
+        distinct
+            Filter AssetSet records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.AssetSet
+            The first AssetSet record found, matching the given arguments
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second AssetSet record ordered by the version field
+        assetset = AssetSet.prisma().find_first(
+            skip=1,
+            order={
+                'version': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+
+        return model_parse(self._model, result)
+
+    def find_first_or_raise(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetSetWhereInput] = None,
+        cursor: Optional[types.AssetSetWhereUniqueInput] = None,
+        include: Optional[types.AssetSetInclude] = None,
+        order: Optional[Union[types.AssetSetOrderByInput, List[types.AssetSetOrderByInput]]] = None,
+        distinct: Optional[List[types.AssetSetScalarFieldKeys]] = None,
+    ) -> _PrismaModelT:
+        """Find a single AssetSet record. Raises `RecordNotFoundError` if no record was found.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            AssetSet filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned AssetSet model
+        order
+            Order the returned AssetSet records by any field
+        distinct
+            Filter AssetSet records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.AssetSet
+            The first AssetSet record found, matching the given arguments
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second AssetSet record ordered by the variant field
+        assetset = AssetSet.prisma().find_first_or_raise(
+            skip=1,
+            order={
+                'variant': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first_or_raise',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update(
+        self,
+        data: types.AssetSetUpdateInput,
+        where: types.AssetSetWhereUniqueInput,
+        include: Optional[types.AssetSetInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Update a single AssetSet record.
+
+        Parameters
+        ----------
+        data
+            AssetSet record data specifying what to update
+        where
+            AssetSet filter to select the unique record to create / update
+        include
+            Specifies which relations should be loaded on the returned AssetSet model
+
+        Returns
+        -------
+        prisma.models.AssetSet
+            The updated AssetSet record
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        assetset = AssetSet.prisma().update(
+            where={
+                'id': 'jgbcfighb',
+            },
+            data={
+                # data to update the AssetSet record to
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='update',
+                model=self._model,
+                arguments={
+                    'data': data,
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def upsert(
+        self,
+        where: types.AssetSetWhereUniqueInput,
+        data: types.AssetSetUpsertInput,
+        include: Optional[types.AssetSetInclude] = None,
+    ) -> _PrismaModelT:
+        """Updates an existing record or create a new one
+
+        Parameters
+        ----------
+        where
+            AssetSet filter to select the unique record to create / update
+        data
+            Data specifying what fields to set on create and update
+        include
+            Specifies which relations should be loaded on the returned AssetSet model
+
+        Returns
+        -------
+        prisma.models.AssetSet
+            The created or updated AssetSet record
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        assetset = AssetSet.prisma().upsert(
+            where={
+                'id': 'bagjdcgfce',
+            },
+            data={
+                'create': {
+                    'id': 'bagjdcgfce',
+                    'productId': 'bdejjhhggg',
+                    'version': 'fdahaiafb',
+                    'source': enums.AssetSetSource.BUILD_SERVICE,
+                },
+                'update': {
+                    'productId': 'bdejjhhggg',
+                    'version': 'fdahaiafb',
+                    'source': enums.AssetSetSource.BUILD_SERVICE,
+                },
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='upsert',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update_many(
+        self,
+        data: types.AssetSetUpdateManyMutationInput,
+        where: types.AssetSetWhereInput,
+    ) -> int:
+        """Update multiple AssetSet records
+
+        Parameters
+        ----------
+        data
+            AssetSet data to update the selected AssetSet records to
+        where
+            Filter to select the AssetSet records to update
+
+        Returns
+        -------
+        int
+            The total number of AssetSet records that were updated
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # update all AssetSet records
+        total = AssetSet.prisma().update_many(
+            data={
+                'stage': 699525189
+            },
+            where={}
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='update_many',
+            model=self._model,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    @overload
+    def count(
+        self,
+        select: None = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetSetWhereInput] = None,
+        cursor: Optional[types.AssetSetWhereUniqueInput] = None,
+    ) -> int:
+        """Count the number of AssetSet records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the AssetSet fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            AssetSet filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.AssetSetCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = AssetSet.prisma().count()
+
+        # results: prisma.types.AssetSetCountAggregateOutput
+        results = AssetSet.prisma().count(
+            select={
+                '_all': True,
+                'source': True,
+            },
+        )
+        ```
+        """
+
+
+    @overload
+    def count(
+        self,
+        select: types.AssetSetCountAggregateInput,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetSetWhereInput] = None,
+        cursor: Optional[types.AssetSetWhereUniqueInput] = None,
+    ) -> types.AssetSetCountAggregateOutput:
+        ...
+
+    def count(
+        self,
+        select: Optional[types.AssetSetCountAggregateInput] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetSetWhereInput] = None,
+        cursor: Optional[types.AssetSetWhereUniqueInput] = None,
+    ) -> Union[int, types.AssetSetCountAggregateOutput]:
+        """Count the number of AssetSet records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the AssetSet fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            AssetSet filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.AssetSetCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = AssetSet.prisma().count()
+
+        # results: prisma.types.AssetSetCountAggregateOutput
+        results = AssetSet.prisma().count(
+            select={
+                '_all': True,
+                'buildRunId': True,
+            },
+        )
+        ```
+        """
+
+        # TODO: this selection building should be moved to the QueryBuilder
+        #
+        # note the distinction between checking for `not select` here and `select is None`
+        # later is to handle the case that the given select dictionary is empty, this
+        # is a limitation of our types.
+        if not select:
+            root_selection = ['_count { _all }']
+        else:
+
+            root_selection = [
+                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
+            ]
+
+        resp = self._client._execute(
+            method='count',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'cursor': cursor,
+            },
+            root_selection=root_selection,
+        )
+
+        if select is None:
+            return cast(int, resp['data']['result']['_count']['_all'])
+        else:
+            return cast(types.AssetSetCountAggregateOutput, resp['data']['result']['_count'])
+
+    def delete_many(
+        self,
+        where: Optional[types.AssetSetWhereInput] = None
+    ) -> int:
+        """Delete multiple AssetSet records.
+
+        Parameters
+        ----------
+        where
+            Optional AssetSet filter to find the records to be deleted
+
+        Returns
+        -------
+        int
+            The total number of AssetSet records that were deleted
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # delete all AssetSet records
+        total = AssetSet.prisma().delete_many()
+        ```
+        """
+        resp = self._client._execute(
+            method='delete_many',
+            model=self._model,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    # TODO: make this easier to work with safely, currently output fields are typed as
+    #       not required, we should refactor the return type
+    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
+    # TODO: statically type that the order argument is required when take or skip are present
+    def group_by(
+        self,
+        by: List['types.AssetSetScalarFieldKeys'],
+        *,
+        where: Optional['types.AssetSetWhereInput'] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        avg: Optional['types.AssetSetAvgAggregateInput'] = None,
+        sum: Optional['types.AssetSetSumAggregateInput'] = None,
+        min: Optional['types.AssetSetMinAggregateInput'] = None,
+        max: Optional['types.AssetSetMaxAggregateInput'] = None,
+        having: Optional['types.AssetSetScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.AssetSetCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.AssetSetScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.AssetSetScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.AssetSetGroupByOutput']:
+        """Group AssetSet records by one or more field values and perform aggregations
+        each group such as finding the average.
+
+        Parameters
+        ----------
+        by
+            List of scalar AssetSet fields to group records by
+        where
+            AssetSet filter to select records
+        take
+            Limit the maximum number of AssetSet records returned
+        skip
+            Ignore the first N records
+        avg
+            Adds the average of all values of the specified fields to the `_avg` field
+            in the returned data.
+        sum
+            Adds the sum of all values of the specified fields to the `_sum` field
+            in the returned data.
+        min
+            Adds the smallest available value for the specified fields to the `_min` field
+            in the returned data.
+        max
+            Adds the largest available value for the specified fields to the `_max` field
+            in the returned data.
+        count
+            Adds a count of non-fields to the `_count` field in the returned data.
+        having
+            Allows you to filter groups by an aggregate value - for example only return
+            groups having an average age less than 50.
+        order
+            Lets you order the returned list by any property that is also present in `by`.
+            Only **one** field is allowed at a time.
+
+        Returns
+        -------
+        List[prisma.types.AssetSetGroupByOutput]
+            A list of dictionaries representing the AssetSet record,
+            this will also have additional fields present if aggregation arguments
+            are used (see the above parameters)
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # group AssetSet records by externalBuildId values
+        # and count how many records are in each group
+        results = AssetSet.prisma().group_by(
+            ['externalBuildId'],
+            count=True,
+        )
+        ```
+        """
+        if order is None:
+            if take is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
+
+            if skip is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
+
+        root_selection: List[str] = [*by]
+        if avg is not None:
+            root_selection.append(_select_fields('_avg', avg))
+
+        if min is not None:
+            root_selection.append(_select_fields('_min', min))
+
+        if sum is not None:
+            root_selection.append(_select_fields('_sum', sum))
+
+        if max is not None:
+            root_selection.append(_select_fields('_max', max))
+
+        if count is not None:
+            if count is True:
+                root_selection.append('_count { _all }')
+            elif isinstance(count, dict):
+                root_selection.append(_select_fields('_count', count))
+
+        resp = self._client._execute(
+            method='group_by',
+            model=self._model,
+            arguments={
+                'by': by,
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'having': having,
+                'orderBy': order,
+            },
+            root_selection=root_selection,
+        )
+        return resp['data']['result']  # type: ignore[no-any-return]
+
+
+class AssetActions(Generic[_PrismaModelT]):
+    __slots__ = (
+        '_client',
+        '_model',
+    )
+
+    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
+        self._client = client
+        self._model = model
+
+    def query_raw(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> List[_PrismaModelT]:
+        """Execute a raw SQL query
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        List[prisma.models.Asset]
+            The records returned by the SQL query
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        users = Asset.prisma().query_raw(
+            'SELECT * FROM Asset WHERE id = $1',
+            'fdejhhede',
+        )
+        ```
+        """
+        return self._client.query_raw(query, *args, model=self._model)
+
+    def query_first(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> Optional[_PrismaModelT]:
+        """Execute a raw SQL query, returning the first result
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        prisma.models.Asset
+            The first record returned by the SQL query
+        None
+            The raw SQL query did not return any records
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        user = Asset.prisma().query_first(
+            'SELECT * FROM Asset WHERE assetSetId = $1',
+            'jfjjgcdbf',
+        )
+        ```
+        """
+        return self._client.query_first(query, *args, model=self._model)
+
+    def create(
+        self,
+        data: types.AssetCreateInput,
+        include: Optional[types.AssetInclude] = None
+    ) -> _PrismaModelT:
+        """Create a new Asset record.
+
+        Parameters
+        ----------
+        data
+            Asset record data
+        include
+            Specifies which relations should be loaded on the returned Asset model
+
+        Returns
+        -------
+        prisma.models.Asset
+            The created Asset record
+
+        Raises
+        ------
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # create a Asset record from just the required fields
+        asset = Asset.prisma().create(
+            data={
+                # data to create a Asset record
+                'assetSetId': 'idjjhibfc',
+                'label': 'bjgdidgdfd',
+                'role': 'bijcbbccda',
+                'artifactType': 'baiadjcdfj',
+                'storageKey': 'eeighihea',
+                'filename': 'bjgcaahcjd',
+                'sizeBytes': 4908527448,
+                'checksum': 'diebbdcbj',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='create',
+            model=self._model,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def create_many(
+        self,
+        data: List[types.AssetCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> int:
+        """Create multiple Asset records at once.
+
+        This function is *not* available when using SQLite.
+
+        Parameters
+        ----------
+        data
+            List of Asset record data
+        skip_duplicates
+            Boolean flag for ignoring unique constraint errors
+
+        Returns
+        -------
+        int
+            The total number of records created
+
+        Raises
+        ------
+        prisma.errors.UnsupportedDatabaseError
+            Attempting to query when using SQLite
+        prisma.errors.UniqueViolationError
+            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        total = Asset.prisma().create_many(
+            data=[
+                {
+                    # data to create a Asset record
+                    'assetSetId': 'bgbgicefbc',
+                    'label': 'biefijhhcb',
+                    'role': 'bhgbgacihi',
+                    'artifactType': 'bhjigebfgh',
+                    'storageKey': 'bjjchjieee',
+                    'filename': 'hgchdfhjh',
+                    'sizeBytes': 24468748152,
+                    'checksum': 'hchffbghf',
+                },
+                {
+                    # data to create a Asset record
+                    'assetSetId': 'behfggjjhg',
+                    'label': 'bidfjddeij',
+                    'role': 'jbaiefegc',
+                    'artifactType': 'beafjabhbj',
+                    'storageKey': 'fdbjgidii',
+                    'filename': 'ijecdcbd',
+                    'sizeBytes': 10166051736,
+                    'checksum': 'bdebcaajeh',
+                },
+            ],
+            skip_duplicates=True,
+        )
+        ```
+        """
+        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
+
+        resp = self._client._execute(
+            method='create_many',
+            model=self._model,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    def delete(
+        self,
+        where: types.AssetWhereUniqueInput,
+        include: Optional[types.AssetInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Delete a single Asset record.
+
+        Parameters
+        ----------
+        where
+            Asset filter to select the record to be deleted, must be unique
+        include
+            Specifies which relations should be loaded on the returned Asset model
+
+        Returns
+        -------
+        prisma.models.Asset
+            The deleted Asset record
+        None
+            Could not find a record to delete
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        asset = Asset.prisma().delete(
+            where={
+                'id': 'jaheadhga',
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='delete',
+                model=self._model,
+                arguments={
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_unique(
+        self,
+        where: types.AssetWhereUniqueInput,
+        include: Optional[types.AssetInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Find a unique Asset record.
+
+        Parameters
+        ----------
+        where
+            Asset filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned Asset model
+
+        Returns
+        -------
+        prisma.models.Asset
+            The found Asset record
+        None
+            No record matching the given input could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        asset = Asset.prisma().find_unique(
+            where={
+                'id': 'bgeafdahjd',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+        return model_parse(self._model, result)
+
+    def find_unique_or_raise(
+        self,
+        where: types.AssetWhereUniqueInput,
+        include: Optional[types.AssetInclude] = None
+    ) -> _PrismaModelT:
+        """Find a unique Asset record. Raises `RecordNotFoundError` if no record is found.
+
+        Parameters
+        ----------
+        where
+            Asset filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned Asset model
+
+        Returns
+        -------
+        prisma.models.Asset
+            The found Asset record
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        asset = Asset.prisma().find_unique_or_raise(
+            where={
+                'id': 'bbbbfhhec',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique_or_raise',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_many(
+        self,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetWhereInput] = None,
+        cursor: Optional[types.AssetWhereUniqueInput] = None,
+        include: Optional[types.AssetInclude] = None,
+        order: Optional[Union[types.AssetOrderByInput, List[types.AssetOrderByInput]]] = None,
+        distinct: Optional[List[types.AssetScalarFieldKeys]] = None,
+    ) -> List[_PrismaModelT]:
+        """Find multiple Asset records.
+
+        An empty list is returned if no records could be found.
+
+        Parameters
+        ----------
+        take
+            Limit the maximum number of Asset records returned
+        skip
+            Ignore the first N results
+        where
+            Asset filter to select records
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned Asset model
+        order
+            Order the returned Asset records by any field
+        distinct
+            Filter Asset records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        List[prisma.models.Asset]
+            The list of all Asset records that could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the first 10 Asset records
+        assets = Asset.prisma().find_many(take=10)
+
+        # find the first 5 Asset records ordered by the label field
+        assets = Asset.prisma().find_many(
+            take=5,
+            order={
+                'label': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_many',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return [model_parse(self._model, r) for r in resp['data']['result']]
+
+    def find_first(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetWhereInput] = None,
+        cursor: Optional[types.AssetWhereUniqueInput] = None,
+        include: Optional[types.AssetInclude] = None,
+        order: Optional[Union[types.AssetOrderByInput, List[types.AssetOrderByInput]]] = None,
+        distinct: Optional[List[types.AssetScalarFieldKeys]] = None,
+    ) -> Optional[_PrismaModelT]:
+        """Find a single Asset record.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            Asset filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned Asset model
+        order
+            Order the returned Asset records by any field
+        distinct
+            Filter Asset records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.Asset
+            The first Asset record found, matching the given arguments
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second Asset record ordered by the role field
+        asset = Asset.prisma().find_first(
+            skip=1,
+            order={
+                'role': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+
+        return model_parse(self._model, result)
+
+    def find_first_or_raise(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetWhereInput] = None,
+        cursor: Optional[types.AssetWhereUniqueInput] = None,
+        include: Optional[types.AssetInclude] = None,
+        order: Optional[Union[types.AssetOrderByInput, List[types.AssetOrderByInput]]] = None,
+        distinct: Optional[List[types.AssetScalarFieldKeys]] = None,
+    ) -> _PrismaModelT:
+        """Find a single Asset record. Raises `RecordNotFoundError` if no record was found.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            Asset filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned Asset model
+        order
+            Order the returned Asset records by any field
+        distinct
+            Filter Asset records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.Asset
+            The first Asset record found, matching the given arguments
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second Asset record ordered by the processor field
+        asset = Asset.prisma().find_first_or_raise(
+            skip=1,
+            order={
+                'processor': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first_or_raise',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update(
+        self,
+        data: types.AssetUpdateInput,
+        where: types.AssetWhereUniqueInput,
+        include: Optional[types.AssetInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Update a single Asset record.
+
+        Parameters
+        ----------
+        data
+            Asset record data specifying what to update
+        where
+            Asset filter to select the unique record to create / update
+        include
+            Specifies which relations should be loaded on the returned Asset model
+
+        Returns
+        -------
+        prisma.models.Asset
+            The updated Asset record
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        asset = Asset.prisma().update(
+            where={
+                'id': 'bcbhjjgedb',
+            },
+            data={
+                # data to update the Asset record to
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='update',
+                model=self._model,
+                arguments={
+                    'data': data,
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def upsert(
+        self,
+        where: types.AssetWhereUniqueInput,
+        data: types.AssetUpsertInput,
+        include: Optional[types.AssetInclude] = None,
+    ) -> _PrismaModelT:
+        """Updates an existing record or create a new one
+
+        Parameters
+        ----------
+        where
+            Asset filter to select the unique record to create / update
+        data
+            Data specifying what fields to set on create and update
+        include
+            Specifies which relations should be loaded on the returned Asset model
+
+        Returns
+        -------
+        prisma.models.Asset
+            The created or updated Asset record
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        asset = Asset.prisma().upsert(
+            where={
+                'id': 'iibhjieci',
+            },
+            data={
+                'create': {
+                    'id': 'iibhjieci',
+                    'assetSetId': 'behfggjjhg',
+                    'label': 'bidfjddeij',
+                    'role': 'jbaiefegc',
+                    'artifactType': 'beafjabhbj',
+                    'storageKey': 'fdbjgidii',
+                    'filename': 'ijecdcbd',
+                    'sizeBytes': 10166051736,
+                    'checksum': 'bdebcaajeh',
+                },
+                'update': {
+                    'assetSetId': 'behfggjjhg',
+                    'label': 'bidfjddeij',
+                    'role': 'jbaiefegc',
+                    'artifactType': 'beafjabhbj',
+                    'storageKey': 'fdbjgidii',
+                    'filename': 'ijecdcbd',
+                    'sizeBytes': 10166051736,
+                    'checksum': 'bdebcaajeh',
+                },
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='upsert',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update_many(
+        self,
+        data: types.AssetUpdateManyMutationInput,
+        where: types.AssetWhereInput,
+    ) -> int:
+        """Update multiple Asset records
+
+        Parameters
+        ----------
+        data
+            Asset data to update the selected Asset records to
+        where
+            Filter to select the Asset records to update
+
+        Returns
+        -------
+        int
+            The total number of Asset records that were updated
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # update all Asset records
+        total = Asset.prisma().update_many(
+            data={
+                'artifactType': 'gajaacb'
+            },
+            where={}
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='update_many',
+            model=self._model,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    @overload
+    def count(
+        self,
+        select: None = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetWhereInput] = None,
+        cursor: Optional[types.AssetWhereUniqueInput] = None,
+    ) -> int:
+        """Count the number of Asset records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the Asset fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            Asset filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.AssetCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = Asset.prisma().count()
+
+        # results: prisma.types.AssetCountAggregateOutput
+        results = Asset.prisma().count(
+            select={
+                '_all': True,
+                'storageKey': True,
+            },
+        )
+        ```
+        """
+
+
+    @overload
+    def count(
+        self,
+        select: types.AssetCountAggregateInput,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetWhereInput] = None,
+        cursor: Optional[types.AssetWhereUniqueInput] = None,
+    ) -> types.AssetCountAggregateOutput:
+        ...
+
+    def count(
+        self,
+        select: Optional[types.AssetCountAggregateInput] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.AssetWhereInput] = None,
+        cursor: Optional[types.AssetWhereUniqueInput] = None,
+    ) -> Union[int, types.AssetCountAggregateOutput]:
+        """Count the number of Asset records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the Asset fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            Asset filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.AssetCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = Asset.prisma().count()
+
+        # results: prisma.types.AssetCountAggregateOutput
+        results = Asset.prisma().count(
+            select={
+                '_all': True,
+                'filename': True,
+            },
+        )
+        ```
+        """
+
+        # TODO: this selection building should be moved to the QueryBuilder
+        #
+        # note the distinction between checking for `not select` here and `select is None`
+        # later is to handle the case that the given select dictionary is empty, this
+        # is a limitation of our types.
+        if not select:
+            root_selection = ['_count { _all }']
+        else:
+
+            root_selection = [
+                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
+            ]
+
+        resp = self._client._execute(
+            method='count',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'cursor': cursor,
+            },
+            root_selection=root_selection,
+        )
+
+        if select is None:
+            return cast(int, resp['data']['result']['_count']['_all'])
+        else:
+            return cast(types.AssetCountAggregateOutput, resp['data']['result']['_count'])
+
+    def delete_many(
+        self,
+        where: Optional[types.AssetWhereInput] = None
+    ) -> int:
+        """Delete multiple Asset records.
+
+        Parameters
+        ----------
+        where
+            Optional Asset filter to find the records to be deleted
+
+        Returns
+        -------
+        int
+            The total number of Asset records that were deleted
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # delete all Asset records
+        total = Asset.prisma().delete_many()
+        ```
+        """
+        resp = self._client._execute(
+            method='delete_many',
+            model=self._model,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    # TODO: make this easier to work with safely, currently output fields are typed as
+    #       not required, we should refactor the return type
+    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
+    # TODO: statically type that the order argument is required when take or skip are present
+    def group_by(
+        self,
+        by: List['types.AssetScalarFieldKeys'],
+        *,
+        where: Optional['types.AssetWhereInput'] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        avg: Optional['types.AssetAvgAggregateInput'] = None,
+        sum: Optional['types.AssetSumAggregateInput'] = None,
+        min: Optional['types.AssetMinAggregateInput'] = None,
+        max: Optional['types.AssetMaxAggregateInput'] = None,
+        having: Optional['types.AssetScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.AssetCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.AssetScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.AssetScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.AssetGroupByOutput']:
+        """Group Asset records by one or more field values and perform aggregations
+        each group such as finding the average.
+
+        Parameters
+        ----------
+        by
+            List of scalar Asset fields to group records by
+        where
+            Asset filter to select records
+        take
+            Limit the maximum number of Asset records returned
+        skip
+            Ignore the first N records
+        avg
+            Adds the average of all values of the specified fields to the `_avg` field
+            in the returned data.
+        sum
+            Adds the sum of all values of the specified fields to the `_sum` field
+            in the returned data.
+        min
+            Adds the smallest available value for the specified fields to the `_min` field
+            in the returned data.
+        max
+            Adds the largest available value for the specified fields to the `_max` field
+            in the returned data.
+        count
+            Adds a count of non-fields to the `_count` field in the returned data.
+        having
+            Allows you to filter groups by an aggregate value - for example only return
+            groups having an average age less than 50.
+        order
+            Lets you order the returned list by any property that is also present in `by`.
+            Only **one** field is allowed at a time.
+
+        Returns
+        -------
+        List[prisma.types.AssetGroupByOutput]
+            A list of dictionaries representing the Asset record,
+            this will also have additional fields present if aggregation arguments
+            are used (see the above parameters)
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # group Asset records by sizeBytes values
+        # and count how many records are in each group
+        results = Asset.prisma().group_by(
+            ['sizeBytes'],
             count=True,
         )
         ```

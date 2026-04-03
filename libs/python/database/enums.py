@@ -83,13 +83,6 @@ class TestExecutionStatus(StrEnum):
     CANCELLED = 'CANCELLED'
     ERROR = 'ERROR'
 
-class LogLevel(StrEnum):
-    DEBUG = 'DEBUG'
-    INFO = 'INFO'
-    WARN = 'WARN'
-    ERROR = 'ERROR'
-    FATAL = 'FATAL'
-
 class LifecycleStatus(StrEnum):
     DRAFT = 'DRAFT'
     ACTIVE = 'ACTIVE'
@@ -119,6 +112,17 @@ class BuildJobStatus(StrEnum):
     FAILED = 'FAILED'
     CANCELLED = 'CANCELLED'
     CACHED = 'CACHED'
+
+class AssetSetSource(StrEnum):
+    BUILD_SERVICE = 'BUILD_SERVICE'
+    MANUAL_UPLOAD = 'MANUAL_UPLOAD'
+    EXTERNAL_CI = 'EXTERNAL_CI'
+
+class AssetSetStatus(StrEnum):
+    PENDING = 'PENDING'
+    COMPLETE = 'COMPLETE'
+    VALIDATED = 'VALIDATED'
+    FAILED = 'FAILED'
 
 class QueueEntryStatus(StrEnum):
     QUEUED = 'QUEUED'
