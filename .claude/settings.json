@@ -1,5 +1,47 @@
 {
     "env": {
         "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    },
+    "extraKnownMarketplaces": {
+        "codectl": {
+            "source": {
+                "source": "github",
+                "repo": "gophersys/codectl"
+            }
+        }
+    },
+    "enabledPlugins": {
+        "core-ai@codectl": true,
+        "core-architecture@codectl": true,
+        "core-backend@codectl": true,
+        "core-devops@codectl": true,
+        "core-embedded@codectl": true,
+        "core-frontend@codectl": true,
+        "core-git@codectl": true,
+        "core-kit@codectl": true,
+        "core-metacognition@codectl": true,
+        "core-security@codectl": true,
+        "core-spec@codectl": true,
+        "core-testing@codectl": true,
+        "cli-python-debugger@codectl": true,
+        "cli-python-engineer@codectl": true,
+        "cli-python-grader@codectl": true,
+        "cli-python-knowledge@codectl": true,
+        "cli-python-tester@codectl": true,
+        "cloud-python-debugger@codectl": true,
+        "cloud-python-engineer@codectl": true,
+        "cloud-python-grader@codectl": true,
+        "cloud-python-knowledge@codectl": true,
+        "cloud-python-tester@codectl": true,
+        "frontend-svelte-debugger@codectl": true,
+        "frontend-svelte-engineer@codectl": true,
+        "frontend-svelte-grader@codectl": true,
+        "frontend-svelte-knowledge@codectl": true,
+        "frontend-svelte-tester@codectl": true,
+        "embedded-zephyr-debugger@codectl": true,
+        "embedded-zephyr-engineer@codectl": true,
+        "embedded-zephyr-grader@codectl": true,
+        "embedded-zephyr-knowledge@codectl": true,
+        "embedded-zephyr-tester@codectl": true
     }
 }

@@ -113,7 +113,7 @@ class AnalyzerStore {
    * Start a new capture with configuration.
    * @param config - Capture configuration
    */
-  async start(config: { sampleRate: number; duration: number; channels: number[] }): Promise<void> {
+  async start(_config: { sampleRate: number; duration: number; channels: number[] }): Promise<void> {
     if (!this.currentNodeId) {
       throw new Error('Not connected to a node');
     }

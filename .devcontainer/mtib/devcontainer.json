@@ -11,7 +11,7 @@
     // Useful for accessing services running on the host machine from within the container.
     "--add-host=host.docker.internal:host-gateway",
     // We pass credentials and global environment variables
-    "--env-file=.devcontainer/.env"
+    "--env-file=.env"
   ],
   "mounts": [
     // Docker in Docker requires the dev container to have access to the host's Docker socket

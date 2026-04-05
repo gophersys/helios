@@ -37,13 +37,14 @@ from typing import Dict, List, Optional
 
 import pytest
 
-# Load root .env before anything else
+# Load apps/manufacturing/alpha/.env (next to this conftest).
+# The root .env is for devcontainer/host config only, not service config.
 try:
     from dotenv import load_dotenv
-    _root_env = Path(__file__).resolve().parents[3] / ".env"
-    if _root_env.exists():
-        load_dotenv(_root_env, override=False)
-except (ImportError, IndexError):
+    _local_env = Path(__file__).resolve().parent / ".env"
+    if _local_env.exists():
+        load_dotenv(_local_env, override=False)
+except ImportError:
     pass
 
 from corekinect.mtib_client.v1.client.core import MtibV1Client

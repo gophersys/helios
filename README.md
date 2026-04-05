@@ -17,7 +17,7 @@ The following requirements must be satisfied by your development machine in orde
 # Setup your workstation for development
 Use the `devcontainer` feature of VS Code to develop in a containerized environment. This will allow you to develop in a consistent environment with all the necessary dependencies installed.
 
-- `base`: This is the base devcontainer that contains the necessary dependencies for all the other devcontainers. Use if working on the backend. Python, Go, K8s, etc.
+- `base`: This is the base devcontainer that contains the necessary dependencies for all the other devcontainers. Use if working on the backend. Python, K8s, etc.
 - `mtib`: This is the devcontainer for the MTIB application. Use if working on the MTIB server application. ***This environment runs on the MTIB hardware. (arm64)***
 - `ncs`: This is the devcontainer for the NCS firmware. Use if working on zephyr firmware. `nordic`, `espressif`, `nxp`, `stm32` support is included.
 - `ui`: This is the devcontainer for the Manufacturing UI. Use if working on the Frontend UI.
@@ -34,14 +34,12 @@ The monorepo is organized into the following folders:
 - `apps`: Anything that is considered a software application, from firmware to ui/ux, as well as tests and backend services. Refer to the [apps README](apps/README.md) for more information.
 - `deploy`: Infrastructure as code, k8s deployments, helm charts, etc. Refer to the [deploy README](deploy/README.md) for more information.
 - `docs`: Useful diagrams, in depth documentation, etc. Refer to the [docs README](docs/README.md) for more information.
-- `libs`: Libraries that are used to build the Concord System. Zepjhyr, Python, Go, Network protocols, etc. Refer to the [libs README](libs/README.md) for more information.
+- `libs`: Libraries that are used to build the Concord System. Zephyr, Python, Network protocols, etc. Refer to the [libs README](libs/README.md) for more information.
 - `prisma`: Prisma schema for the database. Refer to the [prisma README](prisma/README.md) for more information.
 - `tools`: Tools that are used with the Concord System. Scripts, etc. Refer to the [tools README](tools/README.md) for more information.
 
 ## Important files
 - `README.md`: This file. High level overview of the monorepo.
-- `CONTRIBUTING.md`: Read before contributing, please.
-- `CODE_OWNERS`: Code owners and maintainers. Who to ask for help.
 
 ## Not so important folders
 - `.nx, .yarn`: Contains [nx](https://nx.dev/) and [yarn](https://yarnpkg.com/) workspaces that are used to build the Concord System. Don't touch this folder.
@@ -53,16 +51,12 @@ The monorepo is organized into the following folders:
 - `.gitmodules`: Used for git to pull in submodules. Set and forget.
 - `.gitignore`: Used for git to ignore certain files. Set and forget.
 - `.yarnrc.yml`: Used for yarn to ignore certain files. Set and forget.
-- `go.mod`: Contains the dependencies for the Go projects. Don't touch this file.
-- `go.sum`: Contains the dependencies for the Go projects. Don't touch this file.
 - `nx.json`: Contains the configuration for the nx workspaces.
 - `package.json`: Contains the node.js dependencies. Don't touch this file.
 - `yarn.lock`: Contains the dependencies for the yarn workspaces.
 
 # Contributing
 
-If using the any one of the `devcontainers` (highly recommended), auto formatting, auto highlighting, etc. should work out of the box. for `Python`, `Go`, and `Zephyr` projects.
-
-There are some [basic contributing](CONTRIBUTING.md) guidelines in the `CONTRIBUTING.md` file, they are not a must, and they're opinionated as well. The initial efforts of the repo were written using these, but as the code matures, they may not be as relevant. So long as nothing is broken, and the code is readable, we're good.. for the most part.
+If using one of the `devcontainers` (highly recommended), auto-formatting and auto-highlighting should work out of the box for Python and Zephyr projects.
 
 If you have any questions, please reach out.

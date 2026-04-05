@@ -30,15 +30,6 @@ export interface FetchBuildRunsParams {
   matrixMode?: string;
 }
 
-interface PaginatedApiResponse<T> {
-  data: T;
-  errors: { message: string }[];
-  page?: number;
-  totalPages?: number;
-  totalResults?: number;
-  resultsPerPage?: number;
-}
-
 export async function fetchBuildRuns(
   params?: FetchBuildRunsParams
 ): Promise<{ data: BuildRunDetail[]; pagination: Pagination }> {

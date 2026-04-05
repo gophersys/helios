@@ -80,7 +80,6 @@ deploy/helm/values-*-secrets.yaml
 *.pem
 *.key
 **/credentials.json
-apps/validation/**/.env
 
 # ---------------------------------------------------------------------------
 # IDE & editors

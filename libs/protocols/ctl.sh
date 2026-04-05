@@ -100,80 +100,12 @@ function generate_python() {
     fi
 }
 
-function generate_cipher() {
-    local -a proto_files=("$@")
-
-    echo "Generating cipher code..."
-    for protofile in "${proto_files[@]}"; do
-        if [[ ! -f "$protofile" ]]; then
-            continue
-        fi
-        local dir=$(dirname "$protofile")
-        {
-            go run tools/cipherc/main.go -language=python -proto="$protofile" -out="$dir/" &
-            go run tools/cipherc/main.go -language=c -proto="$protofile" -out="$dir/" &
-            wait
-        } &
-    done
-    wait
-}
-
-function generate_go() {
-    local -a proto_files=("$@")
-    local root_dir="libs/protocols"
-
-    # Get the GOPATH and check if the tools exist
-    local GOPATH=${GOPATH:-$(go env GOPATH)}
-    local PROTOC_GEN_GO="$GOPATH/bin/protoc-gen-go"
-    local PROTOC_GEN_GO_GRPC="$GOPATH/bin/protoc-gen-go-grpc"
-
-    if [ ! -f "$PROTOC_GEN_GO" ] || [ ! -f "$PROTOC_GEN_GO_GRPC" ]; then
-        echo "Installing Go protoc plugins..."
-        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-    fi
-
-    echo "Generating Go protobuf and gRPC code..."
-    for protofile in "${proto_files[@]}"; do
-        if [[ ! -f "$protofile" ]]; then
-            continue
-        fi
-
-        # Get the directory of the .proto file
-        dir=$(dirname "$protofile")
-        echo "Processing: $protofile"
-
-        # Get include paths for this file
-        local includes=$(get_proto_dirs "${proto_files[@]}")
-        
-        # Run protoc from the root protocols directory with the full path to the proto file
-        protoc --proto_path="$dir" $includes \
-               --go_out="$dir" \
-               --go_opt=paths=source_relative \
-               --go-grpc_out="$dir" \
-               --go-grpc_opt=paths=source_relative \
-               "$protofile"
-        
-        if [ $? -ne 0 ]; then
-            echo "Error generating code for $protofile" >&2
-            return 1
-        fi
-    done
-
-    echo "Go code generation complete"
-}
-
 case $operation in
   generate)
     # Gather proto files into an array
     mapfile -t proto_files < <(gather_proto_files)
 
-    # Generate all types of code
-    # generate_nanopb "${proto_files[@]}"
-    generate_python "${proto_files[@]}" &
-    # generate_cipher "${proto_files[@]}"
-    generate_go "${proto_files[@]}" &
-    wait
+    generate_python "${proto_files[@]}"
     ;;
 
   clean)
@@ -182,7 +114,6 @@ case $operation in
         find libs/protocols -type f \( -name '*.py' ! -name '__init__.py' \) -delete &
         find libs/protocols -type f -name '*.c' -delete &
         find libs/protocols -type f -name '*.h' -delete &
-        find libs/protocols -type f -name '*.go' -delete &
         wait
     }
     ;;

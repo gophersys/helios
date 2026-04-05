@@ -174,9 +174,8 @@ export function highlightTraceback(traceback: string): HighlightedLine[] {
   // Track source line numbers — count code lines backwards from the error line
   // The > marker line IS the error line, code lines before it count down
   let codeLines = 0;
-  let markerSeen = false;
   for (const raw of lines) {
-    if (raw.startsWith('>')) { markerSeen = true; break; }
+    if (raw.startsWith('>')) break;
     if (raw.startsWith('    ') && !raw.match(/^\w+\s*=\s*</)) codeLines++;
   }
   // The first code line = errorLineNum - codeLines

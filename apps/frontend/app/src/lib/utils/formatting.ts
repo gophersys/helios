@@ -341,7 +341,7 @@ export function analyzeBuildLog(log: string): LogAnalysis {
     // Continuation lines typically start with whitespace or are indented
     if (currentType && currentEntry.length > 0) {
       // If line starts with whitespace or looks like a continuation (not a new log line)
-      if (/^\s/.test(stripped) || !/^[\[\-\d]/.test(stripped)) {
+      if (/^\s/.test(stripped) || !/^[[\-\d]/.test(stripped)) {
         currentEntry.push(trimmed);
       } else {
         // This looks like a new unrelated line, flush and skip

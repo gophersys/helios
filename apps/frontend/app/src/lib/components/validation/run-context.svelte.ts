@@ -454,30 +454,57 @@ class RunContext {
       this.run = res.data;
       this.error = null;
 
-      // Hydrate build jobs from pipeline if present
-      const buildRun = (res.data as any).buildRun;
+      // Hydrate build jobs from pipeline if present. The backend response shape
+      // includes extra fields not in the generated ValidationRun type.
+      type StepRecord = {
+        logOutput?: string | null;
+        errorMessage?: string | null;
+        measurements?: Record<string, unknown> | null;
+        durationMs?: number;
+        result?: {
+          logOutput?: string | null;
+          errorMessage?: string | null;
+          measurements?: Record<string, unknown> | null;
+        };
+      };
+      type ExecutionRecord = {
+        test?: { name?: string; category?: string };
+        status?: string;
+        steps?: StepRecord[];
+        results?: StepRecord[];
+        startedAt?: string;
+        finishedAt?: string;
+      };
+      type RunExtras = {
+        buildRun?: { builds?: Partial<BuildJob>[] };
+        executions?: ExecutionRecord[];
+        config?: { testList?: { name: string; module: string | null }[] };
+      };
+      const extras = res.data as ValidationRun & RunExtras;
+
+      const buildRun = extras.buildRun;
       if (buildRun?.builds?.length) {
-        this.buildJobs = buildRun.builds.map((b: any) => ({
-          id: b.id,
-          product: b.product,
-          fwType: b.fwType,
-          variant: b.variant,
-          status: b.status,
-          commitSha: b.commitSha,
-          branch: b.branch,
-          logOutput: b.logOutput,
-          errorMessage: b.errorMessage,
-          durationSeconds: b.durationSeconds,
+        this.buildJobs = buildRun.builds.map((b) => ({
+          id: b.id ?? '',
+          product: b.product ?? '',
+          fwType: b.fwType ?? '',
+          variant: b.variant ?? '',
+          status: b.status ?? '',
+          commitSha: b.commitSha ?? null,
+          branch: b.branch ?? '',
+          logOutput: b.logOutput ?? null,
+          errorMessage: b.errorMessage ?? null,
+          durationSeconds: b.durationSeconds ?? null,
           expanded: false,
         }));
       }
 
       // Hydrate liveTests
-      const executions = (res.data as any).executions as any[] | undefined;
-      const configTestList = (res.data as any).config?.testList as { name: string; module: string | null }[] | undefined;
+      const executions = extras.executions;
+      const configTestList = extras.config?.testList;
 
       if (this.liveTests.length === 0 || this.liveTests.every(t => t.status === 'queued')) {
-        const execMap = new Map<string, any>();
+        const execMap = new Map<string, ExecutionRecord>();
         if (executions) {
           for (const ex of executions) {
             const name = ex.test?.name || 'Unknown';
@@ -603,7 +630,7 @@ class RunContext {
             const artRes = await fetch(`/v2/sessions/${this._runId}/artifacts`, { headers: authHeaders });
             if (artRes.ok) {
               const artData = await artRes.json();
-              const jsonlFiles = (artData.data || []).filter((a: any) => a.name?.startsWith('telemetry/') && a.name?.endsWith('.jsonl'));
+              const jsonlFiles = ((artData.data || []) as { name?: string }[]).filter((a) => a.name?.startsWith('telemetry/') && a.name?.endsWith('.jsonl'));
               for (const art of jsonlFiles) {
                 try {
                   const jRes = await fetch(`/v2/sessions/${this._runId}/artifacts/${art.name}`, { headers: authHeaders });
@@ -1055,15 +1082,17 @@ class RunContext {
               this.powerChgSamples.push({ t: s.t!, mA: s.mA!, mV: s.mV! });
               powerChanged = true;
             } else if (s.type === 'power_js') {
+              const js = s as typeof s & { uA?: number; mV?: number; nA?: number };
               this.powerJsSamples.push({
                 t: s.t!,
-                uA: (s as any).uA ?? 0,
-                mV: (s as any).mV ?? 0,
-                nA: (s as any).nA,
+                uA: js.uA ?? 0,
+                mV: js.mV ?? 0,
+                nA: js.nA,
               });
               powerChanged = true;
             } else if (s.type === 'accel') {
-              this.accelSamples.push({ t: s.t!, x: (s as any).x ?? 0, y: (s as any).y ?? 0, z: (s as any).z ?? 0 });
+              const a = s as typeof s & { x?: number; y?: number; z?: number };
+              this.accelSamples.push({ t: s.t!, x: a.x ?? 0, y: a.y ?? 0, z: a.z ?? 0 });
             }
           }
 

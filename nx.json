@@ -45,7 +45,6 @@
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
       "!{projectRoot}/tsconfig.spec.json",
       "!{projectRoot}/src/test-setup.[jt]s",
-      "!{projectRoot}/jest.config.[jt]s",
       "!{projectRoot}/test-setup.[jt]s",
       "!{projectRoot}/**/*_test.py",
       "!{projectRoot}/**/test_*.py",
@@ -63,6 +62,7 @@
   "plugins": [
     {
       "plugin": "@nx/eslint/plugin",
+      "exclude": ["apps/frontend/app/**"],
       "options": {
         "targetName": "lint"
       }
@@ -80,12 +80,6 @@
         "typecheckTargetName": "typecheck",
         "buildDepsTargetName": "build-deps",
         "watchDepsTargetName": "watch-deps"
-      }
-    },
-    {
-      "plugin": "@nx/jest/plugin",
-      "options": {
-        "targetName": "test"
       }
     }
   ],

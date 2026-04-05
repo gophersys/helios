@@ -7,7 +7,7 @@
     "--privileged",
     "--net=host",
     "--add-host=host.docker.internal:host-gateway",
-    "--env-file=.devcontainer/.env"
+    "--env-file=.env"
   ],
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",

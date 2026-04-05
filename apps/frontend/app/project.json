@@ -143,6 +143,13 @@
         "cwd": "apps/frontend/app",
         "command": "npx vitest run"
       }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/frontend/app",
+        "command": "npx eslint ."
+      }
     }
   }
 }

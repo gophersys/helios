@@ -21,7 +21,7 @@ export interface UsePollingOptions<T> {
   onError?: (error: Error) => void;
 }
 
-export interface UsePollingReturn<T> {
+export interface UsePollingReturn {
   /** Manually trigger a fetch */
   refetch: () => Promise<void>;
   /** Start polling */
@@ -59,7 +59,7 @@ export interface UsePollingReturn<T> {
  * });
  * ```
  */
-export function usePolling<T>(options: UsePollingOptions<T>): UsePollingReturn<T> {
+export function usePolling<T>(options: UsePollingOptions<T>): UsePollingReturn {
   const {
     fetchFn,
     interval = 15000,

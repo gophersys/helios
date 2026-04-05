@@ -3,8 +3,8 @@
  * Change these values to update transitions globally across all pages.
  */
 
-import { fade, fly, slide, scale, type FadeParams, type FlyParams, type SlideParams, type ScaleParams } from 'svelte/transition';
-import { cubicOut, cubicIn, cubicInOut } from 'svelte/easing';
+import { type FadeParams, type FlyParams, type ScaleParams } from 'svelte/transition';
+import { cubicOut, cubicIn } from 'svelte/easing';
 
 // ============================================================================
 // TRANSITION DURATIONS (in milliseconds)

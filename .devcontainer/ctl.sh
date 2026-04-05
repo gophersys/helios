@@ -185,7 +185,7 @@ create_action() {
 
     # Check if CONCORD_MONOREPO_ROOT is set to the correct path
     if [ "$CONCORD_MONOREPO_ROOT" = "/path/to/concord" ]; then
-        echo "Error: CONCORD_MONOREPO_ROOT is set to the default value inside the file `.devcontainer/.env`. Please set it to the correct path in your filesystem."
+        echo "Error: CONCORD_MONOREPO_ROOT is set to the default value inside the file \`.env\` (repo root). Please set it to the correct path in your filesystem."
         exit 1
     fi
 
