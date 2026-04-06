@@ -75,6 +75,12 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9001/v2/docs')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
     restart: unless-stopped
 
   git-poller:
@@ -89,7 +95,7 @@ services:
       BITBUCKET_WORKSPACE: corekinect
     depends_on:
       http-api:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
   build-service:
@@ -124,7 +130,7 @@ services:
       - "9002:9002"
     depends_on:
       http-api:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

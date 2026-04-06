@@ -14,12 +14,30 @@
       "configurations": {
         "development": {
           "commands": [
+            "echo '── Generating protobuf code ──'",
+            "bash libs/protocols/ctl.sh generate",
+
+            "echo '── Building service images ──'",
             "nx build http-api -c development",
             "nx build git-poller -c development",
             "nx build build-service -c development",
+
+            "echo '── Starting infrastructure (postgres, minio, pypi) ──'",
+            "docker compose -f deploy/development/docker-compose.yaml up -d db minio pypi",
+
+            "echo '── Waiting for postgres ──'",
+            "until docker compose -f deploy/development/docker-compose.yaml exec -T db pg_isready -U concord 2>/dev/null; do sleep 1; done",
+
+            "echo '── Database: generate client + migrate + seed ──'",
+            "cd prisma && yarn prisma generate && cd ..",
+            "cd prisma && DATABASE_URL=postgresql://concord:concord@localhost:5433/concord DIRECT_DATABASE_URL=postgresql://concord:concord@localhost:5433/concord yarn prisma db push --accept-data-loss --skip-generate && cd ..",
+            "cd prisma && DATABASE_URL=postgresql://concord:concord@localhost:5433/concord DIRECT_DATABASE_URL=postgresql://concord:concord@localhost:5433/concord PYTHONPATH=../libs/python:../libs:../libs/protocols python3 seed.py && cd ..",
+
+            "echo '── Starting backend services ──'",
             "docker compose -f deploy/development/docker-compose.yaml up -d",
+
             "echo ''",
-            "echo '  Backend running (compose):'",
+            "echo '  Platform running:'",
             "echo '    http-api       → localhost:9001'",
             "echo '    build-service  → localhost:9002'",
             "echo '    git-poller     → running'",
@@ -27,9 +45,8 @@
             "echo '    minio          → localhost:8675 (console: 8676)'",
             "echo '    pypi           → localhost:8091'",
             "echo ''",
-            "echo '  Start UIs manually:'",
-            "echo '    nx serve app   → localhost:4200'",
-            "echo '    nx serve docs  → localhost:4000'"
+            "echo '  Start UI:'",
+            "echo '    nx serve app   → localhost:4200'"
           ]
         },
         "staging": {
@@ -38,6 +55,23 @@
         "production": {
           "commands": ["deploy/production/ctl.sh production deploy"]
         }
+      }
+    },
+
+    "ready": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          "echo '── Waiting for postgres ──'",
+          "until docker compose -f deploy/development/docker-compose.yaml exec -T db pg_isready -U concord 2>/dev/null; do sleep 1; done",
+          "echo '── Database: generate client + migrate + seed ──'",
+          "cd prisma && yarn prisma generate && cd ..",
+          "cd prisma && DATABASE_URL=postgresql://concord:concord@localhost:5433/concord DIRECT_DATABASE_URL=postgresql://concord:concord@localhost:5433/concord yarn prisma db push --accept-data-loss --skip-generate && cd ..",
+          "cd prisma && DATABASE_URL=postgresql://concord:concord@localhost:5433/concord DIRECT_DATABASE_URL=postgresql://concord:concord@localhost:5433/concord PYTHONPATH=../libs/python:../libs:../libs/protocols python3 seed.py && cd ..",
+          "echo '── Database ready ──'"
+        ]
       }
     },
 

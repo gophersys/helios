@@ -61,8 +61,15 @@ RUN export NVM_DIR="$HOME/.nvm" && \
     yarn && \
     yarn prisma generate
 
-# Download Prisma query engine binary
-RUN cd prisma && prisma py fetch
+# Download Prisma query engine binary.
+# prisma-client-python 0.15.0 needs a standalone query-engine binary (binary mode).
+# Prisma 5.17's npm package ships only the library (.so.node) version, so we
+# download the standalone binary directly from Prisma's release CDN.
+# The engine hash is locked to prisma-client-python 0.15.0's expected version.
+ARG PRISMA_ENGINE_HASH=393aa359c9ad4a4bb28630fb5613f9c281cde053
+RUN curl -fsSL "https://binaries.prisma.sh/all_commits/${PRISMA_ENGINE_HASH}/debian-openssl-3.0.x/query-engine.gz" \
+      | gunzip > /tmp/prisma-query-engine && \
+    chmod +x /tmp/prisma-query-engine
 
 # ----------------------------------------------------
 #                                           Final Stage
@@ -97,17 +104,6 @@ RUN pip3 install -e . && \
     pip3 install prisma==0.15.0 && \
     pip3 cache purge
 
-# Copy the generated Prisma client from the builder stage
-COPY --from=prisma-builder /concord/libs/python/database /libs/python/database
-
-# Copy Prisma binaries directly from monorepo node_modules
-COPY ./node_modules/prisma/query-engine-debian-openssl-3.0.x /app/prisma-query-engine-debian-openssl-3.0.x
-COPY ./node_modules/prisma/libquery_engine-debian-openssl-3.0.x.so.node /app/libquery_engine-debian-openssl-3.0.x.so.node
-
-# Make binaries executable
-RUN chmod +x /app/prisma-query-engine-debian-openssl-3.0.x && \
-    chmod +x /app/libquery_engine-debian-openssl-3.0.x.so.node
-
 # ----------------------------------------------------
 #                                               App
 # ----------------------------------------------------
@@ -116,8 +112,16 @@ WORKDIR /app
 # Cache bust — invalidates source layers when code changes (allows dropping --no-cache)
 ARG CACHE_BUST=0
 
-# Copy the Python libraries used by the app
+# Copy the Python libraries used by the app (host versions)
 COPY ./libs/python /libs/python
+
+# Copy the GENERATED Prisma client from the builder stage AFTER the host copy.
+# The builder-generated client has correct container paths; the host copy has
+# wrong absolute paths baked in from the dev machine.
+COPY --from=prisma-builder /concord/libs/python/database /libs/python/database
+
+# Copy the standalone query-engine binary from the builder.
+COPY --from=prisma-builder /tmp/prisma-query-engine /app/prisma-query-engine-debian-openssl-3.0.x
 
 # Copy the protocols used by the app
 COPY ./libs/protocols/mtib /libs/protocols/mtib
@@ -125,8 +129,8 @@ COPY ./libs/protocols/mtib /libs/protocols/mtib
 # Set the PYTHONPATH to include the libs directory
 ENV PYTHONPATH="/libs:/libs/python:/libs/protocols"
 
-# Set Prisma binary cache directory
-ENV PRISMA_BINARY_CACHE_DIR="/root/.cache/prisma-python/binaries"
+# Tell the Prisma Python client where the query engine binary lives
+ENV PRISMA_QUERY_ENGINE_BINARY="/app/prisma-query-engine-debian-openssl-3.0.x"
 
 # Build metadata (injected by ctl.sh / Nx containerize)
 ARG APP_VERSION=0.0.0

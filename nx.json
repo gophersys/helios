@@ -62,7 +62,7 @@
   "plugins": [
     {
       "plugin": "@nx/eslint/plugin",
-      "exclude": ["apps/frontend/app/**"],
+      "exclude": ["apps/frontend/app/**", "apps/frontend/docs/**"],
       "options": {
         "targetName": "lint"
       }
