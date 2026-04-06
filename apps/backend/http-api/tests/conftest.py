@@ -171,6 +171,10 @@ def authed_client(client, auth_headers, mock_db):
             kwargs.setdefault("headers", {}).update(self._headers)
             return self._client.delete(*args, **kwargs)
 
+        def patch(self, *args, **kwargs):
+            kwargs.setdefault("headers", {}).update(self._headers)
+            return self._client.patch(*args, **kwargs)
+
     return AuthedTestClient(client, auth_headers)
 
 

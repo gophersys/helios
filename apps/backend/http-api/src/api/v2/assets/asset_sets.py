@@ -121,9 +121,12 @@ def list_asset_sets(product_id: str):
     )
 
     pages = (total + limit - 1) // limit if total > 0 else 0
-    return jsonify(ApiResponse.ok(
-        [_serialize_asset_set(a) for a in asset_sets],
-        pagination={"page": page, "limit": limit, "total": total, "pages": pages},
+    return jsonify(ApiResponse.paginated(
+        data=[_serialize_asset_set(a) for a in asset_sets],
+        page=page,
+        total_pages=pages,
+        total_results=total,
+        results_per_page=limit,
     ).to_dict()), 200
 
 
