@@ -165,8 +165,8 @@ def create_build_k8s_job(build_job_id: str) -> Optional[str]:
     }
 
     try:
-        from src.services.kubernetes.client import get_kubernetes_client
-        k8s_client = get_kubernetes_client()
+        from src.services.kubernetes.client import get_k8s_client
+        k8s_client = get_k8s_client()
         if not k8s_client:
             logger.warning("K8s client not available — build job %s created in DB but not scheduled", build_job_id)
             return None

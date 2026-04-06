@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from kubernetes.client.exceptions import ApiException
 

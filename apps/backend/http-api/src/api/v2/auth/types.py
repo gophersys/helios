@@ -146,7 +146,7 @@ class UserUpdateRequest:
         update_data = {}
         if self.name is not None:
             update_data["name"] = self.name
-        if self._has_role and self.role is not None:
+        if self._has_role:
             update_data["role"] = self.role
         if self._has_permission_set_id:
             update_data["permissionSetId"] = self.permissionSetId

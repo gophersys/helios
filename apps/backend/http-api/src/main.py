@@ -3,8 +3,6 @@ import atexit
 import logging
 import os
 import signal
-import sys
-import time
 import traceback
 import eventlet
 

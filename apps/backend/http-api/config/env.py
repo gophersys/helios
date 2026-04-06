@@ -40,8 +40,13 @@ class AppConfig(EnvConfig):
     STORAGE_SECRET_ACCESS_KEY: str
     STORAGE_BUCKET_NAME: str
 
+    # Concord API — self-referencing URL for K8s jobs and webhooks
+    CONCORD_API_URL: str = "http://localhost:9001"
     # Concord API host header for ingress routing (used in K8s validation jobs)
     CONCORD_API_HOST: str = "staging.concord.local"
+
+    # Bitbucket webhook HMAC secret
+    BITBUCKET_WEBHOOK_SECRET: str = ""
 
     # Validation — MTIB gRPC port
     MTIB_PORT: int = 50053
