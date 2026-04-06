@@ -55,6 +55,7 @@ from .products.boards import (
     update_board,
 )
 from .products.board_revisions import (
+    get_board_revision,
     create_board_revision,
     create_target,
     delete_board_revision,
@@ -66,6 +67,7 @@ from .products.firmware_builds import (
     list_firmware_sets,
     get_firmware_set,
     create_firmware_set,
+    update_firmware_set,
     delete_firmware_set,
     upload_firmware_build,
     download_firmware_build,
@@ -84,7 +86,7 @@ from .system.logs import register_log_handlers
 from .system.exec import register_exec_handlers
 from .system.observability_ws import register_observability_handlers, register_icle_handlers
 from .system.retention import cleanup_validation_runs, get_validation_storage_usage
-from .system.secrets import list_secrets as list_platform_secrets, create_secret as create_platform_secret, delete_secret as delete_platform_secret
+from .system.secrets import list_secrets as list_platform_secrets, create_secret as create_platform_secret, update_secret as update_platform_secret, delete_secret as delete_platform_secret
 
 # Kubernetes handlers (was system/ cluster endpoints)
 from .kubernetes.cluster import get_cluster, get_namespaces
@@ -409,6 +411,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
 
     # Products - Board Revisions
     v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions",                          view_func=create_board_revision,  methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=get_board_revision,     methods=["GET"])
     v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=update_board_revision,  methods=["PUT"])
     v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=delete_board_revision,  methods=["DELETE"])
 
@@ -421,6 +424,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/firmware",                                             view_func=list_firmware_sets,      methods=["GET"])
     v2.add_url_rule("/products/<product_id>/firmware",                                             view_func=create_firmware_set,     methods=["POST"])
     v2.add_url_rule("/products/<product_id>/firmware/<set_id>",                                    view_func=get_firmware_set,        methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/firmware/<set_id>",                                    view_func=update_firmware_set,     methods=["PUT"])
     v2.add_url_rule("/products/<product_id>/firmware/<set_id>",                                    view_func=delete_firmware_set,     methods=["DELETE"])
     v2.add_url_rule("/products/<product_id>/firmware/<set_id>/builds",                             view_func=upload_firmware_build,   methods=["POST"])
     v2.add_url_rule("/firmware/builds/<build_id>/download",                                        view_func=download_firmware_build, methods=["GET"])
@@ -482,9 +486,10 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/system/retention/validation/usage",     endpoint="get_validation_storage_usage", view_func=get_validation_storage_usage, methods=["GET"])
 
     # Secrets
-    v2.add_url_rule("/system/secrets",              endpoint="list_platform_secrets",  view_func=list_platform_secrets,   methods=["GET"])
-    v2.add_url_rule("/system/secrets",              endpoint="create_platform_secret", view_func=create_platform_secret,  methods=["POST"])
-    v2.add_url_rule("/system/secrets/<secret_id>",  endpoint="delete_platform_secret", view_func=delete_platform_secret,  methods=["DELETE"])
+    v2.add_url_rule("/system/secrets",              endpoint="list_platform_secrets",   view_func=list_platform_secrets,   methods=["GET"])
+    v2.add_url_rule("/system/secrets",              endpoint="create_platform_secret",  view_func=create_platform_secret,  methods=["POST"])
+    v2.add_url_rule("/system/secrets/<secret_id>",  endpoint="update_platform_secret",  view_func=update_platform_secret,  methods=["PUT"])
+    v2.add_url_rule("/system/secrets/<secret_id>",  endpoint="delete_platform_secret",  view_func=delete_platform_secret,  methods=["DELETE"])
 
     # Storage download
     from .storage_download import download_storage_file

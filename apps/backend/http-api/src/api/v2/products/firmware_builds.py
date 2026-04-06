@@ -194,6 +194,43 @@ def create_firmware_set(product_id: str):
 
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
+def update_firmware_set(product_id: str, set_id: str):
+    """PUT /v2/products/<id>/firmware/<set_id> — update firmware set metadata."""
+    db = get_db_client()
+    fw_set = db.firmwareset.find_first(
+        where={"id": set_id, "productId": product_id},
+    )
+    if not fw_set:
+        return not_found("Firmware set not found")
+
+    data = request.get_json()
+    if not data:
+        return bad_request("Request body must contain JSON data")
+
+    update_data = {}
+    if "status" in data:
+        status = data["status"].strip()
+        if status not in ("active", "deprecated", "recalled"):
+            return bad_request("Invalid status. Must be: active, deprecated, recalled")
+        update_data["status"] = status
+    if "notes" in data:
+        update_data["notes"] = (data["notes"] or "").strip() or None
+
+    if not update_data:
+        return bad_request("No fields to update")
+
+    updated = db.firmwareset.update(
+        where={"id": set_id},
+        data=update_data,
+        include={"builds": True, "boardRevision": True},
+    )
+    log_audit("firmwareSet.update", "FirmwareSet", set_id, {
+        "fields": list(update_data.keys()),
+    })
+    return jsonify(ApiResponse.ok(_serialize_firmware_set(updated)).to_dict()), 200
+
+
+@require_permissions(Permissions.PRODUCTS_MANAGE)
 def delete_firmware_set(product_id: str, set_id: str):
     """DELETE /v2/products/<id>/firmware/<set_id> — delete set + all builds."""
     db = get_db_client()

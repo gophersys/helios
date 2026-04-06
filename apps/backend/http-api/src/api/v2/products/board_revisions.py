@@ -52,6 +52,21 @@ def _serialize_revision(r) -> dict:
 # ── Board Revisions CRUD ─────────────────────────────────
 
 
+@require_permissions(Permissions.PRODUCTS_VIEW)
+def get_board_revision(product_id: str, board_id: str, revision_id: str):
+    """GET /v2/products/<pid>/boards/<bid>/revisions/<rid> — get a single revision."""
+    db = get_db_client()
+    revision = db.boardrevision.find_first(
+        where={"id": revision_id, "boardId": board_id},
+        include={"targets": True, "board": True},
+    )
+    if not revision:
+        return not_found("Board revision not found")
+    if revision.board and revision.board.productId != product_id:
+        return not_found("Board revision not found")
+    return jsonify(ApiResponse.ok(_serialize_revision(revision)).to_dict()), 200
+
+
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def create_board_revision(product_id: str, board_id: str):
     db = get_db_client()

@@ -91,6 +91,39 @@ def create_secret():
 
 
 @require_permissions(Permissions.SYSTEM_MANAGE)
+def update_secret(secret_id: str):
+    """PUT /v2/system/secrets/<id> — rotate value or update description."""
+    db = get_db_client()
+    secret = db.secret.find_unique(where={"id": secret_id})
+    if not secret:
+        return not_found("Secret not found")
+
+    data = request.get_json()
+    if not data:
+        return bad_request("Request body required")
+
+    update_data = {}
+    if "value" in data:
+        value = (data["value"] or "").strip()
+        if not value:
+            return bad_request("value cannot be empty")
+        update_data["value"] = value
+    if "description" in data:
+        update_data["description"] = (data["description"] or "").strip() or None
+
+    if not update_data:
+        return bad_request("No fields to update (allowed: value, description)")
+
+    db.secret.update(where={"id": secret_id}, data=update_data)
+    log_audit("secret.update", "Secret", secret_id, {
+        "name": secret.name, "fields": list(update_data.keys()),
+    })
+    # Re-fetch to return updated timestamps (never include value)
+    updated = db.secret.find_unique(where={"id": secret_id})
+    return jsonify(ApiResponse.ok(_serialize(updated)).to_dict()), 200
+
+
+@require_permissions(Permissions.SYSTEM_MANAGE)
 def delete_secret(secret_id: str):
     """DELETE /v2/system/secrets/<id>"""
     db = get_db_client()
