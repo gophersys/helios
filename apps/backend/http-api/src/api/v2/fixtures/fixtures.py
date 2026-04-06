@@ -125,7 +125,7 @@ def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
         data["design"] = {
             "id": f.design.id,
             "name": f.design.name,
-            "product": f.design.product,
+            "boardRevisionId": f.design.boardRevisionId,
             "revision": f.design.revision,
             "capabilities": f.design.capabilities or [],
         }

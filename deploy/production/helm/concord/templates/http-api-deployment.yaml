@@ -66,15 +66,20 @@ spec:
             limits:
               cpu: 100m
               memory: 64Mi
-        - name: migrate
+        - name: migrate-and-seed
           image: "{{ .Values.httpApi.image.repository }}:{{ .Values.httpApi.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          env:
+            - name: PRISMA_USE_GLOBAL_NODE
+              value: "true"
           command:
             - python3
             - -c
             - |
               import subprocess, sys, os
               os.chdir('/prisma')
+
+              # Step 1: Run migrations
               print('Running Prisma migrations...', flush=True)
               r = subprocess.run(
                   [sys.executable, '-m', 'prisma', 'migrate', 'deploy',
@@ -85,6 +90,18 @@ spec:
                   print(f'Migration failed (exit {r.returncode})', flush=True)
                   sys.exit(r.returncode)
               print('Migrations complete.', flush=True)
+
+              # Step 2: Seed (idempotent — upserts, safe to run repeatedly)
+              print('Seeding database...', flush=True)
+              r = subprocess.run(
+                  [sys.executable, '-m', 'seed.main'],
+                  capture_output=False, text=True, cwd='/prisma',
+                  env={**os.environ, 'PYTHONPATH': '/libs/python:/libs:/libs/protocols:/prisma'}
+              )
+              if r.returncode != 0:
+                  print(f'Seed failed (exit {r.returncode})', flush=True)
+                  sys.exit(r.returncode)
+              print('Seed complete.', flush=True)
           envFrom:
             - configMapRef:
                 name: concord-config
@@ -92,11 +109,11 @@ spec:
                 name: concord-secrets
           resources:
             requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 200m
+              cpu: 100m
               memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
       {{- end }}
       containers:
         - name: http-api

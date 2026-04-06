@@ -69,7 +69,10 @@ RUN export NVM_DIR="$HOME/.nvm" && \
 ARG PRISMA_ENGINE_HASH=393aa359c9ad4a4bb28630fb5613f9c281cde053
 RUN curl -fsSL "https://binaries.prisma.sh/all_commits/${PRISMA_ENGINE_HASH}/debian-openssl-3.0.x/query-engine.gz" \
       | gunzip > /tmp/prisma-query-engine && \
-    chmod +x /tmp/prisma-query-engine
+    chmod +x /tmp/prisma-query-engine && \
+    curl -fsSL "https://binaries.prisma.sh/all_commits/${PRISMA_ENGINE_HASH}/debian-openssl-3.0.x/schema-engine.gz" \
+      | gunzip > /tmp/prisma-schema-engine && \
+    chmod +x /tmp/prisma-schema-engine
 
 # ----------------------------------------------------
 #                                           Final Stage
@@ -120,8 +123,17 @@ COPY ./libs/python /libs/python
 # wrong absolute paths baked in from the dev machine.
 COPY --from=prisma-builder /concord/libs/python/database /libs/python/database
 
-# Copy the standalone query-engine binary from the builder.
+# Copy the standalone engine binaries from the builder.
 COPY --from=prisma-builder /tmp/prisma-query-engine /app/prisma-query-engine-debian-openssl-3.0.x
+COPY --from=prisma-builder /tmp/prisma-schema-engine /app/prisma-schema-engine-debian-openssl-3.0.x
+
+# Copy Node.js + npm from the builder so `prisma migrate deploy` runs instantly.
+# prisma-client-python requires BOTH node AND npm to use the global install;
+# without npm it falls back to nodeenv which downloads a ~25MB binary at runtime.
+ARG NODE_VERSION=22.19.0
+COPY --from=prisma-builder /root/.nvm/versions/node/v${NODE_VERSION}/bin/node /usr/local/bin/node
+COPY --from=prisma-builder /root/.nvm/versions/node/v${NODE_VERSION}/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 
 # Copy the protocols used by the app
 COPY ./libs/protocols/mtib /libs/protocols/mtib
@@ -129,8 +141,9 @@ COPY ./libs/protocols/mtib /libs/protocols/mtib
 # Set the PYTHONPATH to include the libs directory
 ENV PYTHONPATH="/libs:/libs/python:/libs/protocols"
 
-# Tell the Prisma Python client where the query engine binary lives
+# Tell Prisma where the pre-built engine binaries live (no runtime downloads)
 ENV PRISMA_QUERY_ENGINE_BINARY="/app/prisma-query-engine-debian-openssl-3.0.x"
+ENV PRISMA_SCHEMA_ENGINE_BINARY="/app/prisma-schema-engine-debian-openssl-3.0.x"
 
 # Build metadata (injected by ctl.sh / Nx containerize)
 ARG APP_VERSION=0.0.0
@@ -148,9 +161,10 @@ ENV BUILD_TIME=${BUILD_TIME}
 ENV BUILD_HOST=${BUILD_HOST}
 ENV ENVIRONMENT=${ENVIRONMENT}
 
-# Prisma schema + migrations for init container migration
+# Prisma schema + migrations + seed for init container
 COPY ./prisma/schema.prisma /prisma/schema.prisma
 COPY ./prisma/migrations /prisma/migrations
+COPY ./prisma/seed /prisma/seed
 
 # Copy the app itself
 COPY ./apps/backend/http-api/assets assets

@@ -59,7 +59,7 @@ def _serialize_bench(fixture, slot=None) -> Dict[str, Any]:
         result["fixtureDesign"] = {
             "id": fixture.design.id,
             "name": fixture.design.name,
-            "product": fixture.design.product,
+            "boardRevisionId": fixture.design.boardRevisionId,
             "revision": fixture.design.revision,
             "capabilities": fixture.design.capabilities or [],
         }

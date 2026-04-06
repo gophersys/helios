@@ -56,7 +56,7 @@ def _make_design(**overrides):
         name="alpha-fixture",
         product="alpha",
         revision="b0",
-        capabilities=["button", "jlink"],
+        capabilities=["power", "button", "jlink"],
         profileTemplate={},
         createdAt=NOW,
         updatedAt=NOW,

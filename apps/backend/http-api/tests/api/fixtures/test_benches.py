@@ -24,7 +24,7 @@ def _make_design(**overrides):
     defaults = dict(
         id="design-1",
         name="Alpha B0 Fixture v1",
-        product="alpha",
+        boardRevisionId="rev-1",
         revision="b0",
         capabilities=["jlink", "button"],
         profileTemplate={"uart_app_path": "/dev/ttyUSB0"},
