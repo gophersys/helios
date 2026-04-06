@@ -143,6 +143,37 @@ enum Role {
   OPERATOR
 }
 
+enum FirmwareVariant {
+  smoke
+  debug
+  release
+  mfg
+}
+
+enum ReleaseTrack {
+  bench
+  engineering
+  production
+}
+
+enum FirmwareSetStatus {
+  active
+  deprecated
+  recalled
+}
+
+enum RecipeStatus {
+  draft
+  published
+}
+
+enum AccessLevel {
+  view
+  operate
+  develop
+  admin
+}
+
 // =============================================================================
 //
 //  PRODUCTS
@@ -214,6 +245,7 @@ model TestPackage {
 
   @@unique([productId, version])
   @@index([productId, status])
+  @@index([createdById])
   @@map("test_packages")
 }
 
@@ -294,9 +326,9 @@ model FirmwareSet {
   boardRevisionId String? /// Which HW revision this targets
 
   // Version identity (per CK firmware versioning spec)
-  version         String /// "0.5.2" (major.minor.build)
-  variant         String  @default("debug") /// "smoke", "debug", "release", "mfg"
-  releaseTrack    String  @default("bench") /// "bench", "engineering", "production"
+  version         String          /// "0.5.2" (major.minor.build)
+  variant         FirmwareVariant @default(debug)
+  releaseTrack    ReleaseTrack    @default(bench)
   isManufacturing Boolean @default(false)
   isDebug         Boolean @default(false)
 
@@ -308,7 +340,7 @@ model FirmwareSet {
   // Build fingerprint for caching
   buildFingerprint String? /// SHA-256 of source + config — enables build reuse
 
-  status String  @default("active") /// "active", "deprecated", "recalled"
+  status FirmwareSetStatus @default(active)
   notes  String?
 
   createdAt DateTime @default(now())
@@ -348,6 +380,7 @@ model FirmwareBuild {
 
   notes     String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   firmwareSet FirmwareSet    @relation(fields: [firmwareSetId], references: [id], onDelete: Cascade)
   target      ProductTarget? @relation(fields: [targetId], references: [id])
@@ -663,6 +696,9 @@ model Session {
   @@index([type, status])
   @@index([buildRunId])
   @@index([testPackageId])
+  @@index([fixtureId])
+  @@index([assetSetId])
+  @@index([createdById])
   @@map("sessions")
 }
 
@@ -867,6 +903,7 @@ model IclePendingCommand {
   expiresAt    DateTime?
   acknowledged Boolean   @default(false)
   createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   device IcleDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
@@ -915,6 +952,7 @@ model Deployment {
   createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([productId])
+  @@index([createdById])
   @@map("deployments")
 }
 
@@ -1027,6 +1065,11 @@ model TestStep {
 // =============================================================================
 
 /// A platform user, authenticated via Google OAuth.
+///
+/// RBAC: `role` is the user's organizational role (ADMIN/MAINTAINER/DEVELOPER/OPERATOR).
+/// `permissionSet` maps that role to specific permission strings checked at runtime by
+/// @require_permissions. Both fields should stay in sync — seed.py assigns the matching
+/// permission set for each role.
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
@@ -1061,8 +1104,8 @@ model ProductAccess {
   id        String   @id @default(cuid())
   userId    String
   productId String
-  level     String   @default("view") /// "view", "operate", "develop", "admin"
-  createdAt DateTime @default(now())
+  level     AccessLevel @default(view)
+  createdAt DateTime    @default(now())
   updatedAt DateTime @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1151,6 +1194,7 @@ model PollCache {
   repoSlug  String
   prId      Int
   commitSha String
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([repoSlug, prId])
@@ -1163,8 +1207,8 @@ model RecipeVersion {
   id          String   @id @default(cuid())
   productId   String
   version     Int
-  content     String   @db.Text
-  status      String   @default("draft")
+  content     String       @db.Text
+  status      RecipeStatus @default(draft)
   changeNote  String?
   createdById String?
   createdAt   DateTime @default(now())
