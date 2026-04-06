@@ -483,12 +483,18 @@ def seed():
             "motion": None,
         }
 
+        # Find Alpha B0 revision for fixture design FK
+        alpha_b0_rev = db.boardrevision.find_first(
+            where={"board": {"product": {"slug": "alpha"}}, "version": "B0"}
+        )
+        alpha_b0_rev_id = alpha_b0_rev.id if alpha_b0_rev else None
+
         alpha_design = db.fixturedesign.upsert(
             where={"name": "alpha-fixture-v1.2"},
             data={
                 "create": {
                     "name": "alpha-fixture-v1.2",
-                    "product": "alpha",
+                    "boardRevisionId": alpha_b0_rev_id,
                     "revision": "1.2",
                     "capabilities": ["button", "peltier", "charger_relay"],
                     "profileTemplate": Json(alpha_profile_template),
