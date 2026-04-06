@@ -12,18 +12,10 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
+from .shared import serialize_target as _serialize_target
 from .types import ProductCreateRequest, ProductUpdateRequest
 
 logger = logging.getLogger(__name__)
-
-
-def _serialize_target(t: Any) -> dict:
-    return {
-        "id": t.id,
-        "role": t.role,
-        "soc": t.soc,
-        "appId": t.appId,
-    }
 
 
 def _collect_targets(p: Any) -> list:

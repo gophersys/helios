@@ -19,7 +19,6 @@ def pytest_configure(config):
     """Set all required environment variables before config/env.py loads."""
     env_vars = {
         "ENVIRONMENT": "test",
-        "DELETE_ALL_KEY": "test-delete-key",
         "LOG_LEVEL": "10",
         "LOG_PATH": "/tmp/concord-test.log",
         "SERVER_PORT": "9001",

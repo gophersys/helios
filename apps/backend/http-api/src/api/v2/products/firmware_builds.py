@@ -25,14 +25,12 @@ from .shared import ALLOWED_FIRMWARE_EXTENSIONS, MIME_TYPES, presigned_url
 
 logger = logging.getLogger(__name__)
 
+from .shared import serialize_target as _serialize_target
+
 _SET_INCLUDE = {
     "builds": {"include": {"target": True}},
     "boardRevision": True,
 }
-
-
-def _serialize_target(t: Any) -> dict:
-    return {"id": t.id, "role": t.role, "soc": t.soc, "appId": t.appId}
 
 
 def _serialize_build(b: Any) -> dict:

@@ -1,6 +1,18 @@
+from typing import Any
+
 from src.services.storage.client import presigned_get_url
 
 ALLOWED_FIRMWARE_EXTENSIONS = {"zip", "hex", "ckbin", "bin"}
+
+
+def serialize_target(t: Any) -> dict:
+    """Serialize a ProductTarget for API responses."""
+    return {
+        "id": t.id,
+        "role": t.role,
+        "soc": t.soc,
+        "appId": t.appId,
+    }
 
 MIME_TYPES = {
     "zip": "application/zip",

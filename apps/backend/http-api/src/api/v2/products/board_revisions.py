@@ -16,16 +16,9 @@ from .types import (
     TargetUpdateRequest,
 )
 
+from .shared import serialize_target as _serialize_target
+
 logger = logging.getLogger(__name__)
-
-
-def _serialize_target(t) -> dict:
-    return {
-        "id": t.id,
-        "role": t.role,
-        "soc": t.soc,
-        "appId": t.appId,
-    }
 
 
 def _serialize_revision(r) -> dict:

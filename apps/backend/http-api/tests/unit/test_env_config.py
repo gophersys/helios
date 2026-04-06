@@ -72,7 +72,6 @@ class TestJwtSecretValidation:
 
     # Shared base env so each test only overrides what it cares about.
     _BASE_ENV = {
-        "DELETE_ALL_KEY": "test",
         "LOG_LEVEL": "10",
         "LOG_PATH": "/tmp/test.log",
         "SERVER_PORT": "9001",

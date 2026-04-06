@@ -8,7 +8,6 @@ from corekinect.utils import EnvConfig
 # -------------------------------------------------
 class AppConfig(EnvConfig):
     ENVIRONMENT: str
-    DELETE_ALL_KEY: str
 
     # Logging
     LOG_LEVEL: int
