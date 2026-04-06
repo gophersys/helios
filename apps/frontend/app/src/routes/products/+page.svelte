@@ -34,7 +34,7 @@
   let showWizard = $state(false);
 
   // Stage config
-  const stageLabels = ['SM', 'SI', 'IN', 'NY', 'FU'];
+  const stageLabels = ['SM', 'DR', 'IN', 'RG', 'FU'];
   const stageNames = ['Smoke', 'Driver', 'Integration', 'Regression', 'FUOTA'];
   const stageColors: Record<number, string> = {
     1: 'bg-blue-400', 2: 'bg-cyan-400', 3: 'bg-amber-400', 4: 'bg-purple-400', 5: 'bg-red-400',

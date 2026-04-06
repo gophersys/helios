@@ -1220,11 +1220,11 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     id: _str
     productId: _str
     stage: _int
-    """1=Smoke, 2=Silicon, 3=Integration, 4=Nightly, 5=FUOTA
+    """1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA
     """
 
     name: _str
-    """Display name: "Smoke", "Silicon", "Integration", "Nightly", "FUOTA"
+    """Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"
     """
 
     enabled: _bool
@@ -1417,7 +1417,7 @@ class ValidationQueueEntry(bases.BaseValidationQueueEntry):
 
     sessionId: Optional[_str] = None
     reason: Optional[_str] = None
-    """"PR #42", "nightly 2026-03-11", "manual"
+    """"PR #42", "regression 2026-03-11", "manual"
     """
 
     errorMessage: Optional[_str] = None
@@ -6835,7 +6835,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_int',
             'is_relational': False,
-            'documentation': '''1=Smoke, 2=Silicon, 3=Integration, 4=Nightly, 5=FUOTA''',
+            'documentation': '''1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA''',
         }),
         ('name', {
             'name': 'name',
@@ -6843,7 +6843,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''Display name: "Smoke", "Silicon", "Integration", "Nightly", "FUOTA"''',
+            'documentation': '''Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"''',
         }),
         ('enabled', {
             'name': 'enabled',
@@ -7046,7 +7046,7 @@ _ValidationQueueEntry_fields: Dict['types.ValidationQueueEntryKeys', PartialMode
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''"PR #42", "nightly 2026-03-11", "manual"''',
+            'documentation': '''"PR #42", "regression 2026-03-11", "manual"''',
         }),
         ('errorMessage', {
             'name': 'errorMessage',

@@ -96,8 +96,8 @@
       "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
         "development": { "command": "echo 'Skipping deploy for development'" },
-        "staging": { "command": "./deploy/production/ctl.sh staging deploy" },
-        "production": { "command": "./deploy/production/ctl.sh production deploy" }
+        "staging": { "command": "./deploy/ctl.sh staging deploy" },
+        "production": { "command": "./deploy/ctl.sh production deploy" }
       }
     },
     "test": {

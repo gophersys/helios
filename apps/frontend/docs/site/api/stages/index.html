@@ -2510,9 +2510,13 @@
 
     <div class="doc doc-contents first">
 
-        <p>Single source of truth for validation stage build definitions.</p>
-<p>Both the build service and the test framework import from here.
-No other module should define stage build matrices.</p>
+        <p>Validation stage definitions and DEFAULT build matrices.</p>
+<p>Stage enum and names are canonical — used everywhere.
+Build matrices (_STAGE_BUILDS) are DEFAULT TEMPLATES — copied to the
+DB (StageBuildMatrix) when a stage is first enabled. After that,
+the DB is the source of truth. Edit via the API or UI, not here.</p>
+<p>To change the default matrix for NEW stage enablements, edit here.
+To change an existing product's matrix, use the API.</p>
 <div class="highlight"><pre><span></span><code>from corekinect.stages import get_stage_build_defs, Stage
 defs = get_stage_build_defs(Stage.FUOTA)
 cfw_labels = [d.label for d in defs if d.produces_cfw]
@@ -2765,7 +2769,9 @@ False = quiet (verify via power current or cloud only).</p>
 
     <div class="doc doc-contents ">
 
-        <p>Return build definitions for a validation stage.</p>
+        <p>Return DEFAULT build definitions for a stage.</p>
+<p>These are templates for seeding new stage configs. The runtime
+build matrix comes from the StageBuildMatrix DB table, not here.</p>
 <p>Version bump builds start BLOCKED and unblock when their base
 build completes.</p>
 

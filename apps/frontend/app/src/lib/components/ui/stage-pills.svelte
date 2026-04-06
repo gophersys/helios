@@ -3,9 +3,9 @@
 
   const STAGE_LABELS: Record<number, string> = {
     1: 'SM',
-    2: 'SI',
+    2: 'DR',
     3: 'IN',
-    4: 'NY',
+    4: 'RG',
     5: 'FU',
   };
 

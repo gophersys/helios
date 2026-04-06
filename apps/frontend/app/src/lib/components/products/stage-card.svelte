@@ -80,7 +80,7 @@
   };
 
   const stageIcons: Record<number, string> = {
-    1: 'SM', 2: 'SI', 3: 'IN', 4: 'NY', 5: 'FU',
+    1: 'SM', 2: 'DR', 3: 'IN', 4: 'RG', 5: 'FU',
   };
 
   const signingKeys = $derived(secrets.filter(s => s.type === 'signing_key'));

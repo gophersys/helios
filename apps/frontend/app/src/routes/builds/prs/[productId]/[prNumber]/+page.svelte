@@ -24,7 +24,7 @@
   const prNumber = $derived(Number(page.params.prNumber));
 
   const STAGE_NAMES: Record<number, string> = { 1: 'Smoke', 2: 'Driver', 3: 'Integration', 4: 'Regression', 5: 'FUOTA' };
-  const STAGE_ABBREV: Record<number, string> = { 1: 'SM', 2: 'SI', 3: 'IN', 4: 'NY', 5: 'FU' };
+  const STAGE_ABBREV: Record<number, string> = { 1: 'SM', 2: 'DR', 3: 'IN', 4: 'RG', 5: 'FU' };
   const BITBUCKET_WORKSPACE = 'corekinect';
 
   let runs = $state<BuildRunDetail[]>([]);
