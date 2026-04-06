@@ -213,17 +213,17 @@
 
 | Test File | Path | PRDTST Coverage |
 |-----------|------|-----------------|
-| test_boot.py | apps/validation/alpha/tests/nightly/test_boot.py | PRDTST-341, 374, 404 |
-| test_power.py | apps/validation/alpha/tests/nightly/test_power.py | General power budget (no direct PRDTST mapping) |
-| test_motion.py | apps/validation/alpha/tests/nightly/test_motion.py | PRDTST-324, 326, 375, 393 |
-| test_environmental.py | apps/validation/alpha/tests/nightly/test_environmental.py | PRDTST-345, 357, 398, 406 |
-| test_biometric.py | apps/validation/alpha/tests/nightly/test_biometric.py | PRDTST-327, 400 |
-| test_biometric_advanced.py | apps/validation/alpha/tests/nightly/test_biometric_advanced.py | PRDTST-379 |
-| test_button.py | apps/validation/alpha/tests/nightly/test_button.py | PRDTST-325, 338, 377, 382, 412 |
-| test_button_advanced.py | apps/validation/alpha/tests/nightly/test_button_advanced.py | PRDTST-346 |
-| test_config.py | apps/validation/alpha/tests/nightly/test_config.py | PRDTST-328, 330, 335, 342, 344, 347, 352, 353, 356, 359, 364, 369, 371, 387, 388, 394, 399 |
-| test_gnss.py | apps/validation/alpha/tests/nightly/test_gnss.py | PRDTST-333, 343, 358, 360, 378, 384, 396 |
-| test_nfc.py | apps/validation/alpha/tests/nightly/test_nfc.py | PRDTST-337 |
-| test_01_mfg_to_mfg_fuota.py | apps/validation/alpha/tests/nightly/test_01_mfg_to_mfg_fuota.py | PRDTST-376 |
-| test_corecloud_integration.py | apps/validation/alpha/tests/nightly/test_corecloud_integration.py | Infrastructure (no direct PRDTST mapping) |
+| test_boot.py | apps/validation/alpha/tests/regression/test_boot.py | PRDTST-341, 374, 404 |
+| test_power.py | apps/validation/alpha/tests/regression/test_power.py | General power budget (no direct PRDTST mapping) |
+| test_motion.py | apps/validation/alpha/tests/regression/test_motion.py | PRDTST-324, 326, 375, 393 |
+| test_environmental.py | apps/validation/alpha/tests/regression/test_environmental.py | PRDTST-345, 357, 398, 406 |
+| test_biometric.py | apps/validation/alpha/tests/regression/test_biometric.py | PRDTST-327, 400 |
+| test_biometric_advanced.py | apps/validation/alpha/tests/regression/test_biometric_advanced.py | PRDTST-379 |
+| test_button.py | apps/validation/alpha/tests/regression/test_button.py | PRDTST-325, 338, 377, 382, 412 |
+| test_button_advanced.py | apps/validation/alpha/tests/regression/test_button_advanced.py | PRDTST-346 |
+| test_config.py | apps/validation/alpha/tests/regression/test_config.py | PRDTST-328, 330, 335, 342, 344, 347, 352, 353, 356, 359, 364, 369, 371, 387, 388, 394, 399 |
+| test_gnss.py | apps/validation/alpha/tests/regression/test_gnss.py | PRDTST-333, 343, 358, 360, 378, 384, 396 |
+| test_nfc.py | apps/validation/alpha/tests/regression/test_nfc.py | PRDTST-337 |
+| test_01_mfg_to_mfg_fuota.py | apps/validation/alpha/tests/regression/test_01_mfg_to_mfg_fuota.py | PRDTST-376 |
+| test_corecloud_integration.py | apps/validation/alpha/tests/regression/test_corecloud_integration.py | Infrastructure (no direct PRDTST mapping) |
 | test_smoke_mtib.py | apps/validation/alpha/tests/test_smoke_mtib.py | Infrastructure (no direct PRDTST mapping) |

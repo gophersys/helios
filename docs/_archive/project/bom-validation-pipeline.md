@@ -264,7 +264,7 @@ It needs wrapper utilities for test automation use cases.
 | I33 | Build service Deployment (Helm) | `concord/deploy/helm/concord/` | UPDATE | 1, 2, 3, 4 | Infra | 6 | I04 | I04, I30 |
 | I34 | PVC definitions (ccache, west-modules, workspace) | `concord/deploy/helm/concord/` | UPDATE | 1, 2, 3, 4 | Infra | 2 | I04 | -- |
 | I35 | Vault secrets (Git SSH key, backend API key, device creds) | Vault config | UPDATE | 1, 2, 3, 4 | Infra | 4 | I04, I25 | -- |
-| I36 | CronJob definitions (weekly/nightly Stage 4 runs) | `concord/deploy/helm/concord/` | NEW | 4 | Infra | 4 | I20 | I02, I29 |
+| I36 | CronJob definitions (weekly/regression Stage 4 runs) | `concord/deploy/helm/concord/` | NEW | 4 | Infra | 4 | I20 | I02, I29 |
 
 **Subtotal: ~22h**
 
@@ -593,7 +593,7 @@ downstream work appear first.
 | I33 | Build service Helm | `concord/deploy/helm/` | UPDATE | All | Infra | 6 | I04 | I04, I30 |
 | I34 | PVC definitions | `concord/deploy/helm/` | UPDATE | All | Infra | 2 | I04 | -- |
 | I35 | Vault secrets | Vault | UPDATE | All | Infra | 4 | I04, I25 | -- |
-| I36 | CronJob definitions (weekly/nightly) | `concord/deploy/helm/` | NEW | 4 | Infra | 4 | I20 | I02, I29 |
+| I36 | CronJob definitions (weekly/regression) | `concord/deploy/helm/` | NEW | 4 | Infra | 4 | I20 | I02, I29 |
 | I37-I41 | Schema definitions (5 schemas) | `concord/docs/schemas/` | NEW | 2, 3, 4 | Infra | 13 | various | -- |
 | I43 | JUnit XML extensions | Inside I15 | NEW | 2, 3, 4 | Infra | 2 | -- | I15 |
 | I44-I47 | Frontend / Dashboard (4 views) | `concord/apps/frontend/` | NEW | All | Infra | 44 | -- | I01, I02 |
@@ -857,7 +857,7 @@ of parallel coordination.
 **Goal:** Stage 4 fully operational. Dashboard live.
 
 - I29: concord-validation-alpha Docker image (4h)
-- I36: CronJob definitions for weekly/nightly (4h)
+- I36: CronJob definitions for weekly/regression (4h)
 - I43: JUnit XML extensions (2h)
 - I44-I47: Frontend dashboard (44h)
 - D01-D12: Documentation cleanup (54h, spread across team)

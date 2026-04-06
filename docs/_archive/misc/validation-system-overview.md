@@ -49,8 +49,8 @@ stages:
     trigger: "pr"
     blocks_merge: true
 
-  nightly:
-    name: "Nightly"
+  regression:
+    name: "Regression"
     description: "Comprehensive validation (30-60 min)"
     timing_budget_s: 3600
     trigger: "cron"
@@ -96,7 +96,7 @@ apps/validation/alpha/
     ├── gate/             # Stage 5: PR validation
     │   ├── conftest.py   # Gate fixtures
     │   └── test_gate.py  # Gate tests
-    ├── nightly/          # Stage 4: Comprehensive
+    ├── regression/          # Stage 4: Comprehensive
     │   ├── test_power.py
     │   ├── test_sensors.py
     │   └── ...
@@ -337,7 +337,7 @@ Frontend can compare runs across versions:
 - **Purpose**: Merge blocker
 - **Scope**: Flash + boot + personalize + FUOTA
 
-### Nightly Tests (Stage 4)
+### Regression Tests (Stage 4)
 - **Timing**: 30-60 minutes
 - **Trigger**: Cron (2 AM daily)
 - **Purpose**: Comprehensive validation
@@ -353,7 +353,7 @@ Frontend can compare runs across versions:
 
 ### Test IDs
 - Format: `{STAGE}-{PRODUCT}-{CATEGORY}-{NUMBER}`
-- Examples: `GATE-ALPHA-001`, `NIGHTLY-ALPHA-PWR-003`
+- Examples: `GATE-ALPHA-001`, `REGRESSION-ALPHA-PWR-003`
 
 ### Timing
 - Every test has explicit timeout via `@pytest.mark.timeout()`
@@ -384,19 +384,19 @@ tests/
     └── test_fuota.py
 ```
 
-### After (gate/ + nightly/)
+### After (gate/ + regression/)
 ```
 tests/
 ├── gate/
 │   └── test_gate.py      # FUOTA + quick validation
-└── nightly/
+└── regression/
     ├── test_power.py     # Full power profiling
     ├── test_sensors.py   # All sensor tests
     └── test_boot.py      # Extended boot tests
 ```
 
 ### Migration Steps
-1. Identify which tests belong to gate vs nightly
+1. Identify which tests belong to gate vs regression
 2. Move tests to appropriate directories
 3. Update test IDs to new format
 4. Add timeout markers

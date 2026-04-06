@@ -40,9 +40,9 @@
   // Smart defaults per stage
   const defaultTriggers: Record<number, string[]> = {
     1: ['pr_push'],           // Smoke: run on every PR
-    2: ['auto'],              // Silicon: after Smoke passes
-    3: ['auto'],              // Integration: after Silicon passes
-    4: ['schedule'],          // Nightly: scheduled cron
+    2: ['auto'],              // Driver: after Smoke passes
+    3: ['auto'],              // Integration: after Driver passes
+    4: ['schedule'],          // Regression: scheduled cron
     5: ['pr_merge', 'manual'], // FUOTA: on merge + manual
   };
 

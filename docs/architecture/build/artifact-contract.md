@@ -240,7 +240,7 @@ Each validation stage requires specific artifacts. These contracts define the mi
 
 No CFW needed — Stage 1 runs on `native_sim`, not real hardware. No FUOTA.
 
-### Stage 2 — Silicon (Driver Hardware Tests)
+### Stage 2 — Driver (Driver Hardware Tests)
 
 | Artifact | Role | Type | Purpose |
 |----------|------|------|---------|
@@ -264,7 +264,7 @@ Stage 2 needs manufacturing firmware because driver tests use the manufacturing 
 
 Integration tests flash multiple firmware variants to test transitions: mfg → debug → release.
 
-### Stage 4 — Nightly (Product Validation)
+### Stage 4 — Regression (Product Validation)
 
 | Artifact | Role | Type | Purpose |
 |----------|------|------|---------|

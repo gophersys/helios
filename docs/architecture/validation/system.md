@@ -98,7 +98,7 @@ labels:
   corekinect.com/pipeline-board: "alpha_b0"
   corekinect.com/pipeline-driver: "accel_drv"
   corekinect.com/pipeline-trigger: "webhook"      # webhook, manual, cron
-  corekinect.com/pipeline-run-type: "commit"      # commit, nightly, weekly, release
+  corekinect.com/pipeline-run-type: "commit"      # commit, regression, weekly, release
   corekinect.com/pipeline-repo: "accel_drv"
   corekinect.com/pipeline-commit: "a1b2c3d"
 ```
@@ -165,7 +165,7 @@ POST /v2/validation/pipelines/trigger
   Body: {
     repo, branch, commit, changed_files[],
     trigger_type: "webhook"|"manual"|"cron",
-    run_type?: "commit"|"nightly"|"weekly"|"release"  # optional, default: "commit"
+    run_type?: "commit"|"regression"|"weekly"|"release"  # optional, default: "commit"
       # Determines which Stage 4 test groups execute (filtered by tag).
       # Webhooks default to "commit". Scheduled triggers pass the run_type from
       # the on.schedule entry. Manual triggers can specify any allowed_run_type.
@@ -658,7 +658,7 @@ env:
   - PRODUCT, BOARD
 
   # Run type and tag filtering
-  - RUN_TYPE              # "commit" | "nightly" | "weekly" | "release"
+  - RUN_TYPE              # "commit" | "regression" | "weekly" | "release"
                           # Set by pipeline controller from trigger metadata.
                           # Determines which test groups run (filtered by tag).
 
@@ -712,7 +712,7 @@ flow:
 
 # Timeout tiers (set by pipeline controller based on RUN_TYPE):
 #   commit:          activeDeadlineSeconds = 3600   (60 min — fast subset)
-#   nightly:         activeDeadlineSeconds = 7200   (2 hours — commit + intermediate)
+#   regression:         activeDeadlineSeconds = 7200   (2 hours — commit + intermediate)
 #   weekly/release:  activeDeadlineSeconds = 259200 (72 hours — full suite incl. endurance)
 #
 # Per-test timeouts are defined in validation_spec.yaml (default: 60s per test).
@@ -1310,7 +1310,7 @@ How repo-driven scheduling works:
        branch: "main",               // schedules always run against default branch
        commit: HEAD of main,
        trigger_type: "cron",
-       run_type: "{from on.schedule entry}"  // "weekly", "nightly", etc.
+       run_type: "{from on.schedule entry}"  // "weekly", "regression", etc.
      }
    Uses a ServiceAccount with VALIDATION_PIPELINES_TRIGGER permission.
 
@@ -1320,17 +1320,17 @@ How repo-driven scheduling works:
          - cron: "0 2 * * 0"
            run_type: weekly
          - cron: "0 1 * * 1-6"
-           run_type: nightly
+           run_type: regression
 
    The reconciler creates two CronJobs:
      concord-schedule-accel_drv-weekly   → "0 2 * * 0"  → run_type: weekly
-     concord-schedule-accel_drv-nightly  → "0 1 * * 1-6" → run_type: nightly
+     concord-schedule-accel_drv-regression  → "0 1 * * 1-6" → run_type: regression
 
 4. Effects by run_type:
    - weekly: Full pipeline (Stages 1-4), Stage 4 includes all test groups
      (tagged "commit" + "weekly"), activeDeadlineSeconds = 259200 (72 hours),
      endurance/FUOTA/environmental extremes execute.
-   - nightly: Commit-level + intermediate tests, activeDeadlineSeconds = 7200
+   - regression: Commit-level + intermediate tests, activeDeadlineSeconds = 7200
      (2 hours), catches regressions from the day's merged commits.
    - Deduplication: if a pipeline for the same (repo, commit) is already active,
      the trigger API returns the existing pipeline_id (no duplicate run).
@@ -1603,13 +1603,13 @@ model ValidationPipelineConfig {
 //   { "name": "validation", "order": 4, "type": "hardware", "needsMtib": true,
 //     "testTags": {
 //       "commit":  ["commit"],                                    // per-push: fast subset only
-//       "nightly": ["commit", "weekly"],                          // nightly: commit + some weekly tests
+//       "regression": ["commit", "weekly"],                          // regression: commit + some weekly tests
 //       "weekly":  ["commit", "weekly"],                          // weekly: full suite
 //       "release": ["commit", "weekly", "release"]                // release: everything
 //     },
 //     "timeouts": {
 //       "commit":  3600,                                          // 60 min
-//       "nightly": 7200,                                          // 2 hours
+//       "regression": 7200,                                          // 2 hours
 //       "weekly":  259200,                                        // 72 hours
 //       "release": 259200                                         // 72 hours
 //     }
@@ -1704,7 +1704,7 @@ enum ValTriggerType {
 
 enum ValRunType {
     COMMIT      // per-push: fast Stage 4 subset (tagged "commit")
-    NIGHTLY     // nightly CronJob: commit + intermediate tests
+    REGRESSION     // regression CronJob: commit + intermediate tests
     WEEKLY      // weekly CronJob: full suite including endurance, FUOTA
     RELEASE     // release candidate: everything, no exceptions
 }
@@ -2633,7 +2633,7 @@ The top-level orchestrator for Stage 4. Loads the product's `validation_spec.yam
 # Orchestration flow:
 #
 # 1. Load validation_spec.yaml (baked into the product container image, from Concord monorepo)
-# 2. Parse RUN_TYPE env var ("commit", "nightly", "weekly", "release")
+# 2. Parse RUN_TYPE env var ("commit", "regression", "weekly", "release")
 # 3. Filter test groups: include group if RUN_TYPE is in the group's tags
 #    - Per-test tag overrides: individual tests can have narrower tags than their group
 #    - Example: charging group is tagged ["weekly", "release"], but charger_detection
@@ -2970,7 +2970,7 @@ on:
     - cron: "0 2 * * 0"                  # Sunday 02:00 UTC
       run_type: weekly                    # Passed to Stage 4 for tag filtering
     - cron: "0 1 * * 1-6"                # Mon-Sat 01:00 UTC
-      run_type: nightly
+      run_type: regression
 
   manual:                                 # Manual trigger via Concord UI or API
     allowed_run_types:                    # Which run_type values the manual trigger can set
@@ -3025,12 +3025,12 @@ stages:
     needsMtib: true
     testTags:                             # Which test groups run for each run_type
       commit:  ["commit"]                 # Per-push: fast validation subset (~30 min)
-      nightly: ["commit", "weekly"]       # Nightly: commit + intermediate tests
+      regression: ["commit", "weekly"]       # Regression: commit + intermediate tests
       weekly:  ["commit", "weekly"]       # Weekly: full suite incl. endurance, FUOTA
       release: ["commit", "weekly", "release"]  # Release: everything, no exceptions
     timeouts:                             # Per-run-type timeout (overrides stage timeout)
       commit:  3600                       # 1 hour for commit runs
-      nightly: 7200                       # 2 hours for nightly
+      regression: 7200                       # 2 hours for regression
       weekly:  259200                     # 72 hours for weekly (endurance tests)
       release: 259200
 
@@ -3361,7 +3361,7 @@ The validation team manages the full Stage 4 lifecycle.
 
 ### Phase 6: Scheduled Validation & Polish
 26. Run type support in pipeline trigger API and K8s labels
-27. Interim hardcoded CronJobs for weekly/nightly runs (before Phase 7A repo-driven schedules)
+27. Interim hardcoded CronJobs for weekly/regression runs (before Phase 7A repo-driven schedules)
 28. Bitbucket commit status reporting
 29. Concord dashboard (pipeline view, test results, trends)
 30. Second driver group (PPG → PAH8151)

@@ -370,6 +370,6 @@ PIPELINE_ID=xxx pytest tests/stage5/ -v --timeout=900
 
 - [Stages Overview](../../architecture/validation/stages-overview.md) — All 5 stages
 - [Stage 5 Implementation](../../architecture/validation/stage5-fuota-tests.md) — Full spec
-- [Stage 4 Nightly](../../architecture/validation/stage4-product-tests.md) — Comprehensive tests
+- [Stage 4 Regression](../../architecture/validation/stage4-product-tests.md) — Comprehensive tests
 - [FUOTA API Workflow](../../reference/fuota-api.md) — API details
 - [MTIB Hardware Rules](../../../.claude/rules/mtib-hardware.md) — Power/GPIO

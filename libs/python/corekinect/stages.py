@@ -47,25 +47,25 @@ class Stage(str, Enum):
     """
 
     SMOKE = "smoke"              # Stage 1: Software tests, no hardware
-    SILICON = "silicon"          # Stage 2: Driver HW tests, dev kits
+    DRIVER = "driver"            # Stage 2: Driver HW tests, dev kits
     INTEGRATION = "integration"  # Stage 3: Subsystem integration, product board
-    NIGHTLY = "nightly"          # Stage 4: Comprehensive black-box validation
+    REGRESSION = "regression"    # Stage 4: Comprehensive black-box validation
     FUOTA = "fuota"              # Stage 5: OTA firmware update, blocks merge
 
 
 STAGE_NUMBERS: Dict[Stage, int] = {
     Stage.SMOKE: 1,
-    Stage.SILICON: 2,
+    Stage.DRIVER: 2,
     Stage.INTEGRATION: 3,
-    Stage.NIGHTLY: 4,
+    Stage.REGRESSION: 4,
     Stage.FUOTA: 5,
 }
 
 STAGE_NAMES: Dict[int, str] = {
     1: "Smoke",
-    2: "Silicon",
+    2: "Driver",
     3: "Integration",
-    4: "Nightly",
+    4: "Regression",
     5: "FUOTA",
 }
 
@@ -215,10 +215,10 @@ _SMOKE_BUILDS: List[StageBuildDef] = [
 
 
 # =============================================================================
-# SILICON stage — hardware validation (3 builds)
+# DRIVER stage — hardware validation (3 builds)
 # =============================================================================
 
-_SILICON_BUILDS: List[StageBuildDef] = [
+_DRIVER_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
         label="MFG_BASE",
         fw_type="mfg", variant="mfg", config_log=True,
@@ -273,47 +273,47 @@ _INTEGRATION_BUILDS: List[StageBuildDef] = [
 
 
 # =============================================================================
-# NIGHTLY stage — full regression suite (6 builds)
+# REGRESSION stage — full regression suite (6 builds)
 # =============================================================================
 
-_NIGHTLY_BUILDS: List[StageBuildDef] = [
+_REGRESSION_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
         label="MFG_BASE",
         fw_type="mfg", variant="mfg", config_log=True,
         produces_hex=True, produces_cfw=True, git_ref="main",
-        description="Manufacturing firmware for nightly full-cycle validation",
+        description="Manufacturing firmware for regression full-cycle validation",
     ),
     StageBuildDef(
         label="MFG_BUMP",
         fw_type="mfg", variant="mfg", config_log=True,
         produces_hex=True, produces_cfw=True, git_ref="main",
         is_version_bump=True, base_label="MFG_BASE",
-        description="Version-bumped MFG for nightly FUOTA regression",
+        description="Version-bumped MFG for regression FUOTA",
     ),
     StageBuildDef(
         label="APP_DEBUG",
         fw_type="app", variant="debug", config_log=True,
         produces_hex=True, produces_cfw=False, git_ref="main",
-        description="Debug firmware for nightly comprehensive validation",
+        description="Debug firmware for regression comprehensive validation",
     ),
     StageBuildDef(
         label="APP_RELEASE",
         fw_type="app", variant="release", config_log=False,
         produces_hex=True, produces_cfw=False, git_ref="main",
-        description="Release firmware for nightly power + behavior validation",
+        description="Release firmware for regression power + behavior validation",
     ),
     StageBuildDef(
         label="FUOTA_VERBOSE_A",
         fw_type="app", variant="debug", config_log=True,
         produces_hex=True, produces_cfw=True, git_ref="main",
-        description="Verbose firmware A — nightly FUOTA regression source",
+        description="Verbose firmware A — regression FUOTA source",
     ),
     StageBuildDef(
         label="FUOTA_VERBOSE_B",
         fw_type="app", variant="debug", config_log=True,
         produces_hex=True, produces_cfw=True, git_ref="main",
         is_version_bump=True, base_label="FUOTA_VERBOSE_A",
-        description="Verbose firmware B — nightly FUOTA regression target",
+        description="Verbose firmware B — regression FUOTA target",
     ),
 ]
 
@@ -324,9 +324,9 @@ _NIGHTLY_BUILDS: List[StageBuildDef] = [
 
 _STAGE_BUILDS: Dict[Stage, List[StageBuildDef]] = {
     Stage.SMOKE: _SMOKE_BUILDS,
-    Stage.SILICON: _SILICON_BUILDS,
+    Stage.DRIVER: _DRIVER_BUILDS,
     Stage.INTEGRATION: _INTEGRATION_BUILDS,
-    Stage.NIGHTLY: _NIGHTLY_BUILDS,
+    Stage.REGRESSION: _REGRESSION_BUILDS,
     Stage.FUOTA: _FUOTA_BUILDS,
 }
 
@@ -352,15 +352,15 @@ _STAGE_CAPABILITIES: Dict[Stage, List[str]] = {
     # Smoke: just needs MTIB connectivity (power + basic I/O)
     Stage.SMOKE: ["power"],
 
-    # Silicon: needs GPIO access for driver testing
-    Stage.SILICON: ["power", "button", "jlink"],
+    # Driver: needs GPIO access for driver testing
+    Stage.DRIVER: ["power", "button", "jlink"],
 
     # Integration: needs harness connectivity + basic peripherals
     Stage.INTEGRATION: ["power", "button", "jlink"],
 
-    # Nightly: comprehensive — needs most fixture capabilities
+    # Regression: comprehensive — needs most fixture capabilities
     # Individual tests skip if specific capabilities are missing
-    Stage.NIGHTLY: ["power", "button", "peltier"],
+    Stage.REGRESSION: ["power", "button", "peltier"],
 
     # FUOTA: needs J-Link for initial flash + power for boot verification
     Stage.FUOTA: ["power", "jlink"],

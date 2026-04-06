@@ -649,7 +649,7 @@ Cross-cutting services that support all stages and domains.
 | Build service Deployment | NEW | Long-running build worker |
 | PVC definitions (ccache, west) | NEW | Build caching |
 | Vault secrets | ADAPT | Git SSH key, API keys, device creds |
-| CronJob (weekly/nightly Stage 4) | NEW | Scheduled full-suite runs |
+| CronJob (weekly/regression Stage 4) | NEW | Scheduled full-suite runs |
 | Validation Job template | EXISTS | Test pod template |
 
 ### 8.5 Data Schemas
@@ -929,7 +929,7 @@ Five parallel streams:
 | Stream | Components | Owner | Hours |
 |--------|-----------|-------|-------|
 | Frontend pages | I44-I47 (pipeline list, detail, power charts, trigger) | FE | 44h |
-| CronJobs | I36 (weekly/nightly schedules) | Infra | 4h |
+| CronJobs | I36 (weekly/regression schedules) | Infra | 4h |
 | Documentation | D01-D12 (all docs, spread across team) | All | 54h |
 | Stage 4 full suite | Weekly suite with all 89 tests operational | Infra/QA | 16h |
 

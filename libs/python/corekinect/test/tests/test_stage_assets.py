@@ -241,7 +241,7 @@ class TestStageAssetsLabelAccess:
         resolver.add_build("MFG_BASE", version="0.8.3", variant="mfg", track="BM")
         resolver.add_build("APP_DEBUG", version="0.8.3", variant="debug", track="BM")
         resolver.add_build("APP_RELEASE", version="0.8.3", variant="release", track="BM")
-        assets = StageAssets(resolver, stage="silicon")
+        assets = StageAssets(resolver, stage="driver")
         release = assets.app_release()
         assert release.label == "APP_RELEASE"
 
@@ -313,7 +313,7 @@ class TestStageRequiredLabels:
     """Tests for the STAGE_REQUIRED_LABELS constant."""
 
     def test_all_five_stages_have_entries(self):
-        expected_stages = {"smoke", "silicon", "integration", "nightly", "fuota"}
+        expected_stages = {"smoke", "driver", "integration", "regression", "fuota"}
         assert set(STAGE_REQUIRED_LABELS.keys()) == expected_stages
 
     def test_each_stage_has_non_empty_labels(self):

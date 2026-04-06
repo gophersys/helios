@@ -7,7 +7,7 @@ Usage feels natural from a project directory:
     corectl upload                # upload this project
     corectl versions              # list published versions
     corectl run smoke             # run smoke tests
-    corectl run nightly -m health_check  # run health check
+    corectl run regression -m health_check  # run health check
 
 Resource-qualified (when outside a project or managing other resources):
 

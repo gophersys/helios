@@ -19,7 +19,7 @@ Product pattern (in apps/validation/{product}/tests/common/timing.py):
 
     class Timing:
         FUOTA = FuotaTiming()
-        NIGHTLY = NightlyTiming()
+        REGRESSION = RegressionTiming()
         COMMON = CommonTiming()  # From framework
 """
 

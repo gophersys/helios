@@ -254,6 +254,13 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
         if not job.artifacts:
             continue
         for artifact in job.artifacts:
+            # Parse appId from filename pattern: {appId}.{version}[-{track}].{ext}
+            app_id = None
+            if artifact.name:
+                parts = artifact.name.split(".")
+                if parts[0].isdigit():
+                    app_id = int(parts[0])
+
             db.asset.create(data={
                 "assetSetId": asset_set.id,
                 "label": getattr(job, "matrixLabel", None) or "UNKNOWN",
@@ -265,8 +272,30 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
                 "sizeBytes": artifact.sizeBytes,
                 "checksum": artifact.checksum or "",
                 "contentType": getattr(artifact, "contentType", None),
+                "appId": app_id,
+                "versionString": getattr(job, "versionString", None),
             })
             asset_count += 1
+
+    # Include modem firmware from board revision (if configured)
+    if board_revision_id:
+        board_rev = db.boardrevision.find_unique(where={"id": board_revision_id})
+        if board_rev and getattr(board_rev, "modemStorageKey", None) and getattr(board_rev, "modemVersion", None):
+            db.asset.create(data={
+                "assetSetId": asset_set.id,
+                "label": "MODEM",
+                "role": "modem",
+                "processor": None,
+                "artifactType": "modemFirmware",
+                "storageKey": board_rev.modemStorageKey,
+                "filename": f"modem_{board_rev.modemVersion}.zip",
+                "sizeBytes": 0,
+                "checksum": "",
+                "versionString": board_rev.modemVersion,
+            })
+            asset_count += 1
+            logger.info("Included modem firmware v%s in AssetSet %s",
+                        board_rev.modemVersion, asset_set.id)
 
     logger.info("Created AssetSet %s from BuildRun %s (%d assets)",
                 asset_set.id, run_id, asset_count)

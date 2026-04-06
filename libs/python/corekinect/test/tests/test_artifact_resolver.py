@@ -13,7 +13,6 @@ from corekinect.test.artifact_resolver import (
     BuildManifest,
     ManifestTarget,
     ResolvedArtifact,
-    StorageConfig,
 )
 
 
@@ -278,11 +277,9 @@ class TestArtifactResolverManifest:
         mock_session.get.side_effect = mock_get
 
         if manifest_dict is not None:
-            # Patch _download_file to return temp files with manifest content
-            original_download = resolver._download_file
-
-            def mock_download(storage_key):
-                if storage_key.endswith("build.json"):
+            # Patch _download_artifact to return temp files with manifest content
+            def mock_download(build_id, artifact_name):
+                if artifact_name.endswith("build.json") or artifact_name == "build.json":
                     tmp = tempfile.NamedTemporaryFile(
                         suffix=".json", delete=False, mode="w"
                     )
@@ -291,7 +288,7 @@ class TestArtifactResolverManifest:
                     resolver._temp_files.append(tmp.name)
                     return tmp.name
                 # For hex/cfw, create a small dummy file
-                suffix = Path(storage_key).suffix or ".bin"
+                suffix = Path(artifact_name).suffix or ".bin"
                 tmp = tempfile.NamedTemporaryFile(
                     suffix=suffix, delete=False, mode="wb"
                 )
@@ -300,7 +297,7 @@ class TestArtifactResolverManifest:
                 resolver._temp_files.append(tmp.name)
                 return tmp.name
 
-            resolver._download_file = mock_download
+            resolver._download_artifact = mock_download
 
         return resolver
 
@@ -526,8 +523,8 @@ class TestArtifactResolverErrors:
         resolver = self._make_resolver_with_builds([build])
 
         # Mock manifest download
-        def mock_download(storage_key):
-            if storage_key.endswith("build.json"):
+        def mock_download(build_id, artifact_name):
+            if artifact_name == "build.json":
                 tmp = tempfile.NamedTemporaryFile(
                     suffix=".json", delete=False, mode="w"
                 )
@@ -535,9 +532,9 @@ class TestArtifactResolverErrors:
                 tmp.close()
                 resolver._temp_files.append(tmp.name)
                 return tmp.name
-            raise RuntimeError(f"Artifact not found: {storage_key}")
+            raise RuntimeError(f"Artifact not found: {artifact_name}")
 
-        resolver._download_file = mock_download
+        resolver._download_artifact = mock_download
 
         with pytest.raises(ValueError, match="No target.*role='modem'"):
             resolver.get_artifact("MFG_BASE", role="modem", artifact_type="plaintextHex")
@@ -552,7 +549,7 @@ class TestArtifactResolverErrors:
         build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
         resolver = self._make_resolver_with_builds([build])
 
-        def mock_download(storage_key):
+        def mock_download(build_id, artifact_name):
             tmp = tempfile.NamedTemporaryFile(
                 suffix=".json", delete=False, mode="w"
             )
@@ -561,7 +558,7 @@ class TestArtifactResolverErrors:
             resolver._temp_files.append(tmp.name)
             return tmp.name
 
-        resolver._download_file = mock_download
+        resolver._download_artifact = mock_download
 
         result = resolver.get_target("MFG_BASE", role="nonexistent")
         assert result is None
@@ -601,27 +598,3 @@ class TestArtifactResolverCleanup:
         assert len(resolver._temp_files) == 0
 
 
-# =============================================================================
-# StorageConfig
-# =============================================================================
-
-
-class TestStorageConfig:
-    """Test StorageConfig from env vars."""
-
-    def test_defaults(self):
-        cfg = StorageConfig()
-        assert cfg.bucket_name == "concord"
-
-    def test_from_env(self):
-        with patch.dict(os.environ, {
-            "STORAGE_URL": "http://minio:9000",
-            "STORAGE_ACCESS_KEY": "access",
-            "STORAGE_SECRET_ACCESS_KEY": "secret",
-            "STORAGE_BUCKET_NAME": "my-bucket",
-        }):
-            cfg = StorageConfig.from_env()
-            assert cfg.url == "http://minio:9000"
-            assert cfg.access_key == "access"
-            assert cfg.secret_key == "secret"
-            assert cfg.bucket_name == "my-bucket"

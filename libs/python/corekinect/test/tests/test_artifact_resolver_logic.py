@@ -5,7 +5,6 @@ Focuses on:
 - ManifestTarget.get_file_for_type() edge cases
 - BuildManifest.from_dict() schema v0 legacy inference
 - BuildManifest properties: all_app_ids, device_type_id, device_variant_id, api_env
-- StorageConfig.from_env() with partial/missing env vars
 - _BuildInfo helper methods
 - _infer_targets_from_artifacts edge cases
 """
@@ -18,7 +17,6 @@ import pytest
 from corekinect.test.artifact_resolver import (
     BuildManifest,
     ManifestTarget,
-    StorageConfig,
     _ArtifactInfo,
     _BuildInfo,
 )
@@ -466,52 +464,6 @@ class TestBuildManifestProperties:
         manifest = BuildManifest.from_dict(data)
         assert manifest._raw is data
         assert manifest._raw["customField"] == "hello"
-
-
-# =============================================================================
-# StorageConfig.from_env
-# =============================================================================
-
-
-class TestStorageConfigFromEnv:
-    """Test StorageConfig.from_env() reading from environment."""
-
-    def test_all_vars_set(self):
-        with patch.dict(os.environ, {
-            "STORAGE_URL": "https://minio.example.com",
-            "STORAGE_ACCESS_KEY": "mykey",
-            "STORAGE_SECRET_ACCESS_KEY": "mysecret",
-            "STORAGE_BUCKET_NAME": "test-bucket",
-        }, clear=True):
-            cfg = StorageConfig.from_env()
-            assert cfg.url == "https://minio.example.com"
-            assert cfg.access_key == "mykey"
-            assert cfg.secret_key == "mysecret"
-            assert cfg.bucket_name == "test-bucket"
-
-    def test_no_vars_set(self):
-        with patch.dict(os.environ, {}, clear=True):
-            cfg = StorageConfig.from_env()
-            assert cfg.url is None
-            assert cfg.access_key is None
-            assert cfg.secret_key is None
-            assert cfg.bucket_name == "concord"  # default
-
-    def test_partial_vars(self):
-        with patch.dict(os.environ, {
-            "STORAGE_URL": "http://minio:9000",
-        }, clear=True):
-            cfg = StorageConfig.from_env()
-            assert cfg.url == "http://minio:9000"
-            assert cfg.access_key is None
-            assert cfg.secret_key is None
-            assert cfg.bucket_name == "concord"
-
-    def test_default_bucket_name(self):
-        """Bucket defaults to 'concord' when env var not set."""
-        with patch.dict(os.environ, {}, clear=True):
-            cfg = StorageConfig.from_env()
-            assert cfg.bucket_name == "concord"
 
 
 # =============================================================================

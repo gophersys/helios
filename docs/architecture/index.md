@@ -31,9 +31,9 @@ Five-stage firmware validation system.
 | [stages-overview.md](validation/stages-overview.md) | Quick reference: what each stage tests, hardware, triggers, timing |
 | [system.md](validation/system.md) | Full system architecture: runners, pipeline controller, MTIB, build service |
 | [stage1-software-tests.md](validation/stage1-software-tests.md) | Stage 1 Smoke: native_sim tests, stubs |
-| [stage2-driver-hw-tests.md](validation/stage2-driver-hw-tests.md) | Stage 2 Silicon: driver HW tests, dev-kit fixtures |
+| [stage2-driver-hw-tests.md](validation/stage2-driver-hw-tests.md) | Stage 2 Driver: driver HW tests, dev-kit fixtures |
 | [stage3-integration-tests.md](validation/stage3-integration-tests.md) | Stage 3 Integration: concord_harness, instrumented firmware |
-| [stage4-product-tests.md](validation/stage4-product-tests.md) | Stage 4 Nightly: black-box product validation |
+| [stage4-product-tests.md](validation/stage4-product-tests.md) | Stage 4 Regression: black-box product validation |
 | [stage4-fuota-flow.md](validation/stage4-fuota-flow.md) | FUOTA validation lifecycle (12-step) |
 | [stage4-pr-flow.md](validation/stage4-pr-flow.md) | PR validation firmware build matrix (8 builds) |
 | [stage5-fuota-tests.md](validation/stage5-fuota-tests.md) | Stage 5 FUOTA: PR validation + OTA verification (< 15 min) |

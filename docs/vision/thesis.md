@@ -47,7 +47,7 @@ Concord's five-stage model maps directly to Farley's deployment pipeline — eac
 Commit → Build → Stage 1 → Stage 2 → Stage 3 → Stage 4 → Stage 5 → Deploy
          (sec)   (min)      (min)      (min)      (hours)   (min)     (min)
 
-         Cross-   Software   Silicon    Harness    Black-box  Gate     FUOTA
+         Cross-   Software   Driver     Harness    Black-box  Gate     FUOTA
          compile  sim        real HW    instrum.   product    PR+OTA   delivery
 
          Zero     Zero       Dev-kit    MTIB +     MTIB +     MTIB +   CoreCloud
@@ -67,7 +67,7 @@ Each stage answers a specific question:
 |-------|----------|----------|
 | Build | Does it compile for all target boards and configurations? | Clean cross-compilation, no warnings-as-errors |
 | 1 - Smoke | Do the software abstractions behave correctly in isolation? | Unit + integration tests pass on native_sim |
-| 2 - Silicon | Do the drivers work on real silicon? | Sensor reads, peripheral I/O, power measurements on dev-kit |
+| 2 - Driver | Do the drivers work on real silicon? | Sensor reads, peripheral I/O, power measurements on dev-kit |
 | 3 - Integration | Does the instrumented firmware work as a system? | End-to-end flows via concord_harness on product board |
 | 4 - Product | Does the production binary work as a black-box product? | 89 product test cases (PRDTST) on production firmware, no harness |
 | 5 - Gate | Can we safely deliver this firmware to devices in the field? | FUOTA delivery + post-update verification in < 15 minutes |
@@ -100,7 +100,7 @@ That covers build + validation. What it misses: developer wait time before the p
 | FUOTA delivery | — | **MISSING** — no deployment model |
 | End-to-end | PipelineRun.finishedAt - PipelineRun.createdAt | Tracked |
 
-Targets: Stage 5 gate under 15 minutes, Stage 4 nightly under 60 minutes, full pipeline under 2 hours. The trend matters more than the absolute number — if lead time is climbing week over week, the pipeline is degrading.
+Targets: Stage 5 gate under 15 minutes, Stage 4 regression under 60 minutes, full pipeline under 2 hours. The trend matters more than the absolute number — if lead time is climbing week over week, the pipeline is degrading.
 
 ### 4.2 Deployment Frequency
 

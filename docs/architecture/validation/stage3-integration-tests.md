@@ -2537,7 +2537,7 @@ Tests sharing firmware state should be grouped to avoid redundant flash + boot c
 | Tag | When | Tests | Rationale |
 |-----|------|-------|-----------|
 | `commit` | Every push | Config, motion, biometric, button, boot (42 tests, ~20 min) | Core regression |
-| `gnss` | Nightly | GNSS tests (5 tests, ~10 min) | Requires outdoor MTIB / RF repeater |
+| `gnss` | Regression | GNSS tests (5 tests, ~10 min) | Requires outdoor MTIB / RF repeater |
 | `power` | Weekly | Power measurement (3 tests, ~15 min) | Slower, unlikely to regress per-commit |
 | `cloud` | Every push | Cloud message verification (27 tests, in commit suite) | E2E delivery regression |
 

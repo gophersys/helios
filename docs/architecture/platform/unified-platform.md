@@ -49,7 +49,7 @@ board: alpha_b0
 stages:
   post:           # Manufacturing POST (run on production floor)
   gate:           # PR validation gate (<15 min)
-  nightly:        # Comprehensive overnight
+  regression:     # Comprehensive overnight
   integration:    # Instrumented firmware tests
 
 tests:

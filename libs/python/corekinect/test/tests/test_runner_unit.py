@@ -159,11 +159,11 @@ class TestStageConfigLoad:
         assert "-v" in cfg.pytest_args
         assert cfg.required_checks == []
 
-    def test_silicon_stage(self):
-        cfg = StageConfig.load("silicon")
-        assert cfg.stage == "silicon"
+    def test_driver_stage(self):
+        cfg = StageConfig.load("driver")
+        assert cfg.stage == "driver"
         assert cfg.timeout_s == 600
-        assert cfg.test_path == "tests/silicon/"
+        assert cfg.test_path == "tests/driver/"
         assert "mtib" in cfg.required_checks
         assert "device" in cfg.required_checks
 
@@ -174,9 +174,9 @@ class TestStageConfigLoad:
         assert cfg.test_path == "tests/integration/"
         assert "fixture" in cfg.required_checks
 
-    def test_nightly_stage(self):
-        cfg = StageConfig.load("nightly")
-        assert cfg.stage == "nightly"
+    def test_regression_stage(self):
+        cfg = StageConfig.load("regression")
+        assert cfg.stage == "regression"
         assert cfg.timeout_s == 3600
         assert cfg.retry_count == 1
         assert "*.csv" in cfg.artifact_patterns
@@ -197,17 +197,17 @@ class TestStageConfigLoad:
         with pytest.raises(ValueError) as exc_info:
             StageConfig.load("bad")
         msg = str(exc_info.value)
-        for valid in ("smoke", "silicon", "integration", "nightly", "fuota"):
+        for valid in ("smoke", "driver", "integration", "regression", "fuota"):
             assert valid in msg
 
     def test_all_stages_have_test_path(self):
-        for stage in ("smoke", "silicon", "integration", "nightly", "fuota"):
+        for stage in ("smoke", "driver", "integration", "regression", "fuota"):
             cfg = StageConfig.load(stage)
             assert cfg.test_path.startswith("tests/")
             assert cfg.test_path.endswith("/")
 
     def test_all_stages_have_positive_timeout(self):
-        for stage in ("smoke", "silicon", "integration", "nightly", "fuota"):
+        for stage in ("smoke", "driver", "integration", "regression", "fuota"):
             cfg = StageConfig.load(stage)
             assert cfg.timeout_s > 0
 

@@ -1,7 +1,7 @@
 """Alpha B0 validation seed — fixture designs, fixtures, and stage configs.
 
 Validation fixtures have 1 MTIB per slot (single-DUT testing).
-5 validation stages: Smoke, Silicon, Integration, Nightly, FUOTA.
+5 validation stages: Smoke, Driver, Integration, Regression, FUOTA.
 """
 
 from database import Json
@@ -42,9 +42,9 @@ ALPHA_B0_VAL_PROFILE = {
 
 VALIDATION_STAGES = [
     {"stage": 1, "name": "Smoke", "enabled": True, "watchBranch": "main", "triggerTypes": ["pr_push", "manual"]},
-    {"stage": 2, "name": "Silicon", "enabled": False, "triggerTypes": ["manual"]},
+    {"stage": 2, "name": "Driver", "enabled": False, "triggerTypes": ["manual"]},
     {"stage": 3, "name": "Integration", "enabled": False, "triggerTypes": ["manual"]},
-    {"stage": 4, "name": "Nightly", "enabled": True, "watchBranch": "main", "triggerTypes": ["schedule", "manual"]},
+    {"stage": 4, "name": "Regression", "enabled": True, "watchBranch": "main", "triggerTypes": ["schedule", "manual"]},
     {"stage": 5, "name": "FUOTA", "enabled": True, "watchBranch": "main", "triggerTypes": ["pr_merge", "manual"]},
 ]
 
@@ -136,7 +136,7 @@ def seed_validation(db, product, b0_rev):
 
     try:
         from corekinect.stages import Stage, get_stage_build_defs
-        STAGE_MAP = {1: Stage.SMOKE, 2: Stage.SILICON, 3: Stage.INTEGRATION, 4: Stage.NIGHTLY, 5: Stage.FUOTA}
+        STAGE_MAP = {1: Stage.SMOKE, 2: Stage.DRIVER, 3: Stage.INTEGRATION, 4: Stage.REGRESSION, 5: Stage.FUOTA}
     except ImportError:
         STAGE_MAP = {}
 

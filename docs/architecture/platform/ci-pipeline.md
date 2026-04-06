@@ -42,7 +42,7 @@ git push to firmware branch → Bitbucket webhook → POST /v2/webhooks/bitbucke
 
 ```
 Cron schedule → K8s CronJob → POST /v2/validation/runs + trigger
-Daily regression suites, nightly FUOTA tests, etc.
+Daily regression suites, scheduled FUOTA tests, etc.
 ```
 
 ## 2. Backend Pipeline (Existing)
@@ -218,7 +218,7 @@ Stage 3: Hardware Validation (post-merge or manual trigger)
   └── Real-time results via WebSocket
   └── Artifacts uploaded to MinIO
 
-Stage 4: FUOTA Regression (nightly, future)
+Stage 4: FUOTA Regression (scheduled, future)
   └── Flash production firmware
   └── FUOTA to new version
   └── Verify OTA success via CoreCloud

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Plus, Check, X } from 'lucide-svelte';
-  import { api } from '$lib/api';
+  import { Plus, Check, X, Upload, Download, Trash2 } from 'lucide-svelte';
+  import { api, apiUploadRaw } from '$lib/api';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import Select from '$lib/components/ui/select.svelte';
   import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
@@ -90,6 +90,50 @@
       onRefresh();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete revision';
+    }
+  }
+
+  // ── Modem firmware ─────────────────────────────────────────
+  let modemUploadRevId = $state<string | null>(null);
+  let modemVersion = $state('');
+  let modemUploading = $state(false);
+
+  async function handleModemUpload(revisionId: string, e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file || !modemVersion.trim()) {
+      error = 'Please enter a modem firmware version before uploading';
+      return;
+    }
+    error = null;
+    modemUploading = true;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('version', modemVersion.trim());
+      await apiUploadRaw(`/v2/products/${productId}/boards/${boardId}/revisions/${revisionId}/modem-firmware`, formData);
+      modemUploadRevId = null;
+      modemVersion = '';
+      onRefresh();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to upload modem firmware';
+    } finally {
+      modemUploading = false;
+      input.value = '';
+    }
+  }
+
+  function modemDownloadUrl(revisionId: string) {
+    return `/v2/products/${productId}/boards/${boardId}/revisions/${revisionId}/modem-firmware`;
+  }
+
+  async function handleModemDelete(revisionId: string) {
+    error = null;
+    try {
+      await api.delete(`/v2/products/${productId}/boards/${boardId}/revisions/${revisionId}/modem-firmware`);
+      onRefresh();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to delete modem firmware';
     }
   }
 </script>
@@ -196,6 +240,7 @@
             <th class="table-header">Board Name</th>
             <th class="table-header">SoCs</th>
             <th class="table-header">Status</th>
+            <th class="table-header">Modem FW</th>
             <th class="table-header">Notes</th>
             {#if canManage}
               <th class="table-header text-right">Actions</th>
@@ -210,6 +255,67 @@
               <td class="table-cell text-text-secondary">{(rev.socs || []).join(', ') || '-'}</td>
               <td class="table-cell">
                 <StatusBadge status={rev.status} />
+              </td>
+              <td class="table-cell">
+                {#if rev.hasModemFirmware}
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-text-secondary">{rev.modemVersion}</span>
+                    <a
+                      href={modemDownloadUrl(rev.id)}
+                      title="Download modem firmware"
+                      class="rounded p-0.5 text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
+                    >
+                      <Download size={12} />
+                    </a>
+                    {#if canManage}
+                      <button
+                        title="Remove modem firmware"
+                        aria-label="Remove modem firmware"
+                        onclick={() => handleModemDelete(rev.id)}
+                        class="rounded p-0.5 text-text-tertiary hover:bg-error-muted hover:text-error"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    {/if}
+                  </div>
+                {:else if canManage}
+                  {#if modemUploadRevId === rev.id}
+                    <div class="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="Version"
+                        bind:value={modemVersion}
+                        class="w-16 rounded border border-border bg-surface-0 px-1.5 py-0.5 text-2xs text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                      />
+                      <label class="cursor-pointer rounded bg-accent px-1.5 py-0.5 text-2xs font-medium text-white hover:bg-accent-hover">
+                        {modemUploading ? '...' : 'Upload'}
+                        <input
+                          type="file"
+                          accept=".zip"
+                          class="hidden"
+                          onchange={(e) => handleModemUpload(rev.id, e)}
+                          disabled={modemUploading}
+                        />
+                      </label>
+                      <button
+                        onclick={() => { modemUploadRevId = null; modemVersion = ''; }}
+                        class="rounded p-0.5 text-text-tertiary hover:bg-surface-2"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  {:else}
+                    <button
+                      onclick={() => (modemUploadRevId = rev.id)}
+                      class="flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
+                    >
+                      <Upload size={12} />
+                      Set
+                    </button>
+                  {/if}
+                {:else}
+                  <span class="text-text-tertiary">-</span>
+                {/if}
               </td>
               <td class="table-cell text-text-secondary">{rev.notes || '-'}</td>
               {#if canManage}

@@ -11,7 +11,7 @@ Environment variables:
     CONCORD_RUN_ID: Validation run ID (required)
     CONCORD_API_URL: API base URL for reporting
     CONCORD_API_KEY: API key for auth
-    STAGE: Test stage (smoke, silicon, integration, nightly, fuota)
+    STAGE: Test stage (smoke, driver, integration, regression, fuota)
     MTIB_ADDRESS: MTIB server address (host:port)
     DEVICE_SNR: J-Link probe serial number
     FIXTURE_PROFILE_PATH: Path to fixture profile JSON
@@ -159,11 +159,11 @@ class StageConfig:
     def load(cls, stage: str) -> "StageConfig":
         """Load configuration for a stage."""
         configs = {
-            "nightly": cls(
-                stage="nightly",
+            "regression": cls(
+                stage="regression",
                 timeout_s=3600,
                 retry_count=1,
-                test_path="tests/nightly/",
+                test_path="tests/regression/",
                 pytest_args=["-v", "--tb=long"],
                 required_checks=["mtib", "storage", "device", "fixture"],
                 artifact_patterns=["*.log", "*.uart", "*.csv", "*.png"],
@@ -186,11 +186,11 @@ class StageConfig:
                 required_checks=[],
                 artifact_patterns=[],
             ),
-            "silicon": cls(
-                stage="silicon",
+            "driver": cls(
+                stage="driver",
                 timeout_s=600,
                 retry_count=0,
-                test_path="tests/silicon/",
+                test_path="tests/driver/",
                 pytest_args=["-v", "--tb=short"],
                 required_checks=["mtib", "device"],
                 artifact_patterns=["*.log", "*.uart"],
@@ -639,7 +639,7 @@ def main():
     parser.add_argument(
         "--stage",
         default=os.environ.get("STAGE", "fuota"),
-        choices=["smoke", "silicon", "integration", "nightly", "fuota"],
+        choices=["smoke", "driver", "integration", "regression", "fuota"],
         help="Test stage to run",
     )
     parser.add_argument(

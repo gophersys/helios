@@ -185,7 +185,7 @@ class MockFixtureController:
         self._button_pressed = True
 
     def button_press(self, duration_s: float = 0.5) -> None:
-        """Alias for press_button (used by nightly tests)."""
+        """Alias for press_button (used by regression tests)."""
         self.press_button(duration_s=duration_s)
 
     def long_press_button(self, duration_s: float = 3.0) -> None:

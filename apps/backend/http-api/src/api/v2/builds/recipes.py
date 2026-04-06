@@ -507,7 +507,7 @@ def get_stage_defs():
     These are the Python-defined defaults used for seeding new stage configs.
     The actual runtime matrix for a product lives in the StageBuildMatrix DB table.
 
-    Optional query param: ?stage=smoke|silicon|integration|nightly|fuota
+    Optional query param: ?stage=smoke|driver|integration|regression|fuota
     """
     from corekinect.stages import Stage, get_stage_build_defs
 

@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 # Map stage numbers to Stage enum
 _STAGE_MAP = {
     1: Stage.SMOKE,
-    2: Stage.SILICON,
+    2: Stage.DRIVER,
     3: Stage.INTEGRATION,
-    4: Stage.NIGHTLY,
+    4: Stage.REGRESSION,
     5: Stage.FUOTA,
 }
 

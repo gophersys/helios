@@ -64,9 +64,9 @@
 
   const STAGE_OPTIONS = [
     { value: '1', label: 'Smoke' },
-    { value: '2', label: 'Silicon' },
+    { value: '2', label: 'Driver' },
     { value: '3', label: 'Integration' },
-    { value: '4', label: 'Nightly' },
+    { value: '4', label: 'Regression' },
     { value: '5', label: 'FUOTA' },
   ];
 
@@ -83,7 +83,7 @@
     { value: '30d', label: '30 days' },
   ];
 
-  const STAGE_NAMES: Record<number, string> = { 1: 'Smoke', 2: 'Silicon', 3: 'Integration', 4: 'Nightly', 5: 'FUOTA' };
+  const STAGE_NAMES: Record<number, string> = { 1: 'Smoke', 2: 'Driver', 3: 'Integration', 4: 'Regression', 5: 'FUOTA' };
 
   // ── Tab state ─────────────────────────────────────────────────
   type Tab = 'pipelines' | 'runs';

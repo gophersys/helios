@@ -33,11 +33,11 @@ class TestQueueEntryCreateRequest:
             "buildRunId": "p1",
             "stage": 4,
             "priority": 75,
-            "reason": "nightly run",
+            "reason": "regression run",
         })
         assert err is None
         assert req.priority == 75
-        assert req.reason == "nightly run"
+        assert req.reason == "regression run"
 
     def test_invalid_priority(self):
         _, err = QueueEntryCreateRequest.from_json({

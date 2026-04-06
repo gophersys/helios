@@ -41,9 +41,9 @@
 
   const STAGE_OPTIONS = [
     { value: '1', label: 'Stage 1 — Smoke' },
-    { value: '2', label: 'Stage 2 — Silicon' },
+    { value: '2', label: 'Stage 2 — Driver' },
     { value: '3', label: 'Stage 3 — Integration' },
-    { value: '4', label: 'Stage 4 — Nightly' },
+    { value: '4', label: 'Stage 4 — Regression' },
     { value: '5', label: 'Stage 5 — Gate' },
   ];
 

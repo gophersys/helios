@@ -1753,7 +1753,7 @@ on:
     - cron: "0 2 * * 0" # Sunday 02:00 UTC
       run_type: weekly
     - cron: "0 1 * * 1-6" # Mon-Sat 01:00 UTC
-      run_type: nightly
+      run_type: regression
 
   manual: # Manual trigger via Concord UI or API
     allowed_run_types: ["commit", "weekly", "release"]
@@ -1789,10 +1789,10 @@ stages:
     needsMtib: true
     testTags:
       commit: ["commit"]
-      nightly: ["commit", "weekly"]
+      regression: ["commit", "weekly"]
       weekly: ["commit", "weekly"]
       release: ["commit", "weekly", "release"]
-    timeouts: { commit: 3600, nightly: 7200, weekly: 259200, release: 259200 }
+    timeouts: { commit: 3600, regression: 7200, weekly: 259200, release: 259200 }
 
 # ─── Notifications ──────────────────────────────────────────────────
 notifications:

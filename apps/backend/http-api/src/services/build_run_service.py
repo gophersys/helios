@@ -254,9 +254,9 @@ def resolve_pipeline_context(db, data) -> Dict[str, Any]:
 
     stage_map = {
         "smoke": Stage.SMOKE,
-        "silicon": Stage.SILICON,
+        "driver": Stage.DRIVER,
         "integration": Stage.INTEGRATION,
-        "nightly": Stage.NIGHTLY,
+        "regression": Stage.REGRESSION,
         "fuota": Stage.FUOTA,
     }
     stage_number = data.validation_config.get("stage") if data.validation_config else None
@@ -265,7 +265,7 @@ def resolve_pipeline_context(db, data) -> Dict[str, Any]:
     stage_config = None
     stage_config_matrix = None
     if product_record:
-        stage_num = stage_number or {"smoke": 1, "silicon": 2, "integration": 3, "nightly": 4, "fuota": 5}.get(data.matrix_mode, 5)
+        stage_num = stage_number or {"smoke": 1, "driver": 2, "integration": 3, "regression": 4, "fuota": 5}.get(data.matrix_mode, 5)
         stage_config = db.productstageconfig.find_first(
             where={"productId": product_record.id, "stage": stage_num},
         )
@@ -975,7 +975,7 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
         # Load stage config for test routing
         stage_config = None
         stage_name = getattr(pipeline, "matrixMode", None) or "fuota"
-        stage_map = {"smoke": 1, "silicon": 2, "integration": 3, "nightly": 4, "fuota": 5}
+        stage_map = {"smoke": 1, "driver": 2, "integration": 3, "regression": 4, "fuota": 5}
         stage_num = stage_map.get(stage_name)
         if stage_num and product:
             stage_config = db.productstageconfig.find_first(

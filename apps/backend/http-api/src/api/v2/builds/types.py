@@ -236,7 +236,7 @@ class PipelineCreateRequest:
     name: Optional[str] = None
     build_variant: str = "debug"
     validation_config: Optional[Dict[str, Any]] = None
-    # Build matrix options: smoke(1), silicon(1), integration(1), nightly(2), fuota(8)
+    # Build matrix options: smoke(1), driver(1), integration(1), regression(2), fuota(8)
     matrix_mode: str = "fuota"
     main_commit: Optional[str] = None  # Main branch commit for comparison
     pr_branch: Optional[str] = None    # PR branch name
@@ -276,7 +276,7 @@ class PipelineCreateRequest:
 
         # Build matrix mode — must match Stage enum names (lowercase)
         matrix_mode = (data.get("matrixMode") or "fuota").strip()
-        valid_modes = ("smoke", "silicon", "integration", "nightly", "fuota")
+        valid_modes = ("smoke", "driver", "integration", "regression", "fuota")
         if matrix_mode not in valid_modes:
             return None, f"matrixMode must be one of: {', '.join(valid_modes)}"
 

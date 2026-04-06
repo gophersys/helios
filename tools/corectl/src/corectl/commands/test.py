@@ -4,7 +4,7 @@ Usage:
     corectl test init --product sigma5 --board sigma5_a0
     corectl test validate [--path .] [--strict]
     corectl test run smoke [--timeout 30]
-    corectl test run nightly --marker health_check
+    corectl test run regression --marker health_check
     corectl test package
     corectl test upload --env staging
 """
@@ -25,7 +25,7 @@ from ..api import ConcordAPI
 MANIFEST_NAME = "concord.test.yaml"
 
 # Standard stage directories — convention, not configuration
-STANDARD_STAGES = ["smoke", "silicon", "integration", "nightly", "fuota"]
+STANDARD_STAGES = ["smoke", "driver", "integration", "regression", "fuota"]
 
 # Required files in a valid test project
 REQUIRED_FILES = [
@@ -186,8 +186,8 @@ def _validate_semantics(project_dir: Path, manifest: dict, result: ValidationRes
         ini_content = pytest_ini.read_text()
         stages = manifest.get("stages", {})
 
-        if stages.get("nightly") and "health_check" not in ini_content:
-            result.warn("Nightly enabled but 'health_check' marker not in pytest.ini")
+        if stages.get("regression") and "health_check" not in ini_content:
+            result.warn("Regression enabled but 'health_check' marker not in pytest.ini")
         if stages.get("fuota") and "fuota_fast" not in ini_content:
             result.warn("FUOTA enabled but 'fuota_fast' marker not in pytest.ini")
 
@@ -295,7 +295,7 @@ def init(product: str, board: str, path: str):
             "device_type_id": 0,
             "device_variant_id": 0,
         },
-        "stages": {stage: (stage in ["smoke", "nightly", "fuota"]) for stage in STANDARD_STAGES},
+        "stages": {stage: (stage in ["smoke", "regression", "fuota"]) for stage in STANDARD_STAGES},
     }
     (project_dir / MANIFEST_NAME).write_text(
         yaml.dump(manifest, default_flow_style=False, sort_keys=False)
@@ -405,7 +405,7 @@ def run(stage: str, marker: Optional[str], timeout: int, path: str, verbose: boo
 
     Examples:
         corectl test run smoke
-        corectl test run nightly --marker health_check
+        corectl test run regression --marker health_check
         corectl test run fuota -m "not fuota_full" -t 900
     """
     project_dir = Path(path).resolve()

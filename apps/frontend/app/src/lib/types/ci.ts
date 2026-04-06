@@ -66,7 +66,7 @@ export type MatrixLabel =
   | 'FUT_VERBOSE_A' | 'FUT_VERBOSE_B'
   | 'FUT_QUIET_A' | 'FUT_QUIET_B'
   | 'MAIN_BASELINE' | 'MAIN_MERGED'
-  // Nightly labels
+  // Regression labels
   | 'MFG_FLASH'
   | 'PROD_VERBOSE' | 'PROD_VERBOSE_BUMP'
   | 'PROD_QUIET' | 'PROD_QUIET_BUMP'
@@ -264,7 +264,7 @@ export interface BuildRunDetail {
   updatedAt: string;
   builds?: BuildRunBuildSummary[];
   // Build matrix mode (validation stage)
-  matrixMode?: 'smoke' | 'silicon' | 'integration' | 'nightly' | 'fuota' | null;
+  matrixMode?: 'smoke' | 'driver' | 'integration' | 'regression' | 'fuota' | null;
   buildMatrix?: {
     mode: string;
     product: string;
@@ -330,7 +330,7 @@ export interface BuildSummary {
 }
 
 // Validation stage display info
-export type ValidationStage = 'smoke' | 'silicon' | 'integration' | 'nightly' | 'fuota';
+export type ValidationStage = 'smoke' | 'driver' | 'integration' | 'regression' | 'fuota';
 
 export const STAGE_DISPLAY: Record<ValidationStage, { name: string; description: string; buildCount: number; color: string }> = {
   smoke: {
@@ -339,8 +339,8 @@ export const STAGE_DISPLAY: Record<ValidationStage, { name: string; description:
     buildCount: 1,
     color: 'bg-surface-2 text-text-secondary',
   },
-  silicon: {
-    name: 'Silicon',
+  driver: {
+    name: 'Driver',
     description: 'Driver tests on real hardware',
     buildCount: 1,
     color: 'bg-surface-2 text-text-secondary',
@@ -351,8 +351,8 @@ export const STAGE_DISPLAY: Record<ValidationStage, { name: string; description:
     buildCount: 1,
     color: 'bg-surface-2 text-text-secondary',
   },
-  nightly: {
-    name: 'Nightly',
+  regression: {
+    name: 'Regression',
     description: 'Long-running validation tests',
     buildCount: 2,
     color: 'bg-warning-muted text-warning',

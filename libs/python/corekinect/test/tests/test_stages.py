@@ -19,9 +19,9 @@ class TestStageEnum:
     def test_stage_values(self):
         """Each stage should have the correct string value."""
         assert Stage.SMOKE.value == "smoke"
-        assert Stage.SILICON.value == "silicon"
+        assert Stage.DRIVER.value == "driver"
         assert Stage.INTEGRATION.value == "integration"
-        assert Stage.NIGHTLY.value == "nightly"
+        assert Stage.REGRESSION.value == "regression"
         assert Stage.FUOTA.value == "fuota"
 
     def test_stage_values_are_strings(self):
@@ -37,9 +37,9 @@ class TestStageEnum:
     def test_stage_string_comparison(self):
         """Stage members should compare equal to their string values."""
         assert Stage.SMOKE == "smoke"
-        assert Stage.SILICON == "silicon"
+        assert Stage.DRIVER == "driver"
         assert Stage.INTEGRATION == "integration"
-        assert Stage.NIGHTLY == "nightly"
+        assert Stage.REGRESSION == "regression"
         assert Stage.FUOTA == "fuota"
 
     def test_stage_from_string(self):
@@ -66,9 +66,9 @@ class TestStageNumbers:
     def test_stage_numbers_correct_values(self):
         """Each stage should map to its expected number."""
         assert STAGE_NUMBERS[Stage.SMOKE] == 1
-        assert STAGE_NUMBERS[Stage.SILICON] == 2
+        assert STAGE_NUMBERS[Stage.DRIVER] == 2
         assert STAGE_NUMBERS[Stage.INTEGRATION] == 3
-        assert STAGE_NUMBERS[Stage.NIGHTLY] == 4
+        assert STAGE_NUMBERS[Stage.REGRESSION] == 4
         assert STAGE_NUMBERS[Stage.FUOTA] == 5
 
     def test_stage_numbers_no_extra_entries(self):
@@ -92,9 +92,9 @@ class TestStageNames:
     def test_stage_names_correct_values(self):
         """Each number should map to the expected display name."""
         assert STAGE_NAMES[1] == "Smoke"
-        assert STAGE_NAMES[2] == "Silicon"
+        assert STAGE_NAMES[2] == "Driver"
         assert STAGE_NAMES[3] == "Integration"
-        assert STAGE_NAMES[4] == "Nightly"
+        assert STAGE_NAMES[4] == "Regression"
         assert STAGE_NAMES[5] == "FUOTA"
 
     def test_stage_names_has_all_five(self):

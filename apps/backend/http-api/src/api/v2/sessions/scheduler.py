@@ -20,7 +20,7 @@ from src.services.database.prisma import get_db_client
 logger = logging.getLogger(__name__)
 
 # Stage number to name mapping for K8s job
-STAGE_NAMES = {1: "smoke", 2: "silicon", 3: "integration", 4: "nightly", 5: "fuota"}
+STAGE_NAMES = {1: "smoke", 2: "driver", 3: "integration", 4: "regression", 5: "fuota"}
 
 
 def _create_job_api_key(db, entry_id: str) -> str:

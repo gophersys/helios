@@ -49,17 +49,17 @@
 
   const STAGE_OPTIONS = [
     { value: 'smoke', label: 'Smoke' },
-    { value: 'silicon', label: 'Silicon' },
+    { value: 'driver', label: 'Driver' },
     { value: 'integration', label: 'Integration' },
-    { value: 'nightly', label: 'Nightly' },
+    { value: 'regression', label: 'Regression' },
     { value: 'fuota', label: 'FUOTA' },
   ];
 
   const STAGE_BADGE: Record<string, { icon: typeof Zap; color: string }> = {
     smoke:       { icon: Flame,        color: 'text-text-secondary bg-surface-2' },
-    silicon:     { icon: Cpu,          color: 'text-text-secondary bg-surface-2' },
+    driver:      { icon: Cpu,          color: 'text-text-secondary bg-surface-2' },
     integration: { icon: FlaskConical, color: 'text-text-secondary bg-surface-2' },
-    nightly:     { icon: Moon,         color: 'text-warning bg-warning-muted' },
+    regression:  { icon: Moon,         color: 'text-warning bg-warning-muted' },
     fuota:       { icon: Radio,        color: 'text-info bg-info-muted' },
   };
 
@@ -172,10 +172,10 @@
     if (config?.stage) return config.stage as string;
     const name = run.name.toLowerCase();
     if (name.includes('fuota')) return 'fuota';
-    if (name.includes('nightly')) return 'nightly';
+    if (name.includes('regression')) return 'regression';
     if (name.includes('integration')) return 'integration';
     if (name.includes('smoke')) return 'smoke';
-    if (name.includes('silicon')) return 'silicon';
+    if (name.includes('driver')) return 'driver';
     return 'fuota';
   }
 
@@ -190,7 +190,7 @@
   function getTriggerType(run: ValidationRun): string {
     const config = run.config as Record<string, unknown> | null;
     if (config?.bitbucketPrId || config?.pullRequestId) return 'bitbucket';
-    if (config?.nightlyRun || config?.scheduled) return 'scheduled';
+    if (config?.regressionRun || config?.nightlyRun || config?.scheduled) return 'scheduled';
     if (config?.runId) return 'ci';
     return 'manual';
   }
@@ -203,7 +203,7 @@
       return prId ? `PR #${prId}` : 'Bitbucket PR';
     }
     if (type === 'ci') return 'Build Run';
-    if (type === 'scheduled') return 'Nightly';
+    if (type === 'scheduled') return 'Scheduled';
     return run.createdBy?.name || 'Manual';
   }
 
@@ -531,7 +531,7 @@
               {:else if triggerType === 'scheduled'}
                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning-muted text-warning text-2xs font-medium">
                   <Moon size={10} />
-                  Nightly
+                  Scheduled
                 </span>
               {:else}
                 <span class="text-2xs text-text-tertiary">

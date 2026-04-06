@@ -400,8 +400,8 @@ model FirmwareBuild {
 model ProductStageConfig {
   id        String  @id @default(cuid())
   productId String
-  stage     Int /// 1=Smoke, 2=Silicon, 3=Integration, 4=Nightly, 5=FUOTA
-  name      String /// Display name: "Smoke", "Silicon", "Integration", "Nightly", "FUOTA"
+  stage     Int /// 1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA
+  name      String /// Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"
   enabled   Boolean @default(false) /// Disabled by default
 
   // Target — which hardware revision to build and test against
@@ -456,7 +456,7 @@ model ValidationQueueEntry {
   sessionId String? @unique
 
   // Context
-  reason       String? /// "PR #42", "nightly 2026-03-11", "manual"
+  reason       String? /// "PR #42", "regression 2026-03-11", "manual"
   errorMessage String?
   jobName      String? /// K8s job name when triggered
 
@@ -1318,11 +1318,14 @@ model Asset {
   sizeBytes    BigInt
   checksum     String /// SHA-256
   contentType  String?
+  appId        Int? /// App ID (e.g. 109 for nrf52840, 108 for nrf9151)
+  versionString String? /// Full CK version string (e.g. "109.0.8.3-BM")
   createdAt    DateTime @default(now())
 
   assetSet     AssetSet @relation(fields: [assetSetId], references: [id], onDelete: Cascade)
 
   @@index([assetSetId])
   @@index([assetSetId, label, artifactType])
+  @@index([appId, artifactType])
   @@map("assets")
 }

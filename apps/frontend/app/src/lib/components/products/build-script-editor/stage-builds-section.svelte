@@ -32,7 +32,7 @@
       ],
     },
     {
-      stage: 'Silicon',
+      stage: 'Driver',
       description: 'Hardware-in-the-loop tests verifying chip functionality: power, GPIO, ADC, UART.',
       icon: Cpu,
       trigger: 'PR push',
@@ -70,7 +70,7 @@
       ],
     },
     {
-      stage: 'Nightly',
+      stage: 'Regression',
       description: 'Extended tests run on a schedule. Includes soak tests, memory leak detection, and stress tests.',
       icon: Moon,
       trigger: 'cron (2:00 AM)',

@@ -9,9 +9,9 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 | Stage | Name | Hardware | Where It Runs | Trigger | Duration |
 |-------|------|----------|---------------|---------|----------|
 | 1 | **Smoke** | None | CI container (amd64) | Every commit | 1-2 min |
-| 2 | **Silicon** | Dev kit + MTIB | K8s pod → MTIB | PR/nightly | 5-15 min |
+| 2 | **Driver** | Dev kit + MTIB | K8s pod → MTIB | PR/regression | 5-15 min |
 | 3 | **Integration** | Product board + MTIB | K8s pod → MTIB | PR/weekly | 15-30 min |
-| 4 | **Nightly** | Product board + MTIB + CoreCloud | K8s pod → MTIB → Cloud | Nightly/release | 30-60 min |
+| 4 | **Regression** | Product board + MTIB + CoreCloud | K8s pod → MTIB → Cloud | Regression/release | 30-60 min |
 | 5 | **FUOTA** | Product board + MTIB + CoreCloud + FUOTA | K8s pod → MTIB → Cloud | Every PR | < 15 min |
 
 ---
@@ -50,7 +50,7 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 
 ---
 
-## Stage 2 — Silicon (Driver Hardware Tests)
+## Stage 2 — Driver (Driver Hardware Tests)
 
 **Purpose**: Verify individual drivers work correctly on real silicon.
 
@@ -60,7 +60,7 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 | Execution Environment | K8s pod → gRPC → MTIB → J-Link → Dev kit |
 | Runner | Concord validation pipeline |
 | Firmware Build | Single-driver test firmware |
-| Trigger | PR affecting driver, nightly |
+| Trigger | PR affecting driver, regression |
 | Duration | 5-15 minutes per driver |
 | Pass/Fail Source | MTIB power measurements, UART assertions, test pass/fail |
 
@@ -118,7 +118,7 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 
 ---
 
-## Stage 4 — Nightly (Long-Running Product Validation)
+## Stage 4 — Regression (Long-Running Product Validation)
 
 **Purpose**: Comprehensive product validation — runs all tests including slow ones.
 
@@ -128,7 +128,7 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 | Execution Environment | K8s pod → gRPC → MTIB → Product board; Cloud backend in loop |
 | Runner | Concord validation pipeline |
 | Firmware Build | Production firmware (Debug + Release variants) |
-| Trigger | Nightly, release candidate |
+| Trigger | Regression, release candidate |
 | Duration | **30-60 minutes** |
 | Pass/Fail Source | CoreCloud messages + MTIB power + Fixture sensors |
 
@@ -228,7 +228,7 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 
 ## Stage Comparison Matrix
 
-| Capability | Stage 1 (Smoke) | Stage 2 (Silicon) | Stage 3 (Integration) | Stage 4 (Nightly) | Stage 5 (FUOTA) |
+| Capability | Stage 1 (Smoke) | Stage 2 (Driver) | Stage 3 (Integration) | Stage 4 (Regression) | Stage 5 (FUOTA) |
 |------------|-----------------|-------------------|----------------------|-------------------|----------------|
 | Real hardware | No | Yes | Yes | Yes | Yes |
 | Production firmware | No | No | No | Yes | Yes |
@@ -237,7 +237,7 @@ Quick reference for all 5 validation stages. Each stage has a dedicated implemen
 | Physical stimulus | No | Limited | Yes | Full | Minimal |
 | FUOTA verification | No | No | No | No | **Yes** |
 | Max duration | 2 min | 15 min | 30 min | 60 min | **15 min** |
-| Trigger | Every commit | PR/nightly | PR/weekly | Nightly | **Every PR** |
+| Trigger | Every commit | PR/regression | PR/weekly | Regression | **Every PR** |
 | Blocks merge | Yes | Yes | Yes | No | **Yes** |
 
 ---
@@ -251,9 +251,9 @@ Each test has a unique ID linking to requirements:
 | Stage | Name | ID Format | Example | Links To |
 |-------|------|-----------|---------|----------|
 | 1 | Smoke | `SMOKE-{product}-{subsystem}-{seq}` | `SMOKE-ALPHA-VSM-001` | Code coverage |
-| 2 | Silicon | `SILICON-{driver}-{test}` | `SILICON-LSM6DSO-FIFO` | Datasheet spec |
+| 2 | Driver | `DRIVER-{driver}-{test}` | `DRIVER-LSM6DSO-FIFO` | Datasheet spec |
 | 3 | Integration | `INTEG-{product}-{feature}` | `INTEG-ALPHA-IPC-MSG` | Integration spec |
-| 4 | Nightly | `NIGHTLY-{product}-{seq}` | `NIGHTLY-ALPHA-001` | Product requirements |
+| 4 | Regression | `REGRESSION-{product}-{seq}` | `REGRESSION-ALPHA-001` | Product requirements |
 | 5 | FUOTA | `FUOTA-{product}-{seq}` | `FUOTA-ALPHA-001` | OTA requirements |
 
 ### Pipeline Integration
@@ -267,19 +267,19 @@ Each test has a unique ID linking to requirements:
 
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │     PR      │────►│  Stage 2+3  │────►│  Stage 5    │────►│    Pass?    │
-│             │     │  (Silicon + │     │  (FUOTA)    │     └──────┬──────┘
+│             │     │  (Driver +  │     │  (FUOTA)    │     └──────┬──────┘
 │             │     │ Integration)│     │  + FUOTA    │            │
 │             │     │   30 min    │     │   15 min    │            ▼ No → Block merge
 └─────────────┘     └─────────────┘     └─────────────┘
 
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Nightly   │────►│  Stage 4    │────►│    Pass?    │
-│   (cron)    │     │  (Nightly)  │     └──────┬──────┘
+│  Regression │────►│  Stage 4    │────►│    Pass?    │
+│   (cron)    │     │ (Regression)│     └──────┬──────┘
 │             │     │   60 min    │            │
 └─────────────┘     └─────────────┘            ▼ No → Alert + investigate
 ```
 
-**Key insight**: Stage 5 (FUOTA) runs on every PR and verifies OTA firmware updates work before code is merged. Stage 4 (Nightly) runs comprehensive tests overnight but doesn't block merges.
+**Key insight**: Stage 5 (FUOTA) runs on every PR and verifies OTA firmware updates work before code is merged. Stage 4 (Regression) runs comprehensive tests overnight but doesn't block merges.
 
 ### CI/CD Configuration
 
@@ -291,7 +291,7 @@ stages:
     runner: ubuntu-latest
     timeout: 5m
 
-  - name: stage2-silicon
+  - name: stage2-driver
     trigger: [pull_request]
     runner: self-hosted-mtib
     requires: [stage1-smoke]
@@ -300,7 +300,7 @@ stages:
   - name: stage3-integration
     trigger: [pull_request]
     runner: self-hosted-mtib
-    requires: [stage2-silicon]
+    requires: [stage2-driver]
     timeout: 30m
 
   - name: stage5-fuota
@@ -309,7 +309,7 @@ stages:
     requires: [stage3-integration]
     timeout: 15m
 
-  - name: stage4-nightly
+  - name: stage4-regression
     trigger: [schedule: "0 2 * * *"]  # 2 AM daily
     runner: self-hosted-mtib
     timeout: 90m
@@ -322,8 +322,8 @@ stages:
 - [Validation Philosophy](../../vision/validation-philosophy.md) — Why we validate this way
 - [Final Architecture](./system.md) — System-level architecture
 - [Stage 1 Smoke](./stage1-software-tests.md) — Stub drivers, native_sim, CI
-- [Stage 2 Silicon](./stage2-driver-hw-tests.md) — Driver HW tests, dev kits
+- [Stage 2 Driver](./stage2-driver-hw-tests.md) — Driver HW tests, dev kits
 - [Stage 3 Integration](./stage3-integration-tests.md) — concord_harness, integration
-- [Stage 4 Nightly](./stage4-product-tests.md) — Comprehensive black-box validation
+- [Stage 4 Regression](./stage4-product-tests.md) — Comprehensive black-box validation
 - [Stage 5 FUOTA](./stage5-fuota-tests.md) — PR validation + OTA verification
 - [PRDTST Reference](../../reference/alpha-test-cases.md) — Product test case catalog

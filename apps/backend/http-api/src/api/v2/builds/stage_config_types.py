@@ -10,9 +10,9 @@ from typing import Optional, Tuple
 VALID_STAGES = {1, 2, 3, 4, 5}
 STAGE_NAMES = {
     1: "Smoke",
-    2: "Silicon",
+    2: "Driver",
     3: "Integration",
-    4: "Nightly",
+    4: "Regression",
     5: "FUOTA",
 }
 

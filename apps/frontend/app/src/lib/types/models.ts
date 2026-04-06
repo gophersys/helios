@@ -51,6 +51,8 @@ export interface BoardRevision {
   socs: string[];
   deviceType: number | null;
   deviceVariant: number | null;
+  modemVersion: string | null;
+  hasModemFirmware: boolean;
   status: string;
   notes: string | null;
   targets?: ProductTarget[];
@@ -611,8 +613,8 @@ export interface ValidationExecution {
   results?: ValidationResult[];
 }
 
-export type ValidationTrigger = 'manual' | 'bitbucket' | 'nightly' | 'scheduled' | 'ci';
-export type ValidationStage = 'smoke' | 'silicon' | 'integration' | 'nightly' | 'fuota';
+export type ValidationTrigger = 'manual' | 'bitbucket' | 'regression' | 'scheduled' | 'ci';
+export type ValidationStage = 'smoke' | 'driver' | 'integration' | 'regression' | 'fuota';
 
 export interface ValidationRun {
   id: string;

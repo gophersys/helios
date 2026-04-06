@@ -85,15 +85,14 @@ def trigger_run(run_id: str):
         product_revision = run_config.get("revision", "b0")  # Default to b0
 
         # Required capabilities from config (optional)
-        # Stage-specific defaults
-        stage_capability_defaults = {
-            "fuota": ["button", "jlink"],
-            "nightly": ["button", "jlink"],
-            "silicon": ["button", "jlink"],
-            "smoke": [],
-            "integration": ["button"],
-        }
-        default_caps = stage_capability_defaults.get(data.stage, ["button"])
+        # Use canonical stage definitions as defaults when stage is specified
+        default_caps = []
+        if data.stage:
+            try:
+                from corekinect.stages import get_stage_capabilities, Stage
+                default_caps = get_stage_capabilities(Stage(data.stage))
+            except (ValueError, KeyError, ImportError):
+                default_caps = []
         required_capabilities = run_config.get("requiredCapabilities", default_caps)
 
         # Find an available fixture for this product

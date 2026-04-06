@@ -18,7 +18,7 @@ from src.services.database.prisma import get_db_client
 
 logger = logging.getLogger(__name__)
 
-STAGE_NAMES = {1: "Smoke", 2: "Silicon", 3: "Integration", 4: "Nightly", 5: "FUOTA"}
+STAGE_NAMES = {1: "Smoke", 2: "Driver", 3: "Integration", 4: "Regression", 5: "FUOTA"}
 
 
 @require_permissions(Permissions.BUILDS_VIEW)

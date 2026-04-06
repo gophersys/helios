@@ -24,7 +24,7 @@ class TestStageConfigCreateRequest:
         assert req.signingKeyId == "key-1"
 
     def test_optional_fields_default(self):
-        req, err = StageConfigCreateRequest.from_json({"stage": 2, "name": "Silicon"})
+        req, err = StageConfigCreateRequest.from_json({"stage": 2, "name": "Driver"})
         assert err is None
         assert req.boardRevisionId is None
         assert req.watchBranch is None

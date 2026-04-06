@@ -3,7 +3,7 @@
 ## The Problem
 
 All validation tests live in the same container (`apps/validation/alpha/`) but:
-- Run at different stages (gate, nightly, integration)
+- Run at different stages (gate, regression, integration)
 - Have different triggers (PR, cron, manual)
 - Need different timeouts and retry logic
 - Produce different outputs and visualizations
@@ -23,7 +23,7 @@ We need a unified wrapper that:
 │                         TRIGGER LAYER                                    │
 ├─────────────────────────────────────────────────────────────────────────┤
 │  PR Merge ──► CI Webhook ──► API ──► K8s Job (gate)                     │
-│  Cron ──────► CronJob ──────► API ──► K8s Job (nightly)                 │
+│  Cron ──────► CronJob ──────► API ──► K8s Job (regression)                 │
 │  Manual ────► API Call ─────► API ──► K8s Job (integration)             │
 └─────────────────────────────────────────────────────────────────────────┘
                                    │
@@ -41,7 +41,7 @@ We need a unified wrapper that:
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                                                                          │
 │  Environment:                                                            │
-│    STAGE=gate|nightly|integration                                        │
+│    STAGE=gate|regression|integration                                        │
 │    RUN_ID=clxyz...                                                       │
 │    MTIB_ADDRESS=10.4.45.33:50053                                         │
 │    DEVICE_SNR=0964                                                       │
@@ -65,7 +65,7 @@ We need a unified wrapper that:
 | Stage | Trigger | Timeout | Retry | Hardware | External Services |
 |-------|---------|---------|-------|----------|-------------------|
 | gate | PR merge | 15 min | 0 | MTIB, J-Link | CoreCloud FUOTA, MinIO |
-| nightly | Cron 2AM | 60 min | 1 | MTIB, sensors | CoreCloud, InfluxDB |
+| regression | Cron 2AM | 60 min | 1 | MTIB, sensors | CoreCloud, InfluxDB |
 | integration | Manual | 30 min | 0 | MTIB, harness FW | None |
 
 ## Component Design
@@ -257,11 +257,11 @@ class StageConfig:
                 required_services=["mtib", "corecloud", "minio"],
                 artifact_patterns=["*.log", "*.uart", "*.csv"],
             ),
-            "nightly": cls(
-                stage="nightly",
+            "regression": cls(
+                stage="regression",
                 timeout_s=3600,
                 retry_count=1,
-                test_path="tests/nightly/",
+                test_path="tests/regression/",
                 pytest_args=["-v", "--tb=long"],
                 required_services=["mtib", "corecloud"],
                 artifact_patterns=["*.log", "*.uart", "*.csv", "*.png"],
@@ -504,7 +504,7 @@ spec:
 - Focus: speed, binary outcome
 - Key metric: total time, FUOTA success
 
-### Nightly (comprehensive)
+### Regression (comprehensive)
 - Dashboard-style: grouped by category (power, sensors, GPS)
 - Focus: trends over time, regression detection
 - Key metrics: power budgets, sensor ranges, timing

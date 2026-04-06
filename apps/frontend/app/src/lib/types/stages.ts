@@ -33,9 +33,9 @@ export interface Secret {
 
 export const STAGE_NAMES: Record<number, string> = {
   1: 'Smoke',
-  2: 'Silicon',
+  2: 'Driver',
   3: 'Integration',
-  4: 'Nightly',
+  4: 'Regression',
   5: 'FUOTA',
 };
 

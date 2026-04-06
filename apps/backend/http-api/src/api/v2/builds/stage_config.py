@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_STAGES = [
     {"stage": 1, "name": "Smoke"},
-    {"stage": 2, "name": "Silicon"},
+    {"stage": 2, "name": "Driver"},
     {"stage": 3, "name": "Integration"},
-    {"stage": 4, "name": "Nightly"},
+    {"stage": 4, "name": "Regression"},
     {"stage": 5, "name": "FUOTA"},
 ]
 
@@ -349,7 +349,7 @@ def reset_stage_build_matrix(product_id: str, stage: str):
     if not config:
         return not_found(f"Stage {stage} config not found")
 
-    stage_enum_map = {1: Stage.SMOKE, 2: Stage.SILICON, 3: Stage.INTEGRATION, 4: Stage.NIGHTLY, 5: Stage.FUOTA}
+    stage_enum_map = {1: Stage.SMOKE, 2: Stage.DRIVER, 3: Stage.INTEGRATION, 4: Stage.REGRESSION, 5: Stage.FUOTA}
     stage_enum = stage_enum_map.get(stage_num)
     if not stage_enum:
         return bad_request(f"No default build definitions for stage {stage_num}")
