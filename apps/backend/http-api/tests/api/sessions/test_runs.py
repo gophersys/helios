@@ -27,7 +27,7 @@ def _make_session(**overrides):
         buildRunId=None,
         status="ACTIVE",
         config={"nodeId": "node-1", "serialNumber": "70B3D584C01E1FCC"},
-        targetCount=3,
+        targetCount=1,
         completedCount=0,
         passedCount=0,
         failedCount=0,
@@ -377,6 +377,5 @@ def test_report_finish(authed_client, mock_db):
 
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data["data"]["status"] == "FAILED"
-    assert data["data"]["total"] == 37
-    assert data["data"]["passed"] == 35
+    assert data["data"]["deviceStatus"] == "FAILED"
+    assert data["data"]["allSlotsComplete"] is True

@@ -435,14 +435,17 @@ def delete_slot(fixture_id: str, slot_id: str):
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def assign_slot_node(fixture_id: str, slot_id: str):
+    """PUT /v2/fixtures/<id>/slots/<sid>/assign — assign or unassign a node.
+
+    When a node is assigned, the MTIB server K8s Deployment is auto-created.
+    When a node is unassigned, the deployment is auto-deleted.
+    """
     db = get_db_client()
 
-    # Verify fixture exists
     fixture = db.fixture.find_unique(where={"id": fixture_id})
     if not fixture:
         return not_found("Fixture not found")
 
-    # Verify slot exists and belongs to fixture
     slot = db.fixtureslot.find_first(
         where={"id": slot_id, "fixtureId": fixture_id}
     )
@@ -454,35 +457,194 @@ def assign_slot_node(fixture_id: str, slot_id: str):
         return bad_request(error)
 
     if data.nodeId is None:
-        # Unassign node
+        # ── Unassign: undeploy MTIB server, clear node ──
+        if slot.nodeId:
+            _undeploy_mtib_for_slot(db, slot.nodeId)
         updated = db.fixtureslot.update(
             where={"id": slot_id},
             data={"nodeId": None},
             include={"node": True},
         )
-        log_audit("fixture.slot.unassign", "FixtureSlot", slot_id, {"fixtureId": fixture_id, "previousNodeId": slot.nodeId})
+        log_audit("fixture.slot.unassign", "FixtureSlot", slot_id, {
+            "fixtureId": fixture_id, "previousNodeId": slot.nodeId,
+        })
         return jsonify(ApiResponse.ok(_serialize_slot(updated)).to_dict()), 200
 
-    # Verify node exists
+    # ── Assign: validate, deploy MTIB server, link node ──
     node = db.node.find_unique(where={"id": data.nodeId})
     if not node:
         return not_found("Node not found")
 
-    # Verify node type matches fixture type
     if node.type != fixture.type:
         return bad_request(f"Node type '{node.type}' does not match fixture type '{fixture.type}'")
 
-    # Check if node is already assigned to a different slot
-    existing_assignment = db.fixtureslot.find_first(
-        where={"nodeId": data.nodeId}
-    )
+    existing_assignment = db.fixtureslot.find_first(where={"nodeId": data.nodeId})
     if existing_assignment and existing_assignment.id != slot_id:
         return conflict(f"Node is already assigned to another slot (fixture slot {existing_assignment.id})")
+
+    # If replacing a different node, undeploy the old one
+    if slot.nodeId and slot.nodeId != data.nodeId:
+        _undeploy_mtib_for_slot(db, slot.nodeId)
 
     updated = db.fixtureslot.update(
         where={"id": slot_id},
         data={"nodeId": data.nodeId},
         include={"node": True},
     )
-    log_audit("fixture.slot.assign", "FixtureSlot", slot_id, {"fixtureId": fixture_id, "nodeId": data.nodeId, "previousNodeId": slot.nodeId})
+
+    # Auto-deploy MTIB server on the newly assigned node
+    deploy_name = _deploy_mtib_for_slot(node, fixture, slot.slotIndex)
+    if deploy_name:
+        logger.info("Auto-deployed MTIB server %s for slot %d on %s", deploy_name, slot.slotIndex, node.hostname)
+
+    log_audit("fixture.slot.assign", "FixtureSlot", slot_id, {
+        "fixtureId": fixture_id, "nodeId": data.nodeId,
+        "previousNodeId": slot.nodeId, "deploymentName": deploy_name,
+    })
     return jsonify(ApiResponse.ok(_serialize_slot(updated)).to_dict()), 200
+
+
+# ── MTIB Deployment Helpers ──────────────────────────────────
+
+
+def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
+    """Deploy an MTIB server K8s Deployment for a node in a fixture slot.
+    Stores the deployment name in Node.metadata["deployment_name"].
+    """
+    try:
+        from src.services.kubernetes.mtib_deployments import create_mtib_deployment
+    except ImportError:
+        logger.warning("K8s client not available — skipping MTIB deploy for %s", node.hostname)
+        return None
+
+    config = {"env": {}}
+    deploy_name = create_mtib_deployment(
+        node_hostname=node.hostname,
+        fixture_id=fixture.id,
+        deployment_id=f"fixture-{fixture.id[:8]}",
+        slot_index=slot_index,
+        config=config,
+    )
+    if deploy_name:
+        db = get_db_client()
+        meta = node.metadata if isinstance(node.metadata, dict) else {}
+        meta["deployment_name"] = deploy_name
+        db.node.update(where={"id": node.id}, data={"metadata": meta, "status": "ONLINE"})
+    return deploy_name
+
+
+def _undeploy_mtib_for_slot(db, node_id: str) -> bool:
+    """Undeploy the MTIB server for a node. Clears Node.metadata["deployment_name"]."""
+    node = db.node.find_unique(where={"id": node_id})
+    if not node:
+        return False
+
+    meta = node.metadata if isinstance(node.metadata, dict) else {}
+    deploy_name = meta.get("deployment_name")
+    if not deploy_name:
+        return True  # Nothing to undeploy
+
+    try:
+        from src.services.kubernetes.mtib_deployments import delete_mtib_deployment
+        delete_mtib_deployment(deploy_name)
+    except ImportError:
+        logger.warning("K8s client not available — skipping MTIB undeploy for %s", node.hostname)
+
+    meta.pop("deployment_name", None)
+    db.node.update(where={"id": node_id}, data={"metadata": meta})
+    return True
+
+
+# ── Fixture-Level Deploy/Undeploy/Status ─────────────────────
+
+
+@require_permissions(Permissions.FIXTURES_MANAGE)
+def deploy_fixture(fixture_id: str):
+    """POST /v2/fixtures/<id>/deploy — deploy MTIB servers on all assigned slots."""
+    db = get_db_client()
+    fixture = db.fixture.find_unique(
+        where={"id": fixture_id},
+        include={"slots": {"include": {"node": True}}},
+    )
+    if not fixture:
+        return not_found("Fixture not found")
+
+    slots = fixture.slots or []
+    assigned = [s for s in slots if s.nodeId and s.node]
+    if not assigned:
+        return bad_request("No nodes assigned to any slot")
+
+    deployed = []
+    failed = []
+    for slot in assigned:
+        name = _deploy_mtib_for_slot(slot.node, fixture, slot.slotIndex)
+        if name:
+            deployed.append({"slotIndex": slot.slotIndex, "hostname": slot.node.hostname, "deploymentName": name})
+        else:
+            failed.append({"slotIndex": slot.slotIndex, "hostname": slot.node.hostname, "error": "Deploy failed"})
+
+    log_audit("fixture.deploy", "Fixture", fixture_id, {
+        "deployed": len(deployed), "failed": len(failed),
+    })
+    return jsonify(ApiResponse.ok({
+        "deployed": deployed, "failed": failed,
+    }).to_dict()), 200
+
+
+@require_permissions(Permissions.FIXTURES_MANAGE)
+def undeploy_fixture(fixture_id: str):
+    """POST /v2/fixtures/<id>/undeploy — undeploy all MTIB servers."""
+    db = get_db_client()
+    fixture = db.fixture.find_unique(
+        where={"id": fixture_id},
+        include={"slots": {"include": {"node": True}}},
+    )
+    if not fixture:
+        return not_found("Fixture not found")
+
+    if fixture.status == "LOCKED":
+        return conflict("Cannot undeploy a locked fixture — a session is running")
+
+    undeployed = []
+    for slot in (fixture.slots or []):
+        if slot.nodeId:
+            success = _undeploy_mtib_for_slot(db, slot.nodeId)
+            undeployed.append({"slotIndex": slot.slotIndex, "success": success})
+
+    log_audit("fixture.undeploy", "Fixture", fixture_id, {"count": len(undeployed)})
+    return jsonify(ApiResponse.ok({"undeployed": undeployed}).to_dict()), 200
+
+
+@require_permissions(Permissions.FIXTURES_VIEW)
+def get_fixture_deploy_status(fixture_id: str):
+    """GET /v2/fixtures/<id>/deploy-status — per-slot MTIB deployment status."""
+    db = get_db_client()
+    fixture = db.fixture.find_unique(
+        where={"id": fixture_id},
+        include={"slots": {"include": {"node": True}}},
+    )
+    if not fixture:
+        return not_found("Fixture not found")
+
+    from src.services.kubernetes.mtib_deployments import get_mtib_deployment_status
+
+    slot_statuses = []
+    for slot in (fixture.slots or []):
+        entry = {
+            "slotIndex": slot.slotIndex,
+            "label": slot.label,
+            "nodeId": slot.nodeId,
+            "hostname": slot.node.hostname if slot.node else None,
+            "deployment": None,
+        }
+        if slot.node:
+            meta = slot.node.metadata if isinstance(slot.node.metadata, dict) else {}
+            deploy_name = meta.get("deployment_name")
+            if deploy_name:
+                try:
+                    entry["deployment"] = get_mtib_deployment_status(deploy_name)
+                except Exception:
+                    entry["deployment"] = {"name": deploy_name, "status": "unknown"}
+        slot_statuses.append(entry)
+
+    return jsonify(ApiResponse.ok({"slots": slot_statuses}).to_dict()), 200

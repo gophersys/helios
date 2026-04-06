@@ -41,7 +41,7 @@ def _make_session(**overrides):
         fixtureId=None,
         status="ACTIVE",
         config={"nodeId": "node-1", "serialNumber": "70B3D584C01E1FCC"},
-        targetCount=0,
+        targetCount=1,
         completedCount=0,
         passedCount=0,
         failedCount=0,
@@ -621,16 +621,13 @@ class TestReportFinish:
 
         assert resp.status_code == 200
         body = json.loads(resp.data)
-        assert body["data"]["status"] == "FAILED"
-        assert body["data"]["total"] == 10
-        assert body["data"]["passed"] == 8
-        assert body["data"]["failed"] == 1
-        assert body["data"]["errors"] == 1
+        assert body["data"]["deviceStatus"] == "FAILED"
+        assert body["data"]["allSlotsComplete"] is True
 
-        # Verify DB update
+        # Verify DB update (aggregated counts)
         update_data = mock_db.session.update.call_args[1]["data"]
         assert update_data["status"] == "FAILED"
-        assert update_data["completedCount"] == 10
+        assert update_data["completedCount"] == 1
         assert update_data["passedCount"] == 8
         assert update_data["failedCount"] == 2  # failed + errors
         assert "finishedAt" in update_data
@@ -832,12 +829,12 @@ class TestFullPipeline:
         )
         assert resp.status_code == 200
 
-        # Session marked FAILED with correct counts
+        # Session marked FAILED with aggregated counts
         session_update = mock_db.session.update.call_args[1]["data"]
         assert session_update["status"] == "FAILED"
-        assert session_update["completedCount"] == 3
+        assert session_update["completedCount"] == 1  # 1 slot completed
         assert session_update["passedCount"] == 2
-        assert session_update["failedCount"] == 1  # failed + errors
+        assert session_update["failedCount"] == 1
 
         # Device marked FAILED (because 1 failure)
         device_update = mock_db.device.update.call_args[1]["data"]

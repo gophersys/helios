@@ -181,8 +181,6 @@ from .nodes.nodes import (
     delete_node,
     check_node_health,
     register_node,
-    deploy_node,
-    undeploy_node,
 )
 
 # Fixture management handlers
@@ -197,6 +195,9 @@ from .fixtures.fixtures import (
     update_slot,
     delete_slot,
     assign_slot_node,
+    deploy_fixture,
+    undeploy_fixture,
+    get_fixture_deploy_status,
 )
 
 # Fixture — Benches (merged from validation/benches/)
@@ -544,6 +545,9 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/fixtures/<fixture_id>/slots/<slot_id>",            endpoint="update_slot",             view_func=update_slot,              methods=["PUT"])
     v2.add_url_rule("/fixtures/<fixture_id>/slots/<slot_id>",            endpoint="delete_slot",             view_func=delete_slot,              methods=["DELETE"])
     v2.add_url_rule("/fixtures/<fixture_id>/slots/<slot_id>/assign",     endpoint="assign_slot_node",        view_func=assign_slot_node,         methods=["POST"])
+    v2.add_url_rule("/fixtures/<fixture_id>/deploy",                    endpoint="deploy_fixture",          view_func=deploy_fixture,           methods=["POST"])
+    v2.add_url_rule("/fixtures/<fixture_id>/undeploy",                  endpoint="undeploy_fixture",        view_func=undeploy_fixture,         methods=["POST"])
+    v2.add_url_rule("/fixtures/<fixture_id>/deploy-status",            endpoint="fixture_deploy_status",   view_func=get_fixture_deploy_status, methods=["GET"])
 
     # Fixtures - Benches (legacy compat, backed by Fixture model)
     v2.add_url_rule("/fixtures/benches",                                                                endpoint="list_benches",                 view_func=list_benches,             methods=["GET"])
@@ -576,8 +580,6 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/devices/mtibs/<node_id>",                                  endpoint="delete_managed_mtib",     view_func=delete_node,          methods=["DELETE"])
     v2.add_url_rule("/devices/mtibs/<node_id>/health",                           endpoint="check_managed_mtib_health", view_func=check_node_health,  methods=["POST"])
     v2.add_url_rule("/devices/mtibs/<node_id>/register",                         endpoint="register_managed_mtib",   view_func=register_node,        methods=["POST"])
-    v2.add_url_rule("/devices/mtibs/<node_id>/deploy",                           endpoint="deploy_managed_mtib",     view_func=deploy_node,          methods=["POST"])
-    v2.add_url_rule("/devices/mtibs/<node_id>/undeploy",                         endpoint="undeploy_managed_mtib",   view_func=undeploy_node,        methods=["POST"])
 
     # Devices - MTIBs Observability
     v2.add_url_rule("/devices/mtibs/observability",                                  endpoint="fleet_observability",        view_func=get_fleet_observability,   methods=["GET"])

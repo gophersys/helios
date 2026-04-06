@@ -382,60 +382,17 @@ def report_finish(run_id: str):
 
     now = datetime.now(timezone.utc)
 
-    # Release fixture lock before updating session status
-    _unlock_fixture_if_locked(db, session)
-
-    # Mark the queue entry as COMPLETED if one exists for this session
-    try:
-        queue_entry = db.validationqueueentry.find_first(
-            where={"sessionId": run_id},
-        )
-        if queue_entry and queue_entry.status == "RUNNING":
-            db.validationqueueentry.update(
-                where={"id": queue_entry.id},
-                data={
-                    "status": "COMPLETED",
-                    "completedAt": datetime.now(timezone.utc),
-                },
-            )
-    except Exception as e:
-        logger.warning("Failed to update queue entry for run %s: %s", run_id, e)
-
-    # Process the queue — start the next pending entry if a fixture is now free
-    try:
-        from src.api.v2.sessions.queue import process_queue
-        process_queue(db)
-    except Exception as e:
-        logger.warning("Queue processing after run finish failed: %s", e)
-
-    # Determine final status using new SessionStatus enum (PASSED/FAILED)
-    if data.failed == 0 and data.errors == 0:
-        final_status = "PASSED"
+    # ── Identify which device this slot's report belongs to ──
+    # Multi-node: each K8s Job passes X-Concord-Device-Id header or deviceId query param.
+    # Single-node (legacy): falls back to first/only device in session.
+    device_id = request.headers.get("X-Concord-Device-Id") or request.args.get("deviceId")
+    if device_id:
+        device = db.device.find_unique(where={"id": device_id})
     else:
-        final_status = "FAILED"
+        device = db.device.find_first(where={"sessionId": run_id})
 
-    # Calculate duration if session has startedAt
-    duration_ms = None
-    if session.startedAt:
-        duration_ms = int((now - session.startedAt).total_seconds() * 1000)
-
-    # Update session with final counts
-    db.session.update(
-        where={"id": run_id},
-        data={
-            "status": final_status,
-            "completedCount": data.total,
-            "passedCount": data.passed,
-            "failedCount": data.failed + data.errors,
-            "durationMs": duration_ms,
-            "finishedAt": now,
-        },
-    )
-
-    # Mark any remaining QUEUED or RUNNING executions as SKIPPED.
-    # RUNNING executions happen when test-start fired but the test was then
-    # skipped by class-level fail-fast before test-result could update them.
-    device = db.device.find_first(where={"sessionId": run_id})
+    # ── Update this device's status ──
+    device_status = "PASSED" if data.failed == 0 and data.errors == 0 else "FAILED"
     if device:
         db.testexecution.update_many(
             where={
@@ -444,61 +401,123 @@ def report_finish(run_id: str):
             },
             data={"status": "SKIPPED"},
         )
-
-        device_status = "PASSED" if data.failed == 0 and data.errors == 0 else "FAILED"
         db.device.update(
             where={"id": device.id},
             data={"status": device_status},
         )
 
-    # Flush any buffered log data to MinIO before announcing finish
+    # ── Increment session-level aggregate counts ──
+    # Each slot reports its own counts. Session aggregates across all slots.
+    current_completed = (session.completedCount or 0) + 1
+    current_passed = (session.passedCount or 0) + (data.passed or 0)
+    current_failed = (session.failedCount or 0) + (data.failed or 0) + (data.errors or 0)
+    target_count = session.targetCount or 1
+
+    all_slots_done = current_completed >= target_count
+
+    session_update: dict = {
+        "completedCount": current_completed,
+        "passedCount": current_passed,
+        "failedCount": current_failed,
+    }
+
+    if all_slots_done:
+        # ── All slots finished — finalize session ──
+        if current_failed > 0:
+            session_update["status"] = "FAILED"
+        else:
+            session_update["status"] = "PASSED"
+
+        if session.startedAt:
+            session_update["durationMs"] = int((now - session.startedAt).total_seconds() * 1000)
+        session_update["finishedAt"] = now
+
+    db.session.update(where={"id": run_id}, data=session_update)
+
+    if all_slots_done:
+        # ── Post-finalization: unlock fixture, complete queue, process next ──
+        _unlock_fixture_if_locked(db, session)
+
+        try:
+            queue_entry = db.validationqueueentry.find_first(where={"sessionId": run_id})
+            if queue_entry and queue_entry.status == "RUNNING":
+                db.validationqueueentry.update(
+                    where={"id": queue_entry.id},
+                    data={"status": "COMPLETED", "completedAt": now},
+                )
+        except Exception as e:
+            logger.warning("Failed to update queue entry for run %s: %s", run_id, e)
+
+        try:
+            from src.api.v2.sessions.queue import process_queue
+            process_queue(db)
+        except Exception as e:
+            logger.warning("Queue processing after run finish failed: %s", e)
+    else:
+        logger.info("Slot finished for run %s (%d/%d complete)", run_id, current_completed, target_count)
+
+    # Flush any buffered log data to MinIO
     from .logs import flush_log_buffers_for_run
     flush_log_buffers_for_run(run_id)
 
-    _emit_validation_event("validation_run_finish", {
+    # Emit per-slot finish event (always)
+    _emit_validation_event("validation_slot_finish", {
         "runId": run_id,
-        "status": final_status,
+        "deviceId": device.id if device else None,
+        "status": device_status,
         "total": data.total,
         "passed": data.passed,
         "failed": data.failed,
         "errors": data.errors,
-        "durationS": data.duration_s,
-        "durationMs": duration_ms,
+        "slotsCompleted": current_completed,
+        "slotsTotal": target_count,
     })
 
-    # Propagate result back to parent pipeline if this run was triggered by one
-    pipeline_id = getattr(session, "buildRunId", None)
-    if pipeline_id:
-        try:
-            pipeline_status = "SUCCESS" if (data.failed == 0 and data.errors == 0) else "FAILED"
-            db.buildrun.update(
-                where={"id": pipeline_id},
-                data={
+    # Only emit session-level events and propagate to pipeline when ALL slots are done
+    if all_slots_done:
+        final_status = session_update.get("status", "FAILED")
+        duration_ms = session_update.get("durationMs")
+
+        _emit_validation_event("validation_run_finish", {
+            "runId": run_id,
+            "status": final_status,
+            "total": current_passed + current_failed,
+            "passed": current_passed,
+            "failed": current_failed,
+            "durationMs": duration_ms,
+            "slotCount": target_count,
+        })
+
+        # Propagate result back to parent pipeline
+        pipeline_id = getattr(session, "buildRunId", None)
+        if pipeline_id:
+            try:
+                pipeline_status = "SUCCESS" if current_failed == 0 else "FAILED"
+                db.buildrun.update(
+                    where={"id": pipeline_id},
+                    data={"status": pipeline_status, "finishedAt": now},
+                )
+                _emit_validation_event("ci_pipeline_complete", {
+                    "pipelineId": pipeline_id,
                     "status": pipeline_status,
-                    "finishedAt": now,
-                },
-            )
-            _emit_validation_event("ci_pipeline_complete", {
-                "pipelineId": pipeline_id,
-                "status": pipeline_status,
-                "validationRunId": run_id,
-            })
-            logger.info(f"Pipeline {pipeline_id} finished with status {pipeline_status}")
-        except Exception as e:
-            logger.warning(f"Failed to update parent pipeline {pipeline_id}: {e}")
+                    "validationRunId": run_id,
+                })
+                logger.info("Pipeline %s finished with status %s", pipeline_id, pipeline_status)
+            except Exception as e:
+                logger.warning("Failed to update parent pipeline %s: %s", pipeline_id, e)
 
     logger.info(
-        f"Validation run {run_id} finished: {data.passed}/{data.total} passed, "
-        f"{data.failed} failed, {data.errors} errors"
+        "Run %s slot finish: %d/%d passed, %d failed (%d/%d slots done)",
+        run_id, data.passed, data.total, data.failed, current_completed, target_count,
     )
 
     return jsonify(ApiResponse.ok({
         "runId": run_id,
-        "status": final_status,
-        "total": data.total,
-        "passed": data.passed,
-        "failed": data.failed,
-        "errors": data.errors,
+        "deviceStatus": device_status,
+        "allSlotsComplete": all_slots_done,
+        "slotsCompleted": current_completed,
+        "slotsTotal": target_count,
+        "sessionStatus": session_update.get("status", "ACTIVE"),
     }).to_dict()), 200
 
 

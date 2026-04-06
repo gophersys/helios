@@ -25,7 +25,7 @@ def _make_session(**overrides):
         fixtureId=None,
         status="ACTIVE",
         config={"nodeId": "node-1", "serialNumber": "70B3D584C01E1FCC"},
-        targetCount=3,
+        targetCount=1,
         completedCount=0,
         passedCount=0,
         failedCount=0,
@@ -426,17 +426,15 @@ class TestReportFinish:
 
         assert resp.status_code == 200
         body = json.loads(resp.data)
-        assert body["data"]["status"] == "FAILED"
-        assert body["data"]["total"] == 37
-        assert body["data"]["passed"] == 35
-        assert body["data"]["failed"] == 2
+        assert body["data"]["deviceStatus"] == "FAILED"
+        assert body["data"]["allSlotsComplete"] is True  # single-node, targetCount=1
 
-        # Verify session update
+        # Verify session update (aggregated counts)
         update_data = mock_db.session.update.call_args[1]["data"]
         assert update_data["status"] == "FAILED"
-        assert update_data["completedCount"] == 37
+        assert update_data["completedCount"] == 1
         assert update_data["passedCount"] == 35
-        assert update_data["failedCount"] == 2  # failed + errors
+        assert update_data["failedCount"] == 2
         assert "finishedAt" in update_data
 
     def test_report_finish_with_errors(self, authed_client, mock_db):

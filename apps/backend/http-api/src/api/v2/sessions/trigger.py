@@ -126,72 +126,92 @@ def trigger_run(run_id: str):
             "runId": run_id,
         })
 
-        logger.info(f"Locked fixture {fixture.get('stationId', fixture['id'])} for run {run_id}")
+        logger.info("Locked fixture %s for run %s", fixture.get("stationId", fixture["id"]), run_id)
 
-        # Use bench dict as compatibility layer (slot data merged into fixture dict)
-        bench = fixture
-
-        # Create a real database-backed API key for the K8s job
+        # ── Multi-node: create one Device + one K8s Job per active slot ──
         user_id = g.current_user["sub"]
         api_key = _create_run_api_key(db, user_id, run_id)
-
-        # Use internal K8s service for reporter - avoids TLS/ingress issues
-        # concord-http-api.staging.svc.cluster.local:9001 is the internal service endpoint
         api_url = os.environ.get("CONCORD_API_URL", "http://concord-http-api.staging.svc.cluster.local:9001")
 
-        # Extract just the IP from mtibAddress (which may include port like "10.4.45.33:50053")
-        mtib_addr_full = bench.get("mtibAddress") or ""
-        mtib_host = mtib_addr_full.split(":")[0] if mtib_addr_full else ""
+        product_slug = session.product.slug if hasattr(session, "product") and session.product else None
 
-        # Derive product slug for catalog API lookup
-        product_slug = None
-        if hasattr(session, "product") and session.product:
-            product_slug = session.product.slug
+        active_slots = fixture.get("slots", [])
+        if not active_slots:
+            return bad_request("Fixture has no active slots with assigned nodes")
 
-        # Create K8s Job with bench info
-        job_name = create_kubernetes_job(
-            product=product_name,
-            job_id=run_id,
-            firmware_path=firmware_path,
-            test_type="validation",
-            test_enable=test_enable if isinstance(test_enable, dict) else {},
-            firmware_version=data.firmware_version,
-            run_id=run_id,
-            api_key=api_key,
-            api_url=api_url,
-            # Bench-related params
-            mtib_address=mtib_host,
-            bench_id=bench.get("id"),
-            device_id=bench.get("dutDeviceId"),
-            device_snr=bench.get("dutSnr"),
-            fixture_profile_path=bench.get("profilePath"),
-            # Stage 4: Pipeline-based firmware
-            pipeline_id=data.pipeline_id,
-            # Product context
-            product_slug=product_slug,
-            # Validation stage
-            stage=data.stage,
+        # Create a Device for each slot
+        devices_created = []
+        for slot_info in active_slots:
+            device = db.device.create(data={
+                "serialNumber": slot_info.get("dutSnr") or f"slot-{slot_info.get('slotIndex', 0)}",
+                "sessionId": run_id,
+                "status": "PENDING",
+                "metadata": Json({
+                    "slotIndex": slot_info.get("slotIndex"),
+                    "nodeHostname": slot_info.get("nodeHostname"),
+                    "nodeIp": slot_info.get("nodeIp"),
+                    "dutDeviceId": slot_info.get("dutDeviceId"),
+                    "fixtureSlotId": slot_info.get("slotId"),
+                }),
+            })
+            devices_created.append({"device": device, "slot": slot_info})
+
+        # Set session target count for multi-node aggregation
+        db.session.update(
+            where={"id": run_id},
+            data={"targetCount": len(devices_created)},
         )
 
-        if not job_name:
-            return internal_error("Failed to create Kubernetes job")
+        # Create a K8s Job for each slot
+        job_names = []
+        for entry in devices_created:
+            slot_info = entry["slot"]
+            device = entry["device"]
 
-        # Update session with trigger metadata (key hash only, never store raw key)
-        trigger_meta = {
-            "jobName": job_name,
+            mtib_host = (slot_info.get("nodeIp") or "").split(":")[0]
+
+            job_name = create_kubernetes_job(
+                product=product_name,
+                job_id=f"{run_id}-s{slot_info.get('slotIndex', 0)}",
+                firmware_path=firmware_path,
+                test_type=session.type.lower() if hasattr(session, "type") else "validation",
+                test_enable=test_enable if isinstance(test_enable, dict) else {},
+                firmware_version=data.firmware_version,
+                run_id=run_id,
+                api_key=api_key,
+                api_url=api_url,
+                mtib_address=mtib_host,
+                bench_id=fixture.get("id"),
+                device_id=slot_info.get("dutDeviceId"),
+                device_snr=slot_info.get("dutSnr"),
+                fixture_profile_path=slot_info.get("profilePath"),
+                pipeline_id=data.pipeline_id,
+                product_slug=product_slug,
+                stage=data.stage,
+                # Multi-node: pass device ID so reporter knows which device to update
+                extra_env={
+                    "CONCORD_DEVICE_ID": device.id,
+                    "CONCORD_SLOT_INDEX": str(slot_info.get("slotIndex", 0)),
+                },
+            )
+            if job_name:
+                job_names.append(job_name)
+
+        if not job_names:
+            return internal_error("Failed to create any Kubernetes jobs")
+
+        # Store trigger metadata
+        existing_config = session.config if isinstance(session.config, dict) else {}
+        existing_config["trigger"] = {
+            "jobNames": job_names,
+            "slotCount": len(devices_created),
             "firmwareVersion": data.firmware_version,
             "triggeredAt": datetime.now(timezone.utc).isoformat(),
         }
-
-        existing_config = session.config if isinstance(session.config, dict) else {}
-        existing_config["trigger"] = trigger_meta
         existing_config["apiUrl"] = api_url
         existing_config["concordRunId"] = run_id
-
-        # Store fixture info for unlock on finish and debugging
-        existing_config["fixtureId"] = bench["id"]
-        existing_config["fixtureStationId"] = bench.get("stationId")
-        existing_config["mtibAddress"] = bench.get("mtibAddress")
+        existing_config["fixtureId"] = fixture["id"]
+        existing_config["fixtureStationId"] = fixture.get("stationId")
 
         db.session.update(
             where={"id": run_id},
@@ -199,14 +219,15 @@ def trigger_run(run_id: str):
         )
 
         log_audit("validation.run.trigger", "Session", run_id, {
-            "jobName": job_name,
+            "jobNames": job_names,
+            "slotCount": len(devices_created),
             "firmwareVersion": data.firmware_version,
-            "firmwarePath": firmware_path,
         })
 
         return jsonify(ApiResponse.ok({
-            "jobName": job_name,
+            "jobNames": job_names,
             "runId": run_id,
+            "slotCount": len(devices_created),
         }).to_dict()), 200
 
     except Exception as e:
@@ -270,41 +291,57 @@ def _find_available_fixture(
                 if not fixture:
                     return None
 
-        # Build result dict with fixture + first slot data merged
+        # Compute profile path from fixture design
+        profile_path = None
+        if hasattr(fixture, "design") and fixture.design:
+            profile_path = f"/app/fixtures/{fixture.design.revision}.json"
+        elif fixture.metadata and isinstance(fixture.metadata, dict):
+            profile_path = fixture.metadata.get("profilePath")
+
+        # Build result with per-slot info for multi-node execution
         result: Dict[str, Any] = {
             "id": fixture.id,
             "stationId": fixture.stationId,
             "name": fixture.name,
             "productId": fixture.productId,
             "status": fixture.status,
+            "slots": [],
         }
 
-        # Merge first active slot's hardware paths and DUT info
+        # Include node info with each slot (need include for node relation)
         slots = fixture.slots or []
-        if slots:
-            slot = slots[0]
-            result["dutDeviceId"] = slot.dutDeviceId
-            result["dutSnr"] = slot.dutSnr
-            result["dutImei"] = slot.dutImei
-            result["dutIccids"] = slot.dutIccids or []
-            result["jlinkAppSerial"] = slot.jlinkAppSerial
-            result["jlinkCommsSerial"] = slot.jlinkCommsSerial
-            result["uartAppPath"] = slot.uartAppPath
-            result["uartCommsPath"] = slot.uartCommsPath
-            result["slotId"] = slot.id
-            # Build MTIB address from slot's node if available
+        for slot in slots:
+            if not slot.nodeId:
+                continue  # Skip unassigned slots
+            # Resolve node if not already included
+            node = None
             if hasattr(slot, "node") and slot.node:
-                result["mtibAddress"] = f"{slot.node.ipAddress}:50053" if slot.node.ipAddress else None
-            elif slot.nodeId:
+                node = slot.node
+            else:
                 node = db.node.find_unique(where={"id": slot.nodeId})
-                if node and node.ipAddress:
-                    result["mtibAddress"] = f"{node.ipAddress}:50053"
 
-        # Compute profile path from fixture design or metadata
-        if hasattr(fixture, "design") and fixture.design:
-            result["profilePath"] = f"/app/fixtures/{fixture.design.product}_{fixture.design.revision}.json"
-        elif fixture.metadata and isinstance(fixture.metadata, dict):
-            result["profilePath"] = fixture.metadata.get("profilePath")
+            if not node or not node.ipAddress:
+                continue  # Skip nodes without IP (not reachable)
+
+            result["slots"].append({
+                "slotId": slot.id,
+                "slotIndex": slot.slotIndex,
+                "nodeId": slot.nodeId,
+                "nodeHostname": node.hostname,
+                "nodeIp": f"{node.ipAddress}:50053",
+                "dutDeviceId": slot.dutDeviceId,
+                "dutSnr": slot.dutSnr,
+                "dutImei": slot.dutImei,
+                "dutIccids": slot.dutIccids or [],
+                "profilePath": profile_path,
+            })
+
+        # Also store first-slot data at top level for backward compat
+        if result["slots"]:
+            first = result["slots"][0]
+            result["mtibAddress"] = first["nodeIp"]
+            result["dutDeviceId"] = first["dutDeviceId"]
+            result["dutSnr"] = first["dutSnr"]
 
         return result
 

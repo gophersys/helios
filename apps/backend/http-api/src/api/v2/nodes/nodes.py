@@ -24,36 +24,6 @@ except ImportError:
     K8S_AVAILABLE = False
 
 
-def _deploy_mtib_for_node(hostname: str, node_type: str) -> str | None:
-    """Create an MTIB K8s deployment for a node. Returns deploy name or None."""
-    from src.services.kubernetes.mtib_deployments import create_mtib_deployment
-
-    motion_enabled = "true" if node_type == "VALIDATION" else "false"
-    config = {
-        "env": {
-            "MOTION_ENABLED": motion_enabled,
-        },
-    }
-    return create_mtib_deployment(
-        node_hostname=hostname,
-        fixture_id="standalone",
-        deployment_id="auto",
-        slot_index=0,
-        config=config,
-    )
-
-
-def _undeploy_mtib_for_node(metadata: Any) -> bool:
-    """Delete an MTIB K8s deployment using deployment_name from node metadata. Returns success."""
-    if not metadata or not isinstance(metadata, dict):
-        return False
-    deploy_name = metadata.get("deployment_name")
-    if not deploy_name:
-        return False
-    from src.services.kubernetes.mtib_deployments import delete_mtib_deployment
-    return delete_mtib_deployment(deploy_name)
-
-
 def _serialize_node(n: Any, include_slot: bool = False) -> dict:
     data = {
         "id": n.id,
@@ -456,68 +426,3 @@ def register_node(node_id: str):
     )
     log_audit("node.register", "Node", node.id, {"name": name, "hostname": hostname, "type": node_type})
     return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 201
-
-
-@require_permissions(Permissions.DEVICES_MANAGE)
-def deploy_node(node_id: str):
-    """Manually trigger MTIB server deployment for a node."""
-    db = get_db_client()
-    node = db.node.find_unique(where={"id": node_id})
-    if not node:
-        return not_found("Node not found")
-
-    # Check if already deployed
-    meta = node.metadata if isinstance(node.metadata, dict) else {}
-    if meta.get("deployment_name"):
-        from src.services.kubernetes.mtib_deployments import get_mtib_deployment_status
-        existing_status = None
-        try:
-            existing_status = get_mtib_deployment_status(meta["deployment_name"])
-        except Exception:
-            pass
-        if existing_status:
-            return conflict("MTIB deployment already exists for this node")
-
-    deploy_name = _deploy_mtib_for_node(
-        hostname=node.hostname,
-        node_type=node.type,
-    )
-    if not deploy_name:
-        return internal_error("Failed to create MTIB deployment")
-
-    meta["deployment_name"] = deploy_name
-    node = db.node.update(
-        where={"id": node_id},
-        data={"metadata": meta},
-        include={"fixtureSlot": True},
-    )
-
-    log_audit("node.deploy", "Node", node_id, {"hostname": node.hostname, "deployment_name": deploy_name})
-    return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 200
-
-
-@require_permissions(Permissions.DEVICES_MANAGE)
-def undeploy_node(node_id: str):
-    """Manually remove MTIB server deployment for a node."""
-    db = get_db_client()
-    node = db.node.find_unique(where={"id": node_id})
-    if not node:
-        return not_found("Node not found")
-
-    meta = node.metadata if isinstance(node.metadata, dict) else {}
-    deploy_name = meta.get("deployment_name")
-    if not deploy_name:
-        return bad_request("No MTIB deployment associated with this node")
-
-    if not _undeploy_mtib_for_node(meta):
-        return internal_error("Failed to delete MTIB deployment")
-
-    meta.pop("deployment_name", None)
-    node = db.node.update(
-        where={"id": node_id},
-        data={"metadata": meta if meta else None},
-        include={"fixtureSlot": True},
-    )
-
-    log_audit("node.undeploy", "Node", node_id, {"hostname": node.hostname, "deployment_name": deploy_name})
-    return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 200
