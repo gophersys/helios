@@ -1,0 +1,67 @@
+{
+  "name": "infrastructure",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "infrastructure",
+  "projectType": "application",
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          "bash infrastructure/tests/test-cluster-yaml.sh",
+          "bash infrastructure/tests/test-rbac.sh",
+          "bash infrastructure/tests/test-manifests.sh",
+          "bash infrastructure/tests/test-bootstrap.sh"
+        ]
+      }
+    },
+
+    "bootstrap": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office bootstrap"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks bootstrap"]
+        }
+      }
+    },
+
+    "status": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office status"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks status"]
+        }
+      }
+    },
+
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office validate"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks validate"]
+        }
+      }
+    }
+  },
+  "tags": ["scope:infrastructure"]
+}

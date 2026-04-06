@@ -1,0 +1,101 @@
+name: office
+description: On-premise K3s HA cluster — CoreKinect office lab
+apiServer: https://10.4.45.10:6443
+distribution: k3s
+version: v1.33.5+k3s1
+
+registry:
+  mode: local-import
+  host: containers.ad.corekinect.com
+
+ingress:
+  controller: traefik
+  className: traefik
+
+storage:
+  defaultClass: local-path
+  provisioner: rancher.io/local-path
+
+nodes:
+  servers:
+    - name: concordserver01
+      ip: 10.4.45.11
+      roles: [control-plane, etcd, master]
+      labels:
+        corekinect.com/role: server
+        corekinect.com/purpose: platform
+
+    - name: concordserver02
+      ip: 10.4.45.12
+      roles: [control-plane, etcd, master]
+      labels:
+        corekinect.com/role: server
+        corekinect.com/purpose: platform
+
+    - name: concordserver03
+      ip: 10.4.45.13
+      roles: [control-plane, etcd, master]
+      labels:
+        corekinect.com/role: server
+        corekinect.com/purpose: platform
+
+  agents:
+    - name: concordagent01
+      ip: 10.4.45.21
+      labels:
+        corekinect.com/role: agent
+        corekinect.com/purpose: manufacturing
+
+    - name: concordagent02
+      ip: 10.4.45.22
+      labels:
+        corekinect.com/role: agent
+        corekinect.com/purpose: manufacturing
+
+    - name: concordagent03
+      ip: 10.4.45.23
+      labels:
+        corekinect.com/role: agent
+
+    - name: concordproxy
+      ip: 10.4.45.30
+      labels:
+        corekinect.com/purpose: builder
+
+    - name: wanda
+      ip: 10.4.45.32
+      labels:
+        corekinect.com/purpose: builder
+        corekinect.com/role: agent
+
+  edge:
+    - name: verdin-imx8mm-15005665
+      ip: 10.4.45.33
+      arch: arm64
+      labels:
+        corekinect.com/role: edge
+        corekinect.com/purpose: validation
+        corekinect.com/mtib-revision: "1.2"
+        corekinect.com/validation-product: alpha
+
+    - name: verdin-imx8mm-15005700
+      ip: 10.4.45.34
+      arch: arm64
+      labels:
+        corekinect.com/role: edge
+        corekinect.com/purpose: validation
+        corekinect.com/mtib-revision: "1.2"
+
+    - name: verdin-imx8mm-15702161
+      ip: 10.4.45.32
+      arch: arm64
+      labels:
+        corekinect.com/role: edge
+        corekinect.com/purpose: validation
+        corekinect.com/mtib-revision: "1.1"
+
+namespaces:
+  - staging
+  - production
+  - validation
+  - dev

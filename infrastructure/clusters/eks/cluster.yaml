@@ -1,0 +1,30 @@
+name: eks
+description: AWS EKS cluster — placeholder for future cloud deployment
+apiServer: https://eks.us-east-1.amazonaws.com
+distribution: eks
+version: "1.30"
+
+registry:
+  mode: push
+  host: 123456789.dkr.ecr.us-east-1.amazonaws.com
+
+ingress:
+  controller: alb
+  className: alb
+
+storage:
+  defaultClass: gp3
+  provisioner: ebs.csi.aws.com
+
+nodes:
+  servers: []
+  agents:
+    - name: managed-node-group
+      ip: 0.0.0.0
+      labels:
+        node-role: apps
+  edge: []
+
+namespaces:
+  - staging
+  - production
