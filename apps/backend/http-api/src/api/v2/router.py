@@ -222,8 +222,8 @@ from .fixtures.designs import (
     get_design_profile,
 )
 
-# Deployment management handlers
-from .deployments.deployments import (
+# Managed deployment handlers (K8s-deployed services tied to fixtures)
+from .kubernetes.managed_deployments import (
     create_deployment,
     delete_deployment,
     deploy_fixture,
@@ -234,8 +234,8 @@ from .deployments.deployments import (
     stop_deployment,
 )
 
-# Observability handlers (moved under nodes — MTIB observability)
-from .nodes.observability import (
+# MTIB observability handlers (gRPC proxy for power/GPIO/UART snapshots)
+from .system.mtib_observability import (
     get_fleet_observability,
     get_node_observability,
     get_node_power,

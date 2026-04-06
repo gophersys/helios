@@ -44,7 +44,7 @@ def test_create_deployment(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
-    with patch("api.v2.deployments.deployments.log_audit"):
+    with patch("api.v2.kubernetes.managed_deployments.log_audit"):
         response = authed_client.post("/v2/kubernetes/managed-deployments", data=json.dumps({
             "name": "New Deploy", "fixtureId": "fix-1",
         }))
@@ -63,7 +63,7 @@ def test_delete_deployment(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
-    with patch("api.v2.deployments.deployments.log_audit"):
+    with patch("api.v2.kubernetes.managed_deployments.log_audit"):
         response = authed_client.delete("/v2/kubernetes/managed-deployments/dep-del")
 
     assert response.status_code == 200

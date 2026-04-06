@@ -12,7 +12,7 @@ from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
 
-from .types import DeploymentCreateRequest
+from .deployment_types import DeploymentCreateRequest
 
 logger = logging.getLogger(__name__)
 
