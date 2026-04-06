@@ -7,6 +7,7 @@
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TimeDisplay from '$lib/components/ui/time-display.svelte';
   import type { Product } from '$lib/types/models';
+  import { STAGE_NAMES } from '$lib/types/stages';
   import { api } from '$lib/api';
 
   interface Props {
@@ -165,8 +166,10 @@
             <div class="w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold {cfg.enabled ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
               {cfg.stage}
             </div>
-            <span class="text-sm font-medium text-text-primary">{cfg.name}</span>
-            {#if cfg.boardRevisionId && revisionMap[cfg.boardRevisionId]}
+            <span class="text-sm font-medium text-text-primary">{STAGE_NAMES[cfg.stage] || cfg.name}</span>
+            {#if cfg.boardRevision}
+              <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-accent-muted text-accent">{cfg.boardRevision.version}</span>
+            {:else if cfg.boardRevisionId && revisionMap[cfg.boardRevisionId]}
               <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-accent-muted text-accent">{revisionMap[cfg.boardRevisionId]}</span>
             {/if}
             {#if cfg.buildMatrix?.length}
