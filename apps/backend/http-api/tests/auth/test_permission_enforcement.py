@@ -897,44 +897,6 @@ class TestAPIKeysPermissions:
 # Module: Deployments (managed MTIB deployments)
 # ---------------------------------------------------------------------------
 
-class TestDeploymentsPermissions:
-    """Tests for /v2/kubernetes/managed-deployments routes — requires system:view / system:manage."""
-
-    def test_list_deployments_unauthenticated(self, client):
-        response = client.get("/v2/kubernetes/managed-deployments")
-        _assert_401(response)
-
-    def test_list_deployments_wrong_permission(self, client, auth_headers, mock_db):
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "products:view",
-        )
-        response = client.get("/v2/kubernetes/managed-deployments", headers=auth_headers)
-        _assert_403(response)
-
-    def test_list_deployments_correct_permission(self, client, auth_headers, mock_db):
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "system:view",
-        )
-        response = client.get("/v2/kubernetes/managed-deployments", headers=auth_headers)
-        _assert_not_denied(response)
-
-    def test_create_deployment_view_only(self, client, auth_headers, mock_db):
-        """system:view should NOT allow creating deployments (needs system:manage)."""
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "system:view",
-        )
-        response = client.post("/v2/kubernetes/managed-deployments",
-                               data=json.dumps({}), headers=auth_headers)
-        _assert_403(response)
-
-    def test_delete_deployment_view_only(self, client, auth_headers, mock_db):
-        mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
-            "system:view",
-        )
-        response = client.delete("/v2/kubernetes/managed-deployments/some-id", headers=auth_headers)
-        _assert_403(response)
-
-
 # ---------------------------------------------------------------------------
 # Module: Observability
 # ---------------------------------------------------------------------------

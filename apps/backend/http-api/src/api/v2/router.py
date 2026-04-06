@@ -222,18 +222,6 @@ from .fixtures.designs import (
     get_design_profile,
 )
 
-# Managed deployment handlers (K8s-deployed services tied to fixtures)
-from .kubernetes.managed_deployments import (
-    create_deployment,
-    delete_deployment,
-    deploy_fixture,
-    get_deployment,
-    get_deployment_status,
-    list_deployments as list_managed_deployments,
-    restart_deployment as restart_managed_deployment,
-    stop_deployment,
-)
-
 # MTIB observability handlers (gRPC proxy for power/GPIO/UART snapshots)
 from .system.mtib_observability import (
     get_fleet_observability,
@@ -578,16 +566,6 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
 
     # Dashboard
     v2.add_url_rule("/dashboard/overview",                           endpoint="dashboard_overview",          view_func=dashboard_overview,         methods=["GET"])
-
-    # Kubernetes - Managed Deployments (was /cluster/managed-deployments)
-    v2.add_url_rule("/kubernetes/managed-deployments",                                 endpoint="list_managed_deployments",    view_func=list_managed_deployments,   methods=["GET"])
-    v2.add_url_rule("/kubernetes/managed-deployments",                                 endpoint="create_managed_deployment",   view_func=create_deployment,          methods=["POST"])
-    v2.add_url_rule("/kubernetes/managed-deployments/<deployment_id>",                 endpoint="get_managed_deployment",      view_func=get_deployment,             methods=["GET"])
-    v2.add_url_rule("/kubernetes/managed-deployments/<deployment_id>",                 endpoint="delete_managed_deployment",   view_func=delete_deployment,          methods=["DELETE"])
-    v2.add_url_rule("/kubernetes/managed-deployments/<deployment_id>/deploy",          endpoint="deploy_managed_fixture",      view_func=deploy_fixture,             methods=["POST"])
-    v2.add_url_rule("/kubernetes/managed-deployments/<deployment_id>/stop",            endpoint="stop_managed_deployment",     view_func=stop_deployment,            methods=["POST"])
-    v2.add_url_rule("/kubernetes/managed-deployments/<deployment_id>/restart",         endpoint="restart_managed_deployment",  view_func=restart_managed_deployment, methods=["POST"])
-    v2.add_url_rule("/kubernetes/managed-deployments/<deployment_id>/status",          endpoint="get_managed_deployment_status", view_func=get_deployment_status,    methods=["GET"])
 
     # Devices - MTIBs (was /mtibs)
     v2.add_url_rule("/devices/mtibs",                                            endpoint="list_managed_mtibs",      view_func=list_managed_nodes,   methods=["GET"])
