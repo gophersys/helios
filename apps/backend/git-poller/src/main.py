@@ -4,8 +4,8 @@ Polls every N seconds using git ls-remote. Uses SSH key auth.
 Repo configs come from the Product catalog (/v2/catalog/products).
 """
 
+import atexit
 import json
-import logging
 import os
 import signal
 import subprocess
@@ -21,11 +21,9 @@ import requests
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
-log = logging.getLogger("git-poller")
+from corekinect.utils import Logger, print_banner
+
+log = Logger(log_name="git-poller")
 
 
 @dataclass
@@ -324,16 +322,19 @@ def main():
     """Entry point."""
     from src.config import GitPollerConfig
 
-    # 1. Load config
     config = GitPollerConfig()
 
-    # 2. Setup SSH key
+    # ── Banner ──────────────────────────────────────────────────────────────
+    print_banner(
+        "concord-git-poller",
+        Port=str(config.service_port),
+        Interval=f"{config.poll_interval}s",
+    )
+
+    # ── SSH ──────────────────────────────────────────────────────────────────
     _setup_ssh_key(config)
 
-    # 3. Log startup
-    log.info("Git poller starting (interval=%ds, env=%s)", config.poll_interval, config.environment)
-
-    # 4. Start health endpoint in daemon thread
+    # ── Health endpoint (daemon thread) ──────────────────────────────────────
     health_thread = threading.Thread(
         target=_run_health_server,
         args=(config.service_port,),
@@ -341,23 +342,27 @@ def main():
         name="health-server",
     )
     health_thread.start()
-    log.info("Health server started on :%d", config.service_port)
+    log.info(f"Health server started on :{config.service_port}")
 
-    # 5. Setup graceful shutdown
+    # ── Graceful shutdown ────────────────────────────────────────────────────
     shutdown = threading.Event()
 
-    def handle_signal(sig, frame):
-        log.info("Received signal %s, shutting down...", sig)
+    def handle_signal(signum, _frame):
+        name = signal.Signals(signum).name
+        log.info(f"Received {name}, shutting down...")
         shutdown.set()
+
+    def cleanup():
+        log.info("Graceful shutdown initiated (atexit)")
+        log.info("Git poller stopped")
 
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
+    atexit.register(cleanup)
 
-    # 6. Run poller (blocks until shutdown)
+    # ── Poller loop (blocks until shutdown) ───────────────────────────────────
     poller = GitPoller(config=config, shutdown_event=shutdown)
     poller.run()
-
-    log.info("Git poller stopped")
 
 
 if __name__ == "__main__":

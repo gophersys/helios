@@ -3,16 +3,15 @@
 Starts a Flask API for visibility/management and a worker loop
 that polls the Concord API for build jobs.
 """
+import atexit
 import signal
 import sys
 import threading
-import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
-log = logging.getLogger("build-service")
+# Logger must initialize before any other imports that use logging
+from corekinect.utils import Logger, print_banner
+
+log = Logger(log_name="build-service")
 
 
 def _setup_ssh_key(config):
@@ -27,7 +26,7 @@ def _setup_ssh_key(config):
         key_path = Path(config.ssh_key_path)
         key_path.write_bytes(key_data)
         key_path.chmod(0o600)
-        log.info("SSH key written to %s (%d bytes)", config.ssh_key_path, len(key_data))
+        log.info(f"SSH key written to {config.ssh_key_path} ({len(key_data)} bytes)")
     elif not Path(config.ssh_key_path).exists():
         log.warning("No SSH key available — git clone will fail")
 
@@ -39,24 +38,37 @@ def main():
     from src.worker.loop import BuildWorkerLoop
 
     config = BuildServiceConfig.from_env()
-    log.info("Build Service starting — worker=%s, mode=%s", config.worker_id, config.builder_mode)
-    log.info("Environment: %s, Worker: %s, Mode: %s, Port: %d",
-             config.environment, config.worker_id, config.builder_mode, config.service_port)
 
-    # Setup SSH key from base64 env var
+    # ── Banner ──────────────────────────────────────────────────────────────
+    build_info = print_banner(
+        "concord-build-service",
+        Port=str(config.service_port),
+        Worker=config.worker_id,
+        Mode=config.builder_mode,
+    )
+
+    # ── Logger ──────────────────────────────────────────────────────────────
+    Logger.Config(
+        logger_name="build-service",
+        log_level=20,  # INFO
+        log_path="logs",
+        enable_log_color=True,
+    )
+
+    # ── SSH ──────────────────────────────────────────────────────────────────
     _setup_ssh_key(config)
 
-    # Initialize local database
+    # ── Local DB ─────────────────────────────────────────────────────────────
     try:
         init_db()
         log.info("Local database connected")
     except Exception as e:
-        log.warning("Local database unavailable (running without local state): %s", e)
+        log.warning(f"Local database unavailable (running without local state): {e}")
 
-    # Create Concord API client
+    # ── API client ───────────────────────────────────────────────────────────
     client = ConcordClient(config.api_url, config.api_key)
 
-    # Start Flask API in background thread (if api module has create_app)
+    # ── Flask API (background thread) ────────────────────────────────────────
     api_thread = None
     try:
         from src.app import create_app
@@ -67,29 +79,40 @@ def main():
             name="api-server",
         )
         api_thread.start()
-        log.info("API server started on :%d", config.service_port)
+        log.info(f"API server started on :{config.service_port}")
     except ImportError:
         log.info("No API module found, running worker-only mode")
     except Exception as e:
-        log.warning("Failed to start API server: %s", e)
+        log.warning(f"Failed to start API server: {e}")
 
-    # Setup graceful shutdown
+    # ── Graceful shutdown ────────────────────────────────────────────────────
     shutdown = threading.Event()
 
-    def handle_signal(sig, frame):
-        log.info("Received signal %s, shutting down...", sig)
+    def handle_signal(signum, _frame):
+        name = signal.Signals(signum).name
+        log.info(f"Received {name}, shutting down...")
         shutdown.set()
+
+    def cleanup():
+        log.info("Graceful shutdown initiated (atexit)")
+        try:
+            close_db()
+            log.info("Local database closed")
+        except Exception:
+            pass
+        log.info("Build Service stopped")
 
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
+    atexit.register(cleanup)
 
-    # Run worker loop (blocks until shutdown)
+    # ── Worker loop (blocks until shutdown) ───────────────────────────────────
     worker = BuildWorkerLoop(config=config, client=client, shutdown_event=shutdown)
     try:
         worker.run()
-    finally:
-        close_db()
-        log.info("Build Service stopped")
+    except Exception:
+        log.error("Worker loop crashed", exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
