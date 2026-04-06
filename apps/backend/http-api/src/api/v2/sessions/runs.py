@@ -623,8 +623,8 @@ def rerun_session(session_id: str):
     if build_run_id:
         # Validate build run exists
         build_run = db.buildrun.find_unique(where={"id": build_run_id})
-        if not pipeline:
-            return not_found(f"Pipeline not found: {build_run_id}")
+        if not build_run:
+            return not_found(f"Build run not found: {build_run_id}")
 
     try:
         # Build config for the new session

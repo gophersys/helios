@@ -105,19 +105,19 @@ def process_queue(db=None) -> dict:
         )
         return {"processed": False, "reason": "Pipeline deleted", "entryId": entry.id}
 
-    builds = pipeline.builds or []
+    builds = build_run.builds or []
     if not builds:
         db.validationqueueentry.update(
             where={"id": entry.id},
             data={
                 "status": "FAILED",
-                "errorMessage": "Pipeline has no builds",
+                "errorMessage": "Build run has no builds",
                 "completedAt": datetime.now(timezone.utc),
             },
         )
         return {"processed": False, "reason": "No builds", "entryId": entry.id}
 
-    # Re-fetch pipeline with full includes needed by trigger_pipeline_validation
+    # Re-fetch with full includes needed by trigger_pipeline_validation
     build_run = db.buildrun.find_unique(
         where={"id": entry.buildRunId},
         include={"builds": {"include": {"product": True}}, "product": True},
@@ -127,13 +127,13 @@ def process_queue(db=None) -> dict:
             where={"id": entry.id},
             data={
                 "status": "FAILED",
-                "errorMessage": "Pipeline not found on re-fetch",
+                "errorMessage": "Build run not found on re-fetch",
                 "completedAt": datetime.now(timezone.utc),
             },
         )
-        return {"processed": False, "reason": "Pipeline not found", "entryId": entry.id}
+        return {"processed": False, "reason": "Build run not found", "entryId": entry.id}
 
-    builds = pipeline.builds or []
+    builds = build_run.builds or []
 
     # Mark as RUNNING *before* triggering to prevent re-entry from the same entry
     db.validationqueueentry.update(
@@ -144,7 +144,7 @@ def process_queue(db=None) -> dict:
     # Attempt to trigger — this will find an available fixture (or return None/queued)
     from src.services.build_run_service import trigger_pipeline_validation
 
-    result = trigger_pipeline_validation(entry.buildRunId, pipeline, builds)
+    result = trigger_pipeline_validation(entry.buildRunId, build_run, builds)
 
     if result is None or (isinstance(result, dict) and result.get("queued")):
         # Still no fixture available — revert to QUEUED

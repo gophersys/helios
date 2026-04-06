@@ -397,10 +397,10 @@ def validate_build_run(run_id: str):
         if not succeeded:
             return bad_request("No successful builds — cannot trigger validation")
 
-        if pipeline.validationRunId:
-            prior_run = db.session.find_unique(where={"id": pipeline.validationRunId})
+        if build_run.validationRunId:
+            prior_run = db.session.find_unique(where={"id": build_run.validationRunId})
             if prior_run and prior_run.status in ("ACTIVE", "RUNNING"):
-                logger.info("Prior run %s still active, queuing new validation", pipeline.validationRunId[:8])
+                logger.info("Prior run %s still active, queuing new validation", build_run.validationRunId[:8])
                 result = {"queued": True, "entryId": None, "reason": "Prior run still active"}
                 try:
                     entry = db.validationqueueentry.create(data={
@@ -408,7 +408,7 @@ def validate_build_run(run_id: str):
                         "stage": 4,
                         "priority": 0,
                         "status": "QUEUED",
-                        "reason": f"Prior run {pipeline.validationRunId[:8]} still active",
+                        "reason": f"Prior run {build_run.validationRunId[:8]} still active",
                         "requestedAt": datetime.now(timezone.utc),
                     })
                     result["entryId"] = entry.id
@@ -432,7 +432,7 @@ def validate_build_run(run_id: str):
                     db.fixture.update(where={"id": prior_run.fixtureId}, data={
                         "status": "AVAILABLE", "lockedBy": None, "lockedAt": None,
                     })
-                logger.info("Prior run %s finished (%s), unlocked fixture", pipeline.validationRunId[:8], prior_run.status)
+                logger.info("Prior run %s finished (%s), unlocked fixture", build_run.validationRunId[:8], prior_run.status)
 
         result = trigger_pipeline_validation(run_id, build_run, builds)
         if result is None:
