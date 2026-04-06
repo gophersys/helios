@@ -60,8 +60,8 @@
     { to: '/products', icon: Package, label: 'Products', permission: 'products:view' },
     { to: '/builds', icon: Hammer, label: 'Builds', permission: 'builds:view' },
     { to: '/validation', icon: FlaskConical, label: 'Validation' },
-    { to: '/fixtures', icon: Cpu, label: 'Fixtures', permission: 'fixtures:view' },
     { to: '/manufacturing', icon: Factory, label: 'Manufacturing', permission: 'manufacturing:view' },
+    { to: '/fixtures', icon: Cpu, label: 'Fixtures', permission: 'fixtures:view' },
   ];
 
   const visiblePrimaryItems = $derived(
