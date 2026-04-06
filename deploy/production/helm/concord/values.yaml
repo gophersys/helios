@@ -14,14 +14,32 @@ infrastructure:
     password: concord
     database: concord
     storage: 5Gi
+    nodeSelector: {}
   minio:
     enabled: false
     rootUser: minioadmin
     rootPassword: minioadmin
     storage: 5Gi
+    nodeSelector: {}
   pypi:
     enabled: false
     storage: "2Gi"
+    nodeSelector: {}
+
+# ── Build Service ──────────────────────────────────────────────
+buildService:
+  enabled: false
+  nodeSelector: {}
+  image:
+    repository: concord/build-service
+    tag: staging
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
 
 # ── Backend (http-api) ──────────────────────────────────────
 httpApi:
@@ -43,6 +61,7 @@ httpApi:
   serviceAccount:
     create: true
     name: concord-api
+  nodeSelector: {}
   probes:
     readiness:
       path: /v2/docs
@@ -61,6 +80,7 @@ frontend:
     tag: staging
   replicas: 1
   port: 80
+  nodeSelector: {}
   resources:
     requests:
       cpu: 50m
@@ -72,6 +92,7 @@ frontend:
 # ── Docs Site ──────────────────────────────────────────────
 docs:
   enabled: false
+  nodeSelector: {}
   image:
     repository: containers.ad.corekinect.com/concord-docs
     tag: staging
@@ -102,6 +123,7 @@ config:
 gitPoller:
   enabled: false
   pollInterval: "15"
+  nodeSelector: {}
   image:
     repository: containers.ad.corekinect.com/concord-git-poller
     tag: latest

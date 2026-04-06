@@ -72,7 +72,7 @@
             "options": {
                 "commands": [
                     {
-                        "command": "python3 seed.py"
+                        "command": "python3 -m seed.main"
                     }
                 ],
                 "cwd": "{projectRoot}",

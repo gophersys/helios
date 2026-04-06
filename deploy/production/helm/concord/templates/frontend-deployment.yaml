@@ -24,6 +24,7 @@ spec:
       annotations:
         rollme: {{ randAlphaNum 10 | quote }}
     spec:
+      {{- include "concord.workloadNodeSelector" (dict "workload" "platform" "extra" .Values.frontend.nodeSelector) | nindent 6 }}
       terminationGracePeriodSeconds: 15
       containers:
         - name: frontend

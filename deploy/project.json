@@ -13,15 +13,50 @@
       },
       "configurations": {
         "development": {
-          "commands": [
-            "bash deploy/development/start.sh"
-          ]
+          "commands": ["bash deploy/ctl.sh development start"]
         },
         "staging": {
-          "commands": ["deploy/production/ctl.sh staging deploy"]
+          "commands": ["bash deploy/ctl.sh staging start"]
         },
         "production": {
-          "commands": ["deploy/production/ctl.sh production deploy"]
+          "commands": ["bash deploy/ctl.sh production start"]
+        }
+      }
+    },
+
+    "update": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false
+      },
+      "configurations": {
+        "development": {
+          "commands": ["bash deploy/ctl.sh development update"]
+        },
+        "staging": {
+          "commands": ["bash deploy/ctl.sh staging update"]
+        },
+        "production": {
+          "commands": ["bash deploy/ctl.sh production update"]
+        }
+      }
+    },
+
+    "stop": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "development": {
+          "commands": ["bash deploy/ctl.sh development stop"]
+        },
+        "staging": {
+          "commands": ["bash deploy/ctl.sh staging stop"]
+        },
+        "production": {
+          "commands": ["bash deploy/ctl.sh production stop"]
         }
       }
     },
@@ -32,25 +67,8 @@
         "cwd": "{workspaceRoot}",
         "parallel": false,
         "commands": [
-          "bash deploy/development/ready.sh"
+          "bash deploy/ctl.sh development ready"
         ]
-      }
-    },
-
-    "stop": {
-      "executor": "nx:run-commands",
-      "defaultConfiguration": "development",
-      "options": { "cwd": "{workspaceRoot}" },
-      "configurations": {
-        "development": {
-          "commands": ["docker compose -f deploy/development/docker-compose.yaml down"]
-        },
-        "staging": {
-          "commands": ["echo 'Use: helm uninstall concord -n staging'"]
-        },
-        "production": {
-          "commands": ["echo 'Use: helm uninstall concord -n production'"]
-        }
       }
     },
 
@@ -60,13 +78,13 @@
       "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
         "development": {
-          "commands": ["docker compose -f deploy/development/docker-compose.yaml ps"]
+          "commands": ["bash deploy/ctl.sh development status"]
         },
         "staging": {
-          "commands": ["deploy/production/ctl.sh staging status"]
+          "commands": ["bash deploy/ctl.sh staging status"]
         },
         "production": {
-          "commands": ["deploy/production/ctl.sh production status"]
+          "commands": ["bash deploy/ctl.sh production status"]
         }
       }
     },
@@ -77,13 +95,13 @@
       "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
         "development": {
-          "commands": ["docker compose -f deploy/development/docker-compose.yaml logs -f --tail=50"]
+          "commands": ["bash deploy/ctl.sh development logs"]
         },
         "staging": {
-          "commands": ["deploy/production/ctl.sh staging logs"]
+          "commands": ["bash deploy/ctl.sh staging logs"]
         },
         "production": {
-          "commands": ["deploy/production/ctl.sh production logs"]
+          "commands": ["bash deploy/ctl.sh production logs"]
         }
       }
     },
@@ -143,10 +161,10 @@
       "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
         "staging": {
-          "commands": ["deploy/production/ctl.sh diff staging"]
+          "commands": ["bash deploy/ctl.sh staging diff"]
         },
         "production": {
-          "commands": ["deploy/production/ctl.sh diff production"]
+          "commands": ["bash deploy/ctl.sh production diff"]
         }
       }
     },
@@ -175,78 +193,6 @@
       }
     },
 
-    "build-all": {
-      "executor": "nx:run-commands",
-      "defaultConfiguration": "development",
-      "options": {
-        "cwd": "{workspaceRoot}",
-        "parallel": false
-      },
-      "configurations": {
-        "development": {
-          "commands": [
-            "nx run-many -t build -p http-api app docs corekinect corectl build-service git-poller -c development"
-          ]
-        },
-        "staging": {
-          "commands": [
-            "nx run-many -t build -p http-api app docs corekinect corectl build-service git-poller -c staging"
-          ]
-        },
-        "production": {
-          "commands": [
-            "nx run-many -t build -p http-api app docs corekinect corectl build-service git-poller -c production"
-          ]
-        }
-      }
-    },
-
-    "push-all": {
-      "executor": "nx:run-commands",
-      "defaultConfiguration": "development",
-      "dependsOn": ["build-all"],
-      "options": {
-        "cwd": "{workspaceRoot}",
-        "parallel": false
-      },
-      "configurations": {
-        "development": {
-          "commands": ["echo 'Skipping push for development'"]
-        },
-        "staging": {
-          "commands": [
-            "nx run-many -t push -p http-api app docs corekinect corectl build-service git-poller -c staging"
-          ]
-        },
-        "production": {
-          "commands": [
-            "nx run-many -t push -p http-api app docs corekinect corectl build-service git-poller -c production"
-          ]
-        }
-      }
-    },
-
-    "deploy-all": {
-      "executor": "nx:run-commands",
-      "defaultConfiguration": "development",
-      "dependsOn": ["push-all"],
-      "options": {
-        "cwd": "{workspaceRoot}",
-        "parallel": false
-      },
-      "configurations": {
-        "development": {
-          "commands": ["echo 'Development uses docker-compose — run: nx start platform'"]
-        },
-        "staging": {
-          "commands": ["deploy/production/ctl.sh staging deploy"]
-        },
-        "production": {
-          "commands": ["deploy/production/ctl.sh production deploy"]
-        }
-      }
-    },
-
     "release": {
       "executor": "nx:run-commands",
       "options": {
@@ -258,9 +204,7 @@
           "commands": [
             "echo '=== Concord Release → Staging ==='",
             "nx run platform:check -c staging",
-            "nx run platform:build-all -c staging",
-            "nx run platform:push-all -c staging",
-            "nx run platform:deploy-all -c staging",
+            "bash deploy/ctl.sh staging update",
             "nx run platform:status -c staging",
             "nx run platform:test:smoke -c staging",
             "echo '=== Staging release complete ==='"
@@ -270,9 +214,7 @@
           "commands": [
             "echo '=== Concord Release → Production ==='",
             "nx run platform:check -c staging",
-            "nx run platform:build-all -c production",
-            "nx run platform:push-all -c production",
-            "nx run platform:deploy-all -c production",
+            "bash deploy/ctl.sh production update",
             "nx run platform:status -c production",
             "nx run platform:test:smoke -c production",
             "echo '=== Production release complete ==='"

@@ -16,6 +16,7 @@ spec:
       labels:
         app.kubernetes.io/name: concord-pypi
     spec:
+      {{- include "concord.workloadNodeSelector" (dict "workload" "data" "extra" .Values.infrastructure.pypi.nodeSelector) | nindent 6 }}
       containers:
       - name: pypi
         image: pypiserver/pypiserver:latest

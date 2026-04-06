@@ -40,7 +40,7 @@ DIRECT_DATABASE_URL="postgresql://concord:concord-test@localhost:5434/concord" \
 DATABASE_URL="postgresql://concord:concord-test@localhost:5434/concord" \
 DIRECT_DATABASE_URL="postgresql://concord:concord-test@localhost:5434/concord" \
 PYTHONPATH="../libs/python:../libs:../libs/protocols" \
-  python3 seed.py
+  python3 -m seed.main
 cd ..
 
 # Start all services

@@ -33,6 +33,7 @@ spec:
         {{- include "concord.labels" . | nindent 8 }}
         app.kubernetes.io/name: concord-minio
     spec:
+      {{- include "concord.workloadNodeSelector" (dict "workload" "data" "extra" .Values.infrastructure.minio.nodeSelector) | nindent 6 }}
       containers:
         - name: minio
           image: minio/minio:latest

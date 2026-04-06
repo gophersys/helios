@@ -26,6 +26,7 @@ spec:
         checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
         rollme: {{ randAlphaNum 10 | quote }}
     spec:
+      {{- include "concord.workloadNodeSelector" (dict "workload" "platform" "extra" .Values.httpApi.nodeSelector) | nindent 6 }}
       terminationGracePeriodSeconds: 30
       {{- if .Values.httpApi.serviceAccount.create }}
       serviceAccountName: {{ .Values.httpApi.serviceAccount.name }}
@@ -65,6 +66,37 @@ spec:
             limits:
               cpu: 100m
               memory: 64Mi
+        - name: migrate
+          image: "{{ .Values.httpApi.image.repository }}:{{ .Values.httpApi.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command:
+            - python3
+            - -c
+            - |
+              import subprocess, sys, os
+              os.chdir('/prisma')
+              print('Running Prisma migrations...', flush=True)
+              r = subprocess.run(
+                  [sys.executable, '-m', 'prisma', 'migrate', 'deploy',
+                   '--schema', '/prisma/schema.prisma'],
+                  capture_output=False, text=True
+              )
+              if r.returncode != 0:
+                  print(f'Migration failed (exit {r.returncode})', flush=True)
+                  sys.exit(r.returncode)
+              print('Migrations complete.', flush=True)
+          envFrom:
+            - configMapRef:
+                name: concord-config
+            - secretRef:
+                name: concord-secrets
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
       {{- end }}
       containers:
         - name: http-api

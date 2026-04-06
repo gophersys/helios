@@ -33,6 +33,7 @@ spec:
         {{- include "concord.labels" . | nindent 8 }}
         app.kubernetes.io/name: concord-postgres
     spec:
+      {{- include "concord.workloadNodeSelector" (dict "workload" "data" "extra" .Values.infrastructure.postgres.nodeSelector) | nindent 6 }}
       containers:
         - name: postgres
           image: postgres:16-alpine

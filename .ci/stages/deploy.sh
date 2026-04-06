@@ -15,6 +15,6 @@ if [[ "$CI" != "true" ]]; then
   exit 0
 fi
 
-./deploy/production/ctl.sh "$ENV" deploy
+./deploy/ctl.sh "$ENV" deploy
 
 log_stage_end

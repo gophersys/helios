@@ -22,3 +22,23 @@ Frontend selector labels
 app.kubernetes.io/name: concord-frontend
 app.kubernetes.io/component: frontend
 {{- end }}
+
+{{/*
+Workload node selector — places pods on nodes matching a workload type.
+Uses concord.corekinect.com/workload-<type>=true so multi-role nodes
+are matched (e.g., a node with workload-platform=true AND workload-worker=true).
+
+Usage: {{ include "concord.workloadNodeSelector" (dict "workload" "platform" "extra" .Values.httpApi.nodeSelector) }}
+*/}}
+{{- define "concord.workloadNodeSelector" -}}
+{{- if .workload }}
+nodeSelector:
+  concord.corekinect.com/workload-{{ .workload }}: "true"
+  {{- with .extra }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- else if .extra }}
+nodeSelector:
+  {{- toYaml .extra | nindent 2 }}
+{{- end }}
+{{- end }}

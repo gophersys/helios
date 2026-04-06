@@ -20,6 +20,18 @@ spec:
       annotations:
         rollme: {{ randAlphaNum 10 | quote }}
     spec:
+      {{- include "concord.workloadNodeSelector" (dict "workload" "platform" "extra" .Values.gitPoller.nodeSelector) | nindent 6 }}
+      initContainers:
+        - name: wait-for-api
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://concord-http-api:9001/v2/docs >/dev/null 2>&1; do echo "Waiting for http-api..."; sleep 3; done']
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
       containers:
         - name: git-poller
           image: "{{ .Values.gitPoller.image.repository }}:{{ .Values.gitPoller.image.tag }}"
@@ -52,4 +64,7 @@ spec:
           secret:
             secretName: bitbucket-ssh-key
             defaultMode: 0600
+            items:
+              - key: ssh-private-key
+                path: id_rsa
 {{- end }}

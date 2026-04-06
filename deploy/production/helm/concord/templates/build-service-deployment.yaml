@@ -23,9 +23,21 @@ spec:
       labels:
         app: concord-build-service
     spec:
+      initContainers:
+        - name: wait-for-api
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://concord-http-api:9001/v2/docs >/dev/null 2>&1; do echo "Waiting for http-api..."; sleep 3; done']
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
       containers:
         - name: build-service
           image: "{{ .Values.buildService.image.repository }}:{{ .Values.buildService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy | default "IfNotPresent" }}
           command: ["python3", "-u", "-m", "src.main"]
           securityContext:
             privileged: true
@@ -109,6 +121,9 @@ spec:
           secret:
             secretName: bitbucket-ssh-key
             defaultMode: 0600
+            items:
+              - key: ssh-private-key
+                path: id_rsa
         - name: workspace
           hostPath:
             path: /tmp/concord-builds
@@ -117,14 +132,5 @@ spec:
           hostPath:
             path: /tmp/concord-ccache
             type: DirectoryOrCreate
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              preference:
-                matchExpressions:
-                  - key: kubernetes.io/arch
-                    operator: In
-                    values:
-                      - amd64
+      {{- include "concord.workloadNodeSelector" (dict "workload" "build" "extra" .Values.buildService.nodeSelector) | nindent 6 }}
 {{- end }}

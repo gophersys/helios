@@ -16,6 +16,7 @@ spec:
       labels:
         app.kubernetes.io/name: concord-docs
     spec:
+      {{- include "concord.workloadNodeSelector" (dict "workload" "platform" "extra" .Values.docs.nodeSelector) | nindent 6 }}
       containers:
       - name: docs
         image: "{{ .Values.docs.image.repository }}:{{ .Values.docs.image.tag }}"
