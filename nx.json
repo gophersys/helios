@@ -83,5 +83,6 @@
       }
     }
   ],
-  "generators": {}
+  "generators": {},
+  "analytics": false
 }
