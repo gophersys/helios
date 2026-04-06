@@ -28,7 +28,7 @@ from .auth.users import (
 )
 
 # Health
-from .healthcheck import healthcheck
+from .system.healthcheck import healthcheck
 
 # Products handlers (was catalog/)
 from .products.board_discovery import (
@@ -492,7 +492,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/system/secrets/<secret_id>",  endpoint="delete_platform_secret",  view_func=delete_platform_secret,  methods=["DELETE"])
 
     # Storage download
-    from .storage_download import download_storage_file
+    from .assets.storage_download import download_storage_file
     v2.add_url_rule("/storage/download",                                                               endpoint="download_storage_file",        view_func=download_storage_file,    methods=["GET"])
 
     # Sessions (was /validation/runs)
