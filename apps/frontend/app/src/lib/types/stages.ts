@@ -11,6 +11,15 @@ export interface ProductStageConfig {
   signingKeyId: string | null;
   signingKey: { id: string; name: string; type: string } | null;
   buildMatrix?: import('$lib/types/models').StageBuildMatrixEntry[];
+  // Repo URLs resolved from product codebases
+  fwRepoUrl?: string | null;
+  fwRepoBranch?: string | null;
+  mfgRepoUrl?: string | null;
+  mfgRepoBranch?: string | null;
+  // Build trigger response fields
+  buildTriggered?: boolean;
+  buildRunId?: string | null;
+  buildError?: string | null;
   createdAt: string;
   updatedAt: string;
 }

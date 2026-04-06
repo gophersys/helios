@@ -150,6 +150,7 @@
         />
       </div>
       <FilterSelect
+        label="Status"
         value={statusFilter}
         onchange={(v) => { statusFilter = v as 'all' | 'active' | 'inactive'; }}
         options={[

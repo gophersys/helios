@@ -36,8 +36,9 @@
     };
   }
 
-  // Create and provide RunContext to all children via setContext
-  const ctx = createRunContext(runId);
+  // Create and provide RunContext to all children via setContext.
+  // runId is captured once — navigating to a different run reloads the component.
+  const ctx = createRunContext(runId!);
 
   // Auto-select first stage when stages appear
   $effect(() => {

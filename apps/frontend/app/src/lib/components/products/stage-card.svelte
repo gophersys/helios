@@ -136,9 +136,9 @@
       } as any);
       configuring = false;
       if (result.buildTriggered) {
-        buildResult = { triggered: true, runId: result.buildRunId };
+        buildResult = { triggered: true, runId: result.buildRunId ?? undefined };
       } else if (result.buildError) {
-        buildResult = { triggered: false, error: result.buildError };
+        buildResult = { triggered: false, error: result.buildError ?? undefined };
       }
       onUpdated();
     } catch (err) {

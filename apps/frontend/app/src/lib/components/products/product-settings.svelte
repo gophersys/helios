@@ -23,8 +23,8 @@
     const repos: { label: string; url: string; branch: string | null }[] = [];
     const seen = new Set<string>();
     for (const cfg of stageConfigs) {
-      if (cfg.fwRepoUrl && !seen.has(cfg.fwRepoUrl)) { seen.add(cfg.fwRepoUrl); repos.push({ label: 'FW Repo', url: cfg.fwRepoUrl, branch: cfg.fwRepoBranch }); }
-      if (cfg.mfgRepoUrl && !seen.has(cfg.mfgRepoUrl)) { seen.add(cfg.mfgRepoUrl); repos.push({ label: 'Mfg Repo', url: cfg.mfgRepoUrl, branch: cfg.mfgRepoBranch }); }
+      if (cfg.fwRepoUrl && !seen.has(cfg.fwRepoUrl)) { seen.add(cfg.fwRepoUrl); repos.push({ label: 'FW Repo', url: cfg.fwRepoUrl, branch: cfg.fwRepoBranch ?? null }); }
+      if (cfg.mfgRepoUrl && !seen.has(cfg.mfgRepoUrl)) { seen.add(cfg.mfgRepoUrl); repos.push({ label: 'Mfg Repo', url: cfg.mfgRepoUrl, branch: cfg.mfgRepoBranch ?? null }); }
     }
     return repos;
   });

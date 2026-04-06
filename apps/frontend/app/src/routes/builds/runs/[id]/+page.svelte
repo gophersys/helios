@@ -28,7 +28,7 @@
     XCircle,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
-  import type { BuildRunDetail, PipelineBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
+  import type { BuildRunDetail, BuildRunBuildSummary, MatrixLabel, ValidationStage } from '$lib/types/ci';
   import { MATRIX_LABEL_DISPLAY, STAGE_DISPLAY } from '$lib/types/ci';
   import { fetchBuildRun, fetchBuildLog, fetchBuildArtifacts, resetBuild, downloadBuildArtifacts, downloadBuildRunArtifacts, downloadSingleArtifact, triggerBuildRunValidation, validateBuildRunArtifacts, fetchBuildRunSessions, cancelPipeline, retriggerPipeline } from '$lib/services/ci';
   import type { BuildRunSessionSummary, ArtifactValidationReport } from '$lib/services/ci';
@@ -48,7 +48,7 @@
   const auth = getAuth();
   const runId = $derived($page.params.id);
 
-  let buildRun = $state<Pipeline | null>(null);
+  let buildRun = $state<BuildRunDetail | null>(null);
   let loading = $state(true);
   let initialLoadComplete = $state(false);
   let error = $state<string | null>(null);
@@ -77,6 +77,7 @@
   let validationRuns = $state<BuildRunSessionSummary[]>([]);
 
   async function fetchValidationRuns() {
+    if (!runId) return;
     try {
       validationRuns = await fetchBuildRunSessions(runId);
     } catch {
@@ -89,21 +90,21 @@
     buildRun &&
     ['SUCCESS', 'FAILED', 'BUILD_FAILED', 'VALIDATING'].includes(buildRun.status ?? '') &&
     buildRun.builds && buildRun.builds.length > 0 &&
-    buildRun.builds.some(b => b.status === 'SUCCESS' || b.status === 'CACHED')
+    buildRun.builds.some((b: BuildRunBuildSummary) => b.status === 'SUCCESS' || b.status === 'CACHED')
   );
 
   // Check if all builds are complete (success or failed)
   const allBuildsComplete = $derived(
     buildRun?.builds && buildRun.builds.length > 0 &&
-    buildRun.builds.every(b => b.status === 'SUCCESS' || b.status === 'FAILED' || b.status === 'CANCELLED')
+    buildRun.builds.every((b: BuildRunBuildSummary) => b.status === 'SUCCESS' || b.status === 'FAILED' || b.status === 'CANCELLED')
   );
 
   // Check if any builds have artifacts
   const hasAnyArtifacts = $derived(
-    buildRun?.builds?.some(b => (b.artifactCount ?? 0) > 0) ?? false
+    buildRun?.builds?.some((b: BuildRunBuildSummary) => (b.artifactCount ?? 0) > 0) ?? false
   );
 
-  async function handleDownloadBuild(build: PipelineBuildSummary, e: Event): Promise<void> {
+  async function handleDownloadBuild(build: BuildRunBuildSummary, e: Event): Promise<void> {
     e.stopPropagation();
     if (downloadingBuilds.has(build.id)) return;
 
@@ -234,7 +235,7 @@
     cancelling = true;
     try {
       await cancelPipeline(buildRun.id);
-      buildRun = await fetchBuildRun(runId);
+      buildRun = await fetchBuildRun(runId ?? '');
       error = null;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to cancel pipeline';
@@ -259,21 +260,21 @@
     buildRun?.status === 'BUILDING' || buildRun?.status === 'PENDING'
   );
 
-  const triggerDisplay = $derived(getTriggerConfig(buildRun?.triggerTypes ?? 'manual'));
+  const triggerDisplay = $derived(getTriggerConfig(buildRun?.triggerType ?? 'manual'));
 
   const totalDuration = $derived.by(() => {
     if (!buildRun?.builds) return null;
-    const totalSeconds = buildRun.builds.reduce((sum, b) => sum + (b.durationSeconds ?? 0), 0);
+    const totalSeconds = buildRun.builds.reduce((sum: number, b: BuildRunBuildSummary) => sum + (b.durationSeconds ?? 0), 0);
     return totalSeconds > 0 ? totalSeconds : null;
   });
 
   const totalArtifacts = $derived.by(() => {
     if (!buildRun?.builds) return 0;
-    return buildRun.builds.reduce((sum, b) => sum + (b.artifactCount ?? 0), 0);
+    return buildRun.builds.reduce((sum: number, b: BuildRunBuildSummary) => sum + (b.artifactCount ?? 0), 0);
   });
 
   // Check if this is a stage pipeline with matrix labels
-  const hasMatrixLabels = $derived(buildRun?.builds?.some(b => b.matrixLabel) ?? false);
+  const hasMatrixLabels = $derived(buildRun?.builds?.some((b: BuildRunBuildSummary) => b.matrixLabel) ?? false);
   const isFuota = $derived(buildRun?.matrixMode === 'fuota');
   const stageInfo = $derived(buildRun?.matrixMode ? STAGE_DISPLAY[buildRun.matrixMode as ValidationStage] : null);
 
@@ -282,7 +283,7 @@
     if (!buildRun?.builds || !hasMatrixLabels) return null;
 
     // Group by fuotaStep, preserving FUOTA flow order
-    const stepGroups: Map<number, { title: string; builds: PipelineBuildSummary[] }> = new Map();
+    const stepGroups: Map<number, { title: string; builds: BuildRunBuildSummary[] }> = new Map();
 
     for (const build of buildRun.builds) {
       const label = build.matrixLabel as MatrixLabel;
@@ -433,11 +434,11 @@
       // On initial load, pre-fetch log analysis for all completed builds before showing content
       if (isInitial && buildRun?.builds) {
         const completedBuilds = buildRun.builds.filter(
-          (b) => b.status === 'SUCCESS' || b.status === 'FAILED'
+          (b: BuildRunBuildSummary) => b.status === 'SUCCESS' || b.status === 'FAILED'
         );
         if (completedBuilds.length > 0) {
           await Promise.all(
-            completedBuilds.map((b) => fetchAndUpdateLog(b.id, false))
+            completedBuilds.map((b: BuildRunBuildSummary) => fetchAndUpdateLog(b.id, false))
           );
         }
       }
@@ -888,9 +889,12 @@
                     {@const artifacts = buildArtifacts[build.id] ?? []}
                     {@const matrixInfo = getMatrixDisplay(build.matrixLabel)}
                     <div class="overflow-hidden max-w-full">
-                      <button
+                      <div
+                        role="button"
+                        tabindex="0"
                         onclick={() => toggleBuildLog(build.id, build)}
-                        class="w-full p-3 text-left hover:bg-surface-1 transition-colors overflow-x-hidden"
+                        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBuildLog(build.id, build); } }}
+                        class="w-full p-3 text-left hover:bg-surface-1 transition-colors overflow-x-hidden cursor-pointer"
                       >
                         <div class="flex items-center justify-between gap-4">
                           <div class="flex items-center gap-2 min-w-0 flex-1">
@@ -979,7 +983,7 @@
                             <span class="tabular-nums">#{build.buildNum}</span>
                           </div>
                         </div>
-                      </button>
+                      </div>
                       {#if isExpanded}
                         <div class="border-t border-border bg-surface-1 p-4 overflow-x-hidden max-w-full">
                           {#if isLoadingLog}
@@ -1125,9 +1129,12 @@
             {@const firmwareArtifacts = artifacts.filter(a => isFirmwareArtifact(a.name))}
             <div class="rounded-lg border border-border bg-surface-0 overflow-hidden max-w-full">
               <!-- Build header -->
-              <button
+              <div
+                role="button"
+                tabindex="0"
                 onclick={() => toggleBuildLog(build.id, build)}
-                class="w-full p-4 text-left hover:bg-surface-1 transition-colors overflow-x-hidden"
+                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBuildLog(build.id, build); } }}
+                class="w-full p-4 text-left hover:bg-surface-1 transition-colors overflow-x-hidden cursor-pointer"
               >
                 <div class="flex items-center justify-between gap-4 mb-2">
                   <div class="flex items-center gap-2 min-w-0 flex-1">
@@ -1196,7 +1203,7 @@
                     <span class="tabular-nums">#{build.buildNum}</span>
                   </div>
                 </div>
-              </button>
+              </div>
 
               {#if isExpanded}
                 <div class="border-t border-border bg-surface-1 p-4 overflow-x-hidden max-w-full">

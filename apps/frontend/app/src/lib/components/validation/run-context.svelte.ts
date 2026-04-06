@@ -25,6 +25,7 @@ export interface LiveTest {
   measurements: Record<string, unknown> | null;
   logOutput: string | null;
   expanded: boolean;
+  [key: string]: unknown;
 }
 
 export interface Artifact {

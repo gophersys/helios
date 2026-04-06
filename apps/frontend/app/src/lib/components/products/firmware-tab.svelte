@@ -191,8 +191,8 @@
               class="shrink-0 transition-transform {expandedSet === fwSet.id ? '' : '-rotate-90'} text-text-tertiary"
             />
             <span class="font-mono text-sm font-semibold text-text-primary">v{fwSet.version}</span>
-            <span class="rounded px-1.5 py-0.5 text-2xs font-medium {VARIANT_COLORS[fwSet.variant] ?? 'bg-surface-2 text-text-secondary'}">
-              {fwSet.variant}
+            <span class="rounded px-1.5 py-0.5 text-2xs font-medium {VARIANT_COLORS[fwSet.variant ?? ''] ?? 'bg-surface-2 text-text-secondary'}">
+              {fwSet.variant ?? ''}
             </span>
             <span class="rounded px-1.5 py-0.5 text-2xs font-medium {TRACK_COLORS[fwSet.releaseTrack] ?? 'bg-surface-2 text-text-secondary'}">
               {fwSet.releaseTrack}

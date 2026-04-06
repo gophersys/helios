@@ -7,7 +7,9 @@
   import type { ConcordNode } from '$lib/types/models';
   import { onMount } from 'svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
+  import type { Snippet } from 'svelte';
 
+  let { children }: { children: Snippet } = $props();
   const auth = getAuth();
   const nodeId = $derived($page.params.nodeId);
 
@@ -41,10 +43,10 @@
     exact?: boolean;
   }
 
-  const tabs: Tab[] = [
+  const tabs = $derived<Tab[]>([
     { path: `/mtib/${nodeId}`, label: 'Overview', exact: true },
     { path: `/mtib/${nodeId}/analyzer`, label: 'Analyzer' },
-  ];
+  ]);
 
   const isActive = $derived((tab: Tab) => {
     const currentPath = $page.url.pathname;
@@ -153,5 +155,5 @@
   </div>
 
   <!-- Page Content -->
-  <slot />
+  {@render children()}
 </div>

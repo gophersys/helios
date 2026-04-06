@@ -131,7 +131,7 @@
                     </span>
                   {/if}
 
-                  <TimeDisplay date={asset.createdAt} />
+                  <TimeDisplay datetime={asset.createdAt} />
                 </button>
 
                 <!-- Expanded: individual assets -->

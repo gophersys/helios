@@ -154,7 +154,7 @@
                             {/if}
                           </td>
                           <td class="table-cell">
-                            <StatusBadge status={build.status} />
+                            <StatusBadge status={build.status ?? 'UNKNOWN'} />
                           </td>
                           <td class="table-cell">
                             {#if build.isManufacturing}

@@ -1,7 +1,5 @@
 /** UI component type definitions */
 
-import type { Component } from 'svelte';
-
 export interface SelectOption {
   value: string;
   label: string;
@@ -10,7 +8,9 @@ export interface SelectOption {
 export interface Tab {
   id: string;
   label: string;
-  icon?: Component;
+  // Lucide icons use legacy Svelte component types, so we use a permissive type here
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  icon?: any;
   badge?: string | number;
   disabled?: boolean;
 }

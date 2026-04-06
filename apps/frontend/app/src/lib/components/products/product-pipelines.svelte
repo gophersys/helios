@@ -3,7 +3,7 @@
   import { Clock, AlertCircle } from 'lucide-svelte';
   import { fetchBuildRuns } from '$lib/services/ci';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
-  import type { Pipeline } from '$lib/types/ci';
+  import type { BuildRunDetail } from '$lib/types/ci';
 
   interface Props {
     productId: string;
@@ -12,7 +12,7 @@
 
   let { productId, productName }: Props = $props();
 
-  let pipelines = $state<BuildRunDetail[]>([]);
+  let pipelines: BuildRunDetail[] = $state([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
@@ -93,7 +93,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each pipelines as pipeline (buildRun.id)}
+          {#each pipelines as buildRun (buildRun.id)}
             <tr class="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-1)] transition-colors">
               <td class="px-3 py-2">
                 <a href="/builds/runs/{buildRun.id}" class="font-mono text-xs text-[var(--color-accent)] hover:underline">

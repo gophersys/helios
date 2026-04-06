@@ -80,8 +80,8 @@
           <div class="h-3 w-24 animate-pulse rounded bg-[var(--color-surface-2)]"></div>
         </div>
       {:else}
+        {@const CardIcon = card.icon}
         <div class="flex items-center gap-2 text-[var(--color-text-tertiary)]">
-          {@const CardIcon = card.icon}
           <CardIcon size={14} />
           <span class="text-xs font-medium">{card.label}</span>
         </div>

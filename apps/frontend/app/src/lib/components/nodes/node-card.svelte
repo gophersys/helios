@@ -119,7 +119,7 @@
         aria-label="Health check"
       >
         <HeartPulse size={14} />
-      </button>
+      </div>
       <div
         onclick={() => onEdit(node)}
         class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-text-primary"
@@ -127,7 +127,7 @@
         aria-label="Edit"
       >
         <Pencil size={14} />
-      </button>
+      </div>
       <div
         onclick={() => onDelete(node.id)}
         class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-error"
@@ -135,7 +135,7 @@
         aria-label="Delete"
       >
         <Trash2 size={14} />
-      </button>
+      </div>
     </div>
   {/if}
-</button>
+</div>

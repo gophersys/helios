@@ -77,6 +77,7 @@ export interface FirmwareSet {
   productId: string;
   boardRevisionId: string | null;
   version: string;
+  variant?: string;
   releaseTrack: string;
   isManufacturing: boolean;
   isDebug: boolean;
@@ -104,6 +105,11 @@ export interface FirmwareBuild {
   contentType: string | null;
   notes: string | null;
   createdAt: string;
+  // Display fields used by firmware-app-list
+  version?: string | null;
+  modemFilename?: string | null;
+  status?: string | null;
+  isManufacturing?: boolean;
 }
 
 export interface ProductTarget {

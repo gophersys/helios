@@ -74,13 +74,13 @@
   {@render children()}
 {:else if auth.isAuthenticated}
   <Layout>
-    <svelte:boundary onerror={(e) => { boundaryError = { message: e.message, stack: e.stack }; console.error('[boundary]', e); }}>
+    <svelte:boundary onerror={(e: unknown, _reset: () => void) => { const err = e as Error; boundaryError = { message: err.message, stack: err.stack }; console.error('[boundary]', e); }}>
       {@render children()}
-      {#snippet failed(error)}
+      {#snippet failed(error: unknown, reset: () => void)}
         <div class="p-8">
           <div class="rounded-lg border border-error/30 bg-error-muted p-4">
             <h2 class="text-lg font-semibold text-error mb-2">Something went wrong</h2>
-            <p class="text-sm text-text-primary mb-3">{error?.message || 'Unknown error'}</p>
+            <p class="text-sm text-text-primary mb-3">{(error as Error)?.message || 'Unknown error'}</p>
             <button onclick={() => location.reload()} class="rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover">
               Reload Page
             </button>

@@ -480,7 +480,7 @@
                 {:else if fwRepoStatus === 'exists'}
                   <Check size={14} class="text-success" />
                 {:else if fwRepoStatus === 'not_found'}
-                  <AlertTriangle size={14} class="text-warning" title="Repository not found on Bitbucket" />
+                  <span title="Repository not found on Bitbucket"><AlertTriangle size={14} class="text-warning" /></span>
                 {/if}
               </div>
             </div>
@@ -499,7 +499,7 @@
                 {:else if mfgRepoStatus === 'exists'}
                   <Check size={14} class="text-success" />
                 {:else if mfgRepoStatus === 'not_found'}
-                  <AlertTriangle size={14} class="text-warning" title="Repository not found on Bitbucket" />
+                  <span title="Repository not found on Bitbucket"><AlertTriangle size={14} class="text-warning" /></span>
                 {/if}
               </div>
             </div>

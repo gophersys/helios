@@ -10,9 +10,9 @@
     SkipForward,
     ArrowRight,
   } from 'lucide-svelte';
-  import type { PipelineStageInfo, PipelineStageStatus } from '$lib/types/ci';
+  import type { BuildRunStageInfo, BuildRunStageStatus } from '$lib/types/ci';
 
-  let { stages }: { stages: PipelineStageInfo[] } = $props();
+  let { stages }: { stages: BuildRunStageInfo[] } = $props();
 
   const STAGE_ICONS: Record<string, typeof Hammer> = {
     BUILD: Hammer,
@@ -26,7 +26,7 @@
     VALIDATE: 'Validate',
   };
 
-  function statusColor(status: PipelineStageStatus): string {
+  function statusColor(status: BuildRunStageStatus): string {
     switch (status) {
       case 'SUCCESS': return 'bg-success-muted text-success border-success/20';
       case 'RUNNING': return 'bg-accent-muted text-accent border-accent/20';
@@ -37,7 +37,7 @@
     }
   }
 
-  function statusChipColor(status: PipelineStageStatus): string {
+  function statusChipColor(status: BuildRunStageStatus): string {
     switch (status) {
       case 'SUCCESS': return 'bg-success-muted text-success';
       case 'RUNNING': return 'bg-accent-muted text-accent';

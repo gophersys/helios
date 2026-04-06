@@ -37,6 +37,7 @@
   }: Props = $props();
 
   // ── Wizard state ───────────────────────────────────────
+  const stageName = $derived(STAGE_NAMES[stage] || `Stage ${stage}`);
   let currentStep = $state(1);
   let saving = $state(false);
   let error = $state<string | null>(null);
@@ -176,7 +177,6 @@
   let liveSecrets = $state<Secret[]>([]);
   let secretsLoading = $state(false);
 
-  const stageName = $derived(STAGE_NAMES[stage] || `Stage ${stage}`);
   const stageDesc = $derived(STAGE_DESCRIPTIONS[stage] || '');
   const signingKeys = $derived(liveSecrets.filter((s) => s.type === 'signing_key'));
   const selectedRevision = $derived(revisions.find((r) => r.id === formRevisionId));
@@ -597,7 +597,7 @@
         continue;
       }
 
-      if (inCloneSection && cls !== 'clone') {
+      if (inCloneSection) {
         if (cloneLineCount > 3) {
           out.push({ html: `<span style="color:#585b70">  (${cloneLineCount} lines)</span>`, type: 'clone' });
         }

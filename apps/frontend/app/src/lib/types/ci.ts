@@ -42,6 +42,10 @@ export interface BuildJob {
   buildFingerprint?: string | null;
   configFlags?: Record<string, unknown> | null;
   reusedFromId?: string | null;
+  // Error detail from failed builds
+  errorMessage?: string | null;
+  // Worker assignment
+  workerId?: string | null;
 }
 
 export interface BuildRunStageInfo {
@@ -79,6 +83,7 @@ export interface BuildRunBuildSummary {
   variant: string;
   buildNum: number;
   versionString: string | null;
+  commitSha?: string | null;
   durationSeconds: number | null;
   artifactCount: number;
   // Stage 4 matrix fields
@@ -86,6 +91,8 @@ export interface BuildRunBuildSummary {
   matrixIndex?: number | null;
   versionBump?: boolean;
   baseJobId?: string | null;
+  // Build cache fields
+  reusedFromId?: string | null;
 }
 
 // Human-readable labels for FUOTA matrix (FUOTA flow order)
@@ -271,6 +278,14 @@ export interface BuildRunDetail {
   buildJob?: BuildJob | null;
   validationRun?: { id: string; name: string; status: string } | null;
   stages?: BuildRunStageInfo[];
+  // Trigger-specific data (modem firmware, etc.)
+  triggerData?: {
+    modemFirmware?: {
+      name: string;
+      version: string;
+      storageKey: string;
+    };
+  } | null;
 }
 
 // PR Pipeline — shows a PR's validation status across all stages

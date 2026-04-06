@@ -26,8 +26,9 @@
   let duration = $state(1.0); // 1 second
   let selectedChannels = $state<number[]>([0, 1, 2, 3, 4, 5, 6, 7]); // All channels
 
-  // UI state
-  let showConfig = $state(isNewCapture);
+  // UI state — derived from isNewCapture so it reacts to route changes
+  let showConfig = $state(false);
+  $effect(() => { showConfig = isNewCapture; });
   let error = $state<string | null>(null);
 
   // Derived state from store
@@ -209,9 +210,9 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <!-- Sample Rate -->
           <div>
-            <label class="block text-xs font-medium text-text-secondary mb-2">
+            <span class="block text-xs font-medium text-text-secondary mb-2">
               Sample Rate
-            </label>
+            </span>
             <div class="grid grid-cols-2 gap-2">
               {#each sampleRateOptions as option}
                 <button
@@ -233,9 +234,9 @@
 
           <!-- Duration -->
           <div>
-            <label class="block text-xs font-medium text-text-secondary mb-2">
+            <span class="block text-xs font-medium text-text-secondary mb-2">
               Duration
-            </label>
+            </span>
             <div class="grid grid-cols-2 gap-2">
               {#each durationOptions as option}
                 <button
@@ -257,9 +258,9 @@
 
           <!-- Channel Selection -->
           <div>
-            <label class="block text-xs font-medium text-text-secondary mb-2">
+            <span class="block text-xs font-medium text-text-secondary mb-2">
               Channels ({selectedChannels.length}/8)
-            </label>
+            </span>
             <div class="grid grid-cols-4 gap-2">
               {#each Array(8) as _, i}
                 <button

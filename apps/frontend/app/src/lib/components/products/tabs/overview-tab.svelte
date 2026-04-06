@@ -42,18 +42,18 @@
         api.get(`/v2/sessions?productId=${product.id}&limit=5&type=VALIDATION`),
         api.get(`/v2/sessions?productId=${product.id}&limit=1&type=MANUFACTURING`),
       ]);
-      if (buildsRes.status === 'fulfilled' && buildsRes.value.ok) {
-        const d = await buildsRes.value.json();
+      if (buildsRes.status === 'fulfilled') {
+        const d = buildsRes.value as { data?: { data?: any[]; pagination?: { total?: number } } };
         recentBuilds = d.data?.data || [];
         totalBuilds = d.data?.pagination?.total ?? 0;
       }
-      if (runsRes.status === 'fulfilled' && runsRes.value.ok) {
-        const d = await runsRes.value.json();
+      if (runsRes.status === 'fulfilled') {
+        const d = runsRes.value as { data?: { data?: any[]; pagination?: { total?: number } } };
         recentRuns = d.data?.data || [];
         totalRuns = d.data?.pagination?.total ?? 0;
       }
-      if (mfgRes.status === 'fulfilled' && mfgRes.value.ok) {
-        const d = await mfgRes.value.json();
+      if (mfgRes.status === 'fulfilled') {
+        const d = mfgRes.value as { data?: { pagination?: { total?: number } } };
         totalMfgSessions = d.data?.pagination?.total ?? 0;
       }
     } catch {
@@ -238,7 +238,7 @@
               <StatusBadge status={run.status} />
               <span class="text-sm text-text-primary flex-1 truncate">{run.name}</span>
               {#if run.createdAt}
-                <TimeDisplay date={run.createdAt} />
+                <TimeDisplay datetime={run.createdAt} />
               {/if}
             </div>
           {/each}
