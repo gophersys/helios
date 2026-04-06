@@ -3,8 +3,11 @@ import queue
 import threading
 import traceback
 
-import eventlet
-from eventlet import tpool
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    import eventlet
+    from eventlet import tpool
 from flask import request
 from flask_socketio import SocketIO, emit
 from kubernetes.stream import stream as k8s_stream

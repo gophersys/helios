@@ -101,7 +101,7 @@ def test_verify_token_invalid_signature():
         "iat": datetime.now(timezone.utc),
         "exp": datetime.now(timezone.utc) + timedelta(hours=1),
     }
-    invalid_token = jwt.encode(payload, "wrong-secret-key", algorithm=ALGORITHM)
+    invalid_token = jwt.encode(payload, "wrong-secret-key-padded-to-32chars", algorithm=ALGORITHM)
 
     result_payload, error = verify_token(invalid_token)
 

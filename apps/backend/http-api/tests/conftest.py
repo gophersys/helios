@@ -23,7 +23,7 @@ def pytest_configure(config):
         "LOG_PATH": "/tmp/concord-test.log",
         "SERVER_PORT": "9001",
         "CORS_ORIGINS": "http://localhost:4200",
-        "JWT_SECRET_KEY": "test-jwt-secret-key-for-testing",
+        "JWT_SECRET_KEY": "test-jwt-secret-key-for-testing-32ch",
         "CONCORD_API_HOST": "test.concord.local",
         "ASSETS_FOLDER": "/tmp/concord-test-assets",
         "STORAGE_URL": "http://localhost:9000",
@@ -185,6 +185,23 @@ def clear_permission_cache():
     invalidate_permission_set_cache()
     yield
     invalidate_permission_set_cache()
+
+
+@pytest.fixture(autouse=True)
+def _close_log_file_handles():
+    """Close Logger file handles after each test to prevent ResourceWarning."""
+    yield
+    import logging
+    for handler in logging.root.handlers[:]:
+        if isinstance(handler, logging.FileHandler):
+            handler.close()
+    # Close file handlers on all named loggers too
+    for name in list(logging.Logger.manager.loggerDict):
+        logger = logging.getLogger(name)
+        for handler in logger.handlers[:]:
+            if isinstance(handler, logging.FileHandler):
+                handler.close()
+                logger.removeHandler(handler)
 
 
 def make_obj(**kwargs):
