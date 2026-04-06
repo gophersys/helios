@@ -65,7 +65,7 @@
       {#if fixture.hasActiveDeployment}
         <StatusBadge status={fixture.activeDeploymentStatus || 'PENDING'} />
       {/if}
-      <div class="h-2.5 w-2.5 rounded-full {healthDot}" title={fixture.health}></div>
+      <div class="h-3.5 w-3.5 rounded-full {healthDot}" title={fixture.health}></div>
     </div>
   </div>
 
@@ -79,9 +79,9 @@
 
   <!-- Slot dots -->
   {#if fixture.slotCount > 0}
-    <div class="mt-3 flex flex-wrap gap-1.5">
+    <div class="mt-3 flex flex-wrap gap-2">
       {#each slotDots as dot}
-        <div class="h-3 w-3 rounded-full {dot.color}" title={dot.title}></div>
+        <div class="h-5 w-5 rounded-full {dot.color}" title={dot.title}></div>
       {/each}
     </div>
     <p class="mt-1.5 text-2xs text-text-tertiary">{statusLine}</p>
