@@ -12,6 +12,8 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
 # Environment versions
+# NCS_VERSION is required and passed by each ncs-v*/project.json build-arg.
+ARG NCS_VERSION
 ARG NRF_CLI_VERSION=10.24.2
 ARG JLINK_VERSION=V872a
 ARG ZEPHYR_SDK_VERSION=0.17.4
@@ -169,7 +171,7 @@ RUN mkdir /ncs
 WORKDIR /ncs
 
 # Perform the west init, this will be cached as a separate layer
-RUN west init -m https://github.com/nrfconnect/sdk-nrf --mr v2.7.0 && \ 
+RUN west init -m https://github.com/nrfconnect/sdk-nrf --mr ${NCS_VERSION} && \
   west update
 
 # Modify the west.yml using the awk command to add espressif, nxp & stm32 support

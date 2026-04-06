@@ -194,6 +194,12 @@ create_action() {
 
     # Install dependencies
     yarn
+    log_info "Installing frontend app dependencies..."
+    cd apps/frontend/app && npm install --no-audit --no-fund && cd -
+
+    # Populate .env files from .env.example templates (skip existing)
+    log_info "Setting up environment files..."
+    nx setup env -c development
 
     # Create the platform builders
     nx run devcontainer:create-platform-builder

@@ -11,9 +11,8 @@ ARG BUILDPLATFORM
 ARG NVM_VERSION=0.40.3
 ARG NODE_VERSION=22.19.0
 ARG NPM_VERSION=11.6.0
-ARG NX_VERSION=21.5
+ARG NX_VERSION=22
 ARG DOCKER_COMPOSE_VERSION=2.39.3
-ARG GO_VERSION=1.24.2       
 ARG K9S_VERSION=0.50.9
 ARG HELM_VERSION=3.19.0
 
@@ -113,30 +112,6 @@ RUN case "${TARGETPLATFORM}" in \
     apt-get clean && rm -rf /var/lib/apt/lists/* \
     ;; \
     esac
-
-# ----------------------------------------------------
-#                                                   Go
-# ----------------------------------------------------
-RUN case "${TARGETPLATFORM}" in \
-    "linux/amd64") \
-    curl -LO "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" && \
-    tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
-    rm go${GO_VERSION}.linux-amd64.tar.gz \
-    ;; \
-    "linux/arm64") \
-    curl -LO "https://golang.org/dl/go${GO_VERSION}.linux-arm64.tar.gz" && \
-    tar -C /usr/local -xzf go${GO_VERSION}.linux-arm64.tar.gz && \
-    rm go${GO_VERSION}.linux-arm64.tar.gz \
-    ;; \
-    esac
-
-# Set up Go environment
-ENV GOPATH=/go \
-    PATH=/usr/local/go/bin:/go/bin:$PATH
-
-RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
-
-# Go tools will be installed via go.mod dependencies
 
 # ----------------------------------------------------
 #                                               Python
