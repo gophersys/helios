@@ -10,7 +10,7 @@
 
   let { samples, windowSeconds = 60 }: Props = $props();
 
-  let canvas: HTMLCanvasElement;
+  let canvas = $state<HTMLCanvasElement>();
   let containerEl: HTMLElement;
   let w = $state(400);
   let h = $state(180);

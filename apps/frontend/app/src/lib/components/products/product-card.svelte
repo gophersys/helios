@@ -123,6 +123,7 @@
 
   <!-- Delete -->
   {#if canManage}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
       role="group"
       class="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"

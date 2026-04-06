@@ -302,9 +302,13 @@
               <!-- Stages for this commit -->
               <div class="divide-y divide-border-subtle">
                 {#each commit.runs.sort((a, b) => (a.stage ?? 0) - (b.stage ?? 0)) as run}
-                  <button
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  <div
+                    role="button"
+                    tabindex="0"
                     onclick={() => goto(`/builds/runs/${run.id}`)}
-                    class="w-full flex items-center justify-between gap-4 px-4 py-3 text-left hover:bg-surface-1 transition-colors"
+                    onkeydown={(e) => e.key === 'Enter' && goto(`/builds/runs/${run.id}`)}
+                    class="w-full flex items-center justify-between gap-4 px-4 py-3 text-left hover:bg-surface-1 transition-colors cursor-pointer"
                   >
                     <div class="flex items-center gap-3">
                       <!-- Stage badge -->
@@ -381,7 +385,7 @@
                         {/if}
                       {/if}
                     </div>
-                  </button>
+                  </div>
                 {/each}
               </div>
             </div>

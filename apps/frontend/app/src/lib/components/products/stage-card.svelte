@@ -160,9 +160,12 @@
 
 <div class="rounded-lg border border-border bg-surface-1 overflow-hidden">
   <!-- Header -->
-  <button
-    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors text-left"
+  <div
+    role="button"
+    tabindex="0"
+    class="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition-colors text-left cursor-pointer"
     onclick={() => { if (!configuring) expanded = !expanded; }}
+    onkeydown={(e) => { if (e.key === 'Enter' && !configuring) expanded = !expanded; }}
   >
     <span class="flex items-center justify-center w-8 h-8 rounded {stageBadgeColors[stage] || 'bg-surface-2 text-text-secondary'} text-xs font-bold">
       {stageIcons[stage] || stage}
@@ -202,7 +205,7 @@
         <ChevronDown size={14} class="text-text-tertiary transition-transform {expanded ? 'rotate-180' : ''}" />
       {/if}
     </div>
-  </button>
+  </div>
 
   <!-- Enable wizard -->
   {#if configuring}

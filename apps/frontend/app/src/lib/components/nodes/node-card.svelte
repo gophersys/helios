@@ -38,8 +38,12 @@
   }
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
+  role="button"
+  tabindex="0"
   onclick={handleCardClick}
+  onkeydown={(e) => e.key === 'Enter' && handleCardClick()}
   class="card group relative flex flex-col overflow-hidden text-left w-full transition-all duration-200
     {isServerOnline ? 'hover:ring-2 hover:ring-accent/50 cursor-pointer' : deployState === 'deploying' ? 'hover:ring-2 hover:ring-warning/50 cursor-pointer' : ''}"
 >
@@ -112,30 +116,33 @@
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
-      <div
+      <button
+        type="button"
         onclick={() => onHealthCheck(node.id)}
         class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-success"
         title="Health check"
         aria-label="Health check"
       >
         <HeartPulse size={14} />
-      </div>
-      <div
+      </button>
+      <button
+        type="button"
         onclick={() => onEdit(node)}
         class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-text-primary"
         title="Edit"
         aria-label="Edit"
       >
         <Pencil size={14} />
-      </div>
-      <div
+      </button>
+      <button
+        type="button"
         onclick={() => onDelete(node.id)}
         class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-error"
         title="Delete"
         aria-label="Delete"
       >
         <Trash2 size={14} />
-      </div>
+      </button>
     </div>
   {/if}
 </div>

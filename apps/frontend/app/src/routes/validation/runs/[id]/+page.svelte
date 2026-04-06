@@ -38,6 +38,7 @@
 
   // Create and provide RunContext to all children via setContext.
   // runId is captured once — navigating to a different run reloads the component.
+  // svelte-ignore state_referenced_locally
   const ctx = createRunContext(runId!);
 
   // Auto-select first stage when stages appear

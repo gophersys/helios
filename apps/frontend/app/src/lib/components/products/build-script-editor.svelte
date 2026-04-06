@@ -40,6 +40,7 @@
   let activeSection = $state('editor');
 
   // ── Editor state ────────────────────────────────────────────
+  // svelte-ignore state_referenced_locally
   let content = $state(initialContent);
   let saving = $state(false);
   let publishing = $state(false);
