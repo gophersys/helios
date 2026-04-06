@@ -1,0 +1,27 @@
+{
+  "name": "env",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/env",
+  "projectType": "application",
+  "tags": ["type:tool"],
+  "targets": {
+    "setup": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "bash tools/env/setup.sh development"
+        },
+        "staging": {
+          "command": "bash tools/env/setup.sh staging"
+        },
+        "production": {
+          "command": "bash tools/env/setup.sh production"
+        }
+      }
+    }
+  }
+}
