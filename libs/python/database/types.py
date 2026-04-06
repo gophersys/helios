@@ -1870,6 +1870,221 @@ RoleListUpdate = Union[
     _RoleListUpdatePush,
 ]
 
+class _FirmwareVariantListFilterEqualsInput(TypedDict):
+    equals: Optional[List['enums.FirmwareVariant']]
+
+
+class _FirmwareVariantListFilterHasInput(TypedDict):
+    has: 'enums.FirmwareVariant'
+
+
+class _FirmwareVariantListFilterHasEveryInput(TypedDict):
+    has_every: List['enums.FirmwareVariant']
+
+
+class _FirmwareVariantListFilterHasSomeInput(TypedDict):
+    has_some: List['enums.FirmwareVariant']
+
+
+class _FirmwareVariantListFilterIsEmptyInput(TypedDict):
+    is_empty: bool
+
+
+FirmwareVariantListFilter = Union[
+    _FirmwareVariantListFilterHasInput,
+    _FirmwareVariantListFilterEqualsInput,
+    _FirmwareVariantListFilterHasSomeInput,
+    _FirmwareVariantListFilterIsEmptyInput,
+    _FirmwareVariantListFilterHasEveryInput,
+]
+
+
+class _FirmwareVariantListUpdateSet(TypedDict):
+    set: List['enums.FirmwareVariant']
+
+
+class _FirmwareVariantListUpdatePush(TypedDict):
+    push: List['enums.FirmwareVariant']
+
+
+FirmwareVariantListUpdate = Union[
+    List['enums.FirmwareVariant'],
+    _FirmwareVariantListUpdateSet,
+    _FirmwareVariantListUpdatePush,
+]
+
+class _ReleaseTrackListFilterEqualsInput(TypedDict):
+    equals: Optional[List['enums.ReleaseTrack']]
+
+
+class _ReleaseTrackListFilterHasInput(TypedDict):
+    has: 'enums.ReleaseTrack'
+
+
+class _ReleaseTrackListFilterHasEveryInput(TypedDict):
+    has_every: List['enums.ReleaseTrack']
+
+
+class _ReleaseTrackListFilterHasSomeInput(TypedDict):
+    has_some: List['enums.ReleaseTrack']
+
+
+class _ReleaseTrackListFilterIsEmptyInput(TypedDict):
+    is_empty: bool
+
+
+ReleaseTrackListFilter = Union[
+    _ReleaseTrackListFilterHasInput,
+    _ReleaseTrackListFilterEqualsInput,
+    _ReleaseTrackListFilterHasSomeInput,
+    _ReleaseTrackListFilterIsEmptyInput,
+    _ReleaseTrackListFilterHasEveryInput,
+]
+
+
+class _ReleaseTrackListUpdateSet(TypedDict):
+    set: List['enums.ReleaseTrack']
+
+
+class _ReleaseTrackListUpdatePush(TypedDict):
+    push: List['enums.ReleaseTrack']
+
+
+ReleaseTrackListUpdate = Union[
+    List['enums.ReleaseTrack'],
+    _ReleaseTrackListUpdateSet,
+    _ReleaseTrackListUpdatePush,
+]
+
+class _FirmwareSetStatusListFilterEqualsInput(TypedDict):
+    equals: Optional[List['enums.FirmwareSetStatus']]
+
+
+class _FirmwareSetStatusListFilterHasInput(TypedDict):
+    has: 'enums.FirmwareSetStatus'
+
+
+class _FirmwareSetStatusListFilterHasEveryInput(TypedDict):
+    has_every: List['enums.FirmwareSetStatus']
+
+
+class _FirmwareSetStatusListFilterHasSomeInput(TypedDict):
+    has_some: List['enums.FirmwareSetStatus']
+
+
+class _FirmwareSetStatusListFilterIsEmptyInput(TypedDict):
+    is_empty: bool
+
+
+FirmwareSetStatusListFilter = Union[
+    _FirmwareSetStatusListFilterHasInput,
+    _FirmwareSetStatusListFilterEqualsInput,
+    _FirmwareSetStatusListFilterHasSomeInput,
+    _FirmwareSetStatusListFilterIsEmptyInput,
+    _FirmwareSetStatusListFilterHasEveryInput,
+]
+
+
+class _FirmwareSetStatusListUpdateSet(TypedDict):
+    set: List['enums.FirmwareSetStatus']
+
+
+class _FirmwareSetStatusListUpdatePush(TypedDict):
+    push: List['enums.FirmwareSetStatus']
+
+
+FirmwareSetStatusListUpdate = Union[
+    List['enums.FirmwareSetStatus'],
+    _FirmwareSetStatusListUpdateSet,
+    _FirmwareSetStatusListUpdatePush,
+]
+
+class _RecipeStatusListFilterEqualsInput(TypedDict):
+    equals: Optional[List['enums.RecipeStatus']]
+
+
+class _RecipeStatusListFilterHasInput(TypedDict):
+    has: 'enums.RecipeStatus'
+
+
+class _RecipeStatusListFilterHasEveryInput(TypedDict):
+    has_every: List['enums.RecipeStatus']
+
+
+class _RecipeStatusListFilterHasSomeInput(TypedDict):
+    has_some: List['enums.RecipeStatus']
+
+
+class _RecipeStatusListFilterIsEmptyInput(TypedDict):
+    is_empty: bool
+
+
+RecipeStatusListFilter = Union[
+    _RecipeStatusListFilterHasInput,
+    _RecipeStatusListFilterEqualsInput,
+    _RecipeStatusListFilterHasSomeInput,
+    _RecipeStatusListFilterIsEmptyInput,
+    _RecipeStatusListFilterHasEveryInput,
+]
+
+
+class _RecipeStatusListUpdateSet(TypedDict):
+    set: List['enums.RecipeStatus']
+
+
+class _RecipeStatusListUpdatePush(TypedDict):
+    push: List['enums.RecipeStatus']
+
+
+RecipeStatusListUpdate = Union[
+    List['enums.RecipeStatus'],
+    _RecipeStatusListUpdateSet,
+    _RecipeStatusListUpdatePush,
+]
+
+class _AccessLevelListFilterEqualsInput(TypedDict):
+    equals: Optional[List['enums.AccessLevel']]
+
+
+class _AccessLevelListFilterHasInput(TypedDict):
+    has: 'enums.AccessLevel'
+
+
+class _AccessLevelListFilterHasEveryInput(TypedDict):
+    has_every: List['enums.AccessLevel']
+
+
+class _AccessLevelListFilterHasSomeInput(TypedDict):
+    has_some: List['enums.AccessLevel']
+
+
+class _AccessLevelListFilterIsEmptyInput(TypedDict):
+    is_empty: bool
+
+
+AccessLevelListFilter = Union[
+    _AccessLevelListFilterHasInput,
+    _AccessLevelListFilterEqualsInput,
+    _AccessLevelListFilterHasSomeInput,
+    _AccessLevelListFilterIsEmptyInput,
+    _AccessLevelListFilterHasEveryInput,
+]
+
+
+class _AccessLevelListUpdateSet(TypedDict):
+    set: List['enums.AccessLevel']
+
+
+class _AccessLevelListUpdatePush(TypedDict):
+    push: List['enums.AccessLevel']
+
+
+AccessLevelListUpdate = Union[
+    List['enums.AccessLevel'],
+    _AccessLevelListUpdateSet,
+    _AccessLevelListUpdatePush,
+]
+
 
 # Product types
 
@@ -26563,15 +26778,15 @@ class FirmwareSetOptionalCreateInput(TypedDict, total=False):
     id: _str
     productId: _str
     boardRevisionId: Optional[_str]
-    variant: _str
-    releaseTrack: _str
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: _bool
     isDebug: _bool
     source: _str
     buildJobId: Optional[_str]
     externalBuildId: Optional[_str]
     buildFingerprint: Optional[_str]
-    status: _str
+    status: 'enums.FirmwareSetStatus'
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -26593,15 +26808,15 @@ class FirmwareSetOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     id: _str
     productId: _str
     boardRevisionId: Optional[_str]
-    variant: _str
-    releaseTrack: _str
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: _bool
     isDebug: _bool
     source: _str
     buildJobId: Optional[_str]
     externalBuildId: Optional[_str]
     buildFingerprint: Optional[_str]
-    status: _str
+    status: 'enums.FirmwareSetStatus'
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -26641,15 +26856,15 @@ class FirmwareSetUpdateInput(TypedDict, total=False):
     """Optional arguments for updating a record"""
     id: _str
     version: _str
-    variant: _str
-    releaseTrack: _str
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: _bool
     isDebug: _bool
     source: _str
     buildJobId: Optional[_str]
     externalBuildId: Optional[_str]
     buildFingerprint: Optional[_str]
-    status: _str
+    status: 'enums.FirmwareSetStatus'
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -26662,15 +26877,15 @@ class FirmwareSetUpdateManyMutationInput(TypedDict, total=False):
     """Arguments for updating many records"""
     id: _str
     version: _str
-    variant: _str
-    releaseTrack: _str
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: _bool
     isDebug: _bool
     source: _str
     buildJobId: Optional[_str]
     externalBuildId: Optional[_str]
     buildFingerprint: Optional[_str]
-    status: _str
+    status: 'enums.FirmwareSetStatus'
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -31154,15 +31369,15 @@ class FirmwareSetWhereInput(TypedDict, total=False):
     productId: Union[_str, 'types.StringFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
-    variant: Union[_str, 'types.StringFilter']
-    releaseTrack: Union[_str, 'types.StringFilter']
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: Union[_bool, 'types.BooleanFilter']
     isDebug: Union[_bool, 'types.BooleanFilter']
     source: Union[_str, 'types.StringFilter']
     buildJobId: Union[None, _str, 'types.StringFilter']
     externalBuildId: Union[None, _str, 'types.StringFilter']
     buildFingerprint: Union[None, _str, 'types.StringFilter']
-    status: Union[_str, 'types.StringFilter']
+    status: 'enums.FirmwareSetStatus'
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -31183,15 +31398,15 @@ class FirmwareSetWhereInputRecursive1(TypedDict, total=False):
     productId: Union[_str, 'types.StringFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
-    variant: Union[_str, 'types.StringFilter']
-    releaseTrack: Union[_str, 'types.StringFilter']
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: Union[_bool, 'types.BooleanFilter']
     isDebug: Union[_bool, 'types.BooleanFilter']
     source: Union[_str, 'types.StringFilter']
     buildJobId: Union[None, _str, 'types.StringFilter']
     externalBuildId: Union[None, _str, 'types.StringFilter']
     buildFingerprint: Union[None, _str, 'types.StringFilter']
-    status: Union[_str, 'types.StringFilter']
+    status: 'enums.FirmwareSetStatus'
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -31212,15 +31427,15 @@ class FirmwareSetWhereInputRecursive2(TypedDict, total=False):
     productId: Union[_str, 'types.StringFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
-    variant: Union[_str, 'types.StringFilter']
-    releaseTrack: Union[_str, 'types.StringFilter']
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: Union[_bool, 'types.BooleanFilter']
     isDebug: Union[_bool, 'types.BooleanFilter']
     source: Union[_str, 'types.StringFilter']
     buildJobId: Union[None, _str, 'types.StringFilter']
     externalBuildId: Union[None, _str, 'types.StringFilter']
     buildFingerprint: Union[None, _str, 'types.StringFilter']
-    status: Union[_str, 'types.StringFilter']
+    status: 'enums.FirmwareSetStatus'
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -31241,15 +31456,15 @@ class FirmwareSetWhereInputRecursive3(TypedDict, total=False):
     productId: Union[_str, 'types.StringFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
-    variant: Union[_str, 'types.StringFilter']
-    releaseTrack: Union[_str, 'types.StringFilter']
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: Union[_bool, 'types.BooleanFilter']
     isDebug: Union[_bool, 'types.BooleanFilter']
     source: Union[_str, 'types.StringFilter']
     buildJobId: Union[None, _str, 'types.StringFilter']
     externalBuildId: Union[None, _str, 'types.StringFilter']
     buildFingerprint: Union[None, _str, 'types.StringFilter']
-    status: Union[_str, 'types.StringFilter']
+    status: 'enums.FirmwareSetStatus'
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -31270,15 +31485,15 @@ class FirmwareSetWhereInputRecursive4(TypedDict, total=False):
     productId: Union[_str, 'types.StringFilter']
     boardRevisionId: Union[None, _str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
-    variant: Union[_str, 'types.StringFilter']
-    releaseTrack: Union[_str, 'types.StringFilter']
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: Union[_bool, 'types.BooleanFilter']
     isDebug: Union[_bool, 'types.BooleanFilter']
     source: Union[_str, 'types.StringFilter']
     buildJobId: Union[None, _str, 'types.StringFilter']
     externalBuildId: Union[None, _str, 'types.StringFilter']
     buildFingerprint: Union[None, _str, 'types.StringFilter']
-    status: Union[_str, 'types.StringFilter']
+    status: 'enums.FirmwareSetStatus'
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -31299,15 +31514,15 @@ class FirmwareSetScalarWhereWithAggregatesInput(TypedDict, total=False):
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
-    variant: Union[_str, 'types.StringWithAggregatesFilter']
-    releaseTrack: Union[_str, 'types.StringWithAggregatesFilter']
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
     isDebug: Union[_bool, 'types.BooleanWithAggregatesFilter']
     source: Union[_str, 'types.StringWithAggregatesFilter']
     buildJobId: Union[_str, 'types.StringWithAggregatesFilter']
     externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
     buildFingerprint: Union[_str, 'types.StringWithAggregatesFilter']
-    status: Union[_str, 'types.StringWithAggregatesFilter']
+    status: 'enums.FirmwareSetStatus'
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -31323,15 +31538,15 @@ class FirmwareSetScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
-    variant: Union[_str, 'types.StringWithAggregatesFilter']
-    releaseTrack: Union[_str, 'types.StringWithAggregatesFilter']
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
     isDebug: Union[_bool, 'types.BooleanWithAggregatesFilter']
     source: Union[_str, 'types.StringWithAggregatesFilter']
     buildJobId: Union[_str, 'types.StringWithAggregatesFilter']
     externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
     buildFingerprint: Union[_str, 'types.StringWithAggregatesFilter']
-    status: Union[_str, 'types.StringWithAggregatesFilter']
+    status: 'enums.FirmwareSetStatus'
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -31347,15 +31562,15 @@ class FirmwareSetScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
-    variant: Union[_str, 'types.StringWithAggregatesFilter']
-    releaseTrack: Union[_str, 'types.StringWithAggregatesFilter']
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
     isDebug: Union[_bool, 'types.BooleanWithAggregatesFilter']
     source: Union[_str, 'types.StringWithAggregatesFilter']
     buildJobId: Union[_str, 'types.StringWithAggregatesFilter']
     externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
     buildFingerprint: Union[_str, 'types.StringWithAggregatesFilter']
-    status: Union[_str, 'types.StringWithAggregatesFilter']
+    status: 'enums.FirmwareSetStatus'
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -31371,15 +31586,15 @@ class FirmwareSetScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
-    variant: Union[_str, 'types.StringWithAggregatesFilter']
-    releaseTrack: Union[_str, 'types.StringWithAggregatesFilter']
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
     isDebug: Union[_bool, 'types.BooleanWithAggregatesFilter']
     source: Union[_str, 'types.StringWithAggregatesFilter']
     buildJobId: Union[_str, 'types.StringWithAggregatesFilter']
     externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
     buildFingerprint: Union[_str, 'types.StringWithAggregatesFilter']
-    status: Union[_str, 'types.StringWithAggregatesFilter']
+    status: 'enums.FirmwareSetStatus'
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -31395,15 +31610,15 @@ class FirmwareSetScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
-    variant: Union[_str, 'types.StringWithAggregatesFilter']
-    releaseTrack: Union[_str, 'types.StringWithAggregatesFilter']
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: Union[_bool, 'types.BooleanWithAggregatesFilter']
     isDebug: Union[_bool, 'types.BooleanWithAggregatesFilter']
     source: Union[_str, 'types.StringWithAggregatesFilter']
     buildJobId: Union[_str, 'types.StringWithAggregatesFilter']
     externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
     buildFingerprint: Union[_str, 'types.StringWithAggregatesFilter']
-    status: Union[_str, 'types.StringWithAggregatesFilter']
+    status: 'enums.FirmwareSetStatus'
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -31415,15 +31630,15 @@ class FirmwareSetGroupByOutput(TypedDict, total=False):
     productId: _str
     boardRevisionId: _str
     version: _str
-    variant: _str
-    releaseTrack: _str
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: _bool
     isDebug: _bool
     source: _str
     buildJobId: _str
     externalBuildId: _str
     buildFingerprint: _str
-    status: _str
+    status: 'enums.FirmwareSetStatus'
     notes: _str
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -31448,15 +31663,15 @@ class FirmwareSetScalarAggregateOutput(TypedDict, total=False):
     productId: _str
     boardRevisionId: _str
     version: _str
-    variant: _str
-    releaseTrack: _str
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: _bool
     isDebug: _bool
     source: _str
     buildJobId: _str
     externalBuildId: _str
     buildFingerprint: _str
-    status: _str
+    status: 'enums.FirmwareSetStatus'
     notes: _str
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -31625,6 +31840,7 @@ class FirmwareBuildOptionalCreateInput(TypedDict, total=False):
     contentType: Optional[_str]
     notes: Optional[_str]
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
     firmwareSet: 'FirmwareSetCreateNestedWithoutRelationsInput'
     target: 'ProductTargetCreateNestedWithoutRelationsInput'
 
@@ -31652,6 +31868,7 @@ class FirmwareBuildOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     contentType: Optional[_str]
     notes: Optional[_str]
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
 
 
 class FirmwareBuildCreateWithoutRelationsInput(FirmwareBuildOptionalCreateWithoutRelationsInput):
@@ -31700,6 +31917,7 @@ class FirmwareBuildUpdateInput(TypedDict, total=False):
     contentType: Optional[_str]
     notes: Optional[_str]
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
     firmwareSet: 'FirmwareSetUpdateOneWithoutRelationsInput'
     target: 'ProductTargetUpdateOneWithoutRelationsInput'
 
@@ -31718,6 +31936,7 @@ class FirmwareBuildUpdateManyMutationInput(TypedDict, total=False):
     contentType: Optional[_str]
     notes: Optional[_str]
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
 
 
 class FirmwareBuildUpdateManyWithoutRelationsInput(TypedDict, total=False):
@@ -31864,6 +32083,14 @@ _FirmwareBuild_createdAt_OrderByInput = TypedDict(
     total=True
 )
 
+_FirmwareBuild_updatedAt_OrderByInput = TypedDict(
+    '_FirmwareBuild_updatedAt_OrderByInput',
+    {
+        'updatedAt': 'SortOrder',
+    },
+    total=True
+)
+
 _FirmwareBuild_RelevanceInner = TypedDict(
     '_FirmwareBuild_RelevanceInner',
     {
@@ -31897,6 +32124,7 @@ FirmwareBuildOrderByInput = Union[
     '_FirmwareBuild_contentType_OrderByInput',
     '_FirmwareBuild_notes_OrderByInput',
     '_FirmwareBuild_createdAt_OrderByInput',
+    '_FirmwareBuild_updatedAt_OrderByInput',
     '_FirmwareBuild_RelevanceOrderByInput',
 ]
 
@@ -36189,6 +36417,7 @@ class FirmwareBuildWhereInput(TypedDict, total=False):
     contentType: Union[None, _str, 'types.StringFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     firmwareSet: 'FirmwareSetRelationFilter'
     target: 'ProductTargetRelationFilter'
 
@@ -36215,6 +36444,7 @@ class FirmwareBuildWhereInputRecursive1(TypedDict, total=False):
     contentType: Union[None, _str, 'types.StringFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     firmwareSet: 'FirmwareSetRelationFilter'
     target: 'ProductTargetRelationFilter'
 
@@ -36241,6 +36471,7 @@ class FirmwareBuildWhereInputRecursive2(TypedDict, total=False):
     contentType: Union[None, _str, 'types.StringFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     firmwareSet: 'FirmwareSetRelationFilter'
     target: 'ProductTargetRelationFilter'
 
@@ -36267,6 +36498,7 @@ class FirmwareBuildWhereInputRecursive3(TypedDict, total=False):
     contentType: Union[None, _str, 'types.StringFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     firmwareSet: 'FirmwareSetRelationFilter'
     target: 'ProductTargetRelationFilter'
 
@@ -36293,6 +36525,7 @@ class FirmwareBuildWhereInputRecursive4(TypedDict, total=False):
     contentType: Union[None, _str, 'types.StringFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     firmwareSet: 'FirmwareSetRelationFilter'
     target: 'ProductTargetRelationFilter'
 
@@ -36319,6 +36552,7 @@ class FirmwareBuildScalarWhereWithAggregatesInput(TypedDict, total=False):
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive1']
     OR: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive1']
@@ -36341,6 +36575,7 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive1(TypedDict, total=Fal
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive2']
     OR: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive2']
@@ -36363,6 +36598,7 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive2(TypedDict, total=Fal
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive3']
     OR: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive3']
@@ -36385,6 +36621,7 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive3(TypedDict, total=Fal
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive4']
     OR: List['FirmwareBuildScalarWhereWithAggregatesInputRecursive4']
@@ -36407,6 +36644,7 @@ class FirmwareBuildScalarWhereWithAggregatesInputRecursive4(TypedDict, total=Fal
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
 
 
@@ -36425,6 +36663,7 @@ class FirmwareBuildGroupByOutput(TypedDict, total=False):
     contentType: _str
     notes: _str
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
     _sum: 'FirmwareBuildSumAggregateOutput'
     _avg: 'FirmwareBuildAvgAggregateOutput'
     _min: 'FirmwareBuildMinAggregateOutput'
@@ -36458,6 +36697,7 @@ class FirmwareBuildScalarAggregateOutput(TypedDict, total=False):
     contentType: _str
     notes: _str
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
 
 
 FirmwareBuildMinAggregateOutput = FirmwareBuildScalarAggregateOutput
@@ -36480,6 +36720,7 @@ class FirmwareBuildMaxAggregateInput(TypedDict, total=False):
     contentType: bool
     notes: bool
     createdAt: bool
+    updatedAt: bool
 
 
 class FirmwareBuildMinAggregateInput(TypedDict, total=False):
@@ -36498,6 +36739,7 @@ class FirmwareBuildMinAggregateInput(TypedDict, total=False):
     contentType: bool
     notes: bool
     createdAt: bool
+    updatedAt: bool
 
 
 class FirmwareBuildNumberAggregateInput(TypedDict, total=False):
@@ -36526,6 +36768,7 @@ FirmwareBuildCountAggregateInput = TypedDict(
         'contentType': bool,
         'notes': bool,
         'createdAt': bool,
+        'updatedAt': bool,
         '_all': bool,
     },
     total=False,
@@ -36548,6 +36791,7 @@ FirmwareBuildCountAggregateOutput = TypedDict(
         'contentType': int,
         'notes': int,
         'createdAt': int,
+        'updatedAt': int,
         '_all': int,
     },
     total=False,
@@ -36569,6 +36813,7 @@ FirmwareBuildKeys = Literal[
     'contentType',
     'notes',
     'createdAt',
+    'updatedAt',
     'firmwareSet',
     'target',
 ]
@@ -36587,6 +36832,7 @@ FirmwareBuildScalarFieldKeys = Literal[
     'contentType',
     'notes',
     'createdAt',
+    'updatedAt',
 ]
 FirmwareBuildScalarFieldKeysT = TypeVar('FirmwareBuildScalarFieldKeysT', bound=FirmwareBuildScalarFieldKeys)
 
@@ -97642,6 +97888,7 @@ class IclePendingCommandOptionalCreateInput(TypedDict, total=False):
     expiresAt: Optional[datetime.datetime]
     acknowledged: _bool
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
     device: 'IcleDeviceCreateNestedWithoutRelationsInput'
 
 
@@ -97662,6 +97909,7 @@ class IclePendingCommandOptionalCreateWithoutRelationsInput(TypedDict, total=Fal
     expiresAt: Optional[datetime.datetime]
     acknowledged: _bool
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
 
 
 class IclePendingCommandCreateWithoutRelationsInput(IclePendingCommandOptionalCreateWithoutRelationsInput):
@@ -97704,6 +97952,7 @@ class IclePendingCommandUpdateInput(TypedDict, total=False):
     expiresAt: Optional[datetime.datetime]
     acknowledged: _bool
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
     device: 'IcleDeviceUpdateOneWithoutRelationsInput'
 
 
@@ -97716,6 +97965,7 @@ class IclePendingCommandUpdateManyMutationInput(TypedDict, total=False):
     expiresAt: Optional[datetime.datetime]
     acknowledged: _bool
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
 
 
 class IclePendingCommandUpdateManyWithoutRelationsInput(TypedDict, total=False):
@@ -97814,6 +98064,14 @@ _IclePendingCommand_createdAt_OrderByInput = TypedDict(
     total=True
 )
 
+_IclePendingCommand_updatedAt_OrderByInput = TypedDict(
+    '_IclePendingCommand_updatedAt_OrderByInput',
+    {
+        'updatedAt': 'SortOrder',
+    },
+    total=True
+)
+
 _IclePendingCommand_RelevanceInner = TypedDict(
     '_IclePendingCommand_RelevanceInner',
     {
@@ -97841,6 +98099,7 @@ IclePendingCommandOrderByInput = Union[
     '_IclePendingCommand_expiresAt_OrderByInput',
     '_IclePendingCommand_acknowledged_OrderByInput',
     '_IclePendingCommand_createdAt_OrderByInput',
+    '_IclePendingCommand_updatedAt_OrderByInput',
     '_IclePendingCommand_RelevanceOrderByInput',
 ]
 
@@ -102126,6 +102385,7 @@ class IclePendingCommandWhereInput(TypedDict, total=False):
     expiresAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     acknowledged: Union[_bool, 'types.BooleanFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     device: 'IcleDeviceRelationFilter'
 
     # should be noted that AND and NOT should be Union['IclePendingCommandWhereInputRecursive1', List['IclePendingCommandWhereInputRecursive1']]
@@ -102145,6 +102405,7 @@ class IclePendingCommandWhereInputRecursive1(TypedDict, total=False):
     expiresAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     acknowledged: Union[_bool, 'types.BooleanFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     device: 'IcleDeviceRelationFilter'
 
     # should be noted that AND and NOT should be Union['IclePendingCommandWhereInputRecursive2', List['IclePendingCommandWhereInputRecursive2']]
@@ -102164,6 +102425,7 @@ class IclePendingCommandWhereInputRecursive2(TypedDict, total=False):
     expiresAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     acknowledged: Union[_bool, 'types.BooleanFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     device: 'IcleDeviceRelationFilter'
 
     # should be noted that AND and NOT should be Union['IclePendingCommandWhereInputRecursive3', List['IclePendingCommandWhereInputRecursive3']]
@@ -102183,6 +102445,7 @@ class IclePendingCommandWhereInputRecursive3(TypedDict, total=False):
     expiresAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     acknowledged: Union[_bool, 'types.BooleanFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     device: 'IcleDeviceRelationFilter'
 
     # should be noted that AND and NOT should be Union['IclePendingCommandWhereInputRecursive4', List['IclePendingCommandWhereInputRecursive4']]
@@ -102202,6 +102465,7 @@ class IclePendingCommandWhereInputRecursive4(TypedDict, total=False):
     expiresAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     acknowledged: Union[_bool, 'types.BooleanFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     device: 'IcleDeviceRelationFilter'
 
 
@@ -102221,6 +102485,7 @@ class IclePendingCommandScalarWhereWithAggregatesInput(TypedDict, total=False):
     expiresAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     acknowledged: Union[_bool, 'types.BooleanWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['IclePendingCommandScalarWhereWithAggregatesInputRecursive1']
     OR: List['IclePendingCommandScalarWhereWithAggregatesInputRecursive1']
@@ -102237,6 +102502,7 @@ class IclePendingCommandScalarWhereWithAggregatesInputRecursive1(TypedDict, tota
     expiresAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     acknowledged: Union[_bool, 'types.BooleanWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['IclePendingCommandScalarWhereWithAggregatesInputRecursive2']
     OR: List['IclePendingCommandScalarWhereWithAggregatesInputRecursive2']
@@ -102253,6 +102519,7 @@ class IclePendingCommandScalarWhereWithAggregatesInputRecursive2(TypedDict, tota
     expiresAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     acknowledged: Union[_bool, 'types.BooleanWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['IclePendingCommandScalarWhereWithAggregatesInputRecursive3']
     OR: List['IclePendingCommandScalarWhereWithAggregatesInputRecursive3']
@@ -102269,6 +102536,7 @@ class IclePendingCommandScalarWhereWithAggregatesInputRecursive3(TypedDict, tota
     expiresAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     acknowledged: Union[_bool, 'types.BooleanWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['IclePendingCommandScalarWhereWithAggregatesInputRecursive4']
     OR: List['IclePendingCommandScalarWhereWithAggregatesInputRecursive4']
@@ -102285,6 +102553,7 @@ class IclePendingCommandScalarWhereWithAggregatesInputRecursive4(TypedDict, tota
     expiresAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     acknowledged: Union[_bool, 'types.BooleanWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
 
 
@@ -102297,6 +102566,7 @@ class IclePendingCommandGroupByOutput(TypedDict, total=False):
     expiresAt: datetime.datetime
     acknowledged: _bool
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
     _sum: 'IclePendingCommandSumAggregateOutput'
     _avg: 'IclePendingCommandAvgAggregateOutput'
     _min: 'IclePendingCommandMinAggregateOutput'
@@ -102324,6 +102594,7 @@ class IclePendingCommandScalarAggregateOutput(TypedDict, total=False):
     expiresAt: datetime.datetime
     acknowledged: _bool
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
 
 
 IclePendingCommandMinAggregateOutput = IclePendingCommandScalarAggregateOutput
@@ -102340,6 +102611,7 @@ class IclePendingCommandMaxAggregateInput(TypedDict, total=False):
     expiresAt: bool
     acknowledged: bool
     createdAt: bool
+    updatedAt: bool
 
 
 class IclePendingCommandMinAggregateInput(TypedDict, total=False):
@@ -102352,6 +102624,7 @@ class IclePendingCommandMinAggregateInput(TypedDict, total=False):
     expiresAt: bool
     acknowledged: bool
     createdAt: bool
+    updatedAt: bool
 
 
 class IclePendingCommandNumberAggregateInput(TypedDict, total=False):
@@ -102374,6 +102647,7 @@ IclePendingCommandCountAggregateInput = TypedDict(
         'expiresAt': bool,
         'acknowledged': bool,
         'createdAt': bool,
+        'updatedAt': bool,
         '_all': bool,
     },
     total=False,
@@ -102390,6 +102664,7 @@ IclePendingCommandCountAggregateOutput = TypedDict(
         'expiresAt': int,
         'acknowledged': int,
         'createdAt': int,
+        'updatedAt': int,
         '_all': int,
     },
     total=False,
@@ -102405,6 +102680,7 @@ IclePendingCommandKeys = Literal[
     'expiresAt',
     'acknowledged',
     'createdAt',
+    'updatedAt',
     'device',
 ]
 IclePendingCommandScalarFieldKeys = Literal[
@@ -102416,6 +102692,7 @@ IclePendingCommandScalarFieldKeys = Literal[
     'expiresAt',
     'acknowledged',
     'createdAt',
+    'updatedAt',
 ]
 IclePendingCommandScalarFieldKeysT = TypeVar('IclePendingCommandScalarFieldKeysT', bound=IclePendingCommandScalarFieldKeys)
 
@@ -131825,7 +132102,7 @@ class ProductAccessOptionalCreateInput(TypedDict, total=False):
     id: _str
     userId: _str
     productId: _str
-    level: _str
+    level: 'enums.AccessLevel'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     user: 'UserCreateNestedWithoutRelationsInput'
@@ -131844,7 +132121,7 @@ class ProductAccessOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     id: _str
     userId: _str
     productId: _str
-    level: _str
+    level: 'enums.AccessLevel'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -131901,7 +132178,7 @@ ProductAccessWhereUniqueInput = Union[
 class ProductAccessUpdateInput(TypedDict, total=False):
     """Optional arguments for updating a record"""
     id: _str
-    level: _str
+    level: 'enums.AccessLevel'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     user: 'UserUpdateOneWithoutRelationsInput'
@@ -131911,7 +132188,7 @@ class ProductAccessUpdateInput(TypedDict, total=False):
 class ProductAccessUpdateManyMutationInput(TypedDict, total=False):
     """Arguments for updating many records"""
     id: _str
-    level: _str
+    level: 'enums.AccessLevel'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -136302,7 +136579,7 @@ class ProductAccessWhereInput(TypedDict, total=False):
     id: Union[_str, 'types.StringFilter']
     userId: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
-    level: Union[_str, 'types.StringFilter']
+    level: 'enums.AccessLevel'
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     user: 'UserRelationFilter'
@@ -136320,7 +136597,7 @@ class ProductAccessWhereInputRecursive1(TypedDict, total=False):
     id: Union[_str, 'types.StringFilter']
     userId: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
-    level: Union[_str, 'types.StringFilter']
+    level: 'enums.AccessLevel'
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     user: 'UserRelationFilter'
@@ -136338,7 +136615,7 @@ class ProductAccessWhereInputRecursive2(TypedDict, total=False):
     id: Union[_str, 'types.StringFilter']
     userId: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
-    level: Union[_str, 'types.StringFilter']
+    level: 'enums.AccessLevel'
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     user: 'UserRelationFilter'
@@ -136356,7 +136633,7 @@ class ProductAccessWhereInputRecursive3(TypedDict, total=False):
     id: Union[_str, 'types.StringFilter']
     userId: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
-    level: Union[_str, 'types.StringFilter']
+    level: 'enums.AccessLevel'
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     user: 'UserRelationFilter'
@@ -136374,7 +136651,7 @@ class ProductAccessWhereInputRecursive4(TypedDict, total=False):
     id: Union[_str, 'types.StringFilter']
     userId: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
-    level: Union[_str, 'types.StringFilter']
+    level: 'enums.AccessLevel'
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     user: 'UserRelationFilter'
@@ -136392,7 +136669,7 @@ class ProductAccessScalarWhereWithAggregatesInput(TypedDict, total=False):
     id: Union[_str, 'types.StringWithAggregatesFilter']
     userId: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
-    level: Union[_str, 'types.StringWithAggregatesFilter']
+    level: 'enums.AccessLevel'
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -136406,7 +136683,7 @@ class ProductAccessScalarWhereWithAggregatesInputRecursive1(TypedDict, total=Fal
     id: Union[_str, 'types.StringWithAggregatesFilter']
     userId: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
-    level: Union[_str, 'types.StringWithAggregatesFilter']
+    level: 'enums.AccessLevel'
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -136420,7 +136697,7 @@ class ProductAccessScalarWhereWithAggregatesInputRecursive2(TypedDict, total=Fal
     id: Union[_str, 'types.StringWithAggregatesFilter']
     userId: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
-    level: Union[_str, 'types.StringWithAggregatesFilter']
+    level: 'enums.AccessLevel'
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -136434,7 +136711,7 @@ class ProductAccessScalarWhereWithAggregatesInputRecursive3(TypedDict, total=Fal
     id: Union[_str, 'types.StringWithAggregatesFilter']
     userId: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
-    level: Union[_str, 'types.StringWithAggregatesFilter']
+    level: 'enums.AccessLevel'
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -136448,7 +136725,7 @@ class ProductAccessScalarWhereWithAggregatesInputRecursive4(TypedDict, total=Fal
     id: Union[_str, 'types.StringWithAggregatesFilter']
     userId: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
-    level: Union[_str, 'types.StringWithAggregatesFilter']
+    level: 'enums.AccessLevel'
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -136458,7 +136735,7 @@ class ProductAccessGroupByOutput(TypedDict, total=False):
     id: _str
     userId: _str
     productId: _str
-    level: _str
+    level: 'enums.AccessLevel'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     _sum: 'ProductAccessSumAggregateOutput'
@@ -136481,7 +136758,7 @@ class ProductAccessScalarAggregateOutput(TypedDict, total=False):
     id: _str
     userId: _str
     productId: _str
-    level: _str
+    level: 'enums.AccessLevel'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -155712,6 +155989,7 @@ SecretRelationalFieldKeys = Literal[
 class PollCacheOptionalCreateInput(TypedDict, total=False):
     """Optional arguments to the PollCache create method"""
     id: _str
+    createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
 
@@ -155728,6 +156006,7 @@ class PollCacheCreateInput(PollCacheOptionalCreateInput):
 class PollCacheOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     """Optional arguments to the PollCache create method, without relations"""
     id: _str
+    createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
 
@@ -155789,6 +156068,7 @@ class PollCacheUpdateInput(TypedDict, total=False):
     repoSlug: _str
     prId: Union[AtomicIntInput, _int]
     commitSha: _str
+    createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
 
@@ -155798,6 +156078,7 @@ class PollCacheUpdateManyMutationInput(TypedDict, total=False):
     repoSlug: _str
     prId: Union[AtomicIntInput, _int]
     commitSha: _str
+    createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
 
@@ -155865,6 +156146,14 @@ _PollCache_commitSha_OrderByInput = TypedDict(
     total=True
 )
 
+_PollCache_createdAt_OrderByInput = TypedDict(
+    '_PollCache_createdAt_OrderByInput',
+    {
+        'createdAt': 'SortOrder',
+    },
+    total=True
+)
+
 _PollCache_updatedAt_OrderByInput = TypedDict(
     '_PollCache_updatedAt_OrderByInput',
     {
@@ -155896,6 +156185,7 @@ PollCacheOrderByInput = Union[
     '_PollCache_repoSlug_OrderByInput',
     '_PollCache_prId_OrderByInput',
     '_PollCache_commitSha_OrderByInput',
+    '_PollCache_createdAt_OrderByInput',
     '_PollCache_updatedAt_OrderByInput',
     '_PollCache_RelevanceOrderByInput',
 ]
@@ -160177,6 +160467,7 @@ class PollCacheWhereInput(TypedDict, total=False):
     repoSlug: Union[_str, 'types.StringFilter']
     prId: Union[_int, 'types.IntFilter']
     commitSha: Union[_str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
     # should be noted that AND and NOT should be Union['PollCacheWhereInputRecursive1', List['PollCacheWhereInputRecursive1']]
@@ -160192,6 +160483,7 @@ class PollCacheWhereInputRecursive1(TypedDict, total=False):
     repoSlug: Union[_str, 'types.StringFilter']
     prId: Union[_int, 'types.IntFilter']
     commitSha: Union[_str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
     # should be noted that AND and NOT should be Union['PollCacheWhereInputRecursive2', List['PollCacheWhereInputRecursive2']]
@@ -160207,6 +160499,7 @@ class PollCacheWhereInputRecursive2(TypedDict, total=False):
     repoSlug: Union[_str, 'types.StringFilter']
     prId: Union[_int, 'types.IntFilter']
     commitSha: Union[_str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
     # should be noted that AND and NOT should be Union['PollCacheWhereInputRecursive3', List['PollCacheWhereInputRecursive3']]
@@ -160222,6 +160515,7 @@ class PollCacheWhereInputRecursive3(TypedDict, total=False):
     repoSlug: Union[_str, 'types.StringFilter']
     prId: Union[_int, 'types.IntFilter']
     commitSha: Union[_str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
     # should be noted that AND and NOT should be Union['PollCacheWhereInputRecursive4', List['PollCacheWhereInputRecursive4']]
@@ -160237,6 +160531,7 @@ class PollCacheWhereInputRecursive4(TypedDict, total=False):
     repoSlug: Union[_str, 'types.StringFilter']
     prId: Union[_int, 'types.IntFilter']
     commitSha: Union[_str, 'types.StringFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
 
@@ -160252,6 +160547,7 @@ class PollCacheScalarWhereWithAggregatesInput(TypedDict, total=False):
     repoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     prId: Union[_int, 'types.IntWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['PollCacheScalarWhereWithAggregatesInputRecursive1']
@@ -160265,6 +160561,7 @@ class PollCacheScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
     repoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     prId: Union[_int, 'types.IntWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['PollCacheScalarWhereWithAggregatesInputRecursive2']
@@ -160278,6 +160575,7 @@ class PollCacheScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
     repoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     prId: Union[_int, 'types.IntWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['PollCacheScalarWhereWithAggregatesInputRecursive3']
@@ -160291,6 +160589,7 @@ class PollCacheScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
     repoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     prId: Union[_int, 'types.IntWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['PollCacheScalarWhereWithAggregatesInputRecursive4']
@@ -160304,6 +160603,7 @@ class PollCacheScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
     repoSlug: Union[_str, 'types.StringWithAggregatesFilter']
     prId: Union[_int, 'types.IntWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
 
@@ -160313,6 +160613,7 @@ class PollCacheGroupByOutput(TypedDict, total=False):
     repoSlug: _str
     prId: _int
     commitSha: _str
+    createdAt: datetime.datetime
     updatedAt: datetime.datetime
     _sum: 'PollCacheSumAggregateOutput'
     _avg: 'PollCacheAvgAggregateOutput'
@@ -160337,6 +160638,7 @@ class PollCacheScalarAggregateOutput(TypedDict, total=False):
     repoSlug: _str
     prId: _int
     commitSha: _str
+    createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
 
@@ -160350,6 +160652,7 @@ class PollCacheMaxAggregateInput(TypedDict, total=False):
     repoSlug: bool
     prId: bool
     commitSha: bool
+    createdAt: bool
     updatedAt: bool
 
 
@@ -160359,6 +160662,7 @@ class PollCacheMinAggregateInput(TypedDict, total=False):
     repoSlug: bool
     prId: bool
     commitSha: bool
+    createdAt: bool
     updatedAt: bool
 
 
@@ -160378,6 +160682,7 @@ PollCacheCountAggregateInput = TypedDict(
         'repoSlug': bool,
         'prId': bool,
         'commitSha': bool,
+        'createdAt': bool,
         'updatedAt': bool,
         '_all': bool,
     },
@@ -160391,6 +160696,7 @@ PollCacheCountAggregateOutput = TypedDict(
         'repoSlug': int,
         'prId': int,
         'commitSha': int,
+        'createdAt': int,
         'updatedAt': int,
         '_all': int,
     },
@@ -160403,6 +160709,7 @@ PollCacheKeys = Literal[
     'repoSlug',
     'prId',
     'commitSha',
+    'createdAt',
     'updatedAt',
 ]
 PollCacheScalarFieldKeys = Literal[
@@ -160410,6 +160717,7 @@ PollCacheScalarFieldKeys = Literal[
     'repoSlug',
     'prId',
     'commitSha',
+    'createdAt',
     'updatedAt',
 ]
 PollCacheScalarFieldKeysT = TypeVar('PollCacheScalarFieldKeysT', bound=PollCacheScalarFieldKeys)
@@ -160422,7 +160730,7 @@ class RecipeVersionOptionalCreateInput(TypedDict, total=False):
     """Optional arguments to the RecipeVersion create method"""
     id: _str
     productId: _str
-    status: _str
+    status: 'enums.RecipeStatus'
     changeNote: Optional[_str]
     createdById: Optional[_str]
     createdAt: datetime.datetime
@@ -160447,7 +160755,7 @@ class RecipeVersionOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     """Optional arguments to the RecipeVersion create method, without relations"""
     id: _str
     productId: _str
-    status: _str
+    status: 'enums.RecipeStatus'
     changeNote: Optional[_str]
     createdById: Optional[_str]
     createdAt: datetime.datetime
@@ -160489,7 +160797,7 @@ class RecipeVersionUpdateInput(TypedDict, total=False):
     id: _str
     version: Union[AtomicIntInput, _int]
     content: _str
-    status: _str
+    status: 'enums.RecipeStatus'
     changeNote: Optional[_str]
     createdAt: datetime.datetime
     product: 'ProductUpdateOneWithoutRelationsInput'
@@ -160505,7 +160813,7 @@ class RecipeVersionUpdateManyMutationInput(TypedDict, total=False):
     id: _str
     version: Union[AtomicIntInput, _int]
     content: _str
-    status: _str
+    status: 'enums.RecipeStatus'
     changeNote: Optional[_str]
     createdAt: datetime.datetime
 
@@ -164919,7 +165227,7 @@ class RecipeVersionWhereInput(TypedDict, total=False):
     productId: Union[_str, 'types.StringFilter']
     version: Union[_int, 'types.IntFilter']
     content: Union[_str, 'types.StringFilter']
-    status: Union[_str, 'types.StringFilter']
+    status: 'enums.RecipeStatus'
     changeNote: Union[None, _str, 'types.StringFilter']
     createdById: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -164943,7 +165251,7 @@ class RecipeVersionWhereInputRecursive1(TypedDict, total=False):
     productId: Union[_str, 'types.StringFilter']
     version: Union[_int, 'types.IntFilter']
     content: Union[_str, 'types.StringFilter']
-    status: Union[_str, 'types.StringFilter']
+    status: 'enums.RecipeStatus'
     changeNote: Union[None, _str, 'types.StringFilter']
     createdById: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -164967,7 +165275,7 @@ class RecipeVersionWhereInputRecursive2(TypedDict, total=False):
     productId: Union[_str, 'types.StringFilter']
     version: Union[_int, 'types.IntFilter']
     content: Union[_str, 'types.StringFilter']
-    status: Union[_str, 'types.StringFilter']
+    status: 'enums.RecipeStatus'
     changeNote: Union[None, _str, 'types.StringFilter']
     createdById: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -164991,7 +165299,7 @@ class RecipeVersionWhereInputRecursive3(TypedDict, total=False):
     productId: Union[_str, 'types.StringFilter']
     version: Union[_int, 'types.IntFilter']
     content: Union[_str, 'types.StringFilter']
-    status: Union[_str, 'types.StringFilter']
+    status: 'enums.RecipeStatus'
     changeNote: Union[None, _str, 'types.StringFilter']
     createdById: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -165015,7 +165323,7 @@ class RecipeVersionWhereInputRecursive4(TypedDict, total=False):
     productId: Union[_str, 'types.StringFilter']
     version: Union[_int, 'types.IntFilter']
     content: Union[_str, 'types.StringFilter']
-    status: Union[_str, 'types.StringFilter']
+    status: 'enums.RecipeStatus'
     changeNote: Union[None, _str, 'types.StringFilter']
     createdById: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -165039,7 +165347,7 @@ class RecipeVersionScalarWhereWithAggregatesInput(TypedDict, total=False):
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_int, 'types.IntWithAggregatesFilter']
     content: Union[_str, 'types.StringWithAggregatesFilter']
-    status: Union[_str, 'types.StringWithAggregatesFilter']
+    status: 'enums.RecipeStatus'
     changeNote: Union[_str, 'types.StringWithAggregatesFilter']
     createdById: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -165055,7 +165363,7 @@ class RecipeVersionScalarWhereWithAggregatesInputRecursive1(TypedDict, total=Fal
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_int, 'types.IntWithAggregatesFilter']
     content: Union[_str, 'types.StringWithAggregatesFilter']
-    status: Union[_str, 'types.StringWithAggregatesFilter']
+    status: 'enums.RecipeStatus'
     changeNote: Union[_str, 'types.StringWithAggregatesFilter']
     createdById: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -165071,7 +165379,7 @@ class RecipeVersionScalarWhereWithAggregatesInputRecursive2(TypedDict, total=Fal
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_int, 'types.IntWithAggregatesFilter']
     content: Union[_str, 'types.StringWithAggregatesFilter']
-    status: Union[_str, 'types.StringWithAggregatesFilter']
+    status: 'enums.RecipeStatus'
     changeNote: Union[_str, 'types.StringWithAggregatesFilter']
     createdById: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -165087,7 +165395,7 @@ class RecipeVersionScalarWhereWithAggregatesInputRecursive3(TypedDict, total=Fal
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_int, 'types.IntWithAggregatesFilter']
     content: Union[_str, 'types.StringWithAggregatesFilter']
-    status: Union[_str, 'types.StringWithAggregatesFilter']
+    status: 'enums.RecipeStatus'
     changeNote: Union[_str, 'types.StringWithAggregatesFilter']
     createdById: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -165103,7 +165411,7 @@ class RecipeVersionScalarWhereWithAggregatesInputRecursive4(TypedDict, total=Fal
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_int, 'types.IntWithAggregatesFilter']
     content: Union[_str, 'types.StringWithAggregatesFilter']
-    status: Union[_str, 'types.StringWithAggregatesFilter']
+    status: 'enums.RecipeStatus'
     changeNote: Union[_str, 'types.StringWithAggregatesFilter']
     createdById: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -165115,7 +165423,7 @@ class RecipeVersionGroupByOutput(TypedDict, total=False):
     productId: _str
     version: _int
     content: _str
-    status: _str
+    status: 'enums.RecipeStatus'
     changeNote: _str
     createdById: _str
     createdAt: datetime.datetime
@@ -165142,7 +165450,7 @@ class RecipeVersionScalarAggregateOutput(TypedDict, total=False):
     productId: _str
     version: _int
     content: _str
-    status: _str
+    status: 'enums.RecipeStatus'
     changeNote: _str
     createdById: _str
     createdAt: datetime.datetime

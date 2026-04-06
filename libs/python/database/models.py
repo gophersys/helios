@@ -891,14 +891,8 @@ class FirmwareSet(bases.BaseFirmwareSet):
     """"0.5.2" (major.minor.build)
     """
 
-    variant: _str
-    """"smoke", "debug", "release", "mfg"
-    """
-
-    releaseTrack: _str
-    """"bench", "engineering", "production"
-    """
-
+    variant: 'enums.FirmwareVariant'
+    releaseTrack: 'enums.ReleaseTrack'
     isManufacturing: _bool
     isDebug: _bool
     source: _str
@@ -917,10 +911,7 @@ class FirmwareSet(bases.BaseFirmwareSet):
     """SHA-256 of source + config — enables build reuse
     """
 
-    status: _str
-    """"active", "deprecated", "recalled"
-    """
-
+    status: 'enums.FirmwareSetStatus'
     notes: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -1091,6 +1082,7 @@ class FirmwareBuild(bases.BaseFirmwareBuild):
     contentType: Optional[_str] = None
     notes: Optional[_str] = None
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
     firmwareSet: Optional['models.FirmwareSet'] = None
     target: Optional['models.ProductTarget'] = None
 
@@ -3324,6 +3316,7 @@ class IclePendingCommand(bases.BaseIclePendingCommand):
     expiresAt: Optional[datetime.datetime] = None
     acknowledged: _bool
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
     device: Optional['models.IcleDevice'] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
@@ -4194,6 +4187,11 @@ class TestStep(bases.BaseTestStep):
 
 class User(bases.BaseUser):
     """A platform user, authenticated via Google OAuth.
+
+    RBAC: `role` is the user's organizational role (ADMIN/MAINTAINER/DEVELOPER/OPERATOR).
+    `permissionSet` maps that role to specific permission strings checked at runtime by
+    @require_permissions. Both fields should stay in sync — seed.py assigns the matching
+    permission set for each role.
     """
 
     id: _str
@@ -4353,10 +4351,7 @@ class ProductAccess(bases.BaseProductAccess):
     id: _str
     userId: _str
     productId: _str
-    level: _str
-    """"view", "operate", "develop", "admin"
-    """
-
+    level: 'enums.AccessLevel'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     user: Optional['models.User'] = None
@@ -5085,6 +5080,7 @@ class PollCache(bases.BasePollCache):
     repoSlug: _str
     prId: _int
     commitSha: _str
+    createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
     # take *args and **kwargs so that other metaclasses can define arguments
@@ -5195,7 +5191,7 @@ class RecipeVersion(bases.BaseRecipeVersion):
     productId: _str
     version: _int
     content: _str
-    status: _str
+    status: 'enums.RecipeStatus'
     changeNote: Optional[_str] = None
     createdById: Optional[_str] = None
     createdAt: datetime.datetime
@@ -6652,17 +6648,17 @@ _FirmwareSet_fields: Dict['types.FirmwareSetKeys', PartialModelField] = OrderedD
             'name': 'variant',
             'is_list': False,
             'optional': False,
-            'type': '_str',
+            'type': 'enums.FirmwareVariant',
             'is_relational': False,
-            'documentation': '''"smoke", "debug", "release", "mfg"''',
+            'documentation': None,
         }),
         ('releaseTrack', {
             'name': 'releaseTrack',
             'is_list': False,
             'optional': False,
-            'type': '_str',
+            'type': 'enums.ReleaseTrack',
             'is_relational': False,
-            'documentation': '''"bench", "engineering", "production"''',
+            'documentation': None,
         }),
         ('isManufacturing', {
             'name': 'isManufacturing',
@@ -6716,9 +6712,9 @@ _FirmwareSet_fields: Dict['types.FirmwareSetKeys', PartialModelField] = OrderedD
             'name': 'status',
             'is_list': False,
             'optional': False,
-            'type': '_str',
+            'type': 'enums.FirmwareSetStatus',
             'is_relational': False,
-            'documentation': '''"active", "deprecated", "recalled"''',
+            'documentation': None,
         }),
         ('notes', {
             'name': 'notes',
@@ -6883,6 +6879,14 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
         }),
         ('createdAt', {
             'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('updatedAt', {
+            'name': 'updatedAt',
             'is_list': False,
             'optional': False,
             'type': 'datetime.datetime',
@@ -9053,6 +9057,14 @@ _IclePendingCommand_fields: Dict['types.IclePendingCommandKeys', PartialModelFie
             'is_relational': False,
             'documentation': None,
         }),
+        ('updatedAt', {
+            'name': 'updatedAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('device', {
             'name': 'device',
             'is_list': False,
@@ -9843,9 +9855,9 @@ _ProductAccess_fields: Dict['types.ProductAccessKeys', PartialModelField] = Orde
             'name': 'level',
             'is_list': False,
             'optional': False,
-            'type': '_str',
+            'type': 'enums.AccessLevel',
             'is_relational': False,
-            'documentation': '''"view", "operate", "develop", "admin"''',
+            'documentation': None,
         }),
         ('createdAt', {
             'name': 'createdAt',
@@ -10230,6 +10242,14 @@ _PollCache_fields: Dict['types.PollCacheKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('updatedAt', {
             'name': 'updatedAt',
             'is_list': False,
@@ -10287,7 +10307,7 @@ _RecipeVersion_fields: Dict['types.RecipeVersionKeys', PartialModelField] = Orde
             'name': 'status',
             'is_list': False,
             'optional': False,
-            'type': '_str',
+            'type': 'enums.RecipeStatus',
             'is_relational': False,
             'documentation': None,
         }),

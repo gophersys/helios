@@ -151,3 +151,29 @@ class Role(StrEnum):
     DEVELOPER = 'DEVELOPER'
     OPERATOR = 'OPERATOR'
 
+class FirmwareVariant(StrEnum):
+    smoke = 'smoke'
+    debug = 'debug'
+    release = 'release'
+    mfg = 'mfg'
+
+class ReleaseTrack(StrEnum):
+    bench = 'bench'
+    engineering = 'engineering'
+    production = 'production'
+
+class FirmwareSetStatus(StrEnum):
+    active = 'active'
+    deprecated = 'deprecated'
+    recalled = 'recalled'
+
+class RecipeStatus(StrEnum):
+    draft = 'draft'
+    published = 'published'
+
+class AccessLevel(StrEnum):
+    view = 'view'
+    operate = 'operate'
+    develop = 'develop'
+    admin = 'admin'
+
