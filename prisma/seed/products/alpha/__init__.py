@@ -100,9 +100,13 @@ def seed_product(db) -> dict:
                 "boardId": board.id, "version": "B0", "ckBoardsName": "alpha_b0",
                 "socs": ["nrf9151", "nrf52840"],
                 "deviceType": 2, "deviceVariant": 3,
+                "modemVersion": "2.0.2",
                 "notes": "Alpha B0 — current production (nRF52840 + nRF9151)",
             },
-            "update": {"ckBoardsName": "alpha_b0", "socs": ["nrf9151", "nrf52840"], "deviceType": 2, "deviceVariant": 3},
+            "update": {
+                "ckBoardsName": "alpha_b0", "socs": ["nrf9151", "nrf52840"],
+                "deviceType": 2, "deviceVariant": 3, "modemVersion": "2.0.2",
+            },
         },
     )
     for t in [{"role": "comms", "soc": "nRF9151", "appId": 108}, {"role": "app", "soc": "nRF52840", "appId": 109}]:

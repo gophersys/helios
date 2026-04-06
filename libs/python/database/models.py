@@ -101,7 +101,6 @@ class Product(bases.BaseProduct):
     sessions: Optional[List['models.Session']] = None
     buildJobs: Optional[List['models.BuildJob']] = None
     buildRuns: Optional[List['models.BuildRun']] = None
-    deployments: Optional[List['models.Deployment']] = None
     stageConfigs: Optional[List['models.ProductStageConfig']] = None
     testPackages: Optional[List['models.TestPackage']] = None
     recipeVersions: Optional[List['models.RecipeVersion']] = None
@@ -737,6 +736,8 @@ class BoardRevision(bases.BaseBoardRevision):
     firmwareSets: Optional[List['models.FirmwareSet']] = None
     stageConfigs: Optional[List['models.ProductStageConfig']] = None
     assetSets: Optional[List['models.AssetSet']] = None
+    fixtureDesigns: Optional[List['models.FixtureDesign']] = None
+    fixtures: Optional[List['models.Fixture']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -2431,10 +2432,13 @@ class Device(bases.BaseDevice):
 
 
 class FixtureDesign(bases.BaseFixtureDesign):
-    """A versioned fixture hardware design -- the PCB/wiring spec for testing a product.
+    """A versioned fixture hardware design — the PCB/wiring spec for testing a product.
     Example: "alpha-fixture-v1.2" describes REV1.2 MTIB carrier with specific GPIO wiring.
 
-    The profileTemplate JSON contains the default fixture profile for fixtures using this design.
+    Concord stores the profileTemplate JSON but never interprets it.
+    Product-specific test code (apps/validation/alpha/fixtures/) reads the profile
+    to know GPIO pins, UART paths, power config, etc.
+
     Individual Fixture records can override specific fields via profileOverrides.
     """
 
@@ -2443,12 +2447,12 @@ class FixtureDesign(bases.BaseFixtureDesign):
     """"alpha-fixture-v1.2"
     """
 
-    product: _str
-    """"alpha" -- which product this fixture tests
+    boardRevisionId: _str
+    """FK — which board revision this design targets
     """
 
     revision: _str
-    """"1.2" -- fixture hardware revision
+    """"1.2" — fixture hardware revision (NOT board revision)
     """
 
     capabilities: List[_str]
@@ -2456,7 +2460,7 @@ class FixtureDesign(bases.BaseFixtureDesign):
     """
 
     profileTemplate: 'fields.Json'
-    """Default fixture profile JSON for this design
+    """Default fixture profile JSON (passed to test runner, not interpreted by Concord)
     """
 
     schematicUrl: Optional[_str] = None
@@ -2477,6 +2481,7 @@ class FixtureDesign(bases.BaseFixtureDesign):
 
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    boardRevision: Optional['models.BoardRevision'] = None
     fixtures: Optional[List['models.Fixture']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
@@ -2616,14 +2621,22 @@ class FixtureDesign(bases.BaseFixtureDesign):
 
 
 class Fixture(bases.BaseFixture):
-    """A physical test fixture for a product. Unified model for both
-    manufacturing fixtures (multi-panel arrays) and validation benches
-    (individual units with MTIB + DUT).
+    """A physical test fixture instance. Unified model for both
+    manufacturing fixtures (multi-slot with 4-6 MTIBs) and validation
+    benches (single-slot with 1 MTIB).
+
+    Lifecycle:
+    1. Created with N slots (based on fixture type/design)
+    2. MTIBs registered and assigned to slots (auto-deploys MTIB server)
+    3. All slots assigned → status becomes AVAILABLE
+    4. Scheduler assigns queue entries → status becomes LOCKED
+    5. Session runs (N parallel K8s Jobs, one per slot) → results collected
+    6. Session finishes → status returns to AVAILABLE
     """
 
     id: _str
     name: _str
-    """"Theta MFG Fixture 1", "Alpha B0 Bench 1"
+    """"Alpha MFG Fixture 1", "Alpha B0 Bench 1"
     """
 
     stationId: Optional[_str] = None
@@ -2631,12 +2644,16 @@ class Fixture(bases.BaseFixture):
     """
 
     productId: _str
+    boardRevisionId: Optional[_str] = None
+    """FK — which board revision this fixture tests (denormalized from design)
+    """
+
     type: 'enums.NodeType'
     """MANUFACTURING or VALIDATION
     """
 
     designId: Optional[_str] = None
-    """FK to FixtureDesign
+    """FK to FixtureDesign (optional — design can be assigned later)
     """
 
     status: 'enums.FixtureStatus'
@@ -2659,6 +2676,7 @@ class Fixture(bases.BaseFixture):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: Optional['models.Product'] = None
+    boardRevision: Optional['models.BoardRevision'] = None
     design: Optional['models.FixtureDesign'] = None
     slots: Optional[List['models.FixtureSlot']] = None
     sessions: Optional[List['models.Session']] = None
@@ -3584,150 +3602,6 @@ class IcleLog(bases.BaseIcleLog):
         _created_partial_types.add(name)
 
 
-class Deployment(bases.BaseDeployment):
-    """A software deployment tracked by Concord -- test runners,
-    operators, MTIB servers, etc. The actual K8s state is
-    queried live; this table records intent and history.
-    """
-
-    id: _str
-    name: _str
-    productId: Optional[_str] = None
-    status: 'enums.DeploymentStatus'
-    config: Optional['fields.Json'] = None
-    """K8s manifest, image tags, env overrides
-    """
-
-    version: Optional[_str] = None
-    createdById: Optional[_str] = None
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    product: Optional['models.Product'] = None
-    createdBy: Optional['models.User'] = None
-
-    # take *args and **kwargs so that other metaclasses can define arguments
-    def __init_subclass__(
-        cls,
-        *args: Any,
-        warn_subclass: Optional[bool] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__()
-        if warn_subclass is not None:
-            warnings.warn(
-                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-
-    @staticmethod
-    def create_partial(
-        name: str,
-        include: Optional[Iterable['types.DeploymentKeys']] = None,
-        exclude: Optional[Iterable['types.DeploymentKeys']] = None,
-        required: Optional[Iterable['types.DeploymentKeys']] = None,
-        optional: Optional[Iterable['types.DeploymentKeys']] = None,
-        relations: Optional[Mapping['types.DeploymentRelationalFieldKeys', str]] = None,
-        exclude_relational_fields: bool = False,
-    ) -> None:
-        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
-            raise RuntimeError(
-                'Attempted to create a partial type outside of client generation.'
-            )
-
-        if name in _created_partial_types:
-            raise ValueError(f'Partial type "{name}" has already been created.')
-
-        if include is not None:
-            if exclude is not None:
-                raise TypeError('Exclude and include are mutually exclusive.')
-            if exclude_relational_fields is True:
-                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
-
-        if required and optional:
-            shared = set(required) & set(optional)
-            if shared:
-                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
-
-        if exclude_relational_fields and relations:
-            raise ValueError(
-                'exclude_relational_fields and relations are mutually exclusive'
-            )
-
-        fields: Dict['types.DeploymentKeys', PartialModelField] = OrderedDict()
-
-        try:
-            if include:
-                for field in include:
-                    fields[field] = _Deployment_fields[field].copy()
-            elif exclude:
-                for field in exclude:
-                    if field not in _Deployment_fields:
-                        raise KeyError(field)
-
-                fields = {
-                    key: data.copy()
-                    for key, data in _Deployment_fields.items()
-                    if key not in exclude
-                }
-            else:
-                fields = {
-                    key: data.copy()
-                    for key, data in _Deployment_fields.items()
-                }
-
-            if required:
-                for field in required:
-                    fields[field]['optional'] = False
-
-            if optional:
-                for field in optional:
-                    fields[field]['optional'] = True
-
-            if exclude_relational_fields:
-                fields = {
-                    key: data
-                    for key, data in fields.items()
-                    if key not in _Deployment_relational_fields
-                }
-
-            if relations:
-                for field, type_ in relations.items():
-                    if field not in _Deployment_relational_fields:
-                        raise errors.UnknownRelationalFieldError('Deployment', field)
-
-                    # TODO: this method of validating types is not ideal
-                    # as it means we cannot two create partial types that
-                    # reference each other
-                    if type_ not in _created_partial_types:
-                        raise ValueError(
-                            f'Unknown partial type: "{type_}". '
-                            f'Did you remember to generate the {type_} type before this one?'
-                        )
-
-                    # TODO: support non prisma.partials models
-                    info = fields[field]
-                    if info['is_list']:
-                        info['type'] = f'List[\'partials.{type_}\']'
-                    else:
-                        info['type'] = f'\'partials.{type_}\''
-        except KeyError as exc:
-            raise ValueError(
-                f'{exc.args[0]} is not a valid Deployment / {name} field.'
-            ) from None
-
-        models = partial_models_ctx.get()
-        models.append(
-            {
-                'name': name,
-                'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'Deployment',
-            }
-        )
-        _created_partial_types.add(name)
-
-
 class Test(bases.BaseTest):
     """A test definition for a product. Defines WHAT to test,
     not a specific run. Tests are grouped by category
@@ -4211,7 +4085,6 @@ class User(bases.BaseUser):
     productAccess: Optional[List['models.ProductAccess']] = None
     apiKeys: Optional[List['models.ApiKey']] = None
     sessions: Optional[List['models.Session']] = None
-    deployments: Optional[List['models.Deployment']] = None
     testExecutions: Optional[List['models.TestExecution']] = None
     testPackages: Optional[List['models.TestPackage']] = None
     auditLogs: Optional[List['models.AuditLog']] = None
@@ -5802,6 +5675,14 @@ class Asset(bases.BaseAsset):
     """
 
     contentType: Optional[_str] = None
+    appId: Optional[_int] = None
+    """App ID (e.g. 109 for nrf52840, 108 for nrf9151)
+    """
+
+    versionString: Optional[_str] = None
+    """Full CK version string (e.g. "109.0.8.3-BM")
+    """
+
     createdAt: datetime.datetime
     assetSet: Optional['models.AssetSet'] = None
 
@@ -5937,7 +5818,6 @@ _Product_relational_fields: Set[str] = {
         'sessions',
         'buildJobs',
         'buildRuns',
-        'deployments',
         'stageConfigs',
         'testPackages',
         'recipeVersions',
@@ -6095,14 +5975,6 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.BuildRun\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('deployments', {
-            'name': 'deployments',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.Deployment\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -6455,6 +6327,8 @@ _BoardRevision_relational_fields: Set[str] = {
         'firmwareSets',
         'stageConfigs',
         'assetSets',
+        'fixtureDesigns',
+        'fixtures',
     }
 _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = OrderedDict(
     [
@@ -6599,6 +6473,22 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.AssetSet\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('fixtureDesigns', {
+            'name': 'fixtureDesigns',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.FixtureDesign\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('fixtures', {
+            'name': 'fixtures',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.Fixture\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -8293,6 +8183,7 @@ _Device_fields: Dict['types.DeviceKeys', PartialModelField] = OrderedDict(
 )
 
 _FixtureDesign_relational_fields: Set[str] = {
+        'boardRevision',
         'fixtures',
     }
 _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = OrderedDict(
@@ -8313,13 +8204,13 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': '''"alpha-fixture-v1.2"''',
         }),
-        ('product', {
-            'name': 'product',
+        ('boardRevisionId', {
+            'name': 'boardRevisionId',
             'is_list': False,
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''"alpha" -- which product this fixture tests''',
+            'documentation': '''FK — which board revision this design targets''',
         }),
         ('revision', {
             'name': 'revision',
@@ -8327,7 +8218,7 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''"1.2" -- fixture hardware revision''',
+            'documentation': '''"1.2" — fixture hardware revision (NOT board revision)''',
         }),
         ('capabilities', {
             'name': 'capabilities',
@@ -8343,7 +8234,7 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'optional': False,
             'type': 'fields.Json',
             'is_relational': False,
-            'documentation': '''Default fixture profile JSON for this design''',
+            'documentation': '''Default fixture profile JSON (passed to test runner, not interpreted by Concord)''',
         }),
         ('schematicUrl', {
             'name': 'schematicUrl',
@@ -8393,6 +8284,14 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': None,
         }),
+        ('boardRevision', {
+            'name': 'boardRevision',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BoardRevision',
+            'is_relational': True,
+            'documentation': None,
+        }),
         ('fixtures', {
             'name': 'fixtures',
             'is_list': True,
@@ -8406,6 +8305,7 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
 
 _Fixture_relational_fields: Set[str] = {
         'product',
+        'boardRevision',
         'design',
         'slots',
         'sessions',
@@ -8427,7 +8327,7 @@ _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''"Theta MFG Fixture 1", "Alpha B0 Bench 1"''',
+            'documentation': '''"Alpha MFG Fixture 1", "Alpha B0 Bench 1"''',
         }),
         ('stationId', {
             'name': 'stationId',
@@ -8445,6 +8345,14 @@ _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('boardRevisionId', {
+            'name': 'boardRevisionId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''FK — which board revision this fixture tests (denormalized from design)''',
+        }),
         ('type', {
             'name': 'type',
             'is_list': False,
@@ -8459,7 +8367,7 @@ _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''FK to FixtureDesign''',
+            'documentation': '''FK to FixtureDesign (optional — design can be assigned later)''',
         }),
         ('status', {
             'name': 'status',
@@ -8546,6 +8454,14 @@ _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
             'is_list': False,
             'optional': True,
             'type': 'models.Product',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('boardRevision', {
+            'name': 'boardRevision',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BoardRevision',
             'is_relational': True,
             'documentation': None,
         }),
@@ -9148,103 +9064,6 @@ _IcleLog_fields: Dict['types.IcleLogKeys', PartialModelField] = OrderedDict(
     ],
 )
 
-_Deployment_relational_fields: Set[str] = {
-        'product',
-        'createdBy',
-    }
-_Deployment_fields: Dict['types.DeploymentKeys', PartialModelField] = OrderedDict(
-    [
-        ('id', {
-            'name': 'id',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('name', {
-            'name': 'name',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('productId', {
-            'name': 'productId',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('status', {
-            'name': 'status',
-            'is_list': False,
-            'optional': False,
-            'type': 'enums.DeploymentStatus',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('config', {
-            'name': 'config',
-            'is_list': False,
-            'optional': True,
-            'type': 'fields.Json',
-            'is_relational': False,
-            'documentation': '''K8s manifest, image tags, env overrides''',
-        }),
-        ('version', {
-            'name': 'version',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('createdById', {
-            'name': 'createdById',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('createdAt', {
-            'name': 'createdAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('updatedAt', {
-            'name': 'updatedAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('product', {
-            'name': 'product',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.Product',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('createdBy', {
-            'name': 'createdBy',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.User',
-            'is_relational': True,
-            'documentation': None,
-        }),
-    ],
-)
-
 _Test_relational_fields: Set[str] = {
         'product',
         'executions',
@@ -9640,7 +9459,6 @@ _User_relational_fields: Set[str] = {
         'productAccess',
         'apiKeys',
         'sessions',
-        'deployments',
         'testExecutions',
         'testPackages',
         'auditLogs',
@@ -9759,14 +9577,6 @@ _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.Session\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('deployments', {
-            'name': 'deployments',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.Deployment\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -10875,6 +10685,22 @@ _Asset_fields: Dict['types.AssetKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('appId', {
+            'name': 'appId',
+            'is_list': False,
+            'optional': True,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': '''App ID (e.g. 109 for nrf52840, 108 for nrf9151)''',
+        }),
+        ('versionString', {
+            'name': 'versionString',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Full CK version string (e.g. "109.0.8.3-BM")''',
+        }),
         ('createdAt', {
             'name': 'createdAt',
             'is_list': False,
@@ -10922,7 +10748,6 @@ model_rebuild(Node)
 model_rebuild(IcleDevice)
 model_rebuild(IclePendingCommand)
 model_rebuild(IcleLog)
-model_rebuild(Deployment)
 model_rebuild(Test)
 model_rebuild(TestExecution)
 model_rebuild(TestStep)

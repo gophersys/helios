@@ -51,12 +51,6 @@ class NodeType(StrEnum):
     MANUFACTURING = 'MANUFACTURING'
     VALIDATION = 'VALIDATION'
 
-class DeploymentStatus(StrEnum):
-    PENDING = 'PENDING'
-    RUNNING = 'RUNNING'
-    STOPPED = 'STOPPED'
-    FAILED = 'FAILED'
-
 class SessionType(StrEnum):
     MANUFACTURING = 'MANUFACTURING'
     VALIDATION = 'VALIDATION'

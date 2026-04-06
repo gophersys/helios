@@ -14643,7 +14643,7 @@ class FixtureDesignActions(Generic[_PrismaModelT]):
             data={
                 # data to create a FixtureDesign record
                 'name': 'bbfbheibcd',
-                'product': 'hiagajie',
+                'boardRevisionId': 'hiagajie',
                 'revision': 'eeejidbif',
                 'profileTemplate': Json({'efgbahec': True}),
             },
@@ -14701,14 +14701,14 @@ class FixtureDesignActions(Generic[_PrismaModelT]):
                 {
                     # data to create a FixtureDesign record
                     'name': 'hgjaiebfb',
-                    'product': 'bddefjjabc',
+                    'boardRevisionId': 'bddefjjabc',
                     'revision': 'bbbghgbadh',
                     'profileTemplate': Json({'bbhcgagaic': True}),
                 },
                 {
                     # data to create a FixtureDesign record
                     'name': 'ddaabegbb',
-                    'product': 'bhgibfgbbc',
+                    'boardRevisionId': 'bhgibfgbbc',
                     'revision': 'hbgcihef',
                     'profileTemplate': Json({'ffhgghde': True}),
                 },
@@ -14929,11 +14929,11 @@ class FixtureDesignActions(Generic[_PrismaModelT]):
         # find the first 10 FixtureDesign records
         fixturedesigns = FixtureDesign.prisma().find_many(take=10)
 
-        # find the first 5 FixtureDesign records ordered by the product field
+        # find the first 5 FixtureDesign records ordered by the boardRevisionId field
         fixturedesigns = FixtureDesign.prisma().find_many(
             take=5,
             order={
-                'product': 'desc',
+                'boardRevisionId': 'desc',
             },
         )
         ```
@@ -15182,13 +15182,13 @@ class FixtureDesignActions(Generic[_PrismaModelT]):
                 'create': {
                     'id': 'bjgfdihchf',
                     'name': 'ddaabegbb',
-                    'product': 'bhgibfgbbc',
+                    'boardRevisionId': 'bhgibfgbbc',
                     'revision': 'hbgcihef',
                     'profileTemplate': Json({'ffhgghde': True}),
                 },
                 'update': {
                     'name': 'ddaabegbb',
-                    'product': 'bhgibfgbbc',
+                    'boardRevisionId': 'bhgibfgbbc',
                     'revision': 'hbgcihef',
                     'profileTemplate': Json({'ffhgghde': True}),
                 },
@@ -16097,11 +16097,11 @@ class FixtureActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the second Fixture record ordered by the type field
+        # find the second Fixture record ordered by the boardRevisionId field
         fixture = Fixture.prisma().find_first_or_raise(
             skip=1,
             order={
-                'type': 'desc',
+                'boardRevisionId': 'desc',
             },
         )
         ```
@@ -16271,7 +16271,7 @@ class FixtureActions(Generic[_PrismaModelT]):
         # update all Fixture records
         total = Fixture.prisma().update_many(
             data={
-                'designId': 'edhijefdi'
+                'type': enums.NodeType.MANUFACTURING
             },
             where={}
         )
@@ -16335,7 +16335,7 @@ class FixtureActions(Generic[_PrismaModelT]):
         results = Fixture.prisma().count(
             select={
                 '_all': True,
-                'status': True,
+                'designId': True,
             },
         )
         ```
@@ -16402,7 +16402,7 @@ class FixtureActions(Generic[_PrismaModelT]):
         results = Fixture.prisma().count(
             select={
                 '_all': True,
-                'lockedBy': True,
+                'status': True,
             },
         )
         ```
@@ -16542,10 +16542,10 @@ class FixtureActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group Fixture records by lockedAt values
+        # group Fixture records by lockedBy values
         # and count how many records are in each group
         results = Fixture.prisma().group_by(
-            ['lockedAt'],
+            ['lockedBy'],
             count=True,
         )
         ```
@@ -16634,7 +16634,7 @@ class FixtureSlotActions(Generic[_PrismaModelT]):
         ```py
         users = FixtureSlot.prisma().query_raw(
             'SELECT * FROM FixtureSlot WHERE id = $1',
-            'djddecjhb',
+            'edhijefdi',
         )
         ```
         """
@@ -16674,7 +16674,7 @@ class FixtureSlotActions(Generic[_PrismaModelT]):
         ```py
         user = FixtureSlot.prisma().query_first(
             'SELECT * FROM FixtureSlot WHERE fixtureId = $1',
-            'bgdicjhie',
+            'djddecjhb',
         )
         ```
         """
@@ -16713,8 +16713,8 @@ class FixtureSlotActions(Generic[_PrismaModelT]):
         fixtureslot = FixtureSlot.prisma().create(
             data={
                 # data to create a FixtureSlot record
-                'fixtureId': 'ceibfcgij',
-                'slotIndex': 341715030,
+                'fixtureId': 'bgdicjhie',
+                'slotIndex': 248152689,
             },
         )
         ```
@@ -16769,13 +16769,13 @@ class FixtureSlotActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a FixtureSlot record
-                    'fixtureId': 'bgjchggecd',
-                    'slotIndex': 86662596,
+                    'fixtureId': 'debhbfada',
+                    'slotIndex': 1692766423,
                 },
                 {
                     # data to create a FixtureSlot record
-                    'fixtureId': 'bgjhijffjh',
-                    'slotIndex': 1286370274,
+                    'fixtureId': 'igggcfjg',
+                    'slotIndex': 1697895597,
                 },
             ],
             skip_duplicates=True,
@@ -16829,7 +16829,7 @@ class FixtureSlotActions(Generic[_PrismaModelT]):
         ```py
         fixtureslot = FixtureSlot.prisma().delete(
             where={
-                'id': 'igefhgdhb',
+                'id': 'bcigdhache',
             },
         )
         ```
@@ -16881,7 +16881,7 @@ class FixtureSlotActions(Generic[_PrismaModelT]):
         ```py
         fixtureslot = FixtureSlot.prisma().find_unique(
             where={
-                'id': 'ejbiifbae',
+                'id': 'igefhgdhb',
             },
         )
         ```
@@ -16932,7 +16932,7 @@ class FixtureSlotActions(Generic[_PrismaModelT]):
         ```py
         fixtureslot = FixtureSlot.prisma().find_unique_or_raise(
             where={
-                'id': 'djcfgedjd',
+                'id': 'ejbiifbae',
             },
         )
         ```
@@ -17184,7 +17184,7 @@ class FixtureSlotActions(Generic[_PrismaModelT]):
         ```py
         fixtureslot = FixtureSlot.prisma().update(
             where={
-                'id': 'bdbjcdegag',
+                'id': 'djcfgedjd',
             },
             data={
                 # data to update the FixtureSlot record to
@@ -17241,17 +17241,17 @@ class FixtureSlotActions(Generic[_PrismaModelT]):
         ```py
         fixtureslot = FixtureSlot.prisma().upsert(
             where={
-                'id': 'hbchfebch',
+                'id': 'bdbjcdegag',
             },
             data={
                 'create': {
-                    'id': 'hbchfebch',
-                    'fixtureId': 'bgjhijffjh',
-                    'slotIndex': 1286370274,
+                    'id': 'bdbjcdegag',
+                    'fixtureId': 'igggcfjg',
+                    'slotIndex': 1697895597,
                 },
                 'update': {
-                    'fixtureId': 'bgjhijffjh',
-                    'slotIndex': 1286370274,
+                    'fixtureId': 'igggcfjg',
+                    'slotIndex': 1697895597,
                 },
             },
         )
@@ -17299,7 +17299,7 @@ class FixtureSlotActions(Generic[_PrismaModelT]):
         # update all FixtureSlot records
         total = FixtureSlot.prisma().update_many(
             data={
-                'active': True
+                'active': False
             },
             where={}
         )
@@ -17662,7 +17662,7 @@ class NodeActions(Generic[_PrismaModelT]):
         ```py
         users = Node.prisma().query_raw(
             'SELECT * FROM Node WHERE id = $1',
-            'cahaeaicjd',
+            'bcjjffegfc',
         )
         ```
         """
@@ -17702,7 +17702,7 @@ class NodeActions(Generic[_PrismaModelT]):
         ```py
         user = Node.prisma().query_first(
             'SELECT * FROM Node WHERE name = $1',
-            'ibbjaacbi',
+            'cahaeaicjd',
         )
         ```
         """
@@ -17741,8 +17741,8 @@ class NodeActions(Generic[_PrismaModelT]):
         node = Node.prisma().create(
             data={
                 # data to create a Node record
-                'name': 'djgacbcch',
-                'hostname': 'geeeegace',
+                'name': 'ibbjaacbi',
+                'hostname': 'djgacbcch',
                 'type': enums.NodeType.MANUFACTURING,
             },
         )
@@ -17798,14 +17798,14 @@ class NodeActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a Node record
-                    'name': 'bbgdigchd',
-                    'hostname': 'dajcifgdi',
+                    'name': 'geeeegace',
+                    'hostname': 'bbgdigchd',
                     'type': enums.NodeType.MANUFACTURING,
                 },
                 {
                     # data to create a Node record
-                    'name': 'ccedhdbj',
-                    'hostname': 'bjaabjjjce',
+                    'name': 'dajcifgdi',
+                    'hostname': 'ccedhdbj',
                     'type': enums.NodeType.MANUFACTURING,
                 },
             ],
@@ -17860,7 +17860,7 @@ class NodeActions(Generic[_PrismaModelT]):
         ```py
         node = Node.prisma().delete(
             where={
-                'id': 'cafhdcdcjd',
+                'id': 'bjaabjjjce',
             },
         )
         ```
@@ -17912,7 +17912,7 @@ class NodeActions(Generic[_PrismaModelT]):
         ```py
         node = Node.prisma().find_unique(
             where={
-                'id': 'bdeebbhbdi',
+                'id': 'cafhdcdcjd',
             },
         )
         ```
@@ -17963,7 +17963,7 @@ class NodeActions(Generic[_PrismaModelT]):
         ```py
         node = Node.prisma().find_unique_or_raise(
             where={
-                'id': 'cafcbdchah',
+                'id': 'bdeebbhbdi',
             },
         )
         ```
@@ -18215,7 +18215,7 @@ class NodeActions(Generic[_PrismaModelT]):
         ```py
         node = Node.prisma().update(
             where={
-                'id': 'bdffbehbae',
+                'id': 'cafcbdchah',
             },
             data={
                 # data to update the Node record to
@@ -18272,18 +18272,18 @@ class NodeActions(Generic[_PrismaModelT]):
         ```py
         node = Node.prisma().upsert(
             where={
-                'id': 'ieahjgeb',
+                'id': 'bdffbehbae',
             },
             data={
                 'create': {
-                    'id': 'ieahjgeb',
-                    'name': 'ccedhdbj',
-                    'hostname': 'bjaabjjjce',
+                    'id': 'bdffbehbae',
+                    'name': 'dajcifgdi',
+                    'hostname': 'ccedhdbj',
                     'type': enums.NodeType.MANUFACTURING,
                 },
                 'update': {
-                    'name': 'ccedhdbj',
-                    'hostname': 'bjaabjjjce',
+                    'name': 'dajcifgdi',
+                    'hostname': 'ccedhdbj',
                     'type': enums.NodeType.MANUFACTURING,
                 },
             },
@@ -18332,7 +18332,7 @@ class NodeActions(Generic[_PrismaModelT]):
         # update all Node records
         total = Node.prisma().update_many(
             data={
-                'ipAddress': 'hfeeddceg'
+                'ipAddress': 'ieahjgeb'
             },
             where={}
         )
@@ -18695,7 +18695,7 @@ class IcleDeviceActions(Generic[_PrismaModelT]):
         ```py
         users = IcleDevice.prisma().query_raw(
             'SELECT * FROM IcleDevice WHERE id = $1',
-            'dbecgbbid',
+            'hfeeddceg',
         )
         ```
         """
@@ -18735,7 +18735,7 @@ class IcleDeviceActions(Generic[_PrismaModelT]):
         ```py
         user = IcleDevice.prisma().query_first(
             'SELECT * FROM IcleDevice WHERE deviceId = $1',
-            'cchghigae',
+            'dbecgbbid',
         )
         ```
         """
@@ -18774,7 +18774,7 @@ class IcleDeviceActions(Generic[_PrismaModelT]):
         icledevice = IcleDevice.prisma().create(
             data={
                 # data to create a IcleDevice record
-                'deviceId': 'ecdjjjhab',
+                'deviceId': 'cchghigae',
             },
         )
         ```
@@ -18829,11 +18829,11 @@ class IcleDeviceActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a IcleDevice record
-                    'deviceId': 'biachfede',
+                    'deviceId': 'ecdjjjhab',
                 },
                 {
                     # data to create a IcleDevice record
-                    'deviceId': 'fhgaibff',
+                    'deviceId': 'biachfede',
                 },
             ],
             skip_duplicates=True,
@@ -18887,7 +18887,7 @@ class IcleDeviceActions(Generic[_PrismaModelT]):
         ```py
         icledevice = IcleDevice.prisma().delete(
             where={
-                'id': 'cadajbcbca',
+                'id': 'fhgaibff',
             },
         )
         ```
@@ -18939,7 +18939,7 @@ class IcleDeviceActions(Generic[_PrismaModelT]):
         ```py
         icledevice = IcleDevice.prisma().find_unique(
             where={
-                'id': 'bjheigfcdd',
+                'id': 'cadajbcbca',
             },
         )
         ```
@@ -18990,7 +18990,7 @@ class IcleDeviceActions(Generic[_PrismaModelT]):
         ```py
         icledevice = IcleDevice.prisma().find_unique_or_raise(
             where={
-                'id': 'bjejigcdcg',
+                'id': 'bjheigfcdd',
             },
         )
         ```
@@ -19242,7 +19242,7 @@ class IcleDeviceActions(Generic[_PrismaModelT]):
         ```py
         icledevice = IcleDevice.prisma().update(
             where={
-                'id': 'bifiiibcah',
+                'id': 'bjejigcdcg',
             },
             data={
                 # data to update the IcleDevice record to
@@ -19299,15 +19299,15 @@ class IcleDeviceActions(Generic[_PrismaModelT]):
         ```py
         icledevice = IcleDevice.prisma().upsert(
             where={
-                'id': 'dbjibjdaa',
+                'id': 'bifiiibcah',
             },
             data={
                 'create': {
-                    'id': 'dbjibjdaa',
-                    'deviceId': 'fhgaibff',
+                    'id': 'bifiiibcah',
+                    'deviceId': 'biachfede',
                 },
                 'update': {
-                    'deviceId': 'fhgaibff',
+                    'deviceId': 'biachfede',
                 },
             },
         )
@@ -19355,7 +19355,7 @@ class IcleDeviceActions(Generic[_PrismaModelT]):
         # update all IcleDevice records
         total = IcleDevice.prisma().update_many(
             data={
-                'firmwareVersion': 'dgijbdiaf'
+                'firmwareVersion': 'dbjibjdaa'
             },
             where={}
         )
@@ -19718,7 +19718,7 @@ class IclePendingCommandActions(Generic[_PrismaModelT]):
         ```py
         users = IclePendingCommand.prisma().query_raw(
             'SELECT * FROM IclePendingCommand WHERE id = $1',
-            'begfaigba',
+            'dgijbdiaf',
         )
         ```
         """
@@ -19758,7 +19758,7 @@ class IclePendingCommandActions(Generic[_PrismaModelT]):
         ```py
         user = IclePendingCommand.prisma().query_first(
             'SELECT * FROM IclePendingCommand WHERE deviceId = $1',
-            'bdjiafcgjb',
+            'begfaigba',
         )
         ```
         """
@@ -19797,9 +19797,9 @@ class IclePendingCommandActions(Generic[_PrismaModelT]):
         iclependingcommand = IclePendingCommand.prisma().create(
             data={
                 # data to create a IclePendingCommand record
-                'deviceId': 'bficecgcfg',
-                'commandType': 'cbjjeedcj',
-                'payload': Json({'dedgbbhja': True}),
+                'deviceId': 'bdjiafcgjb',
+                'commandType': 'bficecgcfg',
+                'payload': Json({'cbjjeedcj': True}),
             },
         )
         ```
@@ -19854,15 +19854,15 @@ class IclePendingCommandActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a IclePendingCommand record
-                    'deviceId': 'cabiahchj',
-                    'commandType': 'cgbeccfce',
-                    'payload': Json({'fcjcagef': True}),
+                    'deviceId': 'dedgbbhja',
+                    'commandType': 'cabiahchj',
+                    'payload': Json({'cgbeccfce': True}),
                 },
                 {
                     # data to create a IclePendingCommand record
-                    'deviceId': 'bgdhaeacic',
-                    'commandType': 'caffafcheh',
-                    'payload': Json({'fjjbegge': True}),
+                    'deviceId': 'fcjcagef',
+                    'commandType': 'bgdhaeacic',
+                    'payload': Json({'caffafcheh': True}),
                 },
             ],
             skip_duplicates=True,
@@ -19916,7 +19916,7 @@ class IclePendingCommandActions(Generic[_PrismaModelT]):
         ```py
         iclependingcommand = IclePendingCommand.prisma().delete(
             where={
-                'id': 'bdiifhbieb',
+                'id': 'fjjbegge',
             },
         )
         ```
@@ -19968,7 +19968,7 @@ class IclePendingCommandActions(Generic[_PrismaModelT]):
         ```py
         iclependingcommand = IclePendingCommand.prisma().find_unique(
             where={
-                'id': 'cdcaejhgg',
+                'id': 'bdiifhbieb',
             },
         )
         ```
@@ -20019,7 +20019,7 @@ class IclePendingCommandActions(Generic[_PrismaModelT]):
         ```py
         iclependingcommand = IclePendingCommand.prisma().find_unique_or_raise(
             where={
-                'id': 'jbijgfbfj',
+                'id': 'cdcaejhgg',
             },
         )
         ```
@@ -20271,7 +20271,7 @@ class IclePendingCommandActions(Generic[_PrismaModelT]):
         ```py
         iclependingcommand = IclePendingCommand.prisma().update(
             where={
-                'id': 'ggfbeddia',
+                'id': 'jbijgfbfj',
             },
             data={
                 # data to update the IclePendingCommand record to
@@ -20328,19 +20328,19 @@ class IclePendingCommandActions(Generic[_PrismaModelT]):
         ```py
         iclependingcommand = IclePendingCommand.prisma().upsert(
             where={
-                'id': 'djjejdaj',
+                'id': 'ggfbeddia',
             },
             data={
                 'create': {
-                    'id': 'djjejdaj',
-                    'deviceId': 'bgdhaeacic',
-                    'commandType': 'caffafcheh',
-                    'payload': Json({'fjjbegge': True}),
+                    'id': 'ggfbeddia',
+                    'deviceId': 'fcjcagef',
+                    'commandType': 'bgdhaeacic',
+                    'payload': Json({'caffafcheh': True}),
                 },
                 'update': {
-                    'deviceId': 'bgdhaeacic',
-                    'commandType': 'caffafcheh',
-                    'payload': Json({'fjjbegge': True}),
+                    'deviceId': 'fcjcagef',
+                    'commandType': 'bgdhaeacic',
+                    'payload': Json({'caffafcheh': True}),
                 },
             },
         )
@@ -20751,7 +20751,7 @@ class IcleLogActions(Generic[_PrismaModelT]):
         ```py
         users = IcleLog.prisma().query_raw(
             'SELECT * FROM IcleLog WHERE id = $1',
-            'bjabbfceji',
+            'djjejdaj',
         )
         ```
         """
@@ -20791,7 +20791,7 @@ class IcleLogActions(Generic[_PrismaModelT]):
         ```py
         user = IcleLog.prisma().query_first(
             'SELECT * FROM IcleLog WHERE deviceId = $1',
-            'bgchfbjibb',
+            'bjabbfceji',
         )
         ```
         """
@@ -20830,11 +20830,11 @@ class IcleLogActions(Generic[_PrismaModelT]):
         iclelog = IcleLog.prisma().create(
             data={
                 # data to create a IcleLog record
-                'deviceId': 'bajecchdjc',
-                'filename': 'dfgacajif',
-                'storageKey': 'bgdiddfadi',
-                'sizeBytes': 22698813300,
-                'format': 'bahchhihdc',
+                'deviceId': 'bgchfbjibb',
+                'filename': 'bajecchdjc',
+                'storageKey': 'dfgacajif',
+                'sizeBytes': 19660020456,
+                'format': 'bijbfghhhf',
             },
         )
         ```
@@ -20889,19 +20889,19 @@ class IcleLogActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a IcleLog record
-                    'deviceId': 'bihjdcibib',
-                    'filename': 'bfhhjbbdha',
-                    'storageKey': 'faehcjfdb',
-                    'sizeBytes': 1330141728,
-                    'format': 'bdaacgjbaf',
+                    'deviceId': 'bahchhihdc',
+                    'filename': 'bihjdcibib',
+                    'storageKey': 'bfhhjbbdha',
+                    'sizeBytes': 6056754372,
+                    'format': 'bbaiefbee',
                 },
                 {
                     # data to create a IcleLog record
-                    'deviceId': 'biibaighec',
-                    'filename': 'baicdfeidj',
-                    'storageKey': 'befgiciadg',
-                    'sizeBytes': 25496489244,
-                    'format': 'bcjihiaide',
+                    'deviceId': 'bdaacgjbaf',
+                    'filename': 'biibaighec',
+                    'storageKey': 'baicdfeidj',
+                    'sizeBytes': 17481936432,
+                    'format': 'cbcehahedh',
                 },
             ],
             skip_duplicates=True,
@@ -20955,7 +20955,7 @@ class IcleLogActions(Generic[_PrismaModelT]):
         ```py
         iclelog = IcleLog.prisma().delete(
             where={
-                'id': 'bagfijcgfj',
+                'id': 'bcjihiaide',
             },
         )
         ```
@@ -21007,7 +21007,7 @@ class IcleLogActions(Generic[_PrismaModelT]):
         ```py
         iclelog = IcleLog.prisma().find_unique(
             where={
-                'id': 'bcggehiidc',
+                'id': 'bagfijcgfj',
             },
         )
         ```
@@ -21058,7 +21058,7 @@ class IcleLogActions(Generic[_PrismaModelT]):
         ```py
         iclelog = IcleLog.prisma().find_unique_or_raise(
             where={
-                'id': 'bjcdacgacf',
+                'id': 'bcggehiidc',
             },
         )
         ```
@@ -21310,7 +21310,7 @@ class IcleLogActions(Generic[_PrismaModelT]):
         ```py
         iclelog = IcleLog.prisma().update(
             where={
-                'id': 'jfieeahi',
+                'id': 'bjcdacgacf',
             },
             data={
                 # data to update the IcleLog record to
@@ -21367,23 +21367,23 @@ class IcleLogActions(Generic[_PrismaModelT]):
         ```py
         iclelog = IcleLog.prisma().upsert(
             where={
-                'id': 'bijfjbddfj',
+                'id': 'jfieeahi',
             },
             data={
                 'create': {
-                    'id': 'bijfjbddfj',
-                    'deviceId': 'biibaighec',
-                    'filename': 'baicdfeidj',
-                    'storageKey': 'befgiciadg',
-                    'sizeBytes': 25496489244,
-                    'format': 'bcjihiaide',
+                    'id': 'jfieeahi',
+                    'deviceId': 'bdaacgjbaf',
+                    'filename': 'biibaighec',
+                    'storageKey': 'baicdfeidj',
+                    'sizeBytes': 17481936432,
+                    'format': 'cbcehahedh',
                 },
                 'update': {
-                    'deviceId': 'biibaighec',
-                    'filename': 'baicdfeidj',
-                    'storageKey': 'befgiciadg',
-                    'sizeBytes': 25496489244,
-                    'format': 'bcjihiaide',
+                    'deviceId': 'bdaacgjbaf',
+                    'filename': 'biibaighec',
+                    'storageKey': 'baicdfeidj',
+                    'sizeBytes': 17481936432,
+                    'format': 'cbcehahedh',
                 },
             },
         )
@@ -21431,7 +21431,7 @@ class IcleLogActions(Generic[_PrismaModelT]):
         # update all IcleLog records
         total = IcleLog.prisma().update_many(
             data={
-                'format': 'cdcdjdcee'
+                'format': 'bijfjbddfj'
             },
             where={}
         )
@@ -21752,1029 +21752,6 @@ class IcleLogActions(Generic[_PrismaModelT]):
         return resp['data']['result']  # type: ignore[no-any-return]
 
 
-class DeploymentActions(Generic[_PrismaModelT]):
-    __slots__ = (
-        '_client',
-        '_model',
-    )
-
-    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
-        self._client = client
-        self._model = model
-
-    def query_raw(
-        self,
-        query: LiteralString,
-        *args: Any,
-    ) -> List[_PrismaModelT]:
-        """Execute a raw SQL query
-
-        Parameters
-        ----------
-        query
-            The raw SQL query string to be executed
-        *args
-            Parameters to be passed to the SQL query, these MUST be used over
-            string formatting to avoid an SQL injection vulnerability
-
-        Returns
-        -------
-        List[prisma.models.Deployment]
-            The records returned by the SQL query
-
-        Raises
-        ------
-        prisma_errors.RawQueryError
-            This could be due to invalid syntax, mismatched number of parameters or any other error
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        users = Deployment.prisma().query_raw(
-            'SELECT * FROM Deployment WHERE id = $1',
-            'bbbgjdbgcb',
-        )
-        ```
-        """
-        return self._client.query_raw(query, *args, model=self._model)
-
-    def query_first(
-        self,
-        query: LiteralString,
-        *args: Any,
-    ) -> Optional[_PrismaModelT]:
-        """Execute a raw SQL query, returning the first result
-
-        Parameters
-        ----------
-        query
-            The raw SQL query string to be executed
-        *args
-            Parameters to be passed to the SQL query, these MUST be used over
-            string formatting to avoid an SQL injection vulnerability
-
-        Returns
-        -------
-        prisma.models.Deployment
-            The first record returned by the SQL query
-        None
-            The raw SQL query did not return any records
-
-        Raises
-        ------
-        prisma_errors.RawQueryError
-            This could be due to invalid syntax, mismatched number of parameters or any other error
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        user = Deployment.prisma().query_first(
-            'SELECT * FROM Deployment WHERE name = $1',
-            'bcedacgecg',
-        )
-        ```
-        """
-        return self._client.query_first(query, *args, model=self._model)
-
-    def create(
-        self,
-        data: types.DeploymentCreateInput,
-        include: Optional[types.DeploymentInclude] = None
-    ) -> _PrismaModelT:
-        """Create a new Deployment record.
-
-        Parameters
-        ----------
-        data
-            Deployment record data
-        include
-            Specifies which relations should be loaded on the returned Deployment model
-
-        Returns
-        -------
-        prisma.models.Deployment
-            The created Deployment record
-
-        Raises
-        ------
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # create a Deployment record from just the required fields
-        deployment = Deployment.prisma().create(
-            data={
-                # data to create a Deployment record
-                'name': 'cbdffjeh',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='create',
-            model=self._model,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def create_many(
-        self,
-        data: List[types.DeploymentCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> int:
-        """Create multiple Deployment records at once.
-
-        This function is *not* available when using SQLite.
-
-        Parameters
-        ----------
-        data
-            List of Deployment record data
-        skip_duplicates
-            Boolean flag for ignoring unique constraint errors
-
-        Returns
-        -------
-        int
-            The total number of records created
-
-        Raises
-        ------
-        prisma.errors.UnsupportedDatabaseError
-            Attempting to query when using SQLite
-        prisma.errors.UniqueViolationError
-            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        total = Deployment.prisma().create_many(
-            data=[
-                {
-                    # data to create a Deployment record
-                    'name': 'idbcdhbci',
-                },
-                {
-                    # data to create a Deployment record
-                    'name': 'bacegehahd',
-                },
-            ],
-            skip_duplicates=True,
-        )
-        ```
-        """
-        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
-
-        resp = self._client._execute(
-            method='create_many',
-            model=self._model,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-        return int(resp['data']['result']['count'])
-
-    def delete(
-        self,
-        where: types.DeploymentWhereUniqueInput,
-        include: Optional[types.DeploymentInclude] = None
-    ) -> Optional[_PrismaModelT]:
-        """Delete a single Deployment record.
-
-        Parameters
-        ----------
-        where
-            Deployment filter to select the record to be deleted, must be unique
-        include
-            Specifies which relations should be loaded on the returned Deployment model
-
-        Returns
-        -------
-        prisma.models.Deployment
-            The deleted Deployment record
-        None
-            Could not find a record to delete
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        deployment = Deployment.prisma().delete(
-            where={
-                'id': 'ebedeihec',
-            },
-        )
-        ```
-        """
-        try:
-            resp = self._client._execute(
-                method='delete',
-                model=self._model,
-                arguments={
-                    'where': where,
-                    'include': include,
-                },
-            )
-        except errors.RecordNotFoundError:
-            return None
-
-        return model_parse(self._model, resp['data']['result'])
-
-    def find_unique(
-        self,
-        where: types.DeploymentWhereUniqueInput,
-        include: Optional[types.DeploymentInclude] = None
-    ) -> Optional[_PrismaModelT]:
-        """Find a unique Deployment record.
-
-        Parameters
-        ----------
-        where
-            Deployment filter to find the record, must be unique
-        include
-            Specifies which relations should be loaded on the returned Deployment model
-
-        Returns
-        -------
-        prisma.models.Deployment
-            The found Deployment record
-        None
-            No record matching the given input could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        deployment = Deployment.prisma().find_unique(
-            where={
-                'id': 'bajagjdfbb',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_unique',
-            model=self._model,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-        result = resp['data']['result']
-        if result is None:
-            return None
-        return model_parse(self._model, result)
-
-    def find_unique_or_raise(
-        self,
-        where: types.DeploymentWhereUniqueInput,
-        include: Optional[types.DeploymentInclude] = None
-    ) -> _PrismaModelT:
-        """Find a unique Deployment record. Raises `RecordNotFoundError` if no record is found.
-
-        Parameters
-        ----------
-        where
-            Deployment filter to find the record, must be unique
-        include
-            Specifies which relations should be loaded on the returned Deployment model
-
-        Returns
-        -------
-        prisma.models.Deployment
-            The found Deployment record
-
-        Raises
-        ------
-        prisma.errors.RecordNotFoundError
-            No record was found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        deployment = Deployment.prisma().find_unique_or_raise(
-            where={
-                'id': 'bggedbjggi',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_unique_or_raise',
-            model=self._model,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def find_many(
-        self,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.DeploymentWhereInput] = None,
-        cursor: Optional[types.DeploymentWhereUniqueInput] = None,
-        include: Optional[types.DeploymentInclude] = None,
-        order: Optional[Union[types.DeploymentOrderByInput, List[types.DeploymentOrderByInput]]] = None,
-        distinct: Optional[List[types.DeploymentScalarFieldKeys]] = None,
-    ) -> List[_PrismaModelT]:
-        """Find multiple Deployment records.
-
-        An empty list is returned if no records could be found.
-
-        Parameters
-        ----------
-        take
-            Limit the maximum number of Deployment records returned
-        skip
-            Ignore the first N results
-        where
-            Deployment filter to select records
-        cursor
-            Specifies the position in the list to start returning results from, (typically an ID field)
-        include
-            Specifies which relations should be loaded on the returned Deployment model
-        order
-            Order the returned Deployment records by any field
-        distinct
-            Filter Deployment records by either a single distinct field or distinct combinations of fields
-
-        Returns
-        -------
-        List[prisma.models.Deployment]
-            The list of all Deployment records that could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # find the first 10 Deployment records
-        deployments = Deployment.prisma().find_many(take=10)
-
-        # find the first 5 Deployment records ordered by the productId field
-        deployments = Deployment.prisma().find_many(
-            take=5,
-            order={
-                'productId': 'desc',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_many',
-            model=self._model,
-            arguments={
-                'take': take,
-                'skip': skip,
-                'where': where,
-                'order_by': order,
-                'cursor': cursor,
-                'include': include,
-                'distinct': distinct,
-            },
-        )
-        return [model_parse(self._model, r) for r in resp['data']['result']]
-
-    def find_first(
-        self,
-        skip: Optional[int] = None,
-        where: Optional[types.DeploymentWhereInput] = None,
-        cursor: Optional[types.DeploymentWhereUniqueInput] = None,
-        include: Optional[types.DeploymentInclude] = None,
-        order: Optional[Union[types.DeploymentOrderByInput, List[types.DeploymentOrderByInput]]] = None,
-        distinct: Optional[List[types.DeploymentScalarFieldKeys]] = None,
-    ) -> Optional[_PrismaModelT]:
-        """Find a single Deployment record.
-
-        Parameters
-        ----------
-        skip
-            Ignore the first N records
-        where
-            Deployment filter to select the record
-        cursor
-            Specifies the position in the list to start returning results from, (typically an ID field)
-        include
-            Specifies which relations should be loaded on the returned Deployment model
-        order
-            Order the returned Deployment records by any field
-        distinct
-            Filter Deployment records by either a single distinct field or distinct combinations of fields
-
-        Returns
-        -------
-        prisma.models.Deployment
-            The first Deployment record found, matching the given arguments
-        None
-            No record could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # find the second Deployment record ordered by the status field
-        deployment = Deployment.prisma().find_first(
-            skip=1,
-            order={
-                'status': 'desc',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_first',
-            model=self._model,
-            arguments={
-                'skip': skip,
-                'where': where,
-                'order_by': order,
-                'cursor': cursor,
-                'include': include,
-                'distinct': distinct,
-            },
-        )
-        result = resp['data']['result']
-        if result is None:
-            return None
-
-        return model_parse(self._model, result)
-
-    def find_first_or_raise(
-        self,
-        skip: Optional[int] = None,
-        where: Optional[types.DeploymentWhereInput] = None,
-        cursor: Optional[types.DeploymentWhereUniqueInput] = None,
-        include: Optional[types.DeploymentInclude] = None,
-        order: Optional[Union[types.DeploymentOrderByInput, List[types.DeploymentOrderByInput]]] = None,
-        distinct: Optional[List[types.DeploymentScalarFieldKeys]] = None,
-    ) -> _PrismaModelT:
-        """Find a single Deployment record. Raises `RecordNotFoundError` if no record was found.
-
-        Parameters
-        ----------
-        skip
-            Ignore the first N records
-        where
-            Deployment filter to select the record
-        cursor
-            Specifies the position in the list to start returning results from, (typically an ID field)
-        include
-            Specifies which relations should be loaded on the returned Deployment model
-        order
-            Order the returned Deployment records by any field
-        distinct
-            Filter Deployment records by either a single distinct field or distinct combinations of fields
-
-        Returns
-        -------
-        prisma.models.Deployment
-            The first Deployment record found, matching the given arguments
-
-        Raises
-        ------
-        prisma.errors.RecordNotFoundError
-            No record was found
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # find the second Deployment record ordered by the config field
-        deployment = Deployment.prisma().find_first_or_raise(
-            skip=1,
-            order={
-                'config': 'desc',
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='find_first_or_raise',
-            model=self._model,
-            arguments={
-                'skip': skip,
-                'where': where,
-                'order_by': order,
-                'cursor': cursor,
-                'include': include,
-                'distinct': distinct,
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def update(
-        self,
-        data: types.DeploymentUpdateInput,
-        where: types.DeploymentWhereUniqueInput,
-        include: Optional[types.DeploymentInclude] = None
-    ) -> Optional[_PrismaModelT]:
-        """Update a single Deployment record.
-
-        Parameters
-        ----------
-        data
-            Deployment record data specifying what to update
-        where
-            Deployment filter to select the unique record to create / update
-        include
-            Specifies which relations should be loaded on the returned Deployment model
-
-        Returns
-        -------
-        prisma.models.Deployment
-            The updated Deployment record
-        None
-            No record could be found
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        deployment = Deployment.prisma().update(
-            where={
-                'id': 'hgbafifcf',
-            },
-            data={
-                # data to update the Deployment record to
-            },
-        )
-        ```
-        """
-        try:
-            resp = self._client._execute(
-                method='update',
-                model=self._model,
-                arguments={
-                    'data': data,
-                    'where': where,
-                    'include': include,
-                },
-            )
-        except errors.RecordNotFoundError:
-            return None
-
-        return model_parse(self._model, resp['data']['result'])
-
-    def upsert(
-        self,
-        where: types.DeploymentWhereUniqueInput,
-        data: types.DeploymentUpsertInput,
-        include: Optional[types.DeploymentInclude] = None,
-    ) -> _PrismaModelT:
-        """Updates an existing record or create a new one
-
-        Parameters
-        ----------
-        where
-            Deployment filter to select the unique record to create / update
-        data
-            Data specifying what fields to set on create and update
-        include
-            Specifies which relations should be loaded on the returned Deployment model
-
-        Returns
-        -------
-        prisma.models.Deployment
-            The created or updated Deployment record
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-        prisma.errors.MissingRequiredValueError
-            Value is required but was not found
-
-        Example
-        -------
-        ```py
-        deployment = Deployment.prisma().upsert(
-            where={
-                'id': 'bejiecfecg',
-            },
-            data={
-                'create': {
-                    'id': 'bejiecfecg',
-                    'name': 'bacegehahd',
-                },
-                'update': {
-                    'name': 'bacegehahd',
-                },
-            },
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='upsert',
-            model=self._model,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-        return model_parse(self._model, resp['data']['result'])
-
-    def update_many(
-        self,
-        data: types.DeploymentUpdateManyMutationInput,
-        where: types.DeploymentWhereInput,
-    ) -> int:
-        """Update multiple Deployment records
-
-        Parameters
-        ----------
-        data
-            Deployment data to update the selected Deployment records to
-        where
-            Filter to select the Deployment records to update
-
-        Returns
-        -------
-        int
-            The total number of Deployment records that were updated
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # update all Deployment records
-        total = Deployment.prisma().update_many(
-            data={
-                'version': 'bjgacaeagh'
-            },
-            where={}
-        )
-        ```
-        """
-        resp = self._client._execute(
-            method='update_many',
-            model=self._model,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-        return int(resp['data']['result']['count'])
-
-    @overload
-    def count(
-        self,
-        select: None = None,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.DeploymentWhereInput] = None,
-        cursor: Optional[types.DeploymentWhereUniqueInput] = None,
-    ) -> int:
-        """Count the number of Deployment records present in the database
-
-        Parameters
-        ----------
-        select
-            Select the Deployment fields to be counted
-        take
-            Limit the maximum result
-        skip
-            Ignore the first N records
-        where
-            Deployment filter to find records
-        cursor
-            Specifies the position in the list to start counting results from, (typically an ID field)
-        order
-            This parameter is deprecated and will be removed in a future release
-
-        Returns
-        -------
-        int
-            The total number of records found, returned if `select` is not given
-
-        prisma.types.DeploymentCountAggregateOutput
-            Data returned when `select` is used, the fields present in this dictionary will
-            match the fields passed in the `select` argument
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # total: int
-        total = Deployment.prisma().count()
-
-        # results: prisma.types.DeploymentCountAggregateOutput
-        results = Deployment.prisma().count(
-            select={
-                '_all': True,
-                'createdById': True,
-            },
-        )
-        ```
-        """
-
-
-    @overload
-    def count(
-        self,
-        select: types.DeploymentCountAggregateInput,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.DeploymentWhereInput] = None,
-        cursor: Optional[types.DeploymentWhereUniqueInput] = None,
-    ) -> types.DeploymentCountAggregateOutput:
-        ...
-
-    def count(
-        self,
-        select: Optional[types.DeploymentCountAggregateInput] = None,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        where: Optional[types.DeploymentWhereInput] = None,
-        cursor: Optional[types.DeploymentWhereUniqueInput] = None,
-    ) -> Union[int, types.DeploymentCountAggregateOutput]:
-        """Count the number of Deployment records present in the database
-
-        Parameters
-        ----------
-        select
-            Select the Deployment fields to be counted
-        take
-            Limit the maximum result
-        skip
-            Ignore the first N records
-        where
-            Deployment filter to find records
-        cursor
-            Specifies the position in the list to start counting results from, (typically an ID field)
-        order
-            This parameter is deprecated and will be removed in a future release
-
-        Returns
-        -------
-        int
-            The total number of records found, returned if `select` is not given
-
-        prisma.types.DeploymentCountAggregateOutput
-            Data returned when `select` is used, the fields present in this dictionary will
-            match the fields passed in the `select` argument
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # total: int
-        total = Deployment.prisma().count()
-
-        # results: prisma.types.DeploymentCountAggregateOutput
-        results = Deployment.prisma().count(
-            select={
-                '_all': True,
-                'createdAt': True,
-            },
-        )
-        ```
-        """
-
-        # TODO: this selection building should be moved to the QueryBuilder
-        #
-        # note the distinction between checking for `not select` here and `select is None`
-        # later is to handle the case that the given select dictionary is empty, this
-        # is a limitation of our types.
-        if not select:
-            root_selection = ['_count { _all }']
-        else:
-
-            root_selection = [
-                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
-            ]
-
-        resp = self._client._execute(
-            method='count',
-            model=self._model,
-            arguments={
-                'take': take,
-                'skip': skip,
-                'where': where,
-                'cursor': cursor,
-            },
-            root_selection=root_selection,
-        )
-
-        if select is None:
-            return cast(int, resp['data']['result']['_count']['_all'])
-        else:
-            return cast(types.DeploymentCountAggregateOutput, resp['data']['result']['_count'])
-
-    def delete_many(
-        self,
-        where: Optional[types.DeploymentWhereInput] = None
-    ) -> int:
-        """Delete multiple Deployment records.
-
-        Parameters
-        ----------
-        where
-            Optional Deployment filter to find the records to be deleted
-
-        Returns
-        -------
-        int
-            The total number of Deployment records that were deleted
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # delete all Deployment records
-        total = Deployment.prisma().delete_many()
-        ```
-        """
-        resp = self._client._execute(
-            method='delete_many',
-            model=self._model,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-        return int(resp['data']['result']['count'])
-
-    # TODO: make this easier to work with safely, currently output fields are typed as
-    #       not required, we should refactor the return type
-    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
-    # TODO: statically type that the order argument is required when take or skip are present
-    def group_by(
-        self,
-        by: List['types.DeploymentScalarFieldKeys'],
-        *,
-        where: Optional['types.DeploymentWhereInput'] = None,
-        take: Optional[int] = None,
-        skip: Optional[int] = None,
-        avg: Optional['types.DeploymentAvgAggregateInput'] = None,
-        sum: Optional['types.DeploymentSumAggregateInput'] = None,
-        min: Optional['types.DeploymentMinAggregateInput'] = None,
-        max: Optional['types.DeploymentMaxAggregateInput'] = None,
-        having: Optional['types.DeploymentScalarWhereWithAggregatesInput'] = None,
-        count: Optional[Union[bool, 'types.DeploymentCountAggregateInput']] = None,
-        order: Optional[Union[Mapping['types.DeploymentScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.DeploymentScalarFieldKeys', 'types.SortOrder']]]] = None,
-    ) -> List['types.DeploymentGroupByOutput']:
-        """Group Deployment records by one or more field values and perform aggregations
-        each group such as finding the average.
-
-        Parameters
-        ----------
-        by
-            List of scalar Deployment fields to group records by
-        where
-            Deployment filter to select records
-        take
-            Limit the maximum number of Deployment records returned
-        skip
-            Ignore the first N records
-        avg
-            Adds the average of all values of the specified fields to the `_avg` field
-            in the returned data.
-        sum
-            Adds the sum of all values of the specified fields to the `_sum` field
-            in the returned data.
-        min
-            Adds the smallest available value for the specified fields to the `_min` field
-            in the returned data.
-        max
-            Adds the largest available value for the specified fields to the `_max` field
-            in the returned data.
-        count
-            Adds a count of non-fields to the `_count` field in the returned data.
-        having
-            Allows you to filter groups by an aggregate value - for example only return
-            groups having an average age less than 50.
-        order
-            Lets you order the returned list by any property that is also present in `by`.
-            Only **one** field is allowed at a time.
-
-        Returns
-        -------
-        List[prisma.types.DeploymentGroupByOutput]
-            A list of dictionaries representing the Deployment record,
-            this will also have additional fields present if aggregation arguments
-            are used (see the above parameters)
-
-        Raises
-        ------
-        prisma.errors.PrismaError
-            Catch all for every exception raised by Prisma Client Python
-
-        Example
-        -------
-        ```py
-        # group Deployment records by updatedAt values
-        # and count how many records are in each group
-        results = Deployment.prisma().group_by(
-            ['updatedAt'],
-            count=True,
-        )
-        ```
-        """
-        if order is None:
-            if take is not None:
-                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
-
-            if skip is not None:
-                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
-
-        root_selection: List[str] = [*by]
-        if avg is not None:
-            root_selection.append(_select_fields('_avg', avg))
-
-        if min is not None:
-            root_selection.append(_select_fields('_min', min))
-
-        if sum is not None:
-            root_selection.append(_select_fields('_sum', sum))
-
-        if max is not None:
-            root_selection.append(_select_fields('_max', max))
-
-        if count is not None:
-            if count is True:
-                root_selection.append('_count { _all }')
-            elif isinstance(count, dict):
-                root_selection.append(_select_fields('_count', count))
-
-        resp = self._client._execute(
-            method='group_by',
-            model=self._model,
-            arguments={
-                'by': by,
-                'take': take,
-                'skip': skip,
-                'where': where,
-                'having': having,
-                'orderBy': order,
-            },
-            root_selection=root_selection,
-        )
-        return resp['data']['result']  # type: ignore[no-any-return]
-
-
 class TestActions(Generic[_PrismaModelT]):
     __slots__ = (
         '_client',
@@ -22817,7 +21794,7 @@ class TestActions(Generic[_PrismaModelT]):
         ```py
         users = Test.prisma().query_raw(
             'SELECT * FROM Test WHERE id = $1',
-            'beeaihbefg',
+            'cdcdjdcee',
         )
         ```
         """
@@ -22857,7 +21834,7 @@ class TestActions(Generic[_PrismaModelT]):
         ```py
         user = Test.prisma().query_first(
             'SELECT * FROM Test WHERE name = $1',
-            'bfbfgeddfd',
+            'bbbgjdbgcb',
         )
         ```
         """
@@ -22896,8 +21873,8 @@ class TestActions(Generic[_PrismaModelT]):
         test = Test.prisma().create(
             data={
                 # data to create a Test record
-                'name': 'jbgheibja',
-                'productId': 'eejajbid',
+                'name': 'bcedacgecg',
+                'productId': 'cbdffjeh',
             },
         )
         ```
@@ -22952,13 +21929,13 @@ class TestActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a Test record
-                    'name': 'efhdcdaie',
-                    'productId': 'cadejecgbd',
+                    'name': 'idbcdhbci',
+                    'productId': 'bacegehahd',
                 },
                 {
                     # data to create a Test record
-                    'name': 'bahjhjjhcc',
-                    'productId': 'ebhbhbdff',
+                    'name': 'ebedeihec',
+                    'productId': 'bajagjdfbb',
                 },
             ],
             skip_duplicates=True,
@@ -23012,7 +21989,7 @@ class TestActions(Generic[_PrismaModelT]):
         ```py
         test = Test.prisma().delete(
             where={
-                'id': 'bdiefcdfhg',
+                'id': 'bggedbjggi',
             },
         )
         ```
@@ -23064,7 +22041,7 @@ class TestActions(Generic[_PrismaModelT]):
         ```py
         test = Test.prisma().find_unique(
             where={
-                'id': 'cheifeghd',
+                'id': 'hgbafifcf',
             },
         )
         ```
@@ -23115,7 +22092,7 @@ class TestActions(Generic[_PrismaModelT]):
         ```py
         test = Test.prisma().find_unique_or_raise(
             where={
-                'id': 'fgijheefe',
+                'id': 'bejiecfecg',
             },
         )
         ```
@@ -23367,7 +22344,7 @@ class TestActions(Generic[_PrismaModelT]):
         ```py
         test = Test.prisma().update(
             where={
-                'id': 'hcbgbhfch',
+                'id': 'bjgacaeagh',
             },
             data={
                 # data to update the Test record to
@@ -23424,17 +22401,17 @@ class TestActions(Generic[_PrismaModelT]):
         ```py
         test = Test.prisma().upsert(
             where={
-                'id': 'bfbbbgbfhc',
+                'id': 'beeaihbefg',
             },
             data={
                 'create': {
-                    'id': 'bfbbbgbfhc',
-                    'name': 'bahjhjjhcc',
-                    'productId': 'ebhbhbdff',
+                    'id': 'beeaihbefg',
+                    'name': 'ebedeihec',
+                    'productId': 'bajagjdfbb',
                 },
                 'update': {
-                    'name': 'bahjhjjhcc',
-                    'productId': 'ebhbhbdff',
+                    'name': 'ebedeihec',
+                    'productId': 'bajagjdfbb',
                 },
             },
         )
@@ -23482,7 +22459,7 @@ class TestActions(Generic[_PrismaModelT]):
         # update all Test records
         total = Test.prisma().update_many(
             data={
-                'sortOrder': 81899341
+                'sortOrder': 1515643353
             },
             where={}
         )
@@ -23845,7 +22822,7 @@ class TestExecutionActions(Generic[_PrismaModelT]):
         ```py
         users = TestExecution.prisma().query_raw(
             'SELECT * FROM TestExecution WHERE id = $1',
-            'caehiccddi',
+            'jbgheibja',
         )
         ```
         """
@@ -23885,7 +22862,7 @@ class TestExecutionActions(Generic[_PrismaModelT]):
         ```py
         user = TestExecution.prisma().query_first(
             'SELECT * FROM TestExecution WHERE testId = $1',
-            'bgcahjbafj',
+            'eejajbid',
         )
         ```
         """
@@ -23924,8 +22901,8 @@ class TestExecutionActions(Generic[_PrismaModelT]):
         testexecution = TestExecution.prisma().create(
             data={
                 # data to create a TestExecution record
-                'testId': 'bihhgeihca',
-                'nodeId': 'bdgbfahbef',
+                'testId': 'efhdcdaie',
+                'nodeId': 'cadejecgbd',
             },
         )
         ```
@@ -23980,13 +22957,13 @@ class TestExecutionActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a TestExecution record
-                    'testId': 'fccjhidic',
-                    'nodeId': 'bdgfdgdaff',
+                    'testId': 'bahjhjjhcc',
+                    'nodeId': 'ebhbhbdff',
                 },
                 {
                     # data to create a TestExecution record
-                    'testId': 'bicgeaiaga',
-                    'nodeId': 'fajhhafab',
+                    'testId': 'bdiefcdfhg',
+                    'nodeId': 'cheifeghd',
                 },
             ],
             skip_duplicates=True,
@@ -24040,7 +23017,7 @@ class TestExecutionActions(Generic[_PrismaModelT]):
         ```py
         testexecution = TestExecution.prisma().delete(
             where={
-                'id': 'bfeiccieec',
+                'id': 'fgijheefe',
             },
         )
         ```
@@ -24092,7 +23069,7 @@ class TestExecutionActions(Generic[_PrismaModelT]):
         ```py
         testexecution = TestExecution.prisma().find_unique(
             where={
-                'id': 'hciegiihf',
+                'id': 'hcbgbhfch',
             },
         )
         ```
@@ -24143,7 +23120,7 @@ class TestExecutionActions(Generic[_PrismaModelT]):
         ```py
         testexecution = TestExecution.prisma().find_unique_or_raise(
             where={
-                'id': 'bahifjfga',
+                'id': 'bfbbbgbfhc',
             },
         )
         ```
@@ -24395,7 +23372,7 @@ class TestExecutionActions(Generic[_PrismaModelT]):
         ```py
         testexecution = TestExecution.prisma().update(
             where={
-                'id': 'baebfehjaf',
+                'id': 'ibijjdeb',
             },
             data={
                 # data to update the TestExecution record to
@@ -24452,17 +23429,17 @@ class TestExecutionActions(Generic[_PrismaModelT]):
         ```py
         testexecution = TestExecution.prisma().upsert(
             where={
-                'id': 'bjchdacjfa',
+                'id': 'caehiccddi',
             },
             data={
                 'create': {
-                    'id': 'bjchdacjfa',
-                    'testId': 'bicgeaiaga',
-                    'nodeId': 'fajhhafab',
+                    'id': 'caehiccddi',
+                    'testId': 'bdiefcdfhg',
+                    'nodeId': 'cheifeghd',
                 },
                 'update': {
-                    'testId': 'bicgeaiaga',
-                    'nodeId': 'fajhhafab',
+                    'testId': 'bdiefcdfhg',
+                    'nodeId': 'cheifeghd',
                 },
             },
         )
@@ -24873,7 +23850,7 @@ class TestStepActions(Generic[_PrismaModelT]):
         ```py
         users = TestStep.prisma().query_raw(
             'SELECT * FROM TestStep WHERE id = $1',
-            'fcadcaihb',
+            'bgcahjbafj',
         )
         ```
         """
@@ -24913,7 +23890,7 @@ class TestStepActions(Generic[_PrismaModelT]):
         ```py
         user = TestStep.prisma().query_first(
             'SELECT * FROM TestStep WHERE executionId = $1',
-            'bbdcibggga',
+            'bihhgeihca',
         )
         ```
         """
@@ -24952,9 +23929,9 @@ class TestStepActions(Generic[_PrismaModelT]):
         teststep = TestStep.prisma().create(
             data={
                 # data to create a TestStep record
-                'executionId': 'bagbibfheb',
-                'stepIndex': 1836201906,
-                'name': 'hechjdjih',
+                'executionId': 'bdgbfahbef',
+                'stepIndex': 522978382,
+                'name': 'bdgfdgdaff',
             },
         )
         ```
@@ -25009,15 +23986,15 @@ class TestStepActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a TestStep record
-                    'executionId': 'cgfjefhci',
-                    'stepIndex': 462831801,
-                    'name': 'cehjjfgeg',
+                    'executionId': 'bicgeaiaga',
+                    'stepIndex': 509770501,
+                    'name': 'bfeiccieec',
                 },
                 {
                     # data to create a TestStep record
-                    'executionId': 'hiaaaeeeh',
-                    'stepIndex': 438093484,
-                    'name': 'jdgefgafd',
+                    'executionId': 'hciegiihf',
+                    'stepIndex': 107859560,
+                    'name': 'baebfehjaf',
                 },
             ],
             skip_duplicates=True,
@@ -25071,7 +24048,7 @@ class TestStepActions(Generic[_PrismaModelT]):
         ```py
         teststep = TestStep.prisma().delete(
             where={
-                'id': 'bhhihbfeac',
+                'id': 'bjchdacjfa',
             },
         )
         ```
@@ -25123,7 +24100,7 @@ class TestStepActions(Generic[_PrismaModelT]):
         ```py
         teststep = TestStep.prisma().find_unique(
             where={
-                'id': 'bajegedfhj',
+                'id': 'fcadcaihb',
             },
         )
         ```
@@ -25174,7 +24151,7 @@ class TestStepActions(Generic[_PrismaModelT]):
         ```py
         teststep = TestStep.prisma().find_unique_or_raise(
             where={
-                'id': 'bhfjihjfhg',
+                'id': 'bbdcibggga',
             },
         )
         ```
@@ -25426,7 +24403,7 @@ class TestStepActions(Generic[_PrismaModelT]):
         ```py
         teststep = TestStep.prisma().update(
             where={
-                'id': 'iicaadeeb',
+                'id': 'bagbibfheb',
             },
             data={
                 # data to update the TestStep record to
@@ -25483,19 +24460,19 @@ class TestStepActions(Generic[_PrismaModelT]):
         ```py
         teststep = TestStep.prisma().upsert(
             where={
-                'id': 'bigjggdhac',
+                'id': 'bidgcabjag',
             },
             data={
                 'create': {
-                    'id': 'bigjggdhac',
-                    'executionId': 'hiaaaeeeh',
-                    'stepIndex': 438093484,
-                    'name': 'jdgefgafd',
+                    'id': 'bidgcabjag',
+                    'executionId': 'hciegiihf',
+                    'stepIndex': 107859560,
+                    'name': 'baebfehjaf',
                 },
                 'update': {
-                    'executionId': 'hiaaaeeeh',
-                    'stepIndex': 438093484,
-                    'name': 'jdgefgafd',
+                    'executionId': 'hciegiihf',
+                    'stepIndex': 107859560,
+                    'name': 'baebfehjaf',
                 },
             },
         )
@@ -25906,7 +24883,7 @@ class UserActions(Generic[_PrismaModelT]):
         ```py
         users = User.prisma().query_raw(
             'SELECT * FROM User WHERE id = $1',
-            'bdibjhdici',
+            'cgfjefhci',
         )
         ```
         """
@@ -25946,7 +24923,7 @@ class UserActions(Generic[_PrismaModelT]):
         ```py
         user = User.prisma().query_first(
             'SELECT * FROM User WHERE email = $1',
-            'bceigehcbd',
+            'egcidbiab',
         )
         ```
         """
@@ -25985,8 +24962,8 @@ class UserActions(Generic[_PrismaModelT]):
         user = User.prisma().create(
             data={
                 # data to create a User record
-                'email': 'caehahihfe',
-                'name': 'jjacdhech',
+                'email': 'cehjjfgeg',
+                'name': 'hiaaaeeeh',
             },
         )
         ```
@@ -26041,13 +25018,13 @@ class UserActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a User record
-                    'email': 'bbbjadabjc',
-                    'name': 'hhaechedd',
+                    'email': 'ediajdeie',
+                    'name': 'jdgefgafd',
                 },
                 {
                     # data to create a User record
-                    'email': 'gjjgegdic',
-                    'name': 'bijbiccd',
+                    'email': 'bhhihbfeac',
+                    'name': 'bajegedfhj',
                 },
             ],
             skip_duplicates=True,
@@ -26101,7 +25078,7 @@ class UserActions(Generic[_PrismaModelT]):
         ```py
         user = User.prisma().delete(
             where={
-                'id': 'cbaagdieci',
+                'id': 'bhfjihjfhg',
             },
         )
         ```
@@ -26153,7 +25130,7 @@ class UserActions(Generic[_PrismaModelT]):
         ```py
         user = User.prisma().find_unique(
             where={
-                'id': 'jchifaegj',
+                'id': 'iicaadeeb',
             },
         )
         ```
@@ -26204,7 +25181,7 @@ class UserActions(Generic[_PrismaModelT]):
         ```py
         user = User.prisma().find_unique_or_raise(
             where={
-                'id': 'dhhdhfebi',
+                'id': 'bigjggdhac',
             },
         )
         ```
@@ -26456,7 +25433,7 @@ class UserActions(Generic[_PrismaModelT]):
         ```py
         user = User.prisma().update(
             where={
-                'id': 'decchddih',
+                'id': 'bfdbbbjhad',
             },
             data={
                 # data to update the User record to
@@ -26513,17 +25490,17 @@ class UserActions(Generic[_PrismaModelT]):
         ```py
         user = User.prisma().upsert(
             where={
-                'id': 'bbegbdehci',
+                'id': 'bdibjhdici',
             },
             data={
                 'create': {
-                    'id': 'bbegbdehci',
-                    'email': 'gjjgegdic',
-                    'name': 'bijbiccd',
+                    'id': 'bdibjhdici',
+                    'email': 'bhhihbfeac',
+                    'name': 'bajegedfhj',
                 },
                 'update': {
-                    'email': 'gjjgegdic',
-                    'name': 'bijbiccd',
+                    'email': 'bhhihbfeac',
+                    'name': 'bajegedfhj',
                 },
             },
         )
@@ -26571,7 +25548,7 @@ class UserActions(Generic[_PrismaModelT]):
         # update all User records
         total = User.prisma().update_many(
             data={
-                'permissionSetId': 'bcebgbhhgb'
+                'permissionSetId': 'bceigehcbd'
             },
             where={}
         )
@@ -26934,7 +25911,7 @@ class ProductAccessActions(Generic[_PrismaModelT]):
         ```py
         users = ProductAccess.prisma().query_raw(
             'SELECT * FROM ProductAccess WHERE id = $1',
-            'ghegfaceg',
+            'caehahihfe',
         )
         ```
         """
@@ -26974,7 +25951,7 @@ class ProductAccessActions(Generic[_PrismaModelT]):
         ```py
         user = ProductAccess.prisma().query_first(
             'SELECT * FROM ProductAccess WHERE userId = $1',
-            'hdeaejgah',
+            'jjacdhech',
         )
         ```
         """
@@ -27013,8 +25990,8 @@ class ProductAccessActions(Generic[_PrismaModelT]):
         productaccess = ProductAccess.prisma().create(
             data={
                 # data to create a ProductAccess record
-                'userId': 'ddiiihaci',
-                'productId': 'jdhfacdgf',
+                'userId': 'bbbjadabjc',
+                'productId': 'hhaechedd',
             },
         )
         ```
@@ -27069,13 +26046,13 @@ class ProductAccessActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a ProductAccess record
-                    'userId': 'fcbbahcbi',
-                    'productId': 'edcgchech',
+                    'userId': 'gjjgegdic',
+                    'productId': 'bijbiccd',
                 },
                 {
                     # data to create a ProductAccess record
-                    'userId': 'bfehccdcge',
-                    'productId': 'ehcibdegf',
+                    'userId': 'cbaagdieci',
+                    'productId': 'jchifaegj',
                 },
             ],
             skip_duplicates=True,
@@ -27129,7 +26106,7 @@ class ProductAccessActions(Generic[_PrismaModelT]):
         ```py
         productaccess = ProductAccess.prisma().delete(
             where={
-                'id': 'ebhjifbbi',
+                'id': 'dhhdhfebi',
             },
         )
         ```
@@ -27181,7 +26158,7 @@ class ProductAccessActions(Generic[_PrismaModelT]):
         ```py
         productaccess = ProductAccess.prisma().find_unique(
             where={
-                'id': 'jaigficdj',
+                'id': 'decchddih',
             },
         )
         ```
@@ -27232,7 +26209,7 @@ class ProductAccessActions(Generic[_PrismaModelT]):
         ```py
         productaccess = ProductAccess.prisma().find_unique_or_raise(
             where={
-                'id': 'bggcfifgbc',
+                'id': 'bbegbdehci',
             },
         )
         ```
@@ -27484,7 +26461,7 @@ class ProductAccessActions(Generic[_PrismaModelT]):
         ```py
         productaccess = ProductAccess.prisma().update(
             where={
-                'id': 'bhidfjibgf',
+                'id': 'bcebgbhhgb',
             },
             data={
                 # data to update the ProductAccess record to
@@ -27541,17 +26518,17 @@ class ProductAccessActions(Generic[_PrismaModelT]):
         ```py
         productaccess = ProductAccess.prisma().upsert(
             where={
-                'id': 'fcgdaijha',
+                'id': 'ghegfaceg',
             },
             data={
                 'create': {
-                    'id': 'fcgdaijha',
-                    'userId': 'bfehccdcge',
-                    'productId': 'ehcibdegf',
+                    'id': 'ghegfaceg',
+                    'userId': 'cbaagdieci',
+                    'productId': 'jchifaegj',
                 },
                 'update': {
-                    'userId': 'bfehccdcge',
-                    'productId': 'ehcibdegf',
+                    'userId': 'cbaagdieci',
+                    'productId': 'jchifaegj',
                 },
             },
         )
@@ -27962,7 +26939,7 @@ class PermissionSetActions(Generic[_PrismaModelT]):
         ```py
         users = PermissionSet.prisma().query_raw(
             'SELECT * FROM PermissionSet WHERE id = $1',
-            'bbgfajah',
+            'hdeaejgah',
         )
         ```
         """
@@ -28002,7 +26979,7 @@ class PermissionSetActions(Generic[_PrismaModelT]):
         ```py
         user = PermissionSet.prisma().query_first(
             'SELECT * FROM PermissionSet WHERE name = $1',
-            'bbaecgicia',
+            'ddiiihaci',
         )
         ```
         """
@@ -28041,7 +27018,7 @@ class PermissionSetActions(Generic[_PrismaModelT]):
         permissionset = PermissionSet.prisma().create(
             data={
                 # data to create a PermissionSet record
-                'name': 'hedacahfd',
+                'name': 'jdhfacdgf',
             },
         )
         ```
@@ -28096,11 +27073,11 @@ class PermissionSetActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a PermissionSet record
-                    'name': 'bhgjecjac',
+                    'name': 'fcbbahcbi',
                 },
                 {
                     # data to create a PermissionSet record
-                    'name': 'bfbdieidhf',
+                    'name': 'edcgchech',
                 },
             ],
             skip_duplicates=True,
@@ -28154,7 +27131,7 @@ class PermissionSetActions(Generic[_PrismaModelT]):
         ```py
         permissionset = PermissionSet.prisma().delete(
             where={
-                'id': 'ffjbdcfia',
+                'id': 'bfehccdcge',
             },
         )
         ```
@@ -28206,7 +27183,7 @@ class PermissionSetActions(Generic[_PrismaModelT]):
         ```py
         permissionset = PermissionSet.prisma().find_unique(
             where={
-                'id': 'hfeidjicb',
+                'id': 'ehcibdegf',
             },
         )
         ```
@@ -28257,7 +27234,7 @@ class PermissionSetActions(Generic[_PrismaModelT]):
         ```py
         permissionset = PermissionSet.prisma().find_unique_or_raise(
             where={
-                'id': 'bbfbdccdag',
+                'id': 'ebhjifbbi',
             },
         )
         ```
@@ -28509,7 +27486,7 @@ class PermissionSetActions(Generic[_PrismaModelT]):
         ```py
         permissionset = PermissionSet.prisma().update(
             where={
-                'id': 'biggefaged',
+                'id': 'jaigficdj',
             },
             data={
                 # data to update the PermissionSet record to
@@ -28566,15 +27543,15 @@ class PermissionSetActions(Generic[_PrismaModelT]):
         ```py
         permissionset = PermissionSet.prisma().upsert(
             where={
-                'id': 'gfdbeaejg',
+                'id': 'bggcfifgbc',
             },
             data={
                 'create': {
-                    'id': 'gfdbeaejg',
-                    'name': 'bfbdieidhf',
+                    'id': 'bggcfifgbc',
+                    'name': 'edcgchech',
                 },
                 'update': {
-                    'name': 'bfbdieidhf',
+                    'name': 'edcgchech',
                 },
             },
         )
@@ -28985,7 +27962,7 @@ class ApiKeyActions(Generic[_PrismaModelT]):
         ```py
         users = ApiKey.prisma().query_raw(
             'SELECT * FROM ApiKey WHERE id = $1',
-            'bhacdebcb',
+            'bhidfjibgf',
         )
         ```
         """
@@ -29025,7 +28002,7 @@ class ApiKeyActions(Generic[_PrismaModelT]):
         ```py
         user = ApiKey.prisma().query_first(
             'SELECT * FROM ApiKey WHERE name = $1',
-            'jhffeibhe',
+            'fcgdaijha',
         )
         ```
         """
@@ -29064,10 +28041,10 @@ class ApiKeyActions(Generic[_PrismaModelT]):
         apikey = ApiKey.prisma().create(
             data={
                 # data to create a ApiKey record
-                'name': 'iaiieefjb',
-                'keyHash': 'jjhjdgjfg',
-                'keyPrefix': 'bhhjcfadhd',
-                'userId': 'fbejadda',
+                'name': 'bbgfajah',
+                'keyHash': 'bbaecgicia',
+                'keyPrefix': 'hedacahfd',
+                'userId': 'bhgjecjac',
             },
         )
         ```
@@ -29122,17 +28099,17 @@ class ApiKeyActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a ApiKey record
-                    'name': 'bjeaigeddb',
-                    'keyHash': 'eceecabdg',
-                    'keyPrefix': 'bdgaajbcab',
-                    'userId': 'chhgehieg',
+                    'name': 'bfbdieidhf',
+                    'keyHash': 'ffjbdcfia',
+                    'keyPrefix': 'hfeidjicb',
+                    'userId': 'bbfbdccdag',
                 },
                 {
                     # data to create a ApiKey record
-                    'name': 'faggbiggd',
-                    'keyHash': 'bciijiajei',
-                    'keyPrefix': 'bdjaadchgf',
-                    'userId': 'biadfeebhi',
+                    'name': 'biggefaged',
+                    'keyHash': 'gfdbeaejg',
+                    'keyPrefix': 'bhacdebcb',
+                    'userId': 'jhffeibhe',
                 },
             ],
             skip_duplicates=True,
@@ -29186,7 +28163,7 @@ class ApiKeyActions(Generic[_PrismaModelT]):
         ```py
         apikey = ApiKey.prisma().delete(
             where={
-                'id': 'biajdcaged',
+                'id': 'iaiieefjb',
             },
         )
         ```
@@ -29238,7 +28215,7 @@ class ApiKeyActions(Generic[_PrismaModelT]):
         ```py
         apikey = ApiKey.prisma().find_unique(
             where={
-                'id': 'ddgjjicai',
+                'id': 'jjhjdgjfg',
             },
         )
         ```
@@ -29289,7 +28266,7 @@ class ApiKeyActions(Generic[_PrismaModelT]):
         ```py
         apikey = ApiKey.prisma().find_unique_or_raise(
             where={
-                'id': 'efihdjdcb',
+                'id': 'bhhjcfadhd',
             },
         )
         ```
@@ -29541,7 +28518,7 @@ class ApiKeyActions(Generic[_PrismaModelT]):
         ```py
         apikey = ApiKey.prisma().update(
             where={
-                'id': 'bdeacajaig',
+                'id': 'fbejadda',
             },
             data={
                 # data to update the ApiKey record to
@@ -29598,21 +28575,21 @@ class ApiKeyActions(Generic[_PrismaModelT]):
         ```py
         apikey = ApiKey.prisma().upsert(
             where={
-                'id': 'jddggchfb',
+                'id': 'bjeaigeddb',
             },
             data={
                 'create': {
-                    'id': 'jddggchfb',
-                    'name': 'faggbiggd',
-                    'keyHash': 'bciijiajei',
-                    'keyPrefix': 'bdjaadchgf',
-                    'userId': 'biadfeebhi',
+                    'id': 'bjeaigeddb',
+                    'name': 'biggefaged',
+                    'keyHash': 'gfdbeaejg',
+                    'keyPrefix': 'bhacdebcb',
+                    'userId': 'jhffeibhe',
                 },
                 'update': {
-                    'name': 'faggbiggd',
-                    'keyHash': 'bciijiajei',
-                    'keyPrefix': 'bdjaadchgf',
-                    'userId': 'biadfeebhi',
+                    'name': 'biggefaged',
+                    'keyHash': 'gfdbeaejg',
+                    'keyPrefix': 'bhacdebcb',
+                    'userId': 'jhffeibhe',
                 },
             },
         )
@@ -30023,7 +29000,7 @@ class AuditLogActions(Generic[_PrismaModelT]):
         ```py
         users = AuditLog.prisma().query_raw(
             'SELECT * FROM AuditLog WHERE id = $1',
-            'bccbfcfdfg',
+            'eceecabdg',
         )
         ```
         """
@@ -30063,7 +29040,7 @@ class AuditLogActions(Generic[_PrismaModelT]):
         ```py
         user = AuditLog.prisma().query_first(
             'SELECT * FROM AuditLog WHERE userId = $1',
-            'bjchjgjib',
+            'bdgaajbcab',
         )
         ```
         """
@@ -30102,8 +29079,8 @@ class AuditLogActions(Generic[_PrismaModelT]):
         auditlog = AuditLog.prisma().create(
             data={
                 # data to create a AuditLog record
-                'action': 'ibiaaifcc',
-                'entityType': 'bffejbbadf',
+                'action': 'chhgehieg',
+                'entityType': 'faggbiggd',
             },
         )
         ```
@@ -30158,13 +29135,13 @@ class AuditLogActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a AuditLog record
-                    'action': 'bajgjiebfc',
-                    'entityType': 'bhahahadif',
+                    'action': 'bciijiajei',
+                    'entityType': 'bdjaadchgf',
                 },
                 {
                     # data to create a AuditLog record
-                    'action': 'bijhaihbcg',
-                    'entityType': 'cbgcjeecd',
+                    'action': 'biadfeebhi',
+                    'entityType': 'biajdcaged',
                 },
             ],
             skip_duplicates=True,
@@ -30218,7 +29195,7 @@ class AuditLogActions(Generic[_PrismaModelT]):
         ```py
         auditlog = AuditLog.prisma().delete(
             where={
-                'id': 'bebibighfg',
+                'id': 'ddgjjicai',
             },
         )
         ```
@@ -30270,7 +29247,7 @@ class AuditLogActions(Generic[_PrismaModelT]):
         ```py
         auditlog = AuditLog.prisma().find_unique(
             where={
-                'id': 'bbhjeejidh',
+                'id': 'efihdjdcb',
             },
         )
         ```
@@ -30321,7 +29298,7 @@ class AuditLogActions(Generic[_PrismaModelT]):
         ```py
         auditlog = AuditLog.prisma().find_unique_or_raise(
             where={
-                'id': 'bfgebdfefi',
+                'id': 'bdeacajaig',
             },
         )
         ```
@@ -30573,7 +29550,7 @@ class AuditLogActions(Generic[_PrismaModelT]):
         ```py
         auditlog = AuditLog.prisma().update(
             where={
-                'id': 'jgijgagjb',
+                'id': 'jddggchfb',
             },
             data={
                 # data to update the AuditLog record to
@@ -30630,17 +29607,17 @@ class AuditLogActions(Generic[_PrismaModelT]):
         ```py
         auditlog = AuditLog.prisma().upsert(
             where={
-                'id': 'biagjfcfga',
+                'id': 'bccbfcfdfg',
             },
             data={
                 'create': {
-                    'id': 'biagjfcfga',
-                    'action': 'bijhaihbcg',
-                    'entityType': 'cbgcjeecd',
+                    'id': 'bccbfcfdfg',
+                    'action': 'biadfeebhi',
+                    'entityType': 'biajdcaged',
                 },
                 'update': {
-                    'action': 'bijhaihbcg',
-                    'entityType': 'cbgcjeecd',
+                    'action': 'biadfeebhi',
+                    'entityType': 'biajdcaged',
                 },
             },
         )
@@ -30688,7 +29665,7 @@ class AuditLogActions(Generic[_PrismaModelT]):
         # update all AuditLog records
         total = AuditLog.prisma().update_many(
             data={
-                'details': Json({'bggbhejccf': True})
+                'details': Json({'bjchjgjib': True})
             },
             where={}
         )
@@ -31051,7 +30028,7 @@ class SecretActions(Generic[_PrismaModelT]):
         ```py
         users = Secret.prisma().query_raw(
             'SELECT * FROM Secret WHERE id = $1',
-            'ichjgigcc',
+            'ibiaaifcc',
         )
         ```
         """
@@ -31091,7 +30068,7 @@ class SecretActions(Generic[_PrismaModelT]):
         ```py
         user = Secret.prisma().query_first(
             'SELECT * FROM Secret WHERE name = $1',
-            'bhiiegaibf',
+            'bffejbbadf',
         )
         ```
         """
@@ -31130,9 +30107,9 @@ class SecretActions(Generic[_PrismaModelT]):
         secret = Secret.prisma().create(
             data={
                 # data to create a Secret record
-                'name': 'bdegidheae',
-                'type': 'bddbbjidhd',
-                'value': 'jefedjaji',
+                'name': 'bajgjiebfc',
+                'type': 'bhahahadif',
+                'value': 'bijhaihbcg',
             },
         )
         ```
@@ -31187,15 +30164,15 @@ class SecretActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a Secret record
-                    'name': 'eicbgeabb',
-                    'type': 'fchjhjjbc',
-                    'value': 'bagfajdjcb',
+                    'name': 'cbgcjeecd',
+                    'type': 'bebibighfg',
+                    'value': 'bbhjeejidh',
                 },
                 {
                     # data to create a Secret record
-                    'name': 'bddhgfeaig',
-                    'type': 'bfgchaiff',
-                    'value': 'cifcjfbfg',
+                    'name': 'bfgebdfefi',
+                    'type': 'jgijgagjb',
+                    'value': 'biagjfcfga',
                 },
             ],
             skip_duplicates=True,
@@ -31249,7 +30226,7 @@ class SecretActions(Generic[_PrismaModelT]):
         ```py
         secret = Secret.prisma().delete(
             where={
-                'id': 'bdcjigjhd',
+                'id': 'bggbhejccf',
             },
         )
         ```
@@ -31301,7 +30278,7 @@ class SecretActions(Generic[_PrismaModelT]):
         ```py
         secret = Secret.prisma().find_unique(
             where={
-                'id': 'bfefdahgac',
+                'id': 'ichjgigcc',
             },
         )
         ```
@@ -31352,7 +30329,7 @@ class SecretActions(Generic[_PrismaModelT]):
         ```py
         secret = Secret.prisma().find_unique_or_raise(
             where={
-                'id': 'bichcieged',
+                'id': 'bhiiegaibf',
             },
         )
         ```
@@ -31604,7 +30581,7 @@ class SecretActions(Generic[_PrismaModelT]):
         ```py
         secret = Secret.prisma().update(
             where={
-                'id': 'caijedigce',
+                'id': 'bdegidheae',
             },
             data={
                 # data to update the Secret record to
@@ -31661,19 +30638,19 @@ class SecretActions(Generic[_PrismaModelT]):
         ```py
         secret = Secret.prisma().upsert(
             where={
-                'id': 'bebebdfbcj',
+                'id': 'bddbbjidhd',
             },
             data={
                 'create': {
-                    'id': 'bebebdfbcj',
-                    'name': 'bddhgfeaig',
-                    'type': 'bfgchaiff',
-                    'value': 'cifcjfbfg',
+                    'id': 'bddbbjidhd',
+                    'name': 'bfgebdfefi',
+                    'type': 'jgijgagjb',
+                    'value': 'biagjfcfga',
                 },
                 'update': {
-                    'name': 'bddhgfeaig',
-                    'type': 'bfgchaiff',
-                    'value': 'cifcjfbfg',
+                    'name': 'bfgebdfefi',
+                    'type': 'jgijgagjb',
+                    'value': 'biagjfcfga',
                 },
             },
         )
@@ -31721,7 +30698,7 @@ class SecretActions(Generic[_PrismaModelT]):
         # update all Secret records
         total = Secret.prisma().update_many(
             data={
-                'createdById': 'caffheehji'
+                'createdById': 'jefedjaji'
             },
             where={}
         )
@@ -32084,7 +31061,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         users = PollCache.prisma().query_raw(
             'SELECT * FROM PollCache WHERE id = $1',
-            'hfdidadjj',
+            'eicbgeabb',
         )
         ```
         """
@@ -32124,7 +31101,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         user = PollCache.prisma().query_first(
             'SELECT * FROM PollCache WHERE repoSlug = $1',
-            'bcdiiadeae',
+            'fchjhjjbc',
         )
         ```
         """
@@ -32163,9 +31140,9 @@ class PollCacheActions(Generic[_PrismaModelT]):
         pollcache = PollCache.prisma().create(
             data={
                 # data to create a PollCache record
-                'repoSlug': 'bdhhaeiaif',
-                'prId': 2055601450,
-                'commitSha': 'bjjajgjbbf',
+                'repoSlug': 'bagfajdjcb',
+                'prId': 1337654086,
+                'commitSha': 'bfgchaiff',
             },
         )
         ```
@@ -32220,15 +31197,15 @@ class PollCacheActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a PollCache record
-                    'repoSlug': 'jdecjdgii',
-                    'prId': 1261239953,
-                    'commitSha': 'bicgfdhjhe',
+                    'repoSlug': 'cifcjfbfg',
+                    'prId': 132986973,
+                    'commitSha': 'bfefdahgac',
                 },
                 {
                     # data to create a PollCache record
-                    'repoSlug': 'ihfjdgceh',
-                    'prId': 630431844,
-                    'commitSha': 'bibdbbffjh',
+                    'repoSlug': 'bichcieged',
+                    'prId': 2089438624,
+                    'commitSha': 'bebebdfbcj',
                 },
             ],
             skip_duplicates=True,
@@ -32282,7 +31259,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         pollcache = PollCache.prisma().delete(
             where={
-                'id': 'bdjfefjjha',
+                'id': 'caffheehji',
             },
         )
         ```
@@ -32334,7 +31311,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         pollcache = PollCache.prisma().find_unique(
             where={
-                'id': 'bjcjfbafeh',
+                'id': 'hfdidadjj',
             },
         )
         ```
@@ -32385,7 +31362,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         pollcache = PollCache.prisma().find_unique_or_raise(
             where={
-                'id': 'bchgjchgjg',
+                'id': 'bcdiiadeae',
             },
         )
         ```
@@ -32637,7 +31614,7 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         pollcache = PollCache.prisma().update(
             where={
-                'id': 'idgcdejfd',
+                'id': 'bdhhaeiaif',
             },
             data={
                 # data to update the PollCache record to
@@ -32694,19 +31671,19 @@ class PollCacheActions(Generic[_PrismaModelT]):
         ```py
         pollcache = PollCache.prisma().upsert(
             where={
-                'id': 'baajcgbaag',
+                'id': 'caffgabefa',
             },
             data={
                 'create': {
-                    'id': 'baajcgbaag',
-                    'repoSlug': 'ihfjdgceh',
-                    'prId': 630431844,
-                    'commitSha': 'bibdbbffjh',
+                    'id': 'caffgabefa',
+                    'repoSlug': 'bichcieged',
+                    'prId': 2089438624,
+                    'commitSha': 'bebebdfbcj',
                 },
                 'update': {
-                    'repoSlug': 'ihfjdgceh',
-                    'prId': 630431844,
-                    'commitSha': 'bibdbbffjh',
+                    'repoSlug': 'bichcieged',
+                    'prId': 2089438624,
+                    'commitSha': 'bebebdfbcj',
                 },
             },
         )
@@ -33117,7 +32094,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         users = RecipeVersion.prisma().query_raw(
             'SELECT * FROM RecipeVersion WHERE id = $1',
-            'eahbafhhf',
+            'bjjajgjbbf',
         )
         ```
         """
@@ -33157,7 +32134,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         user = RecipeVersion.prisma().query_first(
             'SELECT * FROM RecipeVersion WHERE productId = $1',
-            'chbgcaajc',
+            'jdecjdgii',
         )
         ```
         """
@@ -33196,9 +32173,9 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         recipeversion = RecipeVersion.prisma().create(
             data={
                 # data to create a RecipeVersion record
-                'productId': 'baafadjcdh',
-                'version': 1487930586,
-                'content': 'cbdbchfabj',
+                'productId': 'bcgbcdjjfd',
+                'version': 1826537974,
+                'content': 'ihfjdgceh',
             },
         )
         ```
@@ -33253,15 +32230,15 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a RecipeVersion record
-                    'productId': 'bffjafacbg',
-                    'version': 2105126401,
-                    'content': 'bedgbciecc',
+                    'productId': 'gdaedbiee',
+                    'version': 1813115597,
+                    'content': 'bdjfefjjha',
                 },
                 {
                     # data to create a RecipeVersion record
-                    'productId': 'bfeehfcihb',
-                    'version': 810674836,
-                    'content': 'bibfefchh',
+                    'productId': 'bjcjfbafeh',
+                    'version': 1276927696,
+                    'content': 'idgcdejfd',
                 },
             ],
             skip_duplicates=True,
@@ -33315,7 +32292,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         recipeversion = RecipeVersion.prisma().delete(
             where={
-                'id': 'baeeigbje',
+                'id': 'baajcgbaag',
             },
         )
         ```
@@ -33367,7 +32344,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         recipeversion = RecipeVersion.prisma().find_unique(
             where={
-                'id': 'fibhgbdb',
+                'id': 'eahbafhhf',
             },
         )
         ```
@@ -33418,7 +32395,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         recipeversion = RecipeVersion.prisma().find_unique_or_raise(
             where={
-                'id': 'bbifhfaabg',
+                'id': 'chbgcaajc',
             },
         )
         ```
@@ -33670,7 +32647,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         recipeversion = RecipeVersion.prisma().update(
             where={
-                'id': 'cbbhjdebdh',
+                'id': 'baafadjcdh',
             },
             data={
                 # data to update the RecipeVersion record to
@@ -33727,19 +32704,19 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         ```py
         recipeversion = RecipeVersion.prisma().upsert(
             where={
-                'id': 'hddcfecha',
+                'id': 'beihjdafig',
             },
             data={
                 'create': {
-                    'id': 'hddcfecha',
-                    'productId': 'bfeehfcihb',
-                    'version': 810674836,
-                    'content': 'bibfefchh',
+                    'id': 'beihjdafig',
+                    'productId': 'bjcjfbafeh',
+                    'version': 1276927696,
+                    'content': 'idgcdejfd',
                 },
                 'update': {
-                    'productId': 'bfeehfcihb',
-                    'version': 810674836,
-                    'content': 'bibfefchh',
+                    'productId': 'bjcjfbafeh',
+                    'version': 1276927696,
+                    'content': 'idgcdejfd',
                 },
             },
         )
@@ -33787,7 +32764,7 @@ class RecipeVersionActions(Generic[_PrismaModelT]):
         # update all RecipeVersion records
         total = RecipeVersion.prisma().update_many(
             data={
-                'changeNote': 'bibbehhehb'
+                'changeNote': 'cbdbchfabj'
             },
             where={}
         )
@@ -34150,7 +33127,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         users = RecipeTemplate.prisma().query_raw(
             'SELECT * FROM RecipeTemplate WHERE id = $1',
-            'cibfeagfc',
+            'bffjafacbg',
         )
         ```
         """
@@ -34190,7 +33167,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         user = RecipeTemplate.prisma().query_first(
             'SELECT * FROM RecipeTemplate WHERE name = $1',
-            'ibifgbhib',
+            'cbafbcgeab',
         )
         ```
         """
@@ -34229,8 +33206,8 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         recipetemplate = RecipeTemplate.prisma().create(
             data={
                 # data to create a RecipeTemplate record
-                'name': 'bgjehbiaja',
-                'content': 'cadgbfjjf',
+                'name': 'bedgbciecc',
+                'content': 'bfeehfcihb',
             },
         )
         ```
@@ -34285,13 +33262,13 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a RecipeTemplate record
-                    'name': 'bgceeachbc',
-                    'content': 'bbcaehffaf',
+                    'name': 'ibagheidg',
+                    'content': 'bibfefchh',
                 },
                 {
                     # data to create a RecipeTemplate record
-                    'name': 'ddbhhchfi',
-                    'content': 'bidbdafbhf',
+                    'name': 'baeeigbje',
+                    'content': 'fibhgbdb',
                 },
             ],
             skip_duplicates=True,
@@ -34345,7 +33322,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         recipetemplate = RecipeTemplate.prisma().delete(
             where={
-                'id': 'caehibbhia',
+                'id': 'bbifhfaabg',
             },
         )
         ```
@@ -34397,7 +33374,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         recipetemplate = RecipeTemplate.prisma().find_unique(
             where={
-                'id': 'iafgcehej',
+                'id': 'cbbhjdebdh',
             },
         )
         ```
@@ -34448,7 +33425,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         recipetemplate = RecipeTemplate.prisma().find_unique_or_raise(
             where={
-                'id': 'bbaeaehiec',
+                'id': 'hddcfecha',
             },
         )
         ```
@@ -34700,7 +33677,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         recipetemplate = RecipeTemplate.prisma().update(
             where={
-                'id': 'cfjghaged',
+                'id': 'bibbehhehb',
             },
             data={
                 # data to update the RecipeTemplate record to
@@ -34757,17 +33734,17 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         ```py
         recipetemplate = RecipeTemplate.prisma().upsert(
             where={
-                'id': 'biggeddiea',
+                'id': 'cibfeagfc',
             },
             data={
                 'create': {
-                    'id': 'biggeddiea',
-                    'name': 'ddbhhchfi',
-                    'content': 'bidbdafbhf',
+                    'id': 'cibfeagfc',
+                    'name': 'baeeigbje',
+                    'content': 'fibhgbdb',
                 },
                 'update': {
-                    'name': 'ddbhhchfi',
-                    'content': 'bidbdafbhf',
+                    'name': 'baeeigbje',
+                    'content': 'fibhgbdb',
                 },
             },
         )
@@ -34815,7 +33792,7 @@ class RecipeTemplateActions(Generic[_PrismaModelT]):
         # update all RecipeTemplate records
         total = RecipeTemplate.prisma().update_many(
             data={
-                'sortOrder': 1807779241
+                'sortOrder': 818561781
             },
             where={}
         )
@@ -35178,7 +34155,7 @@ class StageBuildMatrixActions(Generic[_PrismaModelT]):
         ```py
         users = StageBuildMatrix.prisma().query_raw(
             'SELECT * FROM StageBuildMatrix WHERE id = $1',
-            'bdjjdgddhe',
+            'bgjehbiaja',
         )
         ```
         """
@@ -35218,7 +34195,7 @@ class StageBuildMatrixActions(Generic[_PrismaModelT]):
         ```py
         user = StageBuildMatrix.prisma().query_first(
             'SELECT * FROM StageBuildMatrix WHERE stageConfigId = $1',
-            'cbaaahdbgh',
+            'cadgbfjjf',
         )
         ```
         """
@@ -35257,10 +34234,10 @@ class StageBuildMatrixActions(Generic[_PrismaModelT]):
         stagebuildmatrix = StageBuildMatrix.prisma().create(
             data={
                 # data to create a StageBuildMatrix record
-                'stageConfigId': 'cahhcbdhii',
-                'label': 'baibcghaef',
-                'fwType': 'dajaaacfa',
-                'variant': 'gdibgabah',
+                'stageConfigId': 'bgceeachbc',
+                'label': 'bbcaehffaf',
+                'fwType': 'ddbhhchfi',
+                'variant': 'bidbdafbhf',
             },
         )
         ```
@@ -35315,17 +34292,17 @@ class StageBuildMatrixActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a StageBuildMatrix record
-                    'stageConfigId': 'bbdgidjcea',
-                    'label': 'bigggbcjgb',
-                    'fwType': 'bfhhaicdhe',
-                    'variant': 'bgdeigedch',
+                    'stageConfigId': 'caehibbhia',
+                    'label': 'iafgcehej',
+                    'fwType': 'bbaeaehiec',
+                    'variant': 'cfjghaged',
                 },
                 {
                     # data to create a StageBuildMatrix record
-                    'stageConfigId': 'gedhbbhdc',
-                    'label': 'bcgcffdgcj',
-                    'fwType': 'bihjhiiji',
-                    'variant': 'ididibbff',
+                    'stageConfigId': 'biggeddiea',
+                    'label': 'biahhhjceb',
+                    'fwType': 'bdjjdgddhe',
+                    'variant': 'cbaaahdbgh',
                 },
             ],
             skip_duplicates=True,
@@ -35379,7 +34356,7 @@ class StageBuildMatrixActions(Generic[_PrismaModelT]):
         ```py
         stagebuildmatrix = StageBuildMatrix.prisma().delete(
             where={
-                'id': 'cgbfcibga',
+                'id': 'cahhcbdhii',
             },
         )
         ```
@@ -35431,7 +34408,7 @@ class StageBuildMatrixActions(Generic[_PrismaModelT]):
         ```py
         stagebuildmatrix = StageBuildMatrix.prisma().find_unique(
             where={
-                'id': 'bcibjgahcj',
+                'id': 'baibcghaef',
             },
         )
         ```
@@ -35482,7 +34459,7 @@ class StageBuildMatrixActions(Generic[_PrismaModelT]):
         ```py
         stagebuildmatrix = StageBuildMatrix.prisma().find_unique_or_raise(
             where={
-                'id': 'bbbbedfcda',
+                'id': 'dajaaacfa',
             },
         )
         ```
@@ -35734,7 +34711,7 @@ class StageBuildMatrixActions(Generic[_PrismaModelT]):
         ```py
         stagebuildmatrix = StageBuildMatrix.prisma().update(
             where={
-                'id': 'gejjhdbid',
+                'id': 'gdibgabah',
             },
             data={
                 # data to update the StageBuildMatrix record to
@@ -35791,21 +34768,21 @@ class StageBuildMatrixActions(Generic[_PrismaModelT]):
         ```py
         stagebuildmatrix = StageBuildMatrix.prisma().upsert(
             where={
-                'id': 'bjfaacchjg',
+                'id': 'bbdgidjcea',
             },
             data={
                 'create': {
-                    'id': 'bjfaacchjg',
-                    'stageConfigId': 'gedhbbhdc',
-                    'label': 'bcgcffdgcj',
-                    'fwType': 'bihjhiiji',
-                    'variant': 'ididibbff',
+                    'id': 'bbdgidjcea',
+                    'stageConfigId': 'biggeddiea',
+                    'label': 'biahhhjceb',
+                    'fwType': 'bdjjdgddhe',
+                    'variant': 'cbaaahdbgh',
                 },
                 'update': {
-                    'stageConfigId': 'gedhbbhdc',
-                    'label': 'bcgcffdgcj',
-                    'fwType': 'bihjhiiji',
-                    'variant': 'ididibbff',
+                    'stageConfigId': 'biggeddiea',
+                    'label': 'biahhhjceb',
+                    'fwType': 'bdjjdgddhe',
+                    'variant': 'cbaaahdbgh',
                 },
             },
         )
@@ -35853,7 +34830,7 @@ class StageBuildMatrixActions(Generic[_PrismaModelT]):
         # update all StageBuildMatrix records
         total = StageBuildMatrix.prisma().update_many(
             data={
-                'variant': 'beeigdcchh'
+                'variant': 'bigggbcjgb'
             },
             where={}
         )
@@ -36216,7 +35193,7 @@ class AssetSetActions(Generic[_PrismaModelT]):
         ```py
         users = AssetSet.prisma().query_raw(
             'SELECT * FROM AssetSet WHERE id = $1',
-            'bgihcicggg',
+            'bfhhaicdhe',
         )
         ```
         """
@@ -36256,7 +35233,7 @@ class AssetSetActions(Generic[_PrismaModelT]):
         ```py
         user = AssetSet.prisma().query_first(
             'SELECT * FROM AssetSet WHERE productId = $1',
-            'bjiiifffbf',
+            'bgdeigedch',
         )
         ```
         """
@@ -36295,8 +35272,8 @@ class AssetSetActions(Generic[_PrismaModelT]):
         assetset = AssetSet.prisma().create(
             data={
                 # data to create a AssetSet record
-                'productId': 'bgjceijaia',
-                'version': 'hifbdafhh',
+                'productId': 'gedhbbhdc',
+                'version': 'bcgcffdgcj',
                 'source': enums.AssetSetSource.BUILD_SERVICE,
             },
         )
@@ -36352,14 +35329,14 @@ class AssetSetActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a AssetSet record
-                    'productId': 'bcabicaife',
-                    'version': 'ibgjfchfj',
+                    'productId': 'bihjhiiji',
+                    'version': 'ididibbff',
                     'source': enums.AssetSetSource.BUILD_SERVICE,
                 },
                 {
                     # data to create a AssetSet record
-                    'productId': 'bghafddebc',
-                    'version': 'bgaidgfbjh',
+                    'productId': 'cgbfcibga',
+                    'version': 'bcibjgahcj',
                     'source': enums.AssetSetSource.BUILD_SERVICE,
                 },
             ],
@@ -36414,7 +35391,7 @@ class AssetSetActions(Generic[_PrismaModelT]):
         ```py
         assetset = AssetSet.prisma().delete(
             where={
-                'id': 'bdejjhhggg',
+                'id': 'bbbbedfcda',
             },
         )
         ```
@@ -36466,7 +35443,7 @@ class AssetSetActions(Generic[_PrismaModelT]):
         ```py
         assetset = AssetSet.prisma().find_unique(
             where={
-                'id': 'fdahaiafb',
+                'id': 'gejjhdbid',
             },
         )
         ```
@@ -36517,7 +35494,7 @@ class AssetSetActions(Generic[_PrismaModelT]):
         ```py
         assetset = AssetSet.prisma().find_unique_or_raise(
             where={
-                'id': 'bheidchdbc',
+                'id': 'bjfaacchjg',
             },
         )
         ```
@@ -36769,7 +35746,7 @@ class AssetSetActions(Generic[_PrismaModelT]):
         ```py
         assetset = AssetSet.prisma().update(
             where={
-                'id': 'ddecgfgj',
+                'id': 'beeigdcchh',
             },
             data={
                 # data to update the AssetSet record to
@@ -36826,18 +35803,18 @@ class AssetSetActions(Generic[_PrismaModelT]):
         ```py
         assetset = AssetSet.prisma().upsert(
             where={
-                'id': 'baafhjifec',
+                'id': 'bgihcicggg',
             },
             data={
                 'create': {
-                    'id': 'baafhjifec',
-                    'productId': 'bghafddebc',
-                    'version': 'bgaidgfbjh',
+                    'id': 'bgihcicggg',
+                    'productId': 'cgbfcibga',
+                    'version': 'bcibjgahcj',
                     'source': enums.AssetSetSource.BUILD_SERVICE,
                 },
                 'update': {
-                    'productId': 'bghafddebc',
-                    'version': 'bgaidgfbjh',
+                    'productId': 'cgbfcibga',
+                    'version': 'bcibjgahcj',
                     'source': enums.AssetSetSource.BUILD_SERVICE,
                 },
             },
@@ -36886,7 +35863,7 @@ class AssetSetActions(Generic[_PrismaModelT]):
         # update all AssetSet records
         total = AssetSet.prisma().update_many(
             data={
-                'stage': 961258671
+                'stage': 1988855515
             },
             where={}
         )
@@ -37249,7 +36226,7 @@ class AssetActions(Generic[_PrismaModelT]):
         ```py
         users = Asset.prisma().query_raw(
             'SELECT * FROM Asset WHERE id = $1',
-            'bagjdcgfce',
+            'bgjceijaia',
         )
         ```
         """
@@ -37289,7 +36266,7 @@ class AssetActions(Generic[_PrismaModelT]):
         ```py
         user = Asset.prisma().query_first(
             'SELECT * FROM Asset WHERE assetSetId = $1',
-            'gjjfcfbij',
+            'hifbdafhh',
         )
         ```
         """
@@ -37328,14 +36305,14 @@ class AssetActions(Generic[_PrismaModelT]):
         asset = Asset.prisma().create(
             data={
                 # data to create a Asset record
-                'assetSetId': 'fdejhhede',
-                'label': 'jfjjgcdbf',
-                'role': 'idjjhibfc',
-                'artifactType': 'bjgdidgdfd',
-                'storageKey': 'bijcbbccda',
-                'filename': 'baiadjcdfj',
-                'sizeBytes': 5384144880,
-                'checksum': 'bjgcaahcjd',
+                'assetSetId': 'bcabicaife',
+                'label': 'ibgjfchfj',
+                'role': 'bghafddebc',
+                'artifactType': 'bgaidgfbjh',
+                'storageKey': 'bdejjhhggg',
+                'filename': 'fdahaiafb',
+                'sizeBytes': 20979927744,
+                'checksum': 'ddecgfgj',
             },
         )
         ```
@@ -37390,25 +36367,25 @@ class AssetActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a Asset record
-                    'assetSetId': 'eajaedjfe',
-                    'label': 'diebbdcbj',
-                    'role': 'bgbgicefbc',
-                    'artifactType': 'biefijhhcb',
-                    'storageKey': 'bhgbgacihi',
-                    'filename': 'bhjigebfgh',
-                    'sizeBytes': 23913581328,
-                    'checksum': 'hgchdfhjh',
+                    'assetSetId': 'baafhjifec',
+                    'label': 'jgbcfighb',
+                    'role': 'bagjdcgfce',
+                    'artifactType': 'gjjfcfbij',
+                    'storageKey': 'fdejhhede',
+                    'filename': 'jfjjgcdbf',
+                    'sizeBytes': 10079737824,
+                    'checksum': 'bjgdidgdfd',
                 },
                 {
                     # data to create a Asset record
-                    'assetSetId': 'cadjagcdeg',
-                    'label': 'hchffbghf',
-                    'role': 'behfggjjhg',
-                    'artifactType': 'bidfjddeij',
-                    'storageKey': 'jbaiefegc',
-                    'filename': 'beafjabhbj',
-                    'sizeBytes': 6383620656,
-                    'checksum': 'ijecdcbd',
+                    'assetSetId': 'bijcbbccda',
+                    'label': 'baiadjcdfj',
+                    'role': 'eeighihea',
+                    'artifactType': 'bjgcaahcjd',
+                    'storageKey': 'eajaedjfe',
+                    'filename': 'diebbdcbj',
+                    'sizeBytes': 19401894144,
+                    'checksum': 'biefijhhcb',
                 },
             ],
             skip_duplicates=True,
@@ -37462,7 +36439,7 @@ class AssetActions(Generic[_PrismaModelT]):
         ```py
         asset = Asset.prisma().delete(
             where={
-                'id': 'iehbhajhi',
+                'id': 'bhgbgacihi',
             },
         )
         ```
@@ -37514,7 +36491,7 @@ class AssetActions(Generic[_PrismaModelT]):
         ```py
         asset = Asset.prisma().find_unique(
             where={
-                'id': 'bdebcaajeh',
+                'id': 'bhjigebfgh',
             },
         )
         ```
@@ -37565,7 +36542,7 @@ class AssetActions(Generic[_PrismaModelT]):
         ```py
         asset = Asset.prisma().find_unique_or_raise(
             where={
-                'id': 'jaheadhga',
+                'id': 'bjjchjieee',
             },
         )
         ```
@@ -37817,7 +36794,7 @@ class AssetActions(Generic[_PrismaModelT]):
         ```py
         asset = Asset.prisma().update(
             where={
-                'id': 'bgeafdahjd',
+                'id': 'hgchdfhjh',
             },
             data={
                 # data to update the Asset record to
@@ -37874,29 +36851,29 @@ class AssetActions(Generic[_PrismaModelT]):
         ```py
         asset = Asset.prisma().upsert(
             where={
-                'id': 'bbbbfhhec',
+                'id': 'cadjagcdeg',
             },
             data={
                 'create': {
-                    'id': 'bbbbfhhec',
-                    'assetSetId': 'cadjagcdeg',
-                    'label': 'hchffbghf',
-                    'role': 'behfggjjhg',
-                    'artifactType': 'bidfjddeij',
-                    'storageKey': 'jbaiefegc',
-                    'filename': 'beafjabhbj',
-                    'sizeBytes': 6383620656,
-                    'checksum': 'ijecdcbd',
+                    'id': 'cadjagcdeg',
+                    'assetSetId': 'bijcbbccda',
+                    'label': 'baiadjcdfj',
+                    'role': 'eeighihea',
+                    'artifactType': 'bjgcaahcjd',
+                    'storageKey': 'eajaedjfe',
+                    'filename': 'diebbdcbj',
+                    'sizeBytes': 19401894144,
+                    'checksum': 'biefijhhcb',
                 },
                 'update': {
-                    'assetSetId': 'cadjagcdeg',
-                    'label': 'hchffbghf',
-                    'role': 'behfggjjhg',
-                    'artifactType': 'bidfjddeij',
-                    'storageKey': 'jbaiefegc',
-                    'filename': 'beafjabhbj',
-                    'sizeBytes': 6383620656,
-                    'checksum': 'ijecdcbd',
+                    'assetSetId': 'bijcbbccda',
+                    'label': 'baiadjcdfj',
+                    'role': 'eeighihea',
+                    'artifactType': 'bjgcaahcjd',
+                    'storageKey': 'eajaedjfe',
+                    'filename': 'diebbdcbj',
+                    'sizeBytes': 19401894144,
+                    'checksum': 'biefijhhcb',
                 },
             },
         )
@@ -37944,7 +36921,7 @@ class AssetActions(Generic[_PrismaModelT]):
         # update all Asset records
         total = Asset.prisma().update_many(
             data={
-                'artifactType': 'bcbhjjgedb'
+                'artifactType': 'hchffbghf'
             },
             where={}
         )

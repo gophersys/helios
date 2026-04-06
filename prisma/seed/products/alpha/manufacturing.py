@@ -16,7 +16,7 @@ ALPHA_B0_MFG_PROFILE = {
     "product": "alpha",
     "board": "alpha_b0",
     "mtib_revision": "1.2",
-    "capabilities": ["button", "jlink"],
+    "capabilities": ["power", "button", "jlink"],
     "dut": {
         "device_id": None,
         "snr": None,
@@ -66,13 +66,13 @@ def seed_manufacturing(db, product, b0_rev):
                 "name": "alpha-mfg-fixture-v1.0",
                 "boardRevisionId": b0_rev.id,
                 "revision": "1.0",
-                "capabilities": ["button", "jlink"],
+                "capabilities": ["power", "button", "jlink"],
                 "profileTemplate": Json(ALPHA_B0_MFG_PROFILE),
                 "notes": "Alpha B0 manufacturing fixture. 4-slot parallel testing panel.",
             },
             "update": {
                 "profileTemplate": Json(ALPHA_B0_MFG_PROFILE),
-                "capabilities": ["button", "jlink"],
+                "capabilities": ["power", "button", "jlink"],
             },
         },
     )

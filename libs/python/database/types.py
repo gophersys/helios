@@ -1225,49 +1225,6 @@ NodeTypeListUpdate = Union[
     _NodeTypeListUpdatePush,
 ]
 
-class _DeploymentStatusListFilterEqualsInput(TypedDict):
-    equals: Optional[List['enums.DeploymentStatus']]
-
-
-class _DeploymentStatusListFilterHasInput(TypedDict):
-    has: 'enums.DeploymentStatus'
-
-
-class _DeploymentStatusListFilterHasEveryInput(TypedDict):
-    has_every: List['enums.DeploymentStatus']
-
-
-class _DeploymentStatusListFilterHasSomeInput(TypedDict):
-    has_some: List['enums.DeploymentStatus']
-
-
-class _DeploymentStatusListFilterIsEmptyInput(TypedDict):
-    is_empty: bool
-
-
-DeploymentStatusListFilter = Union[
-    _DeploymentStatusListFilterHasInput,
-    _DeploymentStatusListFilterEqualsInput,
-    _DeploymentStatusListFilterHasSomeInput,
-    _DeploymentStatusListFilterIsEmptyInput,
-    _DeploymentStatusListFilterHasEveryInput,
-]
-
-
-class _DeploymentStatusListUpdateSet(TypedDict):
-    set: List['enums.DeploymentStatus']
-
-
-class _DeploymentStatusListUpdatePush(TypedDict):
-    push: List['enums.DeploymentStatus']
-
-
-DeploymentStatusListUpdate = Union[
-    List['enums.DeploymentStatus'],
-    _DeploymentStatusListUpdateSet,
-    _DeploymentStatusListUpdatePush,
-]
-
 class _SessionTypeListFilterEqualsInput(TypedDict):
     equals: Optional[List['enums.SessionType']]
 
@@ -2108,7 +2065,6 @@ class ProductOptionalCreateInput(TypedDict, total=False):
     sessions: 'SessionCreateManyNestedWithoutRelationsInput'
     buildJobs: 'BuildJobCreateManyNestedWithoutRelationsInput'
     buildRuns: 'BuildRunCreateManyNestedWithoutRelationsInput'
-    deployments: 'DeploymentCreateManyNestedWithoutRelationsInput'
     stageConfigs: 'ProductStageConfigCreateManyNestedWithoutRelationsInput'
     testPackages: 'TestPackageCreateManyNestedWithoutRelationsInput'
     recipeVersions: 'RecipeVersionCreateManyNestedWithoutRelationsInput'
@@ -2210,7 +2166,6 @@ class ProductUpdateInput(TypedDict, total=False):
     sessions: 'SessionUpdateManyWithoutRelationsInput'
     buildJobs: 'BuildJobUpdateManyWithoutRelationsInput'
     buildRuns: 'BuildRunUpdateManyWithoutRelationsInput'
-    deployments: 'DeploymentUpdateManyWithoutRelationsInput'
     stageConfigs: 'ProductStageConfigUpdateManyWithoutRelationsInput'
     testPackages: 'TestPackageUpdateManyWithoutRelationsInput'
     recipeVersions: 'RecipeVersionUpdateManyWithoutRelationsInput'
@@ -2431,7 +2386,6 @@ class ProductInclude(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProduct']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProduct']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProduct']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProduct']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProduct']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProduct']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProduct']
@@ -2450,7 +2404,6 @@ class ProductIncludeFromProduct(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductRecursive1']
@@ -2467,7 +2420,6 @@ class ProductIncludeFromProductRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductRecursive2']
@@ -2484,7 +2436,6 @@ class ProductIncludeFromProductRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductRecursive3']
@@ -2501,7 +2452,6 @@ class ProductIncludeFromProductRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductRecursive4']
@@ -2932,6 +2882,8 @@ class BoardRevisionIncludeFromProduct(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive1']
 
 
 class BoardRevisionIncludeFromProductRecursive1(TypedDict, total=False):
@@ -2941,6 +2893,8 @@ class BoardRevisionIncludeFromProductRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive2']
 
 
 class BoardRevisionIncludeFromProductRecursive2(TypedDict, total=False):
@@ -2950,6 +2904,8 @@ class BoardRevisionIncludeFromProductRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive3']
 
 
 class BoardRevisionIncludeFromProductRecursive3(TypedDict, total=False):
@@ -2959,6 +2915,8 @@ class BoardRevisionIncludeFromProductRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive4']
 
 
 class BoardRevisionIncludeFromProductRecursive4(TypedDict, total=False):
@@ -4117,21 +4075,25 @@ class FindManyDeviceArgsFromProductRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive1']
 
 
 class FixtureDesignIncludeFromProductRecursive1(TypedDict, total=False):
     """Relational arguments for Product"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive2']
 
 
 class FixtureDesignIncludeFromProductRecursive2(TypedDict, total=False):
     """Relational arguments for Product"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive3']
 
 
 class FixtureDesignIncludeFromProductRecursive3(TypedDict, total=False):
     """Relational arguments for Product"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductRecursive4']
 
 
@@ -4223,6 +4185,7 @@ class FindManyFixtureDesignArgsFromProductRecursive4(TypedDict, total=False):
 class FixtureIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromProductRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive1']
@@ -4232,6 +4195,7 @@ class FixtureIncludeFromProduct(TypedDict, total=False):
 class FixtureIncludeFromProductRecursive1(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromProductRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive2']
@@ -4241,6 +4205,7 @@ class FixtureIncludeFromProductRecursive1(TypedDict, total=False):
 class FixtureIncludeFromProductRecursive2(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromProductRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive3']
@@ -4250,6 +4215,7 @@ class FixtureIncludeFromProductRecursive2(TypedDict, total=False):
 class FixtureIncludeFromProductRecursive3(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromProductRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive4']
@@ -4882,115 +4848,6 @@ class FindManyIcleLogArgsFromProductRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromProduct(TypedDict, total=False):
-    """Relational arguments for Product"""
-    product: Union[bool, 'ProductArgsFromProductRecursive1']
-    createdBy: Union[bool, 'UserArgsFromProductRecursive1']
-
-
-class DeploymentIncludeFromProductRecursive1(TypedDict, total=False):
-    """Relational arguments for Product"""
-    product: Union[bool, 'ProductArgsFromProductRecursive2']
-    createdBy: Union[bool, 'UserArgsFromProductRecursive2']
-
-
-class DeploymentIncludeFromProductRecursive2(TypedDict, total=False):
-    """Relational arguments for Product"""
-    product: Union[bool, 'ProductArgsFromProductRecursive3']
-    createdBy: Union[bool, 'UserArgsFromProductRecursive3']
-
-
-class DeploymentIncludeFromProductRecursive3(TypedDict, total=False):
-    """Relational arguments for Product"""
-    product: Union[bool, 'ProductArgsFromProductRecursive4']
-    createdBy: Union[bool, 'UserArgsFromProductRecursive4']
-
-
-class DeploymentIncludeFromProductRecursive4(TypedDict, total=False):
-    """Relational arguments for Product"""
-
-    
-
-class DeploymentArgsFromProduct(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromProductRecursive1(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromProductRecursive2(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromProductRecursive3(TypedDict, total=False):
-    """Arguments for Product"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromProductRecursive4(TypedDict, total=False):
-    """Arguments for Product"""
-    
-    
-
-class FindManyDeploymentArgsFromProduct(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromProductRecursive1(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromProductRecursive2(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromProductRecursive3(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromProductRecursive4(TypedDict, total=False):
-    """Arguments for Product"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromProduct(TypedDict, total=False):
     """Relational arguments for Product"""
     product: Union[bool, 'ProductArgsFromProductRecursive1']
@@ -5336,7 +5193,6 @@ class UserIncludeFromProduct(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductRecursive1']
@@ -5351,7 +5207,6 @@ class UserIncludeFromProductRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductRecursive2']
@@ -5366,7 +5221,6 @@ class UserIncludeFromProductRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductRecursive3']
@@ -5381,7 +5235,6 @@ class UserIncludeFromProductRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductRecursive4']
@@ -6701,7 +6554,6 @@ class ProductWhereInput(TypedDict, total=False):
     sessions: 'SessionListRelationFilter'
     buildJobs: 'BuildJobListRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
-    deployments: 'DeploymentListRelationFilter'
     stageConfigs: 'ProductStageConfigListRelationFilter'
     testPackages: 'TestPackageListRelationFilter'
     recipeVersions: 'RecipeVersionListRelationFilter'
@@ -6736,7 +6588,6 @@ class ProductWhereInputRecursive1(TypedDict, total=False):
     sessions: 'SessionListRelationFilter'
     buildJobs: 'BuildJobListRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
-    deployments: 'DeploymentListRelationFilter'
     stageConfigs: 'ProductStageConfigListRelationFilter'
     testPackages: 'TestPackageListRelationFilter'
     recipeVersions: 'RecipeVersionListRelationFilter'
@@ -6771,7 +6622,6 @@ class ProductWhereInputRecursive2(TypedDict, total=False):
     sessions: 'SessionListRelationFilter'
     buildJobs: 'BuildJobListRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
-    deployments: 'DeploymentListRelationFilter'
     stageConfigs: 'ProductStageConfigListRelationFilter'
     testPackages: 'TestPackageListRelationFilter'
     recipeVersions: 'RecipeVersionListRelationFilter'
@@ -6806,7 +6656,6 @@ class ProductWhereInputRecursive3(TypedDict, total=False):
     sessions: 'SessionListRelationFilter'
     buildJobs: 'BuildJobListRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
-    deployments: 'DeploymentListRelationFilter'
     stageConfigs: 'ProductStageConfigListRelationFilter'
     testPackages: 'TestPackageListRelationFilter'
     recipeVersions: 'RecipeVersionListRelationFilter'
@@ -6841,7 +6690,6 @@ class ProductWhereInputRecursive4(TypedDict, total=False):
     sessions: 'SessionListRelationFilter'
     buildJobs: 'BuildJobListRelationFilter'
     buildRuns: 'BuildRunListRelationFilter'
-    deployments: 'DeploymentListRelationFilter'
     stageConfigs: 'ProductStageConfigListRelationFilter'
     testPackages: 'TestPackageListRelationFilter'
     recipeVersions: 'RecipeVersionListRelationFilter'
@@ -7101,7 +6949,6 @@ ProductKeys = Literal[
     'sessions',
     'buildJobs',
     'buildRuns',
-    'deployments',
     'stageConfigs',
     'testPackages',
     'recipeVersions',
@@ -7132,7 +6979,6 @@ ProductRelationalFieldKeys = Literal[
         'sessions',
         'buildJobs',
         'buildRuns',
-        'deployments',
         'stageConfigs',
         'testPackages',
         'recipeVersions',
@@ -7483,7 +7329,6 @@ class ProductIncludeFromTestPackage(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestPackageRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestPackageRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestPackageRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestPackageRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestPackageRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestPackageRecursive1']
@@ -7500,7 +7345,6 @@ class ProductIncludeFromTestPackageRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestPackageRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestPackageRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestPackageRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestPackageRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestPackageRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestPackageRecursive2']
@@ -7517,7 +7361,6 @@ class ProductIncludeFromTestPackageRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestPackageRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestPackageRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestPackageRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestPackageRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestPackageRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestPackageRecursive3']
@@ -7534,7 +7377,6 @@ class ProductIncludeFromTestPackageRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestPackageRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestPackageRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestPackageRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestPackageRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestPackageRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestPackageRecursive4']
@@ -7965,6 +7807,8 @@ class BoardRevisionIncludeFromTestPackage(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestPackageRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestPackageRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestPackageRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestPackageRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestPackageRecursive1']
 
 
 class BoardRevisionIncludeFromTestPackageRecursive1(TypedDict, total=False):
@@ -7974,6 +7818,8 @@ class BoardRevisionIncludeFromTestPackageRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestPackageRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestPackageRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestPackageRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestPackageRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestPackageRecursive2']
 
 
 class BoardRevisionIncludeFromTestPackageRecursive2(TypedDict, total=False):
@@ -7983,6 +7829,8 @@ class BoardRevisionIncludeFromTestPackageRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestPackageRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestPackageRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestPackageRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestPackageRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestPackageRecursive3']
 
 
 class BoardRevisionIncludeFromTestPackageRecursive3(TypedDict, total=False):
@@ -7992,6 +7840,8 @@ class BoardRevisionIncludeFromTestPackageRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestPackageRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestPackageRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestPackageRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestPackageRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestPackageRecursive4']
 
 
 class BoardRevisionIncludeFromTestPackageRecursive4(TypedDict, total=False):
@@ -9150,21 +9000,25 @@ class FindManyDeviceArgsFromTestPackageRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromTestPackage(TypedDict, total=False):
     """Relational arguments for TestPackage"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestPackageRecursive1']
 
 
 class FixtureDesignIncludeFromTestPackageRecursive1(TypedDict, total=False):
     """Relational arguments for TestPackage"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestPackageRecursive2']
 
 
 class FixtureDesignIncludeFromTestPackageRecursive2(TypedDict, total=False):
     """Relational arguments for TestPackage"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestPackageRecursive3']
 
 
 class FixtureDesignIncludeFromTestPackageRecursive3(TypedDict, total=False):
     """Relational arguments for TestPackage"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestPackageRecursive4']
 
 
@@ -9256,6 +9110,7 @@ class FindManyFixtureDesignArgsFromTestPackageRecursive4(TypedDict, total=False)
 class FixtureIncludeFromTestPackage(TypedDict, total=False):
     """Relational arguments for TestPackage"""
     product: Union[bool, 'ProductArgsFromTestPackageRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromTestPackageRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestPackageRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive1']
@@ -9265,6 +9120,7 @@ class FixtureIncludeFromTestPackage(TypedDict, total=False):
 class FixtureIncludeFromTestPackageRecursive1(TypedDict, total=False):
     """Relational arguments for TestPackage"""
     product: Union[bool, 'ProductArgsFromTestPackageRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromTestPackageRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestPackageRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive2']
@@ -9274,6 +9130,7 @@ class FixtureIncludeFromTestPackageRecursive1(TypedDict, total=False):
 class FixtureIncludeFromTestPackageRecursive2(TypedDict, total=False):
     """Relational arguments for TestPackage"""
     product: Union[bool, 'ProductArgsFromTestPackageRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromTestPackageRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestPackageRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive3']
@@ -9283,6 +9140,7 @@ class FixtureIncludeFromTestPackageRecursive2(TypedDict, total=False):
 class FixtureIncludeFromTestPackageRecursive3(TypedDict, total=False):
     """Relational arguments for TestPackage"""
     product: Union[bool, 'ProductArgsFromTestPackageRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromTestPackageRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestPackageRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive4']
@@ -9915,115 +9773,6 @@ class FindManyIcleLogArgsFromTestPackageRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromTestPackage(TypedDict, total=False):
-    """Relational arguments for TestPackage"""
-    product: Union[bool, 'ProductArgsFromTestPackageRecursive1']
-    createdBy: Union[bool, 'UserArgsFromTestPackageRecursive1']
-
-
-class DeploymentIncludeFromTestPackageRecursive1(TypedDict, total=False):
-    """Relational arguments for TestPackage"""
-    product: Union[bool, 'ProductArgsFromTestPackageRecursive2']
-    createdBy: Union[bool, 'UserArgsFromTestPackageRecursive2']
-
-
-class DeploymentIncludeFromTestPackageRecursive2(TypedDict, total=False):
-    """Relational arguments for TestPackage"""
-    product: Union[bool, 'ProductArgsFromTestPackageRecursive3']
-    createdBy: Union[bool, 'UserArgsFromTestPackageRecursive3']
-
-
-class DeploymentIncludeFromTestPackageRecursive3(TypedDict, total=False):
-    """Relational arguments for TestPackage"""
-    product: Union[bool, 'ProductArgsFromTestPackageRecursive4']
-    createdBy: Union[bool, 'UserArgsFromTestPackageRecursive4']
-
-
-class DeploymentIncludeFromTestPackageRecursive4(TypedDict, total=False):
-    """Relational arguments for TestPackage"""
-
-    
-
-class DeploymentArgsFromTestPackage(TypedDict, total=False):
-    """Arguments for TestPackage"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromTestPackageRecursive1(TypedDict, total=False):
-    """Arguments for TestPackage"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromTestPackageRecursive2(TypedDict, total=False):
-    """Arguments for TestPackage"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromTestPackageRecursive3(TypedDict, total=False):
-    """Arguments for TestPackage"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromTestPackageRecursive4(TypedDict, total=False):
-    """Arguments for TestPackage"""
-    
-    
-
-class FindManyDeploymentArgsFromTestPackage(TypedDict, total=False):
-    """Arguments for TestPackage"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromTestPackageRecursive1(TypedDict, total=False):
-    """Arguments for TestPackage"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromTestPackageRecursive2(TypedDict, total=False):
-    """Arguments for TestPackage"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromTestPackageRecursive3(TypedDict, total=False):
-    """Arguments for TestPackage"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromTestPackageRecursive4(TypedDict, total=False):
-    """Arguments for TestPackage"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromTestPackage(TypedDict, total=False):
     """Relational arguments for TestPackage"""
     product: Union[bool, 'ProductArgsFromTestPackageRecursive1']
@@ -10369,7 +10118,6 @@ class UserIncludeFromTestPackage(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestPackageRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestPackageRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestPackageRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestPackageRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestPackageRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestPackageRecursive1']
@@ -10384,7 +10132,6 @@ class UserIncludeFromTestPackageRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestPackageRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestPackageRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestPackageRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestPackageRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestPackageRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestPackageRecursive2']
@@ -10399,7 +10146,6 @@ class UserIncludeFromTestPackageRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestPackageRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestPackageRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestPackageRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestPackageRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestPackageRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestPackageRecursive3']
@@ -10414,7 +10160,6 @@ class UserIncludeFromTestPackageRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestPackageRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestPackageRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestPackageRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestPackageRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestPackageRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestPackageRecursive4']
@@ -12380,7 +12125,6 @@ class ProductIncludeFromProductTarget(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductTargetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductTargetRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductTargetRecursive1']
@@ -12397,7 +12141,6 @@ class ProductIncludeFromProductTargetRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductTargetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductTargetRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductTargetRecursive2']
@@ -12414,7 +12157,6 @@ class ProductIncludeFromProductTargetRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductTargetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductTargetRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductTargetRecursive3']
@@ -12431,7 +12173,6 @@ class ProductIncludeFromProductTargetRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductTargetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductTargetRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductTargetRecursive4']
@@ -12862,6 +12603,8 @@ class BoardRevisionIncludeFromProductTarget(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductTargetRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductTargetRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive1']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive1(TypedDict, total=False):
@@ -12871,6 +12614,8 @@ class BoardRevisionIncludeFromProductTargetRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductTargetRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductTargetRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive2']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive2(TypedDict, total=False):
@@ -12880,6 +12625,8 @@ class BoardRevisionIncludeFromProductTargetRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductTargetRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductTargetRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive3']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive3(TypedDict, total=False):
@@ -12889,6 +12636,8 @@ class BoardRevisionIncludeFromProductTargetRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductTargetRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductTargetRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductTargetRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductTargetRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive4']
 
 
 class BoardRevisionIncludeFromProductTargetRecursive4(TypedDict, total=False):
@@ -14047,21 +13796,25 @@ class FindManyDeviceArgsFromProductTargetRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive1']
 
 
 class FixtureDesignIncludeFromProductTargetRecursive1(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive2']
 
 
 class FixtureDesignIncludeFromProductTargetRecursive2(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive3']
 
 
 class FixtureDesignIncludeFromProductTargetRecursive3(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductTargetRecursive4']
 
 
@@ -14153,6 +13906,7 @@ class FindManyFixtureDesignArgsFromProductTargetRecursive4(TypedDict, total=Fals
 class FixtureIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromProductTargetRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductTargetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive1']
@@ -14162,6 +13916,7 @@ class FixtureIncludeFromProductTarget(TypedDict, total=False):
 class FixtureIncludeFromProductTargetRecursive1(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromProductTargetRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductTargetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive2']
@@ -14171,6 +13926,7 @@ class FixtureIncludeFromProductTargetRecursive1(TypedDict, total=False):
 class FixtureIncludeFromProductTargetRecursive2(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromProductTargetRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductTargetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive3']
@@ -14180,6 +13936,7 @@ class FixtureIncludeFromProductTargetRecursive2(TypedDict, total=False):
 class FixtureIncludeFromProductTargetRecursive3(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromProductTargetRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductTargetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive4']
@@ -14812,115 +14569,6 @@ class FindManyIcleLogArgsFromProductTargetRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromProductTarget(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
-    createdBy: Union[bool, 'UserArgsFromProductTargetRecursive1']
-
-
-class DeploymentIncludeFromProductTargetRecursive1(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
-    createdBy: Union[bool, 'UserArgsFromProductTargetRecursive2']
-
-
-class DeploymentIncludeFromProductTargetRecursive2(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
-    createdBy: Union[bool, 'UserArgsFromProductTargetRecursive3']
-
-
-class DeploymentIncludeFromProductTargetRecursive3(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-    product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
-    createdBy: Union[bool, 'UserArgsFromProductTargetRecursive4']
-
-
-class DeploymentIncludeFromProductTargetRecursive4(TypedDict, total=False):
-    """Relational arguments for ProductTarget"""
-
-    
-
-class DeploymentArgsFromProductTarget(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromProductTargetRecursive1(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromProductTargetRecursive2(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromProductTargetRecursive3(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromProductTargetRecursive4(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    
-    
-
-class FindManyDeploymentArgsFromProductTarget(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromProductTargetRecursive1(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromProductTargetRecursive2(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromProductTargetRecursive3(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromProductTargetRecursive4(TypedDict, total=False):
-    """Arguments for ProductTarget"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromProductTarget(TypedDict, total=False):
     """Relational arguments for ProductTarget"""
     product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
@@ -15266,7 +14914,6 @@ class UserIncludeFromProductTarget(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductTargetRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductTargetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductTargetRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductTargetRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductTargetRecursive1']
@@ -15281,7 +14928,6 @@ class UserIncludeFromProductTargetRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductTargetRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductTargetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductTargetRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductTargetRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductTargetRecursive2']
@@ -15296,7 +14942,6 @@ class UserIncludeFromProductTargetRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductTargetRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductTargetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductTargetRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductTargetRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductTargetRecursive3']
@@ -15311,7 +14956,6 @@ class UserIncludeFromProductTargetRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductTargetRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductTargetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductTargetRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductTargetRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductTargetRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductTargetRecursive4']
@@ -17177,7 +16821,6 @@ class ProductIncludeFromBoard(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBoardRecursive1']
@@ -17194,7 +16837,6 @@ class ProductIncludeFromBoardRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBoardRecursive2']
@@ -17211,7 +16853,6 @@ class ProductIncludeFromBoardRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBoardRecursive3']
@@ -17228,7 +16869,6 @@ class ProductIncludeFromBoardRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBoardRecursive4']
@@ -17659,6 +17299,8 @@ class BoardRevisionIncludeFromBoard(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBoardRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive1']
 
 
 class BoardRevisionIncludeFromBoardRecursive1(TypedDict, total=False):
@@ -17668,6 +17310,8 @@ class BoardRevisionIncludeFromBoardRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBoardRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive2']
 
 
 class BoardRevisionIncludeFromBoardRecursive2(TypedDict, total=False):
@@ -17677,6 +17321,8 @@ class BoardRevisionIncludeFromBoardRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBoardRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive3']
 
 
 class BoardRevisionIncludeFromBoardRecursive3(TypedDict, total=False):
@@ -17686,6 +17332,8 @@ class BoardRevisionIncludeFromBoardRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBoardRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive4']
 
 
 class BoardRevisionIncludeFromBoardRecursive4(TypedDict, total=False):
@@ -18844,21 +18492,25 @@ class FindManyDeviceArgsFromBoardRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive1']
 
 
 class FixtureDesignIncludeFromBoardRecursive1(TypedDict, total=False):
     """Relational arguments for Board"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive2']
 
 
 class FixtureDesignIncludeFromBoardRecursive2(TypedDict, total=False):
     """Relational arguments for Board"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive3']
 
 
 class FixtureDesignIncludeFromBoardRecursive3(TypedDict, total=False):
     """Relational arguments for Board"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRecursive4']
 
 
@@ -18950,6 +18602,7 @@ class FindManyFixtureDesignArgsFromBoardRecursive4(TypedDict, total=False):
 class FixtureIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromBoardRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive1']
@@ -18959,6 +18612,7 @@ class FixtureIncludeFromBoard(TypedDict, total=False):
 class FixtureIncludeFromBoardRecursive1(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromBoardRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive2']
@@ -18968,6 +18622,7 @@ class FixtureIncludeFromBoardRecursive1(TypedDict, total=False):
 class FixtureIncludeFromBoardRecursive2(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromBoardRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive3']
@@ -18977,6 +18632,7 @@ class FixtureIncludeFromBoardRecursive2(TypedDict, total=False):
 class FixtureIncludeFromBoardRecursive3(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromBoardRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive4']
@@ -19609,115 +19265,6 @@ class FindManyIcleLogArgsFromBoardRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromBoard(TypedDict, total=False):
-    """Relational arguments for Board"""
-    product: Union[bool, 'ProductArgsFromBoardRecursive1']
-    createdBy: Union[bool, 'UserArgsFromBoardRecursive1']
-
-
-class DeploymentIncludeFromBoardRecursive1(TypedDict, total=False):
-    """Relational arguments for Board"""
-    product: Union[bool, 'ProductArgsFromBoardRecursive2']
-    createdBy: Union[bool, 'UserArgsFromBoardRecursive2']
-
-
-class DeploymentIncludeFromBoardRecursive2(TypedDict, total=False):
-    """Relational arguments for Board"""
-    product: Union[bool, 'ProductArgsFromBoardRecursive3']
-    createdBy: Union[bool, 'UserArgsFromBoardRecursive3']
-
-
-class DeploymentIncludeFromBoardRecursive3(TypedDict, total=False):
-    """Relational arguments for Board"""
-    product: Union[bool, 'ProductArgsFromBoardRecursive4']
-    createdBy: Union[bool, 'UserArgsFromBoardRecursive4']
-
-
-class DeploymentIncludeFromBoardRecursive4(TypedDict, total=False):
-    """Relational arguments for Board"""
-
-    
-
-class DeploymentArgsFromBoard(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromBoardRecursive1(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromBoardRecursive2(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromBoardRecursive3(TypedDict, total=False):
-    """Arguments for Board"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromBoardRecursive4(TypedDict, total=False):
-    """Arguments for Board"""
-    
-    
-
-class FindManyDeploymentArgsFromBoard(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromBoardRecursive1(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromBoardRecursive2(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromBoardRecursive3(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromBoardRecursive4(TypedDict, total=False):
-    """Arguments for Board"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromBoard(TypedDict, total=False):
     """Relational arguments for Board"""
     product: Union[bool, 'ProductArgsFromBoardRecursive1']
@@ -20063,7 +19610,6 @@ class UserIncludeFromBoard(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBoardRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRecursive1']
@@ -20078,7 +19624,6 @@ class UserIncludeFromBoardRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBoardRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRecursive2']
@@ -20093,7 +19638,6 @@ class UserIncludeFromBoardRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBoardRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRecursive3']
@@ -20108,7 +19652,6 @@ class UserIncludeFromBoardRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBoardRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRecursive4']
@@ -21756,6 +21299,8 @@ class BoardRevisionOptionalCreateInput(TypedDict, total=False):
     firmwareSets: 'FirmwareSetCreateManyNestedWithoutRelationsInput'
     stageConfigs: 'ProductStageConfigCreateManyNestedWithoutRelationsInput'
     assetSets: 'AssetSetCreateManyNestedWithoutRelationsInput'
+    fixtureDesigns: 'FixtureDesignCreateManyNestedWithoutRelationsInput'
+    fixtures: 'FixtureCreateManyNestedWithoutRelationsInput'
 
 
 class BoardRevisionCreateInput(BoardRevisionOptionalCreateInput):
@@ -21878,6 +21423,8 @@ class BoardRevisionUpdateInput(TypedDict, total=False):
     firmwareSets: 'FirmwareSetUpdateManyWithoutRelationsInput'
     stageConfigs: 'ProductStageConfigUpdateManyWithoutRelationsInput'
     assetSets: 'AssetSetUpdateManyWithoutRelationsInput'
+    fixtureDesigns: 'FixtureDesignUpdateManyWithoutRelationsInput'
+    fixtures: 'FixtureUpdateManyWithoutRelationsInput'
 
 
 class BoardRevisionUpdateManyMutationInput(TypedDict, total=False):
@@ -22100,6 +21647,8 @@ class BoardRevisionInclude(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevision']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevision']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRevision']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBoardRevision']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevision']
 
 
     
@@ -22113,7 +21662,6 @@ class ProductIncludeFromBoardRevision(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRevisionRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBoardRevisionRecursive1']
@@ -22130,7 +21678,6 @@ class ProductIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRevisionRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBoardRevisionRecursive2']
@@ -22147,7 +21694,6 @@ class ProductIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRevisionRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBoardRevisionRecursive3']
@@ -22164,7 +21710,6 @@ class ProductIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBoardRevisionRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRevisionRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBoardRevisionRecursive4']
@@ -22595,6 +22140,8 @@ class BoardRevisionIncludeFromBoardRevision(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRevisionRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBoardRevisionRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive1']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
@@ -22604,6 +22151,8 @@ class BoardRevisionIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRevisionRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBoardRevisionRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive2']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
@@ -22613,6 +22162,8 @@ class BoardRevisionIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRevisionRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBoardRevisionRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive3']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
@@ -22622,6 +22173,8 @@ class BoardRevisionIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBoardRevisionRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBoardRevisionRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRevisionRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBoardRevisionRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive4']
 
 
 class BoardRevisionIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
@@ -23780,21 +23333,25 @@ class FindManyDeviceArgsFromBoardRevisionRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive1']
 
 
 class FixtureDesignIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive2']
 
 
 class FixtureDesignIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive3']
 
 
 class FixtureDesignIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBoardRevisionRecursive4']
 
 
@@ -23886,6 +23443,7 @@ class FindManyFixtureDesignArgsFromBoardRevisionRecursive4(TypedDict, total=Fals
 class FixtureIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromBoardRevisionRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRevisionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive1']
@@ -23895,6 +23453,7 @@ class FixtureIncludeFromBoardRevision(TypedDict, total=False):
 class FixtureIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromBoardRevisionRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRevisionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive2']
@@ -23904,6 +23463,7 @@ class FixtureIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
 class FixtureIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromBoardRevisionRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRevisionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive3']
@@ -23913,6 +23473,7 @@ class FixtureIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
 class FixtureIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromBoardRevisionRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBoardRevisionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive4']
@@ -24545,115 +24106,6 @@ class FindManyIcleLogArgsFromBoardRevisionRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromBoardRevision(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive1']
-
-
-class DeploymentIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive2']
-
-
-class DeploymentIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive3']
-
-
-class DeploymentIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-    product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
-    createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive4']
-
-
-class DeploymentIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
-    """Relational arguments for BoardRevision"""
-
-    
-
-class DeploymentArgsFromBoardRevision(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromBoardRevisionRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromBoardRevisionRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromBoardRevisionRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromBoardRevisionRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    
-    
-
-class FindManyDeploymentArgsFromBoardRevision(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromBoardRevisionRecursive1(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromBoardRevisionRecursive2(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromBoardRevisionRecursive3(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromBoardRevisionRecursive4(TypedDict, total=False):
-    """Arguments for BoardRevision"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromBoardRevision(TypedDict, total=False):
     """Relational arguments for BoardRevision"""
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
@@ -24999,7 +24451,6 @@ class UserIncludeFromBoardRevision(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBoardRevisionRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRevisionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRevisionRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionRecursive1']
@@ -25014,7 +24465,6 @@ class UserIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBoardRevisionRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRevisionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRevisionRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionRecursive2']
@@ -25029,7 +24479,6 @@ class UserIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBoardRevisionRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRevisionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRevisionRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionRecursive3']
@@ -25044,7 +24493,6 @@ class UserIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBoardRevisionRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBoardRevisionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBoardRevisionRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBoardRevisionRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBoardRevisionRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBoardRevisionRecursive4']
@@ -26363,6 +25811,8 @@ class BoardRevisionWhereInput(TypedDict, total=False):
     firmwareSets: 'FirmwareSetListRelationFilter'
     stageConfigs: 'ProductStageConfigListRelationFilter'
     assetSets: 'AssetSetListRelationFilter'
+    fixtureDesigns: 'FixtureDesignListRelationFilter'
+    fixtures: 'FixtureListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive1', List['BoardRevisionWhereInputRecursive1']]
     # but this causes mypy to hang :/
@@ -26391,6 +25841,8 @@ class BoardRevisionWhereInputRecursive1(TypedDict, total=False):
     firmwareSets: 'FirmwareSetListRelationFilter'
     stageConfigs: 'ProductStageConfigListRelationFilter'
     assetSets: 'AssetSetListRelationFilter'
+    fixtureDesigns: 'FixtureDesignListRelationFilter'
+    fixtures: 'FixtureListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive2', List['BoardRevisionWhereInputRecursive2']]
     # but this causes mypy to hang :/
@@ -26419,6 +25871,8 @@ class BoardRevisionWhereInputRecursive2(TypedDict, total=False):
     firmwareSets: 'FirmwareSetListRelationFilter'
     stageConfigs: 'ProductStageConfigListRelationFilter'
     assetSets: 'AssetSetListRelationFilter'
+    fixtureDesigns: 'FixtureDesignListRelationFilter'
+    fixtures: 'FixtureListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive3', List['BoardRevisionWhereInputRecursive3']]
     # but this causes mypy to hang :/
@@ -26447,6 +25901,8 @@ class BoardRevisionWhereInputRecursive3(TypedDict, total=False):
     firmwareSets: 'FirmwareSetListRelationFilter'
     stageConfigs: 'ProductStageConfigListRelationFilter'
     assetSets: 'AssetSetListRelationFilter'
+    fixtureDesigns: 'FixtureDesignListRelationFilter'
+    fixtures: 'FixtureListRelationFilter'
 
     # should be noted that AND and NOT should be Union['BoardRevisionWhereInputRecursive4', List['BoardRevisionWhereInputRecursive4']]
     # but this causes mypy to hang :/
@@ -26475,6 +25931,8 @@ class BoardRevisionWhereInputRecursive4(TypedDict, total=False):
     firmwareSets: 'FirmwareSetListRelationFilter'
     stageConfigs: 'ProductStageConfigListRelationFilter'
     assetSets: 'AssetSetListRelationFilter'
+    fixtureDesigns: 'FixtureDesignListRelationFilter'
+    fixtures: 'FixtureListRelationFilter'
 
 
 
@@ -26745,6 +26203,8 @@ BoardRevisionKeys = Literal[
     'firmwareSets',
     'stageConfigs',
     'assetSets',
+    'fixtureDesigns',
+    'fixtures',
 ]
 BoardRevisionScalarFieldKeys = Literal[
     'id',
@@ -26769,6 +26229,8 @@ BoardRevisionRelationalFieldKeys = Literal[
         'firmwareSets',
         'stageConfigs',
         'assetSets',
+        'fixtureDesigns',
+        'fixtures',
     ]
 
 # FirmwareSet types
@@ -27133,7 +26595,6 @@ class ProductIncludeFromFirmwareSet(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareSetRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFirmwareSetRecursive1']
@@ -27150,7 +26611,6 @@ class ProductIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareSetRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFirmwareSetRecursive2']
@@ -27167,7 +26627,6 @@ class ProductIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareSetRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFirmwareSetRecursive3']
@@ -27184,7 +26643,6 @@ class ProductIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareSetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareSetRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFirmwareSetRecursive4']
@@ -27615,6 +27073,8 @@ class BoardRevisionIncludeFromFirmwareSet(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareSetRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFirmwareSetRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive1']
 
 
 class BoardRevisionIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
@@ -27624,6 +27084,8 @@ class BoardRevisionIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareSetRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFirmwareSetRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive2']
 
 
 class BoardRevisionIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
@@ -27633,6 +27095,8 @@ class BoardRevisionIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareSetRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFirmwareSetRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive3']
 
 
 class BoardRevisionIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
@@ -27642,6 +27106,8 @@ class BoardRevisionIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareSetRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareSetRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareSetRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFirmwareSetRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive4']
 
 
 class BoardRevisionIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
@@ -28800,21 +28266,25 @@ class FindManyDeviceArgsFromFirmwareSetRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromFirmwareSet(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive1']
 
 
 class FixtureDesignIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive2']
 
 
 class FixtureDesignIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive3']
 
 
 class FixtureDesignIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareSetRecursive4']
 
 
@@ -28906,6 +28376,7 @@ class FindManyFixtureDesignArgsFromFirmwareSetRecursive4(TypedDict, total=False)
 class FixtureIncludeFromFirmwareSet(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromFirmwareSetRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareSetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive1']
@@ -28915,6 +28386,7 @@ class FixtureIncludeFromFirmwareSet(TypedDict, total=False):
 class FixtureIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromFirmwareSetRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareSetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive2']
@@ -28924,6 +28396,7 @@ class FixtureIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
 class FixtureIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromFirmwareSetRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareSetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive3']
@@ -28933,6 +28406,7 @@ class FixtureIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
 class FixtureIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromFirmwareSetRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareSetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive4']
@@ -29565,115 +29039,6 @@ class FindManyIcleLogArgsFromFirmwareSetRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromFirmwareSet(TypedDict, total=False):
-    """Relational arguments for FirmwareSet"""
-    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
-    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive1']
-
-
-class DeploymentIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
-    """Relational arguments for FirmwareSet"""
-    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
-    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive2']
-
-
-class DeploymentIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
-    """Relational arguments for FirmwareSet"""
-    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
-    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive3']
-
-
-class DeploymentIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
-    """Relational arguments for FirmwareSet"""
-    product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
-    createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive4']
-
-
-class DeploymentIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
-    """Relational arguments for FirmwareSet"""
-
-    
-
-class DeploymentArgsFromFirmwareSet(TypedDict, total=False):
-    """Arguments for FirmwareSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromFirmwareSetRecursive1(TypedDict, total=False):
-    """Arguments for FirmwareSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromFirmwareSetRecursive2(TypedDict, total=False):
-    """Arguments for FirmwareSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromFirmwareSetRecursive3(TypedDict, total=False):
-    """Arguments for FirmwareSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromFirmwareSetRecursive4(TypedDict, total=False):
-    """Arguments for FirmwareSet"""
-    
-    
-
-class FindManyDeploymentArgsFromFirmwareSet(TypedDict, total=False):
-    """Arguments for FirmwareSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromFirmwareSetRecursive1(TypedDict, total=False):
-    """Arguments for FirmwareSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromFirmwareSetRecursive2(TypedDict, total=False):
-    """Arguments for FirmwareSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromFirmwareSetRecursive3(TypedDict, total=False):
-    """Arguments for FirmwareSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromFirmwareSetRecursive4(TypedDict, total=False):
-    """Arguments for FirmwareSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromFirmwareSet(TypedDict, total=False):
     """Relational arguments for FirmwareSet"""
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
@@ -30019,7 +29384,6 @@ class UserIncludeFromFirmwareSet(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFirmwareSetRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareSetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareSetRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive1']
@@ -30034,7 +29398,6 @@ class UserIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFirmwareSetRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareSetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareSetRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive2']
@@ -30049,7 +29412,6 @@ class UserIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFirmwareSetRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareSetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareSetRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive3']
@@ -30064,7 +29426,6 @@ class UserIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFirmwareSetRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareSetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareSetRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareSetRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareSetRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareSetRecursive4']
@@ -32171,7 +31532,6 @@ class ProductIncludeFromFirmwareBuild(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareBuildRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareBuildRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFirmwareBuildRecursive1']
@@ -32188,7 +31548,6 @@ class ProductIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareBuildRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareBuildRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFirmwareBuildRecursive2']
@@ -32205,7 +31564,6 @@ class ProductIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareBuildRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareBuildRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFirmwareBuildRecursive3']
@@ -32222,7 +31580,6 @@ class ProductIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFirmwareBuildRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareBuildRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFirmwareBuildRecursive4']
@@ -32653,6 +32010,8 @@ class BoardRevisionIncludeFromFirmwareBuild(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareBuildRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFirmwareBuildRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive1']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
@@ -32662,6 +32021,8 @@ class BoardRevisionIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareBuildRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFirmwareBuildRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive2']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
@@ -32671,6 +32032,8 @@ class BoardRevisionIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareBuildRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFirmwareBuildRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive3']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
@@ -32680,6 +32043,8 @@ class BoardRevisionIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFirmwareBuildRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFirmwareBuildRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareBuildRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFirmwareBuildRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive4']
 
 
 class BoardRevisionIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
@@ -33838,21 +33203,25 @@ class FindManyDeviceArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive1']
 
 
 class FixtureDesignIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive2']
 
 
 class FixtureDesignIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive3']
 
 
 class FixtureDesignIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFirmwareBuildRecursive4']
 
 
@@ -33944,6 +33313,7 @@ class FindManyFixtureDesignArgsFromFirmwareBuildRecursive4(TypedDict, total=Fals
 class FixtureIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromFirmwareBuildRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareBuildRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive1']
@@ -33953,6 +33323,7 @@ class FixtureIncludeFromFirmwareBuild(TypedDict, total=False):
 class FixtureIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromFirmwareBuildRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareBuildRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive2']
@@ -33962,6 +33333,7 @@ class FixtureIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
 class FixtureIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromFirmwareBuildRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareBuildRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive3']
@@ -33971,6 +33343,7 @@ class FixtureIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
 class FixtureIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromFirmwareBuildRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFirmwareBuildRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive4']
@@ -34603,115 +33976,6 @@ class FindManyIcleLogArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromFirmwareBuild(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
-    createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive1']
-
-
-class DeploymentIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
-    createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive2']
-
-
-class DeploymentIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
-    createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive3']
-
-
-class DeploymentIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-    product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
-    createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive4']
-
-
-class DeploymentIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
-    """Relational arguments for FirmwareBuild"""
-
-    
-
-class DeploymentArgsFromFirmwareBuild(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromFirmwareBuildRecursive1(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromFirmwareBuildRecursive2(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromFirmwareBuildRecursive3(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    
-    
-
-class FindManyDeploymentArgsFromFirmwareBuild(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromFirmwareBuildRecursive1(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromFirmwareBuildRecursive2(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromFirmwareBuildRecursive3(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromFirmwareBuildRecursive4(TypedDict, total=False):
-    """Arguments for FirmwareBuild"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromFirmwareBuild(TypedDict, total=False):
     """Relational arguments for FirmwareBuild"""
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
@@ -35057,7 +34321,6 @@ class UserIncludeFromFirmwareBuild(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFirmwareBuildRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareBuildRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareBuildRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareBuildRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareBuildRecursive1']
@@ -35072,7 +34335,6 @@ class UserIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFirmwareBuildRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareBuildRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareBuildRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareBuildRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareBuildRecursive2']
@@ -35087,7 +34349,6 @@ class UserIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFirmwareBuildRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareBuildRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareBuildRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareBuildRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareBuildRecursive3']
@@ -35102,7 +34363,6 @@ class UserIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFirmwareBuildRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFirmwareBuildRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFirmwareBuildRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFirmwareBuildRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFirmwareBuildRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFirmwareBuildRecursive4']
@@ -37180,7 +36440,6 @@ class ProductIncludeFromProductStageConfig(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductStageConfigRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductStageConfigRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductStageConfigRecursive1']
@@ -37197,7 +36456,6 @@ class ProductIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductStageConfigRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductStageConfigRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductStageConfigRecursive2']
@@ -37214,7 +36472,6 @@ class ProductIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductStageConfigRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductStageConfigRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductStageConfigRecursive3']
@@ -37231,7 +36488,6 @@ class ProductIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductStageConfigRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductStageConfigRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductStageConfigRecursive4']
@@ -37662,6 +36918,8 @@ class BoardRevisionIncludeFromProductStageConfig(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductStageConfigRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductStageConfigRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive1']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
@@ -37671,6 +36929,8 @@ class BoardRevisionIncludeFromProductStageConfigRecursive1(TypedDict, total=Fals
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductStageConfigRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductStageConfigRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive2']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
@@ -37680,6 +36940,8 @@ class BoardRevisionIncludeFromProductStageConfigRecursive2(TypedDict, total=Fals
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductStageConfigRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductStageConfigRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive3']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
@@ -37689,6 +36951,8 @@ class BoardRevisionIncludeFromProductStageConfigRecursive3(TypedDict, total=Fals
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductStageConfigRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductStageConfigRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductStageConfigRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductStageConfigRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive4']
 
 
 class BoardRevisionIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
@@ -38847,21 +38111,25 @@ class FindManyDeviceArgsFromProductStageConfigRecursive4(TypedDict, total=False)
 
 class FixtureDesignIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive1']
 
 
 class FixtureDesignIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive2']
 
 
 class FixtureDesignIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive3']
 
 
 class FixtureDesignIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductStageConfigRecursive4']
 
 
@@ -38953,6 +38221,7 @@ class FindManyFixtureDesignArgsFromProductStageConfigRecursive4(TypedDict, total
 class FixtureIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromProductStageConfigRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductStageConfigRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive1']
@@ -38962,6 +38231,7 @@ class FixtureIncludeFromProductStageConfig(TypedDict, total=False):
 class FixtureIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromProductStageConfigRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductStageConfigRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive2']
@@ -38971,6 +38241,7 @@ class FixtureIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
 class FixtureIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromProductStageConfigRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductStageConfigRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive3']
@@ -38980,6 +38251,7 @@ class FixtureIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
 class FixtureIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromProductStageConfigRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductStageConfigRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive4']
@@ -39612,115 +38884,6 @@ class FindManyIcleLogArgsFromProductStageConfigRecursive4(TypedDict, total=False
     
     
 
-class DeploymentIncludeFromProductStageConfig(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
-    createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive1']
-
-
-class DeploymentIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
-    createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive2']
-
-
-class DeploymentIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
-    createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive3']
-
-
-class DeploymentIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-    product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
-    createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive4']
-
-
-class DeploymentIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
-    """Relational arguments for ProductStageConfig"""
-
-    
-
-class DeploymentArgsFromProductStageConfig(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromProductStageConfigRecursive1(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromProductStageConfigRecursive2(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromProductStageConfigRecursive3(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromProductStageConfigRecursive4(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    
-    
-
-class FindManyDeploymentArgsFromProductStageConfig(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromProductStageConfigRecursive1(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromProductStageConfigRecursive2(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromProductStageConfigRecursive3(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromProductStageConfigRecursive4(TypedDict, total=False):
-    """Arguments for ProductStageConfig"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromProductStageConfig(TypedDict, total=False):
     """Relational arguments for ProductStageConfig"""
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
@@ -40066,7 +39229,6 @@ class UserIncludeFromProductStageConfig(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductStageConfigRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductStageConfigRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductStageConfigRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductStageConfigRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductStageConfigRecursive1']
@@ -40081,7 +39243,6 @@ class UserIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductStageConfigRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductStageConfigRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductStageConfigRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductStageConfigRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductStageConfigRecursive2']
@@ -40096,7 +39257,6 @@ class UserIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductStageConfigRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductStageConfigRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductStageConfigRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductStageConfigRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductStageConfigRecursive3']
@@ -40111,7 +39271,6 @@ class UserIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductStageConfigRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductStageConfigRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductStageConfigRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductStageConfigRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductStageConfigRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductStageConfigRecursive4']
@@ -42216,7 +41375,6 @@ class ProductIncludeFromValidationQueueEntry(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromValidationQueueEntryRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromValidationQueueEntryRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromValidationQueueEntryRecursive1']
@@ -42233,7 +41391,6 @@ class ProductIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromValidationQueueEntryRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromValidationQueueEntryRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromValidationQueueEntryRecursive2']
@@ -42250,7 +41407,6 @@ class ProductIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromValidationQueueEntryRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromValidationQueueEntryRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromValidationQueueEntryRecursive3']
@@ -42267,7 +41423,6 @@ class ProductIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromValidationQueueEntryRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromValidationQueueEntryRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromValidationQueueEntryRecursive4']
@@ -42698,6 +41853,8 @@ class BoardRevisionIncludeFromValidationQueueEntry(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromValidationQueueEntryRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromValidationQueueEntryRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive1']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
@@ -42707,6 +41864,8 @@ class BoardRevisionIncludeFromValidationQueueEntryRecursive1(TypedDict, total=Fa
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromValidationQueueEntryRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromValidationQueueEntryRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive2']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
@@ -42716,6 +41875,8 @@ class BoardRevisionIncludeFromValidationQueueEntryRecursive2(TypedDict, total=Fa
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromValidationQueueEntryRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromValidationQueueEntryRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive3']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
@@ -42725,6 +41886,8 @@ class BoardRevisionIncludeFromValidationQueueEntryRecursive3(TypedDict, total=Fa
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromValidationQueueEntryRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromValidationQueueEntryRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromValidationQueueEntryRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromValidationQueueEntryRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive4']
 
 
 class BoardRevisionIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
@@ -43883,21 +43046,25 @@ class FindManyDeviceArgsFromValidationQueueEntryRecursive4(TypedDict, total=Fals
 
 class FixtureDesignIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive1']
 
 
 class FixtureDesignIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive2']
 
 
 class FixtureDesignIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive3']
 
 
 class FixtureDesignIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromValidationQueueEntryRecursive4']
 
 
@@ -43989,6 +43156,7 @@ class FindManyFixtureDesignArgsFromValidationQueueEntryRecursive4(TypedDict, tot
 class FixtureIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromValidationQueueEntryRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromValidationQueueEntryRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive1']
@@ -43998,6 +43166,7 @@ class FixtureIncludeFromValidationQueueEntry(TypedDict, total=False):
 class FixtureIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromValidationQueueEntryRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromValidationQueueEntryRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive2']
@@ -44007,6 +43176,7 @@ class FixtureIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
 class FixtureIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromValidationQueueEntryRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromValidationQueueEntryRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive3']
@@ -44016,6 +43186,7 @@ class FixtureIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
 class FixtureIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromValidationQueueEntryRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromValidationQueueEntryRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive4']
@@ -44648,115 +43819,6 @@ class FindManyIcleLogArgsFromValidationQueueEntryRecursive4(TypedDict, total=Fal
     
     
 
-class DeploymentIncludeFromValidationQueueEntry(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
-    createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive1']
-
-
-class DeploymentIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
-    createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive2']
-
-
-class DeploymentIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
-    createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive3']
-
-
-class DeploymentIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-    product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
-    createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive4']
-
-
-class DeploymentIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
-    """Relational arguments for ValidationQueueEntry"""
-
-    
-
-class DeploymentArgsFromValidationQueueEntry(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromValidationQueueEntryRecursive1(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromValidationQueueEntryRecursive2(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromValidationQueueEntryRecursive3(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromValidationQueueEntryRecursive4(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    
-    
-
-class FindManyDeploymentArgsFromValidationQueueEntry(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromValidationQueueEntryRecursive1(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromValidationQueueEntryRecursive2(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromValidationQueueEntryRecursive3(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromValidationQueueEntryRecursive4(TypedDict, total=False):
-    """Arguments for ValidationQueueEntry"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromValidationQueueEntry(TypedDict, total=False):
     """Relational arguments for ValidationQueueEntry"""
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
@@ -45102,7 +44164,6 @@ class UserIncludeFromValidationQueueEntry(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromValidationQueueEntryRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromValidationQueueEntryRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromValidationQueueEntryRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromValidationQueueEntryRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromValidationQueueEntryRecursive1']
@@ -45117,7 +44178,6 @@ class UserIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromValidationQueueEntryRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromValidationQueueEntryRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromValidationQueueEntryRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromValidationQueueEntryRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromValidationQueueEntryRecursive2']
@@ -45132,7 +44192,6 @@ class UserIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromValidationQueueEntryRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromValidationQueueEntryRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromValidationQueueEntryRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromValidationQueueEntryRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromValidationQueueEntryRecursive3']
@@ -45147,7 +44206,6 @@ class UserIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromValidationQueueEntryRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromValidationQueueEntryRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromValidationQueueEntryRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromValidationQueueEntryRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromValidationQueueEntryRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromValidationQueueEntryRecursive4']
@@ -47467,7 +46525,6 @@ class ProductIncludeFromBuildRun(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildRunRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildRunRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildRunRecursive1']
@@ -47484,7 +46541,6 @@ class ProductIncludeFromBuildRunRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildRunRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildRunRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildRunRecursive2']
@@ -47501,7 +46557,6 @@ class ProductIncludeFromBuildRunRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildRunRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildRunRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildRunRecursive3']
@@ -47518,7 +46573,6 @@ class ProductIncludeFromBuildRunRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildRunRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildRunRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildRunRecursive4']
@@ -47949,6 +47003,8 @@ class BoardRevisionIncludeFromBuildRun(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildRunRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildRunRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildRunRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildRunRecursive1']
 
 
 class BoardRevisionIncludeFromBuildRunRecursive1(TypedDict, total=False):
@@ -47958,6 +47014,8 @@ class BoardRevisionIncludeFromBuildRunRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildRunRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildRunRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildRunRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildRunRecursive2']
 
 
 class BoardRevisionIncludeFromBuildRunRecursive2(TypedDict, total=False):
@@ -47967,6 +47025,8 @@ class BoardRevisionIncludeFromBuildRunRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildRunRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildRunRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildRunRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildRunRecursive3']
 
 
 class BoardRevisionIncludeFromBuildRunRecursive3(TypedDict, total=False):
@@ -47976,6 +47036,8 @@ class BoardRevisionIncludeFromBuildRunRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildRunRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildRunRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildRunRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildRunRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildRunRecursive4']
 
 
 class BoardRevisionIncludeFromBuildRunRecursive4(TypedDict, total=False):
@@ -49134,21 +48196,25 @@ class FindManyDeviceArgsFromBuildRunRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromBuildRun(TypedDict, total=False):
     """Relational arguments for BuildRun"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildRunRecursive1']
 
 
 class FixtureDesignIncludeFromBuildRunRecursive1(TypedDict, total=False):
     """Relational arguments for BuildRun"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildRunRecursive2']
 
 
 class FixtureDesignIncludeFromBuildRunRecursive2(TypedDict, total=False):
     """Relational arguments for BuildRun"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildRunRecursive3']
 
 
 class FixtureDesignIncludeFromBuildRunRecursive3(TypedDict, total=False):
     """Relational arguments for BuildRun"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildRunRecursive4']
 
 
@@ -49240,6 +48306,7 @@ class FindManyFixtureDesignArgsFromBuildRunRecursive4(TypedDict, total=False):
 class FixtureIncludeFromBuildRun(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromBuildRunRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildRunRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive1']
@@ -49249,6 +48316,7 @@ class FixtureIncludeFromBuildRun(TypedDict, total=False):
 class FixtureIncludeFromBuildRunRecursive1(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromBuildRunRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildRunRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive2']
@@ -49258,6 +48326,7 @@ class FixtureIncludeFromBuildRunRecursive1(TypedDict, total=False):
 class FixtureIncludeFromBuildRunRecursive2(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromBuildRunRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildRunRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive3']
@@ -49267,6 +48336,7 @@ class FixtureIncludeFromBuildRunRecursive2(TypedDict, total=False):
 class FixtureIncludeFromBuildRunRecursive3(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromBuildRunRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildRunRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive4']
@@ -49899,115 +48969,6 @@ class FindManyIcleLogArgsFromBuildRunRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromBuildRun(TypedDict, total=False):
-    """Relational arguments for BuildRun"""
-    product: Union[bool, 'ProductArgsFromBuildRunRecursive1']
-    createdBy: Union[bool, 'UserArgsFromBuildRunRecursive1']
-
-
-class DeploymentIncludeFromBuildRunRecursive1(TypedDict, total=False):
-    """Relational arguments for BuildRun"""
-    product: Union[bool, 'ProductArgsFromBuildRunRecursive2']
-    createdBy: Union[bool, 'UserArgsFromBuildRunRecursive2']
-
-
-class DeploymentIncludeFromBuildRunRecursive2(TypedDict, total=False):
-    """Relational arguments for BuildRun"""
-    product: Union[bool, 'ProductArgsFromBuildRunRecursive3']
-    createdBy: Union[bool, 'UserArgsFromBuildRunRecursive3']
-
-
-class DeploymentIncludeFromBuildRunRecursive3(TypedDict, total=False):
-    """Relational arguments for BuildRun"""
-    product: Union[bool, 'ProductArgsFromBuildRunRecursive4']
-    createdBy: Union[bool, 'UserArgsFromBuildRunRecursive4']
-
-
-class DeploymentIncludeFromBuildRunRecursive4(TypedDict, total=False):
-    """Relational arguments for BuildRun"""
-
-    
-
-class DeploymentArgsFromBuildRun(TypedDict, total=False):
-    """Arguments for BuildRun"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromBuildRunRecursive1(TypedDict, total=False):
-    """Arguments for BuildRun"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromBuildRunRecursive2(TypedDict, total=False):
-    """Arguments for BuildRun"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromBuildRunRecursive3(TypedDict, total=False):
-    """Arguments for BuildRun"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromBuildRunRecursive4(TypedDict, total=False):
-    """Arguments for BuildRun"""
-    
-    
-
-class FindManyDeploymentArgsFromBuildRun(TypedDict, total=False):
-    """Arguments for BuildRun"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromBuildRunRecursive1(TypedDict, total=False):
-    """Arguments for BuildRun"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromBuildRunRecursive2(TypedDict, total=False):
-    """Arguments for BuildRun"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromBuildRunRecursive3(TypedDict, total=False):
-    """Arguments for BuildRun"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromBuildRunRecursive4(TypedDict, total=False):
-    """Arguments for BuildRun"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromBuildRun(TypedDict, total=False):
     """Relational arguments for BuildRun"""
     product: Union[bool, 'ProductArgsFromBuildRunRecursive1']
@@ -50353,7 +49314,6 @@ class UserIncludeFromBuildRun(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildRunRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildRunRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildRunRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildRunRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildRunRecursive1']
@@ -50368,7 +49328,6 @@ class UserIncludeFromBuildRunRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildRunRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildRunRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildRunRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildRunRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildRunRecursive2']
@@ -50383,7 +49342,6 @@ class UserIncludeFromBuildRunRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildRunRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildRunRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildRunRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildRunRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildRunRecursive3']
@@ -50398,7 +49356,6 @@ class UserIncludeFromBuildRunRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildRunRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildRunRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildRunRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildRunRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildRunRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildRunRecursive4']
@@ -52977,7 +51934,6 @@ class ProductIncludeFromBuildJob(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildJobRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildJobRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildJobRecursive1']
@@ -52994,7 +51950,6 @@ class ProductIncludeFromBuildJobRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildJobRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildJobRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildJobRecursive2']
@@ -53011,7 +51966,6 @@ class ProductIncludeFromBuildJobRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildJobRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildJobRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildJobRecursive3']
@@ -53028,7 +51982,6 @@ class ProductIncludeFromBuildJobRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildJobRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildJobRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildJobRecursive4']
@@ -53459,6 +52412,8 @@ class BoardRevisionIncludeFromBuildJob(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildJobRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildJobRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive1']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive1(TypedDict, total=False):
@@ -53468,6 +52423,8 @@ class BoardRevisionIncludeFromBuildJobRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildJobRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildJobRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive2']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive2(TypedDict, total=False):
@@ -53477,6 +52434,8 @@ class BoardRevisionIncludeFromBuildJobRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildJobRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildJobRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive3']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive3(TypedDict, total=False):
@@ -53486,6 +52445,8 @@ class BoardRevisionIncludeFromBuildJobRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildJobRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildJobRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildJobRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildJobRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive4']
 
 
 class BoardRevisionIncludeFromBuildJobRecursive4(TypedDict, total=False):
@@ -54644,21 +53605,25 @@ class FindManyDeviceArgsFromBuildJobRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive1']
 
 
 class FixtureDesignIncludeFromBuildJobRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJob"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive2']
 
 
 class FixtureDesignIncludeFromBuildJobRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJob"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive3']
 
 
 class FixtureDesignIncludeFromBuildJobRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJob"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildJobRecursive4']
 
 
@@ -54750,6 +53715,7 @@ class FindManyFixtureDesignArgsFromBuildJobRecursive4(TypedDict, total=False):
 class FixtureIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromBuildJobRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildJobRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive1']
@@ -54759,6 +53725,7 @@ class FixtureIncludeFromBuildJob(TypedDict, total=False):
 class FixtureIncludeFromBuildJobRecursive1(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromBuildJobRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildJobRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive2']
@@ -54768,6 +53735,7 @@ class FixtureIncludeFromBuildJobRecursive1(TypedDict, total=False):
 class FixtureIncludeFromBuildJobRecursive2(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromBuildJobRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildJobRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive3']
@@ -54777,6 +53745,7 @@ class FixtureIncludeFromBuildJobRecursive2(TypedDict, total=False):
 class FixtureIncludeFromBuildJobRecursive3(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromBuildJobRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildJobRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive4']
@@ -55409,115 +54378,6 @@ class FindManyIcleLogArgsFromBuildJobRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromBuildJob(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
-    createdBy: Union[bool, 'UserArgsFromBuildJobRecursive1']
-
-
-class DeploymentIncludeFromBuildJobRecursive1(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
-    createdBy: Union[bool, 'UserArgsFromBuildJobRecursive2']
-
-
-class DeploymentIncludeFromBuildJobRecursive2(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
-    createdBy: Union[bool, 'UserArgsFromBuildJobRecursive3']
-
-
-class DeploymentIncludeFromBuildJobRecursive3(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-    product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
-    createdBy: Union[bool, 'UserArgsFromBuildJobRecursive4']
-
-
-class DeploymentIncludeFromBuildJobRecursive4(TypedDict, total=False):
-    """Relational arguments for BuildJob"""
-
-    
-
-class DeploymentArgsFromBuildJob(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromBuildJobRecursive1(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromBuildJobRecursive2(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromBuildJobRecursive3(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromBuildJobRecursive4(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    
-    
-
-class FindManyDeploymentArgsFromBuildJob(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromBuildJobRecursive1(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromBuildJobRecursive2(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromBuildJobRecursive3(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromBuildJobRecursive4(TypedDict, total=False):
-    """Arguments for BuildJob"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromBuildJob(TypedDict, total=False):
     """Relational arguments for BuildJob"""
     product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
@@ -55863,7 +54723,6 @@ class UserIncludeFromBuildJob(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildJobRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildJobRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildJobRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildJobRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildJobRecursive1']
@@ -55878,7 +54737,6 @@ class UserIncludeFromBuildJobRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildJobRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildJobRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildJobRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildJobRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildJobRecursive2']
@@ -55893,7 +54751,6 @@ class UserIncludeFromBuildJobRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildJobRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildJobRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildJobRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildJobRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildJobRecursive3']
@@ -55908,7 +54765,6 @@ class UserIncludeFromBuildJobRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildJobRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildJobRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildJobRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildJobRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildJobRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildJobRecursive4']
@@ -58255,7 +57111,6 @@ class ProductIncludeFromBuildArtifact(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildArtifactRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildArtifactRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildArtifactRecursive1']
@@ -58272,7 +57127,6 @@ class ProductIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildArtifactRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildArtifactRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildArtifactRecursive2']
@@ -58289,7 +57143,6 @@ class ProductIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildArtifactRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildArtifactRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildArtifactRecursive3']
@@ -58306,7 +57159,6 @@ class ProductIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromBuildArtifactRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildArtifactRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromBuildArtifactRecursive4']
@@ -58737,6 +57589,8 @@ class BoardRevisionIncludeFromBuildArtifact(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildArtifactRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildArtifactRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildArtifactRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildArtifactRecursive1']
 
 
 class BoardRevisionIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
@@ -58746,6 +57600,8 @@ class BoardRevisionIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildArtifactRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildArtifactRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildArtifactRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildArtifactRecursive2']
 
 
 class BoardRevisionIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
@@ -58755,6 +57611,8 @@ class BoardRevisionIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildArtifactRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildArtifactRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildArtifactRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildArtifactRecursive3']
 
 
 class BoardRevisionIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
@@ -58764,6 +57622,8 @@ class BoardRevisionIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromBuildArtifactRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromBuildArtifactRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildArtifactRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromBuildArtifactRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromBuildArtifactRecursive4']
 
 
 class BoardRevisionIncludeFromBuildArtifactRecursive4(TypedDict, total=False):
@@ -59922,21 +58782,25 @@ class FindManyDeviceArgsFromBuildArtifactRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromBuildArtifact(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildArtifactRecursive1']
 
 
 class FixtureDesignIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildArtifactRecursive2']
 
 
 class FixtureDesignIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildArtifactRecursive3']
 
 
 class FixtureDesignIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromBuildArtifactRecursive4']
 
 
@@ -60028,6 +58892,7 @@ class FindManyFixtureDesignArgsFromBuildArtifactRecursive4(TypedDict, total=Fals
 class FixtureIncludeFromBuildArtifact(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromBuildArtifactRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildArtifactRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive1']
@@ -60037,6 +58902,7 @@ class FixtureIncludeFromBuildArtifact(TypedDict, total=False):
 class FixtureIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromBuildArtifactRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildArtifactRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive2']
@@ -60046,6 +58912,7 @@ class FixtureIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
 class FixtureIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromBuildArtifactRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildArtifactRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive3']
@@ -60055,6 +58922,7 @@ class FixtureIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
 class FixtureIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromBuildArtifactRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromBuildArtifactRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive4']
@@ -60687,115 +59555,6 @@ class FindManyIcleLogArgsFromBuildArtifactRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromBuildArtifact(TypedDict, total=False):
-    """Relational arguments for BuildArtifact"""
-    product: Union[bool, 'ProductArgsFromBuildArtifactRecursive1']
-    createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive1']
-
-
-class DeploymentIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
-    """Relational arguments for BuildArtifact"""
-    product: Union[bool, 'ProductArgsFromBuildArtifactRecursive2']
-    createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive2']
-
-
-class DeploymentIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
-    """Relational arguments for BuildArtifact"""
-    product: Union[bool, 'ProductArgsFromBuildArtifactRecursive3']
-    createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive3']
-
-
-class DeploymentIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
-    """Relational arguments for BuildArtifact"""
-    product: Union[bool, 'ProductArgsFromBuildArtifactRecursive4']
-    createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive4']
-
-
-class DeploymentIncludeFromBuildArtifactRecursive4(TypedDict, total=False):
-    """Relational arguments for BuildArtifact"""
-
-    
-
-class DeploymentArgsFromBuildArtifact(TypedDict, total=False):
-    """Arguments for BuildArtifact"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromBuildArtifactRecursive1(TypedDict, total=False):
-    """Arguments for BuildArtifact"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromBuildArtifactRecursive2(TypedDict, total=False):
-    """Arguments for BuildArtifact"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromBuildArtifactRecursive3(TypedDict, total=False):
-    """Arguments for BuildArtifact"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromBuildArtifactRecursive4(TypedDict, total=False):
-    """Arguments for BuildArtifact"""
-    
-    
-
-class FindManyDeploymentArgsFromBuildArtifact(TypedDict, total=False):
-    """Arguments for BuildArtifact"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromBuildArtifactRecursive1(TypedDict, total=False):
-    """Arguments for BuildArtifact"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromBuildArtifactRecursive2(TypedDict, total=False):
-    """Arguments for BuildArtifact"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromBuildArtifactRecursive3(TypedDict, total=False):
-    """Arguments for BuildArtifact"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromBuildArtifactRecursive4(TypedDict, total=False):
-    """Arguments for BuildArtifact"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromBuildArtifact(TypedDict, total=False):
     """Relational arguments for BuildArtifact"""
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive1']
@@ -61141,7 +59900,6 @@ class UserIncludeFromBuildArtifact(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildArtifactRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildArtifactRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildArtifactRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildArtifactRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildArtifactRecursive1']
@@ -61156,7 +59914,6 @@ class UserIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildArtifactRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildArtifactRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildArtifactRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildArtifactRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildArtifactRecursive2']
@@ -61171,7 +59928,6 @@ class UserIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildArtifactRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildArtifactRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildArtifactRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildArtifactRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildArtifactRecursive3']
@@ -61186,7 +59942,6 @@ class UserIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromBuildArtifactRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromBuildArtifactRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromBuildArtifactRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromBuildArtifactRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromBuildArtifactRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromBuildArtifactRecursive4']
@@ -63275,7 +62030,6 @@ class ProductIncludeFromSession(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromSessionRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSessionRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromSessionRecursive1']
@@ -63292,7 +62046,6 @@ class ProductIncludeFromSessionRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromSessionRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSessionRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromSessionRecursive2']
@@ -63309,7 +62062,6 @@ class ProductIncludeFromSessionRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromSessionRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSessionRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromSessionRecursive3']
@@ -63326,7 +62078,6 @@ class ProductIncludeFromSessionRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromSessionRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSessionRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromSessionRecursive4']
@@ -63757,6 +62508,8 @@ class BoardRevisionIncludeFromSession(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromSessionRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromSessionRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive1']
 
 
 class BoardRevisionIncludeFromSessionRecursive1(TypedDict, total=False):
@@ -63766,6 +62519,8 @@ class BoardRevisionIncludeFromSessionRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromSessionRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromSessionRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive2']
 
 
 class BoardRevisionIncludeFromSessionRecursive2(TypedDict, total=False):
@@ -63775,6 +62530,8 @@ class BoardRevisionIncludeFromSessionRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromSessionRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromSessionRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive3']
 
 
 class BoardRevisionIncludeFromSessionRecursive3(TypedDict, total=False):
@@ -63784,6 +62541,8 @@ class BoardRevisionIncludeFromSessionRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSessionRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSessionRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromSessionRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromSessionRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive4']
 
 
 class BoardRevisionIncludeFromSessionRecursive4(TypedDict, total=False):
@@ -64942,21 +63701,25 @@ class FindManyDeviceArgsFromSessionRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive1']
 
 
 class FixtureDesignIncludeFromSessionRecursive1(TypedDict, total=False):
     """Relational arguments for Session"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive2']
 
 
 class FixtureDesignIncludeFromSessionRecursive2(TypedDict, total=False):
     """Relational arguments for Session"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive3']
 
 
 class FixtureDesignIncludeFromSessionRecursive3(TypedDict, total=False):
     """Relational arguments for Session"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSessionRecursive4']
 
 
@@ -65048,6 +63811,7 @@ class FindManyFixtureDesignArgsFromSessionRecursive4(TypedDict, total=False):
 class FixtureIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromSessionRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromSessionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive1']
@@ -65057,6 +63821,7 @@ class FixtureIncludeFromSession(TypedDict, total=False):
 class FixtureIncludeFromSessionRecursive1(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromSessionRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromSessionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive2']
@@ -65066,6 +63831,7 @@ class FixtureIncludeFromSessionRecursive1(TypedDict, total=False):
 class FixtureIncludeFromSessionRecursive2(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromSessionRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromSessionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive3']
@@ -65075,6 +63841,7 @@ class FixtureIncludeFromSessionRecursive2(TypedDict, total=False):
 class FixtureIncludeFromSessionRecursive3(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromSessionRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromSessionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive4']
@@ -65707,115 +64474,6 @@ class FindManyIcleLogArgsFromSessionRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromSession(TypedDict, total=False):
-    """Relational arguments for Session"""
-    product: Union[bool, 'ProductArgsFromSessionRecursive1']
-    createdBy: Union[bool, 'UserArgsFromSessionRecursive1']
-
-
-class DeploymentIncludeFromSessionRecursive1(TypedDict, total=False):
-    """Relational arguments for Session"""
-    product: Union[bool, 'ProductArgsFromSessionRecursive2']
-    createdBy: Union[bool, 'UserArgsFromSessionRecursive2']
-
-
-class DeploymentIncludeFromSessionRecursive2(TypedDict, total=False):
-    """Relational arguments for Session"""
-    product: Union[bool, 'ProductArgsFromSessionRecursive3']
-    createdBy: Union[bool, 'UserArgsFromSessionRecursive3']
-
-
-class DeploymentIncludeFromSessionRecursive3(TypedDict, total=False):
-    """Relational arguments for Session"""
-    product: Union[bool, 'ProductArgsFromSessionRecursive4']
-    createdBy: Union[bool, 'UserArgsFromSessionRecursive4']
-
-
-class DeploymentIncludeFromSessionRecursive4(TypedDict, total=False):
-    """Relational arguments for Session"""
-
-    
-
-class DeploymentArgsFromSession(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromSessionRecursive1(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromSessionRecursive2(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromSessionRecursive3(TypedDict, total=False):
-    """Arguments for Session"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromSessionRecursive4(TypedDict, total=False):
-    """Arguments for Session"""
-    
-    
-
-class FindManyDeploymentArgsFromSession(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromSessionRecursive1(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromSessionRecursive2(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromSessionRecursive3(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromSessionRecursive4(TypedDict, total=False):
-    """Arguments for Session"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromSession(TypedDict, total=False):
     """Relational arguments for Session"""
     product: Union[bool, 'ProductArgsFromSessionRecursive1']
@@ -66161,7 +64819,6 @@ class UserIncludeFromSession(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromSessionRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromSessionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSessionRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSessionRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSessionRecursive1']
@@ -66176,7 +64833,6 @@ class UserIncludeFromSessionRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromSessionRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromSessionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSessionRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSessionRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSessionRecursive2']
@@ -66191,7 +64847,6 @@ class UserIncludeFromSessionRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromSessionRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromSessionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSessionRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSessionRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSessionRecursive3']
@@ -66206,7 +64861,6 @@ class UserIncludeFromSessionRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromSessionRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromSessionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSessionRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSessionRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSessionRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSessionRecursive4']
@@ -68389,7 +67043,6 @@ class ProductIncludeFromDevice(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeviceRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromDeviceRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeviceRecursive1']
@@ -68406,7 +67059,6 @@ class ProductIncludeFromDeviceRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeviceRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromDeviceRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeviceRecursive2']
@@ -68423,7 +67075,6 @@ class ProductIncludeFromDeviceRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeviceRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromDeviceRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeviceRecursive3']
@@ -68440,7 +67091,6 @@ class ProductIncludeFromDeviceRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeviceRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromDeviceRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeviceRecursive4']
@@ -68871,6 +67521,8 @@ class BoardRevisionIncludeFromDevice(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromDeviceRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromDeviceRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive1']
 
 
 class BoardRevisionIncludeFromDeviceRecursive1(TypedDict, total=False):
@@ -68880,6 +67532,8 @@ class BoardRevisionIncludeFromDeviceRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromDeviceRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromDeviceRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive2']
 
 
 class BoardRevisionIncludeFromDeviceRecursive2(TypedDict, total=False):
@@ -68889,6 +67543,8 @@ class BoardRevisionIncludeFromDeviceRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromDeviceRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromDeviceRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive3']
 
 
 class BoardRevisionIncludeFromDeviceRecursive3(TypedDict, total=False):
@@ -68898,6 +67554,8 @@ class BoardRevisionIncludeFromDeviceRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeviceRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeviceRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromDeviceRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromDeviceRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive4']
 
 
 class BoardRevisionIncludeFromDeviceRecursive4(TypedDict, total=False):
@@ -70056,21 +68714,25 @@ class FindManyDeviceArgsFromDeviceRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive1']
 
 
 class FixtureDesignIncludeFromDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for Device"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive2']
 
 
 class FixtureDesignIncludeFromDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for Device"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive3']
 
 
 class FixtureDesignIncludeFromDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for Device"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromDeviceRecursive4']
 
 
@@ -70162,6 +68824,7 @@ class FindManyFixtureDesignArgsFromDeviceRecursive4(TypedDict, total=False):
 class FixtureIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromDeviceRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromDeviceRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive1']
@@ -70171,6 +68834,7 @@ class FixtureIncludeFromDevice(TypedDict, total=False):
 class FixtureIncludeFromDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromDeviceRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromDeviceRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive2']
@@ -70180,6 +68844,7 @@ class FixtureIncludeFromDeviceRecursive1(TypedDict, total=False):
 class FixtureIncludeFromDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromDeviceRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromDeviceRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive3']
@@ -70189,6 +68854,7 @@ class FixtureIncludeFromDeviceRecursive2(TypedDict, total=False):
 class FixtureIncludeFromDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromDeviceRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromDeviceRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive4']
@@ -70821,115 +69487,6 @@ class FindManyIcleLogArgsFromDeviceRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromDevice(TypedDict, total=False):
-    """Relational arguments for Device"""
-    product: Union[bool, 'ProductArgsFromDeviceRecursive1']
-    createdBy: Union[bool, 'UserArgsFromDeviceRecursive1']
-
-
-class DeploymentIncludeFromDeviceRecursive1(TypedDict, total=False):
-    """Relational arguments for Device"""
-    product: Union[bool, 'ProductArgsFromDeviceRecursive2']
-    createdBy: Union[bool, 'UserArgsFromDeviceRecursive2']
-
-
-class DeploymentIncludeFromDeviceRecursive2(TypedDict, total=False):
-    """Relational arguments for Device"""
-    product: Union[bool, 'ProductArgsFromDeviceRecursive3']
-    createdBy: Union[bool, 'UserArgsFromDeviceRecursive3']
-
-
-class DeploymentIncludeFromDeviceRecursive3(TypedDict, total=False):
-    """Relational arguments for Device"""
-    product: Union[bool, 'ProductArgsFromDeviceRecursive4']
-    createdBy: Union[bool, 'UserArgsFromDeviceRecursive4']
-
-
-class DeploymentIncludeFromDeviceRecursive4(TypedDict, total=False):
-    """Relational arguments for Device"""
-
-    
-
-class DeploymentArgsFromDevice(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromDeviceRecursive1(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromDeviceRecursive2(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromDeviceRecursive3(TypedDict, total=False):
-    """Arguments for Device"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromDeviceRecursive4(TypedDict, total=False):
-    """Arguments for Device"""
-    
-    
-
-class FindManyDeploymentArgsFromDevice(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromDeviceRecursive1(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromDeviceRecursive2(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromDeviceRecursive3(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromDeviceRecursive4(TypedDict, total=False):
-    """Arguments for Device"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromDevice(TypedDict, total=False):
     """Relational arguments for Device"""
     product: Union[bool, 'ProductArgsFromDeviceRecursive1']
@@ -71275,7 +69832,6 @@ class UserIncludeFromDevice(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromDeviceRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromDeviceRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeviceRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromDeviceRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeviceRecursive1']
@@ -71290,7 +69846,6 @@ class UserIncludeFromDeviceRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromDeviceRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromDeviceRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeviceRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromDeviceRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeviceRecursive2']
@@ -71305,7 +69860,6 @@ class UserIncludeFromDeviceRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromDeviceRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromDeviceRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeviceRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromDeviceRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeviceRecursive3']
@@ -71320,7 +69874,6 @@ class UserIncludeFromDeviceRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromDeviceRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromDeviceRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeviceRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeviceRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromDeviceRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeviceRecursive4']
@@ -72917,6 +71470,7 @@ DeviceRelationalFieldKeys = Literal[
 class FixtureDesignOptionalCreateInput(TypedDict, total=False):
     """Optional arguments to the FixtureDesign create method"""
     id: _str
+    boardRevisionId: _str
     capabilities: List[_str]
     schematicUrl: Optional[_str]
     bomUrl: Optional[_str]
@@ -72924,13 +71478,13 @@ class FixtureDesignOptionalCreateInput(TypedDict, total=False):
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    boardRevision: 'BoardRevisionCreateNestedWithoutRelationsInput'
     fixtures: 'FixtureCreateManyNestedWithoutRelationsInput'
 
 
 class FixtureDesignCreateInput(FixtureDesignOptionalCreateInput):
     """Required arguments to the FixtureDesign create method"""
     name: _str
-    product: _str
     revision: _str
     profileTemplate: 'fields.Json'
 
@@ -72941,6 +71495,7 @@ class FixtureDesignCreateInput(FixtureDesignOptionalCreateInput):
 class FixtureDesignOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     """Optional arguments to the FixtureDesign create method, without relations"""
     id: _str
+    boardRevisionId: _str
     capabilities: List[_str]
     schematicUrl: Optional[_str]
     bomUrl: Optional[_str]
@@ -72953,7 +71508,6 @@ class FixtureDesignOptionalCreateWithoutRelationsInput(TypedDict, total=False):
 class FixtureDesignCreateWithoutRelationsInput(FixtureDesignOptionalCreateWithoutRelationsInput):
     """Required arguments to the FixtureDesign create method, without relations"""
     name: _str
-    product: _str
     revision: _str
     profileTemplate: 'fields.Json'
 
@@ -72998,7 +71552,6 @@ class FixtureDesignUpdateInput(TypedDict, total=False):
     """Optional arguments for updating a record"""
     id: _str
     name: _str
-    product: _str
     revision: _str
     capabilities: 'types.StringListUpdate'
     profileTemplate: 'fields.Json'
@@ -73008,6 +71561,7 @@ class FixtureDesignUpdateInput(TypedDict, total=False):
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    boardRevision: 'BoardRevisionUpdateOneWithoutRelationsInput'
     fixtures: 'FixtureUpdateManyWithoutRelationsInput'
 
 
@@ -73015,7 +71569,6 @@ class FixtureDesignUpdateManyMutationInput(TypedDict, total=False):
     """Arguments for updating many records"""
     id: _str
     name: _str
-    product: _str
     revision: _str
     capabilities: 'types.StringListUpdate'
     profileTemplate: 'fields.Json'
@@ -73075,10 +71628,10 @@ _FixtureDesign_name_OrderByInput = TypedDict(
     total=True
 )
 
-_FixtureDesign_product_OrderByInput = TypedDict(
-    '_FixtureDesign_product_OrderByInput',
+_FixtureDesign_boardRevisionId_OrderByInput = TypedDict(
+    '_FixtureDesign_boardRevisionId_OrderByInput',
     {
-        'product': 'SortOrder',
+        'boardRevisionId': 'SortOrder',
     },
     total=True
 )
@@ -73176,7 +71729,7 @@ _FixtureDesign_RelevanceOrderByInput = TypedDict(
 FixtureDesignOrderByInput = Union[
     '_FixtureDesign_id_OrderByInput',
     '_FixtureDesign_name_OrderByInput',
-    '_FixtureDesign_product_OrderByInput',
+    '_FixtureDesign_boardRevisionId_OrderByInput',
     '_FixtureDesign_revision_OrderByInput',
     '_FixtureDesign_capabilities_OrderByInput',
     '_FixtureDesign_profileTemplate_OrderByInput',
@@ -73217,6 +71770,7 @@ class FixtureDesignListRelationFilter(TypedDict, total=False):
 
 class FixtureDesignInclude(TypedDict, total=False):
     """FixtureDesign relational arguments"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesign']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesign']
 
 
@@ -73231,7 +71785,6 @@ class ProductIncludeFromFixtureDesign(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureDesignRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureDesignRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureDesignRecursive1']
@@ -73248,7 +71801,6 @@ class ProductIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureDesignRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureDesignRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureDesignRecursive2']
@@ -73265,7 +71817,6 @@ class ProductIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureDesignRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureDesignRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureDesignRecursive3']
@@ -73282,7 +71833,6 @@ class ProductIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureDesignRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureDesignRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureDesignRecursive4']
@@ -73713,6 +72263,8 @@ class BoardRevisionIncludeFromFixtureDesign(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureDesignRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureDesignRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
@@ -73722,6 +72274,8 @@ class BoardRevisionIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureDesignRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureDesignRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
@@ -73731,6 +72285,8 @@ class BoardRevisionIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureDesignRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureDesignRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
@@ -73740,6 +72296,8 @@ class BoardRevisionIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureDesignRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureDesignRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureDesignRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureDesignRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
@@ -74898,21 +73456,25 @@ class FindManyDeviceArgsFromFixtureDesignRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive1']
 
 
 class FixtureDesignIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive2']
 
 
 class FixtureDesignIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive3']
 
 
 class FixtureDesignIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureDesignRecursive4']
 
 
@@ -75004,6 +73566,7 @@ class FindManyFixtureDesignArgsFromFixtureDesignRecursive4(TypedDict, total=Fals
 class FixtureIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromFixtureDesignRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureDesignRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive1']
@@ -75013,6 +73576,7 @@ class FixtureIncludeFromFixtureDesign(TypedDict, total=False):
 class FixtureIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromFixtureDesignRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureDesignRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive2']
@@ -75022,6 +73586,7 @@ class FixtureIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
 class FixtureIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromFixtureDesignRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureDesignRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive3']
@@ -75031,6 +73596,7 @@ class FixtureIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
 class FixtureIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromFixtureDesignRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureDesignRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive4']
@@ -75663,115 +74229,6 @@ class FindManyIcleLogArgsFromFixtureDesignRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromFixtureDesign(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
-    createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive1']
-
-
-class DeploymentIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
-    createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive2']
-
-
-class DeploymentIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
-    createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive3']
-
-
-class DeploymentIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-    product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
-    createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive4']
-
-
-class DeploymentIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
-    """Relational arguments for FixtureDesign"""
-
-    
-
-class DeploymentArgsFromFixtureDesign(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromFixtureDesignRecursive1(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromFixtureDesignRecursive2(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromFixtureDesignRecursive3(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromFixtureDesignRecursive4(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    
-    
-
-class FindManyDeploymentArgsFromFixtureDesign(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromFixtureDesignRecursive1(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromFixtureDesignRecursive2(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromFixtureDesignRecursive3(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromFixtureDesignRecursive4(TypedDict, total=False):
-    """Arguments for FixtureDesign"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromFixtureDesign(TypedDict, total=False):
     """Relational arguments for FixtureDesign"""
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
@@ -76117,7 +74574,6 @@ class UserIncludeFromFixtureDesign(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureDesignRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureDesignRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureDesignRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureDesignRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureDesignRecursive1']
@@ -76132,7 +74588,6 @@ class UserIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureDesignRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureDesignRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureDesignRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureDesignRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureDesignRecursive2']
@@ -76147,7 +74602,6 @@ class UserIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureDesignRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureDesignRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureDesignRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureDesignRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureDesignRecursive3']
@@ -76162,7 +74616,6 @@ class UserIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureDesignRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureDesignRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureDesignRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureDesignRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureDesignRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureDesignRecursive4']
@@ -77465,7 +75918,7 @@ class FixtureDesignWhereInput(TypedDict, total=False):
     """FixtureDesign arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     name: Union[_str, 'types.StringFilter']
-    product: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[_str, 'types.StringFilter']
     revision: Union[_str, 'types.StringFilter']
     capabilities: 'types.StringListFilter'
     profileTemplate: Union['fields.Json', 'types.JsonFilter']
@@ -77475,6 +75928,7 @@ class FixtureDesignWhereInput(TypedDict, total=False):
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    boardRevision: 'BoardRevisionRelationFilter'
     fixtures: 'FixtureListRelationFilter'
 
     # should be noted that AND and NOT should be Union['FixtureDesignWhereInputRecursive1', List['FixtureDesignWhereInputRecursive1']]
@@ -77488,7 +75942,7 @@ class FixtureDesignWhereInputRecursive1(TypedDict, total=False):
     """FixtureDesign arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     name: Union[_str, 'types.StringFilter']
-    product: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[_str, 'types.StringFilter']
     revision: Union[_str, 'types.StringFilter']
     capabilities: 'types.StringListFilter'
     profileTemplate: Union['fields.Json', 'types.JsonFilter']
@@ -77498,6 +75952,7 @@ class FixtureDesignWhereInputRecursive1(TypedDict, total=False):
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    boardRevision: 'BoardRevisionRelationFilter'
     fixtures: 'FixtureListRelationFilter'
 
     # should be noted that AND and NOT should be Union['FixtureDesignWhereInputRecursive2', List['FixtureDesignWhereInputRecursive2']]
@@ -77511,7 +75966,7 @@ class FixtureDesignWhereInputRecursive2(TypedDict, total=False):
     """FixtureDesign arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     name: Union[_str, 'types.StringFilter']
-    product: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[_str, 'types.StringFilter']
     revision: Union[_str, 'types.StringFilter']
     capabilities: 'types.StringListFilter'
     profileTemplate: Union['fields.Json', 'types.JsonFilter']
@@ -77521,6 +75976,7 @@ class FixtureDesignWhereInputRecursive2(TypedDict, total=False):
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    boardRevision: 'BoardRevisionRelationFilter'
     fixtures: 'FixtureListRelationFilter'
 
     # should be noted that AND and NOT should be Union['FixtureDesignWhereInputRecursive3', List['FixtureDesignWhereInputRecursive3']]
@@ -77534,7 +75990,7 @@ class FixtureDesignWhereInputRecursive3(TypedDict, total=False):
     """FixtureDesign arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     name: Union[_str, 'types.StringFilter']
-    product: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[_str, 'types.StringFilter']
     revision: Union[_str, 'types.StringFilter']
     capabilities: 'types.StringListFilter'
     profileTemplate: Union['fields.Json', 'types.JsonFilter']
@@ -77544,6 +76000,7 @@ class FixtureDesignWhereInputRecursive3(TypedDict, total=False):
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    boardRevision: 'BoardRevisionRelationFilter'
     fixtures: 'FixtureListRelationFilter'
 
     # should be noted that AND and NOT should be Union['FixtureDesignWhereInputRecursive4', List['FixtureDesignWhereInputRecursive4']]
@@ -77557,7 +76014,7 @@ class FixtureDesignWhereInputRecursive4(TypedDict, total=False):
     """FixtureDesign arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     name: Union[_str, 'types.StringFilter']
-    product: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[_str, 'types.StringFilter']
     revision: Union[_str, 'types.StringFilter']
     capabilities: 'types.StringListFilter'
     profileTemplate: Union['fields.Json', 'types.JsonFilter']
@@ -77567,6 +76024,7 @@ class FixtureDesignWhereInputRecursive4(TypedDict, total=False):
     notes: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
+    boardRevision: 'BoardRevisionRelationFilter'
     fixtures: 'FixtureListRelationFilter'
 
 
@@ -77580,7 +76038,7 @@ class FixtureDesignScalarWhereWithAggregatesInput(TypedDict, total=False):
     """FixtureDesign arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     name: Union[_str, 'types.StringWithAggregatesFilter']
-    product: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     revision: Union[_str, 'types.StringWithAggregatesFilter']
     capabilities: Union[_str, 'types.StringWithAggregatesFilter']
     profileTemplate: Union['fields.Json', 'types.JsonWithAggregatesFilter']
@@ -77600,7 +76058,7 @@ class FixtureDesignScalarWhereWithAggregatesInputRecursive1(TypedDict, total=Fal
     """FixtureDesign arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     name: Union[_str, 'types.StringWithAggregatesFilter']
-    product: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     revision: Union[_str, 'types.StringWithAggregatesFilter']
     capabilities: Union[_str, 'types.StringWithAggregatesFilter']
     profileTemplate: Union['fields.Json', 'types.JsonWithAggregatesFilter']
@@ -77620,7 +76078,7 @@ class FixtureDesignScalarWhereWithAggregatesInputRecursive2(TypedDict, total=Fal
     """FixtureDesign arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     name: Union[_str, 'types.StringWithAggregatesFilter']
-    product: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     revision: Union[_str, 'types.StringWithAggregatesFilter']
     capabilities: Union[_str, 'types.StringWithAggregatesFilter']
     profileTemplate: Union['fields.Json', 'types.JsonWithAggregatesFilter']
@@ -77640,7 +76098,7 @@ class FixtureDesignScalarWhereWithAggregatesInputRecursive3(TypedDict, total=Fal
     """FixtureDesign arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     name: Union[_str, 'types.StringWithAggregatesFilter']
-    product: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     revision: Union[_str, 'types.StringWithAggregatesFilter']
     capabilities: Union[_str, 'types.StringWithAggregatesFilter']
     profileTemplate: Union['fields.Json', 'types.JsonWithAggregatesFilter']
@@ -77660,7 +76118,7 @@ class FixtureDesignScalarWhereWithAggregatesInputRecursive4(TypedDict, total=Fal
     """FixtureDesign arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     name: Union[_str, 'types.StringWithAggregatesFilter']
-    product: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     revision: Union[_str, 'types.StringWithAggregatesFilter']
     capabilities: Union[_str, 'types.StringWithAggregatesFilter']
     profileTemplate: Union['fields.Json', 'types.JsonWithAggregatesFilter']
@@ -77676,7 +76134,7 @@ class FixtureDesignScalarWhereWithAggregatesInputRecursive4(TypedDict, total=Fal
 class FixtureDesignGroupByOutput(TypedDict, total=False):
     id: _str
     name: _str
-    product: _str
+    boardRevisionId: _str
     revision: _str
     capabilities: List[_str]
     profileTemplate: 'fields.Json'
@@ -77705,7 +76163,7 @@ class FixtureDesignScalarAggregateOutput(TypedDict, total=False):
     """FixtureDesign output including scalar fields"""
     id: _str
     name: _str
-    product: _str
+    boardRevisionId: _str
     revision: _str
     capabilities: List[_str]
     profileTemplate: 'fields.Json'
@@ -77725,7 +76183,7 @@ class FixtureDesignMaxAggregateInput(TypedDict, total=False):
     """FixtureDesign input for aggregating by max"""
     id: bool
     name: bool
-    product: bool
+    boardRevisionId: bool
     revision: bool
     capabilities: bool
     profileTemplate: bool
@@ -77741,7 +76199,7 @@ class FixtureDesignMinAggregateInput(TypedDict, total=False):
     """FixtureDesign input for aggregating by min"""
     id: bool
     name: bool
-    product: bool
+    boardRevisionId: bool
     revision: bool
     capabilities: bool
     profileTemplate: bool
@@ -77766,7 +76224,7 @@ FixtureDesignCountAggregateInput = TypedDict(
     {
         'id': bool,
         'name': bool,
-        'product': bool,
+        'boardRevisionId': bool,
         'revision': bool,
         'capabilities': bool,
         'profileTemplate': bool,
@@ -77786,7 +76244,7 @@ FixtureDesignCountAggregateOutput = TypedDict(
     {
         'id': int,
         'name': int,
-        'product': int,
+        'boardRevisionId': int,
         'revision': int,
         'capabilities': int,
         'profileTemplate': int,
@@ -77805,7 +76263,7 @@ FixtureDesignCountAggregateOutput = TypedDict(
 FixtureDesignKeys = Literal[
     'id',
     'name',
-    'product',
+    'boardRevisionId',
     'revision',
     'capabilities',
     'profileTemplate',
@@ -77815,12 +76273,13 @@ FixtureDesignKeys = Literal[
     'notes',
     'createdAt',
     'updatedAt',
+    'boardRevision',
     'fixtures',
 ]
 FixtureDesignScalarFieldKeys = Literal[
     'id',
     'name',
-    'product',
+    'boardRevisionId',
     'revision',
     'capabilities',
     'profileTemplate',
@@ -77834,6 +76293,7 @@ FixtureDesignScalarFieldKeys = Literal[
 FixtureDesignScalarFieldKeysT = TypeVar('FixtureDesignScalarFieldKeysT', bound=FixtureDesignScalarFieldKeys)
 
 FixtureDesignRelationalFieldKeys = Literal[
+        'boardRevision',
         'fixtures',
     ]
 
@@ -77844,6 +76304,7 @@ class FixtureOptionalCreateInput(TypedDict, total=False):
     id: _str
     stationId: Optional[_str]
     productId: _str
+    boardRevisionId: Optional[_str]
     designId: Optional[_str]
     status: 'enums.FixtureStatus'
     lockedBy: Optional[_str]
@@ -77856,6 +76317,7 @@ class FixtureOptionalCreateInput(TypedDict, total=False):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: 'ProductCreateNestedWithoutRelationsInput'
+    boardRevision: 'BoardRevisionCreateNestedWithoutRelationsInput'
     design: 'FixtureDesignCreateNestedWithoutRelationsInput'
     slots: 'FixtureSlotCreateManyNestedWithoutRelationsInput'
     sessions: 'SessionCreateManyNestedWithoutRelationsInput'
@@ -77876,6 +76338,7 @@ class FixtureOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     id: _str
     stationId: Optional[_str]
     productId: _str
+    boardRevisionId: Optional[_str]
     designId: Optional[_str]
     status: 'enums.FixtureStatus'
     lockedBy: Optional[_str]
@@ -77948,6 +76411,7 @@ class FixtureUpdateInput(TypedDict, total=False):
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: 'ProductUpdateOneWithoutRelationsInput'
+    boardRevision: 'BoardRevisionUpdateOneWithoutRelationsInput'
     design: 'FixtureDesignUpdateOneWithoutRelationsInput'
     slots: 'FixtureSlotUpdateManyWithoutRelationsInput'
     sessions: 'SessionUpdateManyWithoutRelationsInput'
@@ -78032,6 +76496,14 @@ _Fixture_productId_OrderByInput = TypedDict(
     '_Fixture_productId_OrderByInput',
     {
         'productId': 'SortOrder',
+    },
+    total=True
+)
+
+_Fixture_boardRevisionId_OrderByInput = TypedDict(
+    '_Fixture_boardRevisionId_OrderByInput',
+    {
+        'boardRevisionId': 'SortOrder',
     },
     total=True
 )
@@ -78155,6 +76627,7 @@ FixtureOrderByInput = Union[
     '_Fixture_name_OrderByInput',
     '_Fixture_stationId_OrderByInput',
     '_Fixture_productId_OrderByInput',
+    '_Fixture_boardRevisionId_OrderByInput',
     '_Fixture_type_OrderByInput',
     '_Fixture_designId_OrderByInput',
     '_Fixture_status_OrderByInput',
@@ -78199,6 +76672,7 @@ class FixtureListRelationFilter(TypedDict, total=False):
 class FixtureInclude(TypedDict, total=False):
     """Fixture relational arguments"""
     product: Union[bool, 'ProductArgsFromFixture']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixture']
     design: Union[bool, 'FixtureDesignArgsFromFixture']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixture']
     sessions: Union[bool, 'FindManySessionArgsFromFixture']
@@ -78216,7 +76690,6 @@ class ProductIncludeFromFixture(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureRecursive1']
@@ -78233,7 +76706,6 @@ class ProductIncludeFromFixtureRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureRecursive2']
@@ -78250,7 +76722,6 @@ class ProductIncludeFromFixtureRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureRecursive3']
@@ -78267,7 +76738,6 @@ class ProductIncludeFromFixtureRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureRecursive4']
@@ -78698,6 +77168,8 @@ class BoardRevisionIncludeFromFixture(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureRecursive1(TypedDict, total=False):
@@ -78707,6 +77179,8 @@ class BoardRevisionIncludeFromFixtureRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureRecursive2(TypedDict, total=False):
@@ -78716,6 +77190,8 @@ class BoardRevisionIncludeFromFixtureRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureRecursive3(TypedDict, total=False):
@@ -78725,6 +77201,8 @@ class BoardRevisionIncludeFromFixtureRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureRecursive4(TypedDict, total=False):
@@ -79883,21 +78361,25 @@ class FindManyDeviceArgsFromFixtureRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive1']
 
 
 class FixtureDesignIncludeFromFixtureRecursive1(TypedDict, total=False):
     """Relational arguments for Fixture"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive2']
 
 
 class FixtureDesignIncludeFromFixtureRecursive2(TypedDict, total=False):
     """Relational arguments for Fixture"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive3']
 
 
 class FixtureDesignIncludeFromFixtureRecursive3(TypedDict, total=False):
     """Relational arguments for Fixture"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureRecursive4']
 
 
@@ -79989,6 +78471,7 @@ class FindManyFixtureDesignArgsFromFixtureRecursive4(TypedDict, total=False):
 class FixtureIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromFixtureRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive1']
@@ -79998,6 +78481,7 @@ class FixtureIncludeFromFixture(TypedDict, total=False):
 class FixtureIncludeFromFixtureRecursive1(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromFixtureRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive2']
@@ -80007,6 +78491,7 @@ class FixtureIncludeFromFixtureRecursive1(TypedDict, total=False):
 class FixtureIncludeFromFixtureRecursive2(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromFixtureRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive3']
@@ -80016,6 +78501,7 @@ class FixtureIncludeFromFixtureRecursive2(TypedDict, total=False):
 class FixtureIncludeFromFixtureRecursive3(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromFixtureRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive4']
@@ -80648,115 +79134,6 @@ class FindManyIcleLogArgsFromFixtureRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromFixture(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    product: Union[bool, 'ProductArgsFromFixtureRecursive1']
-    createdBy: Union[bool, 'UserArgsFromFixtureRecursive1']
-
-
-class DeploymentIncludeFromFixtureRecursive1(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    product: Union[bool, 'ProductArgsFromFixtureRecursive2']
-    createdBy: Union[bool, 'UserArgsFromFixtureRecursive2']
-
-
-class DeploymentIncludeFromFixtureRecursive2(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    product: Union[bool, 'ProductArgsFromFixtureRecursive3']
-    createdBy: Union[bool, 'UserArgsFromFixtureRecursive3']
-
-
-class DeploymentIncludeFromFixtureRecursive3(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-    product: Union[bool, 'ProductArgsFromFixtureRecursive4']
-    createdBy: Union[bool, 'UserArgsFromFixtureRecursive4']
-
-
-class DeploymentIncludeFromFixtureRecursive4(TypedDict, total=False):
-    """Relational arguments for Fixture"""
-
-    
-
-class DeploymentArgsFromFixture(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromFixtureRecursive1(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromFixtureRecursive2(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromFixtureRecursive3(TypedDict, total=False):
-    """Arguments for Fixture"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromFixtureRecursive4(TypedDict, total=False):
-    """Arguments for Fixture"""
-    
-    
-
-class FindManyDeploymentArgsFromFixture(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromFixtureRecursive1(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromFixtureRecursive2(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromFixtureRecursive3(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromFixtureRecursive4(TypedDict, total=False):
-    """Arguments for Fixture"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromFixture(TypedDict, total=False):
     """Relational arguments for Fixture"""
     product: Union[bool, 'ProductArgsFromFixtureRecursive1']
@@ -81102,7 +79479,6 @@ class UserIncludeFromFixture(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureRecursive1']
@@ -81117,7 +79493,6 @@ class UserIncludeFromFixtureRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureRecursive2']
@@ -81132,7 +79507,6 @@ class UserIncludeFromFixtureRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureRecursive3']
@@ -81147,7 +79521,6 @@ class UserIncludeFromFixtureRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureRecursive4']
@@ -82452,6 +80825,7 @@ class FixtureWhereInput(TypedDict, total=False):
     name: Union[_str, 'types.StringFilter']
     stationId: Union[None, _str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
     type: 'enums.NodeType'
     designId: Union[None, _str, 'types.StringFilter']
     status: 'enums.FixtureStatus'
@@ -82465,6 +80839,7 @@ class FixtureWhereInput(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
     design: 'FixtureDesignRelationFilter'
     slots: 'FixtureSlotListRelationFilter'
     sessions: 'SessionListRelationFilter'
@@ -82483,6 +80858,7 @@ class FixtureWhereInputRecursive1(TypedDict, total=False):
     name: Union[_str, 'types.StringFilter']
     stationId: Union[None, _str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
     type: 'enums.NodeType'
     designId: Union[None, _str, 'types.StringFilter']
     status: 'enums.FixtureStatus'
@@ -82496,6 +80872,7 @@ class FixtureWhereInputRecursive1(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
     design: 'FixtureDesignRelationFilter'
     slots: 'FixtureSlotListRelationFilter'
     sessions: 'SessionListRelationFilter'
@@ -82514,6 +80891,7 @@ class FixtureWhereInputRecursive2(TypedDict, total=False):
     name: Union[_str, 'types.StringFilter']
     stationId: Union[None, _str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
     type: 'enums.NodeType'
     designId: Union[None, _str, 'types.StringFilter']
     status: 'enums.FixtureStatus'
@@ -82527,6 +80905,7 @@ class FixtureWhereInputRecursive2(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
     design: 'FixtureDesignRelationFilter'
     slots: 'FixtureSlotListRelationFilter'
     sessions: 'SessionListRelationFilter'
@@ -82545,6 +80924,7 @@ class FixtureWhereInputRecursive3(TypedDict, total=False):
     name: Union[_str, 'types.StringFilter']
     stationId: Union[None, _str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
     type: 'enums.NodeType'
     designId: Union[None, _str, 'types.StringFilter']
     status: 'enums.FixtureStatus'
@@ -82558,6 +80938,7 @@ class FixtureWhereInputRecursive3(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
     design: 'FixtureDesignRelationFilter'
     slots: 'FixtureSlotListRelationFilter'
     sessions: 'SessionListRelationFilter'
@@ -82576,6 +80957,7 @@ class FixtureWhereInputRecursive4(TypedDict, total=False):
     name: Union[_str, 'types.StringFilter']
     stationId: Union[None, _str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
+    boardRevisionId: Union[None, _str, 'types.StringFilter']
     type: 'enums.NodeType'
     designId: Union[None, _str, 'types.StringFilter']
     status: 'enums.FixtureStatus'
@@ -82589,6 +80971,7 @@ class FixtureWhereInputRecursive4(TypedDict, total=False):
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     product: 'ProductRelationFilter'
+    boardRevision: 'BoardRevisionRelationFilter'
     design: 'FixtureDesignRelationFilter'
     slots: 'FixtureSlotListRelationFilter'
     sessions: 'SessionListRelationFilter'
@@ -82607,6 +80990,7 @@ class FixtureScalarWhereWithAggregatesInput(TypedDict, total=False):
     name: Union[_str, 'types.StringWithAggregatesFilter']
     stationId: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     type: 'enums.NodeType'
     designId: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.FixtureStatus'
@@ -82631,6 +81015,7 @@ class FixtureScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
     name: Union[_str, 'types.StringWithAggregatesFilter']
     stationId: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     type: 'enums.NodeType'
     designId: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.FixtureStatus'
@@ -82655,6 +81040,7 @@ class FixtureScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
     name: Union[_str, 'types.StringWithAggregatesFilter']
     stationId: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     type: 'enums.NodeType'
     designId: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.FixtureStatus'
@@ -82679,6 +81065,7 @@ class FixtureScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
     name: Union[_str, 'types.StringWithAggregatesFilter']
     stationId: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     type: 'enums.NodeType'
     designId: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.FixtureStatus'
@@ -82703,6 +81090,7 @@ class FixtureScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
     name: Union[_str, 'types.StringWithAggregatesFilter']
     stationId: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
+    boardRevisionId: Union[_str, 'types.StringWithAggregatesFilter']
     type: 'enums.NodeType'
     designId: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.FixtureStatus'
@@ -82723,6 +81111,7 @@ class FixtureGroupByOutput(TypedDict, total=False):
     name: _str
     stationId: _str
     productId: _str
+    boardRevisionId: _str
     type: 'enums.NodeType'
     designId: _str
     status: 'enums.FixtureStatus'
@@ -82756,6 +81145,7 @@ class FixtureScalarAggregateOutput(TypedDict, total=False):
     name: _str
     stationId: _str
     productId: _str
+    boardRevisionId: _str
     type: 'enums.NodeType'
     designId: _str
     status: 'enums.FixtureStatus'
@@ -82780,6 +81170,7 @@ class FixtureMaxAggregateInput(TypedDict, total=False):
     name: bool
     stationId: bool
     productId: bool
+    boardRevisionId: bool
     type: bool
     designId: bool
     status: bool
@@ -82800,6 +81191,7 @@ class FixtureMinAggregateInput(TypedDict, total=False):
     name: bool
     stationId: bool
     productId: bool
+    boardRevisionId: bool
     type: bool
     designId: bool
     status: bool
@@ -82829,6 +81221,7 @@ FixtureCountAggregateInput = TypedDict(
         'name': bool,
         'stationId': bool,
         'productId': bool,
+        'boardRevisionId': bool,
         'type': bool,
         'designId': bool,
         'status': bool,
@@ -82853,6 +81246,7 @@ FixtureCountAggregateOutput = TypedDict(
         'name': int,
         'stationId': int,
         'productId': int,
+        'boardRevisionId': int,
         'type': int,
         'designId': int,
         'status': int,
@@ -82876,6 +81270,7 @@ FixtureKeys = Literal[
     'name',
     'stationId',
     'productId',
+    'boardRevisionId',
     'type',
     'designId',
     'status',
@@ -82889,6 +81284,7 @@ FixtureKeys = Literal[
     'createdAt',
     'updatedAt',
     'product',
+    'boardRevision',
     'design',
     'slots',
     'sessions',
@@ -82899,6 +81295,7 @@ FixtureScalarFieldKeys = Literal[
     'name',
     'stationId',
     'productId',
+    'boardRevisionId',
     'type',
     'designId',
     'status',
@@ -82916,6 +81313,7 @@ FixtureScalarFieldKeysT = TypeVar('FixtureScalarFieldKeysT', bound=FixtureScalar
 
 FixtureRelationalFieldKeys = Literal[
         'product',
+        'boardRevision',
         'design',
         'slots',
         'sessions',
@@ -83313,7 +81711,6 @@ class ProductIncludeFromFixtureSlot(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureSlotRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureSlotRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureSlotRecursive1']
@@ -83330,7 +81727,6 @@ class ProductIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureSlotRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureSlotRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureSlotRecursive2']
@@ -83347,7 +81743,6 @@ class ProductIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureSlotRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureSlotRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureSlotRecursive3']
@@ -83364,7 +81759,6 @@ class ProductIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromFixtureSlotRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureSlotRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromFixtureSlotRecursive4']
@@ -83795,6 +82189,8 @@ class BoardRevisionIncludeFromFixtureSlot(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureSlotRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureSlotRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive1']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
@@ -83804,6 +82200,8 @@ class BoardRevisionIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureSlotRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureSlotRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive2']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
@@ -83813,6 +82211,8 @@ class BoardRevisionIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureSlotRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureSlotRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive3']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
@@ -83822,6 +82222,8 @@ class BoardRevisionIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromFixtureSlotRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromFixtureSlotRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureSlotRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromFixtureSlotRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive4']
 
 
 class BoardRevisionIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
@@ -84980,21 +83382,25 @@ class FindManyDeviceArgsFromFixtureSlotRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive1']
 
 
 class FixtureDesignIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive2']
 
 
 class FixtureDesignIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive3']
 
 
 class FixtureDesignIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromFixtureSlotRecursive4']
 
 
@@ -85086,6 +83492,7 @@ class FindManyFixtureDesignArgsFromFixtureSlotRecursive4(TypedDict, total=False)
 class FixtureIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromFixtureSlotRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureSlotRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive1']
@@ -85095,6 +83502,7 @@ class FixtureIncludeFromFixtureSlot(TypedDict, total=False):
 class FixtureIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromFixtureSlotRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureSlotRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive2']
@@ -85104,6 +83512,7 @@ class FixtureIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
 class FixtureIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromFixtureSlotRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureSlotRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive3']
@@ -85113,6 +83522,7 @@ class FixtureIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
 class FixtureIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromFixtureSlotRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromFixtureSlotRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive4']
@@ -85745,115 +84155,6 @@ class FindManyIcleLogArgsFromFixtureSlotRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromFixtureSlot(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
-    createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive1']
-
-
-class DeploymentIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
-    createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive2']
-
-
-class DeploymentIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
-    createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive3']
-
-
-class DeploymentIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-    product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
-    createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive4']
-
-
-class DeploymentIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
-    """Relational arguments for FixtureSlot"""
-
-    
-
-class DeploymentArgsFromFixtureSlot(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromFixtureSlotRecursive1(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromFixtureSlotRecursive2(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromFixtureSlotRecursive3(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromFixtureSlotRecursive4(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    
-    
-
-class FindManyDeploymentArgsFromFixtureSlot(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromFixtureSlotRecursive1(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromFixtureSlotRecursive2(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromFixtureSlotRecursive3(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromFixtureSlotRecursive4(TypedDict, total=False):
-    """Arguments for FixtureSlot"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromFixtureSlot(TypedDict, total=False):
     """Relational arguments for FixtureSlot"""
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
@@ -86199,7 +84500,6 @@ class UserIncludeFromFixtureSlot(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureSlotRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureSlotRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureSlotRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureSlotRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureSlotRecursive1']
@@ -86214,7 +84514,6 @@ class UserIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureSlotRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureSlotRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureSlotRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureSlotRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureSlotRecursive2']
@@ -86229,7 +84528,6 @@ class UserIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureSlotRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureSlotRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureSlotRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureSlotRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureSlotRecursive3']
@@ -86244,7 +84542,6 @@ class UserIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromFixtureSlotRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromFixtureSlotRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromFixtureSlotRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromFixtureSlotRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromFixtureSlotRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromFixtureSlotRecursive4']
@@ -88304,7 +86601,6 @@ class ProductIncludeFromNode(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromNodeRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromNodeRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromNodeRecursive1']
@@ -88321,7 +86617,6 @@ class ProductIncludeFromNodeRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromNodeRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromNodeRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromNodeRecursive2']
@@ -88338,7 +86633,6 @@ class ProductIncludeFromNodeRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromNodeRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromNodeRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromNodeRecursive3']
@@ -88355,7 +86649,6 @@ class ProductIncludeFromNodeRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromNodeRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromNodeRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromNodeRecursive4']
@@ -88786,6 +87079,8 @@ class BoardRevisionIncludeFromNode(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromNodeRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromNodeRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive1']
 
 
 class BoardRevisionIncludeFromNodeRecursive1(TypedDict, total=False):
@@ -88795,6 +87090,8 @@ class BoardRevisionIncludeFromNodeRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromNodeRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromNodeRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive2']
 
 
 class BoardRevisionIncludeFromNodeRecursive2(TypedDict, total=False):
@@ -88804,6 +87101,8 @@ class BoardRevisionIncludeFromNodeRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromNodeRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromNodeRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive3']
 
 
 class BoardRevisionIncludeFromNodeRecursive3(TypedDict, total=False):
@@ -88813,6 +87112,8 @@ class BoardRevisionIncludeFromNodeRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromNodeRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromNodeRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromNodeRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromNodeRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive4']
 
 
 class BoardRevisionIncludeFromNodeRecursive4(TypedDict, total=False):
@@ -89971,21 +88272,25 @@ class FindManyDeviceArgsFromNodeRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive1']
 
 
 class FixtureDesignIncludeFromNodeRecursive1(TypedDict, total=False):
     """Relational arguments for Node"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive2']
 
 
 class FixtureDesignIncludeFromNodeRecursive2(TypedDict, total=False):
     """Relational arguments for Node"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive3']
 
 
 class FixtureDesignIncludeFromNodeRecursive3(TypedDict, total=False):
     """Relational arguments for Node"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromNodeRecursive4']
 
 
@@ -90077,6 +88382,7 @@ class FindManyFixtureDesignArgsFromNodeRecursive4(TypedDict, total=False):
 class FixtureIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromNodeRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromNodeRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive1']
@@ -90086,6 +88392,7 @@ class FixtureIncludeFromNode(TypedDict, total=False):
 class FixtureIncludeFromNodeRecursive1(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromNodeRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromNodeRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive2']
@@ -90095,6 +88402,7 @@ class FixtureIncludeFromNodeRecursive1(TypedDict, total=False):
 class FixtureIncludeFromNodeRecursive2(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromNodeRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromNodeRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive3']
@@ -90104,6 +88412,7 @@ class FixtureIncludeFromNodeRecursive2(TypedDict, total=False):
 class FixtureIncludeFromNodeRecursive3(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromNodeRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromNodeRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive4']
@@ -90736,115 +89045,6 @@ class FindManyIcleLogArgsFromNodeRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromNode(TypedDict, total=False):
-    """Relational arguments for Node"""
-    product: Union[bool, 'ProductArgsFromNodeRecursive1']
-    createdBy: Union[bool, 'UserArgsFromNodeRecursive1']
-
-
-class DeploymentIncludeFromNodeRecursive1(TypedDict, total=False):
-    """Relational arguments for Node"""
-    product: Union[bool, 'ProductArgsFromNodeRecursive2']
-    createdBy: Union[bool, 'UserArgsFromNodeRecursive2']
-
-
-class DeploymentIncludeFromNodeRecursive2(TypedDict, total=False):
-    """Relational arguments for Node"""
-    product: Union[bool, 'ProductArgsFromNodeRecursive3']
-    createdBy: Union[bool, 'UserArgsFromNodeRecursive3']
-
-
-class DeploymentIncludeFromNodeRecursive3(TypedDict, total=False):
-    """Relational arguments for Node"""
-    product: Union[bool, 'ProductArgsFromNodeRecursive4']
-    createdBy: Union[bool, 'UserArgsFromNodeRecursive4']
-
-
-class DeploymentIncludeFromNodeRecursive4(TypedDict, total=False):
-    """Relational arguments for Node"""
-
-    
-
-class DeploymentArgsFromNode(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromNodeRecursive1(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromNodeRecursive2(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromNodeRecursive3(TypedDict, total=False):
-    """Arguments for Node"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromNodeRecursive4(TypedDict, total=False):
-    """Arguments for Node"""
-    
-    
-
-class FindManyDeploymentArgsFromNode(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromNodeRecursive1(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromNodeRecursive2(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromNodeRecursive3(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromNodeRecursive4(TypedDict, total=False):
-    """Arguments for Node"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromNode(TypedDict, total=False):
     """Relational arguments for Node"""
     product: Union[bool, 'ProductArgsFromNodeRecursive1']
@@ -91190,7 +89390,6 @@ class UserIncludeFromNode(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromNodeRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromNodeRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromNodeRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromNodeRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromNodeRecursive1']
@@ -91205,7 +89404,6 @@ class UserIncludeFromNodeRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromNodeRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromNodeRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromNodeRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromNodeRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromNodeRecursive2']
@@ -91220,7 +89418,6 @@ class UserIncludeFromNodeRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromNodeRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromNodeRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromNodeRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromNodeRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromNodeRecursive3']
@@ -91235,7 +89432,6 @@ class UserIncludeFromNodeRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromNodeRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromNodeRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromNodeRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromNodeRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromNodeRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromNodeRecursive4']
@@ -93229,7 +91425,6 @@ class ProductIncludeFromIcleDevice(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIcleDeviceRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleDeviceRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIcleDeviceRecursive1']
@@ -93246,7 +91441,6 @@ class ProductIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIcleDeviceRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleDeviceRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIcleDeviceRecursive2']
@@ -93263,7 +91457,6 @@ class ProductIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIcleDeviceRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleDeviceRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIcleDeviceRecursive3']
@@ -93280,7 +91473,6 @@ class ProductIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIcleDeviceRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleDeviceRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIcleDeviceRecursive4']
@@ -93711,6 +91903,8 @@ class BoardRevisionIncludeFromIcleDevice(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleDeviceRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIcleDeviceRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive1']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
@@ -93720,6 +91914,8 @@ class BoardRevisionIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleDeviceRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIcleDeviceRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive2']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
@@ -93729,6 +91925,8 @@ class BoardRevisionIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleDeviceRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIcleDeviceRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive3']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
@@ -93738,6 +91936,8 @@ class BoardRevisionIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleDeviceRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleDeviceRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleDeviceRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIcleDeviceRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive4']
 
 
 class BoardRevisionIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
@@ -94896,21 +93096,25 @@ class FindManyDeviceArgsFromIcleDeviceRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive1']
 
 
 class FixtureDesignIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive2']
 
 
 class FixtureDesignIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive3']
 
 
 class FixtureDesignIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleDeviceRecursive4']
 
 
@@ -95002,6 +93206,7 @@ class FindManyFixtureDesignArgsFromIcleDeviceRecursive4(TypedDict, total=False):
 class FixtureIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromIcleDeviceRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIcleDeviceRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive1']
@@ -95011,6 +93216,7 @@ class FixtureIncludeFromIcleDevice(TypedDict, total=False):
 class FixtureIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromIcleDeviceRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIcleDeviceRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive2']
@@ -95020,6 +93226,7 @@ class FixtureIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
 class FixtureIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromIcleDeviceRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIcleDeviceRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive3']
@@ -95029,6 +93236,7 @@ class FixtureIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
 class FixtureIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromIcleDeviceRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIcleDeviceRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive4']
@@ -95661,115 +93869,6 @@ class FindManyIcleLogArgsFromIcleDeviceRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromIcleDevice(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
-    createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive1']
-
-
-class DeploymentIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
-    createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive2']
-
-
-class DeploymentIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
-    createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive3']
-
-
-class DeploymentIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-    product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
-    createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive4']
-
-
-class DeploymentIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
-    """Relational arguments for IcleDevice"""
-
-    
-
-class DeploymentArgsFromIcleDevice(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromIcleDeviceRecursive1(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromIcleDeviceRecursive2(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromIcleDeviceRecursive3(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromIcleDeviceRecursive4(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    
-    
-
-class FindManyDeploymentArgsFromIcleDevice(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromIcleDeviceRecursive1(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromIcleDeviceRecursive2(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromIcleDeviceRecursive3(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromIcleDeviceRecursive4(TypedDict, total=False):
-    """Arguments for IcleDevice"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromIcleDevice(TypedDict, total=False):
     """Relational arguments for IcleDevice"""
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
@@ -96115,7 +94214,6 @@ class UserIncludeFromIcleDevice(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIcleDeviceRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIcleDeviceRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleDeviceRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleDeviceRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleDeviceRecursive1']
@@ -96130,7 +94228,6 @@ class UserIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIcleDeviceRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIcleDeviceRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleDeviceRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleDeviceRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleDeviceRecursive2']
@@ -96145,7 +94242,6 @@ class UserIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIcleDeviceRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIcleDeviceRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleDeviceRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleDeviceRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleDeviceRecursive3']
@@ -96160,7 +94256,6 @@ class UserIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIcleDeviceRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIcleDeviceRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleDeviceRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleDeviceRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleDeviceRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleDeviceRecursive4']
@@ -98145,7 +96240,6 @@ class ProductIncludeFromIclePendingCommand(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIclePendingCommandRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIclePendingCommandRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIclePendingCommandRecursive1']
@@ -98162,7 +96256,6 @@ class ProductIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIclePendingCommandRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIclePendingCommandRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIclePendingCommandRecursive2']
@@ -98179,7 +96272,6 @@ class ProductIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIclePendingCommandRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIclePendingCommandRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIclePendingCommandRecursive3']
@@ -98196,7 +96288,6 @@ class ProductIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIclePendingCommandRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIclePendingCommandRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIclePendingCommandRecursive4']
@@ -98627,6 +96718,8 @@ class BoardRevisionIncludeFromIclePendingCommand(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIclePendingCommandRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIclePendingCommandRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive1']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
@@ -98636,6 +96729,8 @@ class BoardRevisionIncludeFromIclePendingCommandRecursive1(TypedDict, total=Fals
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIclePendingCommandRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIclePendingCommandRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive2']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
@@ -98645,6 +96740,8 @@ class BoardRevisionIncludeFromIclePendingCommandRecursive2(TypedDict, total=Fals
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIclePendingCommandRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIclePendingCommandRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive3']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
@@ -98654,6 +96751,8 @@ class BoardRevisionIncludeFromIclePendingCommandRecursive3(TypedDict, total=Fals
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIclePendingCommandRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIclePendingCommandRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIclePendingCommandRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIclePendingCommandRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive4']
 
 
 class BoardRevisionIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
@@ -99812,21 +97911,25 @@ class FindManyDeviceArgsFromIclePendingCommandRecursive4(TypedDict, total=False)
 
 class FixtureDesignIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive1']
 
 
 class FixtureDesignIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive2']
 
 
 class FixtureDesignIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive3']
 
 
 class FixtureDesignIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIclePendingCommandRecursive4']
 
 
@@ -99918,6 +98021,7 @@ class FindManyFixtureDesignArgsFromIclePendingCommandRecursive4(TypedDict, total
 class FixtureIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromIclePendingCommandRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIclePendingCommandRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive1']
@@ -99927,6 +98031,7 @@ class FixtureIncludeFromIclePendingCommand(TypedDict, total=False):
 class FixtureIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromIclePendingCommandRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIclePendingCommandRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive2']
@@ -99936,6 +98041,7 @@ class FixtureIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
 class FixtureIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromIclePendingCommandRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIclePendingCommandRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive3']
@@ -99945,6 +98051,7 @@ class FixtureIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
 class FixtureIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromIclePendingCommandRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIclePendingCommandRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive4']
@@ -100577,115 +98684,6 @@ class FindManyIcleLogArgsFromIclePendingCommandRecursive4(TypedDict, total=False
     
     
 
-class DeploymentIncludeFromIclePendingCommand(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
-    createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive1']
-
-
-class DeploymentIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
-    createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive2']
-
-
-class DeploymentIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
-    createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive3']
-
-
-class DeploymentIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-    product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
-    createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive4']
-
-
-class DeploymentIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
-    """Relational arguments for IclePendingCommand"""
-
-    
-
-class DeploymentArgsFromIclePendingCommand(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromIclePendingCommandRecursive1(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromIclePendingCommandRecursive2(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromIclePendingCommandRecursive3(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    
-    
-
-class FindManyDeploymentArgsFromIclePendingCommand(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromIclePendingCommandRecursive1(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromIclePendingCommandRecursive2(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromIclePendingCommandRecursive3(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromIclePendingCommandRecursive4(TypedDict, total=False):
-    """Arguments for IclePendingCommand"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromIclePendingCommand(TypedDict, total=False):
     """Relational arguments for IclePendingCommand"""
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
@@ -101031,7 +99029,6 @@ class UserIncludeFromIclePendingCommand(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIclePendingCommandRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIclePendingCommandRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIclePendingCommandRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIclePendingCommandRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIclePendingCommandRecursive1']
@@ -101046,7 +99043,6 @@ class UserIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIclePendingCommandRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIclePendingCommandRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIclePendingCommandRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIclePendingCommandRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIclePendingCommandRecursive2']
@@ -101061,7 +99057,6 @@ class UserIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIclePendingCommandRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIclePendingCommandRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIclePendingCommandRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIclePendingCommandRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIclePendingCommandRecursive3']
@@ -101076,7 +99071,6 @@ class UserIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIclePendingCommandRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIclePendingCommandRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIclePendingCommandRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIclePendingCommandRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIclePendingCommandRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIclePendingCommandRecursive4']
@@ -102961,7 +100955,6 @@ class ProductIncludeFromIcleLog(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIcleLogRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleLogRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIcleLogRecursive1']
@@ -102978,7 +100971,6 @@ class ProductIncludeFromIcleLogRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIcleLogRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleLogRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIcleLogRecursive2']
@@ -102995,7 +100987,6 @@ class ProductIncludeFromIcleLogRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIcleLogRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleLogRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIcleLogRecursive3']
@@ -103012,7 +101003,6 @@ class ProductIncludeFromIcleLogRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromIcleLogRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleLogRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromIcleLogRecursive4']
@@ -103443,6 +101433,8 @@ class BoardRevisionIncludeFromIcleLog(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleLogRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIcleLogRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive1']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive1(TypedDict, total=False):
@@ -103452,6 +101444,8 @@ class BoardRevisionIncludeFromIcleLogRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleLogRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIcleLogRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive2']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive2(TypedDict, total=False):
@@ -103461,6 +101455,8 @@ class BoardRevisionIncludeFromIcleLogRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleLogRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIcleLogRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive3']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive3(TypedDict, total=False):
@@ -103470,6 +101466,8 @@ class BoardRevisionIncludeFromIcleLogRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromIcleLogRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromIcleLogRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleLogRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromIcleLogRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive4']
 
 
 class BoardRevisionIncludeFromIcleLogRecursive4(TypedDict, total=False):
@@ -104628,21 +102626,25 @@ class FindManyDeviceArgsFromIcleLogRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive1']
 
 
 class FixtureDesignIncludeFromIcleLogRecursive1(TypedDict, total=False):
     """Relational arguments for IcleLog"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive2']
 
 
 class FixtureDesignIncludeFromIcleLogRecursive2(TypedDict, total=False):
     """Relational arguments for IcleLog"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive3']
 
 
 class FixtureDesignIncludeFromIcleLogRecursive3(TypedDict, total=False):
     """Relational arguments for IcleLog"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromIcleLogRecursive4']
 
 
@@ -104734,6 +102736,7 @@ class FindManyFixtureDesignArgsFromIcleLogRecursive4(TypedDict, total=False):
 class FixtureIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromIcleLogRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIcleLogRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive1']
@@ -104743,6 +102746,7 @@ class FixtureIncludeFromIcleLog(TypedDict, total=False):
 class FixtureIncludeFromIcleLogRecursive1(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromIcleLogRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIcleLogRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive2']
@@ -104752,6 +102756,7 @@ class FixtureIncludeFromIcleLogRecursive1(TypedDict, total=False):
 class FixtureIncludeFromIcleLogRecursive2(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromIcleLogRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIcleLogRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive3']
@@ -104761,6 +102766,7 @@ class FixtureIncludeFromIcleLogRecursive2(TypedDict, total=False):
 class FixtureIncludeFromIcleLogRecursive3(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromIcleLogRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromIcleLogRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive4']
@@ -105393,115 +103399,6 @@ class FindManyIcleLogArgsFromIcleLogRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromIcleLog(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
-    createdBy: Union[bool, 'UserArgsFromIcleLogRecursive1']
-
-
-class DeploymentIncludeFromIcleLogRecursive1(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
-    createdBy: Union[bool, 'UserArgsFromIcleLogRecursive2']
-
-
-class DeploymentIncludeFromIcleLogRecursive2(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
-    createdBy: Union[bool, 'UserArgsFromIcleLogRecursive3']
-
-
-class DeploymentIncludeFromIcleLogRecursive3(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-    product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
-    createdBy: Union[bool, 'UserArgsFromIcleLogRecursive4']
-
-
-class DeploymentIncludeFromIcleLogRecursive4(TypedDict, total=False):
-    """Relational arguments for IcleLog"""
-
-    
-
-class DeploymentArgsFromIcleLog(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromIcleLogRecursive1(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromIcleLogRecursive2(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromIcleLogRecursive3(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromIcleLogRecursive4(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    
-    
-
-class FindManyDeploymentArgsFromIcleLog(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromIcleLogRecursive1(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromIcleLogRecursive2(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromIcleLogRecursive3(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromIcleLogRecursive4(TypedDict, total=False):
-    """Arguments for IcleLog"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromIcleLog(TypedDict, total=False):
     """Relational arguments for IcleLog"""
     product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
@@ -105847,7 +103744,6 @@ class UserIncludeFromIcleLog(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIcleLogRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIcleLogRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleLogRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleLogRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleLogRecursive1']
@@ -105862,7 +103758,6 @@ class UserIncludeFromIcleLogRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIcleLogRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIcleLogRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleLogRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleLogRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleLogRecursive2']
@@ -105877,7 +103772,6 @@ class UserIncludeFromIcleLogRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIcleLogRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIcleLogRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleLogRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleLogRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleLogRecursive3']
@@ -105892,7 +103786,6 @@ class UserIncludeFromIcleLogRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromIcleLogRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromIcleLogRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromIcleLogRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromIcleLogRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromIcleLogRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromIcleLogRecursive4']
@@ -107480,4833 +105373,6 @@ IcleLogRelationalFieldKeys = Literal[
         'device',
     ]
 
-# Deployment types
-
-class DeploymentOptionalCreateInput(TypedDict, total=False):
-    """Optional arguments to the Deployment create method"""
-    id: _str
-    productId: Optional[_str]
-    status: 'enums.DeploymentStatus'
-    config: Optional['fields.Json']
-    version: Optional[_str]
-    createdById: Optional[_str]
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    product: 'ProductCreateNestedWithoutRelationsInput'
-    createdBy: 'UserCreateNestedWithoutRelationsInput'
-
-
-class DeploymentCreateInput(DeploymentOptionalCreateInput):
-    """Required arguments to the Deployment create method"""
-    name: _str
-
-
-# TODO: remove this in favour of without explicit relations
-# e.g. PostCreateWithoutAuthorInput
-
-class DeploymentOptionalCreateWithoutRelationsInput(TypedDict, total=False):
-    """Optional arguments to the Deployment create method, without relations"""
-    id: _str
-    productId: Optional[_str]
-    status: 'enums.DeploymentStatus'
-    config: Optional['fields.Json']
-    version: Optional[_str]
-    createdById: Optional[_str]
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-
-
-class DeploymentCreateWithoutRelationsInput(DeploymentOptionalCreateWithoutRelationsInput):
-    """Required arguments to the Deployment create method, without relations"""
-    name: _str
-
-class DeploymentConnectOrCreateWithoutRelationsInput(TypedDict):
-    create: 'DeploymentCreateWithoutRelationsInput'
-    where: 'DeploymentWhereUniqueInput'
-
-class DeploymentCreateNestedWithoutRelationsInput(TypedDict, total=False):
-    create: 'DeploymentCreateWithoutRelationsInput'
-    connect: 'DeploymentWhereUniqueInput'
-    connect_or_create: 'DeploymentConnectOrCreateWithoutRelationsInput'
-
-
-class DeploymentCreateManyNestedWithoutRelationsInput(TypedDict, total=False):
-    create: Union['DeploymentCreateWithoutRelationsInput', List['DeploymentCreateWithoutRelationsInput']]
-    connect: Union['DeploymentWhereUniqueInput', List['DeploymentWhereUniqueInput']]
-    connect_or_create: Union['DeploymentConnectOrCreateWithoutRelationsInput', List['DeploymentConnectOrCreateWithoutRelationsInput']]
-
-_DeploymentWhereUnique_id_Input = TypedDict(
-    '_DeploymentWhereUnique_id_Input',
-    {
-        'id': '_str',
-    },
-    total=True
-)
-
-DeploymentWhereUniqueInput = _DeploymentWhereUnique_id_Input
-
-
-class DeploymentUpdateInput(TypedDict, total=False):
-    """Optional arguments for updating a record"""
-    id: _str
-    name: _str
-    status: 'enums.DeploymentStatus'
-    config: Optional['fields.Json']
-    version: Optional[_str]
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    product: 'ProductUpdateOneWithoutRelationsInput'
-    createdBy: 'UserUpdateOneWithoutRelationsInput'
-
-
-class DeploymentUpdateManyMutationInput(TypedDict, total=False):
-    """Arguments for updating many records"""
-    id: _str
-    name: _str
-    status: 'enums.DeploymentStatus'
-    config: Optional['fields.Json']
-    version: Optional[_str]
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-
-
-class DeploymentUpdateManyWithoutRelationsInput(TypedDict, total=False):
-    create: List['DeploymentCreateWithoutRelationsInput']
-    connect: List['DeploymentWhereUniqueInput']
-    connect_or_create: List['DeploymentConnectOrCreateWithoutRelationsInput']
-    set: List['DeploymentWhereUniqueInput']
-    disconnect: List['DeploymentWhereUniqueInput']
-    delete: List['DeploymentWhereUniqueInput']
-
-    # TODO
-    # update: List['DeploymentUpdateWithWhereUniqueWithoutRelationsInput']
-    # updateMany: List['DeploymentUpdateManyWithWhereUniqueWithoutRelationsInput']
-    # deleteMany: List['DeploymentScalarWhereInput']
-    # upsert: List['DeploymentUpserteWithWhereUniqueWithoutRelationsInput']
-
-
-class DeploymentUpdateOneWithoutRelationsInput(TypedDict, total=False):
-    create: 'DeploymentCreateWithoutRelationsInput'
-    connect: 'DeploymentWhereUniqueInput'
-    connect_or_create: 'DeploymentConnectOrCreateWithoutRelationsInput'
-    disconnect: bool
-    delete: bool
-
-    # TODO
-    # update: 'DeploymentUpdateInput'
-    # upsert: 'DeploymentUpsertWithoutRelationsInput'
-
-
-class DeploymentUpsertInput(TypedDict):
-    create: 'DeploymentCreateInput'
-    update: 'DeploymentUpdateInput'  # pyright: ignore[reportIncompatibleMethodOverride]
-
-
-_Deployment_id_OrderByInput = TypedDict(
-    '_Deployment_id_OrderByInput',
-    {
-        'id': 'SortOrder',
-    },
-    total=True
-)
-
-_Deployment_name_OrderByInput = TypedDict(
-    '_Deployment_name_OrderByInput',
-    {
-        'name': 'SortOrder',
-    },
-    total=True
-)
-
-_Deployment_productId_OrderByInput = TypedDict(
-    '_Deployment_productId_OrderByInput',
-    {
-        'productId': 'SortOrder',
-    },
-    total=True
-)
-
-_Deployment_status_OrderByInput = TypedDict(
-    '_Deployment_status_OrderByInput',
-    {
-        'status': 'SortOrder',
-    },
-    total=True
-)
-
-_Deployment_config_OrderByInput = TypedDict(
-    '_Deployment_config_OrderByInput',
-    {
-        'config': 'SortOrder',
-    },
-    total=True
-)
-
-_Deployment_version_OrderByInput = TypedDict(
-    '_Deployment_version_OrderByInput',
-    {
-        'version': 'SortOrder',
-    },
-    total=True
-)
-
-_Deployment_createdById_OrderByInput = TypedDict(
-    '_Deployment_createdById_OrderByInput',
-    {
-        'createdById': 'SortOrder',
-    },
-    total=True
-)
-
-_Deployment_createdAt_OrderByInput = TypedDict(
-    '_Deployment_createdAt_OrderByInput',
-    {
-        'createdAt': 'SortOrder',
-    },
-    total=True
-)
-
-_Deployment_updatedAt_OrderByInput = TypedDict(
-    '_Deployment_updatedAt_OrderByInput',
-    {
-        'updatedAt': 'SortOrder',
-    },
-    total=True
-)
-
-_Deployment_RelevanceInner = TypedDict(
-    '_Deployment_RelevanceInner',
-    {
-        'fields': 'List[DeploymentScalarFieldKeys]',
-        'search': 'str',
-        'sort': 'SortOrder',
-    },
-    total=True
-)
-
-_Deployment_RelevanceOrderByInput = TypedDict(
-    '_Deployment_RelevanceOrderByInput',
-    {
-        '_relevance': '_Deployment_RelevanceInner',
-    },
-    total=True
-)
-
-DeploymentOrderByInput = Union[
-    '_Deployment_id_OrderByInput',
-    '_Deployment_name_OrderByInput',
-    '_Deployment_productId_OrderByInput',
-    '_Deployment_status_OrderByInput',
-    '_Deployment_config_OrderByInput',
-    '_Deployment_version_OrderByInput',
-    '_Deployment_createdById_OrderByInput',
-    '_Deployment_createdAt_OrderByInput',
-    '_Deployment_updatedAt_OrderByInput',
-    '_Deployment_RelevanceOrderByInput',
-]
-
-
-
-# recursive Deployment types
-# TODO: cleanup these types
-
-
-# Dict[str, Any] is a mypy limitation
-# see https://github.com/RobertCraigie/prisma-client-py/issues/45
-# switch to pyright for improved types, see https://prisma-client-py.readthedocs.io/en/stable/reference/limitations/
-
-DeploymentRelationFilter = TypedDict(
-    'DeploymentRelationFilter',
-    {
-        'is': 'Dict[str, Any]',
-        'is_not': 'Dict[str, Any]',
-    },
-    total=False,
-)
-
-
-class DeploymentListRelationFilter(TypedDict, total=False):
-    some: 'Dict[str, Any]'
-    none: 'Dict[str, Any]'
-    every: 'Dict[str, Any]'
-
-
-class DeploymentInclude(TypedDict, total=False):
-    """Deployment relational arguments"""
-    product: Union[bool, 'ProductArgsFromDeployment']
-    createdBy: Union[bool, 'UserArgsFromDeployment']
-
-
-    
-
-class ProductIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boards: Union[bool, 'FindManyBoardArgsFromDeploymentRecursive1']
-    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive1']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive1']
-    tests: Union[bool, 'FindManyTestArgsFromDeploymentRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive1']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive1']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive1']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive1']
-    testPackages: Union[bool, 'FindManyTestPackageArgsFromDeploymentRecursive1']
-    recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeploymentRecursive1']
-    productAccess: Union[bool, 'FindManyProductAccessArgsFromDeploymentRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive1']
-
-
-class ProductIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boards: Union[bool, 'FindManyBoardArgsFromDeploymentRecursive2']
-    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive2']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive2']
-    tests: Union[bool, 'FindManyTestArgsFromDeploymentRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive2']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive2']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive2']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive2']
-    testPackages: Union[bool, 'FindManyTestPackageArgsFromDeploymentRecursive2']
-    recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeploymentRecursive2']
-    productAccess: Union[bool, 'FindManyProductAccessArgsFromDeploymentRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive2']
-
-
-class ProductIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boards: Union[bool, 'FindManyBoardArgsFromDeploymentRecursive3']
-    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive3']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive3']
-    tests: Union[bool, 'FindManyTestArgsFromDeploymentRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive3']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive3']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive3']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive3']
-    testPackages: Union[bool, 'FindManyTestPackageArgsFromDeploymentRecursive3']
-    recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeploymentRecursive3']
-    productAccess: Union[bool, 'FindManyProductAccessArgsFromDeploymentRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive3']
-
-
-class ProductIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boards: Union[bool, 'FindManyBoardArgsFromDeploymentRecursive4']
-    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive4']
-    fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive4']
-    tests: Union[bool, 'FindManyTestArgsFromDeploymentRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive4']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive4']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive4']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive4']
-    testPackages: Union[bool, 'FindManyTestPackageArgsFromDeploymentRecursive4']
-    recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeploymentRecursive4']
-    productAccess: Union[bool, 'FindManyProductAccessArgsFromDeploymentRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive4']
-
-
-class ProductIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class ProductArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductIncludeFromProductRecursive1'
-
-
-class ProductArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductIncludeFromProductRecursive2'
-
-
-class ProductArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductIncludeFromProductRecursive3'
-
-
-class ProductArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductIncludeFromProductRecursive4'
-
-
-class ProductArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyProductArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive1'
-
-
-class FindManyProductArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive2'
-
-
-class FindManyProductArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive3'
-
-
-class FindManyProductArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    include: 'ProductIncludeFromProductRecursive4'
-
-
-class FindManyProductArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductOrderByInput', List['ProductOrderByInput']]
-    where: 'ProductWhereInput'
-    cursor: 'ProductWhereUniqueInput'
-    distinct: List['ProductScalarFieldKeys']
-    
-    
-
-class TestPackageIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive1']
-
-
-class TestPackageIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive2']
-
-
-class TestPackageIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive3']
-
-
-class TestPackageIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive4']
-
-
-class TestPackageIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class TestPackageArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestPackageIncludeFromTestPackageRecursive1'
-
-
-class TestPackageArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestPackageIncludeFromTestPackageRecursive2'
-
-
-class TestPackageArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestPackageIncludeFromTestPackageRecursive3'
-
-
-class TestPackageArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestPackageIncludeFromTestPackageRecursive4'
-
-
-class TestPackageArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyTestPackageArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestPackageOrderByInput', List['TestPackageOrderByInput']]
-    where: 'TestPackageWhereInput'
-    cursor: 'TestPackageWhereUniqueInput'
-    distinct: List['TestPackageScalarFieldKeys']
-    include: 'TestPackageIncludeFromTestPackageRecursive1'
-
-
-class FindManyTestPackageArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestPackageOrderByInput', List['TestPackageOrderByInput']]
-    where: 'TestPackageWhereInput'
-    cursor: 'TestPackageWhereUniqueInput'
-    distinct: List['TestPackageScalarFieldKeys']
-    include: 'TestPackageIncludeFromTestPackageRecursive2'
-
-
-class FindManyTestPackageArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestPackageOrderByInput', List['TestPackageOrderByInput']]
-    where: 'TestPackageWhereInput'
-    cursor: 'TestPackageWhereUniqueInput'
-    distinct: List['TestPackageScalarFieldKeys']
-    include: 'TestPackageIncludeFromTestPackageRecursive3'
-
-
-class FindManyTestPackageArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestPackageOrderByInput', List['TestPackageOrderByInput']]
-    where: 'TestPackageWhereInput'
-    cursor: 'TestPackageWhereUniqueInput'
-    distinct: List['TestPackageScalarFieldKeys']
-    include: 'TestPackageIncludeFromTestPackageRecursive4'
-
-
-class FindManyTestPackageArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestPackageOrderByInput', List['TestPackageOrderByInput']]
-    where: 'TestPackageWhereInput'
-    cursor: 'TestPackageWhereUniqueInput'
-    distinct: List['TestPackageScalarFieldKeys']
-    
-    
-
-class ProductTargetIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive1']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive1']
-
-
-class ProductTargetIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive2']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive2']
-
-
-class ProductTargetIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive3']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive3']
-
-
-class ProductTargetIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive4']
-    firmwareBuilds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive4']
-
-
-class ProductTargetIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class ProductTargetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive1'
-
-
-class ProductTargetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive2'
-
-
-class ProductTargetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive3'
-
-
-class ProductTargetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductTargetIncludeFromProductTargetRecursive4'
-
-
-class ProductTargetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyProductTargetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive1'
-
-
-class FindManyProductTargetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive2'
-
-
-class FindManyProductTargetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive3'
-
-
-class FindManyProductTargetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    include: 'ProductTargetIncludeFromProductTargetRecursive4'
-
-
-class FindManyProductTargetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductTargetOrderByInput', List['ProductTargetOrderByInput']]
-    where: 'ProductTargetWhereInput'
-    cursor: 'ProductTargetWhereUniqueInput'
-    distinct: List['ProductTargetScalarFieldKeys']
-    
-    
-
-class BoardIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromDeploymentRecursive1']
-
-
-class BoardIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromDeploymentRecursive2']
-
-
-class BoardIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromDeploymentRecursive3']
-
-
-class BoardIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    revisions: Union[bool, 'FindManyBoardRevisionArgsFromDeploymentRecursive4']
-
-
-class BoardIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class BoardArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardIncludeFromBoardRecursive1'
-
-
-class BoardArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardIncludeFromBoardRecursive2'
-
-
-class BoardArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardIncludeFromBoardRecursive3'
-
-
-class BoardArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardIncludeFromBoardRecursive4'
-
-
-class BoardArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyBoardArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive1'
-
-
-class FindManyBoardArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive2'
-
-
-class FindManyBoardArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive3'
-
-
-class FindManyBoardArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    include: 'BoardIncludeFromBoardRecursive4'
-
-
-class FindManyBoardArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardOrderByInput', List['BoardOrderByInput']]
-    where: 'BoardWhereInput'
-    cursor: 'BoardWhereUniqueInput'
-    distinct: List['BoardScalarFieldKeys']
-    
-    
-
-class BoardRevisionIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    board: Union[bool, 'BoardArgsFromDeploymentRecursive1']
-    targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive1']
-    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive1']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive1']
-
-
-class BoardRevisionIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    board: Union[bool, 'BoardArgsFromDeploymentRecursive2']
-    targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive2']
-    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive2']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive2']
-
-
-class BoardRevisionIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    board: Union[bool, 'BoardArgsFromDeploymentRecursive3']
-    targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive3']
-    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive3']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive3']
-
-
-class BoardRevisionIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    board: Union[bool, 'BoardArgsFromDeploymentRecursive4']
-    targets: Union[bool, 'FindManyProductTargetArgsFromDeploymentRecursive4']
-    firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromDeploymentRecursive4']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive4']
-
-
-class BoardRevisionIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class BoardRevisionArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive1'
-
-
-class BoardRevisionArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive2'
-
-
-class BoardRevisionArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive3'
-
-
-class BoardRevisionArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive4'
-
-
-class BoardRevisionArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyBoardRevisionArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive1'
-
-
-class FindManyBoardRevisionArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive2'
-
-
-class FindManyBoardRevisionArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive3'
-
-
-class FindManyBoardRevisionArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    include: 'BoardRevisionIncludeFromBoardRevisionRecursive4'
-
-
-class FindManyBoardRevisionArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BoardRevisionOrderByInput', List['BoardRevisionOrderByInput']]
-    where: 'BoardRevisionWhereInput'
-    cursor: 'BoardRevisionWhereUniqueInput'
-    distinct: List['BoardRevisionScalarFieldKeys']
-    
-    
-
-class FirmwareSetIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive1']
-    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive1']
-
-
-class FirmwareSetIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive2']
-    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive2']
-
-
-class FirmwareSetIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive3']
-    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive3']
-
-
-class FirmwareSetIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive4']
-    builds: Union[bool, 'FindManyFirmwareBuildArgsFromDeploymentRecursive4']
-
-
-class FirmwareSetIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class FirmwareSetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
-
-
-class FirmwareSetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
-
-
-class FirmwareSetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
-
-
-class FirmwareSetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
-
-
-class FirmwareSetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyFirmwareSetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
-    where: 'FirmwareSetWhereInput'
-    cursor: 'FirmwareSetWhereUniqueInput'
-    distinct: List['FirmwareSetScalarFieldKeys']
-    include: 'FirmwareSetIncludeFromFirmwareSetRecursive1'
-
-
-class FindManyFirmwareSetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
-    where: 'FirmwareSetWhereInput'
-    cursor: 'FirmwareSetWhereUniqueInput'
-    distinct: List['FirmwareSetScalarFieldKeys']
-    include: 'FirmwareSetIncludeFromFirmwareSetRecursive2'
-
-
-class FindManyFirmwareSetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
-    where: 'FirmwareSetWhereInput'
-    cursor: 'FirmwareSetWhereUniqueInput'
-    distinct: List['FirmwareSetScalarFieldKeys']
-    include: 'FirmwareSetIncludeFromFirmwareSetRecursive3'
-
-
-class FindManyFirmwareSetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
-    where: 'FirmwareSetWhereInput'
-    cursor: 'FirmwareSetWhereUniqueInput'
-    distinct: List['FirmwareSetScalarFieldKeys']
-    include: 'FirmwareSetIncludeFromFirmwareSetRecursive4'
-
-
-class FindManyFirmwareSetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareSetOrderByInput', List['FirmwareSetOrderByInput']]
-    where: 'FirmwareSetWhereInput'
-    cursor: 'FirmwareSetWhereUniqueInput'
-    distinct: List['FirmwareSetScalarFieldKeys']
-    
-    
-
-class FirmwareBuildIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeploymentRecursive1']
-    target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive1']
-
-
-class FirmwareBuildIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeploymentRecursive2']
-    target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive2']
-
-
-class FirmwareBuildIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeploymentRecursive3']
-    target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive3']
-
-
-class FirmwareBuildIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    firmwareSet: Union[bool, 'FirmwareSetArgsFromDeploymentRecursive4']
-    target: Union[bool, 'ProductTargetArgsFromDeploymentRecursive4']
-
-
-class FirmwareBuildIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class FirmwareBuildArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive1'
-
-
-class FirmwareBuildArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive2'
-
-
-class FirmwareBuildArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive3'
-
-
-class FirmwareBuildArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive4'
-
-
-class FirmwareBuildArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyFirmwareBuildArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive1'
-
-
-class FindManyFirmwareBuildArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive2'
-
-
-class FindManyFirmwareBuildArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive3'
-
-
-class FindManyFirmwareBuildArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    include: 'FirmwareBuildIncludeFromFirmwareBuildRecursive4'
-
-
-class FindManyFirmwareBuildArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FirmwareBuildOrderByInput', List['FirmwareBuildOrderByInput']]
-    where: 'FirmwareBuildWhereInput'
-    cursor: 'FirmwareBuildWhereUniqueInput'
-    distinct: List['FirmwareBuildScalarFieldKeys']
-    
-    
-
-class ProductStageConfigIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive1']
-    signingKey: Union[bool, 'SecretArgsFromDeploymentRecursive1']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive1']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive1']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive1']
-    buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromDeploymentRecursive1']
-
-
-class ProductStageConfigIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive2']
-    signingKey: Union[bool, 'SecretArgsFromDeploymentRecursive2']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive2']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive2']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive2']
-    buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromDeploymentRecursive2']
-
-
-class ProductStageConfigIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive3']
-    signingKey: Union[bool, 'SecretArgsFromDeploymentRecursive3']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive3']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive3']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive3']
-    buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromDeploymentRecursive3']
-
-
-class ProductStageConfigIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive4']
-    signingKey: Union[bool, 'SecretArgsFromDeploymentRecursive4']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive4']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive4']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive4']
-    buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromDeploymentRecursive4']
-
-
-class ProductStageConfigIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class ProductStageConfigArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive1'
-
-
-class ProductStageConfigArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive2'
-
-
-class ProductStageConfigArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive3'
-
-
-class ProductStageConfigArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive4'
-
-
-class ProductStageConfigArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyProductStageConfigArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive1'
-
-
-class FindManyProductStageConfigArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive2'
-
-
-class FindManyProductStageConfigArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive3'
-
-
-class FindManyProductStageConfigArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    include: 'ProductStageConfigIncludeFromProductStageConfigRecursive4'
-
-
-class FindManyProductStageConfigArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductStageConfigOrderByInput', List['ProductStageConfigOrderByInput']]
-    where: 'ProductStageConfigWhereInput'
-    cursor: 'ProductStageConfigWhereUniqueInput'
-    distinct: List['ProductStageConfigScalarFieldKeys']
-    
-    
-
-class ValidationQueueEntryIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive1']
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive1']
-    session: Union[bool, 'SessionArgsFromDeploymentRecursive1']
-
-
-class ValidationQueueEntryIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive2']
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive2']
-    session: Union[bool, 'SessionArgsFromDeploymentRecursive2']
-
-
-class ValidationQueueEntryIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive3']
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive3']
-    session: Union[bool, 'SessionArgsFromDeploymentRecursive3']
-
-
-class ValidationQueueEntryIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive4']
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive4']
-    session: Union[bool, 'SessionArgsFromDeploymentRecursive4']
-
-
-class ValidationQueueEntryIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class ValidationQueueEntryArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive1'
-
-
-class ValidationQueueEntryArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive2'
-
-
-class ValidationQueueEntryArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive3'
-
-
-class ValidationQueueEntryArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive4'
-
-
-class ValidationQueueEntryArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyValidationQueueEntryArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive1'
-
-
-class FindManyValidationQueueEntryArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive2'
-
-
-class FindManyValidationQueueEntryArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive3'
-
-
-class FindManyValidationQueueEntryArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    include: 'ValidationQueueEntryIncludeFromValidationQueueEntryRecursive4'
-
-
-class FindManyValidationQueueEntryArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ValidationQueueEntryOrderByInput', List['ValidationQueueEntryOrderByInput']]
-    where: 'ValidationQueueEntryWhereInput'
-    cursor: 'ValidationQueueEntryWhereUniqueInput'
-    distinct: List['ValidationQueueEntryScalarFieldKeys']
-    
-    
-
-class BuildRunIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive1']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive1']
-    builds: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive1']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive1']
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive1']
-
-
-class BuildRunIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive2']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive2']
-    builds: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive2']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive2']
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive2']
-
-
-class BuildRunIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive3']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive3']
-    builds: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive3']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive3']
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive3']
-
-
-class BuildRunIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive4']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive4']
-    builds: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive4']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive4']
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive4']
-
-
-class BuildRunIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class BuildRunArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildRunIncludeFromBuildRunRecursive1'
-
-
-class BuildRunArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildRunIncludeFromBuildRunRecursive2'
-
-
-class BuildRunArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildRunIncludeFromBuildRunRecursive3'
-
-
-class BuildRunArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildRunIncludeFromBuildRunRecursive4'
-
-
-class BuildRunArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyBuildRunArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildRunOrderByInput', List['BuildRunOrderByInput']]
-    where: 'BuildRunWhereInput'
-    cursor: 'BuildRunWhereUniqueInput'
-    distinct: List['BuildRunScalarFieldKeys']
-    include: 'BuildRunIncludeFromBuildRunRecursive1'
-
-
-class FindManyBuildRunArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildRunOrderByInput', List['BuildRunOrderByInput']]
-    where: 'BuildRunWhereInput'
-    cursor: 'BuildRunWhereUniqueInput'
-    distinct: List['BuildRunScalarFieldKeys']
-    include: 'BuildRunIncludeFromBuildRunRecursive2'
-
-
-class FindManyBuildRunArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildRunOrderByInput', List['BuildRunOrderByInput']]
-    where: 'BuildRunWhereInput'
-    cursor: 'BuildRunWhereUniqueInput'
-    distinct: List['BuildRunScalarFieldKeys']
-    include: 'BuildRunIncludeFromBuildRunRecursive3'
-
-
-class FindManyBuildRunArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildRunOrderByInput', List['BuildRunOrderByInput']]
-    where: 'BuildRunWhereInput'
-    cursor: 'BuildRunWhereUniqueInput'
-    distinct: List['BuildRunScalarFieldKeys']
-    include: 'BuildRunIncludeFromBuildRunRecursive4'
-
-
-class FindManyBuildRunArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildRunOrderByInput', List['BuildRunOrderByInput']]
-    where: 'BuildRunWhereInput'
-    cursor: 'BuildRunWhereUniqueInput'
-    distinct: List['BuildRunScalarFieldKeys']
-    
-    
-
-class BuildJobIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive1']
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive1']
-    artifacts: Union[bool, 'FindManyBuildArtifactArgsFromDeploymentRecursive1']
-    reusedFrom: Union[bool, 'BuildJobArgsFromDeploymentRecursive1']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive1']
-
-
-class BuildJobIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive2']
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive2']
-    artifacts: Union[bool, 'FindManyBuildArtifactArgsFromDeploymentRecursive2']
-    reusedFrom: Union[bool, 'BuildJobArgsFromDeploymentRecursive2']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive2']
-
-
-class BuildJobIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive3']
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive3']
-    artifacts: Union[bool, 'FindManyBuildArtifactArgsFromDeploymentRecursive3']
-    reusedFrom: Union[bool, 'BuildJobArgsFromDeploymentRecursive3']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive3']
-
-
-class BuildJobIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive4']
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive4']
-    artifacts: Union[bool, 'FindManyBuildArtifactArgsFromDeploymentRecursive4']
-    reusedFrom: Union[bool, 'BuildJobArgsFromDeploymentRecursive4']
-    reusedBy: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive4']
-
-
-class BuildJobIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class BuildJobArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildJobIncludeFromBuildJobRecursive1'
-
-
-class BuildJobArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildJobIncludeFromBuildJobRecursive2'
-
-
-class BuildJobArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildJobIncludeFromBuildJobRecursive3'
-
-
-class BuildJobArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildJobIncludeFromBuildJobRecursive4'
-
-
-class BuildJobArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyBuildJobArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive1'
-
-
-class FindManyBuildJobArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive2'
-
-
-class FindManyBuildJobArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive3'
-
-
-class FindManyBuildJobArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    include: 'BuildJobIncludeFromBuildJobRecursive4'
-
-
-class FindManyBuildJobArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildJobOrderByInput', List['BuildJobOrderByInput']]
-    where: 'BuildJobWhereInput'
-    cursor: 'BuildJobWhereUniqueInput'
-    distinct: List['BuildJobScalarFieldKeys']
-    
-    
-
-class BuildArtifactIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildJob: Union[bool, 'BuildJobArgsFromDeploymentRecursive1']
-
-
-class BuildArtifactIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildJob: Union[bool, 'BuildJobArgsFromDeploymentRecursive2']
-
-
-class BuildArtifactIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildJob: Union[bool, 'BuildJobArgsFromDeploymentRecursive3']
-
-
-class BuildArtifactIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    buildJob: Union[bool, 'BuildJobArgsFromDeploymentRecursive4']
-
-
-class BuildArtifactIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class BuildArtifactArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildArtifactIncludeFromBuildArtifactRecursive1'
-
-
-class BuildArtifactArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildArtifactIncludeFromBuildArtifactRecursive2'
-
-
-class BuildArtifactArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildArtifactIncludeFromBuildArtifactRecursive3'
-
-
-class BuildArtifactArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'BuildArtifactIncludeFromBuildArtifactRecursive4'
-
-
-class BuildArtifactArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyBuildArtifactArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildArtifactOrderByInput', List['BuildArtifactOrderByInput']]
-    where: 'BuildArtifactWhereInput'
-    cursor: 'BuildArtifactWhereUniqueInput'
-    distinct: List['BuildArtifactScalarFieldKeys']
-    include: 'BuildArtifactIncludeFromBuildArtifactRecursive1'
-
-
-class FindManyBuildArtifactArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildArtifactOrderByInput', List['BuildArtifactOrderByInput']]
-    where: 'BuildArtifactWhereInput'
-    cursor: 'BuildArtifactWhereUniqueInput'
-    distinct: List['BuildArtifactScalarFieldKeys']
-    include: 'BuildArtifactIncludeFromBuildArtifactRecursive2'
-
-
-class FindManyBuildArtifactArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildArtifactOrderByInput', List['BuildArtifactOrderByInput']]
-    where: 'BuildArtifactWhereInput'
-    cursor: 'BuildArtifactWhereUniqueInput'
-    distinct: List['BuildArtifactScalarFieldKeys']
-    include: 'BuildArtifactIncludeFromBuildArtifactRecursive3'
-
-
-class FindManyBuildArtifactArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildArtifactOrderByInput', List['BuildArtifactOrderByInput']]
-    where: 'BuildArtifactWhereInput'
-    cursor: 'BuildArtifactWhereUniqueInput'
-    distinct: List['BuildArtifactScalarFieldKeys']
-    include: 'BuildArtifactIncludeFromBuildArtifactRecursive4'
-
-
-class FindManyBuildArtifactArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['BuildArtifactOrderByInput', List['BuildArtifactOrderByInput']]
-    where: 'BuildArtifactWhereInput'
-    cursor: 'BuildArtifactWhereUniqueInput'
-    distinct: List['BuildArtifactScalarFieldKeys']
-    
-    
-
-class SessionIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive1']
-    pipeline: Union[bool, 'BuildRunArgsFromDeploymentRecursive1']
-    testPackage: Union[bool, 'TestPackageArgsFromDeploymentRecursive1']
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive1']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive1']
-    devices: Union[bool, 'FindManyDeviceArgsFromDeploymentRecursive1']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromDeploymentRecursive1']
-
-
-class SessionIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive2']
-    pipeline: Union[bool, 'BuildRunArgsFromDeploymentRecursive2']
-    testPackage: Union[bool, 'TestPackageArgsFromDeploymentRecursive2']
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive2']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive2']
-    devices: Union[bool, 'FindManyDeviceArgsFromDeploymentRecursive2']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromDeploymentRecursive2']
-
-
-class SessionIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive3']
-    pipeline: Union[bool, 'BuildRunArgsFromDeploymentRecursive3']
-    testPackage: Union[bool, 'TestPackageArgsFromDeploymentRecursive3']
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive3']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive3']
-    devices: Union[bool, 'FindManyDeviceArgsFromDeploymentRecursive3']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromDeploymentRecursive3']
-
-
-class SessionIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive4']
-    pipeline: Union[bool, 'BuildRunArgsFromDeploymentRecursive4']
-    testPackage: Union[bool, 'TestPackageArgsFromDeploymentRecursive4']
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive4']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive4']
-    devices: Union[bool, 'FindManyDeviceArgsFromDeploymentRecursive4']
-    queueEntry: Union[bool, 'ValidationQueueEntryArgsFromDeploymentRecursive4']
-
-
-class SessionIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class SessionArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'SessionIncludeFromSessionRecursive1'
-
-
-class SessionArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'SessionIncludeFromSessionRecursive2'
-
-
-class SessionArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'SessionIncludeFromSessionRecursive3'
-
-
-class SessionArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'SessionIncludeFromSessionRecursive4'
-
-
-class SessionArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManySessionArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive1'
-
-
-class FindManySessionArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive2'
-
-
-class FindManySessionArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive3'
-
-
-class FindManySessionArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    include: 'SessionIncludeFromSessionRecursive4'
-
-
-class FindManySessionArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['SessionOrderByInput', List['SessionOrderByInput']]
-    where: 'SessionWhereInput'
-    cursor: 'SessionWhereUniqueInput'
-    distinct: List['SessionScalarFieldKeys']
-    
-    
-
-class DeviceIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    session: Union[bool, 'SessionArgsFromDeploymentRecursive1']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive1']
-
-
-class DeviceIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    session: Union[bool, 'SessionArgsFromDeploymentRecursive2']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive2']
-
-
-class DeviceIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    session: Union[bool, 'SessionArgsFromDeploymentRecursive3']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive3']
-
-
-class DeviceIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    session: Union[bool, 'SessionArgsFromDeploymentRecursive4']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive4']
-
-
-class DeviceIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class DeviceArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'DeviceIncludeFromDeviceRecursive1'
-
-
-class DeviceArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'DeviceIncludeFromDeviceRecursive2'
-
-
-class DeviceArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'DeviceIncludeFromDeviceRecursive3'
-
-
-class DeviceArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'DeviceIncludeFromDeviceRecursive4'
-
-
-class DeviceArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyDeviceArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive1'
-
-
-class FindManyDeviceArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive2'
-
-
-class FindManyDeviceArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive3'
-
-
-class FindManyDeviceArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    include: 'DeviceIncludeFromDeviceRecursive4'
-
-
-class FindManyDeviceArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['DeviceOrderByInput', List['DeviceOrderByInput']]
-    where: 'DeviceWhereInput'
-    cursor: 'DeviceWhereUniqueInput'
-    distinct: List['DeviceScalarFieldKeys']
-    
-    
-
-class FixtureDesignIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive1']
-
-
-class FixtureDesignIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive2']
-
-
-class FixtureDesignIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive3']
-
-
-class FixtureDesignIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixtures: Union[bool, 'FindManyFixtureArgsFromDeploymentRecursive4']
-
-
-class FixtureDesignIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class FixtureDesignArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive1'
-
-
-class FixtureDesignArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive2'
-
-
-class FixtureDesignArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive3'
-
-
-class FixtureDesignArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive4'
-
-
-class FixtureDesignArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyFixtureDesignArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive1'
-
-
-class FindManyFixtureDesignArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive2'
-
-
-class FindManyFixtureDesignArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive3'
-
-
-class FindManyFixtureDesignArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    include: 'FixtureDesignIncludeFromFixtureDesignRecursive4'
-
-
-class FindManyFixtureDesignArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureDesignOrderByInput', List['FixtureDesignOrderByInput']]
-    where: 'FixtureDesignWhereInput'
-    cursor: 'FixtureDesignWhereUniqueInput'
-    distinct: List['FixtureDesignScalarFieldKeys']
-    
-    
-
-class FixtureIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    design: Union[bool, 'FixtureDesignArgsFromDeploymentRecursive1']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromDeploymentRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive1']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive1']
-
-
-class FixtureIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    design: Union[bool, 'FixtureDesignArgsFromDeploymentRecursive2']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromDeploymentRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive2']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive2']
-
-
-class FixtureIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    design: Union[bool, 'FixtureDesignArgsFromDeploymentRecursive3']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromDeploymentRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive3']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive3']
-
-
-class FixtureIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    design: Union[bool, 'FixtureDesignArgsFromDeploymentRecursive4']
-    slots: Union[bool, 'FindManyFixtureSlotArgsFromDeploymentRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive4']
-    queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeploymentRecursive4']
-
-
-class FixtureIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class FixtureArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureIncludeFromFixtureRecursive1'
-
-
-class FixtureArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureIncludeFromFixtureRecursive2'
-
-
-class FixtureArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureIncludeFromFixtureRecursive3'
-
-
-class FixtureArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureIncludeFromFixtureRecursive4'
-
-
-class FixtureArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyFixtureArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive1'
-
-
-class FindManyFixtureArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive2'
-
-
-class FindManyFixtureArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive3'
-
-
-class FindManyFixtureArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    include: 'FixtureIncludeFromFixtureRecursive4'
-
-
-class FindManyFixtureArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureOrderByInput', List['FixtureOrderByInput']]
-    where: 'FixtureWhereInput'
-    cursor: 'FixtureWhereUniqueInput'
-    distinct: List['FixtureScalarFieldKeys']
-    
-    
-
-class FixtureSlotIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive1']
-    node: Union[bool, 'NodeArgsFromDeploymentRecursive1']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive1']
-
-
-class FixtureSlotIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive2']
-    node: Union[bool, 'NodeArgsFromDeploymentRecursive2']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive2']
-
-
-class FixtureSlotIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive3']
-    node: Union[bool, 'NodeArgsFromDeploymentRecursive3']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive3']
-
-
-class FixtureSlotIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixture: Union[bool, 'FixtureArgsFromDeploymentRecursive4']
-    node: Union[bool, 'NodeArgsFromDeploymentRecursive4']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive4']
-
-
-class FixtureSlotIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class FixtureSlotArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive1'
-
-
-class FixtureSlotArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive2'
-
-
-class FixtureSlotArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive3'
-
-
-class FixtureSlotArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive4'
-
-
-class FixtureSlotArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyFixtureSlotArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive1'
-
-
-class FindManyFixtureSlotArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive2'
-
-
-class FindManyFixtureSlotArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive3'
-
-
-class FindManyFixtureSlotArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    include: 'FixtureSlotIncludeFromFixtureSlotRecursive4'
-
-
-class FindManyFixtureSlotArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['FixtureSlotOrderByInput', List['FixtureSlotOrderByInput']]
-    where: 'FixtureSlotWhereInput'
-    cursor: 'FixtureSlotWhereUniqueInput'
-    distinct: List['FixtureSlotScalarFieldKeys']
-    
-    
-
-class NodeIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromDeploymentRecursive1']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive1']
-
-
-class NodeIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromDeploymentRecursive2']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive2']
-
-
-class NodeIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromDeploymentRecursive3']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive3']
-
-
-class NodeIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    fixtureSlot: Union[bool, 'FixtureSlotArgsFromDeploymentRecursive4']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive4']
-
-
-class NodeIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class NodeArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'NodeIncludeFromNodeRecursive1'
-
-
-class NodeArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'NodeIncludeFromNodeRecursive2'
-
-
-class NodeArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'NodeIncludeFromNodeRecursive3'
-
-
-class NodeArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'NodeIncludeFromNodeRecursive4'
-
-
-class NodeArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyNodeArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive1'
-
-
-class FindManyNodeArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive2'
-
-
-class FindManyNodeArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive3'
-
-
-class FindManyNodeArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    include: 'NodeIncludeFromNodeRecursive4'
-
-
-class FindManyNodeArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['NodeOrderByInput', List['NodeOrderByInput']]
-    where: 'NodeWhereInput'
-    cursor: 'NodeWhereUniqueInput'
-    distinct: List['NodeScalarFieldKeys']
-    
-    
-
-class IcleDeviceIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromDeploymentRecursive1']
-    logs: Union[bool, 'FindManyIcleLogArgsFromDeploymentRecursive1']
-
-
-class IcleDeviceIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromDeploymentRecursive2']
-    logs: Union[bool, 'FindManyIcleLogArgsFromDeploymentRecursive2']
-
-
-class IcleDeviceIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromDeploymentRecursive3']
-    logs: Union[bool, 'FindManyIcleLogArgsFromDeploymentRecursive3']
-
-
-class IcleDeviceIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    commands: Union[bool, 'FindManyIclePendingCommandArgsFromDeploymentRecursive4']
-    logs: Union[bool, 'FindManyIcleLogArgsFromDeploymentRecursive4']
-
-
-class IcleDeviceIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class IcleDeviceArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive1'
-
-
-class IcleDeviceArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive2'
-
-
-class IcleDeviceArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive3'
-
-
-class IcleDeviceArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive4'
-
-
-class IcleDeviceArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyIcleDeviceArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive1'
-
-
-class FindManyIcleDeviceArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive2'
-
-
-class FindManyIcleDeviceArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive3'
-
-
-class FindManyIcleDeviceArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    include: 'IcleDeviceIncludeFromIcleDeviceRecursive4'
-
-
-class FindManyIcleDeviceArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IcleDeviceOrderByInput', List['IcleDeviceOrderByInput']]
-    where: 'IcleDeviceWhereInput'
-    cursor: 'IcleDeviceWhereUniqueInput'
-    distinct: List['IcleDeviceScalarFieldKeys']
-    
-    
-
-class IclePendingCommandIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    device: Union[bool, 'IcleDeviceArgsFromDeploymentRecursive1']
-
-
-class IclePendingCommandIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    device: Union[bool, 'IcleDeviceArgsFromDeploymentRecursive2']
-
-
-class IclePendingCommandIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    device: Union[bool, 'IcleDeviceArgsFromDeploymentRecursive3']
-
-
-class IclePendingCommandIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    device: Union[bool, 'IcleDeviceArgsFromDeploymentRecursive4']
-
-
-class IclePendingCommandIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class IclePendingCommandArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive1'
-
-
-class IclePendingCommandArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive2'
-
-
-class IclePendingCommandArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive3'
-
-
-class IclePendingCommandArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive4'
-
-
-class IclePendingCommandArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyIclePendingCommandArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive1'
-
-
-class FindManyIclePendingCommandArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive2'
-
-
-class FindManyIclePendingCommandArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive3'
-
-
-class FindManyIclePendingCommandArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    include: 'IclePendingCommandIncludeFromIclePendingCommandRecursive4'
-
-
-class FindManyIclePendingCommandArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IclePendingCommandOrderByInput', List['IclePendingCommandOrderByInput']]
-    where: 'IclePendingCommandWhereInput'
-    cursor: 'IclePendingCommandWhereUniqueInput'
-    distinct: List['IclePendingCommandScalarFieldKeys']
-    
-    
-
-class IcleLogIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    device: Union[bool, 'IcleDeviceArgsFromDeploymentRecursive1']
-
-
-class IcleLogIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    device: Union[bool, 'IcleDeviceArgsFromDeploymentRecursive2']
-
-
-class IcleLogIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    device: Union[bool, 'IcleDeviceArgsFromDeploymentRecursive3']
-
-
-class IcleLogIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    device: Union[bool, 'IcleDeviceArgsFromDeploymentRecursive4']
-
-
-class IcleLogIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class IcleLogArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IcleLogIncludeFromIcleLogRecursive1'
-
-
-class IcleLogArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IcleLogIncludeFromIcleLogRecursive2'
-
-
-class IcleLogArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IcleLogIncludeFromIcleLogRecursive3'
-
-
-class IcleLogArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'IcleLogIncludeFromIcleLogRecursive4'
-
-
-class IcleLogArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyIcleLogArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive1'
-
-
-class FindManyIcleLogArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive2'
-
-
-class FindManyIcleLogArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive3'
-
-
-class FindManyIcleLogArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    include: 'IcleLogIncludeFromIcleLogRecursive4'
-
-
-class FindManyIcleLogArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['IcleLogOrderByInput', List['IcleLogOrderByInput']]
-    where: 'IcleLogWhereInput'
-    cursor: 'IcleLogWhereUniqueInput'
-    distinct: List['IcleLogScalarFieldKeys']
-    
-    
-
-class DeploymentIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive1']
-
-
-class DeploymentIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive2']
-
-
-class DeploymentIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive3']
-
-
-class DeploymentIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive4']
-
-
-class DeploymentIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class DeploymentArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyDeploymentArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
-class TestIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive1']
-
-
-class TestIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive2']
-
-
-class TestIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive3']
-
-
-class TestIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    executions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive4']
-
-
-class TestIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class TestArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestIncludeFromTestRecursive1'
-
-
-class TestArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestIncludeFromTestRecursive2'
-
-
-class TestArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestIncludeFromTestRecursive3'
-
-
-class TestArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestIncludeFromTestRecursive4'
-
-
-class TestArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyTestArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive1'
-
-
-class FindManyTestArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive2'
-
-
-class FindManyTestArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive3'
-
-
-class FindManyTestArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    include: 'TestIncludeFromTestRecursive4'
-
-
-class FindManyTestArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestOrderByInput', List['TestOrderByInput']]
-    where: 'TestWhereInput'
-    cursor: 'TestWhereUniqueInput'
-    distinct: List['TestScalarFieldKeys']
-    
-    
-
-class TestExecutionIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    test: Union[bool, 'TestArgsFromDeploymentRecursive1']
-    node: Union[bool, 'NodeArgsFromDeploymentRecursive1']
-    device: Union[bool, 'DeviceArgsFromDeploymentRecursive1']
-    slot: Union[bool, 'FixtureSlotArgsFromDeploymentRecursive1']
-    triggeredBy: Union[bool, 'UserArgsFromDeploymentRecursive1']
-    steps: Union[bool, 'FindManyTestStepArgsFromDeploymentRecursive1']
-
-
-class TestExecutionIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    test: Union[bool, 'TestArgsFromDeploymentRecursive2']
-    node: Union[bool, 'NodeArgsFromDeploymentRecursive2']
-    device: Union[bool, 'DeviceArgsFromDeploymentRecursive2']
-    slot: Union[bool, 'FixtureSlotArgsFromDeploymentRecursive2']
-    triggeredBy: Union[bool, 'UserArgsFromDeploymentRecursive2']
-    steps: Union[bool, 'FindManyTestStepArgsFromDeploymentRecursive2']
-
-
-class TestExecutionIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    test: Union[bool, 'TestArgsFromDeploymentRecursive3']
-    node: Union[bool, 'NodeArgsFromDeploymentRecursive3']
-    device: Union[bool, 'DeviceArgsFromDeploymentRecursive3']
-    slot: Union[bool, 'FixtureSlotArgsFromDeploymentRecursive3']
-    triggeredBy: Union[bool, 'UserArgsFromDeploymentRecursive3']
-    steps: Union[bool, 'FindManyTestStepArgsFromDeploymentRecursive3']
-
-
-class TestExecutionIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    test: Union[bool, 'TestArgsFromDeploymentRecursive4']
-    node: Union[bool, 'NodeArgsFromDeploymentRecursive4']
-    device: Union[bool, 'DeviceArgsFromDeploymentRecursive4']
-    slot: Union[bool, 'FixtureSlotArgsFromDeploymentRecursive4']
-    triggeredBy: Union[bool, 'UserArgsFromDeploymentRecursive4']
-    steps: Union[bool, 'FindManyTestStepArgsFromDeploymentRecursive4']
-
-
-class TestExecutionIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class TestExecutionArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive1'
-
-
-class TestExecutionArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive2'
-
-
-class TestExecutionArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive3'
-
-
-class TestExecutionArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestExecutionIncludeFromTestExecutionRecursive4'
-
-
-class TestExecutionArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyTestExecutionArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive1'
-
-
-class FindManyTestExecutionArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive2'
-
-
-class FindManyTestExecutionArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive3'
-
-
-class FindManyTestExecutionArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    include: 'TestExecutionIncludeFromTestExecutionRecursive4'
-
-
-class FindManyTestExecutionArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestExecutionOrderByInput', List['TestExecutionOrderByInput']]
-    where: 'TestExecutionWhereInput'
-    cursor: 'TestExecutionWhereUniqueInput'
-    distinct: List['TestExecutionScalarFieldKeys']
-    
-    
-
-class TestStepIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    execution: Union[bool, 'TestExecutionArgsFromDeploymentRecursive1']
-
-
-class TestStepIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    execution: Union[bool, 'TestExecutionArgsFromDeploymentRecursive2']
-
-
-class TestStepIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    execution: Union[bool, 'TestExecutionArgsFromDeploymentRecursive3']
-
-
-class TestStepIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    execution: Union[bool, 'TestExecutionArgsFromDeploymentRecursive4']
-
-
-class TestStepIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class TestStepArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestStepIncludeFromTestStepRecursive1'
-
-
-class TestStepArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestStepIncludeFromTestStepRecursive2'
-
-
-class TestStepArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestStepIncludeFromTestStepRecursive3'
-
-
-class TestStepArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'TestStepIncludeFromTestStepRecursive4'
-
-
-class TestStepArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyTestStepArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive1'
-
-
-class FindManyTestStepArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive2'
-
-
-class FindManyTestStepArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive3'
-
-
-class FindManyTestStepArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    include: 'TestStepIncludeFromTestStepRecursive4'
-
-
-class FindManyTestStepArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['TestStepOrderByInput', List['TestStepOrderByInput']]
-    where: 'TestStepWhereInput'
-    cursor: 'TestStepWhereUniqueInput'
-    distinct: List['TestStepScalarFieldKeys']
-    
-    
-
-class UserIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromDeploymentRecursive1']
-    productAccess: Union[bool, 'FindManyProductAccessArgsFromDeploymentRecursive1']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromDeploymentRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive1']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive1']
-    testPackages: Union[bool, 'FindManyTestPackageArgsFromDeploymentRecursive1']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeploymentRecursive1']
-    secrets: Union[bool, 'FindManySecretArgsFromDeploymentRecursive1']
-    recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeploymentRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive1']
-
-
-class UserIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromDeploymentRecursive2']
-    productAccess: Union[bool, 'FindManyProductAccessArgsFromDeploymentRecursive2']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromDeploymentRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive2']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive2']
-    testPackages: Union[bool, 'FindManyTestPackageArgsFromDeploymentRecursive2']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeploymentRecursive2']
-    secrets: Union[bool, 'FindManySecretArgsFromDeploymentRecursive2']
-    recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeploymentRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive2']
-
-
-class UserIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromDeploymentRecursive3']
-    productAccess: Union[bool, 'FindManyProductAccessArgsFromDeploymentRecursive3']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromDeploymentRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive3']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive3']
-    testPackages: Union[bool, 'FindManyTestPackageArgsFromDeploymentRecursive3']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeploymentRecursive3']
-    secrets: Union[bool, 'FindManySecretArgsFromDeploymentRecursive3']
-    recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeploymentRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive3']
-
-
-class UserIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    permissionSet: Union[bool, 'PermissionSetArgsFromDeploymentRecursive4']
-    productAccess: Union[bool, 'FindManyProductAccessArgsFromDeploymentRecursive4']
-    apiKeys: Union[bool, 'FindManyApiKeyArgsFromDeploymentRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromDeploymentRecursive4']
-    testExecutions: Union[bool, 'FindManyTestExecutionArgsFromDeploymentRecursive4']
-    testPackages: Union[bool, 'FindManyTestPackageArgsFromDeploymentRecursive4']
-    auditLogs: Union[bool, 'FindManyAuditLogArgsFromDeploymentRecursive4']
-    secrets: Union[bool, 'FindManySecretArgsFromDeploymentRecursive4']
-    recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromDeploymentRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive4']
-
-
-class UserIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class UserArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'UserIncludeFromUserRecursive1'
-
-
-class UserArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'UserIncludeFromUserRecursive2'
-
-
-class UserArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'UserIncludeFromUserRecursive3'
-
-
-class UserArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'UserIncludeFromUserRecursive4'
-
-
-class UserArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyUserArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive1'
-
-
-class FindManyUserArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive2'
-
-
-class FindManyUserArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive3'
-
-
-class FindManyUserArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    include: 'UserIncludeFromUserRecursive4'
-
-
-class FindManyUserArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['UserOrderByInput', List['UserOrderByInput']]
-    where: 'UserWhereInput'
-    cursor: 'UserWhereUniqueInput'
-    distinct: List['UserScalarFieldKeys']
-    
-    
-
-class ProductAccessIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive1']
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-
-
-class ProductAccessIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive2']
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-
-
-class ProductAccessIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive3']
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-
-
-class ProductAccessIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive4']
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-
-
-class ProductAccessIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class ProductAccessArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductAccessIncludeFromProductAccessRecursive1'
-
-
-class ProductAccessArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductAccessIncludeFromProductAccessRecursive2'
-
-
-class ProductAccessArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductAccessIncludeFromProductAccessRecursive3'
-
-
-class ProductAccessArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ProductAccessIncludeFromProductAccessRecursive4'
-
-
-class ProductAccessArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyProductAccessArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductAccessOrderByInput', List['ProductAccessOrderByInput']]
-    where: 'ProductAccessWhereInput'
-    cursor: 'ProductAccessWhereUniqueInput'
-    distinct: List['ProductAccessScalarFieldKeys']
-    include: 'ProductAccessIncludeFromProductAccessRecursive1'
-
-
-class FindManyProductAccessArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductAccessOrderByInput', List['ProductAccessOrderByInput']]
-    where: 'ProductAccessWhereInput'
-    cursor: 'ProductAccessWhereUniqueInput'
-    distinct: List['ProductAccessScalarFieldKeys']
-    include: 'ProductAccessIncludeFromProductAccessRecursive2'
-
-
-class FindManyProductAccessArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductAccessOrderByInput', List['ProductAccessOrderByInput']]
-    where: 'ProductAccessWhereInput'
-    cursor: 'ProductAccessWhereUniqueInput'
-    distinct: List['ProductAccessScalarFieldKeys']
-    include: 'ProductAccessIncludeFromProductAccessRecursive3'
-
-
-class FindManyProductAccessArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductAccessOrderByInput', List['ProductAccessOrderByInput']]
-    where: 'ProductAccessWhereInput'
-    cursor: 'ProductAccessWhereUniqueInput'
-    distinct: List['ProductAccessScalarFieldKeys']
-    include: 'ProductAccessIncludeFromProductAccessRecursive4'
-
-
-class FindManyProductAccessArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ProductAccessOrderByInput', List['ProductAccessOrderByInput']]
-    where: 'ProductAccessWhereInput'
-    cursor: 'ProductAccessWhereUniqueInput'
-    distinct: List['ProductAccessScalarFieldKeys']
-    
-    
-
-class PermissionSetIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    users: Union[bool, 'FindManyUserArgsFromDeploymentRecursive1']
-
-
-class PermissionSetIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    users: Union[bool, 'FindManyUserArgsFromDeploymentRecursive2']
-
-
-class PermissionSetIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    users: Union[bool, 'FindManyUserArgsFromDeploymentRecursive3']
-
-
-class PermissionSetIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    users: Union[bool, 'FindManyUserArgsFromDeploymentRecursive4']
-
-
-class PermissionSetIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class PermissionSetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive1'
-
-
-class PermissionSetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive2'
-
-
-class PermissionSetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive3'
-
-
-class PermissionSetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'PermissionSetIncludeFromPermissionSetRecursive4'
-
-
-class PermissionSetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyPermissionSetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive1'
-
-
-class FindManyPermissionSetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive2'
-
-
-class FindManyPermissionSetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive3'
-
-
-class FindManyPermissionSetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    include: 'PermissionSetIncludeFromPermissionSetRecursive4'
-
-
-class FindManyPermissionSetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['PermissionSetOrderByInput', List['PermissionSetOrderByInput']]
-    where: 'PermissionSetWhereInput'
-    cursor: 'PermissionSetWhereUniqueInput'
-    distinct: List['PermissionSetScalarFieldKeys']
-    
-    
-
-class ApiKeyIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive1']
-
-
-class ApiKeyIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive2']
-
-
-class ApiKeyIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive3']
-
-
-class ApiKeyIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive4']
-
-
-class ApiKeyIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class ApiKeyArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive1'
-
-
-class ApiKeyArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive2'
-
-
-class ApiKeyArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive3'
-
-
-class ApiKeyArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'ApiKeyIncludeFromApiKeyRecursive4'
-
-
-class ApiKeyArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyApiKeyArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive1'
-
-
-class FindManyApiKeyArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive2'
-
-
-class FindManyApiKeyArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive3'
-
-
-class FindManyApiKeyArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    include: 'ApiKeyIncludeFromApiKeyRecursive4'
-
-
-class FindManyApiKeyArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['ApiKeyOrderByInput', List['ApiKeyOrderByInput']]
-    where: 'ApiKeyWhereInput'
-    cursor: 'ApiKeyWhereUniqueInput'
-    distinct: List['ApiKeyScalarFieldKeys']
-    
-    
-
-class AuditLogIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive1']
-
-
-class AuditLogIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive2']
-
-
-class AuditLogIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive3']
-
-
-class AuditLogIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    user: Union[bool, 'UserArgsFromDeploymentRecursive4']
-
-
-class AuditLogIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class AuditLogArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AuditLogIncludeFromAuditLogRecursive1'
-
-
-class AuditLogArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AuditLogIncludeFromAuditLogRecursive2'
-
-
-class AuditLogArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AuditLogIncludeFromAuditLogRecursive3'
-
-
-class AuditLogArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AuditLogIncludeFromAuditLogRecursive4'
-
-
-class AuditLogArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyAuditLogArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive1'
-
-
-class FindManyAuditLogArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive2'
-
-
-class FindManyAuditLogArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive3'
-
-
-class FindManyAuditLogArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    include: 'AuditLogIncludeFromAuditLogRecursive4'
-
-
-class FindManyAuditLogArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AuditLogOrderByInput', List['AuditLogOrderByInput']]
-    where: 'AuditLogWhereInput'
-    cursor: 'AuditLogWhereUniqueInput'
-    distinct: List['AuditLogScalarFieldKeys']
-    
-    
-
-class SecretIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive1']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive1']
-
-
-class SecretIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive2']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive2']
-
-
-class SecretIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive3']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive3']
-
-
-class SecretIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive4']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive4']
-
-
-class SecretIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class SecretArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'SecretIncludeFromSecretRecursive1'
-
-
-class SecretArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'SecretIncludeFromSecretRecursive2'
-
-
-class SecretArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'SecretIncludeFromSecretRecursive3'
-
-
-class SecretArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'SecretIncludeFromSecretRecursive4'
-
-
-class SecretArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManySecretArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
-    where: 'SecretWhereInput'
-    cursor: 'SecretWhereUniqueInput'
-    distinct: List['SecretScalarFieldKeys']
-    include: 'SecretIncludeFromSecretRecursive1'
-
-
-class FindManySecretArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
-    where: 'SecretWhereInput'
-    cursor: 'SecretWhereUniqueInput'
-    distinct: List['SecretScalarFieldKeys']
-    include: 'SecretIncludeFromSecretRecursive2'
-
-
-class FindManySecretArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
-    where: 'SecretWhereInput'
-    cursor: 'SecretWhereUniqueInput'
-    distinct: List['SecretScalarFieldKeys']
-    include: 'SecretIncludeFromSecretRecursive3'
-
-
-class FindManySecretArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
-    where: 'SecretWhereInput'
-    cursor: 'SecretWhereUniqueInput'
-    distinct: List['SecretScalarFieldKeys']
-    include: 'SecretIncludeFromSecretRecursive4'
-
-
-class FindManySecretArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['SecretOrderByInput', List['SecretOrderByInput']]
-    where: 'SecretWhereInput'
-    cursor: 'SecretWhereUniqueInput'
-    distinct: List['SecretScalarFieldKeys']
-    
-    
-
-class PollCacheIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-
-class PollCacheIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-
-class PollCacheIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-
-class PollCacheIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-
-class PollCacheIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class PollCacheArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'PollCacheIncludeFromPollCacheRecursive1'
-
-
-class PollCacheArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'PollCacheIncludeFromPollCacheRecursive2'
-
-
-class PollCacheArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'PollCacheIncludeFromPollCacheRecursive3'
-
-
-class PollCacheArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'PollCacheIncludeFromPollCacheRecursive4'
-
-
-class PollCacheArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyPollCacheArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['PollCacheOrderByInput', List['PollCacheOrderByInput']]
-    where: 'PollCacheWhereInput'
-    cursor: 'PollCacheWhereUniqueInput'
-    distinct: List['PollCacheScalarFieldKeys']
-    include: 'PollCacheIncludeFromPollCacheRecursive1'
-
-
-class FindManyPollCacheArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['PollCacheOrderByInput', List['PollCacheOrderByInput']]
-    where: 'PollCacheWhereInput'
-    cursor: 'PollCacheWhereUniqueInput'
-    distinct: List['PollCacheScalarFieldKeys']
-    include: 'PollCacheIncludeFromPollCacheRecursive2'
-
-
-class FindManyPollCacheArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['PollCacheOrderByInput', List['PollCacheOrderByInput']]
-    where: 'PollCacheWhereInput'
-    cursor: 'PollCacheWhereUniqueInput'
-    distinct: List['PollCacheScalarFieldKeys']
-    include: 'PollCacheIncludeFromPollCacheRecursive3'
-
-
-class FindManyPollCacheArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['PollCacheOrderByInput', List['PollCacheOrderByInput']]
-    where: 'PollCacheWhereInput'
-    cursor: 'PollCacheWhereUniqueInput'
-    distinct: List['PollCacheScalarFieldKeys']
-    include: 'PollCacheIncludeFromPollCacheRecursive4'
-
-
-class FindManyPollCacheArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['PollCacheOrderByInput', List['PollCacheOrderByInput']]
-    where: 'PollCacheWhereInput'
-    cursor: 'PollCacheWhereUniqueInput'
-    distinct: List['PollCacheScalarFieldKeys']
-    
-    
-
-class RecipeVersionIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive1']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive1']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive1']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive1']
-
-
-class RecipeVersionIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive2']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive2']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive2']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive2']
-
-
-class RecipeVersionIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive3']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive3']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive3']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive3']
-
-
-class RecipeVersionIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive4']
-    stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromDeploymentRecursive4']
-    buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeploymentRecursive4']
-    buildJobs: Union[bool, 'FindManyBuildJobArgsFromDeploymentRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeploymentRecursive4']
-
-
-class RecipeVersionIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class RecipeVersionArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'RecipeVersionIncludeFromRecipeVersionRecursive1'
-
-
-class RecipeVersionArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'RecipeVersionIncludeFromRecipeVersionRecursive2'
-
-
-class RecipeVersionArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'RecipeVersionIncludeFromRecipeVersionRecursive3'
-
-
-class RecipeVersionArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'RecipeVersionIncludeFromRecipeVersionRecursive4'
-
-
-class RecipeVersionArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyRecipeVersionArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['RecipeVersionOrderByInput', List['RecipeVersionOrderByInput']]
-    where: 'RecipeVersionWhereInput'
-    cursor: 'RecipeVersionWhereUniqueInput'
-    distinct: List['RecipeVersionScalarFieldKeys']
-    include: 'RecipeVersionIncludeFromRecipeVersionRecursive1'
-
-
-class FindManyRecipeVersionArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['RecipeVersionOrderByInput', List['RecipeVersionOrderByInput']]
-    where: 'RecipeVersionWhereInput'
-    cursor: 'RecipeVersionWhereUniqueInput'
-    distinct: List['RecipeVersionScalarFieldKeys']
-    include: 'RecipeVersionIncludeFromRecipeVersionRecursive2'
-
-
-class FindManyRecipeVersionArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['RecipeVersionOrderByInput', List['RecipeVersionOrderByInput']]
-    where: 'RecipeVersionWhereInput'
-    cursor: 'RecipeVersionWhereUniqueInput'
-    distinct: List['RecipeVersionScalarFieldKeys']
-    include: 'RecipeVersionIncludeFromRecipeVersionRecursive3'
-
-
-class FindManyRecipeVersionArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['RecipeVersionOrderByInput', List['RecipeVersionOrderByInput']]
-    where: 'RecipeVersionWhereInput'
-    cursor: 'RecipeVersionWhereUniqueInput'
-    distinct: List['RecipeVersionScalarFieldKeys']
-    include: 'RecipeVersionIncludeFromRecipeVersionRecursive4'
-
-
-class FindManyRecipeVersionArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['RecipeVersionOrderByInput', List['RecipeVersionOrderByInput']]
-    where: 'RecipeVersionWhereInput'
-    cursor: 'RecipeVersionWhereUniqueInput'
-    distinct: List['RecipeVersionScalarFieldKeys']
-    
-    
-
-class RecipeTemplateIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-
-class RecipeTemplateIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-
-class RecipeTemplateIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-
-class RecipeTemplateIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-
-class RecipeTemplateIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class RecipeTemplateArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'RecipeTemplateIncludeFromRecipeTemplateRecursive1'
-
-
-class RecipeTemplateArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'RecipeTemplateIncludeFromRecipeTemplateRecursive2'
-
-
-class RecipeTemplateArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'RecipeTemplateIncludeFromRecipeTemplateRecursive3'
-
-
-class RecipeTemplateArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'RecipeTemplateIncludeFromRecipeTemplateRecursive4'
-
-
-class RecipeTemplateArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyRecipeTemplateArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['RecipeTemplateOrderByInput', List['RecipeTemplateOrderByInput']]
-    where: 'RecipeTemplateWhereInput'
-    cursor: 'RecipeTemplateWhereUniqueInput'
-    distinct: List['RecipeTemplateScalarFieldKeys']
-    include: 'RecipeTemplateIncludeFromRecipeTemplateRecursive1'
-
-
-class FindManyRecipeTemplateArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['RecipeTemplateOrderByInput', List['RecipeTemplateOrderByInput']]
-    where: 'RecipeTemplateWhereInput'
-    cursor: 'RecipeTemplateWhereUniqueInput'
-    distinct: List['RecipeTemplateScalarFieldKeys']
-    include: 'RecipeTemplateIncludeFromRecipeTemplateRecursive2'
-
-
-class FindManyRecipeTemplateArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['RecipeTemplateOrderByInput', List['RecipeTemplateOrderByInput']]
-    where: 'RecipeTemplateWhereInput'
-    cursor: 'RecipeTemplateWhereUniqueInput'
-    distinct: List['RecipeTemplateScalarFieldKeys']
-    include: 'RecipeTemplateIncludeFromRecipeTemplateRecursive3'
-
-
-class FindManyRecipeTemplateArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['RecipeTemplateOrderByInput', List['RecipeTemplateOrderByInput']]
-    where: 'RecipeTemplateWhereInput'
-    cursor: 'RecipeTemplateWhereUniqueInput'
-    distinct: List['RecipeTemplateScalarFieldKeys']
-    include: 'RecipeTemplateIncludeFromRecipeTemplateRecursive4'
-
-
-class FindManyRecipeTemplateArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['RecipeTemplateOrderByInput', List['RecipeTemplateOrderByInput']]
-    where: 'RecipeTemplateWhereInput'
-    cursor: 'RecipeTemplateWhereUniqueInput'
-    distinct: List['RecipeTemplateScalarFieldKeys']
-    
-    
-
-class StageBuildMatrixIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive1']
-
-
-class StageBuildMatrixIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive2']
-
-
-class StageBuildMatrixIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive3']
-
-
-class StageBuildMatrixIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeploymentRecursive4']
-
-
-class StageBuildMatrixIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class StageBuildMatrixArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'StageBuildMatrixIncludeFromStageBuildMatrixRecursive1'
-
-
-class StageBuildMatrixArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'StageBuildMatrixIncludeFromStageBuildMatrixRecursive2'
-
-
-class StageBuildMatrixArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'StageBuildMatrixIncludeFromStageBuildMatrixRecursive3'
-
-
-class StageBuildMatrixArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'StageBuildMatrixIncludeFromStageBuildMatrixRecursive4'
-
-
-class StageBuildMatrixArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyStageBuildMatrixArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['StageBuildMatrixOrderByInput', List['StageBuildMatrixOrderByInput']]
-    where: 'StageBuildMatrixWhereInput'
-    cursor: 'StageBuildMatrixWhereUniqueInput'
-    distinct: List['StageBuildMatrixScalarFieldKeys']
-    include: 'StageBuildMatrixIncludeFromStageBuildMatrixRecursive1'
-
-
-class FindManyStageBuildMatrixArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['StageBuildMatrixOrderByInput', List['StageBuildMatrixOrderByInput']]
-    where: 'StageBuildMatrixWhereInput'
-    cursor: 'StageBuildMatrixWhereUniqueInput'
-    distinct: List['StageBuildMatrixScalarFieldKeys']
-    include: 'StageBuildMatrixIncludeFromStageBuildMatrixRecursive2'
-
-
-class FindManyStageBuildMatrixArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['StageBuildMatrixOrderByInput', List['StageBuildMatrixOrderByInput']]
-    where: 'StageBuildMatrixWhereInput'
-    cursor: 'StageBuildMatrixWhereUniqueInput'
-    distinct: List['StageBuildMatrixScalarFieldKeys']
-    include: 'StageBuildMatrixIncludeFromStageBuildMatrixRecursive3'
-
-
-class FindManyStageBuildMatrixArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['StageBuildMatrixOrderByInput', List['StageBuildMatrixOrderByInput']]
-    where: 'StageBuildMatrixWhereInput'
-    cursor: 'StageBuildMatrixWhereUniqueInput'
-    distinct: List['StageBuildMatrixScalarFieldKeys']
-    include: 'StageBuildMatrixIncludeFromStageBuildMatrixRecursive4'
-
-
-class FindManyStageBuildMatrixArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['StageBuildMatrixOrderByInput', List['StageBuildMatrixOrderByInput']]
-    where: 'StageBuildMatrixWhereInput'
-    cursor: 'StageBuildMatrixWhereUniqueInput'
-    distinct: List['StageBuildMatrixScalarFieldKeys']
-    
-    
-
-class AssetSetIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive1']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive1']
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive1']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive1']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive1']
-    assets: Union[bool, 'FindManyAssetArgsFromDeploymentRecursive1']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive1']
-
-
-class AssetSetIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive2']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive2']
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive2']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive2']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive2']
-    assets: Union[bool, 'FindManyAssetArgsFromDeploymentRecursive2']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive2']
-
-
-class AssetSetIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive3']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive3']
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive3']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive3']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive3']
-    assets: Union[bool, 'FindManyAssetArgsFromDeploymentRecursive3']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive3']
-
-
-class AssetSetIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    product: Union[bool, 'ProductArgsFromDeploymentRecursive4']
-    boardRevision: Union[bool, 'BoardRevisionArgsFromDeploymentRecursive4']
-    buildRun: Union[bool, 'BuildRunArgsFromDeploymentRecursive4']
-    recipeVersion: Union[bool, 'RecipeVersionArgsFromDeploymentRecursive4']
-    createdBy: Union[bool, 'UserArgsFromDeploymentRecursive4']
-    assets: Union[bool, 'FindManyAssetArgsFromDeploymentRecursive4']
-    sessions: Union[bool, 'FindManySessionArgsFromDeploymentRecursive4']
-
-
-class AssetSetIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class AssetSetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AssetSetIncludeFromAssetSetRecursive1'
-
-
-class AssetSetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AssetSetIncludeFromAssetSetRecursive2'
-
-
-class AssetSetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AssetSetIncludeFromAssetSetRecursive3'
-
-
-class AssetSetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AssetSetIncludeFromAssetSetRecursive4'
-
-
-class AssetSetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyAssetSetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AssetSetOrderByInput', List['AssetSetOrderByInput']]
-    where: 'AssetSetWhereInput'
-    cursor: 'AssetSetWhereUniqueInput'
-    distinct: List['AssetSetScalarFieldKeys']
-    include: 'AssetSetIncludeFromAssetSetRecursive1'
-
-
-class FindManyAssetSetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AssetSetOrderByInput', List['AssetSetOrderByInput']]
-    where: 'AssetSetWhereInput'
-    cursor: 'AssetSetWhereUniqueInput'
-    distinct: List['AssetSetScalarFieldKeys']
-    include: 'AssetSetIncludeFromAssetSetRecursive2'
-
-
-class FindManyAssetSetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AssetSetOrderByInput', List['AssetSetOrderByInput']]
-    where: 'AssetSetWhereInput'
-    cursor: 'AssetSetWhereUniqueInput'
-    distinct: List['AssetSetScalarFieldKeys']
-    include: 'AssetSetIncludeFromAssetSetRecursive3'
-
-
-class FindManyAssetSetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AssetSetOrderByInput', List['AssetSetOrderByInput']]
-    where: 'AssetSetWhereInput'
-    cursor: 'AssetSetWhereUniqueInput'
-    distinct: List['AssetSetScalarFieldKeys']
-    include: 'AssetSetIncludeFromAssetSetRecursive4'
-
-
-class FindManyAssetSetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AssetSetOrderByInput', List['AssetSetOrderByInput']]
-    where: 'AssetSetWhereInput'
-    cursor: 'AssetSetWhereUniqueInput'
-    distinct: List['AssetSetScalarFieldKeys']
-    
-    
-
-class AssetIncludeFromDeployment(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive1']
-
-
-class AssetIncludeFromDeploymentRecursive1(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive2']
-
-
-class AssetIncludeFromDeploymentRecursive2(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive3']
-
-
-class AssetIncludeFromDeploymentRecursive3(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-    assetSet: Union[bool, 'AssetSetArgsFromDeploymentRecursive4']
-
-
-class AssetIncludeFromDeploymentRecursive4(TypedDict, total=False):
-    """Relational arguments for Deployment"""
-
-    
-
-class AssetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AssetIncludeFromAssetRecursive1'
-
-
-class AssetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AssetIncludeFromAssetRecursive2'
-
-
-class AssetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AssetIncludeFromAssetRecursive3'
-
-
-class AssetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    include: 'AssetIncludeFromAssetRecursive4'
-
-
-class AssetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    
-    
-
-class FindManyAssetArgsFromDeployment(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AssetOrderByInput', List['AssetOrderByInput']]
-    where: 'AssetWhereInput'
-    cursor: 'AssetWhereUniqueInput'
-    distinct: List['AssetScalarFieldKeys']
-    include: 'AssetIncludeFromAssetRecursive1'
-
-
-class FindManyAssetArgsFromDeploymentRecursive1(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AssetOrderByInput', List['AssetOrderByInput']]
-    where: 'AssetWhereInput'
-    cursor: 'AssetWhereUniqueInput'
-    distinct: List['AssetScalarFieldKeys']
-    include: 'AssetIncludeFromAssetRecursive2'
-
-
-class FindManyAssetArgsFromDeploymentRecursive2(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AssetOrderByInput', List['AssetOrderByInput']]
-    where: 'AssetWhereInput'
-    cursor: 'AssetWhereUniqueInput'
-    distinct: List['AssetScalarFieldKeys']
-    include: 'AssetIncludeFromAssetRecursive3'
-
-
-class FindManyAssetArgsFromDeploymentRecursive3(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AssetOrderByInput', List['AssetOrderByInput']]
-    where: 'AssetWhereInput'
-    cursor: 'AssetWhereUniqueInput'
-    distinct: List['AssetScalarFieldKeys']
-    include: 'AssetIncludeFromAssetRecursive4'
-
-
-class FindManyAssetArgsFromDeploymentRecursive4(TypedDict, total=False):
-    """Arguments for Deployment"""
-    take: int
-    skip: int
-    order_by: Union['AssetOrderByInput', List['AssetOrderByInput']]
-    where: 'AssetWhereInput'
-    cursor: 'AssetWhereUniqueInput'
-    distinct: List['AssetScalarFieldKeys']
-    
-
-
-FindManyDeploymentArgs = FindManyDeploymentArgsFromDeployment
-FindFirstDeploymentArgs = FindManyDeploymentArgsFromDeployment
-
-
-    
-
-class DeploymentWhereInput(TypedDict, total=False):
-    """Deployment arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    name: Union[_str, 'types.StringFilter']
-    productId: Union[None, _str, 'types.StringFilter']
-    status: 'enums.DeploymentStatus'
-    config: Union[None, 'fields.Json', 'types.JsonFilter']
-    version: Union[None, _str, 'types.StringFilter']
-    createdById: Union[None, _str, 'types.StringFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    product: 'ProductRelationFilter'
-    createdBy: 'UserRelationFilter'
-
-    # should be noted that AND and NOT should be Union['DeploymentWhereInputRecursive1', List['DeploymentWhereInputRecursive1']]
-    # but this causes mypy to hang :/
-    AND: List['DeploymentWhereInputRecursive1']
-    OR: List['DeploymentWhereInputRecursive1']
-    NOT: List['DeploymentWhereInputRecursive1']
-
-
-class DeploymentWhereInputRecursive1(TypedDict, total=False):
-    """Deployment arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    name: Union[_str, 'types.StringFilter']
-    productId: Union[None, _str, 'types.StringFilter']
-    status: 'enums.DeploymentStatus'
-    config: Union[None, 'fields.Json', 'types.JsonFilter']
-    version: Union[None, _str, 'types.StringFilter']
-    createdById: Union[None, _str, 'types.StringFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    product: 'ProductRelationFilter'
-    createdBy: 'UserRelationFilter'
-
-    # should be noted that AND and NOT should be Union['DeploymentWhereInputRecursive2', List['DeploymentWhereInputRecursive2']]
-    # but this causes mypy to hang :/
-    AND: List['DeploymentWhereInputRecursive2']
-    OR: List['DeploymentWhereInputRecursive2']
-    NOT: List['DeploymentWhereInputRecursive2']
-
-
-class DeploymentWhereInputRecursive2(TypedDict, total=False):
-    """Deployment arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    name: Union[_str, 'types.StringFilter']
-    productId: Union[None, _str, 'types.StringFilter']
-    status: 'enums.DeploymentStatus'
-    config: Union[None, 'fields.Json', 'types.JsonFilter']
-    version: Union[None, _str, 'types.StringFilter']
-    createdById: Union[None, _str, 'types.StringFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    product: 'ProductRelationFilter'
-    createdBy: 'UserRelationFilter'
-
-    # should be noted that AND and NOT should be Union['DeploymentWhereInputRecursive3', List['DeploymentWhereInputRecursive3']]
-    # but this causes mypy to hang :/
-    AND: List['DeploymentWhereInputRecursive3']
-    OR: List['DeploymentWhereInputRecursive3']
-    NOT: List['DeploymentWhereInputRecursive3']
-
-
-class DeploymentWhereInputRecursive3(TypedDict, total=False):
-    """Deployment arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    name: Union[_str, 'types.StringFilter']
-    productId: Union[None, _str, 'types.StringFilter']
-    status: 'enums.DeploymentStatus'
-    config: Union[None, 'fields.Json', 'types.JsonFilter']
-    version: Union[None, _str, 'types.StringFilter']
-    createdById: Union[None, _str, 'types.StringFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    product: 'ProductRelationFilter'
-    createdBy: 'UserRelationFilter'
-
-    # should be noted that AND and NOT should be Union['DeploymentWhereInputRecursive4', List['DeploymentWhereInputRecursive4']]
-    # but this causes mypy to hang :/
-    AND: List['DeploymentWhereInputRecursive4']
-    OR: List['DeploymentWhereInputRecursive4']
-    NOT: List['DeploymentWhereInputRecursive4']
-
-
-class DeploymentWhereInputRecursive4(TypedDict, total=False):
-    """Deployment arguments for searching"""
-    id: Union[_str, 'types.StringFilter']
-    name: Union[_str, 'types.StringFilter']
-    productId: Union[None, _str, 'types.StringFilter']
-    status: 'enums.DeploymentStatus'
-    config: Union[None, 'fields.Json', 'types.JsonFilter']
-    version: Union[None, _str, 'types.StringFilter']
-    createdById: Union[None, _str, 'types.StringFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
-    product: 'ProductRelationFilter'
-    createdBy: 'UserRelationFilter'
-
-
-
-# aggregate Deployment types
-
-
-    
-
-class DeploymentScalarWhereWithAggregatesInput(TypedDict, total=False):
-    """Deployment arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    name: Union[_str, 'types.StringWithAggregatesFilter']
-    productId: Union[_str, 'types.StringWithAggregatesFilter']
-    status: 'enums.DeploymentStatus'
-    config: Union['fields.Json', 'types.JsonWithAggregatesFilter']
-    version: Union[_str, 'types.StringWithAggregatesFilter']
-    createdById: Union[_str, 'types.StringWithAggregatesFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-
-    AND: List['DeploymentScalarWhereWithAggregatesInputRecursive1']
-    OR: List['DeploymentScalarWhereWithAggregatesInputRecursive1']
-    NOT: List['DeploymentScalarWhereWithAggregatesInputRecursive1']
-
-
-class DeploymentScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
-    """Deployment arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    name: Union[_str, 'types.StringWithAggregatesFilter']
-    productId: Union[_str, 'types.StringWithAggregatesFilter']
-    status: 'enums.DeploymentStatus'
-    config: Union['fields.Json', 'types.JsonWithAggregatesFilter']
-    version: Union[_str, 'types.StringWithAggregatesFilter']
-    createdById: Union[_str, 'types.StringWithAggregatesFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-
-    AND: List['DeploymentScalarWhereWithAggregatesInputRecursive2']
-    OR: List['DeploymentScalarWhereWithAggregatesInputRecursive2']
-    NOT: List['DeploymentScalarWhereWithAggregatesInputRecursive2']
-
-
-class DeploymentScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
-    """Deployment arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    name: Union[_str, 'types.StringWithAggregatesFilter']
-    productId: Union[_str, 'types.StringWithAggregatesFilter']
-    status: 'enums.DeploymentStatus'
-    config: Union['fields.Json', 'types.JsonWithAggregatesFilter']
-    version: Union[_str, 'types.StringWithAggregatesFilter']
-    createdById: Union[_str, 'types.StringWithAggregatesFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-
-    AND: List['DeploymentScalarWhereWithAggregatesInputRecursive3']
-    OR: List['DeploymentScalarWhereWithAggregatesInputRecursive3']
-    NOT: List['DeploymentScalarWhereWithAggregatesInputRecursive3']
-
-
-class DeploymentScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
-    """Deployment arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    name: Union[_str, 'types.StringWithAggregatesFilter']
-    productId: Union[_str, 'types.StringWithAggregatesFilter']
-    status: 'enums.DeploymentStatus'
-    config: Union['fields.Json', 'types.JsonWithAggregatesFilter']
-    version: Union[_str, 'types.StringWithAggregatesFilter']
-    createdById: Union[_str, 'types.StringWithAggregatesFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-
-    AND: List['DeploymentScalarWhereWithAggregatesInputRecursive4']
-    OR: List['DeploymentScalarWhereWithAggregatesInputRecursive4']
-    NOT: List['DeploymentScalarWhereWithAggregatesInputRecursive4']
-
-
-class DeploymentScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
-    """Deployment arguments for searching"""
-    id: Union[_str, 'types.StringWithAggregatesFilter']
-    name: Union[_str, 'types.StringWithAggregatesFilter']
-    productId: Union[_str, 'types.StringWithAggregatesFilter']
-    status: 'enums.DeploymentStatus'
-    config: Union['fields.Json', 'types.JsonWithAggregatesFilter']
-    version: Union[_str, 'types.StringWithAggregatesFilter']
-    createdById: Union[_str, 'types.StringWithAggregatesFilter']
-    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-    updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
-
-
-
-class DeploymentGroupByOutput(TypedDict, total=False):
-    id: _str
-    name: _str
-    productId: _str
-    status: 'enums.DeploymentStatus'
-    config: 'fields.Json'
-    version: _str
-    createdById: _str
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    _sum: 'DeploymentSumAggregateOutput'
-    _avg: 'DeploymentAvgAggregateOutput'
-    _min: 'DeploymentMinAggregateOutput'
-    _max: 'DeploymentMaxAggregateOutput'
-    _count: 'DeploymentCountAggregateOutput'
-
-
-class DeploymentAvgAggregateOutput(TypedDict, total=False):
-    """Deployment output for aggregating averages"""
-
-
-class DeploymentSumAggregateOutput(TypedDict, total=False):
-    """Deployment output for aggregating sums"""
-
-
-class DeploymentScalarAggregateOutput(TypedDict, total=False):
-    """Deployment output including scalar fields"""
-    id: _str
-    name: _str
-    productId: _str
-    status: 'enums.DeploymentStatus'
-    config: 'fields.Json'
-    version: _str
-    createdById: _str
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-
-
-DeploymentMinAggregateOutput = DeploymentScalarAggregateOutput
-DeploymentMaxAggregateOutput = DeploymentScalarAggregateOutput
-
-
-class DeploymentMaxAggregateInput(TypedDict, total=False):
-    """Deployment input for aggregating by max"""
-    id: bool
-    name: bool
-    productId: bool
-    status: bool
-    config: bool
-    version: bool
-    createdById: bool
-    createdAt: bool
-    updatedAt: bool
-
-
-class DeploymentMinAggregateInput(TypedDict, total=False):
-    """Deployment input for aggregating by min"""
-    id: bool
-    name: bool
-    productId: bool
-    status: bool
-    config: bool
-    version: bool
-    createdById: bool
-    createdAt: bool
-    updatedAt: bool
-
-
-class DeploymentNumberAggregateInput(TypedDict, total=False):
-    """Deployment input for aggregating numbers"""
-
-
-DeploymentAvgAggregateInput = DeploymentNumberAggregateInput
-DeploymentSumAggregateInput = DeploymentNumberAggregateInput
-
-
-DeploymentCountAggregateInput = TypedDict(
-    'DeploymentCountAggregateInput',
-    {
-        'id': bool,
-        'name': bool,
-        'productId': bool,
-        'status': bool,
-        'config': bool,
-        'version': bool,
-        'createdById': bool,
-        'createdAt': bool,
-        'updatedAt': bool,
-        '_all': bool,
-    },
-    total=False,
-)
-
-DeploymentCountAggregateOutput = TypedDict(
-    'DeploymentCountAggregateOutput',
-    {
-        'id': int,
-        'name': int,
-        'productId': int,
-        'status': int,
-        'config': int,
-        'version': int,
-        'createdById': int,
-        'createdAt': int,
-        'updatedAt': int,
-        '_all': int,
-    },
-    total=False,
-)
-
-
-DeploymentKeys = Literal[
-    'id',
-    'name',
-    'productId',
-    'status',
-    'config',
-    'version',
-    'createdById',
-    'createdAt',
-    'updatedAt',
-    'product',
-    'createdBy',
-]
-DeploymentScalarFieldKeys = Literal[
-    'id',
-    'name',
-    'productId',
-    'status',
-    'config',
-    'version',
-    'createdById',
-    'createdAt',
-    'updatedAt',
-]
-DeploymentScalarFieldKeysT = TypeVar('DeploymentScalarFieldKeysT', bound=DeploymentScalarFieldKeys)
-
-DeploymentRelationalFieldKeys = Literal[
-        'product',
-        'createdBy',
-    ]
-
 # Test types
 
 class TestOptionalCreateInput(TypedDict, total=False):
@@ -112611,7 +105677,6 @@ class ProductIncludeFromTest(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestRecursive1']
@@ -112628,7 +105693,6 @@ class ProductIncludeFromTestRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestRecursive2']
@@ -112645,7 +105709,6 @@ class ProductIncludeFromTestRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestRecursive3']
@@ -112662,7 +105725,6 @@ class ProductIncludeFromTestRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestRecursive4']
@@ -113093,6 +106155,8 @@ class BoardRevisionIncludeFromTest(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive1']
 
 
 class BoardRevisionIncludeFromTestRecursive1(TypedDict, total=False):
@@ -113102,6 +106166,8 @@ class BoardRevisionIncludeFromTestRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive2']
 
 
 class BoardRevisionIncludeFromTestRecursive2(TypedDict, total=False):
@@ -113111,6 +106177,8 @@ class BoardRevisionIncludeFromTestRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive3']
 
 
 class BoardRevisionIncludeFromTestRecursive3(TypedDict, total=False):
@@ -113120,6 +106188,8 @@ class BoardRevisionIncludeFromTestRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive4']
 
 
 class BoardRevisionIncludeFromTestRecursive4(TypedDict, total=False):
@@ -114278,21 +107348,25 @@ class FindManyDeviceArgsFromTestRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive1']
 
 
 class FixtureDesignIncludeFromTestRecursive1(TypedDict, total=False):
     """Relational arguments for Test"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive2']
 
 
 class FixtureDesignIncludeFromTestRecursive2(TypedDict, total=False):
     """Relational arguments for Test"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive3']
 
 
 class FixtureDesignIncludeFromTestRecursive3(TypedDict, total=False):
     """Relational arguments for Test"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestRecursive4']
 
 
@@ -114384,6 +107458,7 @@ class FindManyFixtureDesignArgsFromTestRecursive4(TypedDict, total=False):
 class FixtureIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromTestRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive1']
@@ -114393,6 +107468,7 @@ class FixtureIncludeFromTest(TypedDict, total=False):
 class FixtureIncludeFromTestRecursive1(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromTestRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive2']
@@ -114402,6 +107478,7 @@ class FixtureIncludeFromTestRecursive1(TypedDict, total=False):
 class FixtureIncludeFromTestRecursive2(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromTestRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive3']
@@ -114411,6 +107488,7 @@ class FixtureIncludeFromTestRecursive2(TypedDict, total=False):
 class FixtureIncludeFromTestRecursive3(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromTestRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive4']
@@ -115043,115 +108121,6 @@ class FindManyIcleLogArgsFromTestRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromTest(TypedDict, total=False):
-    """Relational arguments for Test"""
-    product: Union[bool, 'ProductArgsFromTestRecursive1']
-    createdBy: Union[bool, 'UserArgsFromTestRecursive1']
-
-
-class DeploymentIncludeFromTestRecursive1(TypedDict, total=False):
-    """Relational arguments for Test"""
-    product: Union[bool, 'ProductArgsFromTestRecursive2']
-    createdBy: Union[bool, 'UserArgsFromTestRecursive2']
-
-
-class DeploymentIncludeFromTestRecursive2(TypedDict, total=False):
-    """Relational arguments for Test"""
-    product: Union[bool, 'ProductArgsFromTestRecursive3']
-    createdBy: Union[bool, 'UserArgsFromTestRecursive3']
-
-
-class DeploymentIncludeFromTestRecursive3(TypedDict, total=False):
-    """Relational arguments for Test"""
-    product: Union[bool, 'ProductArgsFromTestRecursive4']
-    createdBy: Union[bool, 'UserArgsFromTestRecursive4']
-
-
-class DeploymentIncludeFromTestRecursive4(TypedDict, total=False):
-    """Relational arguments for Test"""
-
-    
-
-class DeploymentArgsFromTest(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromTestRecursive1(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromTestRecursive2(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromTestRecursive3(TypedDict, total=False):
-    """Arguments for Test"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromTestRecursive4(TypedDict, total=False):
-    """Arguments for Test"""
-    
-    
-
-class FindManyDeploymentArgsFromTest(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromTestRecursive1(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromTestRecursive2(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromTestRecursive3(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromTestRecursive4(TypedDict, total=False):
-    """Arguments for Test"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromTest(TypedDict, total=False):
     """Relational arguments for Test"""
     product: Union[bool, 'ProductArgsFromTestRecursive1']
@@ -115497,7 +108466,6 @@ class UserIncludeFromTest(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestRecursive1']
@@ -115512,7 +108480,6 @@ class UserIncludeFromTestRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestRecursive2']
@@ -115527,7 +108494,6 @@ class UserIncludeFromTestRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestRecursive3']
@@ -115542,7 +108508,6 @@ class UserIncludeFromTestRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestRecursive4']
@@ -117504,7 +110469,6 @@ class ProductIncludeFromTestExecution(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestExecutionRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestExecutionRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestExecutionRecursive1']
@@ -117521,7 +110485,6 @@ class ProductIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestExecutionRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestExecutionRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestExecutionRecursive2']
@@ -117538,7 +110501,6 @@ class ProductIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestExecutionRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestExecutionRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestExecutionRecursive3']
@@ -117555,7 +110517,6 @@ class ProductIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestExecutionRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestExecutionRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestExecutionRecursive4']
@@ -117986,6 +110947,8 @@ class BoardRevisionIncludeFromTestExecution(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestExecutionRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestExecutionRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive1']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive1(TypedDict, total=False):
@@ -117995,6 +110958,8 @@ class BoardRevisionIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestExecutionRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestExecutionRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive2']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive2(TypedDict, total=False):
@@ -118004,6 +110969,8 @@ class BoardRevisionIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestExecutionRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestExecutionRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive3']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive3(TypedDict, total=False):
@@ -118013,6 +110980,8 @@ class BoardRevisionIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestExecutionRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestExecutionRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestExecutionRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestExecutionRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive4']
 
 
 class BoardRevisionIncludeFromTestExecutionRecursive4(TypedDict, total=False):
@@ -119171,21 +112140,25 @@ class FindManyDeviceArgsFromTestExecutionRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive1']
 
 
 class FixtureDesignIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     """Relational arguments for TestExecution"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive2']
 
 
 class FixtureDesignIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     """Relational arguments for TestExecution"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive3']
 
 
 class FixtureDesignIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     """Relational arguments for TestExecution"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestExecutionRecursive4']
 
 
@@ -119277,6 +112250,7 @@ class FindManyFixtureDesignArgsFromTestExecutionRecursive4(TypedDict, total=Fals
 class FixtureIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromTestExecutionRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestExecutionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive1']
@@ -119286,6 +112260,7 @@ class FixtureIncludeFromTestExecution(TypedDict, total=False):
 class FixtureIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromTestExecutionRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestExecutionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive2']
@@ -119295,6 +112270,7 @@ class FixtureIncludeFromTestExecutionRecursive1(TypedDict, total=False):
 class FixtureIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromTestExecutionRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestExecutionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive3']
@@ -119304,6 +112280,7 @@ class FixtureIncludeFromTestExecutionRecursive2(TypedDict, total=False):
 class FixtureIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromTestExecutionRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestExecutionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive4']
@@ -119936,115 +112913,6 @@ class FindManyIcleLogArgsFromTestExecutionRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromTestExecution(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
-    createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive1']
-
-
-class DeploymentIncludeFromTestExecutionRecursive1(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
-    createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive2']
-
-
-class DeploymentIncludeFromTestExecutionRecursive2(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
-    createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive3']
-
-
-class DeploymentIncludeFromTestExecutionRecursive3(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-    product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
-    createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive4']
-
-
-class DeploymentIncludeFromTestExecutionRecursive4(TypedDict, total=False):
-    """Relational arguments for TestExecution"""
-
-    
-
-class DeploymentArgsFromTestExecution(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromTestExecutionRecursive1(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromTestExecutionRecursive2(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromTestExecutionRecursive3(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromTestExecutionRecursive4(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    
-    
-
-class FindManyDeploymentArgsFromTestExecution(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromTestExecutionRecursive1(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromTestExecutionRecursive2(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromTestExecutionRecursive3(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromTestExecutionRecursive4(TypedDict, total=False):
-    """Arguments for TestExecution"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromTestExecution(TypedDict, total=False):
     """Relational arguments for TestExecution"""
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
@@ -120390,7 +113258,6 @@ class UserIncludeFromTestExecution(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestExecutionRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestExecutionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestExecutionRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestExecutionRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestExecutionRecursive1']
@@ -120405,7 +113272,6 @@ class UserIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestExecutionRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestExecutionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestExecutionRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestExecutionRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestExecutionRecursive2']
@@ -120420,7 +113286,6 @@ class UserIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestExecutionRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestExecutionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestExecutionRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestExecutionRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestExecutionRecursive3']
@@ -120435,7 +113300,6 @@ class UserIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestExecutionRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestExecutionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestExecutionRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestExecutionRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestExecutionRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestExecutionRecursive4']
@@ -122477,7 +115341,6 @@ class ProductIncludeFromTestStep(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestStepRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestStepRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestStepRecursive1']
@@ -122494,7 +115357,6 @@ class ProductIncludeFromTestStepRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestStepRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestStepRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestStepRecursive2']
@@ -122511,7 +115373,6 @@ class ProductIncludeFromTestStepRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestStepRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestStepRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestStepRecursive3']
@@ -122528,7 +115389,6 @@ class ProductIncludeFromTestStepRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromTestStepRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestStepRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromTestStepRecursive4']
@@ -122959,6 +115819,8 @@ class BoardRevisionIncludeFromTestStep(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestStepRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestStepRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive1']
 
 
 class BoardRevisionIncludeFromTestStepRecursive1(TypedDict, total=False):
@@ -122968,6 +115830,8 @@ class BoardRevisionIncludeFromTestStepRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestStepRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestStepRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive2']
 
 
 class BoardRevisionIncludeFromTestStepRecursive2(TypedDict, total=False):
@@ -122977,6 +115841,8 @@ class BoardRevisionIncludeFromTestStepRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestStepRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestStepRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive3']
 
 
 class BoardRevisionIncludeFromTestStepRecursive3(TypedDict, total=False):
@@ -122986,6 +115852,8 @@ class BoardRevisionIncludeFromTestStepRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromTestStepRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromTestStepRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromTestStepRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromTestStepRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive4']
 
 
 class BoardRevisionIncludeFromTestStepRecursive4(TypedDict, total=False):
@@ -124144,21 +117012,25 @@ class FindManyDeviceArgsFromTestStepRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive1']
 
 
 class FixtureDesignIncludeFromTestStepRecursive1(TypedDict, total=False):
     """Relational arguments for TestStep"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive2']
 
 
 class FixtureDesignIncludeFromTestStepRecursive2(TypedDict, total=False):
     """Relational arguments for TestStep"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive3']
 
 
 class FixtureDesignIncludeFromTestStepRecursive3(TypedDict, total=False):
     """Relational arguments for TestStep"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromTestStepRecursive4']
 
 
@@ -124250,6 +117122,7 @@ class FindManyFixtureDesignArgsFromTestStepRecursive4(TypedDict, total=False):
 class FixtureIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromTestStepRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestStepRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive1']
@@ -124259,6 +117132,7 @@ class FixtureIncludeFromTestStep(TypedDict, total=False):
 class FixtureIncludeFromTestStepRecursive1(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromTestStepRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestStepRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive2']
@@ -124268,6 +117142,7 @@ class FixtureIncludeFromTestStepRecursive1(TypedDict, total=False):
 class FixtureIncludeFromTestStepRecursive2(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromTestStepRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestStepRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive3']
@@ -124277,6 +117152,7 @@ class FixtureIncludeFromTestStepRecursive2(TypedDict, total=False):
 class FixtureIncludeFromTestStepRecursive3(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromTestStepRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromTestStepRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive4']
@@ -124909,115 +117785,6 @@ class FindManyIcleLogArgsFromTestStepRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromTestStep(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    product: Union[bool, 'ProductArgsFromTestStepRecursive1']
-    createdBy: Union[bool, 'UserArgsFromTestStepRecursive1']
-
-
-class DeploymentIncludeFromTestStepRecursive1(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    product: Union[bool, 'ProductArgsFromTestStepRecursive2']
-    createdBy: Union[bool, 'UserArgsFromTestStepRecursive2']
-
-
-class DeploymentIncludeFromTestStepRecursive2(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    product: Union[bool, 'ProductArgsFromTestStepRecursive3']
-    createdBy: Union[bool, 'UserArgsFromTestStepRecursive3']
-
-
-class DeploymentIncludeFromTestStepRecursive3(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-    product: Union[bool, 'ProductArgsFromTestStepRecursive4']
-    createdBy: Union[bool, 'UserArgsFromTestStepRecursive4']
-
-
-class DeploymentIncludeFromTestStepRecursive4(TypedDict, total=False):
-    """Relational arguments for TestStep"""
-
-    
-
-class DeploymentArgsFromTestStep(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromTestStepRecursive1(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromTestStepRecursive2(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromTestStepRecursive3(TypedDict, total=False):
-    """Arguments for TestStep"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromTestStepRecursive4(TypedDict, total=False):
-    """Arguments for TestStep"""
-    
-    
-
-class FindManyDeploymentArgsFromTestStep(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromTestStepRecursive1(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromTestStepRecursive2(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromTestStepRecursive3(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromTestStepRecursive4(TypedDict, total=False):
-    """Arguments for TestStep"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromTestStep(TypedDict, total=False):
     """Relational arguments for TestStep"""
     product: Union[bool, 'ProductArgsFromTestStepRecursive1']
@@ -125363,7 +118130,6 @@ class UserIncludeFromTestStep(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestStepRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestStepRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestStepRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestStepRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestStepRecursive1']
@@ -125378,7 +118144,6 @@ class UserIncludeFromTestStepRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestStepRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestStepRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestStepRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestStepRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestStepRecursive2']
@@ -125393,7 +118158,6 @@ class UserIncludeFromTestStepRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestStepRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestStepRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestStepRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestStepRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestStepRecursive3']
@@ -125408,7 +118172,6 @@ class UserIncludeFromTestStepRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromTestStepRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromTestStepRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromTestStepRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromTestStepRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromTestStepRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromTestStepRecursive4']
@@ -127141,7 +119904,6 @@ class UserOptionalCreateInput(TypedDict, total=False):
     productAccess: 'ProductAccessCreateManyNestedWithoutRelationsInput'
     apiKeys: 'ApiKeyCreateManyNestedWithoutRelationsInput'
     sessions: 'SessionCreateManyNestedWithoutRelationsInput'
-    deployments: 'DeploymentCreateManyNestedWithoutRelationsInput'
     testExecutions: 'TestExecutionCreateManyNestedWithoutRelationsInput'
     testPackages: 'TestPackageCreateManyNestedWithoutRelationsInput'
     auditLogs: 'AuditLogCreateManyNestedWithoutRelationsInput'
@@ -127237,7 +119999,6 @@ class UserUpdateInput(TypedDict, total=False):
     productAccess: 'ProductAccessUpdateManyWithoutRelationsInput'
     apiKeys: 'ApiKeyUpdateManyWithoutRelationsInput'
     sessions: 'SessionUpdateManyWithoutRelationsInput'
-    deployments: 'DeploymentUpdateManyWithoutRelationsInput'
     testExecutions: 'TestExecutionUpdateManyWithoutRelationsInput'
     testPackages: 'TestPackageUpdateManyWithoutRelationsInput'
     auditLogs: 'AuditLogUpdateManyWithoutRelationsInput'
@@ -127435,7 +120196,6 @@ class UserInclude(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromUser']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromUser']
     sessions: Union[bool, 'FindManySessionArgsFromUser']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromUser']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromUser']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromUser']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromUser']
@@ -127455,7 +120215,6 @@ class ProductIncludeFromUser(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromUserRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromUserRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromUserRecursive1']
@@ -127472,7 +120231,6 @@ class ProductIncludeFromUserRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromUserRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromUserRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromUserRecursive2']
@@ -127489,7 +120247,6 @@ class ProductIncludeFromUserRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromUserRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromUserRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromUserRecursive3']
@@ -127506,7 +120263,6 @@ class ProductIncludeFromUserRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromUserRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromUserRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromUserRecursive4']
@@ -127937,6 +120693,8 @@ class BoardRevisionIncludeFromUser(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromUserRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromUserRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive1']
 
 
 class BoardRevisionIncludeFromUserRecursive1(TypedDict, total=False):
@@ -127946,6 +120704,8 @@ class BoardRevisionIncludeFromUserRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromUserRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromUserRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive2']
 
 
 class BoardRevisionIncludeFromUserRecursive2(TypedDict, total=False):
@@ -127955,6 +120715,8 @@ class BoardRevisionIncludeFromUserRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromUserRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromUserRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive3']
 
 
 class BoardRevisionIncludeFromUserRecursive3(TypedDict, total=False):
@@ -127964,6 +120726,8 @@ class BoardRevisionIncludeFromUserRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromUserRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromUserRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromUserRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromUserRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive4']
 
 
 class BoardRevisionIncludeFromUserRecursive4(TypedDict, total=False):
@@ -129122,21 +121886,25 @@ class FindManyDeviceArgsFromUserRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive1']
 
 
 class FixtureDesignIncludeFromUserRecursive1(TypedDict, total=False):
     """Relational arguments for User"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive2']
 
 
 class FixtureDesignIncludeFromUserRecursive2(TypedDict, total=False):
     """Relational arguments for User"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive3']
 
 
 class FixtureDesignIncludeFromUserRecursive3(TypedDict, total=False):
     """Relational arguments for User"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromUserRecursive4']
 
 
@@ -129228,6 +121996,7 @@ class FindManyFixtureDesignArgsFromUserRecursive4(TypedDict, total=False):
 class FixtureIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromUserRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromUserRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive1']
@@ -129237,6 +122006,7 @@ class FixtureIncludeFromUser(TypedDict, total=False):
 class FixtureIncludeFromUserRecursive1(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromUserRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromUserRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive2']
@@ -129246,6 +122016,7 @@ class FixtureIncludeFromUserRecursive1(TypedDict, total=False):
 class FixtureIncludeFromUserRecursive2(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromUserRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromUserRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive3']
@@ -129255,6 +122026,7 @@ class FixtureIncludeFromUserRecursive2(TypedDict, total=False):
 class FixtureIncludeFromUserRecursive3(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromUserRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromUserRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive4']
@@ -129887,115 +122659,6 @@ class FindManyIcleLogArgsFromUserRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromUser(TypedDict, total=False):
-    """Relational arguments for User"""
-    product: Union[bool, 'ProductArgsFromUserRecursive1']
-    createdBy: Union[bool, 'UserArgsFromUserRecursive1']
-
-
-class DeploymentIncludeFromUserRecursive1(TypedDict, total=False):
-    """Relational arguments for User"""
-    product: Union[bool, 'ProductArgsFromUserRecursive2']
-    createdBy: Union[bool, 'UserArgsFromUserRecursive2']
-
-
-class DeploymentIncludeFromUserRecursive2(TypedDict, total=False):
-    """Relational arguments for User"""
-    product: Union[bool, 'ProductArgsFromUserRecursive3']
-    createdBy: Union[bool, 'UserArgsFromUserRecursive3']
-
-
-class DeploymentIncludeFromUserRecursive3(TypedDict, total=False):
-    """Relational arguments for User"""
-    product: Union[bool, 'ProductArgsFromUserRecursive4']
-    createdBy: Union[bool, 'UserArgsFromUserRecursive4']
-
-
-class DeploymentIncludeFromUserRecursive4(TypedDict, total=False):
-    """Relational arguments for User"""
-
-    
-
-class DeploymentArgsFromUser(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromUserRecursive1(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromUserRecursive2(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromUserRecursive3(TypedDict, total=False):
-    """Arguments for User"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromUserRecursive4(TypedDict, total=False):
-    """Arguments for User"""
-    
-    
-
-class FindManyDeploymentArgsFromUser(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromUserRecursive1(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromUserRecursive2(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromUserRecursive3(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromUserRecursive4(TypedDict, total=False):
-    """Arguments for User"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromUser(TypedDict, total=False):
     """Relational arguments for User"""
     product: Union[bool, 'ProductArgsFromUserRecursive1']
@@ -130341,7 +123004,6 @@ class UserIncludeFromUser(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromUserRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromUserRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromUserRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromUserRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromUserRecursive1']
@@ -130356,7 +123018,6 @@ class UserIncludeFromUserRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromUserRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromUserRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromUserRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromUserRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromUserRecursive2']
@@ -130371,7 +123032,6 @@ class UserIncludeFromUserRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromUserRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromUserRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromUserRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromUserRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromUserRecursive3']
@@ -130386,7 +123046,6 @@ class UserIncludeFromUserRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromUserRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromUserRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromUserRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromUserRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromUserRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromUserRecursive4']
@@ -131701,7 +124360,6 @@ class UserWhereInput(TypedDict, total=False):
     productAccess: 'ProductAccessListRelationFilter'
     apiKeys: 'ApiKeyListRelationFilter'
     sessions: 'SessionListRelationFilter'
-    deployments: 'DeploymentListRelationFilter'
     testExecutions: 'TestExecutionListRelationFilter'
     testPackages: 'TestPackageListRelationFilter'
     auditLogs: 'AuditLogListRelationFilter'
@@ -131732,7 +124390,6 @@ class UserWhereInputRecursive1(TypedDict, total=False):
     productAccess: 'ProductAccessListRelationFilter'
     apiKeys: 'ApiKeyListRelationFilter'
     sessions: 'SessionListRelationFilter'
-    deployments: 'DeploymentListRelationFilter'
     testExecutions: 'TestExecutionListRelationFilter'
     testPackages: 'TestPackageListRelationFilter'
     auditLogs: 'AuditLogListRelationFilter'
@@ -131763,7 +124420,6 @@ class UserWhereInputRecursive2(TypedDict, total=False):
     productAccess: 'ProductAccessListRelationFilter'
     apiKeys: 'ApiKeyListRelationFilter'
     sessions: 'SessionListRelationFilter'
-    deployments: 'DeploymentListRelationFilter'
     testExecutions: 'TestExecutionListRelationFilter'
     testPackages: 'TestPackageListRelationFilter'
     auditLogs: 'AuditLogListRelationFilter'
@@ -131794,7 +124450,6 @@ class UserWhereInputRecursive3(TypedDict, total=False):
     productAccess: 'ProductAccessListRelationFilter'
     apiKeys: 'ApiKeyListRelationFilter'
     sessions: 'SessionListRelationFilter'
-    deployments: 'DeploymentListRelationFilter'
     testExecutions: 'TestExecutionListRelationFilter'
     testPackages: 'TestPackageListRelationFilter'
     auditLogs: 'AuditLogListRelationFilter'
@@ -131825,7 +124480,6 @@ class UserWhereInputRecursive4(TypedDict, total=False):
     productAccess: 'ProductAccessListRelationFilter'
     apiKeys: 'ApiKeyListRelationFilter'
     sessions: 'SessionListRelationFilter'
-    deployments: 'DeploymentListRelationFilter'
     testExecutions: 'TestExecutionListRelationFilter'
     testPackages: 'TestPackageListRelationFilter'
     auditLogs: 'AuditLogListRelationFilter'
@@ -132059,7 +124713,6 @@ UserKeys = Literal[
     'productAccess',
     'apiKeys',
     'sessions',
-    'deployments',
     'testExecutions',
     'testPackages',
     'auditLogs',
@@ -132086,7 +124739,6 @@ UserRelationalFieldKeys = Literal[
         'productAccess',
         'apiKeys',
         'sessions',
-        'deployments',
         'testExecutions',
         'testPackages',
         'auditLogs',
@@ -132344,7 +124996,6 @@ class ProductIncludeFromProductAccess(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductAccessRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductAccessRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductAccessRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductAccessRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductAccessRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductAccessRecursive1']
@@ -132361,7 +125012,6 @@ class ProductIncludeFromProductAccessRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductAccessRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductAccessRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductAccessRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductAccessRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductAccessRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductAccessRecursive2']
@@ -132378,7 +125028,6 @@ class ProductIncludeFromProductAccessRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductAccessRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductAccessRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductAccessRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductAccessRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductAccessRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductAccessRecursive3']
@@ -132395,7 +125044,6 @@ class ProductIncludeFromProductAccessRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromProductAccessRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductAccessRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductAccessRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductAccessRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductAccessRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromProductAccessRecursive4']
@@ -132826,6 +125474,8 @@ class BoardRevisionIncludeFromProductAccess(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductAccessRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductAccessRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductAccessRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductAccessRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductAccessRecursive1']
 
 
 class BoardRevisionIncludeFromProductAccessRecursive1(TypedDict, total=False):
@@ -132835,6 +125485,8 @@ class BoardRevisionIncludeFromProductAccessRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductAccessRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductAccessRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductAccessRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductAccessRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductAccessRecursive2']
 
 
 class BoardRevisionIncludeFromProductAccessRecursive2(TypedDict, total=False):
@@ -132844,6 +125496,8 @@ class BoardRevisionIncludeFromProductAccessRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductAccessRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductAccessRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductAccessRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductAccessRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductAccessRecursive3']
 
 
 class BoardRevisionIncludeFromProductAccessRecursive3(TypedDict, total=False):
@@ -132853,6 +125507,8 @@ class BoardRevisionIncludeFromProductAccessRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromProductAccessRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromProductAccessRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromProductAccessRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromProductAccessRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromProductAccessRecursive4']
 
 
 class BoardRevisionIncludeFromProductAccessRecursive4(TypedDict, total=False):
@@ -134011,21 +126667,25 @@ class FindManyDeviceArgsFromProductAccessRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromProductAccess(TypedDict, total=False):
     """Relational arguments for ProductAccess"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductAccessRecursive1']
 
 
 class FixtureDesignIncludeFromProductAccessRecursive1(TypedDict, total=False):
     """Relational arguments for ProductAccess"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductAccessRecursive2']
 
 
 class FixtureDesignIncludeFromProductAccessRecursive2(TypedDict, total=False):
     """Relational arguments for ProductAccess"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductAccessRecursive3']
 
 
 class FixtureDesignIncludeFromProductAccessRecursive3(TypedDict, total=False):
     """Relational arguments for ProductAccess"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromProductAccessRecursive4']
 
 
@@ -134117,6 +126777,7 @@ class FindManyFixtureDesignArgsFromProductAccessRecursive4(TypedDict, total=Fals
 class FixtureIncludeFromProductAccess(TypedDict, total=False):
     """Relational arguments for ProductAccess"""
     product: Union[bool, 'ProductArgsFromProductAccessRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromProductAccessRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductAccessRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive1']
@@ -134126,6 +126787,7 @@ class FixtureIncludeFromProductAccess(TypedDict, total=False):
 class FixtureIncludeFromProductAccessRecursive1(TypedDict, total=False):
     """Relational arguments for ProductAccess"""
     product: Union[bool, 'ProductArgsFromProductAccessRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromProductAccessRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductAccessRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive2']
@@ -134135,6 +126797,7 @@ class FixtureIncludeFromProductAccessRecursive1(TypedDict, total=False):
 class FixtureIncludeFromProductAccessRecursive2(TypedDict, total=False):
     """Relational arguments for ProductAccess"""
     product: Union[bool, 'ProductArgsFromProductAccessRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromProductAccessRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductAccessRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive3']
@@ -134144,6 +126807,7 @@ class FixtureIncludeFromProductAccessRecursive2(TypedDict, total=False):
 class FixtureIncludeFromProductAccessRecursive3(TypedDict, total=False):
     """Relational arguments for ProductAccess"""
     product: Union[bool, 'ProductArgsFromProductAccessRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromProductAccessRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromProductAccessRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive4']
@@ -134776,115 +127440,6 @@ class FindManyIcleLogArgsFromProductAccessRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromProductAccess(TypedDict, total=False):
-    """Relational arguments for ProductAccess"""
-    product: Union[bool, 'ProductArgsFromProductAccessRecursive1']
-    createdBy: Union[bool, 'UserArgsFromProductAccessRecursive1']
-
-
-class DeploymentIncludeFromProductAccessRecursive1(TypedDict, total=False):
-    """Relational arguments for ProductAccess"""
-    product: Union[bool, 'ProductArgsFromProductAccessRecursive2']
-    createdBy: Union[bool, 'UserArgsFromProductAccessRecursive2']
-
-
-class DeploymentIncludeFromProductAccessRecursive2(TypedDict, total=False):
-    """Relational arguments for ProductAccess"""
-    product: Union[bool, 'ProductArgsFromProductAccessRecursive3']
-    createdBy: Union[bool, 'UserArgsFromProductAccessRecursive3']
-
-
-class DeploymentIncludeFromProductAccessRecursive3(TypedDict, total=False):
-    """Relational arguments for ProductAccess"""
-    product: Union[bool, 'ProductArgsFromProductAccessRecursive4']
-    createdBy: Union[bool, 'UserArgsFromProductAccessRecursive4']
-
-
-class DeploymentIncludeFromProductAccessRecursive4(TypedDict, total=False):
-    """Relational arguments for ProductAccess"""
-
-    
-
-class DeploymentArgsFromProductAccess(TypedDict, total=False):
-    """Arguments for ProductAccess"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromProductAccessRecursive1(TypedDict, total=False):
-    """Arguments for ProductAccess"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromProductAccessRecursive2(TypedDict, total=False):
-    """Arguments for ProductAccess"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromProductAccessRecursive3(TypedDict, total=False):
-    """Arguments for ProductAccess"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromProductAccessRecursive4(TypedDict, total=False):
-    """Arguments for ProductAccess"""
-    
-    
-
-class FindManyDeploymentArgsFromProductAccess(TypedDict, total=False):
-    """Arguments for ProductAccess"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromProductAccessRecursive1(TypedDict, total=False):
-    """Arguments for ProductAccess"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromProductAccessRecursive2(TypedDict, total=False):
-    """Arguments for ProductAccess"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromProductAccessRecursive3(TypedDict, total=False):
-    """Arguments for ProductAccess"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromProductAccessRecursive4(TypedDict, total=False):
-    """Arguments for ProductAccess"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromProductAccess(TypedDict, total=False):
     """Relational arguments for ProductAccess"""
     product: Union[bool, 'ProductArgsFromProductAccessRecursive1']
@@ -135230,7 +127785,6 @@ class UserIncludeFromProductAccess(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductAccessRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductAccessRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductAccessRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductAccessRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductAccessRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductAccessRecursive1']
@@ -135245,7 +127799,6 @@ class UserIncludeFromProductAccessRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductAccessRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductAccessRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductAccessRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductAccessRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductAccessRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductAccessRecursive2']
@@ -135260,7 +127813,6 @@ class UserIncludeFromProductAccessRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductAccessRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductAccessRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductAccessRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductAccessRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductAccessRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductAccessRecursive3']
@@ -135275,7 +127827,6 @@ class UserIncludeFromProductAccessRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromProductAccessRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromProductAccessRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromProductAccessRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromProductAccessRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromProductAccessRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromProductAccessRecursive4']
@@ -137090,7 +129641,6 @@ class ProductIncludeFromPermissionSet(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromPermissionSetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPermissionSetRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromPermissionSetRecursive1']
@@ -137107,7 +129657,6 @@ class ProductIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromPermissionSetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPermissionSetRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromPermissionSetRecursive2']
@@ -137124,7 +129673,6 @@ class ProductIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromPermissionSetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPermissionSetRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromPermissionSetRecursive3']
@@ -137141,7 +129689,6 @@ class ProductIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromPermissionSetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPermissionSetRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromPermissionSetRecursive4']
@@ -137572,6 +130119,8 @@ class BoardRevisionIncludeFromPermissionSet(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromPermissionSetRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromPermissionSetRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive1']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive1(TypedDict, total=False):
@@ -137581,6 +130130,8 @@ class BoardRevisionIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromPermissionSetRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromPermissionSetRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive2']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive2(TypedDict, total=False):
@@ -137590,6 +130141,8 @@ class BoardRevisionIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromPermissionSetRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromPermissionSetRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive3']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive3(TypedDict, total=False):
@@ -137599,6 +130152,8 @@ class BoardRevisionIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPermissionSetRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPermissionSetRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromPermissionSetRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromPermissionSetRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive4']
 
 
 class BoardRevisionIncludeFromPermissionSetRecursive4(TypedDict, total=False):
@@ -138757,21 +131312,25 @@ class FindManyDeviceArgsFromPermissionSetRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive1']
 
 
 class FixtureDesignIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive2']
 
 
 class FixtureDesignIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive3']
 
 
 class FixtureDesignIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPermissionSetRecursive4']
 
 
@@ -138863,6 +131422,7 @@ class FindManyFixtureDesignArgsFromPermissionSetRecursive4(TypedDict, total=Fals
 class FixtureIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromPermissionSetRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromPermissionSetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive1']
@@ -138872,6 +131432,7 @@ class FixtureIncludeFromPermissionSet(TypedDict, total=False):
 class FixtureIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromPermissionSetRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromPermissionSetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive2']
@@ -138881,6 +131442,7 @@ class FixtureIncludeFromPermissionSetRecursive1(TypedDict, total=False):
 class FixtureIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromPermissionSetRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromPermissionSetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive3']
@@ -138890,6 +131452,7 @@ class FixtureIncludeFromPermissionSetRecursive2(TypedDict, total=False):
 class FixtureIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromPermissionSetRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromPermissionSetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive4']
@@ -139522,115 +132085,6 @@ class FindManyIcleLogArgsFromPermissionSetRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromPermissionSet(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
-    createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive1']
-
-
-class DeploymentIncludeFromPermissionSetRecursive1(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
-    createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive2']
-
-
-class DeploymentIncludeFromPermissionSetRecursive2(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
-    createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive3']
-
-
-class DeploymentIncludeFromPermissionSetRecursive3(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-    product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
-    createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive4']
-
-
-class DeploymentIncludeFromPermissionSetRecursive4(TypedDict, total=False):
-    """Relational arguments for PermissionSet"""
-
-    
-
-class DeploymentArgsFromPermissionSet(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromPermissionSetRecursive1(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromPermissionSetRecursive2(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromPermissionSetRecursive3(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromPermissionSetRecursive4(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    
-    
-
-class FindManyDeploymentArgsFromPermissionSet(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromPermissionSetRecursive1(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromPermissionSetRecursive2(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromPermissionSetRecursive3(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromPermissionSetRecursive4(TypedDict, total=False):
-    """Arguments for PermissionSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromPermissionSet(TypedDict, total=False):
     """Relational arguments for PermissionSet"""
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
@@ -139976,7 +132430,6 @@ class UserIncludeFromPermissionSet(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromPermissionSetRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromPermissionSetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPermissionSetRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPermissionSetRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPermissionSetRecursive1']
@@ -139991,7 +132444,6 @@ class UserIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromPermissionSetRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromPermissionSetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPermissionSetRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPermissionSetRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPermissionSetRecursive2']
@@ -140006,7 +132458,6 @@ class UserIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromPermissionSetRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromPermissionSetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPermissionSetRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPermissionSetRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPermissionSetRecursive3']
@@ -140021,7 +132472,6 @@ class UserIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromPermissionSetRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromPermissionSetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPermissionSetRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPermissionSetRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPermissionSetRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPermissionSetRecursive4']
@@ -141853,7 +134303,6 @@ class ProductIncludeFromApiKey(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromApiKeyRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromApiKeyRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromApiKeyRecursive1']
@@ -141870,7 +134319,6 @@ class ProductIncludeFromApiKeyRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromApiKeyRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromApiKeyRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromApiKeyRecursive2']
@@ -141887,7 +134335,6 @@ class ProductIncludeFromApiKeyRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromApiKeyRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromApiKeyRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromApiKeyRecursive3']
@@ -141904,7 +134351,6 @@ class ProductIncludeFromApiKeyRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromApiKeyRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromApiKeyRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromApiKeyRecursive4']
@@ -142335,6 +134781,8 @@ class BoardRevisionIncludeFromApiKey(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromApiKeyRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromApiKeyRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive1']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive1(TypedDict, total=False):
@@ -142344,6 +134792,8 @@ class BoardRevisionIncludeFromApiKeyRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromApiKeyRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromApiKeyRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive2']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive2(TypedDict, total=False):
@@ -142353,6 +134803,8 @@ class BoardRevisionIncludeFromApiKeyRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromApiKeyRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromApiKeyRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive3']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive3(TypedDict, total=False):
@@ -142362,6 +134814,8 @@ class BoardRevisionIncludeFromApiKeyRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromApiKeyRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromApiKeyRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromApiKeyRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromApiKeyRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive4']
 
 
 class BoardRevisionIncludeFromApiKeyRecursive4(TypedDict, total=False):
@@ -143520,21 +135974,25 @@ class FindManyDeviceArgsFromApiKeyRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive1']
 
 
 class FixtureDesignIncludeFromApiKeyRecursive1(TypedDict, total=False):
     """Relational arguments for ApiKey"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive2']
 
 
 class FixtureDesignIncludeFromApiKeyRecursive2(TypedDict, total=False):
     """Relational arguments for ApiKey"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive3']
 
 
 class FixtureDesignIncludeFromApiKeyRecursive3(TypedDict, total=False):
     """Relational arguments for ApiKey"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromApiKeyRecursive4']
 
 
@@ -143626,6 +136084,7 @@ class FindManyFixtureDesignArgsFromApiKeyRecursive4(TypedDict, total=False):
 class FixtureIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromApiKeyRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromApiKeyRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive1']
@@ -143635,6 +136094,7 @@ class FixtureIncludeFromApiKey(TypedDict, total=False):
 class FixtureIncludeFromApiKeyRecursive1(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromApiKeyRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromApiKeyRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive2']
@@ -143644,6 +136104,7 @@ class FixtureIncludeFromApiKeyRecursive1(TypedDict, total=False):
 class FixtureIncludeFromApiKeyRecursive2(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromApiKeyRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromApiKeyRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive3']
@@ -143653,6 +136114,7 @@ class FixtureIncludeFromApiKeyRecursive2(TypedDict, total=False):
 class FixtureIncludeFromApiKeyRecursive3(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromApiKeyRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromApiKeyRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive4']
@@ -144285,115 +136747,6 @@ class FindManyIcleLogArgsFromApiKeyRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromApiKey(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
-    createdBy: Union[bool, 'UserArgsFromApiKeyRecursive1']
-
-
-class DeploymentIncludeFromApiKeyRecursive1(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
-    createdBy: Union[bool, 'UserArgsFromApiKeyRecursive2']
-
-
-class DeploymentIncludeFromApiKeyRecursive2(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
-    createdBy: Union[bool, 'UserArgsFromApiKeyRecursive3']
-
-
-class DeploymentIncludeFromApiKeyRecursive3(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-    product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
-    createdBy: Union[bool, 'UserArgsFromApiKeyRecursive4']
-
-
-class DeploymentIncludeFromApiKeyRecursive4(TypedDict, total=False):
-    """Relational arguments for ApiKey"""
-
-    
-
-class DeploymentArgsFromApiKey(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromApiKeyRecursive1(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromApiKeyRecursive2(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromApiKeyRecursive3(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromApiKeyRecursive4(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    
-    
-
-class FindManyDeploymentArgsFromApiKey(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromApiKeyRecursive1(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromApiKeyRecursive2(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromApiKeyRecursive3(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromApiKeyRecursive4(TypedDict, total=False):
-    """Arguments for ApiKey"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromApiKey(TypedDict, total=False):
     """Relational arguments for ApiKey"""
     product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
@@ -144739,7 +137092,6 @@ class UserIncludeFromApiKey(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromApiKeyRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromApiKeyRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromApiKeyRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromApiKeyRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromApiKeyRecursive1']
@@ -144754,7 +137106,6 @@ class UserIncludeFromApiKeyRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromApiKeyRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromApiKeyRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromApiKeyRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromApiKeyRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromApiKeyRecursive2']
@@ -144769,7 +137120,6 @@ class UserIncludeFromApiKeyRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromApiKeyRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromApiKeyRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromApiKeyRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromApiKeyRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromApiKeyRecursive3']
@@ -144784,7 +137134,6 @@ class UserIncludeFromApiKeyRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromApiKeyRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromApiKeyRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromApiKeyRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromApiKeyRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromApiKeyRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromApiKeyRecursive4']
@@ -146641,7 +138990,6 @@ class ProductIncludeFromAuditLog(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAuditLogRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAuditLogRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAuditLogRecursive1']
@@ -146658,7 +139006,6 @@ class ProductIncludeFromAuditLogRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAuditLogRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAuditLogRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAuditLogRecursive2']
@@ -146675,7 +139022,6 @@ class ProductIncludeFromAuditLogRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAuditLogRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAuditLogRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAuditLogRecursive3']
@@ -146692,7 +139038,6 @@ class ProductIncludeFromAuditLogRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAuditLogRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAuditLogRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAuditLogRecursive4']
@@ -147123,6 +139468,8 @@ class BoardRevisionIncludeFromAuditLog(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAuditLogRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAuditLogRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive1']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive1(TypedDict, total=False):
@@ -147132,6 +139479,8 @@ class BoardRevisionIncludeFromAuditLogRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAuditLogRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAuditLogRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive2']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive2(TypedDict, total=False):
@@ -147141,6 +139490,8 @@ class BoardRevisionIncludeFromAuditLogRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAuditLogRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAuditLogRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive3']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive3(TypedDict, total=False):
@@ -147150,6 +139501,8 @@ class BoardRevisionIncludeFromAuditLogRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAuditLogRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAuditLogRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAuditLogRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAuditLogRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive4']
 
 
 class BoardRevisionIncludeFromAuditLogRecursive4(TypedDict, total=False):
@@ -148308,21 +140661,25 @@ class FindManyDeviceArgsFromAuditLogRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive1']
 
 
 class FixtureDesignIncludeFromAuditLogRecursive1(TypedDict, total=False):
     """Relational arguments for AuditLog"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive2']
 
 
 class FixtureDesignIncludeFromAuditLogRecursive2(TypedDict, total=False):
     """Relational arguments for AuditLog"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive3']
 
 
 class FixtureDesignIncludeFromAuditLogRecursive3(TypedDict, total=False):
     """Relational arguments for AuditLog"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAuditLogRecursive4']
 
 
@@ -148414,6 +140771,7 @@ class FindManyFixtureDesignArgsFromAuditLogRecursive4(TypedDict, total=False):
 class FixtureIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromAuditLogRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAuditLogRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive1']
@@ -148423,6 +140781,7 @@ class FixtureIncludeFromAuditLog(TypedDict, total=False):
 class FixtureIncludeFromAuditLogRecursive1(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromAuditLogRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAuditLogRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive2']
@@ -148432,6 +140791,7 @@ class FixtureIncludeFromAuditLogRecursive1(TypedDict, total=False):
 class FixtureIncludeFromAuditLogRecursive2(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromAuditLogRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAuditLogRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive3']
@@ -148441,6 +140801,7 @@ class FixtureIncludeFromAuditLogRecursive2(TypedDict, total=False):
 class FixtureIncludeFromAuditLogRecursive3(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromAuditLogRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAuditLogRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive4']
@@ -149073,115 +141434,6 @@ class FindManyIcleLogArgsFromAuditLogRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromAuditLog(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
-    createdBy: Union[bool, 'UserArgsFromAuditLogRecursive1']
-
-
-class DeploymentIncludeFromAuditLogRecursive1(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
-    createdBy: Union[bool, 'UserArgsFromAuditLogRecursive2']
-
-
-class DeploymentIncludeFromAuditLogRecursive2(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
-    createdBy: Union[bool, 'UserArgsFromAuditLogRecursive3']
-
-
-class DeploymentIncludeFromAuditLogRecursive3(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-    product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
-    createdBy: Union[bool, 'UserArgsFromAuditLogRecursive4']
-
-
-class DeploymentIncludeFromAuditLogRecursive4(TypedDict, total=False):
-    """Relational arguments for AuditLog"""
-
-    
-
-class DeploymentArgsFromAuditLog(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromAuditLogRecursive1(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromAuditLogRecursive2(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromAuditLogRecursive3(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromAuditLogRecursive4(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    
-    
-
-class FindManyDeploymentArgsFromAuditLog(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromAuditLogRecursive1(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromAuditLogRecursive2(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromAuditLogRecursive3(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromAuditLogRecursive4(TypedDict, total=False):
-    """Arguments for AuditLog"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromAuditLog(TypedDict, total=False):
     """Relational arguments for AuditLog"""
     product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
@@ -149527,7 +141779,6 @@ class UserIncludeFromAuditLog(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAuditLogRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAuditLogRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAuditLogRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAuditLogRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAuditLogRecursive1']
@@ -149542,7 +141793,6 @@ class UserIncludeFromAuditLogRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAuditLogRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAuditLogRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAuditLogRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAuditLogRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAuditLogRecursive2']
@@ -149557,7 +141807,6 @@ class UserIncludeFromAuditLogRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAuditLogRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAuditLogRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAuditLogRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAuditLogRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAuditLogRecursive3']
@@ -149572,7 +141821,6 @@ class UserIncludeFromAuditLogRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAuditLogRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAuditLogRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAuditLogRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAuditLogRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAuditLogRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAuditLogRecursive4']
@@ -151443,7 +143691,6 @@ class ProductIncludeFromSecret(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSecretRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromSecretRecursive1']
@@ -151460,7 +143707,6 @@ class ProductIncludeFromSecretRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSecretRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromSecretRecursive2']
@@ -151477,7 +143723,6 @@ class ProductIncludeFromSecretRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSecretRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromSecretRecursive3']
@@ -151494,7 +143739,6 @@ class ProductIncludeFromSecretRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromSecretRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSecretRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromSecretRecursive4']
@@ -151925,6 +144169,8 @@ class BoardRevisionIncludeFromSecret(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromSecretRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromSecretRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive1']
 
 
 class BoardRevisionIncludeFromSecretRecursive1(TypedDict, total=False):
@@ -151934,6 +144180,8 @@ class BoardRevisionIncludeFromSecretRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromSecretRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromSecretRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive2']
 
 
 class BoardRevisionIncludeFromSecretRecursive2(TypedDict, total=False):
@@ -151943,6 +144191,8 @@ class BoardRevisionIncludeFromSecretRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromSecretRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromSecretRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive3']
 
 
 class BoardRevisionIncludeFromSecretRecursive3(TypedDict, total=False):
@@ -151952,6 +144202,8 @@ class BoardRevisionIncludeFromSecretRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromSecretRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromSecretRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromSecretRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromSecretRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive4']
 
 
 class BoardRevisionIncludeFromSecretRecursive4(TypedDict, total=False):
@@ -153110,21 +145362,25 @@ class FindManyDeviceArgsFromSecretRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromSecret(TypedDict, total=False):
     """Relational arguments for Secret"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive1']
 
 
 class FixtureDesignIncludeFromSecretRecursive1(TypedDict, total=False):
     """Relational arguments for Secret"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive2']
 
 
 class FixtureDesignIncludeFromSecretRecursive2(TypedDict, total=False):
     """Relational arguments for Secret"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive3']
 
 
 class FixtureDesignIncludeFromSecretRecursive3(TypedDict, total=False):
     """Relational arguments for Secret"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromSecretRecursive4']
 
 
@@ -153216,6 +145472,7 @@ class FindManyFixtureDesignArgsFromSecretRecursive4(TypedDict, total=False):
 class FixtureIncludeFromSecret(TypedDict, total=False):
     """Relational arguments for Secret"""
     product: Union[bool, 'ProductArgsFromSecretRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromSecretRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromSecretRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive1']
@@ -153225,6 +145482,7 @@ class FixtureIncludeFromSecret(TypedDict, total=False):
 class FixtureIncludeFromSecretRecursive1(TypedDict, total=False):
     """Relational arguments for Secret"""
     product: Union[bool, 'ProductArgsFromSecretRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromSecretRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromSecretRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive2']
@@ -153234,6 +145492,7 @@ class FixtureIncludeFromSecretRecursive1(TypedDict, total=False):
 class FixtureIncludeFromSecretRecursive2(TypedDict, total=False):
     """Relational arguments for Secret"""
     product: Union[bool, 'ProductArgsFromSecretRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromSecretRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromSecretRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive3']
@@ -153243,6 +145502,7 @@ class FixtureIncludeFromSecretRecursive2(TypedDict, total=False):
 class FixtureIncludeFromSecretRecursive3(TypedDict, total=False):
     """Relational arguments for Secret"""
     product: Union[bool, 'ProductArgsFromSecretRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromSecretRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromSecretRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive4']
@@ -153875,115 +146135,6 @@ class FindManyIcleLogArgsFromSecretRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromSecret(TypedDict, total=False):
-    """Relational arguments for Secret"""
-    product: Union[bool, 'ProductArgsFromSecretRecursive1']
-    createdBy: Union[bool, 'UserArgsFromSecretRecursive1']
-
-
-class DeploymentIncludeFromSecretRecursive1(TypedDict, total=False):
-    """Relational arguments for Secret"""
-    product: Union[bool, 'ProductArgsFromSecretRecursive2']
-    createdBy: Union[bool, 'UserArgsFromSecretRecursive2']
-
-
-class DeploymentIncludeFromSecretRecursive2(TypedDict, total=False):
-    """Relational arguments for Secret"""
-    product: Union[bool, 'ProductArgsFromSecretRecursive3']
-    createdBy: Union[bool, 'UserArgsFromSecretRecursive3']
-
-
-class DeploymentIncludeFromSecretRecursive3(TypedDict, total=False):
-    """Relational arguments for Secret"""
-    product: Union[bool, 'ProductArgsFromSecretRecursive4']
-    createdBy: Union[bool, 'UserArgsFromSecretRecursive4']
-
-
-class DeploymentIncludeFromSecretRecursive4(TypedDict, total=False):
-    """Relational arguments for Secret"""
-
-    
-
-class DeploymentArgsFromSecret(TypedDict, total=False):
-    """Arguments for Secret"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromSecretRecursive1(TypedDict, total=False):
-    """Arguments for Secret"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromSecretRecursive2(TypedDict, total=False):
-    """Arguments for Secret"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromSecretRecursive3(TypedDict, total=False):
-    """Arguments for Secret"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromSecretRecursive4(TypedDict, total=False):
-    """Arguments for Secret"""
-    
-    
-
-class FindManyDeploymentArgsFromSecret(TypedDict, total=False):
-    """Arguments for Secret"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromSecretRecursive1(TypedDict, total=False):
-    """Arguments for Secret"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromSecretRecursive2(TypedDict, total=False):
-    """Arguments for Secret"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromSecretRecursive3(TypedDict, total=False):
-    """Arguments for Secret"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromSecretRecursive4(TypedDict, total=False):
-    """Arguments for Secret"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromSecret(TypedDict, total=False):
     """Relational arguments for Secret"""
     product: Union[bool, 'ProductArgsFromSecretRecursive1']
@@ -154329,7 +146480,6 @@ class UserIncludeFromSecret(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromSecretRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromSecretRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSecretRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSecretRecursive1']
@@ -154344,7 +146494,6 @@ class UserIncludeFromSecretRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromSecretRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromSecretRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSecretRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSecretRecursive2']
@@ -154359,7 +146508,6 @@ class UserIncludeFromSecretRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromSecretRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromSecretRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSecretRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSecretRecursive3']
@@ -154374,7 +146522,6 @@ class UserIncludeFromSecretRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromSecretRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromSecretRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromSecretRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromSecretRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromSecretRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromSecretRecursive4']
@@ -156231,7 +148378,6 @@ class ProductIncludeFromPollCache(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromPollCacheRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPollCacheRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPollCacheRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPollCacheRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPollCacheRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromPollCacheRecursive1']
@@ -156248,7 +148394,6 @@ class ProductIncludeFromPollCacheRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromPollCacheRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPollCacheRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPollCacheRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPollCacheRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPollCacheRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromPollCacheRecursive2']
@@ -156265,7 +148410,6 @@ class ProductIncludeFromPollCacheRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromPollCacheRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPollCacheRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPollCacheRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPollCacheRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPollCacheRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromPollCacheRecursive3']
@@ -156282,7 +148426,6 @@ class ProductIncludeFromPollCacheRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromPollCacheRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPollCacheRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPollCacheRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPollCacheRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPollCacheRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromPollCacheRecursive4']
@@ -156713,6 +148856,8 @@ class BoardRevisionIncludeFromPollCache(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPollCacheRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPollCacheRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromPollCacheRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromPollCacheRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromPollCacheRecursive1']
 
 
 class BoardRevisionIncludeFromPollCacheRecursive1(TypedDict, total=False):
@@ -156722,6 +148867,8 @@ class BoardRevisionIncludeFromPollCacheRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPollCacheRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPollCacheRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromPollCacheRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromPollCacheRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromPollCacheRecursive2']
 
 
 class BoardRevisionIncludeFromPollCacheRecursive2(TypedDict, total=False):
@@ -156731,6 +148878,8 @@ class BoardRevisionIncludeFromPollCacheRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPollCacheRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPollCacheRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromPollCacheRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromPollCacheRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromPollCacheRecursive3']
 
 
 class BoardRevisionIncludeFromPollCacheRecursive3(TypedDict, total=False):
@@ -156740,6 +148889,8 @@ class BoardRevisionIncludeFromPollCacheRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromPollCacheRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromPollCacheRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromPollCacheRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromPollCacheRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromPollCacheRecursive4']
 
 
 class BoardRevisionIncludeFromPollCacheRecursive4(TypedDict, total=False):
@@ -157898,21 +150049,25 @@ class FindManyDeviceArgsFromPollCacheRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromPollCache(TypedDict, total=False):
     """Relational arguments for PollCache"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPollCacheRecursive1']
 
 
 class FixtureDesignIncludeFromPollCacheRecursive1(TypedDict, total=False):
     """Relational arguments for PollCache"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPollCacheRecursive2']
 
 
 class FixtureDesignIncludeFromPollCacheRecursive2(TypedDict, total=False):
     """Relational arguments for PollCache"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPollCacheRecursive3']
 
 
 class FixtureDesignIncludeFromPollCacheRecursive3(TypedDict, total=False):
     """Relational arguments for PollCache"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromPollCacheRecursive4']
 
 
@@ -158004,6 +150159,7 @@ class FindManyFixtureDesignArgsFromPollCacheRecursive4(TypedDict, total=False):
 class FixtureIncludeFromPollCache(TypedDict, total=False):
     """Relational arguments for PollCache"""
     product: Union[bool, 'ProductArgsFromPollCacheRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromPollCacheRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromPollCacheRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive1']
@@ -158013,6 +150169,7 @@ class FixtureIncludeFromPollCache(TypedDict, total=False):
 class FixtureIncludeFromPollCacheRecursive1(TypedDict, total=False):
     """Relational arguments for PollCache"""
     product: Union[bool, 'ProductArgsFromPollCacheRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromPollCacheRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromPollCacheRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive2']
@@ -158022,6 +150179,7 @@ class FixtureIncludeFromPollCacheRecursive1(TypedDict, total=False):
 class FixtureIncludeFromPollCacheRecursive2(TypedDict, total=False):
     """Relational arguments for PollCache"""
     product: Union[bool, 'ProductArgsFromPollCacheRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromPollCacheRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromPollCacheRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive3']
@@ -158031,6 +150189,7 @@ class FixtureIncludeFromPollCacheRecursive2(TypedDict, total=False):
 class FixtureIncludeFromPollCacheRecursive3(TypedDict, total=False):
     """Relational arguments for PollCache"""
     product: Union[bool, 'ProductArgsFromPollCacheRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromPollCacheRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromPollCacheRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive4']
@@ -158663,115 +150822,6 @@ class FindManyIcleLogArgsFromPollCacheRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromPollCache(TypedDict, total=False):
-    """Relational arguments for PollCache"""
-    product: Union[bool, 'ProductArgsFromPollCacheRecursive1']
-    createdBy: Union[bool, 'UserArgsFromPollCacheRecursive1']
-
-
-class DeploymentIncludeFromPollCacheRecursive1(TypedDict, total=False):
-    """Relational arguments for PollCache"""
-    product: Union[bool, 'ProductArgsFromPollCacheRecursive2']
-    createdBy: Union[bool, 'UserArgsFromPollCacheRecursive2']
-
-
-class DeploymentIncludeFromPollCacheRecursive2(TypedDict, total=False):
-    """Relational arguments for PollCache"""
-    product: Union[bool, 'ProductArgsFromPollCacheRecursive3']
-    createdBy: Union[bool, 'UserArgsFromPollCacheRecursive3']
-
-
-class DeploymentIncludeFromPollCacheRecursive3(TypedDict, total=False):
-    """Relational arguments for PollCache"""
-    product: Union[bool, 'ProductArgsFromPollCacheRecursive4']
-    createdBy: Union[bool, 'UserArgsFromPollCacheRecursive4']
-
-
-class DeploymentIncludeFromPollCacheRecursive4(TypedDict, total=False):
-    """Relational arguments for PollCache"""
-
-    
-
-class DeploymentArgsFromPollCache(TypedDict, total=False):
-    """Arguments for PollCache"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromPollCacheRecursive1(TypedDict, total=False):
-    """Arguments for PollCache"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromPollCacheRecursive2(TypedDict, total=False):
-    """Arguments for PollCache"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromPollCacheRecursive3(TypedDict, total=False):
-    """Arguments for PollCache"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromPollCacheRecursive4(TypedDict, total=False):
-    """Arguments for PollCache"""
-    
-    
-
-class FindManyDeploymentArgsFromPollCache(TypedDict, total=False):
-    """Arguments for PollCache"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromPollCacheRecursive1(TypedDict, total=False):
-    """Arguments for PollCache"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromPollCacheRecursive2(TypedDict, total=False):
-    """Arguments for PollCache"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromPollCacheRecursive3(TypedDict, total=False):
-    """Arguments for PollCache"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromPollCacheRecursive4(TypedDict, total=False):
-    """Arguments for PollCache"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromPollCache(TypedDict, total=False):
     """Relational arguments for PollCache"""
     product: Union[bool, 'ProductArgsFromPollCacheRecursive1']
@@ -159117,7 +151167,6 @@ class UserIncludeFromPollCache(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromPollCacheRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromPollCacheRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPollCacheRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPollCacheRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPollCacheRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPollCacheRecursive1']
@@ -159132,7 +151181,6 @@ class UserIncludeFromPollCacheRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromPollCacheRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromPollCacheRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPollCacheRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPollCacheRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPollCacheRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPollCacheRecursive2']
@@ -159147,7 +151195,6 @@ class UserIncludeFromPollCacheRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromPollCacheRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromPollCacheRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPollCacheRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPollCacheRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPollCacheRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPollCacheRecursive3']
@@ -159162,7 +151209,6 @@ class UserIncludeFromPollCacheRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromPollCacheRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromPollCacheRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromPollCacheRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromPollCacheRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromPollCacheRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromPollCacheRecursive4']
@@ -160991,7 +153037,6 @@ class ProductIncludeFromRecipeVersion(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromRecipeVersionRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeVersionRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeVersionRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeVersionRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeVersionRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromRecipeVersionRecursive1']
@@ -161008,7 +153053,6 @@ class ProductIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromRecipeVersionRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeVersionRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeVersionRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeVersionRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeVersionRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromRecipeVersionRecursive2']
@@ -161025,7 +153069,6 @@ class ProductIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromRecipeVersionRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeVersionRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeVersionRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeVersionRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeVersionRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromRecipeVersionRecursive3']
@@ -161042,7 +153085,6 @@ class ProductIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromRecipeVersionRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeVersionRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeVersionRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeVersionRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeVersionRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromRecipeVersionRecursive4']
@@ -161473,6 +153515,8 @@ class BoardRevisionIncludeFromRecipeVersion(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromRecipeVersionRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeVersionRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeVersionRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromRecipeVersionRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeVersionRecursive1']
 
 
 class BoardRevisionIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
@@ -161482,6 +153526,8 @@ class BoardRevisionIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromRecipeVersionRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeVersionRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeVersionRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromRecipeVersionRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeVersionRecursive2']
 
 
 class BoardRevisionIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
@@ -161491,6 +153537,8 @@ class BoardRevisionIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromRecipeVersionRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeVersionRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeVersionRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromRecipeVersionRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeVersionRecursive3']
 
 
 class BoardRevisionIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
@@ -161500,6 +153548,8 @@ class BoardRevisionIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromRecipeVersionRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeVersionRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeVersionRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromRecipeVersionRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeVersionRecursive4']
 
 
 class BoardRevisionIncludeFromRecipeVersionRecursive4(TypedDict, total=False):
@@ -162658,21 +154708,25 @@ class FindManyDeviceArgsFromRecipeVersionRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromRecipeVersion(TypedDict, total=False):
     """Relational arguments for RecipeVersion"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeVersionRecursive1']
 
 
 class FixtureDesignIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
     """Relational arguments for RecipeVersion"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeVersionRecursive2']
 
 
 class FixtureDesignIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
     """Relational arguments for RecipeVersion"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeVersionRecursive3']
 
 
 class FixtureDesignIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
     """Relational arguments for RecipeVersion"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeVersionRecursive4']
 
 
@@ -162764,6 +154818,7 @@ class FindManyFixtureDesignArgsFromRecipeVersionRecursive4(TypedDict, total=Fals
 class FixtureIncludeFromRecipeVersion(TypedDict, total=False):
     """Relational arguments for RecipeVersion"""
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromRecipeVersionRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromRecipeVersionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive1']
@@ -162773,6 +154828,7 @@ class FixtureIncludeFromRecipeVersion(TypedDict, total=False):
 class FixtureIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
     """Relational arguments for RecipeVersion"""
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromRecipeVersionRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromRecipeVersionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive2']
@@ -162782,6 +154838,7 @@ class FixtureIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
 class FixtureIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
     """Relational arguments for RecipeVersion"""
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromRecipeVersionRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromRecipeVersionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive3']
@@ -162791,6 +154848,7 @@ class FixtureIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
 class FixtureIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
     """Relational arguments for RecipeVersion"""
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromRecipeVersionRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromRecipeVersionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive4']
@@ -163423,115 +155481,6 @@ class FindManyIcleLogArgsFromRecipeVersionRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromRecipeVersion(TypedDict, total=False):
-    """Relational arguments for RecipeVersion"""
-    product: Union[bool, 'ProductArgsFromRecipeVersionRecursive1']
-    createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive1']
-
-
-class DeploymentIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
-    """Relational arguments for RecipeVersion"""
-    product: Union[bool, 'ProductArgsFromRecipeVersionRecursive2']
-    createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive2']
-
-
-class DeploymentIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
-    """Relational arguments for RecipeVersion"""
-    product: Union[bool, 'ProductArgsFromRecipeVersionRecursive3']
-    createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive3']
-
-
-class DeploymentIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
-    """Relational arguments for RecipeVersion"""
-    product: Union[bool, 'ProductArgsFromRecipeVersionRecursive4']
-    createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive4']
-
-
-class DeploymentIncludeFromRecipeVersionRecursive4(TypedDict, total=False):
-    """Relational arguments for RecipeVersion"""
-
-    
-
-class DeploymentArgsFromRecipeVersion(TypedDict, total=False):
-    """Arguments for RecipeVersion"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromRecipeVersionRecursive1(TypedDict, total=False):
-    """Arguments for RecipeVersion"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromRecipeVersionRecursive2(TypedDict, total=False):
-    """Arguments for RecipeVersion"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromRecipeVersionRecursive3(TypedDict, total=False):
-    """Arguments for RecipeVersion"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromRecipeVersionRecursive4(TypedDict, total=False):
-    """Arguments for RecipeVersion"""
-    
-    
-
-class FindManyDeploymentArgsFromRecipeVersion(TypedDict, total=False):
-    """Arguments for RecipeVersion"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromRecipeVersionRecursive1(TypedDict, total=False):
-    """Arguments for RecipeVersion"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromRecipeVersionRecursive2(TypedDict, total=False):
-    """Arguments for RecipeVersion"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromRecipeVersionRecursive3(TypedDict, total=False):
-    """Arguments for RecipeVersion"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromRecipeVersionRecursive4(TypedDict, total=False):
-    """Arguments for RecipeVersion"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromRecipeVersion(TypedDict, total=False):
     """Relational arguments for RecipeVersion"""
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive1']
@@ -163877,7 +155826,6 @@ class UserIncludeFromRecipeVersion(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromRecipeVersionRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromRecipeVersionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeVersionRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromRecipeVersionRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeVersionRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromRecipeVersionRecursive1']
@@ -163892,7 +155840,6 @@ class UserIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromRecipeVersionRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromRecipeVersionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeVersionRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromRecipeVersionRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeVersionRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromRecipeVersionRecursive2']
@@ -163907,7 +155854,6 @@ class UserIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromRecipeVersionRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromRecipeVersionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeVersionRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromRecipeVersionRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeVersionRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromRecipeVersionRecursive3']
@@ -163922,7 +155868,6 @@ class UserIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromRecipeVersionRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromRecipeVersionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeVersionRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromRecipeVersionRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeVersionRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromRecipeVersionRecursive4']
@@ -165827,7 +157772,6 @@ class ProductIncludeFromRecipeTemplate(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromRecipeTemplateRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeTemplateRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeTemplateRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeTemplateRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeTemplateRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromRecipeTemplateRecursive1']
@@ -165844,7 +157788,6 @@ class ProductIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromRecipeTemplateRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeTemplateRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeTemplateRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeTemplateRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeTemplateRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromRecipeTemplateRecursive2']
@@ -165861,7 +157804,6 @@ class ProductIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromRecipeTemplateRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeTemplateRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeTemplateRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeTemplateRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeTemplateRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromRecipeTemplateRecursive3']
@@ -165878,7 +157820,6 @@ class ProductIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromRecipeTemplateRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeTemplateRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeTemplateRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeTemplateRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeTemplateRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromRecipeTemplateRecursive4']
@@ -166309,6 +158250,8 @@ class BoardRevisionIncludeFromRecipeTemplate(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromRecipeTemplateRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeTemplateRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeTemplateRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromRecipeTemplateRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeTemplateRecursive1']
 
 
 class BoardRevisionIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
@@ -166318,6 +158261,8 @@ class BoardRevisionIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromRecipeTemplateRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeTemplateRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeTemplateRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromRecipeTemplateRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeTemplateRecursive2']
 
 
 class BoardRevisionIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
@@ -166327,6 +158272,8 @@ class BoardRevisionIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromRecipeTemplateRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeTemplateRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeTemplateRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromRecipeTemplateRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeTemplateRecursive3']
 
 
 class BoardRevisionIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
@@ -166336,6 +158283,8 @@ class BoardRevisionIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromRecipeTemplateRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromRecipeTemplateRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeTemplateRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromRecipeTemplateRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeTemplateRecursive4']
 
 
 class BoardRevisionIncludeFromRecipeTemplateRecursive4(TypedDict, total=False):
@@ -167494,21 +159443,25 @@ class FindManyDeviceArgsFromRecipeTemplateRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromRecipeTemplate(TypedDict, total=False):
     """Relational arguments for RecipeTemplate"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeTemplateRecursive1']
 
 
 class FixtureDesignIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
     """Relational arguments for RecipeTemplate"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeTemplateRecursive2']
 
 
 class FixtureDesignIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
     """Relational arguments for RecipeTemplate"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeTemplateRecursive3']
 
 
 class FixtureDesignIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
     """Relational arguments for RecipeTemplate"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromRecipeTemplateRecursive4']
 
 
@@ -167600,6 +159553,7 @@ class FindManyFixtureDesignArgsFromRecipeTemplateRecursive4(TypedDict, total=Fal
 class FixtureIncludeFromRecipeTemplate(TypedDict, total=False):
     """Relational arguments for RecipeTemplate"""
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromRecipeTemplateRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromRecipeTemplateRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive1']
@@ -167609,6 +159563,7 @@ class FixtureIncludeFromRecipeTemplate(TypedDict, total=False):
 class FixtureIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
     """Relational arguments for RecipeTemplate"""
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromRecipeTemplateRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromRecipeTemplateRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive2']
@@ -167618,6 +159573,7 @@ class FixtureIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
 class FixtureIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
     """Relational arguments for RecipeTemplate"""
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromRecipeTemplateRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromRecipeTemplateRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive3']
@@ -167627,6 +159583,7 @@ class FixtureIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
 class FixtureIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
     """Relational arguments for RecipeTemplate"""
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromRecipeTemplateRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromRecipeTemplateRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive4']
@@ -168259,115 +160216,6 @@ class FindManyIcleLogArgsFromRecipeTemplateRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromRecipeTemplate(TypedDict, total=False):
-    """Relational arguments for RecipeTemplate"""
-    product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive1']
-    createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive1']
-
-
-class DeploymentIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
-    """Relational arguments for RecipeTemplate"""
-    product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive2']
-    createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive2']
-
-
-class DeploymentIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
-    """Relational arguments for RecipeTemplate"""
-    product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive3']
-    createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive3']
-
-
-class DeploymentIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
-    """Relational arguments for RecipeTemplate"""
-    product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive4']
-    createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive4']
-
-
-class DeploymentIncludeFromRecipeTemplateRecursive4(TypedDict, total=False):
-    """Relational arguments for RecipeTemplate"""
-
-    
-
-class DeploymentArgsFromRecipeTemplate(TypedDict, total=False):
-    """Arguments for RecipeTemplate"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromRecipeTemplateRecursive1(TypedDict, total=False):
-    """Arguments for RecipeTemplate"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromRecipeTemplateRecursive2(TypedDict, total=False):
-    """Arguments for RecipeTemplate"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromRecipeTemplateRecursive3(TypedDict, total=False):
-    """Arguments for RecipeTemplate"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromRecipeTemplateRecursive4(TypedDict, total=False):
-    """Arguments for RecipeTemplate"""
-    
-    
-
-class FindManyDeploymentArgsFromRecipeTemplate(TypedDict, total=False):
-    """Arguments for RecipeTemplate"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromRecipeTemplateRecursive1(TypedDict, total=False):
-    """Arguments for RecipeTemplate"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromRecipeTemplateRecursive2(TypedDict, total=False):
-    """Arguments for RecipeTemplate"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromRecipeTemplateRecursive3(TypedDict, total=False):
-    """Arguments for RecipeTemplate"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromRecipeTemplateRecursive4(TypedDict, total=False):
-    """Arguments for RecipeTemplate"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromRecipeTemplate(TypedDict, total=False):
     """Relational arguments for RecipeTemplate"""
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive1']
@@ -168713,7 +160561,6 @@ class UserIncludeFromRecipeTemplate(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromRecipeTemplateRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromRecipeTemplateRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeTemplateRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromRecipeTemplateRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeTemplateRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromRecipeTemplateRecursive1']
@@ -168728,7 +160575,6 @@ class UserIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromRecipeTemplateRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromRecipeTemplateRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeTemplateRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromRecipeTemplateRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeTemplateRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromRecipeTemplateRecursive2']
@@ -168743,7 +160589,6 @@ class UserIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromRecipeTemplateRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromRecipeTemplateRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeTemplateRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromRecipeTemplateRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeTemplateRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromRecipeTemplateRecursive3']
@@ -168758,7 +160603,6 @@ class UserIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromRecipeTemplateRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromRecipeTemplateRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromRecipeTemplateRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromRecipeTemplateRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromRecipeTemplateRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromRecipeTemplateRecursive4']
@@ -170695,7 +162539,6 @@ class ProductIncludeFromStageBuildMatrix(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromStageBuildMatrixRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromStageBuildMatrixRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromStageBuildMatrixRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromStageBuildMatrixRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromStageBuildMatrixRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromStageBuildMatrixRecursive1']
@@ -170712,7 +162555,6 @@ class ProductIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromStageBuildMatrixRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromStageBuildMatrixRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromStageBuildMatrixRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromStageBuildMatrixRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromStageBuildMatrixRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromStageBuildMatrixRecursive2']
@@ -170729,7 +162571,6 @@ class ProductIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromStageBuildMatrixRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromStageBuildMatrixRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromStageBuildMatrixRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromStageBuildMatrixRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromStageBuildMatrixRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromStageBuildMatrixRecursive3']
@@ -170746,7 +162587,6 @@ class ProductIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromStageBuildMatrixRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromStageBuildMatrixRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromStageBuildMatrixRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromStageBuildMatrixRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromStageBuildMatrixRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromStageBuildMatrixRecursive4']
@@ -171177,6 +163017,8 @@ class BoardRevisionIncludeFromStageBuildMatrix(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromStageBuildMatrixRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromStageBuildMatrixRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromStageBuildMatrixRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromStageBuildMatrixRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromStageBuildMatrixRecursive1']
 
 
 class BoardRevisionIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
@@ -171186,6 +163028,8 @@ class BoardRevisionIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False)
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromStageBuildMatrixRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromStageBuildMatrixRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromStageBuildMatrixRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromStageBuildMatrixRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromStageBuildMatrixRecursive2']
 
 
 class BoardRevisionIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
@@ -171195,6 +163039,8 @@ class BoardRevisionIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False)
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromStageBuildMatrixRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromStageBuildMatrixRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromStageBuildMatrixRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromStageBuildMatrixRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromStageBuildMatrixRecursive3']
 
 
 class BoardRevisionIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False):
@@ -171204,6 +163050,8 @@ class BoardRevisionIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False)
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromStageBuildMatrixRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromStageBuildMatrixRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromStageBuildMatrixRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromStageBuildMatrixRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromStageBuildMatrixRecursive4']
 
 
 class BoardRevisionIncludeFromStageBuildMatrixRecursive4(TypedDict, total=False):
@@ -172362,21 +164210,25 @@ class FindManyDeviceArgsFromStageBuildMatrixRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromStageBuildMatrix(TypedDict, total=False):
     """Relational arguments for StageBuildMatrix"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromStageBuildMatrixRecursive1']
 
 
 class FixtureDesignIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
     """Relational arguments for StageBuildMatrix"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromStageBuildMatrixRecursive2']
 
 
 class FixtureDesignIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
     """Relational arguments for StageBuildMatrix"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromStageBuildMatrixRecursive3']
 
 
 class FixtureDesignIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False):
     """Relational arguments for StageBuildMatrix"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromStageBuildMatrixRecursive4']
 
 
@@ -172468,6 +164320,7 @@ class FindManyFixtureDesignArgsFromStageBuildMatrixRecursive4(TypedDict, total=F
 class FixtureIncludeFromStageBuildMatrix(TypedDict, total=False):
     """Relational arguments for StageBuildMatrix"""
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromStageBuildMatrixRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromStageBuildMatrixRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive1']
@@ -172477,6 +164330,7 @@ class FixtureIncludeFromStageBuildMatrix(TypedDict, total=False):
 class FixtureIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
     """Relational arguments for StageBuildMatrix"""
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromStageBuildMatrixRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromStageBuildMatrixRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive2']
@@ -172486,6 +164340,7 @@ class FixtureIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
 class FixtureIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
     """Relational arguments for StageBuildMatrix"""
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromStageBuildMatrixRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromStageBuildMatrixRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive3']
@@ -172495,6 +164350,7 @@ class FixtureIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
 class FixtureIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False):
     """Relational arguments for StageBuildMatrix"""
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromStageBuildMatrixRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromStageBuildMatrixRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive4']
@@ -173127,115 +164983,6 @@ class FindManyIcleLogArgsFromStageBuildMatrixRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromStageBuildMatrix(TypedDict, total=False):
-    """Relational arguments for StageBuildMatrix"""
-    product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive1']
-    createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive1']
-
-
-class DeploymentIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
-    """Relational arguments for StageBuildMatrix"""
-    product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive2']
-    createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive2']
-
-
-class DeploymentIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
-    """Relational arguments for StageBuildMatrix"""
-    product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive3']
-    createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive3']
-
-
-class DeploymentIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False):
-    """Relational arguments for StageBuildMatrix"""
-    product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive4']
-    createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive4']
-
-
-class DeploymentIncludeFromStageBuildMatrixRecursive4(TypedDict, total=False):
-    """Relational arguments for StageBuildMatrix"""
-
-    
-
-class DeploymentArgsFromStageBuildMatrix(TypedDict, total=False):
-    """Arguments for StageBuildMatrix"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromStageBuildMatrixRecursive1(TypedDict, total=False):
-    """Arguments for StageBuildMatrix"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromStageBuildMatrixRecursive2(TypedDict, total=False):
-    """Arguments for StageBuildMatrix"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromStageBuildMatrixRecursive3(TypedDict, total=False):
-    """Arguments for StageBuildMatrix"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromStageBuildMatrixRecursive4(TypedDict, total=False):
-    """Arguments for StageBuildMatrix"""
-    
-    
-
-class FindManyDeploymentArgsFromStageBuildMatrix(TypedDict, total=False):
-    """Arguments for StageBuildMatrix"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromStageBuildMatrixRecursive1(TypedDict, total=False):
-    """Arguments for StageBuildMatrix"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromStageBuildMatrixRecursive2(TypedDict, total=False):
-    """Arguments for StageBuildMatrix"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromStageBuildMatrixRecursive3(TypedDict, total=False):
-    """Arguments for StageBuildMatrix"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromStageBuildMatrixRecursive4(TypedDict, total=False):
-    """Arguments for StageBuildMatrix"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromStageBuildMatrix(TypedDict, total=False):
     """Relational arguments for StageBuildMatrix"""
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive1']
@@ -173581,7 +165328,6 @@ class UserIncludeFromStageBuildMatrix(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromStageBuildMatrixRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromStageBuildMatrixRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromStageBuildMatrixRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromStageBuildMatrixRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromStageBuildMatrixRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromStageBuildMatrixRecursive1']
@@ -173596,7 +165342,6 @@ class UserIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromStageBuildMatrixRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromStageBuildMatrixRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromStageBuildMatrixRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromStageBuildMatrixRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromStageBuildMatrixRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromStageBuildMatrixRecursive2']
@@ -173611,7 +165356,6 @@ class UserIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromStageBuildMatrixRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromStageBuildMatrixRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromStageBuildMatrixRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromStageBuildMatrixRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromStageBuildMatrixRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromStageBuildMatrixRecursive3']
@@ -173626,7 +165370,6 @@ class UserIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromStageBuildMatrixRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromStageBuildMatrixRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromStageBuildMatrixRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromStageBuildMatrixRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromStageBuildMatrixRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromStageBuildMatrixRecursive4']
@@ -175714,7 +167457,6 @@ class ProductIncludeFromAssetSet(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAssetSetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetSetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetSetRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetSetRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetSetRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAssetSetRecursive1']
@@ -175731,7 +167473,6 @@ class ProductIncludeFromAssetSetRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAssetSetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetSetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetSetRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetSetRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetSetRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAssetSetRecursive2']
@@ -175748,7 +167489,6 @@ class ProductIncludeFromAssetSetRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAssetSetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetSetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetSetRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetSetRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetSetRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAssetSetRecursive3']
@@ -175765,7 +167505,6 @@ class ProductIncludeFromAssetSetRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAssetSetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetSetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetSetRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetSetRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetSetRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAssetSetRecursive4']
@@ -176196,6 +167935,8 @@ class BoardRevisionIncludeFromAssetSet(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAssetSetRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetSetRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetSetRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAssetSetRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAssetSetRecursive1']
 
 
 class BoardRevisionIncludeFromAssetSetRecursive1(TypedDict, total=False):
@@ -176205,6 +167946,8 @@ class BoardRevisionIncludeFromAssetSetRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAssetSetRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetSetRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetSetRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAssetSetRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAssetSetRecursive2']
 
 
 class BoardRevisionIncludeFromAssetSetRecursive2(TypedDict, total=False):
@@ -176214,6 +167957,8 @@ class BoardRevisionIncludeFromAssetSetRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAssetSetRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetSetRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetSetRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAssetSetRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAssetSetRecursive3']
 
 
 class BoardRevisionIncludeFromAssetSetRecursive3(TypedDict, total=False):
@@ -176223,6 +167968,8 @@ class BoardRevisionIncludeFromAssetSetRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAssetSetRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetSetRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetSetRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAssetSetRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAssetSetRecursive4']
 
 
 class BoardRevisionIncludeFromAssetSetRecursive4(TypedDict, total=False):
@@ -177381,21 +169128,25 @@ class FindManyDeviceArgsFromAssetSetRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromAssetSet(TypedDict, total=False):
     """Relational arguments for AssetSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAssetSetRecursive1']
 
 
 class FixtureDesignIncludeFromAssetSetRecursive1(TypedDict, total=False):
     """Relational arguments for AssetSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAssetSetRecursive2']
 
 
 class FixtureDesignIncludeFromAssetSetRecursive2(TypedDict, total=False):
     """Relational arguments for AssetSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAssetSetRecursive3']
 
 
 class FixtureDesignIncludeFromAssetSetRecursive3(TypedDict, total=False):
     """Relational arguments for AssetSet"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAssetSetRecursive4']
 
 
@@ -177487,6 +169238,7 @@ class FindManyFixtureDesignArgsFromAssetSetRecursive4(TypedDict, total=False):
 class FixtureIncludeFromAssetSet(TypedDict, total=False):
     """Relational arguments for AssetSet"""
     product: Union[bool, 'ProductArgsFromAssetSetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromAssetSetRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAssetSetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive1']
@@ -177496,6 +169248,7 @@ class FixtureIncludeFromAssetSet(TypedDict, total=False):
 class FixtureIncludeFromAssetSetRecursive1(TypedDict, total=False):
     """Relational arguments for AssetSet"""
     product: Union[bool, 'ProductArgsFromAssetSetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromAssetSetRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAssetSetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive2']
@@ -177505,6 +169258,7 @@ class FixtureIncludeFromAssetSetRecursive1(TypedDict, total=False):
 class FixtureIncludeFromAssetSetRecursive2(TypedDict, total=False):
     """Relational arguments for AssetSet"""
     product: Union[bool, 'ProductArgsFromAssetSetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromAssetSetRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAssetSetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive3']
@@ -177514,6 +169268,7 @@ class FixtureIncludeFromAssetSetRecursive2(TypedDict, total=False):
 class FixtureIncludeFromAssetSetRecursive3(TypedDict, total=False):
     """Relational arguments for AssetSet"""
     product: Union[bool, 'ProductArgsFromAssetSetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromAssetSetRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAssetSetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive4']
@@ -178146,115 +169901,6 @@ class FindManyIcleLogArgsFromAssetSetRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromAssetSet(TypedDict, total=False):
-    """Relational arguments for AssetSet"""
-    product: Union[bool, 'ProductArgsFromAssetSetRecursive1']
-    createdBy: Union[bool, 'UserArgsFromAssetSetRecursive1']
-
-
-class DeploymentIncludeFromAssetSetRecursive1(TypedDict, total=False):
-    """Relational arguments for AssetSet"""
-    product: Union[bool, 'ProductArgsFromAssetSetRecursive2']
-    createdBy: Union[bool, 'UserArgsFromAssetSetRecursive2']
-
-
-class DeploymentIncludeFromAssetSetRecursive2(TypedDict, total=False):
-    """Relational arguments for AssetSet"""
-    product: Union[bool, 'ProductArgsFromAssetSetRecursive3']
-    createdBy: Union[bool, 'UserArgsFromAssetSetRecursive3']
-
-
-class DeploymentIncludeFromAssetSetRecursive3(TypedDict, total=False):
-    """Relational arguments for AssetSet"""
-    product: Union[bool, 'ProductArgsFromAssetSetRecursive4']
-    createdBy: Union[bool, 'UserArgsFromAssetSetRecursive4']
-
-
-class DeploymentIncludeFromAssetSetRecursive4(TypedDict, total=False):
-    """Relational arguments for AssetSet"""
-
-    
-
-class DeploymentArgsFromAssetSet(TypedDict, total=False):
-    """Arguments for AssetSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromAssetSetRecursive1(TypedDict, total=False):
-    """Arguments for AssetSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromAssetSetRecursive2(TypedDict, total=False):
-    """Arguments for AssetSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromAssetSetRecursive3(TypedDict, total=False):
-    """Arguments for AssetSet"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromAssetSetRecursive4(TypedDict, total=False):
-    """Arguments for AssetSet"""
-    
-    
-
-class FindManyDeploymentArgsFromAssetSet(TypedDict, total=False):
-    """Arguments for AssetSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromAssetSetRecursive1(TypedDict, total=False):
-    """Arguments for AssetSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromAssetSetRecursive2(TypedDict, total=False):
-    """Arguments for AssetSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromAssetSetRecursive3(TypedDict, total=False):
-    """Arguments for AssetSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromAssetSetRecursive4(TypedDict, total=False):
-    """Arguments for AssetSet"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromAssetSet(TypedDict, total=False):
     """Relational arguments for AssetSet"""
     product: Union[bool, 'ProductArgsFromAssetSetRecursive1']
@@ -178600,7 +170246,6 @@ class UserIncludeFromAssetSet(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAssetSetRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAssetSetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetSetRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAssetSetRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetSetRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAssetSetRecursive1']
@@ -178615,7 +170260,6 @@ class UserIncludeFromAssetSetRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAssetSetRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAssetSetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetSetRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAssetSetRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetSetRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAssetSetRecursive2']
@@ -178630,7 +170274,6 @@ class UserIncludeFromAssetSetRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAssetSetRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAssetSetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetSetRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAssetSetRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetSetRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAssetSetRecursive3']
@@ -178645,7 +170288,6 @@ class UserIncludeFromAssetSetRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAssetSetRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAssetSetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetSetRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAssetSetRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetSetRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAssetSetRecursive4']
@@ -180463,6 +172105,8 @@ class AssetOptionalCreateInput(TypedDict, total=False):
     assetSetId: _str
     processor: Optional[_str]
     contentType: Optional[_str]
+    appId: Optional[_int]
+    versionString: Optional[_str]
     createdAt: datetime.datetime
     assetSet: 'AssetSetCreateNestedWithoutRelationsInput'
 
@@ -180487,6 +172131,8 @@ class AssetOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     assetSetId: _str
     processor: Optional[_str]
     contentType: Optional[_str]
+    appId: Optional[_int]
+    versionString: Optional[_str]
     createdAt: datetime.datetime
 
 
@@ -180538,6 +172184,8 @@ class AssetUpdateInput(TypedDict, total=False):
     sizeBytes: Union[AtomicBigIntInput, _int]
     checksum: _str
     contentType: Optional[_str]
+    appId: Optional[Union[AtomicIntInput, _int]]
+    versionString: Optional[_str]
     createdAt: datetime.datetime
     assetSet: 'AssetSetUpdateOneWithoutRelationsInput'
 
@@ -180554,6 +172202,8 @@ class AssetUpdateManyMutationInput(TypedDict, total=False):
     sizeBytes: Union[AtomicBigIntInput, _int]
     checksum: _str
     contentType: Optional[_str]
+    appId: Optional[Union[AtomicIntInput, _int]]
+    versionString: Optional[_str]
     createdAt: datetime.datetime
 
 
@@ -180677,6 +172327,22 @@ _Asset_contentType_OrderByInput = TypedDict(
     total=True
 )
 
+_Asset_appId_OrderByInput = TypedDict(
+    '_Asset_appId_OrderByInput',
+    {
+        'appId': 'SortOrder',
+    },
+    total=True
+)
+
+_Asset_versionString_OrderByInput = TypedDict(
+    '_Asset_versionString_OrderByInput',
+    {
+        'versionString': 'SortOrder',
+    },
+    total=True
+)
+
 _Asset_createdAt_OrderByInput = TypedDict(
     '_Asset_createdAt_OrderByInput',
     {
@@ -180715,6 +172381,8 @@ AssetOrderByInput = Union[
     '_Asset_sizeBytes_OrderByInput',
     '_Asset_checksum_OrderByInput',
     '_Asset_contentType_OrderByInput',
+    '_Asset_appId_OrderByInput',
+    '_Asset_versionString_OrderByInput',
     '_Asset_createdAt_OrderByInput',
     '_Asset_RelevanceOrderByInput',
 ]
@@ -180761,7 +172429,6 @@ class ProductIncludeFromAsset(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive1']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAssetRecursive1']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetRecursive1']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAssetRecursive1']
@@ -180778,7 +172445,6 @@ class ProductIncludeFromAssetRecursive1(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive2']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAssetRecursive2']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetRecursive2']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAssetRecursive2']
@@ -180795,7 +172461,6 @@ class ProductIncludeFromAssetRecursive2(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive3']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAssetRecursive3']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetRecursive3']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAssetRecursive3']
@@ -180812,7 +172477,6 @@ class ProductIncludeFromAssetRecursive3(TypedDict, total=False):
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive4']
     buildJobs: Union[bool, 'FindManyBuildJobArgsFromAssetRecursive4']
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetRecursive4']
     recipeVersions: Union[bool, 'FindManyRecipeVersionArgsFromAssetRecursive4']
@@ -181243,6 +172907,8 @@ class BoardRevisionIncludeFromAsset(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAssetRecursive1']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetRecursive1']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetRecursive1']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAssetRecursive1']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAssetRecursive1']
 
 
 class BoardRevisionIncludeFromAssetRecursive1(TypedDict, total=False):
@@ -181252,6 +172918,8 @@ class BoardRevisionIncludeFromAssetRecursive1(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAssetRecursive2']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetRecursive2']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetRecursive2']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAssetRecursive2']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAssetRecursive2']
 
 
 class BoardRevisionIncludeFromAssetRecursive2(TypedDict, total=False):
@@ -181261,6 +172929,8 @@ class BoardRevisionIncludeFromAssetRecursive2(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAssetRecursive3']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetRecursive3']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetRecursive3']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAssetRecursive3']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAssetRecursive3']
 
 
 class BoardRevisionIncludeFromAssetRecursive3(TypedDict, total=False):
@@ -181270,6 +172940,8 @@ class BoardRevisionIncludeFromAssetRecursive3(TypedDict, total=False):
     firmwareSets: Union[bool, 'FindManyFirmwareSetArgsFromAssetRecursive4']
     stageConfigs: Union[bool, 'FindManyProductStageConfigArgsFromAssetRecursive4']
     assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetRecursive4']
+    fixtureDesigns: Union[bool, 'FindManyFixtureDesignArgsFromAssetRecursive4']
+    fixtures: Union[bool, 'FindManyFixtureArgsFromAssetRecursive4']
 
 
 class BoardRevisionIncludeFromAssetRecursive4(TypedDict, total=False):
@@ -182428,21 +174100,25 @@ class FindManyDeviceArgsFromAssetRecursive4(TypedDict, total=False):
 
 class FixtureDesignIncludeFromAsset(TypedDict, total=False):
     """Relational arguments for Asset"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive1']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAssetRecursive1']
 
 
 class FixtureDesignIncludeFromAssetRecursive1(TypedDict, total=False):
     """Relational arguments for Asset"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive2']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAssetRecursive2']
 
 
 class FixtureDesignIncludeFromAssetRecursive2(TypedDict, total=False):
     """Relational arguments for Asset"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive3']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAssetRecursive3']
 
 
 class FixtureDesignIncludeFromAssetRecursive3(TypedDict, total=False):
     """Relational arguments for Asset"""
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive4']
     fixtures: Union[bool, 'FindManyFixtureArgsFromAssetRecursive4']
 
 
@@ -182534,6 +174210,7 @@ class FindManyFixtureDesignArgsFromAssetRecursive4(TypedDict, total=False):
 class FixtureIncludeFromAsset(TypedDict, total=False):
     """Relational arguments for Asset"""
     product: Union[bool, 'ProductArgsFromAssetRecursive1']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive1']
     design: Union[bool, 'FixtureDesignArgsFromAssetRecursive1']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAssetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive1']
@@ -182543,6 +174220,7 @@ class FixtureIncludeFromAsset(TypedDict, total=False):
 class FixtureIncludeFromAssetRecursive1(TypedDict, total=False):
     """Relational arguments for Asset"""
     product: Union[bool, 'ProductArgsFromAssetRecursive2']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive2']
     design: Union[bool, 'FixtureDesignArgsFromAssetRecursive2']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAssetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive2']
@@ -182552,6 +174230,7 @@ class FixtureIncludeFromAssetRecursive1(TypedDict, total=False):
 class FixtureIncludeFromAssetRecursive2(TypedDict, total=False):
     """Relational arguments for Asset"""
     product: Union[bool, 'ProductArgsFromAssetRecursive3']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive3']
     design: Union[bool, 'FixtureDesignArgsFromAssetRecursive3']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAssetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive3']
@@ -182561,6 +174240,7 @@ class FixtureIncludeFromAssetRecursive2(TypedDict, total=False):
 class FixtureIncludeFromAssetRecursive3(TypedDict, total=False):
     """Relational arguments for Asset"""
     product: Union[bool, 'ProductArgsFromAssetRecursive4']
+    boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive4']
     design: Union[bool, 'FixtureDesignArgsFromAssetRecursive4']
     slots: Union[bool, 'FindManyFixtureSlotArgsFromAssetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive4']
@@ -183193,115 +174873,6 @@ class FindManyIcleLogArgsFromAssetRecursive4(TypedDict, total=False):
     
     
 
-class DeploymentIncludeFromAsset(TypedDict, total=False):
-    """Relational arguments for Asset"""
-    product: Union[bool, 'ProductArgsFromAssetRecursive1']
-    createdBy: Union[bool, 'UserArgsFromAssetRecursive1']
-
-
-class DeploymentIncludeFromAssetRecursive1(TypedDict, total=False):
-    """Relational arguments for Asset"""
-    product: Union[bool, 'ProductArgsFromAssetRecursive2']
-    createdBy: Union[bool, 'UserArgsFromAssetRecursive2']
-
-
-class DeploymentIncludeFromAssetRecursive2(TypedDict, total=False):
-    """Relational arguments for Asset"""
-    product: Union[bool, 'ProductArgsFromAssetRecursive3']
-    createdBy: Union[bool, 'UserArgsFromAssetRecursive3']
-
-
-class DeploymentIncludeFromAssetRecursive3(TypedDict, total=False):
-    """Relational arguments for Asset"""
-    product: Union[bool, 'ProductArgsFromAssetRecursive4']
-    createdBy: Union[bool, 'UserArgsFromAssetRecursive4']
-
-
-class DeploymentIncludeFromAssetRecursive4(TypedDict, total=False):
-    """Relational arguments for Asset"""
-
-    
-
-class DeploymentArgsFromAsset(TypedDict, total=False):
-    """Arguments for Asset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class DeploymentArgsFromAssetRecursive1(TypedDict, total=False):
-    """Arguments for Asset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class DeploymentArgsFromAssetRecursive2(TypedDict, total=False):
-    """Arguments for Asset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class DeploymentArgsFromAssetRecursive3(TypedDict, total=False):
-    """Arguments for Asset"""
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class DeploymentArgsFromAssetRecursive4(TypedDict, total=False):
-    """Arguments for Asset"""
-    
-    
-
-class FindManyDeploymentArgsFromAsset(TypedDict, total=False):
-    """Arguments for Asset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive1'
-
-
-class FindManyDeploymentArgsFromAssetRecursive1(TypedDict, total=False):
-    """Arguments for Asset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive2'
-
-
-class FindManyDeploymentArgsFromAssetRecursive2(TypedDict, total=False):
-    """Arguments for Asset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive3'
-
-
-class FindManyDeploymentArgsFromAssetRecursive3(TypedDict, total=False):
-    """Arguments for Asset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    include: 'DeploymentIncludeFromDeploymentRecursive4'
-
-
-class FindManyDeploymentArgsFromAssetRecursive4(TypedDict, total=False):
-    """Arguments for Asset"""
-    take: int
-    skip: int
-    order_by: Union['DeploymentOrderByInput', List['DeploymentOrderByInput']]
-    where: 'DeploymentWhereInput'
-    cursor: 'DeploymentWhereUniqueInput'
-    distinct: List['DeploymentScalarFieldKeys']
-    
-    
-
 class TestIncludeFromAsset(TypedDict, total=False):
     """Relational arguments for Asset"""
     product: Union[bool, 'ProductArgsFromAssetRecursive1']
@@ -183647,7 +175218,6 @@ class UserIncludeFromAsset(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAssetRecursive1']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAssetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive1']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetRecursive1']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAssetRecursive1']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetRecursive1']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAssetRecursive1']
@@ -183662,7 +175232,6 @@ class UserIncludeFromAssetRecursive1(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAssetRecursive2']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAssetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive2']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetRecursive2']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAssetRecursive2']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetRecursive2']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAssetRecursive2']
@@ -183677,7 +175246,6 @@ class UserIncludeFromAssetRecursive2(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAssetRecursive3']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAssetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive3']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetRecursive3']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAssetRecursive3']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetRecursive3']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAssetRecursive3']
@@ -183692,7 +175260,6 @@ class UserIncludeFromAssetRecursive3(TypedDict, total=False):
     productAccess: Union[bool, 'FindManyProductAccessArgsFromAssetRecursive4']
     apiKeys: Union[bool, 'FindManyApiKeyArgsFromAssetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive4']
-    deployments: Union[bool, 'FindManyDeploymentArgsFromAssetRecursive4']
     testExecutions: Union[bool, 'FindManyTestExecutionArgsFromAssetRecursive4']
     testPackages: Union[bool, 'FindManyTestPackageArgsFromAssetRecursive4']
     auditLogs: Union[bool, 'FindManyAuditLogArgsFromAssetRecursive4']
@@ -185004,6 +176571,8 @@ class AssetWhereInput(TypedDict, total=False):
     sizeBytes: Union[_int, 'types.BigIntFilter']
     checksum: Union[_str, 'types.StringFilter']
     contentType: Union[None, _str, 'types.StringFilter']
+    appId: Union[None, _int, 'types.IntFilter']
+    versionString: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     assetSet: 'AssetSetRelationFilter'
 
@@ -185027,6 +176596,8 @@ class AssetWhereInputRecursive1(TypedDict, total=False):
     sizeBytes: Union[_int, 'types.BigIntFilter']
     checksum: Union[_str, 'types.StringFilter']
     contentType: Union[None, _str, 'types.StringFilter']
+    appId: Union[None, _int, 'types.IntFilter']
+    versionString: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     assetSet: 'AssetSetRelationFilter'
 
@@ -185050,6 +176621,8 @@ class AssetWhereInputRecursive2(TypedDict, total=False):
     sizeBytes: Union[_int, 'types.BigIntFilter']
     checksum: Union[_str, 'types.StringFilter']
     contentType: Union[None, _str, 'types.StringFilter']
+    appId: Union[None, _int, 'types.IntFilter']
+    versionString: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     assetSet: 'AssetSetRelationFilter'
 
@@ -185073,6 +176646,8 @@ class AssetWhereInputRecursive3(TypedDict, total=False):
     sizeBytes: Union[_int, 'types.BigIntFilter']
     checksum: Union[_str, 'types.StringFilter']
     contentType: Union[None, _str, 'types.StringFilter']
+    appId: Union[None, _int, 'types.IntFilter']
+    versionString: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     assetSet: 'AssetSetRelationFilter'
 
@@ -185096,6 +176671,8 @@ class AssetWhereInputRecursive4(TypedDict, total=False):
     sizeBytes: Union[_int, 'types.BigIntFilter']
     checksum: Union[_str, 'types.StringFilter']
     contentType: Union[None, _str, 'types.StringFilter']
+    appId: Union[None, _int, 'types.IntFilter']
+    versionString: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     assetSet: 'AssetSetRelationFilter'
 
@@ -185119,6 +176696,8 @@ class AssetScalarWhereWithAggregatesInput(TypedDict, total=False):
     sizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
     checksum: Union[_str, 'types.StringWithAggregatesFilter']
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
+    appId: Union[_int, 'types.IntWithAggregatesFilter']
+    versionString: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['AssetScalarWhereWithAggregatesInputRecursive1']
@@ -185139,6 +176718,8 @@ class AssetScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
     sizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
     checksum: Union[_str, 'types.StringWithAggregatesFilter']
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
+    appId: Union[_int, 'types.IntWithAggregatesFilter']
+    versionString: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['AssetScalarWhereWithAggregatesInputRecursive2']
@@ -185159,6 +176740,8 @@ class AssetScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
     sizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
     checksum: Union[_str, 'types.StringWithAggregatesFilter']
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
+    appId: Union[_int, 'types.IntWithAggregatesFilter']
+    versionString: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['AssetScalarWhereWithAggregatesInputRecursive3']
@@ -185179,6 +176762,8 @@ class AssetScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
     sizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
     checksum: Union[_str, 'types.StringWithAggregatesFilter']
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
+    appId: Union[_int, 'types.IntWithAggregatesFilter']
+    versionString: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
     AND: List['AssetScalarWhereWithAggregatesInputRecursive4']
@@ -185199,6 +176784,8 @@ class AssetScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
     sizeBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
     checksum: Union[_str, 'types.StringWithAggregatesFilter']
     contentType: Union[_str, 'types.StringWithAggregatesFilter']
+    appId: Union[_int, 'types.IntWithAggregatesFilter']
+    versionString: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
 
@@ -185215,6 +176802,8 @@ class AssetGroupByOutput(TypedDict, total=False):
     sizeBytes: _int
     checksum: _str
     contentType: _str
+    appId: _int
+    versionString: _str
     createdAt: datetime.datetime
     _sum: 'AssetSumAggregateOutput'
     _avg: 'AssetAvgAggregateOutput'
@@ -185226,11 +176815,13 @@ class AssetGroupByOutput(TypedDict, total=False):
 class AssetAvgAggregateOutput(TypedDict, total=False):
     """Asset output for aggregating averages"""
     sizeBytes: float
+    appId: float
 
 
 class AssetSumAggregateOutput(TypedDict, total=False):
     """Asset output for aggregating sums"""
     sizeBytes: _int
+    appId: _int
 
 
 class AssetScalarAggregateOutput(TypedDict, total=False):
@@ -185246,6 +176837,8 @@ class AssetScalarAggregateOutput(TypedDict, total=False):
     sizeBytes: _int
     checksum: _str
     contentType: _str
+    appId: _int
+    versionString: _str
     createdAt: datetime.datetime
 
 
@@ -185266,6 +176859,8 @@ class AssetMaxAggregateInput(TypedDict, total=False):
     sizeBytes: bool
     checksum: bool
     contentType: bool
+    appId: bool
+    versionString: bool
     createdAt: bool
 
 
@@ -185282,12 +176877,15 @@ class AssetMinAggregateInput(TypedDict, total=False):
     sizeBytes: bool
     checksum: bool
     contentType: bool
+    appId: bool
+    versionString: bool
     createdAt: bool
 
 
 class AssetNumberAggregateInput(TypedDict, total=False):
     """Asset input for aggregating numbers"""
     sizeBytes: bool
+    appId: bool
 
 
 AssetAvgAggregateInput = AssetNumberAggregateInput
@@ -185308,6 +176906,8 @@ AssetCountAggregateInput = TypedDict(
         'sizeBytes': bool,
         'checksum': bool,
         'contentType': bool,
+        'appId': bool,
+        'versionString': bool,
         'createdAt': bool,
         '_all': bool,
     },
@@ -185328,6 +176928,8 @@ AssetCountAggregateOutput = TypedDict(
         'sizeBytes': int,
         'checksum': int,
         'contentType': int,
+        'appId': int,
+        'versionString': int,
         'createdAt': int,
         '_all': int,
     },
@@ -185347,6 +176949,8 @@ AssetKeys = Literal[
     'sizeBytes',
     'checksum',
     'contentType',
+    'appId',
+    'versionString',
     'createdAt',
     'assetSet',
 ]
@@ -185362,6 +176966,8 @@ AssetScalarFieldKeys = Literal[
     'sizeBytes',
     'checksum',
     'contentType',
+    'appId',
+    'versionString',
     'createdAt',
 ]
 AssetScalarFieldKeysT = TypeVar('AssetScalarFieldKeysT', bound=AssetScalarFieldKeys)

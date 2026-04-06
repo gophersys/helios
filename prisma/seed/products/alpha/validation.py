@@ -16,7 +16,7 @@ ALPHA_B0_VAL_PROFILE = {
     "product": "alpha",
     "board": "alpha_b0",
     "mtib_revision": "1.2",
-    "capabilities": ["button", "peltier", "charger_relay"],
+    "capabilities": ["power", "button", "peltier", "charger_relay"],
     "dut": {
         "device_id": None,
         "snr": None,
@@ -73,13 +73,13 @@ def seed_validation(db, product, b0_rev):
                 "name": "alpha-val-fixture-v1.2",
                 "boardRevisionId": b0_rev.id,
                 "revision": "1.2",
-                "capabilities": ["button", "peltier", "charger_relay"],
+                "capabilities": ["power", "button", "peltier", "charger_relay"],
                 "profileTemplate": Json(ALPHA_B0_VAL_PROFILE),
                 "notes": "REV 1.2 MTIB carrier for Alpha B0 validation. Single-DUT bench.",
             },
             "update": {
                 "profileTemplate": Json(ALPHA_B0_VAL_PROFILE),
-                "capabilities": ["button", "peltier", "charger_relay"],
+                "capabilities": ["power", "button", "peltier", "charger_relay"],
             },
         },
     )

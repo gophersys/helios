@@ -284,16 +284,6 @@ class BaseIcleLog(_PrismaModel):
         return actions.IcleLogActions[_PrismaModelT](client or get_client(), cls)
 
 
-class BaseDeployment(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['Deployment']] = 'Deployment'  # pyright: ignore[reportIncompatibleVariableOverride]
-
-    @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.DeploymentActions[_PrismaModelT]':
-        from .client import get_client
-
-        return actions.DeploymentActions[_PrismaModelT](client or get_client(), cls)
-
-
 class BaseTest(_PrismaModel):
     __prisma_model__: ClassVar[Literal['Test']] = 'Test'  # pyright: ignore[reportIncompatibleVariableOverride]
 

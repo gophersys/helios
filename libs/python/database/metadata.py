@@ -27,7 +27,6 @@ PRISMA_MODELS: set[str] = {
     'IcleDevice',
     'IclePendingCommand',
     'IcleLog',
-    'Deployment',
     'Test',
     'TestExecution',
     'TestStep',
@@ -54,7 +53,6 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'sessions': 'Session',
         'buildJobs': 'BuildJob',
         'buildRuns': 'BuildRun',
-        'deployments': 'Deployment',
         'stageConfigs': 'ProductStageConfig',
         'testPackages': 'TestPackage',
         'recipeVersions': 'RecipeVersion',
@@ -80,6 +78,8 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'firmwareSets': 'FirmwareSet',
         'stageConfigs': 'ProductStageConfig',
         'assetSets': 'AssetSet',
+        'fixtureDesigns': 'FixtureDesign',
+        'fixtures': 'Fixture',
     },
     'FirmwareSet': {
         'product': 'Product',
@@ -140,10 +140,12 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'executions': 'TestExecution',
     },
     'FixtureDesign': {
+        'boardRevision': 'BoardRevision',
         'fixtures': 'Fixture',
     },
     'Fixture': {
         'product': 'Product',
+        'boardRevision': 'BoardRevision',
         'design': 'FixtureDesign',
         'slots': 'FixtureSlot',
         'sessions': 'Session',
@@ -168,10 +170,6 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     'IcleLog': {
         'device': 'IcleDevice',
     },
-    'Deployment': {
-        'product': 'Product',
-        'createdBy': 'User',
-    },
     'Test': {
         'product': 'Product',
         'executions': 'TestExecution',
@@ -192,7 +190,6 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'productAccess': 'ProductAccess',
         'apiKeys': 'ApiKey',
         'sessions': 'Session',
-        'deployments': 'Deployment',
         'testExecutions': 'TestExecution',
         'testPackages': 'TestPackage',
         'auditLogs': 'AuditLog',

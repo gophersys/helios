@@ -28,12 +28,8 @@ enum NodeType {
   VALIDATION
 }
 
-enum DeploymentStatus {
-  PENDING
-  RUNNING
-  STOPPED
-  FAILED
-}
+// DeploymentStatus enum removed — Deployment model deleted.
+// MTIB deployment state tracked via Node.metadata["deployment_name"].
 
 enum SessionType {
   MANUFACTURING
@@ -205,7 +201,6 @@ model Product {
   sessions       Session[]
   buildJobs      BuildJob[]
   buildRuns      BuildRun[]
-  deployments    Deployment[]
   stageConfigs   ProductStageConfig[]
   testPackages   TestPackage[]
   recipeVersions RecipeVersion[]
@@ -305,11 +300,13 @@ model BoardRevision {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  board        Board                @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  targets      ProductTarget[]
-  firmwareSets FirmwareSet[]
-  stageConfigs ProductStageConfig[]
-  assetSets    AssetSet[]
+  board          Board                @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  targets        ProductTarget[]
+  firmwareSets   FirmwareSet[]
+  stageConfigs   ProductStageConfig[]
+  assetSets      AssetSet[]
+  fixtureDesigns FixtureDesign[]
+  fixtures       Fixture[]
 
   @@unique([boardId, version])
   @@unique([ckBoardsName])
@@ -739,18 +736,21 @@ model Device {
 //
 // =============================================================================
 
-/// A versioned fixture hardware design -- the PCB/wiring spec for testing a product.
+/// A versioned fixture hardware design — the PCB/wiring spec for testing a product.
 /// Example: "alpha-fixture-v1.2" describes REV1.2 MTIB carrier with specific GPIO wiring.
 ///
-/// The profileTemplate JSON contains the default fixture profile for fixtures using this design.
+/// Concord stores the profileTemplate JSON but never interprets it.
+/// Product-specific test code (apps/validation/alpha/fixtures/) reads the profile
+/// to know GPIO pins, UART paths, power config, etc.
+///
 /// Individual Fixture records can override specific fields via profileOverrides.
 model FixtureDesign {
   id              String   @id @default(cuid())
   name            String   @unique /// "alpha-fixture-v1.2"
-  product         String /// "alpha" -- which product this fixture tests
-  revision        String /// "1.2" -- fixture hardware revision
+  boardRevisionId String /// FK — which board revision this design targets
+  revision        String /// "1.2" — fixture hardware revision (NOT board revision)
   capabilities    String[] /// ["button", "peltier", "charger_relay"]
-  profileTemplate Json /// Default fixture profile JSON for this design
+  profileTemplate Json /// Default fixture profile JSON (passed to test runner, not interpreted by Concord)
   schematicUrl    String? /// Link to schematic PDF/CAD files
   bomUrl          String? /// Link to BOM spreadsheet
   assemblyGuide   String? /// Link to assembly instructions
@@ -758,22 +758,32 @@ model FixtureDesign {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  fixtures Fixture[]
+  boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id])
+  fixtures      Fixture[]
 
-  @@index([product])
+  @@index([boardRevisionId])
   @@map("fixture_designs")
 }
 
-/// A physical test fixture for a product. Unified model for both
-/// manufacturing fixtures (multi-panel arrays) and validation benches
-/// (individual units with MTIB + DUT).
+/// A physical test fixture instance. Unified model for both
+/// manufacturing fixtures (multi-slot with 4-6 MTIBs) and validation
+/// benches (single-slot with 1 MTIB).
+///
+/// Lifecycle:
+///   1. Created with N slots (based on fixture type/design)
+///   2. MTIBs registered and assigned to slots (auto-deploys MTIB server)
+///   3. All slots assigned → status becomes AVAILABLE
+///   4. Scheduler assigns queue entries → status becomes LOCKED
+///   5. Session runs (N parallel K8s Jobs, one per slot) → results collected
+///   6. Session finishes → status returns to AVAILABLE
 model Fixture {
-  id        String   @id @default(cuid())
-  name      String /// "Theta MFG Fixture 1", "Alpha B0 Bench 1"
-  stationId String?  @unique /// "station-33", matches fixture profile
-  productId String
-  type      NodeType /// MANUFACTURING or VALIDATION
-  designId  String? /// FK to FixtureDesign
+  id              String   @id @default(cuid())
+  name            String /// "Alpha MFG Fixture 1", "Alpha B0 Bench 1"
+  stationId       String?  @unique /// "station-33", matches fixture profile
+  productId       String
+  boardRevisionId String? /// FK — which board revision this fixture tests (denormalized from design)
+  type            NodeType /// MANUFACTURING or VALIDATION
+  designId        String? /// FK to FixtureDesign (optional — design can be assigned later)
 
   status   FixtureStatus @default(AVAILABLE)
   lockedBy String? /// Pipeline/job ID holding the lock
@@ -787,13 +797,15 @@ model Fixture {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  product      Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
-  design       FixtureDesign?         @relation(fields: [designId], references: [id])
-  slots        FixtureSlot[]
-  sessions     Session[]
-  queueEntries ValidationQueueEntry[]
+  product       Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  boardRevision BoardRevision?         @relation(fields: [boardRevisionId], references: [id])
+  design        FixtureDesign?         @relation(fields: [designId], references: [id])
+  slots         FixtureSlot[]
+  sessions      Session[]
+  queueEntries  ValidationQueueEntry[]
 
   @@index([productId, status])
+  @@index([boardRevisionId])
   @@index([status])
   @@map("fixtures")
 }
@@ -927,34 +939,9 @@ model IcleLog {
   @@map("icle_logs")
 }
 
-// =============================================================================
-//
-//  CLUSTER
-//  Software deployments managed by Concord.
-//
-// =============================================================================
-
-/// A software deployment tracked by Concord -- test runners,
-/// operators, MTIB servers, etc. The actual K8s state is
-/// queried live; this table records intent and history.
-model Deployment {
-  id          String           @id @default(cuid())
-  name        String
-  productId   String?
-  status      DeploymentStatus @default(PENDING)
-  config      Json? /// K8s manifest, image tags, env overrides
-  version     String?
-  createdById String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-
-  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
-
-  @@index([productId])
-  @@index([createdById])
-  @@map("deployments")
-}
+// NOTE: The former Deployment model was removed. MTIB server K8s deployments
+// are tracked per-node via Node.metadata["deployment_name"]. Fixture-level
+// deploy/undeploy actions live on the Fixture API endpoints.
 
 // =============================================================================
 //
@@ -1086,7 +1073,6 @@ model User {
   productAccess  ProductAccess[]
   apiKeys        ApiKey[]
   sessions       Session[]
-  deployments    Deployment[]
   testExecutions TestExecution[]
   testPackages   TestPackage[]
   auditLogs      AuditLog[]
@@ -1321,22 +1307,25 @@ model AssetSet {
 /// An individual firmware artifact within an AssetSet.
 /// Stored in MinIO, referenced by storageKey.
 model Asset {
-  id           String   @id @default(cuid())
-  assetSetId   String
-  label        String /// Build matrix label, e.g. "MFG_BASE", "FUT_VERBOSE_A"
-  role         String /// "app", "comms", "modem"
-  processor    String? /// "nrf52840", "nrf9151"
-  artifactType String /// "plaintextHex", "encryptedCfw", "manifest"
-  storageKey   String /// MinIO path
-  filename     String
-  sizeBytes    BigInt
-  checksum     String /// SHA-256
-  contentType  String?
-  createdAt    DateTime @default(now())
+  id            String   @id @default(cuid())
+  assetSetId    String
+  label         String /// Build matrix label, e.g. "MFG_BASE", "FUT_VERBOSE_A"
+  role          String /// "app", "comms", "modem"
+  processor     String? /// "nrf52840", "nrf9151"
+  artifactType  String /// "plaintextHex", "encryptedCfw", "manifest"
+  storageKey    String /// MinIO path
+  filename      String
+  sizeBytes     BigInt
+  checksum      String /// SHA-256
+  contentType   String?
+  appId         Int? /// App ID (e.g. 109 for nrf52840, 108 for nrf9151)
+  versionString String? /// Full CK version string (e.g. "109.0.8.3-BM")
+  createdAt     DateTime @default(now())
 
   assetSet AssetSet @relation(fields: [assetSetId], references: [id], onDelete: Cascade)
 
   @@index([assetSetId])
   @@index([assetSetId, label, artifactType])
+  @@index([appId, artifactType])
   @@map("assets")
 }
