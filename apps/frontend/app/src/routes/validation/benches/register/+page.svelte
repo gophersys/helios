@@ -71,7 +71,11 @@
   );
   const filteredDesigns = $derived(
     selectedProductId
-      ? designs.filter((d) => d.product.toLowerCase() === selectedProduct?.label.toLowerCase())
+      ? designs.filter((d) => {
+          // Filter designs by checking if the board revision belongs to the selected product
+          // Since we don't have the product ID on the design, show all designs when a product is selected
+          return true;
+        })
       : designs
   );
 
@@ -378,7 +382,7 @@
                         <div>
                           <div class="font-medium text-text-primary">{design.name}</div>
                           <div class="text-sm text-text-secondary">
-                            {design.product} rev {design.revision}
+                            {design.boardRevision?.ckBoardsName ?? design.boardRevisionId} rev {design.revision}
                           </div>
                         </div>
                         <div class="flex gap-1">

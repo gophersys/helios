@@ -37,7 +37,7 @@ export async function fetchDesign(id: string): Promise<FixtureDesign> {
 
 export interface CreateDesignRequest {
   name: string;
-  product: string;
+  boardRevisionId: string;
   revision: string;
   capabilities: string[];
   profileTemplate: Record<string, unknown>;

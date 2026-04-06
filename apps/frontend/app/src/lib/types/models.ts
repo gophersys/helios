@@ -832,12 +832,16 @@ export interface Fixture {
   id: string;
   name: string;
   productId: string;
+  boardRevisionId: string | null;
+  designId: string | null;
   type: string;
   description: string | null;
   active: boolean;
   metadata: Record<string, unknown> | null;
   slotCount?: number;
   productName?: string;
+  boardRevision?: { id: string; version: string; ckBoardsName: string } | null;
+  design?: FixtureDesignSummary | null;
   slots?: FixtureSlot[];
   createdAt: string;
   updatedAt: string;
@@ -1001,7 +1005,7 @@ export interface DeploymentK8sStatus {
 export interface FixtureDesign {
   id: string;
   name: string;
-  product: string;
+  boardRevisionId: string;
   revision: string;
   capabilities: string[];
   profileTemplate: Record<string, unknown>;
@@ -1009,6 +1013,7 @@ export interface FixtureDesign {
   bomUrl: string | null;
   assemblyGuide: string | null;
   notes: string | null;
+  boardRevision?: { id: string; version: string; ckBoardsName: string } | null;
   benchCount?: number;
   createdAt: string;
   updatedAt: string;
@@ -1017,9 +1022,10 @@ export interface FixtureDesign {
 export interface FixtureDesignSummary {
   id: string;
   name: string;
-  product: string;
+  boardRevisionId: string;
   revision: string;
   capabilities: string[];
+  boardRevision?: { id: string; version: string; ckBoardsName: string } | null;
   benchCount?: number;
   createdAt: string;
 }

@@ -44,7 +44,7 @@
   let showForm = $state(false);
   let editingId = $state<string | null>(null);
   let formName = $state('');
-  let formProduct = $state('');
+  let formBoardRevisionId = $state('');
   let formRevision = $state('');
   let formCapabilities = $state('');
   let formProfileTemplate = $state('{}');
@@ -76,7 +76,7 @@
     showForm = false;
     editingId = null;
     formName = '';
-    formProduct = '';
+    formBoardRevisionId = '';
     formRevision = '';
     formCapabilities = '';
     formProfileTemplate = '{}';
@@ -91,7 +91,7 @@
       const design = await fetchDesign(id);
       editingId = id;
       formName = design.name;
-      formProduct = design.product;
+      formBoardRevisionId = design.boardRevisionId;
       formRevision = design.revision;
       formCapabilities = design.capabilities.join(', ');
       formProfileTemplate = JSON.stringify(design.profileTemplate, null, 2);
@@ -128,7 +128,7 @@
 
     const data = {
       name: formName,
-      product: formProduct.toLowerCase(),
+      boardRevisionId: formBoardRevisionId,
       revision: formRevision,
       capabilities,
       profileTemplate,
@@ -233,9 +233,9 @@
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <TextInput
-            bind:value={formProduct}
-            label="Product"
-            placeholder="e.g. alpha"
+            bind:value={formBoardRevisionId}
+            label="Board Revision ID"
+            placeholder="Board revision ID"
             required
             disabled={!!editingId}
           />
@@ -326,7 +326,7 @@
         <thead>
           <tr class="border-b border-border">
             <th class="table-header">Name</th>
-            <th class="table-header">Product</th>
+            <th class="table-header">Board Revision</th>
             <th class="table-header">Revision</th>
             <th class="table-header">Capabilities</th>
             <th class="table-header text-center">Benches</th>
@@ -340,7 +340,7 @@
           {#each designs as design (design.id)}
             <tr class="table-row">
               <td class="table-cell font-medium text-text-primary">{design.name}</td>
-              <td class="table-cell text-text-secondary">{design.product}</td>
+              <td class="table-cell text-text-secondary">{design.boardRevision?.ckBoardsName ?? design.boardRevisionId}</td>
               <td class="table-cell">
                 <span class="rounded bg-surface-2 px-2 py-0.5 text-xs text-text-secondary">
                   {design.revision}

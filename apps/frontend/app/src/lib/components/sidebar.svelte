@@ -9,7 +9,6 @@
     Users,
     Cpu,
     Package,
-    History,
     LogOut,
     PanelLeftClose,
     ChevronUp,
@@ -83,7 +82,6 @@
   // System items
   const systemItems: NavItem[] = [
     { to: '/kubernetes', icon: KubernetesIcon, label: 'Kubernetes', permission: 'system:view' },
-    { to: '/deployments', icon: History, label: 'Deployments', permission: 'system:view' },
   ];
 
   const visibleSystemItems = $derived(
