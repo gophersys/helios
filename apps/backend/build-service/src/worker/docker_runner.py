@@ -178,15 +178,15 @@ class DockerBuildRunner:
 
         # Pull the image
         log.info("Pulling builder image: %s (this may take a few minutes on first run)...", image)
-        result = subprocess.run(
+        pull_result = subprocess.run(
             ["docker", "pull", image],
             capture_output=True, text=True, timeout=600,
         )
-        if result.returncode == 0:
+        if pull_result.returncode == 0:
             log.info("Builder image pulled successfully: %s", image)
             return True
 
-        log.error("Failed to pull builder image %s: %s", image, result.stderr[:500])
+        log.error("Failed to pull builder image %s: %s", image, pull_result.stderr[:500])
         return False
 
     # ------------------------------------------------------------------
@@ -246,6 +246,7 @@ class DockerBuildRunner:
             batch_size = 10
             start_time = time.time()
 
+            assert process.stdout is not None
             for line in iter(process.stdout.readline, ""):
                 line = line.rstrip("\n")
                 output_lines.append(line)

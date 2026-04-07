@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Optional
 
-import requests
+import requests  # type: ignore[import-untyped]
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

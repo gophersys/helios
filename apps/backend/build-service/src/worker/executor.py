@@ -35,13 +35,13 @@ class BuildJob:
     commit_sha: str
     status: str
     version_bump: bool = False
-    base_job_id: str = None
-    matrix_label: str = None
-    version_override: str = None  # Explicit version override (e.g., "0.5.0")
-    config_flags: dict = None  # Extra build flags (e.g., {"forceLog": true})
-    product_id: str = None  # DB product ID for fetching buildConfig
-    recipe_version_id: str = None  # Pinned recipe version for reproducibility
-    stage: int = None  # Validation/manufacturing stage number (1-5, 101-103)
+    base_job_id: Optional[str] = None
+    matrix_label: Optional[str] = None
+    version_override: Optional[str] = None  # Explicit version override (e.g., "0.5.0")
+    config_flags: Optional[dict] = None  # Extra build flags (e.g., {"forceLog": true})
+    product_id: Optional[str] = None  # DB product ID for fetching buildConfig
+    recipe_version_id: Optional[str] = None  # Pinned recipe version for reproducibility
+    stage: Optional[int] = None  # Validation/manufacturing stage number (1-5, 101-103)
 
 
 def _extract_version_override(job_data: dict) -> Optional[str]:
@@ -206,7 +206,7 @@ class BuildExecutor:
         return env, cmd, build_target
 
     def run_build(self, job: BuildJob, work_dir: Path, output_dir: Path,
-                  docker_runner=None, builder_image: str = None) -> Tuple[bool, str]:
+                  docker_runner=None, builder_image: Optional[str] = None) -> Tuple[bool, str]:
         """Run the build script with real-time log streaming.
 
         If docker_runner is provided, delegates to a dynamically-spawned container.
@@ -292,6 +292,7 @@ class BuildExecutor:
 
             with open(log_file, "w") as f:
                 while True:
+                    assert process.stdout is not None
                     line = process.stdout.readline()
                     if not line and process.poll() is not None:
                         break
@@ -340,7 +341,7 @@ class BuildExecutor:
 
         Hex and CFW files share the same naming scheme: {appId}.{major}.{minor}.{build}
         """
-        artifacts = []
+        artifacts: List[Path] = []
         # CFW files
         artifacts.extend(output_dir.glob("**/*.cfw"))
         # Versioned hex files (109.0.8.1.hex, 108.0.8.1.hex)

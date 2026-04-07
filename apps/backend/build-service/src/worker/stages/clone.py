@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import shutil
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from src.worker.pipeline import BuildContext, StageResult
 
@@ -119,28 +119,31 @@ class CloneStage:
 
         return primary, secondary
 
-    def _clone_repo(self, slug: str, dest: Path, commit: str | None,
+    def _clone_repo(self, slug: str, dest: Path, commit: Optional[str],
                     branch: str, client: Any, job_id: str) -> bool:
         """Clone a repo via GitOps. Delegated to allow mocking in tests."""
         from src.worker.git_ops import GitOps
-        git_ops = GitOps(ssh_key_path="", client=client)
+        git_ops = GitOps(ssh_key_path="", api_client=client)
         return git_ops.clone_repo(slug, dest, commit, branch=branch, job_id=job_id)
 
     def _fetch_overlays(self, ctx: BuildContext):
         """Fetch optional build overlays from the API."""
         try:
             from src.worker.git_ops import GitOps
-            git_ops = GitOps(ssh_key_path="", client=ctx.client)
+            git_ops = GitOps(ssh_key_path="", api_client=ctx.client)
             overlays_dir = ctx.work_dir / "overlays"
             git_ops.fetch_overlays(ctx.job.product, overlays_dir)
         except Exception as e:
             log.debug("No overlays available: %s", e)
 
-    def _detect_ncs_version(self, repo_dir: Path) -> str | None:
+    def _detect_ncs_version(self, repo_dir: Path) -> Optional[str]:
         """Detect NCS version from the repo's devcontainer.json."""
         try:
-            from src.worker.git_ops import GitOps
-            return GitOps.check_ncs_version(repo_dir)
+            from src.worker.docker_runner import DockerBuildRunner
+            image = DockerBuildRunner.extract_builder_image(repo_dir)
+            if not image:
+                return None
+            return DockerBuildRunner.extract_ncs_version(image)
         except Exception:
             return None
 

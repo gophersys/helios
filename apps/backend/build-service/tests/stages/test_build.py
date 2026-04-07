@@ -109,38 +109,38 @@ class TestBuildExecution:
 class TestDockerImageResolution:
     """Test Docker builder image resolution."""
 
-    @patch("src.worker.stages.build.GitOps")
+    @patch("src.worker.docker_runner.DockerBuildRunner")
     @patch("src.worker.stages.build.BuildExecutor")
-    def test_uses_devcontainer_image(self, MockExecutor, MockGitOps, ctx, build_stage):
+    def test_uses_devcontainer_image(self, MockExecutor, MockRunner, ctx, build_stage):
         """Uses image from devcontainer.json when available."""
         ctx.docker_runner = MagicMock()
         ctx.docker_runner.ensure_image.return_value = True
-        MockGitOps.get_builder_image.return_value = "containers.ad.corekinect.com/ncs-fw-dev:3.0.0"
+        MockRunner.extract_builder_image.return_value = "containers.ad.corekinect.com/ncs-fw-dev:3.0.0"
         MockExecutor.return_value.run_build.return_value = (True, "ok")
 
         build_stage.execute(ctx)
 
         assert ctx.builder_image == "containers.ad.corekinect.com/ncs-fw-dev:3.0.0"
 
-    @patch("src.worker.stages.build.GitOps")
+    @patch("src.worker.docker_runner.DockerBuildRunner")
     @patch("src.worker.stages.build.BuildExecutor")
-    def test_falls_back_to_default_image(self, MockExecutor, MockGitOps, ctx, build_stage):
+    def test_falls_back_to_default_image(self, MockExecutor, MockRunner, ctx, build_stage):
         """Falls back to default builder image when devcontainer.json is missing."""
         ctx.docker_runner = MagicMock()
         ctx.docker_runner.ensure_image.return_value = True
-        MockGitOps.get_builder_image.return_value = None
+        MockRunner.extract_builder_image.return_value = None
         MockExecutor.return_value.run_build.return_value = (True, "ok")
 
         build_stage.execute(ctx)
 
         assert ctx.builder_image == ctx.config.default_builder_image
 
-    @patch("src.worker.stages.build.GitOps")
-    def test_image_pull_failure(self, MockGitOps, ctx, build_stage):
+    @patch("src.worker.docker_runner.DockerBuildRunner")
+    def test_image_pull_failure(self, MockRunner, ctx, build_stage):
         """Fails when builder image can't be pulled."""
         ctx.docker_runner = MagicMock()
         ctx.docker_runner.ensure_image.return_value = False
-        MockGitOps.get_builder_image.return_value = "bad:image"
+        MockRunner.extract_builder_image.return_value = "bad:image"
 
         result = build_stage.execute(ctx)
 

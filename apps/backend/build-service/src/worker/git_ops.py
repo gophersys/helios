@@ -10,7 +10,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Dict, Optional
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from src.clients.concord import ConcordClient
 
@@ -101,8 +101,8 @@ class GitOps:
             log.warning("Failed to fetch overlays for %s: %s", product, e)
             return False
 
-    def clone_repo(self, repo_slug: str, dest_dir: Path, commit_sha: str = None,
-                   branch: str = None, job_id: str = None) -> bool:
+    def clone_repo(self, repo_slug: str, dest_dir: Path, commit_sha: Optional[str] = None,
+                   branch: Optional[str] = None, job_id: Optional[str] = None) -> bool:
         """Clone a repo to a specific directory.
 
         Args:

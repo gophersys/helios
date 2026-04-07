@@ -248,7 +248,7 @@ def generate_build_manifest(
     }
 
     # Add signing fingerprints if key files are available
-    fingerprints = _compute_key_fingerprints(key_dir, config_targets)
+    fingerprints = _compute_key_fingerprints(key_dir, config_targets) if key_dir else None
     if fingerprints:
         manifest["signing"] = {"keyFingerprints": fingerprints}
 

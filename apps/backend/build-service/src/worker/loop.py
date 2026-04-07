@@ -3,7 +3,7 @@
 import logging
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from src.clients.concord import ConcordClient
 from src.config import BuildServiceConfig
@@ -112,10 +112,10 @@ class BuildWorkerLoop:
             return True
         return False
 
-    def update_job(self, job_id: str, status: str, error: str = None,
-                   version_string: str = None, duration: int = None) -> bool:
+    def update_job(self, job_id: str, status: str, error: Optional[str] = None,
+                   version_string: Optional[str] = None, duration: Optional[int] = None) -> bool:
         """Update job status."""
-        data = {"status": status}
+        data: Dict[str, Any] = {"status": status}
         if error:
             data["errorMessage"] = error[:2000]
         if version_string:

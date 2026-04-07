@@ -10,7 +10,7 @@ The HTTP session is injectable for testing.
 import logging
 from typing import Callable, Optional
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from models import PRInfo, WatchTarget
 

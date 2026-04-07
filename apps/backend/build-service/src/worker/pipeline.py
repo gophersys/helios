@@ -122,13 +122,13 @@ class BuildPipeline:
                 pct = int((i / len(self.stages)) * 100) if self.stages else 0
                 self.client.report_progress(ctx.job.id, step=stage.name, progress=pct,
                                             message=f"Starting {stage.name}...")
-                result = stage.execute(ctx)
+                stage_result = stage.execute(ctx)
 
-                if not result.success:
+                if not stage_result.success:
                     duration = int(time.time() - start_time)
                     log.error("[%s] Stage '%s' failed: %s",
-                              ctx.job.id[:8], stage.name, result.error)
-                    self._report_failure(ctx, result.error, duration)
+                              ctx.job.id[:8], stage.name, stage_result.error)
+                    self._report_failure(ctx, stage_result.error or "Unknown error", duration)
                     return False
 
             # All stages passed

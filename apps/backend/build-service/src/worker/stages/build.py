@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from src.worker.executor import BuildExecutor
-from src.worker.git_ops import GitOps
 from src.worker.pipeline import BuildContext, StageResult
 
 log = logging.getLogger("build-service")
@@ -132,7 +131,8 @@ class BuildStage:
     def _resolve_builder_image(self, ctx: BuildContext) -> Optional[str]:
         """Resolve the Docker builder image from devcontainer.json or default."""
         if ctx.primary_dir:
-            image = GitOps.get_builder_image(ctx.primary_dir)
+            from src.worker.docker_runner import DockerBuildRunner
+            image = DockerBuildRunner.extract_builder_image(ctx.primary_dir)
             if image:
                 return image
         return ctx.config.default_builder_image

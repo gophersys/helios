@@ -44,6 +44,7 @@ run_stage "contracts"        "$DIR/stages/contracts.sh"
 run_stage "schema-check"     "$DIR/stages/schema-check.sh"
 run_stage "docstrings"       "$DIR/stages/docstrings.sh"
 run_stage "docs-build"       "$DIR/stages/docs-build.sh"
+run_stage "dep-pin"          "$DIR/stages/dep-pin.sh"
 
 # Wait for all and collect results
 for i in "${!PIDS[@]}"; do
@@ -67,3 +68,6 @@ bash "$DIR/stages/test-integration.sh"
 
 # ── Stage 4: Build (only if everything passed) ──
 bash "$DIR/stages/build.sh" staging
+
+# ── Stage 5: Container image scanning (post-build) ──
+bash "$DIR/stages/image-scan.sh"

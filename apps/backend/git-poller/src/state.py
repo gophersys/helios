@@ -22,7 +22,7 @@ implementation so all callers remain unchanged:
 import logging
 from typing import Optional
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 log = logging.getLogger("git-poller")
 

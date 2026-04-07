@@ -12,7 +12,7 @@ import logging
 import time
 from typing import Optional
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from models import WatchTarget
 

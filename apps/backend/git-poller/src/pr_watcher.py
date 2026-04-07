@@ -12,8 +12,8 @@ import logging
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-import requests
-from requests.auth import HTTPBasicAuth
+import requests  # type: ignore[import-untyped]
+from requests.auth import HTTPBasicAuth  # type: ignore[import-untyped]
 
 from models import PRInfo
 
