@@ -56,6 +56,10 @@ log_stage "nightly — integration tests"
 bash "$DIR/stages/test-integration.sh" 2>&1 || true
 log_stage_end
 
+log_stage "nightly — mutation testing"
+bash "$DIR/stages/mutation.sh" 2>&1 || true
+log_stage_end
+
 log_stage "nightly — devcontainer rebuild"
 npx nx run devcontainer:build-all 2>&1 || true
 log_stage_end

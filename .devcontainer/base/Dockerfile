@@ -199,3 +199,21 @@ RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/h
 RUN apt-get update -y && apt-get install -y vault && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# ----------------------------------------------------
+#                                    Security Tooling
+# ----------------------------------------------------
+# Trivy — container image vulnerability scanner (used by .ci/stages/image-scan.sh)
+ARG TRIVY_VERSION=0.62.1
+RUN case "${TARGETPLATFORM}" in \
+    "linux/amd64") \
+    curl -sfL https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz \
+      | tar xzf - -C /usr/local/bin trivy ;; \
+    "linux/arm64") \
+    curl -sfL https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-ARM64.tar.gz \
+      | tar xzf - -C /usr/local/bin trivy ;; \
+    esac
+
+# CI security tools (used by .ci/stages/)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install pip-audit detect-secrets bandit mutmut
+

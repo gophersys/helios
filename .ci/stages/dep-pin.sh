@@ -54,6 +54,8 @@ if $WARNED; then
 fi
 
 log_stage_end
-# Advisory only — don't fail the pipeline yet
-# TODO: promote to hard gate after pinning all deps
-exit 0
+# All deps are now pinned — fail if any loose ranges are re-introduced
+if $WARNED; then
+  log_error "Dependency pinning gate FAILED — pin all deps to exact versions (==)"
+  exit 1
+fi
