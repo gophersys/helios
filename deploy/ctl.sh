@@ -268,7 +268,7 @@ _helm_deploy() {
   fi
 
   timer_start
-  helm "${helm_args[@]}" --wait --atomic --timeout 600s
+  helm "${helm_args[@]}" --wait --rollback-on-failure --timeout 600s
   timer_end "Helm upgrade"
 }
 
