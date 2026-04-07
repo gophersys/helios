@@ -7,20 +7,31 @@
   "targets": {
     "setup": {
       "executor": "nx:run-commands",
-      "defaultConfiguration": "development",
       "options": {
+        "command": "bash tools/env/setup.sh",
         "cwd": "{workspaceRoot}"
-      },
+      }
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash tools/env/setup.sh --validate",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "check": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "staging",
       "configurations": {
-        "development": {
-          "command": "bash tools/env/setup.sh development"
-        },
         "staging": {
-          "command": "bash tools/env/setup.sh staging"
+          "command": "bash tools/env/setup.sh --check staging"
         },
         "production": {
-          "command": "bash tools/env/setup.sh production"
+          "command": "bash tools/env/setup.sh --check production"
         }
+      },
+      "options": {
+        "cwd": "{workspaceRoot}"
       }
     }
   }
