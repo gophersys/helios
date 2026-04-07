@@ -270,33 +270,41 @@ def delete_firmware_set(product_id: str, set_id: str):
 # ── Build Upload (into a FirmwareSet) ──────────────────────
 
 
+def _validate_upload_file(files):
+    """Validate file presence and extension.  Returns (file, ext, None) or (None, None, error_response)."""
+    if "file" not in files:
+        return None, None, bad_request("No file provided")
+    file = files["file"]
+    if not file.filename:
+        return None, None, bad_request("No file selected")
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in ALLOWED_FIRMWARE_EXTENSIONS:
+        return None, None, bad_request(f"Invalid file type. Allowed: {', '.join(ALLOWED_FIRMWARE_EXTENSIONS)}")
+    return file, ext, None
+
+
+def _storage_key_field(artifact_type: str) -> str:
+    """Map artifact type to the corresponding DB storage key field name."""
+    return {"cfw": "cfwStorageKey", "hexEncrypted": "hexEncStorageKey"}.get(artifact_type, "hexStorageKey")
+
+
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def upload_firmware_build(product_id: str, set_id: str):
     """POST /v2/products/<id>/firmware/<set_id>/builds — upload a build artifact."""
     db = get_db_client()
-    fw_set = db.firmwareset.find_first(
-        where={"id": set_id, "productId": product_id},
-    )
+    fw_set = db.firmwareset.find_first(where={"id": set_id, "productId": product_id})
     if not fw_set:
         return not_found("Firmware set not found")
 
-    if "file" not in request.files:
-        return bad_request("No file provided")
-
-    file = request.files["file"]
-    if not file.filename:
-        return bad_request("No file selected")
-
-    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
-    if ext not in ALLOWED_FIRMWARE_EXTENSIONS:
-        return bad_request(f"Invalid file type. Allowed: {', '.join(ALLOWED_FIRMWARE_EXTENSIONS)}")
+    file, ext, err = _validate_upload_file(request.files)
+    if err:
+        return err
 
     target_id = request.form.get("targetId", "").strip() or None
     version_string = request.form.get("versionString", "").strip() or None
-    artifact_type = request.form.get("artifactType", "hex").strip()  # hex, cfw, hexEncrypted
+    artifact_type = request.form.get("artifactType", "hex").strip()
     notes = request.form.get("notes", "").strip() or None
 
-    # Validate target if provided
     if target_id:
         target = db.producttarget.find_first(
             where={"id": target_id, "boardRevision": {"board": {"productId": product_id}}},
@@ -304,7 +312,6 @@ def upload_firmware_build(product_id: str, set_id: str):
         if not target:
             return bad_request("Target not found for this product")
 
-    # Read + hash
     file_data = file.read()
     size_bytes = len(file_data)
     checksum = hashlib.sha256(file_data).hexdigest()
@@ -314,21 +321,9 @@ def upload_firmware_build(product_id: str, set_id: str):
         client = get_storage_client()
         bucket = get_bucket_name()
         safe_filename = _secure_filename(file.filename)
-        object_key = storage_key(
-            StoragePrefixes.FIRMWARE_BUILDS,
-            f"{product_id}/{set_id}/{safe_filename}"
-        )
+        object_key = storage_key(StoragePrefixes.FIRMWARE_BUILDS, f"{product_id}/{set_id}/{safe_filename}")
 
         client.put_object(bucket, object_key, BytesIO(file_data), length=size_bytes, content_type=content_type)
-
-        # Determine which storage key field to set
-        storage_fields = {}
-        if artifact_type == "cfw":
-            storage_fields["cfwStorageKey"] = object_key
-        elif artifact_type == "hexEncrypted":
-            storage_fields["hexEncStorageKey"] = object_key
-        else:
-            storage_fields["hexStorageKey"] = object_key
 
         build = db.firmwarebuild.create(
             data={
@@ -340,7 +335,7 @@ def upload_firmware_build(product_id: str, set_id: str):
                 "checksum": checksum,
                 "contentType": content_type,
                 "notes": notes,
-                **storage_fields,
+                _storage_key_field(artifact_type): object_key,
             },
             include={"target": True},
         )

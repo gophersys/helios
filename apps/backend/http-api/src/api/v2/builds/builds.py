@@ -48,13 +48,41 @@ def _derive_product_slug(b: Any) -> str | None:
     return product.slug or product.name
 
 
+def _extract_worker_id(b: Any) -> str | None:
+    """Extract worker ID from the direct field or webhookData fallback."""
+    worker_id = getattr(b, "workerId", None)
+    if worker_id:
+        return worker_id
+    webhook_data = getattr(b, "webhookData", None)
+    if isinstance(webhook_data, dict):
+        return webhook_data.get("workerId")
+    return None
+
+
+def _extract_product_name(b: Any) -> str | None:
+    """Extract product name from a loaded product relation."""
+    product = getattr(b, "product", None)
+    if product and hasattr(product, "name"):
+        return product.name
+    return None
+
+
+def _extract_stage(b: Any) -> int | None:
+    """Extract stage from the parent BuildRun relation."""
+    build_run = getattr(b, "buildRun", None)
+    if build_run and hasattr(build_run, "stage"):
+        return build_run.stage
+    return None
+
+
 def _serialize_build_job(b: Any) -> dict:
     """Serialize a BuildJob model to a JSON-friendly dict."""
+    webhook_data = getattr(b, "webhookData", None)
     data = {
         "id": b.id,
         "product": _derive_product_slug(b),
         "productId": getattr(b, "productId", None),
-        "productName": b.product.name if hasattr(b, "product") and b.product and hasattr(b.product, "name") else None,
+        "productName": _extract_product_name(b),
         "board": b.board,
         "target": b.target,
         "variant": b.variant,
@@ -67,14 +95,13 @@ def _serialize_build_job(b: Any) -> dict:
         "buildNum": b.buildNum,
         "versionString": b.versionString,
         "errorMessage": b.errorMessage,
-        "workerId": getattr(b, "workerId", None) or (b.webhookData.get("workerId") if isinstance(getattr(b, "webhookData", None), dict) else None),
-        "webhookData": b.webhookData if isinstance(getattr(b, "webhookData", None), dict) else None,
+        "workerId": _extract_worker_id(b),
+        "webhookData": webhook_data if isinstance(webhook_data, dict) else None,
         "startedAt": b.startedAt.isoformat() if b.startedAt else None,
         "finishedAt": b.finishedAt.isoformat() if b.finishedAt else None,
         "durationSeconds": b.durationSeconds,
         "createdAt": b.createdAt.isoformat(),
         "updatedAt": b.updatedAt.isoformat(),
-        # Stage 4 build matrix fields
         "matrixLabel": getattr(b, "matrixLabel", None),
         "matrixIndex": getattr(b, "matrixIndex", None),
         "versionBump": getattr(b, "versionBump", False),
@@ -85,8 +112,7 @@ def _serialize_build_job(b: Any) -> dict:
         "recipeVersionId": getattr(b, "recipeVersionId", None),
         "triggerTypes": getattr(b, "triggerType", "worker"),
         "notes": getattr(b, "notes", None),
-        # Stage from parent BuildRun (if available)
-        "stage": b.buildRun.stage if hasattr(b, "buildRun") and b.buildRun and hasattr(b.buildRun, "stage") else None,
+        "stage": _extract_stage(b),
     }
     if hasattr(b, "artifacts") and b.artifacts is not None:
         data["artifacts"] = [_serialize_build_artifact(a) for a in b.artifacts]

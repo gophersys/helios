@@ -487,6 +487,15 @@ class ValidationTestsRunRequest:
 # ── Queue types ──────────────────────────────────────────────────────────
 
 
+def _validate_int_range(value, field: str, min_val: int, max_val: int) -> Optional[str]:
+    """Validate an optional integer is within [min_val, max_val].  Returns error or None."""
+    if value is None:
+        return None
+    if not isinstance(value, int) or value < min_val or value > max_val:
+        return f"{field} must be an integer between {min_val} and {max_val}"
+    return None
+
+
 @dataclass
 class QueueEntryCreateRequest:
     """Request body for creating a new validation queue entry."""
@@ -507,18 +516,18 @@ class QueueEntryCreateRequest:
         stage = data.get("stage")
         if stage is None:
             return None, "stage is required"
-        if not isinstance(stage, int) or stage < 1 or stage > 5:
-            return None, "stage must be an integer between 1 and 5"
-        priority = data.get("priority")
-        if priority is not None:
-            if not isinstance(priority, int) or priority < 0 or priority > 200:
-                return None, "priority must be an integer between 0 and 200"
+        err = _validate_int_range(stage, "stage", 1, 5)
+        if err:
+            return None, err
+        err = _validate_int_range(data.get("priority"), "priority", 0, 200)
+        if err:
+            return None, err
         reason = data.get("reason")
         stage_config_id = data.get("stageConfigId")
         return cls(
             buildRunId=build_run_id,
             stage=stage,
-            priority=priority,
+            priority=data.get("priority"),
             reason=reason.strip() if reason else None,
             stageConfigId=stage_config_id.strip() if stage_config_id else None,
         ), None

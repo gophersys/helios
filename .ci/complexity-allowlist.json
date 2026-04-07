@@ -58,8 +58,11 @@
     "ProductAccessSetRequest": 11,
     "from_json": 14
   },
+  "apps/backend/http-api/src/api/v2/auth/permission_sets.py": {
+    "update_permission_set": 11
+  },
   "apps/backend/http-api/src/api/v2/auth/users.py": {
-    "users_update": 11
+    "users_update": 12
   },
   "apps/backend/http-api/src/api/v2/builds/build_runs.py": {
     "download_build_run_artifacts": 13,
@@ -67,7 +70,6 @@
     "validate_build_run": 17
   },
   "apps/backend/http-api/src/api/v2/builds/builds.py": {
-    "_serialize_build_job": 15,
     "create_build": 24,
     "update_build": 38,
     "upload_build_artifact": 14
@@ -86,8 +88,6 @@
     "list_build_scripts": 12
   },
   "apps/backend/http-api/src/api/v2/builds/stage_config.py": {
-    "update_stage_build_matrix": 15,
-    "update_stage_config": 15
   },
   "apps/backend/http-api/src/api/v2/builds/stage_config_types.py": {
     "StageConfigCreateRequest": 17,
@@ -107,10 +107,10 @@
   },
   "apps/backend/http-api/src/api/v2/fixtures/benches.py": {
     "_serialize_bench": 23,
-    "create_bench": 17,
+    "create_bench": 18,
     "discover_mtibs": 26,
     "get_bench_profile": 28,
-    "update_bench": 16
+    "update_bench": 17
   },
   "apps/backend/http-api/src/api/v2/fixtures/designs.py": {
     "create_design": 23,
@@ -119,9 +119,9 @@
   "apps/backend/http-api/src/api/v2/fixtures/fixtures.py": {
     "_serialize_fixture": 19,
     "_serialize_slot": 11,
-    "assign_slot_node": 13,
+    "assign_slot_node": 14,
     "create_fixture": 14,
-    "create_slot": 12,
+    "create_slot": 13,
     "dashboard_overview": 21
   },
   "apps/backend/http-api/src/api/v2/fixtures/types.py": {
@@ -135,6 +135,9 @@
     "from_json": 52,
     "to_update_data": 22
   },
+  "apps/backend/http-api/src/api/v2/kubernetes/resources.py": {
+    "apply_resource_yaml": 11
+  },
   "apps/backend/http-api/src/api/v2/icle/logs.py": {
     "upload_device_log": 17
   },
@@ -144,6 +147,7 @@
     "from_json": 43
   },
   "apps/backend/http-api/src/api/v2/nodes/nodes.py": {
+    "create_node": 11,
     "register_node": 13,
     "sync_nodes_from_k8s": 21
   },
@@ -153,33 +157,33 @@
     "from_json": 16
   },
   "apps/backend/http-api/src/api/v2/products/board_revisions.py": {
-    "update_board_revision": 12,
-    "update_target": 22
+    "update_board_revision": 13,
+    "update_target": 23
   },
   "apps/backend/http-api/src/api/v2/products/boards.py": {
-    "create_board": 11
+    "create_board": 12
   },
   "apps/backend/http-api/src/api/v2/products/firmware_builds.py": {
-    "delete_firmware_set": 11,
-    "upload_firmware_build": 15
+    "delete_firmware_set": 11
   },
   "apps/backend/http-api/src/api/v2/products/products.py": {
     "_serialize_product": 30,
-    "create_product": 17,
-    "sync_product_revisions": 22
+    "create_product": 18,
+    "sync_product_revisions": 22,
+    "update_product": 11
   },
   "apps/backend/http-api/src/api/v2/products/test_packages.py": {
     "_upload_test_package_impl": 25
   },
   "apps/backend/http-api/src/api/v2/products/types.py": {
-    "BoardCreateRequest": 35,
-    "BoardRevisionCreateRequest": 15,
+    "BoardCreateRequest": 15,
+    "BoardRevisionCreateRequest": 13,
     "BoardRevisionUpdateRequest": 18,
     "BoardUpdateRequest": 12,
-    "ProductCreateRequest": 47,
+    "ProductCreateRequest": 19,
     "ProductUpdateRequest": 20,
-    "_parse_board_revision": 17,
-    "from_json": 46,
+    "_parse_board_revision": 11,
+    "from_json": 27,
     "to_update_data": 11
   },
   "apps/backend/http-api/src/api/v2/sessions/artifacts.py": {
@@ -199,17 +203,17 @@
     "process_queue": 12
   },
   "apps/backend/http-api/src/api/v2/sessions/reporter.py": {
-    "report_finish": 28,
-    "report_step_result": 14,
-    "report_test_result": 15,
-    "report_test_start": 13
+    "report_finish": 12,
+    "report_step_result": 17,
+    "report_test_start": 15
   },
   "apps/backend/http-api/src/api/v2/sessions/runs.py": {
     "_serialize_execution": 11,
     "_serialize_session": 23,
     "_serialize_step": 11,
     "cancel_run": 26,
-    "get_run_job": 14
+    "get_run_job": 14,
+    "rerun_session": 11
   },
   "apps/backend/http-api/src/api/v2/sessions/scheduler.py": {
     "_create_validation_run": 14,
@@ -219,10 +223,9 @@
   },
   "apps/backend/http-api/src/api/v2/sessions/trigger.py": {
     "_find_available_fixture": 29,
-    "trigger_run": 26
+    "trigger_run": 27
   },
   "apps/backend/http-api/src/api/v2/sessions/types.py": {
-    "QueueEntryCreateRequest": 15,
     "QueueEntryUpdateRequest": 13,
     "ReportFinishRequest": 16,
     "ReportLogChunkRequest": 16,
@@ -260,12 +263,11 @@
     "recover_stale_builds": 12
   },
   "apps/backend/http-api/src/services/build_run_service.py": {
-    "_analyze_unavailability": 16,
     "_find_available_fixture": 12,
     "check_pipeline_completion": 38,
     "create_build_jobs": 20,
     "create_build_run_record": 11,
-    "generate_matrix_build_specs": 15,
+    "generate_matrix_build_specs": 13,
     "resolve_pipeline_context": 20,
     "serialize_build_run": 12,
     "trigger_pipeline_validation": 61

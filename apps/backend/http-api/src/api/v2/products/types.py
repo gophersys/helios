@@ -37,6 +37,34 @@ def _parse_target(target_data, rev_idx: int, target_idx: int) -> Tuple[Optional[
     return TargetInput(role=role, soc=soc, appId=app_id), None
 
 
+def _parse_revision_targets(raw_targets, idx: int) -> Tuple[Optional[List["TargetInput"]], Optional[str]]:
+    """Parse and validate the targets array within a board revision.  Returns (list, None) or (None, error)."""
+    if not isinstance(raw_targets, list):
+        return None, f"board.revisions[{idx}].targets must be an array"
+    targets = []
+    seen_roles: set = set()
+    seen_app_ids: set = set()
+    for j, t in enumerate(raw_targets):
+        target, err = _parse_target(t, idx, j)
+        if err or target is None:
+            return None, err or "Invalid target"
+        if target.role in seen_roles:
+            return None, f"board.revisions[{idx}]: duplicate target role '{target.role}'"
+        if target.appId in seen_app_ids:
+            return None, f"board.revisions[{idx}]: duplicate target appId {target.appId}"
+        seen_roles.add(target.role)
+        seen_app_ids.add(target.appId)
+        targets.append(target)
+    return targets, None
+
+
+def _validate_optional_int(value, field_path: str) -> Optional[str]:
+    """Return an error string if value is not None and not an int, else None."""
+    if value is not None and not isinstance(value, int):
+        return f"{field_path} must be an integer"
+    return None
+
+
 def _parse_board_revision(rev_data, idx: int) -> Tuple[Optional[dict], Optional[str]]:
     """Parse a single board revision dict (with inline targets).  Returns (dict, None) or (None, error)."""
     if not isinstance(rev_data, dict):
@@ -50,32 +78,23 @@ def _parse_board_revision(rev_data, idx: int) -> Tuple[Optional[dict], Optional[
     rev_socs = rev_data.get("socs", [])
     if not isinstance(rev_socs, list):
         return None, f"board.revisions[{idx}].socs must be an array"
+
     rev_device_type = rev_data.get("deviceType")
-    if rev_device_type is not None and not isinstance(rev_device_type, int):
-        return None, f"board.revisions[{idx}].deviceType must be an integer"
+    err = _validate_optional_int(rev_device_type, f"board.revisions[{idx}].deviceType")
+    if err:
+        return None, err
+
     rev_device_variant = rev_data.get("deviceVariant")
-    if rev_device_variant is not None and not isinstance(rev_device_variant, int):
-        return None, f"board.revisions[{idx}].deviceVariant must be an integer"
+    err = _validate_optional_int(rev_device_variant, f"board.revisions[{idx}].deviceVariant")
+    if err:
+        return None, err
 
     rev_targets = None
     raw_targets = rev_data.get("targets")
     if raw_targets is not None:
-        if not isinstance(raw_targets, list):
-            return None, f"board.revisions[{idx}].targets must be an array"
-        rev_targets = []
-        seen_roles: set = set()
-        seen_app_ids: set = set()
-        for j, t in enumerate(raw_targets):
-            target, err = _parse_target(t, idx, j)
-            if err or target is None:
-                return None, err or "Invalid target"
-            if target.role in seen_roles:
-                return None, f"board.revisions[{idx}]: duplicate target role '{target.role}'"
-            if target.appId in seen_app_ids:
-                return None, f"board.revisions[{idx}]: duplicate target appId {target.appId}"
-            seen_roles.add(target.role)
-            seen_app_ids.add(target.appId)
-            rev_targets.append(target)
+        rev_targets, err = _parse_revision_targets(raw_targets, idx)
+        if err:
+            return None, err
 
     return {
         "version": rev_version,
@@ -346,7 +365,7 @@ class BoardCreateRequest:
         if not isinstance(active, bool):
             return None, "Active must be a boolean"
 
-        # Optional inline revisions
+        # Optional inline revisions — reuse _parse_board_revision for each entry
         raw_revisions = data.get("revisions")
         revisions = None
         if raw_revisions is not None:
@@ -354,59 +373,10 @@ class BoardCreateRequest:
                 return None, "revisions must be an array"
             revisions = []
             for i, r in enumerate(raw_revisions):
-                if not isinstance(r, dict):
-                    return None, f"revisions[{i}] must be an object"
-                rev_version = (r.get("version") or "").strip()
-                rev_ck_name = (r.get("ckBoardsName") or "").strip()
-                if not rev_version:
-                    return None, f"revisions[{i}].version is required"
-                if not rev_ck_name:
-                    return None, f"revisions[{i}].ckBoardsName is required"
-                rev_socs = r.get("socs", [])
-                if not isinstance(rev_socs, list):
-                    return None, f"revisions[{i}].socs must be an array"
-                # Optional inline targets per revision
-                raw_targets = r.get("targets")
-                rev_targets = None
-                if raw_targets is not None:
-                    if not isinstance(raw_targets, list):
-                        return None, f"revisions[{i}].targets must be an array"
-                    rev_targets = []
-                    seen_roles = set()
-                    seen_app_ids = set()
-                    for j, t in enumerate(raw_targets):
-                        if not isinstance(t, dict):
-                            return None, f"revisions[{i}].targets[{j}] must be an object"
-                        role = (t.get("role") or "").strip()
-                        soc = (t.get("soc") or "").strip()
-                        app_id = t.get("appId")
-                        if not role:
-                            return None, f"revisions[{i}].targets[{j}].role is required"
-                        if not soc:
-                            return None, f"revisions[{i}].targets[{j}].soc is required"
-                        if app_id is None or not isinstance(app_id, int):
-                            return None, f"revisions[{i}].targets[{j}].appId is required and must be an integer"
-                        if role in seen_roles:
-                            return None, f"revisions[{i}]: duplicate target role '{role}'"
-                        if app_id in seen_app_ids:
-                            return None, f"revisions[{i}]: duplicate target appId {app_id}"
-                        seen_roles.add(role)
-                        seen_app_ids.add(app_id)
-                        rev_targets.append(TargetInput(role=role, soc=soc, appId=app_id))
-                rev_device_type = r.get("deviceType")
-                if rev_device_type is not None and not isinstance(rev_device_type, int):
-                    return None, f"revisions[{i}].deviceType must be an integer"
-                rev_device_variant = r.get("deviceVariant")
-                if rev_device_variant is not None and not isinstance(rev_device_variant, int):
-                    return None, f"revisions[{i}].deviceVariant must be an integer"
-                revisions.append({
-                    "version": rev_version,
-                    "ckBoardsName": rev_ck_name,
-                    "socs": rev_socs,
-                    "deviceType": rev_device_type,
-                    "deviceVariant": rev_device_variant,
-                    "targets": rev_targets,
-                })
+                rev, err = _parse_board_revision(r, i)
+                if err or rev is None:
+                    return None, err
+                revisions.append(rev)
 
         return cls(
             name=name,
@@ -539,12 +509,14 @@ class BoardRevisionCreateRequest:
             return None, "Status must be ACTIVE, DEPRECATED, or EOL"
 
         device_type = data.get("deviceType")
-        if device_type is not None and not isinstance(device_type, int):
-            return None, "deviceType must be an integer"
+        err = _validate_optional_int(device_type, "deviceType")
+        if err:
+            return None, err
 
         device_variant = data.get("deviceVariant")
-        if device_variant is not None and not isinstance(device_variant, int):
-            return None, "deviceVariant must be an integer"
+        err = _validate_optional_int(device_variant, "deviceVariant")
+        if err:
+            return None, err
 
         return cls(
             version=version,

@@ -140,62 +140,80 @@ def create_stage_config(product_id: str):
     return jsonify(ApiResponse.ok(_serialize_stage_config(config)).to_dict()), 201
 
 
+def _check_revision_enabled(db, enabling: bool, rev_id: str | None):
+    """Block enabling stages for deprecated/EOL revisions.  Returns error string or None."""
+    if not enabling or not rev_id:
+        return None
+    rev = db.boardrevision.find_unique(where={"id": rev_id})
+    if rev and rev.status in ("DEPRECATED", "EOL"):
+        return f"Cannot enable stage for {rev.status} revision {rev.version}"
+    return None
+
+
+def _try_trigger_build(product_id: str, config_id: str, stage: str, result: dict) -> None:
+    """Attempt to trigger a build and annotate the result dict."""
+    from src.services.build_trigger import trigger_stage_build
+    try:
+        trigger_result = trigger_stage_build(product_id, config_id)
+        if trigger_result:
+            result["buildTriggered"] = True
+            result["buildRunId"] = trigger_result["buildRunId"]
+            result["jobCount"] = trigger_result["jobCount"]
+            logger.info("Build triggered for stage %s: %s", stage, trigger_result["buildRunId"])
+        else:
+            result["buildTriggered"] = False
+            result["buildError"] = "Failed to trigger build — check product repos and revision config"
+    except Exception as e:
+        logger.error("Failed to trigger build for stage %s: %s", stage, e)
+        result["buildTriggered"] = False
+        result["buildError"] = str(e)
+
+
+def _resolve_stage_config(db, product_id: str, stage: str):
+    """Look up product and stage config.  Returns (product, config, stage_num, error_response)."""
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return None, None, None, not_found("Product not found")
+    try:
+        stage_num = int(stage)
+    except ValueError:
+        return None, None, None, bad_request("Stage must be a number")
+    config = db.productstageconfig.find_first(where={"productId": product_id, "stage": stage_num})
+    if not config:
+        return None, None, None, not_found(f"Stage {stage} config not found")
+    return product, config, stage_num, None
+
+
 @require_permissions(Permissions.BUILDS_MANAGE)
 def update_stage_config(product_id: str, stage: str):
     """Update a stage config, optionally triggering a build."""
     db = get_db_client()
-    product = db.product.find_unique(where={"id": product_id})
-    if not product:
-        return not_found("Product not found")
-    try:
-        stage_num = int(stage)
-    except ValueError:
-        return bad_request("Stage must be a number")
-    config = db.productstageconfig.find_first(
-        where={"productId": product_id, "stage": stage_num}
-    )
-    if not config:
-        return not_found(f"Stage {stage} config not found")
+    product, config, stage_num, err = _resolve_stage_config(db, product_id, stage)
+    if err:
+        return err
+
     req, err = StageConfigUpdateRequest.from_json(request.get_json())
     if err or req is None:
         return bad_request(err)
     update_data = req.to_update_data()
     if not update_data:
         return bad_request("No fields to update")
-    # Block enabling stages for deprecated/EOL revisions
-    enabling = update_data.get("enabled", False)
-    rev_id = update_data.get("boardRevisionId", config.boardRevisionId)
-    if enabling and rev_id:
-        rev = db.boardrevision.find_unique(where={"id": rev_id})
-        if rev and rev.status in ("DEPRECATED", "EOL"):
-            return bad_request(f"Cannot enable stage for {rev.status} revision {rev.version}")
-    updated = db.productstageconfig.update(
-        where={"id": config.id},
-        data=update_data,
-        include=_INCLUDE,
+
+    rev_err = _check_revision_enabled(
+        db, update_data.get("enabled", False),
+        update_data.get("boardRevisionId", config.boardRevisionId),
     )
+    if rev_err:
+        return bad_request(rev_err)
+
+    updated = db.productstageconfig.update(where={"id": config.id}, data=update_data, include=_INCLUDE)
     log_audit("stageConfig.update", "ProductStageConfig", config.id, update_data)
 
     result = _serialize_stage_config(updated)
 
-    # If buildNow is requested and stage is being enabled, trigger builds
     raw_data = request.get_json() or {}
     if raw_data.get("buildNow") and updated.enabled:
-        from src.services.build_trigger import trigger_stage_build
-        try:
-            trigger_result = trigger_stage_build(product_id, config.id)
-            if trigger_result:
-                result["buildTriggered"] = True
-                result["buildRunId"] = trigger_result["buildRunId"]
-                result["jobCount"] = trigger_result["jobCount"]
-                logger.info("Build triggered for stage %s: %s", stage, trigger_result["buildRunId"])
-            else:
-                result["buildTriggered"] = False
-                result["buildError"] = "Failed to trigger build — check product repos and revision config"
-        except Exception as e:
-            logger.error("Failed to trigger build for stage %s: %s", stage, e)
-            result["buildTriggered"] = False
-            result["buildError"] = str(e)
+        _try_trigger_build(product_id, config.id, stage, result)
 
     return jsonify(ApiResponse.ok(result).to_dict()), 200
 
@@ -269,18 +287,9 @@ def _serialize_build_matrix_entry(entry) -> dict:
 def get_stage_build_matrix(product_id: str, stage: str):
     """GET /products/<id>/stages/<stage>/build-matrix — return build matrix for a stage."""
     db = get_db_client()
-    product = db.product.find_unique(where={"id": product_id})
-    if not product:
-        return not_found("Product not found")
-    try:
-        stage_num = int(stage)
-    except ValueError:
-        return bad_request("Stage must be a number")
-    config = db.productstageconfig.find_first(
-        where={"productId": product_id, "stage": stage_num},
-    )
-    if not config:
-        return not_found(f"Stage {stage} config not found")
+    product, config, stage_num, err = _resolve_stage_config(db, product_id, stage)
+    if err:
+        return err
     entries = db.stagebuildmatrix.find_many(
         where={"stageConfigId": config.id},
         order={"sortOrder": "asc"},
@@ -288,45 +297,40 @@ def get_stage_build_matrix(product_id: str, stage: str):
     return jsonify(ApiResponse.ok([_serialize_build_matrix_entry(e) for e in entries]).to_dict()), 200
 
 
+def _validate_matrix_entries(entries: list) -> str | None:
+    """Validate build matrix entries.  Returns an error string or None."""
+    seen_labels: set = set()
+    for i, entry in enumerate(entries):
+        label = (entry.get("label") or "").strip()
+        if not label:
+            return f"Entry {i}: label is required"
+        if label in seen_labels:
+            return f"Entry {i}: duplicate label '{label}'"
+        seen_labels.add(label)
+        if not (entry.get("fwType") or "").strip():
+            return f"Entry {i}: fwType is required"
+        if not (entry.get("variant") or "").strip():
+            return f"Entry {i}: variant is required"
+    return None
+
+
 @require_permissions(Permissions.BUILDS_MANAGE)
 def update_stage_build_matrix(product_id: str, stage: str):
     """PUT /products/<id>/stages/<stage>/build-matrix — replace build matrix entries."""
     db = get_db_client()
-    product = db.product.find_unique(where={"id": product_id})
-    if not product:
-        return not_found("Product not found")
-    try:
-        stage_num = int(stage)
-    except ValueError:
-        return bad_request("Stage must be a number")
-    config = db.productstageconfig.find_first(
-        where={"productId": product_id, "stage": stage_num},
-    )
-    if not config:
-        return not_found(f"Stage {stage} config not found")
+    product, config, stage_num, err = _resolve_stage_config(db, product_id, stage)
+    if err:
+        return err
 
     data = request.get_json()
     if not data or not isinstance(data.get("entries"), list):
         return bad_request("Request body must contain 'entries' array")
 
     entries = data["entries"]
-    # Validate entries
-    seen_labels = set()
-    for i, entry in enumerate(entries):
-        label = (entry.get("label") or "").strip()
-        if not label:
-            return bad_request(f"Entry {i}: label is required")
-        if label in seen_labels:
-            return bad_request(f"Entry {i}: duplicate label '{label}'")
-        seen_labels.add(label)
-        fw_type = (entry.get("fwType") or "").strip()
-        if not fw_type:
-            return bad_request(f"Entry {i}: fwType is required")
-        variant = (entry.get("variant") or "").strip()
-        if not variant:
-            return bad_request(f"Entry {i}: variant is required")
+    validation_err = _validate_matrix_entries(entries)
+    if validation_err:
+        return bad_request(validation_err)
 
-    # Replace: delete old, create new
     db.stagebuildmatrix.delete_many(where={"stageConfigId": config.id})
     created = []
     for i, entry in enumerate(entries):

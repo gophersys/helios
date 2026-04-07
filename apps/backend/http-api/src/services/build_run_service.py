@@ -379,6 +379,54 @@ def create_build_run_record(db, data, ctx: Dict[str, Any]):
     return pipeline, builds
 
 
+def _generate_head_app_sub_builds(
+    board: str, branch: str, commit_sha: Optional[str],
+    firmware: str, prefix: str, max_build: int, start_idx: int,
+) -> List[Dict[str, Any]]:
+    """Generate 4 sub-builds (verbose/quiet x base/bump) for head app builds."""
+    sub_defs = [
+        ("PROD_VERBOSE",      max_build + 1, True),
+        ("PROD_VERBOSE_BUMP", max_build + 2, True),
+        ("PROD_QUIET",        max_build + 3, False),
+        ("PROD_QUIET_BUMP",   max_build + 4, False),
+    ]
+    logger.info(
+        "FUOTA version allocation: VERBOSE=v%s.%d/%d, QUIET=v%s.%d/%d (max=%s.%d)",
+        prefix, max_build + 1, max_build + 2,
+        prefix, max_build + 3, max_build + 4,
+        prefix, max_build,
+    )
+    builds = []
+    for i, (sub_label, ver_build, force_log) in enumerate(sub_defs):
+        config = {"forceLog": True} if force_log else {}
+        builds.append({
+            "board": board, "target": "app", "variant": "release",
+            "branch": branch, "commitSha": commit_sha, "status": "QUEUED",
+            "matrixLabel": sub_label, "matrixIndex": start_idx + i,
+            "versionBump": False, "source": "head", "firmware": firmware,
+            "versionOverride": f"{prefix}.{ver_build}", "extraConfig": config,
+        })
+    return builds
+
+
+def _make_build_spec(
+    board: str, target: str, variant: str, branch: str,
+    commit_sha: Optional[str], label: str, idx: int,
+    source: str, firmware: str, version_override: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Create a single build spec dict."""
+    spec: Dict[str, Any] = {
+        "board": board, "target": target, "variant": variant,
+        "mtibRev": "1.2", "branch": branch,
+        "commitSha": commit_sha if source == "head" else None,
+        "status": "QUEUED", "matrixLabel": label, "matrixIndex": idx,
+        "versionBump": False, "source": source, "firmware": firmware,
+    }
+    if version_override:
+        spec["versionOverride"] = version_override
+    return spec
+
+
 def generate_matrix_build_specs(
     matrix: List[Dict[str, Any]],
     product_record: Any,
@@ -390,14 +438,6 @@ def generate_matrix_build_specs(
 ) -> List[Dict[str, Any]]:
     """Generate build specs from a ProductStageConfig buildMatrix.
 
-    Each matrix entry produces TWO builds (debug + release).
-    - source == "head": new build from the triggering commit, auto-versioned.
-    - source == "latest": reference to the latest successful build (CACHED).
-
-    The firmware field determines the target type:
-    - Contains "_mfg" -> target="mfg" (manufacturing firmware)
-    - Otherwise -> target="app" (production firmware)
-
     Returns a flat list of build spec dicts.
     """
     builds = []
@@ -408,85 +448,30 @@ def generate_matrix_build_specs(
         role = entry.get("role", "unknown")
         firmware = entry.get("firmware", f"{repo_base}_fw")
         source = entry.get("source", "head")
-
-        # Derive target from firmware name
         target = "mfg" if "_mfg" in firmware else "app"
-
-        # All builds are release variant — no debug flag in CFW
-        variants = ("release",)
 
         # For "head" app builds, generate 4 sub-builds with sequential versions
         if source == "head" and target == "app":
             prefix, max_build = get_max_build_number(db, product_id, target) if product_id else (None, 0)
             if prefix:
-                sub_builds = [
-                    ("PROD_VERBOSE",      prefix, max_build + 1, True),
-                    ("PROD_VERBOSE_BUMP", prefix, max_build + 2, True),
-                    ("PROD_QUIET",        prefix, max_build + 3, False),
-                    ("PROD_QUIET_BUMP",   prefix, max_build + 4, False),
-                ]
-                logger.info(
-                    "FUOTA version allocation: VERBOSE=v%s.%d/%d, QUIET=v%s.%d/%d (max=%s.%d)",
-                    prefix, max_build + 1, max_build + 2,
-                    prefix, max_build + 3, max_build + 4,
-                    prefix, max_build,
+                sub_builds = _generate_head_app_sub_builds(
+                    board, branch, commit_sha, firmware, prefix, max_build, idx,
                 )
-                for sub_label, ver_prefix, ver_build, force_log in sub_builds:
-                    config = {"forceLog": True} if force_log else {}
-                    builds.append({
-                        "board": board,
-                        "target": target,
-                        "variant": "release",
-                        "branch": branch,
-                        "commitSha": commit_sha,
-                        "status": "QUEUED",
-                        "matrixLabel": sub_label,
-                        "matrixIndex": idx,
-                        "versionBump": False,
-                        "source": "head",
-                        "firmware": firmware,
-                        "versionOverride": f"{ver_prefix}.{ver_build}",
-                        "extraConfig": config,
-                    })
-                    idx += 1
+                builds.extend(sub_builds)
+                idx += len(sub_builds)
                 continue
 
-        for variant in variants:
+        for variant in ("release",):
             label = f"{role.upper()}_{variant.upper()}" if target != "mfg" else role.upper()
+            version_override = None
+            if source == "head" and product_id:
+                version_override = auto_increment_version(db, product_id, variant, target)
 
-            if source == "head":
-                version_override = auto_increment_version(db, product_id, variant, target) if product_id else None
-
-                builds.append({
-                    "board": board,
-                    "target": target,
-                    "variant": variant,
-                    "mtibRev": "1.2",
-                    "branch": branch,
-                    "commitSha": commit_sha,
-                    "status": "QUEUED",
-                    "matrixLabel": label,
-                    "matrixIndex": idx,
-                    "versionBump": False,
-                    "source": "head",
-                    "firmware": firmware,
-                    "versionOverride": version_override,
-                })
-            elif source in ("latest", "latest_prev"):
-                builds.append({
-                    "board": board,
-                    "target": target,
-                    "variant": variant,
-                    "mtibRev": "1.2",
-                    "branch": branch,
-                    "commitSha": None,
-                    "status": "QUEUED",
-                    "matrixLabel": label,
-                    "matrixIndex": idx,
-                    "versionBump": False,
-                    "source": source,
-                    "firmware": firmware,
-                })
+            if source in ("head", "latest", "latest_prev"):
+                builds.append(_make_build_spec(
+                    board, target, variant, branch, commit_sha,
+                    label, idx, source, firmware, version_override,
+                ))
             idx += 1
 
     return builds
@@ -805,25 +790,34 @@ def _find_available_fixture(db, product_id: str):
     return fixture, slot, mtib_address, fixtures
 
 
+def _is_fixture_available(f) -> bool:
+    """Check if a fixture has AVAILABLE status."""
+    return f.status == "AVAILABLE"
+
+
+def _has_configured_slot(f) -> bool:
+    """Check if a fixture has at least one active slot with a DUT serial."""
+    return any(s.active and s.dutSnr for s in (f.slots or []))
+
+
+def _has_offline_slot(f) -> bool:
+    """Check if any configured slot has a non-ONLINE node."""
+    return any(
+        s.active and s.dutSnr
+        and getattr(getattr(s, "node", None), "status", None) != "ONLINE"
+        for s in (f.slots or [])
+    )
+
+
 def _analyze_unavailability(db, fixtures) -> dict:
     """Categorize why no fixture is available.
 
     Returns dict with keys: locked, offline, unconfigured (each a list of names).
     """
-    locked = [f.name for f in fixtures if f.status != "AVAILABLE"]
-    no_slot = [
-        f.name for f in fixtures
-        if f.status == "AVAILABLE" and not any(s.active and s.dutSnr for s in (f.slots or []))
-    ]
-    offline = [
-        f.name for f in fixtures
-        if f.status == "AVAILABLE"
-        and any(
-            s.active and s.dutSnr
-            and getattr(getattr(s, "node", None), "status", None) != "ONLINE"
-            for s in (f.slots or [])
-        )
-    ]
+    locked = [f.name for f in fixtures if not _is_fixture_available(f)]
+    available = [f for f in fixtures if _is_fixture_available(f)]
+    no_slot = [f.name for f in available if not _has_configured_slot(f)]
+    offline = [f.name for f in available if _has_configured_slot(f) and _has_offline_slot(f)]
     return {"locked": locked, "offline": offline, "unconfigured": no_slot}
 
 
