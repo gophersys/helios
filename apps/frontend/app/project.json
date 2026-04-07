@@ -3,7 +3,10 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/frontend/app/src",
   "projectType": "application",
-  "tags": ["scope:frontend", "type:app"],
+  "tags": [
+    "scope:frontend",
+    "type:app"
+  ],
   "targets": {
     "get-build-info": {
       "executor": "nx:run-commands",
@@ -33,23 +36,36 @@
         "cwd": "{workspaceRoot}",
         "parallel": false,
         "commands": [
-          { "command": "nx typecheck app" },
-          { "command": "nx test app" }
+          {
+            "command": "nx typecheck app"
+          },
+          {
+            "command": "nx test app"
+          }
         ]
       }
     },
     "build": {
       "executor": "nx:run-commands",
       "defaultConfiguration": "development",
-      "dependsOn": ["get-build-info"],
+      "dependsOn": [
+        "get-build-info"
+      ],
       "options": {
         "cwd": "{workspaceRoot}"
       },
       "configurations": {
-        "development": { "command": "cd apps/frontend/app && PUBLIC_APP_ENVIRONMENT=development npx vite build" },
-        "staging": { "command": "nx run app:containerize -c staging" },
-        "production": { "command": "nx run app:containerize -c production" }
-      }
+        "development": {
+          "command": "cd apps/frontend/app && PUBLIC_APP_ENVIRONMENT=development npx vite build"
+        },
+        "staging": {
+          "command": "nx run app:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run app:containerize -c production"
+        }
+      },
+      "cache": false
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
@@ -63,7 +79,9 @@
       },
       "configurations": {
         "development": {
-          "tags": ["concord/frontend:development"],
+          "tags": [
+            "concord/frontend:development"
+          ],
           "build-args": [
             "PUBLIC_APP_ENVIRONMENT=development",
             "PUBLIC_APP_VERSION=dev",
@@ -104,30 +122,53 @@
             "BUILD_TIME",
             "BUILD_HOST"
           ],
-          "platforms": ["linux/amd64"]
+          "platforms": [
+            "linux/amd64"
+          ]
         }
-      }
+      },
+      "cache": false
     },
     "push": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "defaultConfiguration": "development",
-      "options": { "cwd": "{workspaceRoot}" },
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
       "configurations": {
-        "development": { "command": "echo 'Skipping push for development'" },
-        "staging": { "command": "docker push containers.ad.corekinect.com/concord-frontend:staging" },
-        "production": { "command": "docker push containers.ad.corekinect.com/concord-frontend:production" }
+        "development": {
+          "command": "echo 'Skipping push for development'"
+        },
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-frontend:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-frontend:production"
+        }
       }
     },
     "deploy": {
       "executor": "nx:run-commands",
-      "dependsOn": ["push"],
+      "dependsOn": [
+        "push"
+      ],
       "defaultConfiguration": "development",
-      "options": { "cwd": "{workspaceRoot}" },
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
       "configurations": {
-        "development": { "command": "echo 'Skipping deploy for development'" },
-        "staging": { "command": "./deploy/ctl.sh staging deploy" },
-        "production": { "command": "./deploy/ctl.sh production deploy" }
+        "development": {
+          "command": "echo 'Skipping deploy for development'"
+        },
+        "staging": {
+          "command": "./deploy/ctl.sh staging deploy"
+        },
+        "production": {
+          "command": "./deploy/ctl.sh production deploy"
+        }
       }
     },
     "typecheck": {

@@ -1178,17 +1178,19 @@ model Secret {
   @@map("secrets")
 }
 
-/// Caches the last-seen commit SHA per PR for the Bitbucket poller.
+/// Caches the last-seen commit SHA per branch or PR for the Bitbucket poller.
 /// Replaces fragile /tmp file-based caching — survives pod restarts and horizontal scaling.
 model PollCache {
   id        String   @id @default(cuid())
   repoSlug  String
-  prId      Int
+  type      String   /// "branch" or "pr"
+  refId     String   /// branch name (e.g. "concord-main") or PR number as string (e.g. "42")
   commitSha String
+  metadata  Json?    /// For PRs: {"source_branch": "...", "title": "...", "author": "..."}
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([repoSlug, prId])
+  @@unique([repoSlug, type, refId])
   @@map("poll_cache")
 }
 

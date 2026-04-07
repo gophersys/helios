@@ -23,10 +23,8 @@ COPY apps/backend/git-poller/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY libs/python/ /app/libs/python/
-ENV PYTHONPATH="/app/libs/python:${PYTHONPATH}"
-
 COPY apps/backend/git-poller/src/ src/
 
-ENV PYTHONPATH="/app/src:${PYTHONPATH}"
+ENV PYTHONPATH="/app/src:/app/libs/python:/app/libs/protocols:/app/libs"
 EXPOSE 9003
 CMD ["python3", "-u", "-m", "main"]

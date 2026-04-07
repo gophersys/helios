@@ -51398,7 +51398,9 @@ class BuildJobOptionalCreateInput(TypedDict, total=False):
     reusedFromId: Optional[_str]
     buildRunId: Optional[_str]
     buildRun: 'BuildRunCreateNestedWithoutRelationsInput'
+    priority: _int
     workerId: Optional[_str]
+    lastHeartbeat: Optional[datetime.datetime]
     startedAt: Optional[datetime.datetime]
     finishedAt: Optional[datetime.datetime]
     durationSeconds: Optional[_int]
@@ -51445,7 +51447,9 @@ class BuildJobOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     configFlags: Optional['fields.Json']
     reusedFromId: Optional[_str]
     buildRunId: Optional[_str]
+    priority: _int
     workerId: Optional[_str]
+    lastHeartbeat: Optional[datetime.datetime]
     startedAt: Optional[datetime.datetime]
     finishedAt: Optional[datetime.datetime]
     durationSeconds: Optional[_int]
@@ -51510,7 +51514,9 @@ class BuildJobUpdateInput(TypedDict, total=False):
     buildFingerprint: Optional[_str]
     configFlags: Optional['fields.Json']
     buildRun: 'BuildRunUpdateOneWithoutRelationsInput'
+    priority: Union[AtomicIntInput, _int]
     workerId: Optional[_str]
+    lastHeartbeat: Optional[datetime.datetime]
     startedAt: Optional[datetime.datetime]
     finishedAt: Optional[datetime.datetime]
     durationSeconds: Optional[Union[AtomicIntInput, _int]]
@@ -51546,7 +51552,9 @@ class BuildJobUpdateManyMutationInput(TypedDict, total=False):
     baseJobId: Optional[_str]
     buildFingerprint: Optional[_str]
     configFlags: Optional['fields.Json']
+    priority: Union[AtomicIntInput, _int]
     workerId: Optional[_str]
+    lastHeartbeat: Optional[datetime.datetime]
     startedAt: Optional[datetime.datetime]
     finishedAt: Optional[datetime.datetime]
     durationSeconds: Optional[Union[AtomicIntInput, _int]]
@@ -51778,10 +51786,26 @@ _BuildJob_buildRunId_OrderByInput = TypedDict(
     total=True
 )
 
+_BuildJob_priority_OrderByInput = TypedDict(
+    '_BuildJob_priority_OrderByInput',
+    {
+        'priority': 'SortOrder',
+    },
+    total=True
+)
+
 _BuildJob_workerId_OrderByInput = TypedDict(
     '_BuildJob_workerId_OrderByInput',
     {
         'workerId': 'SortOrder',
+    },
+    total=True
+)
+
+_BuildJob_lastHeartbeat_OrderByInput = TypedDict(
+    '_BuildJob_lastHeartbeat_OrderByInput',
+    {
+        'lastHeartbeat': 'SortOrder',
     },
     total=True
 )
@@ -51877,7 +51901,9 @@ BuildJobOrderByInput = Union[
     '_BuildJob_configFlags_OrderByInput',
     '_BuildJob_reusedFromId_OrderByInput',
     '_BuildJob_buildRunId_OrderByInput',
+    '_BuildJob_priority_OrderByInput',
     '_BuildJob_workerId_OrderByInput',
+    '_BuildJob_lastHeartbeat_OrderByInput',
     '_BuildJob_startedAt_OrderByInput',
     '_BuildJob_finishedAt_OrderByInput',
     '_BuildJob_durationSeconds_OrderByInput',
@@ -56090,7 +56116,9 @@ class BuildJobWhereInput(TypedDict, total=False):
     reusedFromId: Union[None, _str, 'types.StringFilter']
     buildRunId: Union[None, _str, 'types.StringFilter']
     buildRun: 'BuildRunRelationFilter'
+    priority: Union[_int, 'types.IntFilter']
     workerId: Union[None, _str, 'types.StringFilter']
+    lastHeartbeat: Union[None, datetime.datetime, 'types.DateTimeFilter']
     startedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     finishedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     durationSeconds: Union[None, _int, 'types.IntFilter']
@@ -56137,7 +56165,9 @@ class BuildJobWhereInputRecursive1(TypedDict, total=False):
     reusedFromId: Union[None, _str, 'types.StringFilter']
     buildRunId: Union[None, _str, 'types.StringFilter']
     buildRun: 'BuildRunRelationFilter'
+    priority: Union[_int, 'types.IntFilter']
     workerId: Union[None, _str, 'types.StringFilter']
+    lastHeartbeat: Union[None, datetime.datetime, 'types.DateTimeFilter']
     startedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     finishedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     durationSeconds: Union[None, _int, 'types.IntFilter']
@@ -56184,7 +56214,9 @@ class BuildJobWhereInputRecursive2(TypedDict, total=False):
     reusedFromId: Union[None, _str, 'types.StringFilter']
     buildRunId: Union[None, _str, 'types.StringFilter']
     buildRun: 'BuildRunRelationFilter'
+    priority: Union[_int, 'types.IntFilter']
     workerId: Union[None, _str, 'types.StringFilter']
+    lastHeartbeat: Union[None, datetime.datetime, 'types.DateTimeFilter']
     startedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     finishedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     durationSeconds: Union[None, _int, 'types.IntFilter']
@@ -56231,7 +56263,9 @@ class BuildJobWhereInputRecursive3(TypedDict, total=False):
     reusedFromId: Union[None, _str, 'types.StringFilter']
     buildRunId: Union[None, _str, 'types.StringFilter']
     buildRun: 'BuildRunRelationFilter'
+    priority: Union[_int, 'types.IntFilter']
     workerId: Union[None, _str, 'types.StringFilter']
+    lastHeartbeat: Union[None, datetime.datetime, 'types.DateTimeFilter']
     startedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     finishedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     durationSeconds: Union[None, _int, 'types.IntFilter']
@@ -56278,7 +56312,9 @@ class BuildJobWhereInputRecursive4(TypedDict, total=False):
     reusedFromId: Union[None, _str, 'types.StringFilter']
     buildRunId: Union[None, _str, 'types.StringFilter']
     buildRun: 'BuildRunRelationFilter'
+    priority: Union[_int, 'types.IntFilter']
     workerId: Union[None, _str, 'types.StringFilter']
+    lastHeartbeat: Union[None, datetime.datetime, 'types.DateTimeFilter']
     startedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     finishedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     durationSeconds: Union[None, _int, 'types.IntFilter']
@@ -56324,7 +56360,9 @@ class BuildJobScalarWhereWithAggregatesInput(TypedDict, total=False):
     configFlags: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     reusedFromId: Union[_str, 'types.StringWithAggregatesFilter']
     buildRunId: Union[_str, 'types.StringWithAggregatesFilter']
+    priority: Union[_int, 'types.IntWithAggregatesFilter']
     workerId: Union[_str, 'types.StringWithAggregatesFilter']
+    lastHeartbeat: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     startedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     finishedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     durationSeconds: Union[_int, 'types.IntWithAggregatesFilter']
@@ -56363,7 +56401,9 @@ class BuildJobScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
     configFlags: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     reusedFromId: Union[_str, 'types.StringWithAggregatesFilter']
     buildRunId: Union[_str, 'types.StringWithAggregatesFilter']
+    priority: Union[_int, 'types.IntWithAggregatesFilter']
     workerId: Union[_str, 'types.StringWithAggregatesFilter']
+    lastHeartbeat: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     startedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     finishedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     durationSeconds: Union[_int, 'types.IntWithAggregatesFilter']
@@ -56402,7 +56442,9 @@ class BuildJobScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
     configFlags: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     reusedFromId: Union[_str, 'types.StringWithAggregatesFilter']
     buildRunId: Union[_str, 'types.StringWithAggregatesFilter']
+    priority: Union[_int, 'types.IntWithAggregatesFilter']
     workerId: Union[_str, 'types.StringWithAggregatesFilter']
+    lastHeartbeat: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     startedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     finishedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     durationSeconds: Union[_int, 'types.IntWithAggregatesFilter']
@@ -56441,7 +56483,9 @@ class BuildJobScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
     configFlags: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     reusedFromId: Union[_str, 'types.StringWithAggregatesFilter']
     buildRunId: Union[_str, 'types.StringWithAggregatesFilter']
+    priority: Union[_int, 'types.IntWithAggregatesFilter']
     workerId: Union[_str, 'types.StringWithAggregatesFilter']
+    lastHeartbeat: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     startedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     finishedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     durationSeconds: Union[_int, 'types.IntWithAggregatesFilter']
@@ -56480,7 +56524,9 @@ class BuildJobScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
     configFlags: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     reusedFromId: Union[_str, 'types.StringWithAggregatesFilter']
     buildRunId: Union[_str, 'types.StringWithAggregatesFilter']
+    priority: Union[_int, 'types.IntWithAggregatesFilter']
     workerId: Union[_str, 'types.StringWithAggregatesFilter']
+    lastHeartbeat: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     startedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     finishedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     durationSeconds: Union[_int, 'types.IntWithAggregatesFilter']
@@ -56515,7 +56561,9 @@ class BuildJobGroupByOutput(TypedDict, total=False):
     configFlags: 'fields.Json'
     reusedFromId: _str
     buildRunId: _str
+    priority: _int
     workerId: _str
+    lastHeartbeat: datetime.datetime
     startedAt: datetime.datetime
     finishedAt: datetime.datetime
     durationSeconds: _int
@@ -56535,6 +56583,7 @@ class BuildJobAvgAggregateOutput(TypedDict, total=False):
     versionMinor: float
     buildNum: float
     matrixIndex: float
+    priority: float
     durationSeconds: float
 
 
@@ -56544,6 +56593,7 @@ class BuildJobSumAggregateOutput(TypedDict, total=False):
     versionMinor: _int
     buildNum: _int
     matrixIndex: _int
+    priority: _int
     durationSeconds: _int
 
 
@@ -56573,7 +56623,9 @@ class BuildJobScalarAggregateOutput(TypedDict, total=False):
     configFlags: 'fields.Json'
     reusedFromId: _str
     buildRunId: _str
+    priority: _int
     workerId: _str
+    lastHeartbeat: datetime.datetime
     startedAt: datetime.datetime
     finishedAt: datetime.datetime
     durationSeconds: _int
@@ -56612,7 +56664,9 @@ class BuildJobMaxAggregateInput(TypedDict, total=False):
     configFlags: bool
     reusedFromId: bool
     buildRunId: bool
+    priority: bool
     workerId: bool
+    lastHeartbeat: bool
     startedAt: bool
     finishedAt: bool
     durationSeconds: bool
@@ -56647,7 +56701,9 @@ class BuildJobMinAggregateInput(TypedDict, total=False):
     configFlags: bool
     reusedFromId: bool
     buildRunId: bool
+    priority: bool
     workerId: bool
+    lastHeartbeat: bool
     startedAt: bool
     finishedAt: bool
     durationSeconds: bool
@@ -56662,6 +56718,7 @@ class BuildJobNumberAggregateInput(TypedDict, total=False):
     versionMinor: bool
     buildNum: bool
     matrixIndex: bool
+    priority: bool
     durationSeconds: bool
 
 
@@ -56696,7 +56753,9 @@ BuildJobCountAggregateInput = TypedDict(
         'configFlags': bool,
         'reusedFromId': bool,
         'buildRunId': bool,
+        'priority': bool,
         'workerId': bool,
+        'lastHeartbeat': bool,
         'startedAt': bool,
         'finishedAt': bool,
         'durationSeconds': bool,
@@ -56735,7 +56794,9 @@ BuildJobCountAggregateOutput = TypedDict(
         'configFlags': int,
         'reusedFromId': int,
         'buildRunId': int,
+        'priority': int,
         'workerId': int,
+        'lastHeartbeat': int,
         'startedAt': int,
         'finishedAt': int,
         'durationSeconds': int,
@@ -56774,7 +56835,9 @@ BuildJobKeys = Literal[
     'reusedFromId',
     'buildRunId',
     'buildRun',
+    'priority',
     'workerId',
+    'lastHeartbeat',
     'startedAt',
     'finishedAt',
     'durationSeconds',
@@ -56812,7 +56875,9 @@ BuildJobScalarFieldKeys = Literal[
     'configFlags',
     'reusedFromId',
     'buildRunId',
+    'priority',
     'workerId',
+    'lastHeartbeat',
     'startedAt',
     'finishedAt',
     'durationSeconds',
@@ -148136,6 +148201,7 @@ SecretRelationalFieldKeys = Literal[
 class PollCacheOptionalCreateInput(TypedDict, total=False):
     """Optional arguments to the PollCache create method"""
     id: _str
+    metadata: Optional['fields.Json']
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -148143,7 +148209,8 @@ class PollCacheOptionalCreateInput(TypedDict, total=False):
 class PollCacheCreateInput(PollCacheOptionalCreateInput):
     """Required arguments to the PollCache create method"""
     repoSlug: _str
-    prId: _int
+    type: _str
+    refId: _str
     commitSha: _str
 
 
@@ -148153,6 +148220,7 @@ class PollCacheCreateInput(PollCacheOptionalCreateInput):
 class PollCacheOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     """Optional arguments to the PollCache create method, without relations"""
     id: _str
+    metadata: Optional['fields.Json']
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -148160,7 +148228,8 @@ class PollCacheOptionalCreateWithoutRelationsInput(TypedDict, total=False):
 class PollCacheCreateWithoutRelationsInput(PollCacheOptionalCreateWithoutRelationsInput):
     """Required arguments to the PollCache create method, without relations"""
     repoSlug: _str
-    prId: _int
+    type: _str
+    refId: _str
     commitSha: _str
 
 class PollCacheConnectOrCreateWithoutRelationsInput(TypedDict):
@@ -148186,26 +148255,27 @@ _PollCacheWhereUnique_id_Input = TypedDict(
     total=True
 )
 
-_PollCacheCompoundrepoSlug_prIdKeyInner = TypedDict(
-    '_PollCacheCompoundrepoSlug_prIdKeyInner',
+_PollCacheCompoundrepoSlug_type_refIdKeyInner = TypedDict(
+    '_PollCacheCompoundrepoSlug_type_refIdKeyInner',
     {
         'repoSlug': '_str',
-        'prId': '_int',
+        'type': '_str',
+        'refId': '_str',
     },
     total=True
 )
 
-_PollCacheCompoundrepoSlug_prIdKey = TypedDict(
-    '_PollCacheCompoundrepoSlug_prIdKey',
+_PollCacheCompoundrepoSlug_type_refIdKey = TypedDict(
+    '_PollCacheCompoundrepoSlug_type_refIdKey',
     {
-        'repoSlug_prId': '_PollCacheCompoundrepoSlug_prIdKeyInner',
+        'repoSlug_type_refId': '_PollCacheCompoundrepoSlug_type_refIdKeyInner',
     },
     total=True
 )
 
 PollCacheWhereUniqueInput = Union[
     '_PollCacheWhereUnique_id_Input',
-    '_PollCacheCompoundrepoSlug_prIdKey',
+    '_PollCacheCompoundrepoSlug_type_refIdKey',
 ]
 
 
@@ -148213,8 +148283,10 @@ class PollCacheUpdateInput(TypedDict, total=False):
     """Optional arguments for updating a record"""
     id: _str
     repoSlug: _str
-    prId: Union[AtomicIntInput, _int]
+    type: _str
+    refId: _str
     commitSha: _str
+    metadata: Optional['fields.Json']
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -148223,8 +148295,10 @@ class PollCacheUpdateManyMutationInput(TypedDict, total=False):
     """Arguments for updating many records"""
     id: _str
     repoSlug: _str
-    prId: Union[AtomicIntInput, _int]
+    type: _str
+    refId: _str
     commitSha: _str
+    metadata: Optional['fields.Json']
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -148277,10 +148351,18 @@ _PollCache_repoSlug_OrderByInput = TypedDict(
     total=True
 )
 
-_PollCache_prId_OrderByInput = TypedDict(
-    '_PollCache_prId_OrderByInput',
+_PollCache_type_OrderByInput = TypedDict(
+    '_PollCache_type_OrderByInput',
     {
-        'prId': 'SortOrder',
+        'type': 'SortOrder',
+    },
+    total=True
+)
+
+_PollCache_refId_OrderByInput = TypedDict(
+    '_PollCache_refId_OrderByInput',
+    {
+        'refId': 'SortOrder',
     },
     total=True
 )
@@ -148289,6 +148371,14 @@ _PollCache_commitSha_OrderByInput = TypedDict(
     '_PollCache_commitSha_OrderByInput',
     {
         'commitSha': 'SortOrder',
+    },
+    total=True
+)
+
+_PollCache_metadata_OrderByInput = TypedDict(
+    '_PollCache_metadata_OrderByInput',
+    {
+        'metadata': 'SortOrder',
     },
     total=True
 )
@@ -148330,8 +148420,10 @@ _PollCache_RelevanceOrderByInput = TypedDict(
 PollCacheOrderByInput = Union[
     '_PollCache_id_OrderByInput',
     '_PollCache_repoSlug_OrderByInput',
-    '_PollCache_prId_OrderByInput',
+    '_PollCache_type_OrderByInput',
+    '_PollCache_refId_OrderByInput',
     '_PollCache_commitSha_OrderByInput',
+    '_PollCache_metadata_OrderByInput',
     '_PollCache_createdAt_OrderByInput',
     '_PollCache_updatedAt_OrderByInput',
     '_PollCache_RelevanceOrderByInput',
@@ -152511,8 +152603,10 @@ class PollCacheWhereInput(TypedDict, total=False):
     """PollCache arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     repoSlug: Union[_str, 'types.StringFilter']
-    prId: Union[_int, 'types.IntFilter']
+    type: Union[_str, 'types.StringFilter']
+    refId: Union[_str, 'types.StringFilter']
     commitSha: Union[_str, 'types.StringFilter']
+    metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
@@ -152527,8 +152621,10 @@ class PollCacheWhereInputRecursive1(TypedDict, total=False):
     """PollCache arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     repoSlug: Union[_str, 'types.StringFilter']
-    prId: Union[_int, 'types.IntFilter']
+    type: Union[_str, 'types.StringFilter']
+    refId: Union[_str, 'types.StringFilter']
     commitSha: Union[_str, 'types.StringFilter']
+    metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
@@ -152543,8 +152639,10 @@ class PollCacheWhereInputRecursive2(TypedDict, total=False):
     """PollCache arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     repoSlug: Union[_str, 'types.StringFilter']
-    prId: Union[_int, 'types.IntFilter']
+    type: Union[_str, 'types.StringFilter']
+    refId: Union[_str, 'types.StringFilter']
     commitSha: Union[_str, 'types.StringFilter']
+    metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
@@ -152559,8 +152657,10 @@ class PollCacheWhereInputRecursive3(TypedDict, total=False):
     """PollCache arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     repoSlug: Union[_str, 'types.StringFilter']
-    prId: Union[_int, 'types.IntFilter']
+    type: Union[_str, 'types.StringFilter']
+    refId: Union[_str, 'types.StringFilter']
     commitSha: Union[_str, 'types.StringFilter']
+    metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
@@ -152575,8 +152675,10 @@ class PollCacheWhereInputRecursive4(TypedDict, total=False):
     """PollCache arguments for searching"""
     id: Union[_str, 'types.StringFilter']
     repoSlug: Union[_str, 'types.StringFilter']
-    prId: Union[_int, 'types.IntFilter']
+    type: Union[_str, 'types.StringFilter']
+    refId: Union[_str, 'types.StringFilter']
     commitSha: Union[_str, 'types.StringFilter']
+    metadata: Union[None, 'fields.Json', 'types.JsonFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
@@ -152591,8 +152693,10 @@ class PollCacheScalarWhereWithAggregatesInput(TypedDict, total=False):
     """PollCache arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     repoSlug: Union[_str, 'types.StringWithAggregatesFilter']
-    prId: Union[_int, 'types.IntWithAggregatesFilter']
+    type: Union[_str, 'types.StringWithAggregatesFilter']
+    refId: Union[_str, 'types.StringWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -152605,8 +152709,10 @@ class PollCacheScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
     """PollCache arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     repoSlug: Union[_str, 'types.StringWithAggregatesFilter']
-    prId: Union[_int, 'types.IntWithAggregatesFilter']
+    type: Union[_str, 'types.StringWithAggregatesFilter']
+    refId: Union[_str, 'types.StringWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -152619,8 +152725,10 @@ class PollCacheScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
     """PollCache arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     repoSlug: Union[_str, 'types.StringWithAggregatesFilter']
-    prId: Union[_int, 'types.IntWithAggregatesFilter']
+    type: Union[_str, 'types.StringWithAggregatesFilter']
+    refId: Union[_str, 'types.StringWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -152633,8 +152741,10 @@ class PollCacheScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
     """PollCache arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     repoSlug: Union[_str, 'types.StringWithAggregatesFilter']
-    prId: Union[_int, 'types.IntWithAggregatesFilter']
+    type: Union[_str, 'types.StringWithAggregatesFilter']
+    refId: Union[_str, 'types.StringWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -152647,8 +152757,10 @@ class PollCacheScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
     """PollCache arguments for searching"""
     id: Union[_str, 'types.StringWithAggregatesFilter']
     repoSlug: Union[_str, 'types.StringWithAggregatesFilter']
-    prId: Union[_int, 'types.IntWithAggregatesFilter']
+    type: Union[_str, 'types.StringWithAggregatesFilter']
+    refId: Union[_str, 'types.StringWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    metadata: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
 
@@ -152657,8 +152769,10 @@ class PollCacheScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
 class PollCacheGroupByOutput(TypedDict, total=False):
     id: _str
     repoSlug: _str
-    prId: _int
+    type: _str
+    refId: _str
     commitSha: _str
+    metadata: 'fields.Json'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     _sum: 'PollCacheSumAggregateOutput'
@@ -152670,20 +152784,20 @@ class PollCacheGroupByOutput(TypedDict, total=False):
 
 class PollCacheAvgAggregateOutput(TypedDict, total=False):
     """PollCache output for aggregating averages"""
-    prId: float
 
 
 class PollCacheSumAggregateOutput(TypedDict, total=False):
     """PollCache output for aggregating sums"""
-    prId: _int
 
 
 class PollCacheScalarAggregateOutput(TypedDict, total=False):
     """PollCache output including scalar fields"""
     id: _str
     repoSlug: _str
-    prId: _int
+    type: _str
+    refId: _str
     commitSha: _str
+    metadata: 'fields.Json'
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -152696,8 +152810,10 @@ class PollCacheMaxAggregateInput(TypedDict, total=False):
     """PollCache input for aggregating by max"""
     id: bool
     repoSlug: bool
-    prId: bool
+    type: bool
+    refId: bool
     commitSha: bool
+    metadata: bool
     createdAt: bool
     updatedAt: bool
 
@@ -152706,15 +152822,16 @@ class PollCacheMinAggregateInput(TypedDict, total=False):
     """PollCache input for aggregating by min"""
     id: bool
     repoSlug: bool
-    prId: bool
+    type: bool
+    refId: bool
     commitSha: bool
+    metadata: bool
     createdAt: bool
     updatedAt: bool
 
 
 class PollCacheNumberAggregateInput(TypedDict, total=False):
     """PollCache input for aggregating numbers"""
-    prId: bool
 
 
 PollCacheAvgAggregateInput = PollCacheNumberAggregateInput
@@ -152726,8 +152843,10 @@ PollCacheCountAggregateInput = TypedDict(
     {
         'id': bool,
         'repoSlug': bool,
-        'prId': bool,
+        'type': bool,
+        'refId': bool,
         'commitSha': bool,
+        'metadata': bool,
         'createdAt': bool,
         'updatedAt': bool,
         '_all': bool,
@@ -152740,8 +152859,10 @@ PollCacheCountAggregateOutput = TypedDict(
     {
         'id': int,
         'repoSlug': int,
-        'prId': int,
+        'type': int,
+        'refId': int,
         'commitSha': int,
+        'metadata': int,
         'createdAt': int,
         'updatedAt': int,
         '_all': int,
@@ -152753,16 +152874,20 @@ PollCacheCountAggregateOutput = TypedDict(
 PollCacheKeys = Literal[
     'id',
     'repoSlug',
-    'prId',
+    'type',
+    'refId',
     'commitSha',
+    'metadata',
     'createdAt',
     'updatedAt',
 ]
 PollCacheScalarFieldKeys = Literal[
     'id',
     'repoSlug',
-    'prId',
+    'type',
+    'refId',
     'commitSha',
+    'metadata',
     'createdAt',
     'updatedAt',
 ]

@@ -481,27 +481,30 @@ class BenchUpdateRequest:
 
         req = cls()
 
-        if "name" in data:
-            req._has_name = True
-            req.name = (data["name"] or "").strip() or None
+        # Simple string fields — strip and normalize empty strings to None
+        _simple_str_fields = [
+            ("name",             "_has_name",             "name"),
+            ("mtibAddress",      "_has_mtib_address",     "mtib_address"),
+            ("mtibRevision",     "_has_mtib_revision",    "mtib_revision"),
+            ("fixtureDesignId",  "_has_fixture_design_id","fixture_design_id"),
+            ("dutSnr",           "_has_dut_snr",          "dut_snr"),
+            ("dutImei",          "_has_dut_imei",         "dut_imei"),
+            ("jlinkAppSerial",   "_has_jlink_app_serial", "jlink_app_serial"),
+            ("jlinkCommsSerial", "_has_jlink_comms_serial","jlink_comms_serial"),
+            ("uartAppPath",      "_has_uart_app_path",    "uart_app_path"),
+            ("uartCommsPath",    "_has_uart_comms_path",  "uart_comms_path"),
+        ]
+        for json_key, flag_attr, obj_attr in _simple_str_fields:
+            if json_key in data:
+                setattr(req, flag_attr, True)
+                setattr(req, obj_attr, (data[json_key] or "").strip() or None)
 
-        if "mtibAddress" in data:
-            req._has_mtib_address = True
-            req.mtib_address = (data["mtibAddress"] or "").strip() or None
-
-        if "mtibRevision" in data:
-            req._has_mtib_revision = True
-            req.mtib_revision = (data["mtibRevision"] or "").strip() or None
-
+        # Type-validated fields
         if "capabilities" in data:
             req._has_capabilities = True
             if data["capabilities"] is not None and not isinstance(data["capabilities"], list):
                 return None, "capabilities must be an array"
             req.capabilities = data["capabilities"]
-
-        if "fixtureDesignId" in data:
-            req._has_fixture_design_id = True
-            req.fixture_design_id = (data["fixtureDesignId"] or "").strip() or None
 
         if "profileOverrides" in data:
             req._has_profile_overrides = True
@@ -509,40 +512,23 @@ class BenchUpdateRequest:
                 return None, "profileOverrides must be an object"
             req.profile_overrides = data["profileOverrides"]
 
-        if "dutDeviceId" in data:
-            req._has_dut_device_id = True
-            val = (data["dutDeviceId"] or "").strip()
-            req.dut_device_id = val.upper() if val else None
-
-        if "dutSnr" in data:
-            req._has_dut_snr = True
-            req.dut_snr = (data["dutSnr"] or "").strip() or None
-
-        if "dutImei" in data:
-            req._has_dut_imei = True
-            req.dut_imei = (data["dutImei"] or "").strip() or None
-
         if "dutIccids" in data:
             req._has_dut_iccids = True
             if data["dutIccids"] is not None and not isinstance(data["dutIccids"], list):
                 return None, "dutIccids must be an array"
             req.dut_iccids = data["dutIccids"]
 
-        if "jlinkAppSerial" in data:
-            req._has_jlink_app_serial = True
-            req.jlink_app_serial = (data["jlinkAppSerial"] or "").strip() or None
+        if "metadata" in data:
+            req._has_metadata = True
+            if data["metadata"] is not None and not isinstance(data["metadata"], dict):
+                return None, "metadata must be an object"
+            req.metadata = data["metadata"]
 
-        if "jlinkCommsSerial" in data:
-            req._has_jlink_comms_serial = True
-            req.jlink_comms_serial = (data["jlinkCommsSerial"] or "").strip() or None
-
-        if "uartAppPath" in data:
-            req._has_uart_app_path = True
-            req.uart_app_path = (data["uartAppPath"] or "").strip() or None
-
-        if "uartCommsPath" in data:
-            req._has_uart_comms_path = True
-            req.uart_comms_path = (data["uartCommsPath"] or "").strip() or None
+        # Special fields with custom transform / enum validation
+        if "dutDeviceId" in data:
+            req._has_dut_device_id = True
+            val = (data["dutDeviceId"] or "").strip()
+            req.dut_device_id = val.upper() if val else None
 
         if "status" in data:
             req._has_status = True
@@ -550,12 +536,6 @@ class BenchUpdateRequest:
             if status and status not in ("AVAILABLE", "LOCKED", "OFFLINE", "MAINTENANCE"):
                 return None, "status must be one of: AVAILABLE, LOCKED, OFFLINE, MAINTENANCE"
             req.status = status or None
-
-        if "metadata" in data:
-            req._has_metadata = True
-            if data["metadata"] is not None and not isinstance(data["metadata"], dict):
-                return None, "metadata must be an object"
-            req.metadata = data["metadata"]
 
         return req, None
 

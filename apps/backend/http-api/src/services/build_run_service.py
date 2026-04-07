@@ -772,6 +772,177 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
         return None
 
 
+def _find_available_fixture(db, product_id: str):
+    """Find an available fixture with a ready, online slot for the given product.
+
+    Returns (fixture, slot, mtib_address) if found, else (None, None, None).
+    """
+    fixtures = db.fixture.find_many(
+        where={"productId": product_id, "active": True},
+        include={"slots": {"include": {"node": True}}, "design": True},
+    )
+
+    fixture = None
+    slot = None
+    mtib_address = None
+
+    for f in fixtures:
+        if f.status != "AVAILABLE":
+            logger.debug("Fixture %s skipped: status=%s", f.name, f.status)
+            continue
+        for s in (f.slots or []):
+            if not (s.active and s.dutSnr and s.dutDeviceId):
+                continue
+            node = getattr(s, "node", None)
+            if node and node.status == "ONLINE" and node.ipAddress:
+                fixture = f
+                slot = s
+                mtib_address = node.ipAddress
+                break
+        if fixture:
+            break
+
+    return fixture, slot, mtib_address, fixtures
+
+
+def _analyze_unavailability(db, fixtures) -> dict:
+    """Categorize why no fixture is available.
+
+    Returns dict with keys: locked, offline, unconfigured (each a list of names).
+    """
+    locked = [f.name for f in fixtures if f.status != "AVAILABLE"]
+    no_slot = [
+        f.name for f in fixtures
+        if f.status == "AVAILABLE" and not any(s.active and s.dutSnr for s in (f.slots or []))
+    ]
+    offline = [
+        f.name for f in fixtures
+        if f.status == "AVAILABLE"
+        and any(
+            s.active and s.dutSnr
+            and getattr(getattr(s, "node", None), "status", None) != "ONLINE"
+            for s in (f.slots or [])
+        )
+    ]
+    return {"locked": locked, "offline": offline, "unconfigured": no_slot}
+
+
+def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
+    """Create or return an existing validation queue entry.
+
+    Returns {"queued": True, "entryId": "...", "reason": "..."}.
+    """
+    locked = unavailability["locked"]
+    offline = unavailability["offline"]
+    no_slot = unavailability["unconfigured"]
+
+    existing = db.validationqueueentry.find_first(
+        where={"buildRunId": run_id, "status": "QUEUED"},
+    )
+    if existing:
+        logger.info("Queue entry already exists for pipeline %s: %s", run_id[:8], existing.id[:8])
+        return {"queued": True, "entryId": existing.id, "reason": f"Fixture locked: {locked}"}
+
+    reason_parts = []
+    if locked:
+        reason_parts.append(f"locked={locked}")
+    if offline:
+        reason_parts.append(f"offline={offline}")
+    if no_slot:
+        reason_parts.append(f"unconfigured={no_slot}")
+    reason = f"No fixture available: {'; '.join(reason_parts)}"
+
+    queue_entry = db.validationqueueentry.create(data={
+        "buildRunId": run_id,
+        "stage": 4,
+        "priority": 0,
+        "status": "QUEUED",
+        "reason": reason,
+        "requestedAt": datetime.now(timezone.utc),
+    })
+
+    logger.info(
+        "Queued validation for pipeline %s: entry=%s reason=%s",
+        run_id[:8], queue_entry.id[:8], reason,
+    )
+    return {"queued": True, "entryId": queue_entry.id, "reason": reason}
+
+
+def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str, pipeline, product, builds: list) -> dict:
+    """Lock the fixture, create session + device + API key records.
+
+    Returns a dict with keys: session, raw_key, api_url.
+    """
+    db.fixture.update(
+        where={"id": fixture.id},
+        data={
+            "status": "LOCKED",
+            "lockedBy": f"pipeline:{run_id}",
+            "lockedAt": datetime.now(timezone.utc),
+        },
+    )
+    logger.info("Locked fixture %s for pipeline %s", fixture.name, run_id[:8])
+
+    build_summaries = [
+        {"id": b.id, "product": derive_build_product_slug(b), "variant": b.variant, "version": b.versionString}
+        for b in builds
+    ]
+
+    session = db.session.create(
+        data={
+            "name": f"FUOTA validation — {product.name} {pipeline.branch}",
+            "type": "VALIDATION",
+            "productId": product.id,
+            "fixtureId": fixture.id,
+            "buildRunId": run_id,
+            "status": "ACTIVE",
+            "config": Json({
+                "pipelineId": run_id,
+                "branch": pipeline.branch,
+                "builds": build_summaries,
+                "fixture": {"id": fixture.id, "name": fixture.name, "stationId": fixture.stationId},
+                "slot": {
+                    "dutDeviceId": slot.dutDeviceId,
+                    "dutSnr": slot.dutSnr,
+                    "dutImei": slot.dutImei,
+                    "dutIccids": slot.dutIccids,
+                },
+                "mtibAddress": mtib_address,
+            }),
+            "createdById": get_system_user_id(db),
+        },
+    )
+
+    db.device.create(
+        data={
+            "serialNumber": slot.dutSnr,
+            "sessionId": session.id,
+            "status": "IN_PROGRESS",
+            "metadata": Json({
+                "deviceId": slot.dutDeviceId,
+                "imei": slot.dutImei,
+                "iccids": slot.dutIccids,
+                "fixtureSlotId": slot.id,
+            }),
+        },
+    )
+
+    raw_key = f"ck_run_{secrets.token_urlsafe(32)}"
+    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+    db.apikey.create(
+        data={
+            "name": f"Pipeline validation {session.id}",
+            "keyHash": key_hash,
+            "keyPrefix": raw_key[:12],
+            "userId": get_system_user_id(db),
+            "expiresAt": datetime.now(timezone.utc) + timedelta(hours=24),
+        },
+    )
+
+    api_url = os.environ.get("CONCORD_API_URL", "http://concord-http-api.staging.svc.cluster.local:9001")
+    return {"session": session, "raw_key": raw_key, "api_url": api_url}
+
+
 def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional[dict]:
     """Trigger a validation job for a completed pipeline.
 
@@ -794,82 +965,19 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
             logger.warning("Product not found for pipeline %s", run_id)
             return None
 
-        # Find an available fixture with a ready slot
-        fixtures = db.fixture.find_many(
-            where={
-                "productId": product.id,
-                "active": True,
-            },
-            include={
-                "slots": {"include": {"node": True}},
-                "design": True,
-            },
-        )
-
-        fixture = None
-        slot = None
-        mtib_address = None
-
-        for f in fixtures:
-            if f.status != "AVAILABLE":
-                logger.debug("Fixture %s skipped: status=%s", f.name, f.status)
-                continue
-            for s in (f.slots or []):
-                if not (s.active and s.dutSnr and s.dutDeviceId):
-                    continue
-                node = getattr(s, "node", None)
-                if node and node.status == "ONLINE" and node.ipAddress:
-                    fixture = f
-                    slot = s
-                    mtib_address = node.ipAddress
-                    break
-            if fixture:
-                break
+        fixture, slot, mtib_address, fixtures = _find_available_fixture(db, product.id)
 
         if not fixture:
-            locked = [f.name for f in fixtures if f.status != "AVAILABLE"]
-            no_slot = [f.name for f in fixtures if f.status == "AVAILABLE"
-                       and not any(s.active and s.dutSnr for s in (f.slots or []))]
-            offline = [f.name for f in fixtures if f.status == "AVAILABLE"
-                       and any(s.active and s.dutSnr and getattr(getattr(s, "node", None), "status", None) != "ONLINE"
-                               for s in (f.slots or []))]
+            unavailability = _analyze_unavailability(db, fixtures)
+            locked = unavailability["locked"]
+            offline = unavailability["offline"]
+            no_slot = unavailability["unconfigured"]
             logger.info(
                 "No ready bench for %s: locked=%s offline=%s unconfigured=%s",
                 product.name, locked, offline, no_slot,
             )
-
             if locked:
-                existing = db.validationqueueentry.find_first(
-                    where={"buildRunId": run_id, "status": "QUEUED"},
-                )
-                if existing:
-                    logger.info("Queue entry already exists for pipeline %s: %s", run_id[:8], existing.id[:8])
-                    return {"queued": True, "entryId": existing.id, "reason": f"Fixture locked: {locked}"}
-
-                reason_parts = []
-                if locked:
-                    reason_parts.append(f"locked={locked}")
-                if offline:
-                    reason_parts.append(f"offline={offline}")
-                if no_slot:
-                    reason_parts.append(f"unconfigured={no_slot}")
-                reason = f"No fixture available: {'; '.join(reason_parts)}"
-
-                queue_entry = db.validationqueueentry.create(data={
-                    "buildRunId": run_id,
-                    "stage": 4,
-                    "priority": 0,
-                    "status": "QUEUED",
-                    "reason": reason,
-                    "requestedAt": datetime.now(timezone.utc),
-                })
-
-                logger.info(
-                    "Queued validation for pipeline %s: entry=%s reason=%s",
-                    run_id[:8], queue_entry.id[:8], reason,
-                )
-                return {"queued": True, "entryId": queue_entry.id, "reason": reason}
-
+                return _queue_validation(db, run_id, unavailability)
             return None
 
         logger.info(
@@ -877,82 +985,10 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
             fixture.name, slot.id[:8], slot.dutSnr, slot.dutDeviceId, mtib_address,
         )
 
-        # Lock the fixture
-        db.fixture.update(
-            where={"id": fixture.id},
-            data={
-                "status": "LOCKED",
-                "lockedBy": f"pipeline:{run_id}",
-                "lockedAt": datetime.now(timezone.utc),
-            },
-        )
-        logger.info("Locked fixture %s for pipeline %s", fixture.name, run_id[:8])
-
-        # Create a validation session
-        build_summaries = []
-        for b in builds:
-            slug = derive_build_product_slug(b)
-            build_summaries.append({"id": b.id, "product": slug, "variant": b.variant, "version": b.versionString})
-
-        session = db.session.create(
-            data={
-                "name": f"FUOTA validation — {product.name} {pipeline.branch}",
-                "type": "VALIDATION",
-                "productId": product.id,
-                "fixtureId": fixture.id,
-                "buildRunId": run_id,
-                "status": "ACTIVE",
-                "config": Json({
-                    "pipelineId": run_id,
-                    "branch": pipeline.branch,
-                    "builds": build_summaries,
-                    "fixture": {
-                        "id": fixture.id,
-                        "name": fixture.name,
-                        "stationId": fixture.stationId,
-                    },
-                    "slot": {
-                        "dutDeviceId": slot.dutDeviceId,
-                        "dutSnr": slot.dutSnr,
-                        "dutImei": slot.dutImei,
-                        "dutIccids": slot.dutIccids,
-                    },
-                    "mtibAddress": mtib_address,
-                }),
-                "createdById": get_system_user_id(db),
-            },
-        )
-
-        # Create device record
-        db.device.create(
-            data={
-                "serialNumber": slot.dutSnr,
-                "sessionId": session.id,
-                "status": "IN_PROGRESS",
-                "metadata": Json({
-                    "deviceId": slot.dutDeviceId,
-                    "imei": slot.dutImei,
-                    "iccids": slot.dutIccids,
-                    "fixtureSlotId": slot.id,
-                }),
-            },
-        )
-
-        # Create API key for the K8s job
-        raw_key = f"ck_run_{secrets.token_urlsafe(32)}"
-        key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
-
-        db.apikey.create(
-            data={
-                "name": f"Pipeline validation {session.id}",
-                "keyHash": key_hash,
-                "keyPrefix": raw_key[:12],
-                "userId": get_system_user_id(db),
-                "expiresAt": datetime.now(timezone.utc) + timedelta(hours=24),
-            },
-        )
-
-        api_url = os.environ.get("CONCORD_API_URL", "http://concord-http-api.staging.svc.cluster.local:9001")
+        ctx = _create_validation_session(db, fixture, slot, mtib_address, run_id, pipeline, product, builds)
+        session = ctx["session"]
+        raw_key = ctx["raw_key"]
+        api_url = ctx["api_url"]
 
         firmware_version = None
         for build in builds:
@@ -972,7 +1008,6 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
         image_tag = os.environ.get("ENVIRONMENT", "staging")
         git_commit = os.environ.get("GIT_COMMIT", "unknown")[:7]
 
-        # Load stage config for test routing
         stage_config = None
         stage_name = getattr(pipeline, "matrixMode", None) or "fuota"
         stage_map = {"smoke": 1, "driver": 2, "integration": 3, "regression": 4, "fuota": 5}
@@ -982,9 +1017,7 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
                 where={"productId": product.id, "stage": stage_num},
             )
 
-        # Create K8s Job
         test_enable = {"electrical": False, "app_post": False, "comm_post": False}
-
         job_name = create_kubernetes_job(
             product=product.name,
             job_id=session.id,

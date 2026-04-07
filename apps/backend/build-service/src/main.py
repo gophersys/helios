@@ -52,7 +52,7 @@ def main():
     from src.clients.concord import ConcordClient
     from src.worker.loop import BuildWorkerLoop
 
-    config = BuildServiceConfig.from_env()
+    config = BuildServiceConfig()
 
     # ── Banner ──────────────────────────────────────────────────────────────
     print_banner(

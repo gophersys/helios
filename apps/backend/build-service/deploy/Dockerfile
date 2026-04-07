@@ -36,7 +36,7 @@ ENV APP_VERSION=${APP_VERSION} \
     GIT_BRANCH=${GIT_BRANCH} \
     BUILD_TIME=${BUILD_TIME} \
     BUILD_HOST=${BUILD_HOST} \
-    PYTHONPATH=/app/src:/app/libs/python
+    PYTHONPATH=/app/src:/app/libs/python:/app/libs/protocols:/app/libs
 
 EXPOSE 9002
 

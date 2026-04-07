@@ -41,6 +41,7 @@ class BuildJob:
     config_flags: dict = None  # Extra build flags (e.g., {"forceLog": true})
     product_id: str = None  # DB product ID for fetching buildConfig
     recipe_version_id: str = None  # Pinned recipe version for reproducibility
+    stage: int = None  # Validation/manufacturing stage number (1-5, 101-103)
 
 
 def _extract_version_override(job_data: dict) -> Optional[str]:
@@ -76,6 +77,56 @@ class BuildExecutor:
             return int(match.group(3))  # build number
         return None
 
+    @staticmethod
+    def _base_env(job: "BuildJob", work_dir: Path, output_dir: Path) -> Dict[str, str]:
+        """Return legacy env vars for local (non-Docker) builds."""
+        product_base = job.product.lower().replace("_fw", "").replace("_mfg", "")
+        if job.target == "mfg":
+            repo_dir = str(work_dir / f"{product_base}_mfg_fw")
+        else:
+            repo_dir = str(work_dir / f"{product_base}_fw")
+        return {
+            "BUILD_DIR": str(output_dir),
+            "OUTPUT_DIR": str(output_dir),
+            "REPO_DIR": repo_dir,
+            "VARIANT": job.variant if job.variant != "mfg" else "",
+            "COMMIT_SHA": job.commit_sha or "",
+            "BRANCH": job.branch,
+            "TARGET": job.target if job.target in ("app", "mfg") else "app",
+            "FIRMWARE_TYPE": job.target if job.target in ("app", "mfg") else "app",
+            "BOARD": job.board,
+        }
+
+    @staticmethod
+    def _docker_paths(job_id: str, product: str, config_flags: dict) -> Dict[str, str]:
+        """Return Docker-mode path env vars (container-internal paths)."""
+        container_work = f"/workspace/{job_id}"
+        primary_slug = config_flags.get("_primary_slug", f"{product}_fw") if config_flags else f"{product}_fw"
+        return {
+            "BUILD_DIR": f"{container_work}/artifacts",
+            "OUTPUT_DIR": f"{container_work}/artifacts",
+            "REPO_DIR": f"{container_work}/{primary_slug}",
+        }
+
+    @staticmethod
+    def _concord_env(job: "BuildJob", build_config: dict, build_target: str) -> Dict[str, str]:
+        """Return CONCORD_* SDK env vars used by concord-build.sh."""
+        config_flags = job.config_flags or {}
+        targets_json = config_flags.get("_targets_json", "[]")
+        return {
+            "CONCORD_BOARD": job.board,
+            "CONCORD_VARIANT": job.variant or "release",
+            "CONCORD_FW_TYPE": build_target,
+            "CONCORD_CONFIG_LOG": "y" if config_flags.get("config_log", True) else "n",
+            "CONCORD_PRODUCES_HEX": "true" if config_flags.get("produces_hex", True) else "false",
+            "CONCORD_PRODUCES_CFW": "true" if config_flags.get("produces_cfw", False) else "false",
+            "CONCORD_COMMIT_SHA": job.commit_sha or "",
+            "CONCORD_BRANCH": job.branch,
+            "CONCORD_MATRIX_LABEL": job.matrix_label or "",
+            "CONCORD_PRODUCT": job.product,
+            "CONCORD_TARGETS": targets_json,
+        }
+
     def prepare_build_env(self, job: BuildJob, work_dir: Path, output_dir: Path,
                           docker_mode: bool = False) -> Tuple[Dict[str, str], List[str], str]:
         """Prepare environment variables and build command.
@@ -88,63 +139,30 @@ class BuildExecutor:
             raise FileNotFoundError(f"Build script not found: {script_path}")
 
         build_target = job.target if job.target in ("app", "mfg") else "app"
+        config_flags = job.config_flags or {}
 
-        # Build environment
-        env: Dict[str, str] = {}
-
-        # Repo directory paths — in Docker mode these are container-internal paths
+        # Repo directory paths — differ between Docker and local mode
         if docker_mode:
-            # Inside the builder container, workspace is at /workspace/{job_id}
-            container_work = f"/workspace/{job.id}"
-            primary_slug = job.config_flags.get("_primary_slug", f"{job.product}_fw") if job.config_flags else f"{job.product}_fw"
-            env["BUILD_DIR"] = f"{container_work}/artifacts"
-            env["OUTPUT_DIR"] = f"{container_work}/artifacts"
-            env["REPO_DIR"] = f"{container_work}/{primary_slug}"
+            env: Dict[str, str] = self._docker_paths(job.id, job.product, config_flags)
+            # Populate legacy vars for Docker mode (TARGET/BOARD etc.)
+            env.update({
+                "VARIANT": job.variant if job.variant != "mfg" else "",
+                "COMMIT_SHA": job.commit_sha or "",
+                "BRANCH": job.branch,
+                "TARGET": build_target,
+                "FIRMWARE_TYPE": build_target,
+                "BOARD": job.board,
+            })
         else:
-            # Local mode — use real filesystem paths
-            product_base = job.product.lower().replace("_fw", "").replace("_mfg", "")
-            if job.target == "mfg":
-                repo_dir = str(work_dir / f"{product_base}_mfg_fw")
-            else:
-                repo_dir = str(work_dir / f"{product_base}_fw")
-            env["BUILD_DIR"] = str(output_dir)
-            env["OUTPUT_DIR"] = str(output_dir)
-            env["REPO_DIR"] = repo_dir
-
-        # Legacy env vars (backward compat with existing build scripts)
-        env.update({
-            "VARIANT": job.variant if job.variant != "mfg" else "",
-            "COMMIT_SHA": job.commit_sha or "",
-            "BRANCH": job.branch,
-            "TARGET": build_target,
-            "FIRMWARE_TYPE": build_target,
-            "BOARD": job.board,
-        })
+            env = self._base_env(job, work_dir, output_dir)
 
         # Concord SDK env vars (used by concord-build.sh)
-        config_flags = job.config_flags or {}
-        targets_json = config_flags.get("_targets_json", "[]")
-        env.update({
-            "CONCORD_BOARD": job.board,
-            "CONCORD_VARIANT": job.variant or "release",
-            "CONCORD_FW_TYPE": build_target,
-            "CONCORD_CONFIG_LOG": "y" if config_flags.get("config_log", True) else "n",
-            "CONCORD_PRODUCES_HEX": "true" if config_flags.get("produces_hex", True) else "false",
-            "CONCORD_PRODUCES_CFW": "true" if config_flags.get("produces_cfw", False) else "false",
-            "CONCORD_COMMIT_SHA": job.commit_sha or "",
-            "CONCORD_BRANCH": job.branch,
-            "CONCORD_MATRIX_LABEL": job.matrix_label or "",
-            "CONCORD_PRODUCT": job.product,
-            "CONCORD_TARGETS": targets_json,
-        })
-        if docker_mode:
-            env["CONCORD_REPO_DIR"] = env.get("REPO_DIR", "")
-            env["CONCORD_BUILD_DIR"] = f"{env.get('REPO_DIR', '')}/build"
-            env["CONCORD_OUTPUT_DIR"] = env.get("OUTPUT_DIR", "")
-        else:
-            env["CONCORD_REPO_DIR"] = env.get("REPO_DIR", "")
-            env["CONCORD_BUILD_DIR"] = f"{env.get('REPO_DIR', '')}/build"
-            env["CONCORD_OUTPUT_DIR"] = env.get("OUTPUT_DIR", "")
+        env.update(self._concord_env(job, config_flags, build_target))
+
+        # Path derivations shared by both modes
+        env["CONCORD_REPO_DIR"] = env.get("REPO_DIR", "")
+        env["CONCORD_BUILD_DIR"] = f"{env.get('REPO_DIR', '')}/build"
+        env["CONCORD_OUTPUT_DIR"] = env.get("OUTPUT_DIR", "")
 
         if not docker_mode:
             # Local mode needs Zephyr paths from the host environment

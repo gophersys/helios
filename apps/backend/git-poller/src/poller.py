@@ -78,17 +78,26 @@ class GitPoller:
 
         self._state.save()
 
-    def run(self) -> None:
-        """Main loop — calls ``poll_once()`` every ``poll_interval`` seconds."""
+    def run(self, on_first_success=None) -> None:
+        """Main loop — calls ``poll_once()`` every ``poll_interval`` seconds.
+
+        Args:
+            on_first_success: Optional callable invoked after the first poll
+                cycle completes without raising. Used to signal readiness.
+        """
         log.info(
             "Poller: starting (interval=%ds, cache_ttl=%ds)",
             self._config.poll_interval,
             self._config.product_cache_ttl,
         )
 
+        _first_success_fired = False
         while not self._shutdown.is_set():
             try:
                 self.poll_once()
+                if not _first_success_fired and on_first_success is not None:
+                    on_first_success()
+                    _first_success_fired = True
             except Exception as exc:
                 log.exception("Poller: unhandled error in poll cycle: %s", exc)
 

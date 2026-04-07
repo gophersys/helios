@@ -10,6 +10,7 @@ Responsibilities:
 import atexit
 import base64
 import logging
+import os
 import signal
 import stat
 import threading
@@ -20,6 +21,7 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from corekinect.utils import print_banner
 from config import GitPollerConfig
 from poller import GitPoller
 
@@ -28,6 +30,9 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)-8s [%(name)s] %(message)s",
 )
 log = logging.getLogger("git-poller")
+
+# Set to True after the first successful poll cycle — gates /ready
+_ready = False
 
 
 # ---------------------------------------------------------------------------
@@ -75,8 +80,18 @@ def _run_health_server(port: int) -> None:
     class _Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == "/health":
-                body = _json.dumps({"status": "healthy", "service": "git-poller"})
+                body = _json.dumps({"status": "ok", "service": "git-poller"})
                 self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body.encode())
+            elif self.path == "/ready":
+                if _ready:
+                    body = _json.dumps({"status": "ready", "service": "git-poller"})
+                    self.send_response(200)
+                else:
+                    body = _json.dumps({"status": "not_ready", "service": "git-poller"})
+                    self.send_response(503)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(body.encode())
@@ -98,12 +113,11 @@ def _run_health_server(port: int) -> None:
 def main() -> None:
     config = GitPollerConfig()
 
-    log.info(
-        "git-poller starting | env=%s url=%s interval=%ds port=%d",
-        config.environment,
-        config.concord_api_url,
-        config.poll_interval,
-        config.service_port,
+    print_banner(
+        "concord-git-poller",
+        API=config.concord_api_url,
+        Interval=f"{config.poll_interval}s",
+        Port=str(config.service_port),
     )
 
     _setup_ssh_key(config)
@@ -130,7 +144,12 @@ def main() -> None:
     signal.signal(signal.SIGINT, _handle_signal)
     atexit.register(lambda: log.info("git-poller stopped"))
 
-    poller.run()
+    def _mark_ready():
+        global _ready
+        _ready = True
+        log.info("First poll complete — service is ready")
+
+    poller.run(on_first_success=_mark_ready)
 
 
 if __name__ == "__main__":

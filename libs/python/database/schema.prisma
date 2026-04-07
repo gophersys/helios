@@ -584,8 +584,12 @@ model BuildJob {
   buildRunId String?
   buildRun   BuildRun? @relation(fields: [buildRunId], references: [id])
 
+  // Priority queue — higher number = processed first (manual=100, webhook=50, scheduled=25)
+  priority Int @default(50)
+
   // Worker info
-  workerId String? /// Node/host that built this (e.g. "wanda")
+  workerId      String? /// Node/host that built this (e.g. "wanda")
+  lastHeartbeat DateTime? /// Updated by worker during active builds (stale detection)
 
   // Timing
   startedAt       DateTime?
@@ -607,6 +611,7 @@ model BuildJob {
   @@index([matrixLabel])
   @@index([productId])
   @@index([status])
+  @@index([status, priority])
   @@index([buildRunId])
   @@index([buildFingerprint])
   @@map("build_jobs")
@@ -1173,17 +1178,19 @@ model Secret {
   @@map("secrets")
 }
 
-/// Caches the last-seen commit SHA per PR for the Bitbucket poller.
+/// Caches the last-seen commit SHA per branch or PR for the Bitbucket poller.
 /// Replaces fragile /tmp file-based caching — survives pod restarts and horizontal scaling.
 model PollCache {
   id        String   @id @default(cuid())
   repoSlug  String
-  prId      Int
+  type      String /// "branch" or "pr"
+  refId     String /// branch name (e.g. "concord-main") or PR number as string (e.g. "42")
   commitSha String
+  metadata  Json? /// For PRs: {"source_branch": "...", "title": "...", "author": "..."}
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([repoSlug, prId])
+  @@unique([repoSlug, type, refId])
   @@map("poll_cache")
 }
 

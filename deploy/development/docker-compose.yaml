@@ -44,6 +44,9 @@ services:
   # ══════════════════════════════════════════════════════
   http-api:
     image: concord/http-api:development
+    build:
+      context: ../..
+      dockerfile: apps/backend/http-api/deploy/Dockerfile
     ports:
       - "9001:9001"
     environment:
@@ -86,6 +89,9 @@ services:
 
   git-poller:
     image: concord/git-poller:development
+    build:
+      context: ../..
+      dockerfile: apps/backend/git-poller/deploy/Dockerfile
     environment:
       CONCORD_API_URL: http://http-api:9001
       CONCORD_API_KEY: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG
@@ -104,6 +110,9 @@ services:
 
   build-service:
     image: concord/build-service:development
+    build:
+      context: ../..
+      dockerfile: apps/backend/build-service/deploy/Dockerfile
     network_mode: host
     environment:
       # host network mode — API runs on host via nx serve

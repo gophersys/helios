@@ -263,6 +263,8 @@
       
         
       
+        
+      
     
     
     
@@ -963,10 +965,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#nightly-comprehensive" class="md-nav__link">
+  <a href="#regression-comprehensive" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Nightly (comprehensive)
+        Regression (comprehensive)
       
     </span>
   </a>
@@ -1043,6 +1045,34 @@
     
   
     CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platform/zero-downtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero-Downtime Updates
   
 
     
@@ -2610,10 +2640,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#nightly-comprehensive" class="md-nav__link">
+  <a href="#regression-comprehensive" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Nightly (comprehensive)
+        Regression (comprehensive)
       
     </span>
   </a>
@@ -2742,7 +2772,7 @@
 <h1 id="validation-test-runner-architecture">Validation Test Runner Architecture<a class="headerlink" href="#validation-test-runner-architecture" title="Permanent link">&para;</a></h1>
 <h2 id="the-problem">The Problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h2>
 <p>All validation tests live in the same container (<code>apps/validation/alpha/</code>) but:
-- Run at different stages (gate, nightly, integration)
+- Run at different stages (gate, regression, integration)
 - Have different triggers (PR, cron, manual)
 - Need different timeouts and retry logic
 - Produce different outputs and visualizations
@@ -2758,7 +2788,7 @@
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│                         TRIGGER LAYER                                    │
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├─────────────────────────────────────────────────────────────────────────┤
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│  PR Merge ──► CI Webhook ──► API ──► K8s Job (gate)                     │
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│  Cron ──────► CronJob ──────► API ──► K8s Job (nightly)                 │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│  Cron ──────► CronJob ──────► API ──► K8s Job (regression)                 │
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│  Manual ────► API Call ─────► API ──► K8s Job (integration)             │
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>└─────────────────────────────────────────────────────────────────────────┘
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                                   │
@@ -2776,7 +2806,7 @@
 <a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>│  └──────────────────────────────────────────────────────────────────┘   │
 <a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>│                                                                          │
 <a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>│  Environment:                                                            │
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>│    STAGE=gate|nightly|integration                                        │
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>│    STAGE=gate|regression|integration                                        │
 <a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>│    RUN_ID=clxyz...                                                       │
 <a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>│    MTIB_ADDRESS=10.4.45.33:50053                                         │
 <a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>│    DEVICE_SNR=0964                                                       │
@@ -2816,7 +2846,7 @@
 <td>CoreCloud FUOTA, MinIO</td>
 </tr>
 <tr>
-<td>nightly</td>
+<td>regression</td>
 <td>Cron 2AM</td>
 <td>60 min</td>
 <td>1</td>
@@ -3011,11 +3041,11 @@
 <a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>                <span class="n">required_services</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;mtib&quot;</span><span class="p">,</span> <span class="s2">&quot;corecloud&quot;</span><span class="p">,</span> <span class="s2">&quot;minio&quot;</span><span class="p">],</span>
 <a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>                <span class="n">artifact_patterns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*.log&quot;</span><span class="p">,</span> <span class="s2">&quot;*.uart&quot;</span><span class="p">,</span> <span class="s2">&quot;*.csv&quot;</span><span class="p">],</span>
 <a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>            <span class="p">),</span>
-<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>            <span class="s2">&quot;nightly&quot;</span><span class="p">:</span> <span class="bp">cls</span><span class="p">(</span>
-<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>                <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;nightly&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>            <span class="s2">&quot;regression&quot;</span><span class="p">:</span> <span class="bp">cls</span><span class="p">(</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>                <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;regression&quot;</span><span class="p">,</span>
 <a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>                <span class="n">timeout_s</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
 <a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>                <span class="n">retry_count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>                <span class="n">test_path</span><span class="o">=</span><span class="s2">&quot;tests/nightly/&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>                <span class="n">test_path</span><span class="o">=</span><span class="s2">&quot;tests/regression/&quot;</span><span class="p">,</span>
 <a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>                <span class="n">pytest_args</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;-v&quot;</span><span class="p">,</span> <span class="s2">&quot;--tb=long&quot;</span><span class="p">],</span>
 <a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>                <span class="n">required_services</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;mtib&quot;</span><span class="p">,</span> <span class="s2">&quot;corecloud&quot;</span><span class="p">],</span>
 <a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a>                <span class="n">artifact_patterns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*.log&quot;</span><span class="p">,</span> <span class="s2">&quot;*.uart&quot;</span><span class="p">,</span> <span class="s2">&quot;*.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;*.png&quot;</span><span class="p">],</span>
@@ -3234,7 +3264,7 @@
 <li>Focus: speed, binary outcome</li>
 <li>Key metric: total time, FUOTA success</li>
 </ul>
-<h3 id="nightly-comprehensive">Nightly (comprehensive)<a class="headerlink" href="#nightly-comprehensive" title="Permanent link">&para;</a></h3>
+<h3 id="regression-comprehensive">Regression (comprehensive)<a class="headerlink" href="#regression-comprehensive" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Dashboard-style: grouped by category (power, sensors, GPS)</li>
 <li>Focus: trends over time, regression detection</li>

@@ -263,6 +263,8 @@
       
         
       
+        
+      
     
     
     
@@ -729,10 +731,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#stage-2-silicon-driver-hardware-tests" class="md-nav__link">
+  <a href="#stage-2-driver-driver-hardware-tests" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Stage 2 — Silicon (Driver Hardware Tests)
+        Stage 2 — Driver (Driver Hardware Tests)
       
     </span>
   </a>
@@ -751,10 +753,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#stage-4-nightly-long-running-product-validation" class="md-nav__link">
+  <a href="#stage-4-regression-long-running-product-validation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Stage 4 — Nightly (Long-Running Product Validation)
+        Stage 4 — Regression (Long-Running Product Validation)
       
     </span>
   </a>
@@ -932,6 +934,34 @@
     
   
     CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platform/zero-downtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero-Downtime Updates
   
 
     
@@ -2321,10 +2351,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#stage-2-silicon-driver-hardware-tests" class="md-nav__link">
+  <a href="#stage-2-driver-driver-hardware-tests" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Stage 2 — Silicon (Driver Hardware Tests)
+        Stage 2 — Driver (Driver Hardware Tests)
       
     </span>
   </a>
@@ -2343,10 +2373,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#stage-4-nightly-long-running-product-validation" class="md-nav__link">
+  <a href="#stage-4-regression-long-running-product-validation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Stage 4 — Nightly (Long-Running Product Validation)
+        Stage 4 — Regression (Long-Running Product Validation)
       
     </span>
   </a>
@@ -2543,10 +2573,10 @@
 </tr>
 <tr>
 <td>2</td>
-<td><strong>Silicon</strong></td>
+<td><strong>Driver</strong></td>
 <td>Dev kit + MTIB</td>
 <td>K8s pod → MTIB</td>
-<td>PR/nightly</td>
+<td>PR/regression</td>
 <td>5-15 min</td>
 </tr>
 <tr>
@@ -2559,10 +2589,10 @@
 </tr>
 <tr>
 <td>4</td>
-<td><strong>Nightly</strong></td>
+<td><strong>Regression</strong></td>
 <td>Product board + MTIB + CoreCloud</td>
 <td>K8s pod → MTIB → Cloud</td>
-<td>Nightly/release</td>
+<td>Regression/release</td>
 <td>30-60 min</td>
 </tr>
 <tr>
@@ -2632,7 +2662,7 @@
 - Test overlays: <code>alpha_fw/tests/app/boards/native_sim.overlay</code>
 - Implementation doc: <a href=".././stage1-software-tests/">stage1-software-tests.md</a></p>
 <hr />
-<h2 id="stage-2-silicon-driver-hardware-tests">Stage 2 — Silicon (Driver Hardware Tests)<a class="headerlink" href="#stage-2-silicon-driver-hardware-tests" title="Permanent link">&para;</a></h2>
+<h2 id="stage-2-driver-driver-hardware-tests">Stage 2 — Driver (Driver Hardware Tests)<a class="headerlink" href="#stage-2-driver-driver-hardware-tests" title="Permanent link">&para;</a></h2>
 <p><strong>Purpose</strong>: Verify individual drivers work correctly on real silicon.</p>
 <table>
 <thead>
@@ -2660,7 +2690,7 @@
 </tr>
 <tr>
 <td>Trigger</td>
-<td>PR affecting driver, nightly</td>
+<td>PR affecting driver, regression</td>
 </tr>
 <tr>
 <td>Duration</td>
@@ -2744,7 +2774,7 @@
 - Test runner: <code>apps/validation/alpha/tests/stage3/</code>
 - Implementation doc: <a href=".././stage3-integration-tests/">stage3-integration-tests.md</a></p>
 <hr />
-<h2 id="stage-4-nightly-long-running-product-validation">Stage 4 — Nightly (Long-Running Product Validation)<a class="headerlink" href="#stage-4-nightly-long-running-product-validation" title="Permanent link">&para;</a></h2>
+<h2 id="stage-4-regression-long-running-product-validation">Stage 4 — Regression (Long-Running Product Validation)<a class="headerlink" href="#stage-4-regression-long-running-product-validation" title="Permanent link">&para;</a></h2>
 <p><strong>Purpose</strong>: Comprehensive product validation — runs all tests including slow ones.</p>
 <table>
 <thead>
@@ -2772,7 +2802,7 @@
 </tr>
 <tr>
 <td>Trigger</td>
-<td>Nightly, release candidate</td>
+<td>Regression, release candidate</td>
 </tr>
 <tr>
 <td>Duration</td>
@@ -2899,9 +2929,9 @@
 <tr>
 <th>Capability</th>
 <th>Stage 1 (Smoke)</th>
-<th>Stage 2 (Silicon)</th>
+<th>Stage 2 (Driver)</th>
 <th>Stage 3 (Integration)</th>
-<th>Stage 4 (Nightly)</th>
+<th>Stage 4 (Regression)</th>
 <th>Stage 5 (FUOTA)</th>
 </tr>
 </thead>
@@ -2965,9 +2995,9 @@
 <tr>
 <td>Trigger</td>
 <td>Every commit</td>
-<td>PR/nightly</td>
+<td>PR/regression</td>
 <td>PR/weekly</td>
-<td>Nightly</td>
+<td>Regression</td>
 <td><strong>Every PR</strong></td>
 </tr>
 <tr>
@@ -3004,9 +3034,9 @@
 </tr>
 <tr>
 <td>2</td>
-<td>Silicon</td>
-<td><code>SILICON-{driver}-{test}</code></td>
-<td><code>SILICON-LSM6DSO-FIFO</code></td>
+<td>Driver</td>
+<td><code>DRIVER-{driver}-{test}</code></td>
+<td><code>DRIVER-LSM6DSO-FIFO</code></td>
 <td>Datasheet spec</td>
 </tr>
 <tr>
@@ -3018,9 +3048,9 @@
 </tr>
 <tr>
 <td>4</td>
-<td>Nightly</td>
-<td><code>NIGHTLY-{product}-{seq}</code></td>
-<td><code>NIGHTLY-ALPHA-001</code></td>
+<td>Regression</td>
+<td><code>REGRESSION-{product}-{seq}</code></td>
+<td><code>REGRESSION-ALPHA-001</code></td>
 <td>Product requirements</td>
 </tr>
 <tr>
@@ -3041,18 +3071,18 @@
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│     PR      │────►│  Stage 2+3  │────►│  Stage 5    │────►│    Pass?    │
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│             │     │  (Silicon + │     │  (FUOTA)    │     └──────┬──────┘
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│             │     │  (Driver +  │     │  (FUOTA)    │     └──────┬──────┘
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│             │     │ Integration)│     │  + FUOTA    │            │
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│             │     │   30 min    │     │   15 min    │            ▼ No → Block merge
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>└─────────────┘     └─────────────┘     └─────────────┘
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   Nightly   │────►│  Stage 4    │────►│    Pass?    │
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   (cron)    │     │  (Nightly)  │     └──────┬──────┘
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│  Regression │────►│  Stage 4    │────►│    Pass?    │
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   (cron)    │     │ (Regression)│     └──────┬──────┘
 <a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│             │     │   60 min    │            │
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>└─────────────┘     └─────────────┘            ▼ No → Alert + investigate
 </code></pre></div>
-<p><strong>Key insight</strong>: Stage 5 (FUOTA) runs on every PR and verifies OTA firmware updates work before code is merged. Stage 4 (Nightly) runs comprehensive tests overnight but doesn't block merges.</p>
+<p><strong>Key insight</strong>: Stage 5 (FUOTA) runs on every PR and verifies OTA firmware updates work before code is merged. Stage 4 (Regression) runs comprehensive tests overnight but doesn't block merges.</p>
 <h3 id="cicd-configuration">CI/CD Configuration<a class="headerlink" href="#cicd-configuration" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># .github/workflows/validation.yml (simplified)</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">stages</span><span class="p">:</span>
@@ -3061,7 +3091,7 @@
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nt">runner</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5m</span>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stage2-silicon</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stage2-driver</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="nt">trigger</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">pull_request</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="nt">runner</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">self-hosted-mtib</span>
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="nt">requires</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">stage1-smoke</span><span class="p p-Indicator">]</span>
@@ -3070,7 +3100,7 @@
 <a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stage3-integration</span>
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="nt">trigger</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">pull_request</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="nt">runner</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">self-hosted-mtib</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">    </span><span class="nt">requires</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">stage2-silicon</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">    </span><span class="nt">requires</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">stage2-driver</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30m</span>
 <a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>
 <a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stage5-fuota</span>
@@ -3079,7 +3109,7 @@
 <a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="nt">requires</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">stage3-integration</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">15m</span>
 <a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>
-<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stage4-nightly</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">stage4-regression</span>
 <a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">    </span><span class="nt">trigger</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">schedule</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="s">&quot;0</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># 2 AM daily</span>
 <a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">    </span><span class="nt">runner</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">self-hosted-mtib</span>
 <a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">90m</span>
@@ -3090,9 +3120,9 @@
 <li><a href="../../../vision/validation-philosophy/">Validation Philosophy</a> — Why we validate this way</li>
 <li><a href=".././system/">Final Architecture</a> — System-level architecture</li>
 <li><a href=".././stage1-software-tests/">Stage 1 Smoke</a> — Stub drivers, native_sim, CI</li>
-<li><a href=".././stage2-driver-hw-tests/">Stage 2 Silicon</a> — Driver HW tests, dev kits</li>
+<li><a href=".././stage2-driver-hw-tests/">Stage 2 Driver</a> — Driver HW tests, dev kits</li>
 <li><a href=".././stage3-integration-tests/">Stage 3 Integration</a> — concord_harness, integration</li>
-<li><a href=".././stage4-product-tests/">Stage 4 Nightly</a> — Comprehensive black-box validation</li>
+<li><a href=".././stage4-product-tests/">Stage 4 Regression</a> — Comprehensive black-box validation</li>
 <li><a href=".././stage5-fuota-tests/">Stage 5 FUOTA</a> — PR validation + OTA verification</li>
 <li><a href="../../../reference/alpha-test-cases/">PRDTST Reference</a> — Product test case catalog</li>
 </ul>

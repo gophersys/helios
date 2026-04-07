@@ -29,62 +29,47 @@ _STAGE_MAP = {
 }
 
 
-def trigger_stage_build(
-    product_id: str,
-    stage_config_id: str,
-    event_metadata: Optional[Dict[str, Any]] = None,
-) -> Optional[Dict[str, Any]]:
-    """Create a BuildRun with BuildJobs for a stage.
+def _load_stage_context(db, product_id: str, stage_config_id: str):
+    """Load product, stage config, board revision, and validate they exist.
 
-    Returns {"buildRunId": "...", "jobCount": N} on success, None on failure.
+    Returns (product, stage_config, revision, stage_enum) or raises ValueError.
     """
-    db = get_db_client()
-
-    # Load product with repos
     product = db.product.find_unique(
         where={"id": product_id},
         include={
             "boards": {
                 "include": {
-                    "revisions": {
-                        "include": {"targets": True},
-                    },
+                    "revisions": {"include": {"targets": True}},
                 },
             },
         },
     )
     if not product:
-        logger.error("Product %s not found", product_id)
-        return None
+        raise ValueError(f"Product {product_id} not found")
 
-    # Load stage config with revision and signing key
     stage_config = db.productstageconfig.find_unique(
         where={"id": stage_config_id},
-        include={
-            "boardRevision": True,
-            "signingKey": True,
-        },
+        include={"boardRevision": True, "signingKey": True},
     )
     if not stage_config:
-        logger.error("Stage config %s not found", stage_config_id)
-        return None
+        raise ValueError(f"Stage config {stage_config_id} not found")
 
     if not stage_config.boardRevisionId or not stage_config.boardRevision:
-        logger.error("Stage config %s has no board revision", stage_config_id)
-        return None
+        raise ValueError(f"Stage config {stage_config_id} has no board revision")
 
-    revision = stage_config.boardRevision
     stage_enum = _STAGE_MAP.get(stage_config.stage)
     if not stage_enum:
-        logger.error("Unknown stage number: %s", stage_config.stage)
-        return None
+        raise ValueError(f"Unknown stage number: {stage_config.stage}")
 
-    # Get build recipe for this stage — prefer DB matrix, fall back to Python defaults
+    return product, stage_config, stage_config.boardRevision, stage_enum
+
+
+def _resolve_build_defs(db, stage_config_id: str, stage_enum):
+    """Load build definitions from DB matrix or fall back to Python defaults."""
     matrix_entries = db.stagebuildmatrix.find_many(
         where={"stageConfigId": stage_config_id},
         order={"sortOrder": "asc"},
     )
-
     if matrix_entries:
         build_defs = [
             StageBuildDef(
@@ -106,22 +91,89 @@ def trigger_stage_build(
         build_defs = get_stage_build_defs(stage_enum)
         logger.info("No DB matrix for stage config %s, using Python defaults (%d defs)",
                      stage_config_id, len(build_defs))
+    return build_defs
 
+
+def _resolve_recipe_version(db, product_id: str, stage_config) -> Optional[str]:
+    """Return pinned recipe version ID, or the latest published one, or None."""
+    if getattr(stage_config, "recipeVersionId", None):
+        return stage_config.recipeVersionId
+    latest_recipe = db.recipeversion.find_first(
+        where={"productId": product_id, "status": "published"},
+        order={"version": "desc"},
+    )
+    return latest_recipe.id if latest_recipe else None
+
+
+def _extract_trigger_context(event_metadata: Optional[Dict[str, Any]], default_branch: str) -> dict:
+    """Parse event metadata into a normalized trigger context dict.
+
+    Returns dict with keys: trigger_type, commit_sha, trigger_data,
+    pr_number, pr_title, pr_author, source_branch, target_branch, pr_url, branch.
+    """
+    ctx = {
+        "trigger_type": "manual",
+        "commit_sha": None,
+        "trigger_data": None,
+        "pr_number": None,
+        "pr_title": None,
+        "pr_author": None,
+        "source_branch": None,
+        "target_branch": None,
+        "pr_url": None,
+        "branch": default_branch,
+    }
+    if not event_metadata:
+        return ctx
+
+    ctx["commit_sha"] = event_metadata.get("source_commit") or event_metadata.get("commit_sha")
+    ctx["trigger_data"] = Json(event_metadata)
+    source = event_metadata.get("source", "")
+
+    if event_metadata.get("pr_id"):
+        ctx["trigger_type"] = "pr_push"
+        ctx["branch"] = event_metadata.get("source_branch", default_branch)
+        ctx["pr_number"] = event_metadata.get("pr_id")
+        ctx["pr_title"] = event_metadata.get("pr_title")
+        ctx["pr_author"] = event_metadata.get("pr_author")
+        ctx["source_branch"] = event_metadata.get("source_branch")
+        ctx["target_branch"] = event_metadata.get("target_branch")
+        ctx["pr_url"] = event_metadata.get("pr_url")
+    elif source == "auto_progress":
+        ctx["trigger_type"] = "auto"
+    elif source == "schedule":
+        ctx["trigger_type"] = "schedule"
+    elif source in ("webhook", "poller"):
+        ctx["trigger_type"] = "pr_push"
+    else:
+        ctx["trigger_type"] = "manual"
+
+    return ctx
+
+
+def trigger_stage_build(
+    product_id: str,
+    stage_config_id: str,
+    event_metadata: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Create a BuildRun with BuildJobs for a stage.
+
+    Returns {"buildRunId": "...", "jobCount": N} on success, None on failure.
+    """
+    db = get_db_client()
+
+    try:
+        product, stage_config, revision, stage_enum = _load_stage_context(db, product_id, stage_config_id)
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return None
+
+    build_defs = _resolve_build_defs(db, stage_config_id, stage_enum)
     if not build_defs:
         logger.error("No build definitions for stage %s", stage_enum)
         return None
 
-    # Resolve recipe version — pin at trigger time for reproducibility
-    recipe_version_id = None
-    if getattr(stage_config, "recipeVersionId", None):
-        recipe_version_id = stage_config.recipeVersionId
-    else:
-        latest_recipe = db.recipeversion.find_first(
-            where={"productId": product_id, "status": "published"},
-            order={"version": "desc"},
-        )
-        if latest_recipe:
-            recipe_version_id = latest_recipe.id
+    recipe_version_id = _resolve_recipe_version(db, product_id, stage_config)
 
     # Determine repos
     fw_repo = f"git@bitbucket.org:corekinect/{product.fwRepoSlug}.git" if product.fwRepoSlug else None
@@ -138,41 +190,17 @@ def trigger_stage_build(
     if not builder_image and product.fwRepoSlug:
         builder_image = f"containers.ad.corekinect.com/{product.fwRepoSlug}-builder:latest"
 
-    # Extract trigger context from event metadata
-    trigger_type = "manual"
-    commit_sha = None
-    trigger_data = None
-    pr_number = None
-    pr_title = None
-    pr_author = None
-    source_branch = None
-    target_branch = None
-    pr_url = None
-
-    if event_metadata:
-        commit_sha = event_metadata.get("source_commit") or event_metadata.get("commit_sha")
-        trigger_data = Json(event_metadata)
-
-        # Normalize trigger type to match ProductStageConfig.triggerTypes vocabulary
-        source = event_metadata.get("source", "")
-        if event_metadata.get("pr_id"):
-            trigger_type = "pr_push"
-            branch = event_metadata.get("source_branch", branch)
-            # Promote PR fields to first-class columns
-            pr_number = event_metadata.get("pr_id")
-            pr_title = event_metadata.get("pr_title")
-            pr_author = event_metadata.get("pr_author")
-            source_branch = event_metadata.get("source_branch")
-            target_branch = event_metadata.get("target_branch")
-            pr_url = event_metadata.get("pr_url")
-        elif source == "auto_progress":
-            trigger_type = "auto"
-        elif source == "schedule":
-            trigger_type = "schedule"
-        elif source in ("webhook", "poller"):
-            trigger_type = "pr_push"
-        else:
-            trigger_type = "manual"
+    tctx = _extract_trigger_context(event_metadata, branch)
+    trigger_type = tctx["trigger_type"]
+    commit_sha = tctx["commit_sha"]
+    trigger_data = tctx["trigger_data"]
+    pr_number = tctx["pr_number"]
+    pr_title = tctx["pr_title"]
+    pr_author = tctx["pr_author"]
+    source_branch = tctx["source_branch"]
+    target_branch = tctx["target_branch"]
+    pr_url = tctx["pr_url"]
+    branch = tctx["branch"]
 
     now = datetime.now(timezone.utc)
 

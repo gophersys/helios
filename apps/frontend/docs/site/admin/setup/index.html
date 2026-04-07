@@ -261,6 +261,8 @@
       
         
       
+        
+      
     
     
     
@@ -746,6 +748,34 @@
     
   
     CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/zero-downtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero-Downtime Updates
   
 
     
@@ -2344,16 +2374,13 @@
 <p>Minimum hardware: 4 CPU, 8GB RAM, 100GB storage. MinIO needs its own PV for firmware artifacts.</p>
 <h2 id="first-deploy">First Deploy<a class="headerlink" href="#first-deploy" title="Permanent link">&para;</a></h2>
 <p>Start with staging. Production comes after you've verified everything works.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Preview what will be deployed</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>./deploy/ctl.sh<span class="w"> </span>diff<span class="w"> </span>staging
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Full first-time setup (bootstraps infrastructure + deploys apps)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>nx<span class="w"> </span>start<span class="w"> </span>platform<span class="w"> </span>-c<span class="w"> </span>staging
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Deploy to staging (builds containers, pushes, runs helm upgrade)</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>./deploy/ctl.sh<span class="w"> </span>staging<span class="w"> </span>deploy
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Verify pods are healthy</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>./deploy/ctl.sh<span class="w"> </span>staging<span class="w"> </span>status
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Verify pods are healthy</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>nx<span class="w"> </span>run<span class="w"> </span>platform:status<span class="w"> </span>-c<span class="w"> </span>staging
 </code></pre></div>
-<p>The deploy creates the PostgreSQL database, runs Prisma migrations via init container, and starts the API + frontend.</p>
+<p>The deploy bootstraps the cluster (namespaces, RBAC, certs, secrets), creates the PostgreSQL database, runs Prisma migrations + seed via init container, and starts all services.</p>
 <h2 id="creating-the-first-admin-user">Creating the First Admin User<a class="headerlink" href="#creating-the-first-admin-user" title="Permanent link">&para;</a></h2>
 <p>After the first deploy, you need to seed an admin user. Hit the API directly:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://staging.concord.local/v2/users<span class="w"> </span><span class="se">\</span>
@@ -2370,7 +2397,7 @@
 <ol>
 <li>Set your Google OAuth client ID and secret in the Helm values:</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># deploy/helm/values-staging.yaml</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># deploy/production/helm/values-staging.yaml</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">httpApi</span><span class="p">:</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">env</span><span class="p">:</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nt">AUTH_ENABLED</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span>
@@ -2381,7 +2408,7 @@
 <ol>
 <li>Redeploy:</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./deploy/ctl.sh<span class="w"> </span>staging<span class="w"> </span>deploy
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>nx<span class="w"> </span>update<span class="w"> </span>platform<span class="w"> </span>-c<span class="w"> </span>staging
 </code></pre></div>
 <ol>
 <li>Verify auth is working — unauthenticated requests should return 401:</li>
@@ -2410,15 +2437,15 @@
 </thead>
 <tbody>
 <tr>
-<td><code>deploy/local/.env</code></td>
+<td><code>deploy/development/.env</code></td>
 <td>Development</td>
 </tr>
 <tr>
-<td><code>deploy/helm/values-staging.yaml</code></td>
+<td><code>deploy/production/helm/values-staging.yaml</code></td>
 <td>Staging</td>
 </tr>
 <tr>
-<td><code>deploy/helm/values-production.yaml</code></td>
+<td><code>deploy/production/helm/values-production.yaml</code></td>
 <td>Production</td>
 </tr>
 </tbody>

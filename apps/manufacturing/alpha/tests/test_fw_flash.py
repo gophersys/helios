@@ -22,19 +22,28 @@ log = logging.getLogger("manufacturing.fw_flash")
 
 @pytest.mark.fw_flash
 @pytest.mark.sequential
-def test_fw_flash(slot, config, report):
+def test_fw_flash(slot, config, report, mfg_assets):
     """Flash manufacturing firmware and set AP protect.
 
     Three sub-steps:
     1. Flash nRF52840 app processor (with recover + retry)
     2. Flash nRF9151 comms processor (with recover + retry)
     3. Set AP protect on both processors
+
+    Firmware is resolved from the build pipeline (via mfg_assets) when
+    PIPELINE_ID is set. Falls back to config-based filenames otherwise.
     """
     mtib = slot.mtib
 
-    # Firmware file names from config
-    nrf52840_fw = config.get("fw_flash_nrf52840_app_fw_name", "alpha_app_mfg_1.hex")
-    nrf9151_fw = config.get("fw_flash_nrf9151_app_fw_name", "alpha_comm_mfg_1.hex")
+    # Resolve firmware from build pipeline (preferred) or config fallback
+    if mfg_assets:
+        mfg = mfg_assets.mfg()
+        nrf52840_fw = mfg.hex("app")
+        nrf9151_fw = mfg.hex("comms")
+        log.info("Firmware resolved from pipeline: app=%s, comms=%s", nrf52840_fw, nrf9151_fw)
+    else:
+        nrf52840_fw = config.get("fw_flash_nrf52840_app_fw_name", "alpha_app_mfg_1.hex")
+        nrf9151_fw = config.get("fw_flash_nrf9151_app_fw_name", "alpha_comm_mfg_1.hex")
     step2_recover = config.get("fw_flash_step2_recover", True)
 
     # ── Step 1: Flash nRF52840 app firmware ─────────────────────────────

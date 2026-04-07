@@ -134,7 +134,10 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/backend/git-poller",
-        "command": "PYTHONPATH=src:../../../libs/python:../../../libs/protocols:../../../libs python3 -m main"
+        "command": "python3 -u -m main",
+        "env": {
+          "PYTHONPATH": "src:../../../libs/python:../../../libs/protocols:../../../libs"
+        }
       }
     },
     "test": {
@@ -148,7 +151,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/backend/git-poller",
-        "command": "PYTHONPATH=src:../../../libs/python:../../../libs/protocols:../../../libs python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
+        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
       }
     },
     "check": {
@@ -164,6 +167,27 @@
             "command": "nx test git-poller"
           }
         ]
+      }
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/git-poller",
+        "command": "python3 -m pytest --cov=src --cov-fail-under=90 --cov-report=term-missing -q --tb=no"
+      }
+    },
+    "complexity": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "python3 .ci/lib/check_complexity.py apps/backend/git-poller/src --allowlist=.ci/complexity-allowlist.json"
+      }
+    },
+    "security": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/git-poller",
+        "command": "python3 -m bandit -r src/ -ll -q --exit-zero 2>&1 || true"
       }
     }
   }

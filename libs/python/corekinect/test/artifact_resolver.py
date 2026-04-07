@@ -3,6 +3,9 @@
 Artifacts are discovered through the manifest's targets[] array --
 no hardcoded App IDs, chip names, or filename conventions.
 
+All artifact downloads go through the Concord HTTP API — this library
+NEVER accesses storage (MinIO/S3) directly.
+
     resolver = ArtifactResolver("build-42", api_url, api_key)
     app_hex = resolver.get_artifact("MFG_BASE", role="app", artifact_type="plaintextHex")
     cfws = resolver.get_artifacts("MFG_BASE", artifact_type="encryptedCfw")
@@ -12,47 +15,16 @@ import json
 import os
 import shutil
 import tempfile
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
-from urllib.parse import urlparse
 
 import requests
 
 from corekinect.utils import Logger
 
 log = Logger(log_name="artifact_resolver")
-
-# Optional MinIO import
-try:
-    from minio import Minio
-    _HAS_MINIO = True
-except ImportError:
-    _HAS_MINIO = False
-
-
-# =============================================================================
-# Storage configuration
-# =============================================================================
-
-
-@dataclass
-class StorageConfig:
-    """MinIO connection config (from env vars or explicit)."""
-
-    url: Optional[str] = None
-    access_key: Optional[str] = None
-    secret_key: Optional[str] = None
-    bucket_name: str = "concord"
-
-    @classmethod
-    def from_env(cls) -> "StorageConfig":
-        return cls(
-            url=os.environ.get("STORAGE_URL"),
-            access_key=os.environ.get("STORAGE_ACCESS_KEY"),
-            secret_key=os.environ.get("STORAGE_SECRET_ACCESS_KEY"),
-            bucket_name=os.environ.get("STORAGE_BUCKET_NAME", "concord"),
-        )
 
 
 # =============================================================================
@@ -296,6 +268,8 @@ class ArtifactResolver:
 
     All artifact discovery goes through build.json manifests --
     no hardcoded filenames or app IDs.
+
+    All downloads go through the Concord HTTP API -- no direct storage access.
     """
 
     def __init__(
@@ -303,13 +277,21 @@ class ArtifactResolver:
         pipeline_id: str,
         api_url: str,
         api_key: str,
-        storage_config: Optional[StorageConfig] = None,
         logger: Optional[Logger] = None,
+        **kwargs,
     ):
+        # Warn about deprecated storage_config parameter
+        if "storage_config" in kwargs:
+            warnings.warn(
+                "storage_config parameter is deprecated and ignored. "
+                "ArtifactResolver now downloads exclusively via the HTTP API.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         self._pipeline_id = pipeline_id
         self._api_url = api_url.rstrip("/")
         self._api_key = api_key
-        self._storage = storage_config or StorageConfig.from_env()
         self._log = logger.from_parent("artifact_resolver") if logger else log
 
         # HTTP session
@@ -321,9 +303,6 @@ class ArtifactResolver:
         self._builds: Dict[str, _BuildInfo] = {}
         self._manifests: Dict[str, BuildManifest] = {}
         self._pipeline_fetched = False
-
-        # MinIO client (lazy)
-        self._minio: Optional[Any] = None
 
         # Temp file tracking for cleanup
         self._temp_files: List[str] = []
@@ -434,50 +413,41 @@ class ArtifactResolver:
         return self._builds[label]
 
     # ─────────────────────────────────────────────────────────────────────
-    # MinIO / file download
+    # File download (via HTTP API only)
     # ─────────────────────────────────────────────────────────────────────
 
-    def _get_minio(self):
-        """Lazy-init MinIO client."""
-        if self._minio is not None:
-            return self._minio
+    def _download_artifact(self, build_id: str, artifact_name: str) -> str:
+        """Download an artifact via the HTTP API. Returns local path.
 
-        if not _HAS_MINIO:
-            raise RuntimeError("minio package not installed")
+        Uses GET /v2/builds/<build_id>/artifacts/<name> which streams
+        the file from server-side storage.
+        """
+        url = f"{self._api_url}/v2/builds/{build_id}/artifacts/{artifact_name}"
+        self._log.info("Downloading %s from build %s", artifact_name, build_id)
 
-        if not self._storage.url:
-            raise RuntimeError("STORAGE_URL not configured")
+        resp = self._session.get(url, timeout=120, stream=True)
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Failed to download artifact '{artifact_name}' from build "
+                f"{build_id}: {resp.status_code}"
+            )
 
-        parsed = urlparse(self._storage.url)
-        self._minio = Minio(
-            endpoint=parsed.netloc,
-            access_key=self._storage.access_key or "",
-            secret_key=self._storage.secret_key or "",
-            secure=(parsed.scheme == "https"),
-        )
-        return self._minio
-
-    def _download_file(self, storage_key: str) -> str:
-        """Download a file from MinIO, return local path."""
-        minio = self._get_minio()
-        bucket = self._storage.bucket_name
-
-        # Preserve original filename
-        original_name = Path(storage_key).name
         temp_dir = tempfile.mkdtemp(prefix="resolver_")
         self._temp_dirs.append(temp_dir)
-        local_path = os.path.join(temp_dir, original_name)
+        local_path = os.path.join(temp_dir, artifact_name)
 
-        self._log.info("Downloading %s/%s", bucket, storage_key)
-        minio.fget_object(bucket, storage_key, local_path)
+        with open(local_path, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
+
         return local_path
 
-    def _ensure_artifact_downloaded(self, artifact: _ArtifactInfo) -> str:
+    def _ensure_artifact_downloaded(self, artifact: _ArtifactInfo, build_id: str) -> str:
         """Download artifact if not already cached. Return local path."""
         if artifact.local_path and os.path.exists(artifact.local_path):
             return artifact.local_path
 
-        local_path = self._download_file(artifact.storage_key)
+        local_path = self._download_artifact(build_id, artifact.name)
         artifact.local_path = local_path
         return local_path
 
@@ -491,7 +461,7 @@ class ArtifactResolver:
         if manifest_artifact is None:
             return None
 
-        local_path = self._ensure_artifact_downloaded(manifest_artifact)
+        local_path = self._ensure_artifact_downloaded(manifest_artifact, build.id)
         with open(local_path) as f:
             data = json.load(f)
 
@@ -550,7 +520,7 @@ class ArtifactResolver:
                 f"Available: {[a.name for a in build.artifacts]}"
             )
 
-        return self._ensure_artifact_downloaded(artifact)
+        return self._ensure_artifact_downloaded(artifact, build.id)
 
     # ─────────────────────────────────────────────────────────────────────
     # Public API
@@ -630,7 +600,7 @@ class ArtifactResolver:
             if artifact is None:
                 artifact = build.find_artifact_by_name(filename)
             if artifact is not None:
-                paths.append(self._ensure_artifact_downloaded(artifact))
+                paths.append(self._ensure_artifact_downloaded(artifact, build.id))
         return paths
 
     def get_targets(self, label: str) -> List[ManifestTarget]:
@@ -671,7 +641,7 @@ class ArtifactResolver:
             self._log.warning("Modem firmware '%s' not in build artifacts", modem_file)
             return None
 
-        return self._ensure_artifact_downloaded(artifact)
+        return self._ensure_artifact_downloaded(artifact, build.id)
 
     @property
     def modem_firmware_info(self) -> Optional[Dict[str, Any]]:
@@ -701,27 +671,17 @@ class ArtifactResolver:
         return None
 
     def get_modem_firmware_from_trigger(self) -> Optional[str]:
-        """Download modem firmware from pipeline triggerData. Returns local path or None."""
-        self._ensure_pipeline()
-
-        # Access raw pipeline data — we need triggerData
-        url = f"{self._api_url}/v2/builds/runs/{self._pipeline_id}"
-        try:
-            resp = self._session.get(url, timeout=30)
-            if resp.status_code != 200:
-                return None
-            data = resp.json()
-            if "data" in data:
-                data = data["data"]
-            trigger_data = data.get("triggerData") or {}
-            modem = trigger_data.get("modemFirmware")
-            if not modem or not modem.get("storageKey"):
-                return None
-
-            return self._download_file(modem["storageKey"])
-        except Exception as e:
-            self._log.warning("Failed to fetch modem firmware from triggerData: %s", e)
-            return None
+        """Deprecated: modem firmware should be managed via BoardRevision and
+        included in AssetSets automatically. Returns None.
+        """
+        warnings.warn(
+            "get_modem_firmware_from_trigger() is deprecated. Modem firmware "
+            "is now managed via BoardRevision and included in AssetSets "
+            "during build promotion. Use get_modem_firmware(label) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return None
 
     def has_all_builds(self) -> bool:
         """Return True if all pipeline builds are SUCCESS or CACHED."""

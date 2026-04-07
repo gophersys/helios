@@ -38,7 +38,7 @@ def config(monkeypatch):
     monkeypatch.setenv("PRODUCTION_SIGNING_KEY", "production-b64-key==")
 
     from src.config import BuildServiceConfig
-    return BuildServiceConfig.from_env()
+    return BuildServiceConfig(auto_load_env=False)
 
 
 # ---------------------------------------------------------------------------

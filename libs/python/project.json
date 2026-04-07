@@ -19,36 +19,69 @@
         "staging": {},
         "production": {}
       },
-      "outputs": ["{projectRoot}/dist"]
+      "outputs": [
+        "{projectRoot}/dist"
+      ]
     },
     "push": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "defaultConfiguration": "development",
-      "options": { "cwd": "libs/python" },
+      "options": {
+        "cwd": "libs/python"
+      },
       "configurations": {
-        "development": { "commands": ["twine upload --repository-url http://localhost:8091 --username '' --password '' --disable-progress-bar dist/*.whl"] },
-        "staging": { "commands": [
-          "kubectl port-forward -n staging svc/concord-pypi 18080:8080 &",
-          "sleep 2",
-          "twine upload --repository-url http://localhost:18080 --username '' --password '' --disable-progress-bar dist/*.whl",
-          "kill %1 2>/dev/null || true"
-        ] },
-        "production": { "commands": [
-          "kubectl port-forward -n production svc/concord-pypi 18081:8080 &",
-          "sleep 2",
-          "twine upload --repository-url http://localhost:18081 --username '' --password '' --disable-progress-bar dist/*.whl",
-          "kill %1 2>/dev/null || true"
-        ] }
+        "development": {
+          "commands": [
+            "twine upload --repository-url http://localhost:8091 --username '' --password '' --disable-progress-bar dist/*.whl"
+          ]
+        },
+        "staging": {
+          "commands": [
+            "kubectl port-forward -n staging svc/concord-pypi 18080:8080 &",
+            "sleep 2",
+            "twine upload --repository-url http://localhost:18080 --username '' --password '' --disable-progress-bar dist/*.whl",
+            "kill %1 2>/dev/null || true"
+          ]
+        },
+        "production": {
+          "commands": [
+            "kubectl port-forward -n production svc/concord-pypi 18081:8080 &",
+            "sleep 2",
+            "twine upload --repository-url http://localhost:18081 --username '' --password '' --disable-progress-bar dist/*.whl",
+            "kill %1 2>/dev/null || true"
+          ]
+        }
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "options": {
+        "cwd": "libs/python",
+        "command": "python3 -m pytest"
+      }
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libs/python",
+        "command": "python3 -m pytest --cov=corekinect --cov-fail-under=90 --cov-report=term-missing -q --tb=no"
+      }
+    },
+    "complexity": {
+      "executor": "nx:run-commands",
+      "options": {
         "cwd": "{workspaceRoot}",
-        "commands": [
-          "PYTHONPATH=libs/python:libs:libs/protocols python3 -m pytest libs/python/corekinect/test/tests/ -v --timeout=30"
-        ]
+        "command": "python3 .ci/lib/check_complexity.py libs/python/corekinect/ --allowlist=.ci/complexity-allowlist.json --avg-threshold=6"
+      }
+    },
+    "security": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libs/python",
+        "command": "python3 -m bandit -r corekinect/ -ll -q --exit-zero 2>&1 || true"
       }
     }
   }

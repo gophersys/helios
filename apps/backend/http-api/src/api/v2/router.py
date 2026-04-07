@@ -90,6 +90,7 @@ from .system.exec import register_exec_handlers
 from .system.observability_ws import register_observability_handlers, register_icle_handlers
 from .system.retention import cleanup_validation_runs, get_validation_storage_usage
 from .system.secrets import list_secrets as list_platform_secrets, create_secret as create_platform_secret, update_secret as update_platform_secret, delete_secret as delete_platform_secret
+from .system.poller_state import list_poller_state, upsert_poller_state, delete_poller_state
 
 # Kubernetes handlers (was system/ cluster endpoints)
 from .kubernetes.cluster import get_cluster, get_namespaces
@@ -240,7 +241,7 @@ from .system.mtib_observability import (
 from .docs import openapi_spec, swagger_ui
 
 # Builds handlers (was ci/)
-from .builds.webhook import webhook_bitbucket, trigger_build_run, set_ci_socketio, list_ci_repos
+from .builds.webhook import webhook_bitbucket, trigger_build_run, receive_repo_event, set_ci_socketio, list_ci_repos
 from .builds.builds import (
     list_builds as list_ci_builds,
     get_build as get_ci_build,
@@ -489,6 +490,11 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/system/secrets/<secret_id>",  endpoint="update_platform_secret",  view_func=update_platform_secret,  methods=["PUT"])
     v2.add_url_rule("/system/secrets/<secret_id>",  endpoint="delete_platform_secret",  view_func=delete_platform_secret,  methods=["DELETE"])
 
+    # Poller state (git-poller branch/PR SHA cache)
+    v2.add_url_rule("/system/poller-state",  endpoint="list_poller_state",    view_func=list_poller_state,    methods=["GET"])
+    v2.add_url_rule("/system/poller-state",  endpoint="upsert_poller_state",  view_func=upsert_poller_state,  methods=["PUT"])
+    v2.add_url_rule("/system/poller-state",  endpoint="delete_poller_state",  view_func=delete_poller_state,  methods=["DELETE"])
+
     # Storage download
     from .assets.storage_download import download_storage_file
     v2.add_url_rule("/storage/download",                                                               endpoint="download_storage_file",        view_func=download_storage_file,    methods=["GET"])
@@ -666,6 +672,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Builds - Webhooks & Triggers
     v2.add_url_rule("/builds/webhooks/bitbucket",                                               endpoint="ci_webhook_bitbucket",     view_func=webhook_bitbucket,     methods=["POST"])
     v2.add_url_rule("/builds/trigger",                                                          endpoint="ci_trigger_build_run",      view_func=trigger_build_run,      methods=["POST"])
+    v2.add_url_rule("/builds/events",                                                           endpoint="ci_receive_repo_event",     view_func=receive_repo_event,     methods=["POST"])
 
     # Builds
     v2.add_url_rule("/builds",                                                                  endpoint="list_ci_builds",           view_func=list_ci_builds,        methods=["GET"])

@@ -1,70 +1,123 @@
 """Build service configuration."""
 
-import os
 import socket
-from dataclasses import dataclass
+
+from corekinect.utils import EnvConfig
 
 
-@dataclass
-class BuildServiceConfig:
-    """Configuration loaded from environment variables."""
-    environment: str
-    api_url: str
-    api_key: str
-    worker_id: str
-    poll_interval: int
-    workspace_dir: str
-    service_port: int
-    metrics_enabled: bool
+class BuildServiceConfig(EnvConfig):
+    """Configuration loaded from environment variables.
+
+    All fields match env var names exactly (case-insensitive).
+    """
+
+    ENVIRONMENT: str = "development"
+    CONCORD_API_URL: str = "https://staging.concord.local"
+    CONCORD_API_KEY: str = ""
+    WORKER_ID: str = socket.gethostname()
+    POLL_INTERVAL: int = 60
+    WORKSPACE_DIR: str = "/tmp/builds"
+    BUILD_SERVICE_PORT: int = 9002
+    METRICS_ENABLED: bool = True
 
     # Docker build runner — spawns builds in dynamic product-specific containers
-    builder_mode: str            # "docker" (dynamic containers) or "local" (legacy in-process)
-    docker_socket: str           # Path to Docker socket
-    builder_timeout: int         # Max build time in seconds
-    default_builder_image: str   # Fallback if devcontainer.json missing
-    workspace_volume: str        # Docker volume name for build workspace
-    ccache_volume: str           # Docker volume name for ccache
-    builder_network: str         # Docker network for builder containers
+    BUILDER_MODE: str = "docker"
+    DOCKER_SOCKET: str = "/var/run/docker.sock"
+    BUILDER_TIMEOUT: int = 1800
+    DEFAULT_BUILDER_IMAGE: str = "containers.ad.corekinect.com/ncs-fw-dev:2.7.0"
+    WORKSPACE_VOLUME: str = ""
+    CCACHE_VOLUME: str = ""
+    BUILDER_NETWORK: str = "host"
 
     # SSH key for git operations
-    ssh_key_path: str
-    bitbucket_ssh_key: str       # Base64-encoded (decoded to ssh_key_path at startup)
+    SSH_KEY_PATH: str = "/root/.ssh/id_rsa"
+    BITBUCKET_SSH_KEY: str = ""  # Base64-encoded, decoded to SSH_KEY_PATH at startup
 
     # Signing keys per release track (base64-encoded private keys)
-    bench_signing_key: str
-    engineering_signing_key: str
-    production_signing_key: str
+    BENCH_SIGNING_KEY: str = ""
+    ENGINEERING_SIGNING_KEY: str = ""
+    PRODUCTION_SIGNING_KEY: str = ""
 
-    @classmethod
-    def from_env(cls) -> "BuildServiceConfig":
-        return cls(
-            environment=os.environ.get("ENVIRONMENT", "development"),
-            api_url=os.environ.get("CONCORD_API_URL", "https://staging.concord.local"),
-            api_key=os.environ.get("CONCORD_API_KEY", ""),
-            worker_id=os.environ.get("WORKER_ID", socket.gethostname()),
-            poll_interval=int(os.environ.get("POLL_INTERVAL", "60")),
-            workspace_dir=os.environ.get("WORKSPACE_DIR", "/tmp/builds"),
-            service_port=int(os.environ.get("BUILD_SERVICE_PORT", "9002")),
-            metrics_enabled=os.environ.get("METRICS_ENABLED", "true").lower() in ("true", "1", "yes"),
-            # Docker build runner
-            builder_mode=os.environ.get("BUILDER_MODE", "docker"),
-            docker_socket=os.environ.get("DOCKER_SOCKET", "/var/run/docker.sock"),
-            builder_timeout=int(os.environ.get("BUILDER_TIMEOUT", "1800")),
-            default_builder_image=os.environ.get(
-                "DEFAULT_BUILDER_IMAGE",
-                "containers.ad.corekinect.com/ncs-fw-dev:2.7.0",
-            ),
-            workspace_volume=os.environ.get("WORKSPACE_VOLUME", ""),
-            ccache_volume=os.environ.get("CCACHE_VOLUME", ""),
-            builder_network=os.environ.get("BUILDER_NETWORK", "host"),
-            # SSH
-            ssh_key_path=os.environ.get("SSH_KEY_PATH", "/root/.ssh/id_rsa"),
-            bitbucket_ssh_key=os.environ.get("BITBUCKET_SSH_KEY", ""),
-            # Signing keys
-            bench_signing_key=os.environ.get("BENCH_SIGNING_KEY", ""),
-            engineering_signing_key=os.environ.get("ENGINEERING_SIGNING_KEY", ""),
-            production_signing_key=os.environ.get("PRODUCTION_SIGNING_KEY", ""),
-        )
+    # Lowercase property aliases used throughout the codebase
+    @property
+    def environment(self) -> str:
+        return self.ENVIRONMENT
+
+    @property
+    def api_url(self) -> str:
+        return self.CONCORD_API_URL
+
+    @property
+    def api_key(self) -> str:
+        return self.CONCORD_API_KEY
+
+    @property
+    def worker_id(self) -> str:
+        return self.WORKER_ID
+
+    @property
+    def poll_interval(self) -> int:
+        return self.POLL_INTERVAL
+
+    @property
+    def workspace_dir(self) -> str:
+        return self.WORKSPACE_DIR
+
+    @property
+    def service_port(self) -> int:
+        return self.BUILD_SERVICE_PORT
+
+    @property
+    def metrics_enabled(self) -> bool:
+        return self.METRICS_ENABLED
+
+    @property
+    def builder_mode(self) -> str:
+        return self.BUILDER_MODE
+
+    @property
+    def docker_socket(self) -> str:
+        return self.DOCKER_SOCKET
+
+    @property
+    def builder_timeout(self) -> int:
+        return self.BUILDER_TIMEOUT
+
+    @property
+    def default_builder_image(self) -> str:
+        return self.DEFAULT_BUILDER_IMAGE
+
+    @property
+    def workspace_volume(self) -> str:
+        return self.WORKSPACE_VOLUME
+
+    @property
+    def ccache_volume(self) -> str:
+        return self.CCACHE_VOLUME
+
+    @property
+    def builder_network(self) -> str:
+        return self.BUILDER_NETWORK
+
+    @property
+    def ssh_key_path(self) -> str:
+        return self.SSH_KEY_PATH
+
+    @property
+    def bitbucket_ssh_key(self) -> str:
+        return self.BITBUCKET_SSH_KEY
+
+    @property
+    def bench_signing_key(self) -> str:
+        return self.BENCH_SIGNING_KEY
+
+    @property
+    def engineering_signing_key(self) -> str:
+        return self.ENGINEERING_SIGNING_KEY
+
+    @property
+    def production_signing_key(self) -> str:
+        return self.PRODUCTION_SIGNING_KEY
 
     @property
     def service_name(self) -> str:

@@ -263,6 +263,8 @@
       
         
       
+        
+      
     
     
     
@@ -1716,6 +1718,34 @@
     
   
     CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platform/zero-downtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero-Downtime Updates
   
 
     
@@ -4260,7 +4290,7 @@ labels:
   corekinect.com/pipeline-board: "alpha_b0"
   corekinect.com/pipeline-driver: "accel_drv"
   corekinect.com/pipeline-trigger: "webhook"      # webhook, manual, cron
-  corekinect.com/pipeline-run-type: "commit"      # commit, nightly, weekly, release
+  corekinect.com/pipeline-run-type: "commit"      # commit, regression, weekly, release
   corekinect.com/pipeline-repo: "accel_drv"
   corekinect.com/pipeline-commit: "a1b2c3d"</code></pre>
 <p><strong>Pipeline status</strong> → derived from K8s Job statuses:
@@ -4311,7 +4341,7 @@ labels:
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  Body: {
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    repo, branch, commit, changed_files[],
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    trigger_type: &quot;webhook&quot;|&quot;manual&quot;|&quot;cron&quot;,
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    run_type?: &quot;commit&quot;|&quot;nightly&quot;|&quot;weekly&quot;|&quot;release&quot;  # optional, default: &quot;commit&quot;
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    run_type?: &quot;commit&quot;|&quot;regression&quot;|&quot;weekly&quot;|&quot;release&quot;  # optional, default: &quot;commit&quot;
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>      # Determines which Stage 4 test groups execute (filtered by tag).
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>      # Webhooks default to &quot;commit&quot;. Scheduled triggers pass the run_type from
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>      # the on.schedule entry. Manual triggers can specify any allowed_run_type.
@@ -4761,7 +4791,7 @@ labels:
 <a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PRODUCT, BOARD</span>
 <a id="__codelineno-16-22" name="__codelineno-16-22" href="#__codelineno-16-22"></a>
 <a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a><span class="w">  </span><span class="c1"># Run type and tag filtering</span>
-<a id="__codelineno-16-24" name="__codelineno-16-24" href="#__codelineno-16-24"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">RUN_TYPE</span><span class="w">              </span><span class="c1"># &quot;commit&quot; | &quot;nightly&quot; | &quot;weekly&quot; | &quot;release&quot;</span>
+<a id="__codelineno-16-24" name="__codelineno-16-24" href="#__codelineno-16-24"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">RUN_TYPE</span><span class="w">              </span><span class="c1"># &quot;commit&quot; | &quot;regression&quot; | &quot;weekly&quot; | &quot;release&quot;</span>
 <a id="__codelineno-16-25" name="__codelineno-16-25" href="#__codelineno-16-25"></a><span class="w">                          </span><span class="c1"># Set by pipeline controller from trigger metadata.</span>
 <a id="__codelineno-16-26" name="__codelineno-16-26" href="#__codelineno-16-26"></a><span class="w">                          </span><span class="c1"># Determines which test groups run (filtered by tag).</span>
 <a id="__codelineno-16-27" name="__codelineno-16-27" href="#__codelineno-16-27"></a>
@@ -4815,7 +4845,7 @@ labels:
 <a id="__codelineno-16-75" name="__codelineno-16-75" href="#__codelineno-16-75"></a>
 <a id="__codelineno-16-76" name="__codelineno-16-76" href="#__codelineno-16-76"></a><span class="c1"># Timeout tiers (set by pipeline controller based on RUN_TYPE):</span>
 <a id="__codelineno-16-77" name="__codelineno-16-77" href="#__codelineno-16-77"></a><span class="c1">#   commit:          activeDeadlineSeconds = 3600   (60 min — fast subset)</span>
-<a id="__codelineno-16-78" name="__codelineno-16-78" href="#__codelineno-16-78"></a><span class="c1">#   nightly:         activeDeadlineSeconds = 7200   (2 hours — commit + intermediate)</span>
+<a id="__codelineno-16-78" name="__codelineno-16-78" href="#__codelineno-16-78"></a><span class="c1">#   regression:         activeDeadlineSeconds = 7200   (2 hours — commit + intermediate)</span>
 <a id="__codelineno-16-79" name="__codelineno-16-79" href="#__codelineno-16-79"></a><span class="c1">#   weekly/release:  activeDeadlineSeconds = 259200 (72 hours — full suite incl. endurance)</span>
 <a id="__codelineno-16-80" name="__codelineno-16-80" href="#__codelineno-16-80"></a><span class="c1">#</span>
 <a id="__codelineno-16-81" name="__codelineno-16-81" href="#__codelineno-16-81"></a><span class="c1"># Per-test timeouts are defined in validation_spec.yaml (default: 60s per test).</span>
@@ -5382,7 +5412,7 @@ flowchart TD
 <a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a>       branch: &quot;main&quot;,               // schedules always run against default branch
 <a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a>       commit: HEAD of main,
 <a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a>       trigger_type: &quot;cron&quot;,
-<a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a>       run_type: &quot;{from on.schedule entry}&quot;  // &quot;weekly&quot;, &quot;nightly&quot;, etc.
+<a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a>       run_type: &quot;{from on.schedule entry}&quot;  // &quot;weekly&quot;, &quot;regression&quot;, etc.
 <a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a>     }
 <a id="__codelineno-21-22" name="__codelineno-21-22" href="#__codelineno-21-22"></a>   Uses a ServiceAccount with VALIDATION_PIPELINES_TRIGGER permission.
 <a id="__codelineno-21-23" name="__codelineno-21-23" href="#__codelineno-21-23"></a>
@@ -5392,17 +5422,17 @@ flowchart TD
 <a id="__codelineno-21-27" name="__codelineno-21-27" href="#__codelineno-21-27"></a>         - cron: &quot;0 2 * * 0&quot;
 <a id="__codelineno-21-28" name="__codelineno-21-28" href="#__codelineno-21-28"></a>           run_type: weekly
 <a id="__codelineno-21-29" name="__codelineno-21-29" href="#__codelineno-21-29"></a>         - cron: &quot;0 1 * * 1-6&quot;
-<a id="__codelineno-21-30" name="__codelineno-21-30" href="#__codelineno-21-30"></a>           run_type: nightly
+<a id="__codelineno-21-30" name="__codelineno-21-30" href="#__codelineno-21-30"></a>           run_type: regression
 <a id="__codelineno-21-31" name="__codelineno-21-31" href="#__codelineno-21-31"></a>
 <a id="__codelineno-21-32" name="__codelineno-21-32" href="#__codelineno-21-32"></a>   The reconciler creates two CronJobs:
 <a id="__codelineno-21-33" name="__codelineno-21-33" href="#__codelineno-21-33"></a>     concord-schedule-accel_drv-weekly   → &quot;0 2 * * 0&quot;  → run_type: weekly
-<a id="__codelineno-21-34" name="__codelineno-21-34" href="#__codelineno-21-34"></a>     concord-schedule-accel_drv-nightly  → &quot;0 1 * * 1-6&quot; → run_type: nightly
+<a id="__codelineno-21-34" name="__codelineno-21-34" href="#__codelineno-21-34"></a>     concord-schedule-accel_drv-regression  → &quot;0 1 * * 1-6&quot; → run_type: regression
 <a id="__codelineno-21-35" name="__codelineno-21-35" href="#__codelineno-21-35"></a>
 <a id="__codelineno-21-36" name="__codelineno-21-36" href="#__codelineno-21-36"></a>4. Effects by run_type:
 <a id="__codelineno-21-37" name="__codelineno-21-37" href="#__codelineno-21-37"></a>   - weekly: Full pipeline (Stages 1-4), Stage 4 includes all test groups
 <a id="__codelineno-21-38" name="__codelineno-21-38" href="#__codelineno-21-38"></a>     (tagged &quot;commit&quot; + &quot;weekly&quot;), activeDeadlineSeconds = 259200 (72 hours),
 <a id="__codelineno-21-39" name="__codelineno-21-39" href="#__codelineno-21-39"></a>     endurance/FUOTA/environmental extremes execute.
-<a id="__codelineno-21-40" name="__codelineno-21-40" href="#__codelineno-21-40"></a>   - nightly: Commit-level + intermediate tests, activeDeadlineSeconds = 7200
+<a id="__codelineno-21-40" name="__codelineno-21-40" href="#__codelineno-21-40"></a>   - regression: Commit-level + intermediate tests, activeDeadlineSeconds = 7200
 <a id="__codelineno-21-41" name="__codelineno-21-41" href="#__codelineno-21-41"></a>     (2 hours), catches regressions from the day&#39;s merged commits.
 <a id="__codelineno-21-42" name="__codelineno-21-42" href="#__codelineno-21-42"></a>   - Deduplication: if a pipeline for the same (repo, commit) is already active,
 <a id="__codelineno-21-43" name="__codelineno-21-43" href="#__codelineno-21-43"></a>     the trigger API returns the existing pipeline_id (no duplicate run).
@@ -5681,13 +5711,13 @@ These stay as-is. They serve manufacturing well.</p>
 <a id="__codelineno-26-54" name="__codelineno-26-54" href="#__codelineno-26-54"></a>//   { &quot;name&quot;: &quot;validation&quot;, &quot;order&quot;: 4, &quot;type&quot;: &quot;hardware&quot;, &quot;needsMtib&quot;: true,
 <a id="__codelineno-26-55" name="__codelineno-26-55" href="#__codelineno-26-55"></a>//     &quot;testTags&quot;: {
 <a id="__codelineno-26-56" name="__codelineno-26-56" href="#__codelineno-26-56"></a>//       &quot;commit&quot;:  [&quot;commit&quot;],                                    // per-push: fast subset only
-<a id="__codelineno-26-57" name="__codelineno-26-57" href="#__codelineno-26-57"></a>//       &quot;nightly&quot;: [&quot;commit&quot;, &quot;weekly&quot;],                          // nightly: commit + some weekly tests
+<a id="__codelineno-26-57" name="__codelineno-26-57" href="#__codelineno-26-57"></a>//       &quot;regression&quot;: [&quot;commit&quot;, &quot;weekly&quot;],                          // regression: commit + some weekly tests
 <a id="__codelineno-26-58" name="__codelineno-26-58" href="#__codelineno-26-58"></a>//       &quot;weekly&quot;:  [&quot;commit&quot;, &quot;weekly&quot;],                          // weekly: full suite
 <a id="__codelineno-26-59" name="__codelineno-26-59" href="#__codelineno-26-59"></a>//       &quot;release&quot;: [&quot;commit&quot;, &quot;weekly&quot;, &quot;release&quot;]                // release: everything
 <a id="__codelineno-26-60" name="__codelineno-26-60" href="#__codelineno-26-60"></a>//     },
 <a id="__codelineno-26-61" name="__codelineno-26-61" href="#__codelineno-26-61"></a>//     &quot;timeouts&quot;: {
 <a id="__codelineno-26-62" name="__codelineno-26-62" href="#__codelineno-26-62"></a>//       &quot;commit&quot;:  3600,                                          // 60 min
-<a id="__codelineno-26-63" name="__codelineno-26-63" href="#__codelineno-26-63"></a>//       &quot;nightly&quot;: 7200,                                          // 2 hours
+<a id="__codelineno-26-63" name="__codelineno-26-63" href="#__codelineno-26-63"></a>//       &quot;regression&quot;: 7200,                                          // 2 hours
 <a id="__codelineno-26-64" name="__codelineno-26-64" href="#__codelineno-26-64"></a>//       &quot;weekly&quot;:  259200,                                        // 72 hours
 <a id="__codelineno-26-65" name="__codelineno-26-65" href="#__codelineno-26-65"></a>//       &quot;release&quot;: 259200                                         // 72 hours
 <a id="__codelineno-26-66" name="__codelineno-26-66" href="#__codelineno-26-66"></a>//     }
@@ -5779,7 +5809,7 @@ These stay as-is. They serve manufacturing well.</p>
 <a id="__codelineno-27-68" name="__codelineno-27-68" href="#__codelineno-27-68"></a>
 <a id="__codelineno-27-69" name="__codelineno-27-69" href="#__codelineno-27-69"></a>enum ValRunType {
 <a id="__codelineno-27-70" name="__codelineno-27-70" href="#__codelineno-27-70"></a>    COMMIT      // per-push: fast Stage 4 subset (tagged &quot;commit&quot;)
-<a id="__codelineno-27-71" name="__codelineno-27-71" href="#__codelineno-27-71"></a>    NIGHTLY     // nightly CronJob: commit + intermediate tests
+<a id="__codelineno-27-71" name="__codelineno-27-71" href="#__codelineno-27-71"></a>    REGRESSION     // regression CronJob: commit + intermediate tests
 <a id="__codelineno-27-72" name="__codelineno-27-72" href="#__codelineno-27-72"></a>    WEEKLY      // weekly CronJob: full suite including endurance, FUOTA
 <a id="__codelineno-27-73" name="__codelineno-27-73" href="#__codelineno-27-73"></a>    RELEASE     // release candidate: everything, no exceptions
 <a id="__codelineno-27-74" name="__codelineno-27-74" href="#__codelineno-27-74"></a>}
@@ -6734,7 +6764,7 @@ new message types), and open questions for the CoreCloud team.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="c1"># Orchestration flow:</span>
 <a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a><span class="c1">#</span>
 <a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a><span class="c1"># 1. Load validation_spec.yaml (baked into the product container image, from Concord monorepo)</span>
-<a id="__codelineno-48-4" name="__codelineno-48-4" href="#__codelineno-48-4"></a><span class="c1"># 2. Parse RUN_TYPE env var (&quot;commit&quot;, &quot;nightly&quot;, &quot;weekly&quot;, &quot;release&quot;)</span>
+<a id="__codelineno-48-4" name="__codelineno-48-4" href="#__codelineno-48-4"></a><span class="c1"># 2. Parse RUN_TYPE env var (&quot;commit&quot;, &quot;regression&quot;, &quot;weekly&quot;, &quot;release&quot;)</span>
 <a id="__codelineno-48-5" name="__codelineno-48-5" href="#__codelineno-48-5"></a><span class="c1"># 3. Filter test groups: include group if RUN_TYPE is in the group&#39;s tags</span>
 <a id="__codelineno-48-6" name="__codelineno-48-6" href="#__codelineno-48-6"></a><span class="c1">#    - Per-test tag overrides: individual tests can have narrower tags than their group</span>
 <a id="__codelineno-48-7" name="__codelineno-48-7" href="#__codelineno-48-7"></a><span class="c1">#    - Example: charging group is tagged [&quot;weekly&quot;, &quot;release&quot;], but charger_detection</span>
@@ -7028,7 +7058,7 @@ new message types), and open questions for the CoreCloud team.</p>
 <a id="__codelineno-58-21" name="__codelineno-58-21" href="#__codelineno-58-21"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">cron</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">0&quot;</span><span class="w">                  </span><span class="c1"># Sunday 02:00 UTC</span>
 <a id="__codelineno-58-22" name="__codelineno-58-22" href="#__codelineno-58-22"></a><span class="w">      </span><span class="nt">run_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">weekly</span><span class="w">                    </span><span class="c1"># Passed to Stage 4 for tag filtering</span>
 <a id="__codelineno-58-23" name="__codelineno-58-23" href="#__codelineno-58-23"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">cron</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0</span><span class="nv"> </span><span class="s">1</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">1-6&quot;</span><span class="w">                </span><span class="c1"># Mon-Sat 01:00 UTC</span>
-<a id="__codelineno-58-24" name="__codelineno-58-24" href="#__codelineno-58-24"></a><span class="w">      </span><span class="nt">run_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nightly</span>
+<a id="__codelineno-58-24" name="__codelineno-58-24" href="#__codelineno-58-24"></a><span class="w">      </span><span class="nt">run_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">regression</span>
 <a id="__codelineno-58-25" name="__codelineno-58-25" href="#__codelineno-58-25"></a>
 <a id="__codelineno-58-26" name="__codelineno-58-26" href="#__codelineno-58-26"></a><span class="w">  </span><span class="nt">manual</span><span class="p">:</span><span class="w">                                 </span><span class="c1"># Manual trigger via Concord UI or API</span>
 <a id="__codelineno-58-27" name="__codelineno-58-27" href="#__codelineno-58-27"></a><span class="w">    </span><span class="nt">allowed_run_types</span><span class="p">:</span><span class="w">                    </span><span class="c1"># Which run_type values the manual trigger can set</span>
@@ -7083,12 +7113,12 @@ new message types), and open questions for the CoreCloud team.</p>
 <a id="__codelineno-58-76" name="__codelineno-58-76" href="#__codelineno-58-76"></a><span class="w">    </span><span class="nt">needsMtib</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <a id="__codelineno-58-77" name="__codelineno-58-77" href="#__codelineno-58-77"></a><span class="w">    </span><span class="nt">testTags</span><span class="p">:</span><span class="w">                             </span><span class="c1"># Which test groups run for each run_type</span>
 <a id="__codelineno-58-78" name="__codelineno-58-78" href="#__codelineno-58-78"></a><span class="w">      </span><span class="nt">commit</span><span class="p">:</span><span class="w">  </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">]</span><span class="w">                 </span><span class="c1"># Per-push: fast validation subset (~30 min)</span>
-<a id="__codelineno-58-79" name="__codelineno-58-79" href="#__codelineno-58-79"></a><span class="w">      </span><span class="nt">nightly</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;weekly&quot;</span><span class="p p-Indicator">]</span><span class="w">       </span><span class="c1"># Nightly: commit + intermediate tests</span>
+<a id="__codelineno-58-79" name="__codelineno-58-79" href="#__codelineno-58-79"></a><span class="w">      </span><span class="nt">regression</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;weekly&quot;</span><span class="p p-Indicator">]</span><span class="w">       </span><span class="c1"># Regression: commit + intermediate tests</span>
 <a id="__codelineno-58-80" name="__codelineno-58-80" href="#__codelineno-58-80"></a><span class="w">      </span><span class="nt">weekly</span><span class="p">:</span><span class="w">  </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;weekly&quot;</span><span class="p p-Indicator">]</span><span class="w">       </span><span class="c1"># Weekly: full suite incl. endurance, FUOTA</span>
 <a id="__codelineno-58-81" name="__codelineno-58-81" href="#__codelineno-58-81"></a><span class="w">      </span><span class="nt">release</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;weekly&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;release&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Release: everything, no exceptions</span>
 <a id="__codelineno-58-82" name="__codelineno-58-82" href="#__codelineno-58-82"></a><span class="w">    </span><span class="nt">timeouts</span><span class="p">:</span><span class="w">                             </span><span class="c1"># Per-run-type timeout (overrides stage timeout)</span>
 <a id="__codelineno-58-83" name="__codelineno-58-83" href="#__codelineno-58-83"></a><span class="w">      </span><span class="nt">commit</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">3600</span><span class="w">                       </span><span class="c1"># 1 hour for commit runs</span>
-<a id="__codelineno-58-84" name="__codelineno-58-84" href="#__codelineno-58-84"></a><span class="w">      </span><span class="nt">nightly</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7200</span><span class="w">                       </span><span class="c1"># 2 hours for nightly</span>
+<a id="__codelineno-58-84" name="__codelineno-58-84" href="#__codelineno-58-84"></a><span class="w">      </span><span class="nt">regression</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7200</span><span class="w">                       </span><span class="c1"># 2 hours for regression</span>
 <a id="__codelineno-58-85" name="__codelineno-58-85" href="#__codelineno-58-85"></a><span class="w">      </span><span class="nt">weekly</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">259200</span><span class="w">                     </span><span class="c1"># 72 hours for weekly (endurance tests)</span>
 <a id="__codelineno-58-86" name="__codelineno-58-86" href="#__codelineno-58-86"></a><span class="w">      </span><span class="nt">release</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">259200</span>
 <a id="__codelineno-58-87" name="__codelineno-58-87" href="#__codelineno-58-87"></a>
@@ -7405,7 +7435,7 @@ new message types), and open questions for the CoreCloud team.</p>
 <h3 id="phase-6-scheduled-validation-polish">Phase 6: Scheduled Validation &amp; Polish<a class="headerlink" href="#phase-6-scheduled-validation-polish" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Run type support in pipeline trigger API and K8s labels</li>
-<li>Interim hardcoded CronJobs for weekly/nightly runs (before Phase 7A repo-driven schedules)</li>
+<li>Interim hardcoded CronJobs for weekly/regression runs (before Phase 7A repo-driven schedules)</li>
 <li>Bitbucket commit status reporting</li>
 <li>Concord dashboard (pipeline view, test results, trends)</li>
 <li>Second driver group (PPG → PAH8151)</li>

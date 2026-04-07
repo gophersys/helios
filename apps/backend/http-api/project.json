@@ -3,8 +3,14 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/backend/http-api",
   "projectType": "application",
-  "tags": ["scope:backend", "type:app"],
-  "implicitDependencies": ["database", "protocols"],
+  "tags": [
+    "scope:backend",
+    "type:app"
+  ],
+  "implicitDependencies": [
+    "database",
+    "protocols"
+  ],
   "targets": {
     "get-build-info": {
       "executor": "nx:run-commands",
@@ -24,15 +30,24 @@
     "build": {
       "executor": "nx:run-commands",
       "defaultConfiguration": "development",
-      "dependsOn": ["get-build-info"],
+      "dependsOn": [
+        "get-build-info"
+      ],
       "options": {
         "cwd": "{workspaceRoot}"
       },
       "configurations": {
-        "development": { "command": "nx run http-api:containerize -c development" },
-        "staging": { "command": "nx run http-api:containerize -c staging" },
-        "production": { "command": "nx run http-api:containerize -c production" }
-      }
+        "development": {
+          "command": "nx run http-api:containerize -c development"
+        },
+        "staging": {
+          "command": "nx run http-api:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run http-api:containerize -c production"
+        }
+      },
+      "cache": false
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
@@ -55,7 +70,9 @@
       },
       "configurations": {
         "development": {
-          "tags": ["concord/http-api:development"],
+          "tags": [
+            "concord/http-api:development"
+          ],
           "platforms": []
         },
         "staging": {
@@ -69,35 +86,60 @@
             "concord/http-api:production",
             "containers.ad.corekinect.com/concord-http-api:production"
           ],
-          "platforms": ["linux/amd64"]
+          "platforms": [
+            "linux/amd64"
+          ]
         }
-      }
+      },
+      "cache": false
     },
     "push": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "defaultConfiguration": "development",
-      "options": { "cwd": "{workspaceRoot}" },
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
       "configurations": {
-        "development": { "command": "echo 'Skipping push for development'" },
-        "staging": { "command": "docker push containers.ad.corekinect.com/concord-http-api:staging" },
-        "production": { "command": "docker push containers.ad.corekinect.com/concord-http-api:production" }
+        "development": {
+          "command": "echo 'Skipping push for development'"
+        },
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-http-api:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-http-api:production"
+        }
       }
     },
     "deploy": {
       "executor": "nx:run-commands",
-      "dependsOn": ["push"],
+      "dependsOn": [
+        "push"
+      ],
       "defaultConfiguration": "development",
-      "options": { "cwd": "{workspaceRoot}" },
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
       "configurations": {
-        "development": { "command": "echo 'Skipping deploy for development'" },
-        "staging": { "command": "./deploy/ctl.sh staging deploy" },
-        "production": { "command": "./deploy/ctl.sh production deploy" }
+        "development": {
+          "command": "echo 'Skipping deploy for development'"
+        },
+        "staging": {
+          "command": "./deploy/ctl.sh staging deploy"
+        },
+        "production": {
+          "command": "./deploy/ctl.sh production deploy"
+        }
       }
     },
     "serve": {
       "executor": "nx:run-commands",
-      "dependsOn": ["typecheck"],
+      "dependsOn": [
+        "typecheck"
+      ],
       "options": {
         "cwd": "apps/backend/http-api",
         "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. python3 -m src.main"
@@ -109,8 +151,12 @@
         "cwd": "{workspaceRoot}",
         "parallel": false,
         "commands": [
-          { "command": "nx typecheck http-api" },
-          { "command": "nx test http-api" }
+          {
+            "command": "nx typecheck http-api"
+          },
+          {
+            "command": "nx test http-api"
+          }
         ]
       }
     },
@@ -133,6 +179,41 @@
       "options": {
         "cwd": "{workspaceRoot}",
         "command": "npx prisma db push --schema=prisma/schema.prisma --skip-generate"
+      }
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/http-api",
+        "command": "python3 -m pytest --cov=src --cov-fail-under=90 --cov-report=term-missing -q --tb=no"
+      }
+    },
+    "complexity": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "python3 .ci/lib/check_complexity.py apps/backend/http-api/src --allowlist=.ci/complexity-allowlist.json --avg-threshold=6"
+      }
+    },
+    "security": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/http-api",
+        "command": "python3 -m bandit -r src/ -ll -q --exit-zero 2>&1 || true"
+      }
+    },
+    "contracts": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/http-api",
+        "command": "python3 -m pytest tests/contracts/ -v --tb=short -m contract"
+      }
+    },
+    "schema-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/http-api",
+        "command": "python3 ../../.ci/lib/check_prisma_fields.py src/"
       }
     }
   }

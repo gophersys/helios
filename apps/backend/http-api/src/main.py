@@ -17,10 +17,10 @@ from config import env_config
 from corekinect.utils import EnvConfig, Logger, print_banner
 
 # 3rd party includes
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from src.services.database.prisma import init_postgres_client
+from src.services.database.prisma import init_postgres_client, get_db_client
 from src.services.kubernetes.client import init_kubernetes_client
 from src.services.log.logger import init_logger
 from src.services.scheduler import start_scheduler
@@ -37,6 +37,24 @@ server.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100 MB upload limit
 _cors_origins = [o.strip() for o in env_config.CORS_ORIGINS.split(",") if o.strip()]
 CORS(server, origins=_cors_origins)
 socketio = SocketIO(server, debug=(env_config.ENVIRONMENT == "development"), cors_allowed_origins=_cors_origins, async_mode="eventlet", logger=(env_config.ENVIRONMENT == "development"))
+
+
+# -------------------------------------------------
+#                                    Health / Ready
+# -------------------------------------------------
+@server.route("/health")
+def health():
+    return jsonify({"status": "ok", "service": "http-api"}), 200
+
+
+@server.route("/ready")
+def ready():
+    try:
+        db = get_db_client()
+        db.user.count()
+        return jsonify({"status": "ready", "service": "http-api"}), 200
+    except Exception:
+        return jsonify({"status": "not_ready", "service": "http-api"}), 503
 
 
 # -------------------------------------------------

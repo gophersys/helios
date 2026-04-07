@@ -1830,8 +1830,13 @@ class BuildJob(bases.BaseBuildJob):
 
     buildRunId: Optional[_str] = None
     buildRun: Optional['models.BuildRun'] = None
+    priority: _int
     workerId: Optional[_str] = None
     """Node/host that built this (e.g. "wanda")
+    """
+
+    lastHeartbeat: Optional[datetime.datetime] = None
+    """Updated by worker during active builds (stale detection)
     """
 
     startedAt: Optional[datetime.datetime] = None
@@ -4945,14 +4950,25 @@ class Secret(bases.BaseSecret):
 
 
 class PollCache(bases.BasePollCache):
-    """Caches the last-seen commit SHA per PR for the Bitbucket poller.
+    """Caches the last-seen commit SHA per branch or PR for the Bitbucket poller.
     Replaces fragile /tmp file-based caching — survives pod restarts and horizontal scaling.
     """
 
     id: _str
     repoSlug: _str
-    prId: _int
+    type: _str
+    """"branch" or "pr"
+    """
+
+    refId: _str
+    """branch name (e.g. "concord-main") or PR number as string (e.g. "42")
+    """
+
     commitSha: _str
+    metadata: Optional['fields.Json'] = None
+    """For PRs: {"source_branch": "...", "title": "...", "author": "..."}
+    """
+
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
 
@@ -7651,6 +7667,14 @@ _BuildJob_fields: Dict['types.BuildJobKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
+        ('priority', {
+            'name': 'priority',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('workerId', {
             'name': 'workerId',
             'is_list': False,
@@ -7658,6 +7682,14 @@ _BuildJob_fields: Dict['types.BuildJobKeys', PartialModelField] = OrderedDict(
             'type': '_str',
             'is_relational': False,
             'documentation': '''Node/host that built this (e.g. "wanda")''',
+        }),
+        ('lastHeartbeat', {
+            'name': 'lastHeartbeat',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': '''Updated by worker during active builds (stale detection)''',
         }),
         ('startedAt', {
             'name': 'startedAt',
@@ -10036,13 +10068,21 @@ _PollCache_fields: Dict['types.PollCacheKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
-        ('prId', {
-            'name': 'prId',
+        ('type', {
+            'name': 'type',
             'is_list': False,
             'optional': False,
-            'type': '_int',
+            'type': '_str',
             'is_relational': False,
-            'documentation': None,
+            'documentation': '''"branch" or "pr"''',
+        }),
+        ('refId', {
+            'name': 'refId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''branch name (e.g. "concord-main") or PR number as string (e.g. "42")''',
         }),
         ('commitSha', {
             'name': 'commitSha',
@@ -10051,6 +10091,14 @@ _PollCache_fields: Dict['types.PollCacheKeys', PartialModelField] = OrderedDict(
             'type': '_str',
             'is_relational': False,
             'documentation': None,
+        }),
+        ('metadata', {
+            'name': 'metadata',
+            'is_list': False,
+            'optional': True,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': '''For PRs: {"source_branch": "...", "title": "...", "author": "..."}''',
         }),
         ('createdAt', {
             'name': 'createdAt',

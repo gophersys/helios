@@ -263,6 +263,8 @@
       
         
       
+        
+      
     
     
     
@@ -1055,6 +1057,34 @@
     
   
     CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../zero-downtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero-Downtime Updates
   
 
     
@@ -2793,7 +2823,7 @@
 </code></pre></div>
 <h3 id="1c-scheduled-future">1C. Scheduled (future)<a class="headerlink" href="#1c-scheduled-future" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Cron schedule → K8s CronJob → POST /v2/validation/runs + trigger
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>Daily regression suites, nightly FUOTA tests, etc.
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>Daily regression suites, scheduled FUOTA tests, etc.
 </code></pre></div>
 <h2 id="2-backend-pipeline-existing">2. Backend Pipeline (Existing)<a class="headerlink" href="#2-backend-pipeline-existing" title="Permanent link">&para;</a></h2>
 <h3 id="session-model">Session Model<a class="headerlink" href="#session-model" title="Permanent link">&para;</a></h3>
@@ -2984,7 +3014,7 @@ after each DB write:</p>
 <a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>  └── Real-time results via WebSocket
 <a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>  └── Artifacts uploaded to MinIO
 <a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>
-<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>Stage 4: FUOTA Regression (nightly, future)
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>Stage 4: FUOTA Regression (scheduled, future)
 <a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>  └── Flash production firmware
 <a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>  └── FUOTA to new version
 <a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a>  └── Verify OTA success via CoreCloud

@@ -257,6 +257,8 @@
       
         
       
+        
+      
     
     
     
@@ -742,6 +744,34 @@
     
   
     CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/platform/zero-downtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero-Downtime Updates
   
 
     
@@ -2337,10 +2367,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#nightly-tests-stage-4" class="md-nav__link">
+  <a href="#regression-tests-stage-4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Nightly Tests (Stage 4)
+        Regression Tests (Stage 4)
       
     </span>
   </a>
@@ -2459,10 +2489,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#after-gate-nightly" class="md-nav__link">
+  <a href="#after-gate-regression" class="md-nav__link">
     <span class="md-ellipsis">
       
-        After (gate/ + nightly/)
+        After (gate/ + regression/)
       
     </span>
   </a>
@@ -2550,8 +2580,8 @@
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="nt">trigger</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;pr&quot;</span>
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="nt">blocks_merge</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span><span class="nt">nightly</span><span class="p">:</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Nightly&quot;</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span><span class="nt">regression</span><span class="p">:</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Regression&quot;</span>
 <a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Comprehensive</span><span class="nv"> </span><span class="s">validation</span><span class="nv"> </span><span class="s">(30-60</span><span class="nv"> </span><span class="s">min)&quot;</span>
 <a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">    </span><span class="nt">timing_budget_s</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3600</span>
 <a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="nt">trigger</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;cron&quot;</span>
@@ -2593,7 +2623,7 @@
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    ├── gate/             # Stage 5: PR validation
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    │   ├── conftest.py   # Gate fixtures
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    │   └── test_gate.py  # Gate tests
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    ├── nightly/          # Stage 4: Comprehensive
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    ├── regression/          # Stage 4: Comprehensive
 <a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    │   ├── test_power.py
 <a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    │   ├── test_sensors.py
 <a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    │   └── ...
@@ -2856,7 +2886,7 @@
 <li><strong>Purpose</strong>: Merge blocker</li>
 <li><strong>Scope</strong>: Flash + boot + personalize + FUOTA</li>
 </ul>
-<h3 id="nightly-tests-stage-4">Nightly Tests (Stage 4)<a class="headerlink" href="#nightly-tests-stage-4" title="Permanent link">&para;</a></h3>
+<h3 id="regression-tests-stage-4">Regression Tests (Stage 4)<a class="headerlink" href="#regression-tests-stage-4" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Timing</strong>: 30-60 minutes</li>
 <li><strong>Trigger</strong>: Cron (2 AM daily)</li>
@@ -2874,7 +2904,7 @@
 <h3 id="test-ids">Test IDs<a class="headerlink" href="#test-ids" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Format: <code>{STAGE}-{PRODUCT}-{CATEGORY}-{NUMBER}</code></li>
-<li>Examples: <code>GATE-ALPHA-001</code>, <code>NIGHTLY-ALPHA-PWR-003</code></li>
+<li>Examples: <code>GATE-ALPHA-001</code>, <code>REGRESSION-ALPHA-PWR-003</code></li>
 </ul>
 <h3 id="timing">Timing<a class="headerlink" href="#timing" title="Permanent link">&para;</a></h3>
 <ul>
@@ -2906,18 +2936,18 @@
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    ├── test_power.py
 <a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    └── test_fuota.py
 </code></pre></div>
-<h3 id="after-gate-nightly">After (gate/ + nightly/)<a class="headerlink" href="#after-gate-nightly" title="Permanent link">&para;</a></h3>
+<h3 id="after-gate-regression">After (gate/ + regression/)<a class="headerlink" href="#after-gate-regression" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>tests/
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>├── gate/
 <a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>│   └── test_gate.py      # FUOTA + quick validation
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>└── nightly/
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>└── regression/
 <a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    ├── test_power.py     # Full power profiling
 <a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    ├── test_sensors.py   # All sensor tests
 <a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    └── test_boot.py      # Extended boot tests
 </code></pre></div>
 <h3 id="migration-steps">Migration Steps<a class="headerlink" href="#migration-steps" title="Permanent link">&para;</a></h3>
 <ol>
-<li>Identify which tests belong to gate vs nightly</li>
+<li>Identify which tests belong to gate vs regression</li>
 <li>Move tests to appropriate directories</li>
 <li>Update test IDs to new format</li>
 <li>Add timeout markers</li>

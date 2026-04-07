@@ -1,4 +1,4 @@
-"""Bitbucket webhook + manual CI trigger endpoints."""
+"""Bitbucket webhook, repo event, and manual CI trigger endpoints."""
 
 import hashlib
 import hmac
@@ -13,6 +13,7 @@ from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, internal_error, unauthorized
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
+from src.services.webhook_trigger import RepoEvent, handle_repo_event
 from src.services.database.prisma import get_db_client
 
 from .builds import _serialize_build_job
@@ -140,21 +141,19 @@ def _validate_webhook_signature(payload_bytes: bytes, signature: str) -> bool:
 
 def _create_build_job(db, payload: BitbucketWebhookPayload, product_config: dict):
     """Create a BuildJob record from a webhook payload."""
-    build = db.buildjob.create(
-        data={
-            "product": product_config["product_name"].lower().replace(" ", "_"),
-            "productId": product_config.get("product_id"),
-            "board": product_config.get("board", "alpha_b0"),
-            "target": "app",
-            "variant": product_config.get("default_variant", "debug"),
-            "mtibRev": "1.2",
-            "branch": payload.branch,
-            "commitSha": payload.commit_sha,
-            "status": "QUEUED",
-            "webhookData": Json(payload.raw) if payload.raw else None,
-        },
-        include={"artifacts": True},
-    )
+    create_data = {
+        "product": {"connect": {"id": product_config["product_id"]}},
+        "board": product_config.get("board", "alpha_b0"),
+        "target": "app",
+        "variant": product_config.get("default_variant", "debug"),
+        "mtibRev": "1.2",
+        "branch": payload.branch,
+        "commitSha": payload.commit_sha,
+        "status": "QUEUED",
+    }
+    if payload.raw:
+        create_data["webhookData"] = Json(payload.raw)
+    build = db.buildjob.create(data=create_data, include={"artifacts": True, "product": True, "buildRun": True})
     return build
 
 
@@ -200,21 +199,19 @@ def webhook_bitbucket():
         board = product_config.get("board", "alpha_b0")
         product_id = product_config.get("product_id")
         for target in product_config.get("targets", ["app"]):
-            build = db.buildjob.create(
-                data={
-                    "product": product_config["product_name"].lower().replace(" ", "_"),
-                    "productId": product_id,
-                    "board": board,
-                    "target": target,
-                    "variant": product_config.get("default_variant", "debug"),
-                    "mtibRev": "1.2",
-                    "branch": payload.branch,
-                    "commitSha": payload.commit_sha,
-                    "status": "QUEUED",
-                    "webhookData": Json(payload.raw) if payload.raw else None,
-                },
-                include={"artifacts": True},
-            )
+            create_data = {
+                "product": {"connect": {"id": product_id}},
+                "board": board,
+                "target": target,
+                "variant": product_config.get("default_variant", "debug"),
+                "mtibRev": "1.2",
+                "branch": payload.branch,
+                "commitSha": payload.commit_sha,
+                "status": "QUEUED",
+            }
+            if payload.raw:
+                create_data["webhookData"] = Json(payload.raw)
+            build = db.buildjob.create(data=create_data, include={"artifacts": True, "product": True, "buildRun": True})
             builds.append(build)
 
         # Notify build service for each QUEUED build (fire-and-forget, webhook = normal priority)
@@ -251,6 +248,54 @@ def webhook_bitbucket():
 
 
 @require_permissions(Permissions.BUILDS_TRIGGER)
+def receive_repo_event():
+    """POST /v2/builds/events — Receive a repo event from the git-poller or external source.
+
+    Body: {
+        "repoSlug": "alpha_fw",
+        "branch": "feature/new-sensor",
+        "commitSha": "abc1234",
+        "eventType": "push" or "merge",
+        "source": "poller",
+        "metadata": {"target_branch": "concord-main", "pr_number": 42, ...}
+    }
+    """
+    data = request.get_json()
+    if not data:
+        return bad_request("Request body required")
+
+    repo_slug = data.get("repoSlug")
+    if not repo_slug:
+        return bad_request("repoSlug is required")
+
+    event = RepoEvent(
+        repo_slug=repo_slug,
+        branch=data.get("branch", "unknown"),
+        commit_sha=data.get("commitSha"),
+        event_type=data.get("eventType", "push"),
+        source=data.get("source", "api"),
+        metadata=data.get("metadata"),
+    )
+
+    try:
+        results = handle_repo_event(event)
+        log_audit("ci.repo_event", "Product", "", {
+            "repoSlug": event.repo_slug,
+            "branch": event.branch,
+            "eventType": event.event_type,
+            "source": event.source,
+            "stagesTriggered": len(results),
+        })
+        return jsonify(ApiResponse.ok({
+            "triggered": len(results),
+            "stages": results,
+        }).to_dict()), 200
+    except Exception as e:
+        logger.exception("Failed to handle repo event for %s: %s", repo_slug, e)
+        return internal_error("Failed to process repo event")
+
+
+@require_permissions(Permissions.BUILDS_TRIGGER)
 def trigger_build_run():
     """POST /v2/builds/trigger — Manual CI pipeline trigger."""
     data, error = CiTriggerRequest.from_json(request.get_json())
@@ -275,10 +320,8 @@ def trigger_build_run():
         if data.firmware_version:
             config_flags["versionOverride"] = data.firmware_version
 
-        build = db.buildjob.create(
-            data={
-                "product": data.repo_slug,
-                "productId": product.id,
+        create_data = {
+                "product": {"connect": {"id": product.id}},
                 "board": board,
                 "target": "app",
                 "variant": data.variant,
@@ -286,10 +329,10 @@ def trigger_build_run():
                 "branch": data.branch,
                 "commitSha": data.commit_sha,
                 "status": "QUEUED",
-                "configFlags": Json(config_flags) if config_flags else None,
-            },
-            include={"artifacts": True},
-        )
+            }
+        if config_flags:
+            create_data["configFlags"] = Json(config_flags)
+        build = db.buildjob.create(data=create_data, include={"artifacts": True, "product": True, "buildRun": True})
 
         log_audit("ci.trigger.manual", "BuildJob", build.id, {
             "productId": data.product_id,
@@ -300,7 +343,7 @@ def trigger_build_run():
 
         _emit_ci_event("ci_build_start", {
             "buildId": build.id,
-            "product": build.product,
+            "product": data.repo_slug,
             "branch": build.branch,
             "variant": build.variant,
         })

@@ -19,6 +19,96 @@ class InlineBoardInput:
     revisions: Optional[List[Dict[str, Any]]] = None
 
 
+def _parse_target(target_data, rev_idx: int, target_idx: int) -> Tuple[Optional["TargetInput"], Optional[str]]:
+    """Parse a single inline target dict.  Returns (TargetInput, None) or (None, error)."""
+    if not isinstance(target_data, dict):
+        return None, f"board.revisions[{rev_idx}].targets[{target_idx}] must be an object"
+    role = (target_data.get("role") or "").strip()
+    soc = (target_data.get("soc") or "").strip()
+    app_id = target_data.get("appId")
+    if not role:
+        return None, f"board.revisions[{rev_idx}].targets[{target_idx}].role is required"
+    if not soc:
+        return None, f"board.revisions[{rev_idx}].targets[{target_idx}].soc is required"
+    if app_id is None or not isinstance(app_id, int):
+        return None, f"board.revisions[{rev_idx}].targets[{target_idx}].appId is required and must be an integer"
+    return TargetInput(role=role, soc=soc, appId=app_id), None
+
+
+def _parse_board_revision(rev_data, idx: int) -> Tuple[Optional[dict], Optional[str]]:
+    """Parse a single board revision dict (with inline targets).  Returns (dict, None) or (None, error)."""
+    if not isinstance(rev_data, dict):
+        return None, f"board.revisions[{idx}] must be an object"
+    rev_version = (rev_data.get("version") or "").strip()
+    rev_ck_name = (rev_data.get("ckBoardsName") or "").strip()
+    if not rev_version:
+        return None, f"board.revisions[{idx}].version is required"
+    if not rev_ck_name:
+        return None, f"board.revisions[{idx}].ckBoardsName is required"
+    rev_socs = rev_data.get("socs", [])
+    if not isinstance(rev_socs, list):
+        return None, f"board.revisions[{idx}].socs must be an array"
+    rev_device_type = rev_data.get("deviceType")
+    if rev_device_type is not None and not isinstance(rev_device_type, int):
+        return None, f"board.revisions[{idx}].deviceType must be an integer"
+    rev_device_variant = rev_data.get("deviceVariant")
+    if rev_device_variant is not None and not isinstance(rev_device_variant, int):
+        return None, f"board.revisions[{idx}].deviceVariant must be an integer"
+
+    rev_targets = None
+    raw_targets = rev_data.get("targets")
+    if raw_targets is not None:
+        if not isinstance(raw_targets, list):
+            return None, f"board.revisions[{idx}].targets must be an array"
+        rev_targets = []
+        seen_roles: set = set()
+        seen_app_ids: set = set()
+        for j, t in enumerate(raw_targets):
+            target, err = _parse_target(t, idx, j)
+            if err:
+                return None, err
+            if target.role in seen_roles:
+                return None, f"board.revisions[{idx}]: duplicate target role '{target.role}'"
+            if target.appId in seen_app_ids:
+                return None, f"board.revisions[{idx}]: duplicate target appId {target.appId}"
+            seen_roles.add(target.role)
+            seen_app_ids.add(target.appId)
+            rev_targets.append(target)
+
+    return {
+        "version": rev_version,
+        "ckBoardsName": rev_ck_name,
+        "socs": rev_socs,
+        "deviceType": rev_device_type,
+        "deviceVariant": rev_device_variant,
+        "targets": rev_targets,
+    }, None
+
+
+def _parse_inline_board(board_data) -> Tuple[Optional["InlineBoardInput"], Optional[str]]:
+    """Parse the inline board object (with nested revisions).  Returns (InlineBoardInput, None) or (None, error)."""
+    if not isinstance(board_data, dict):
+        return None, "board must be a JSON object"
+    ck_family = (board_data.get("ckBoardsFamily") or "").strip()
+    if not ck_family:
+        return None, "board.ckBoardsFamily is required"
+    vendor = (board_data.get("vendor") or "corekinect").strip()
+
+    parsed_revisions = None
+    raw_revisions = board_data.get("revisions")
+    if raw_revisions is not None:
+        if not isinstance(raw_revisions, list):
+            return None, "board.revisions must be an array"
+        parsed_revisions = []
+        for i, r in enumerate(raw_revisions):
+            rev, err = _parse_board_revision(r, i)
+            if err:
+                return None, err
+            parsed_revisions.append(rev)
+
+    return InlineBoardInput(ckBoardsFamily=ck_family, vendor=vendor, revisions=parsed_revisions), None
+
+
 @dataclass
 class ProductCreateRequest:
     name: str
@@ -66,83 +156,12 @@ class ProductCreateRequest:
         if metadata is not None and not isinstance(metadata, dict):
             return None, "Metadata must be a JSON object"
 
-        # Optional inline board with revisions and targets
         board_input = None
         raw_board = data.get("board")
         if raw_board is not None:
-            if not isinstance(raw_board, dict):
-                return None, "board must be a JSON object"
-            ck_family = (raw_board.get("ckBoardsFamily") or "").strip()
-            if not ck_family:
-                return None, "board.ckBoardsFamily is required"
-            vendor = (raw_board.get("vendor") or "corekinect").strip()
-
-            raw_revisions = raw_board.get("revisions")
-            parsed_revisions = None
-            if raw_revisions is not None:
-                if not isinstance(raw_revisions, list):
-                    return None, "board.revisions must be an array"
-                parsed_revisions = []
-                for i, r in enumerate(raw_revisions):
-                    if not isinstance(r, dict):
-                        return None, f"board.revisions[{i}] must be an object"
-                    rev_version = (r.get("version") or "").strip()
-                    rev_ck_name = (r.get("ckBoardsName") or "").strip()
-                    if not rev_version:
-                        return None, f"board.revisions[{i}].version is required"
-                    if not rev_ck_name:
-                        return None, f"board.revisions[{i}].ckBoardsName is required"
-                    rev_socs = r.get("socs", [])
-                    if not isinstance(rev_socs, list):
-                        return None, f"board.revisions[{i}].socs must be an array"
-                    rev_device_type = r.get("deviceType")
-                    if rev_device_type is not None and not isinstance(rev_device_type, int):
-                        return None, f"board.revisions[{i}].deviceType must be an integer"
-                    rev_device_variant = r.get("deviceVariant")
-                    if rev_device_variant is not None and not isinstance(rev_device_variant, int):
-                        return None, f"board.revisions[{i}].deviceVariant must be an integer"
-                    # Parse inline targets
-                    raw_targets = r.get("targets")
-                    rev_targets = None
-                    if raw_targets is not None:
-                        if not isinstance(raw_targets, list):
-                            return None, f"board.revisions[{i}].targets must be an array"
-                        rev_targets = []
-                        seen_roles = set()
-                        seen_app_ids = set()
-                        for j, t in enumerate(raw_targets):
-                            if not isinstance(t, dict):
-                                return None, f"board.revisions[{i}].targets[{j}] must be an object"
-                            role = (t.get("role") or "").strip()
-                            soc = (t.get("soc") or "").strip()
-                            app_id = t.get("appId")
-                            if not role:
-                                return None, f"board.revisions[{i}].targets[{j}].role is required"
-                            if not soc:
-                                return None, f"board.revisions[{i}].targets[{j}].soc is required"
-                            if app_id is None or not isinstance(app_id, int):
-                                return None, f"board.revisions[{i}].targets[{j}].appId is required and must be an integer"
-                            if role in seen_roles:
-                                return None, f"board.revisions[{i}]: duplicate target role '{role}'"
-                            if app_id in seen_app_ids:
-                                return None, f"board.revisions[{i}]: duplicate target appId {app_id}"
-                            seen_roles.add(role)
-                            seen_app_ids.add(app_id)
-                            rev_targets.append(TargetInput(role=role, soc=soc, appId=app_id))
-                    parsed_revisions.append({
-                        "version": rev_version,
-                        "ckBoardsName": rev_ck_name,
-                        "socs": rev_socs,
-                        "deviceType": rev_device_type,
-                        "deviceVariant": rev_device_variant,
-                        "targets": rev_targets,
-                    })
-
-            board_input = InlineBoardInput(
-                ckBoardsFamily=ck_family,
-                vendor=vendor,
-                revisions=parsed_revisions,
-            )
+            board_input, err = _parse_inline_board(raw_board)
+            if err:
+                return None, err
 
         return cls(
             name=name,

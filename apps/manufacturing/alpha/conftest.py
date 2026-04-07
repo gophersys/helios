@@ -78,6 +78,9 @@ class ManufacturingConfig(EnvConfig):
     CONCORD_API_URL: Optional[str] = None
     CONCORD_API_KEY: Optional[str] = None
 
+    # Build pipeline firmware (preferred over hardcoded filenames)
+    PIPELINE_ID: Optional[str] = None
+
 
 cfg = ManufacturingConfig()
 log = Logger(log_name="manufacturing")
@@ -421,6 +424,34 @@ def fixture_ctx(request) -> FixtureContext:
 def config(fixture_ctx) -> Dict:
     """Access fixture configuration."""
     return fixture_ctx.config
+
+
+@pytest.fixture(scope="session")
+def mfg_assets():
+    """Session-scoped firmware assets for manufacturing.
+
+    When PIPELINE_ID is set, fetches build artifacts from Concord API
+    using the same StageAssets pattern that validation uses. This gives
+    full traceability from manufactured devices back to specific builds.
+
+    Returns:
+        StageAssets instance if PIPELINE_ID configured, else None.
+        Tests should fall back to config-based filenames when None.
+    """
+    if cfg.PIPELINE_ID and cfg.CONCORD_API_URL and cfg.CONCORD_API_KEY:
+        from corekinect.test.stage_assets import StageAssets
+        assets = StageAssets.from_pipeline(
+            pipeline_id=cfg.PIPELINE_ID,
+            stage="smoke",
+            api_url=cfg.CONCORD_API_URL,
+            api_key=cfg.CONCORD_API_KEY,
+            strict=False,
+        )
+        log.info("Manufacturing firmware loaded from pipeline %s", cfg.PIPELINE_ID)
+        yield assets
+        assets.cleanup()
+    else:
+        yield None
 
 
 @pytest.fixture(scope="session")

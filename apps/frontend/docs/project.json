@@ -29,16 +29,27 @@
     "build": {
       "executor": "nx:run-commands",
       "defaultConfiguration": "development",
-      "dependsOn": ["get-build-info"],
+      "dependsOn": [
+        "get-build-info"
+      ],
       "options": {
         "cwd": "{workspaceRoot}"
       },
       "configurations": {
-        "development": { "command": "zensical build" },
-        "staging": { "command": "nx run docs:containerize -c staging" },
-        "production": { "command": "nx run docs:containerize -c production" }
+        "development": {
+          "command": "zensical build"
+        },
+        "staging": {
+          "command": "nx run docs:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run docs:containerize -c production"
+        }
       },
-      "outputs": ["{workspaceRoot}/apps/docs/site"]
+      "outputs": [
+        "{workspaceRoot}/apps/docs/site"
+      ],
+      "cache": false
     },
     "containerize": {
       "executor": "@nx-tools/nx-container:build",
@@ -60,7 +71,9 @@
       },
       "configurations": {
         "development": {
-          "tags": ["concord/docs:development"],
+          "tags": [
+            "concord/docs:development"
+          ],
           "platforms": []
         },
         "staging": {
@@ -74,30 +87,53 @@
             "concord/docs:production",
             "containers.ad.corekinect.com/concord-docs:production"
           ],
-          "platforms": ["linux/amd64"]
+          "platforms": [
+            "linux/amd64"
+          ]
         }
-      }
+      },
+      "cache": false
     },
     "push": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "defaultConfiguration": "development",
-      "options": { "cwd": "{workspaceRoot}" },
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
       "configurations": {
-        "development": { "command": "echo 'Skipping push for development'" },
-        "staging": { "command": "docker push containers.ad.corekinect.com/concord-docs:staging" },
-        "production": { "command": "docker push containers.ad.corekinect.com/concord-docs:production" }
+        "development": {
+          "command": "echo 'Skipping push for development'"
+        },
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-docs:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-docs:production"
+        }
       }
     },
     "deploy": {
       "executor": "nx:run-commands",
-      "dependsOn": ["push"],
+      "dependsOn": [
+        "push"
+      ],
       "defaultConfiguration": "development",
-      "options": { "cwd": "{workspaceRoot}" },
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
       "configurations": {
-        "development": { "command": "echo 'Skipping deploy for development'" },
-        "staging": { "command": "./deploy/ctl.sh staging deploy" },
-        "production": { "command": "./deploy/ctl.sh production deploy" }
+        "development": {
+          "command": "echo 'Skipping deploy for development'"
+        },
+        "staging": {
+          "command": "./deploy/ctl.sh staging deploy"
+        },
+        "production": {
+          "command": "./deploy/ctl.sh production deploy"
+        }
       }
     },
     "test": {
@@ -119,8 +155,12 @@
         "cwd": "{workspaceRoot}",
         "parallel": false,
         "commands": [
-          { "command": "nx typecheck docs" },
-          { "command": "nx test docs" }
+          {
+            "command": "nx typecheck docs"
+          },
+          {
+            "command": "nx test docs"
+          }
         ]
       }
     }

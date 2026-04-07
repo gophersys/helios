@@ -51,6 +51,7 @@ class MockModelClient:
         self.find_first = MagicMock(return_value=None)
         self.create = MagicMock(return_value=None)
         self.update = MagicMock(return_value=None)
+        self.upsert = MagicMock(return_value=None)
         self.delete = MagicMock(return_value=None)
         self.count = MagicMock(return_value=0)
         self.delete_many = MagicMock(return_value=None)

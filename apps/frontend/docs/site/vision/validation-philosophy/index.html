@@ -257,6 +257,8 @@
       
         
       
+        
+      
     
     
     
@@ -742,6 +744,34 @@
     
   
     CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/platform/zero-downtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero-Downtime Updates
   
 
     
@@ -5106,7 +5136,7 @@ flowchart TD
 <a id="__codelineno-29-18" name="__codelineno-29-18" href="#__codelineno-29-18"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">cron</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">0&quot;</span><span class="w"> </span><span class="c1"># Sunday 02:00 UTC</span>
 <a id="__codelineno-29-19" name="__codelineno-29-19" href="#__codelineno-29-19"></a><span class="w">      </span><span class="nt">run_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">weekly</span>
 <a id="__codelineno-29-20" name="__codelineno-29-20" href="#__codelineno-29-20"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">cron</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0</span><span class="nv"> </span><span class="s">1</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">1-6&quot;</span><span class="w"> </span><span class="c1"># Mon-Sat 01:00 UTC</span>
-<a id="__codelineno-29-21" name="__codelineno-29-21" href="#__codelineno-29-21"></a><span class="w">      </span><span class="nt">run_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nightly</span>
+<a id="__codelineno-29-21" name="__codelineno-29-21" href="#__codelineno-29-21"></a><span class="w">      </span><span class="nt">run_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">regression</span>
 <a id="__codelineno-29-22" name="__codelineno-29-22" href="#__codelineno-29-22"></a>
 <a id="__codelineno-29-23" name="__codelineno-29-23" href="#__codelineno-29-23"></a><span class="w">  </span><span class="nt">manual</span><span class="p">:</span><span class="w"> </span><span class="c1"># Manual trigger via Concord UI or API</span>
 <a id="__codelineno-29-24" name="__codelineno-29-24" href="#__codelineno-29-24"></a><span class="w">    </span><span class="nt">allowed_run_types</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;weekly&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;release&quot;</span><span class="p p-Indicator">]</span>
@@ -5142,10 +5172,10 @@ flowchart TD
 <a id="__codelineno-29-54" name="__codelineno-29-54" href="#__codelineno-29-54"></a><span class="w">    </span><span class="nt">needsMtib</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <a id="__codelineno-29-55" name="__codelineno-29-55" href="#__codelineno-29-55"></a><span class="w">    </span><span class="nt">testTags</span><span class="p">:</span>
 <a id="__codelineno-29-56" name="__codelineno-29-56" href="#__codelineno-29-56"></a><span class="w">      </span><span class="nt">commit</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-29-57" name="__codelineno-29-57" href="#__codelineno-29-57"></a><span class="w">      </span><span class="nt">nightly</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;weekly&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-29-57" name="__codelineno-29-57" href="#__codelineno-29-57"></a><span class="w">      </span><span class="nt">regression</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;weekly&quot;</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-29-58" name="__codelineno-29-58" href="#__codelineno-29-58"></a><span class="w">      </span><span class="nt">weekly</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;weekly&quot;</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-29-59" name="__codelineno-29-59" href="#__codelineno-29-59"></a><span class="w">      </span><span class="nt">release</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;commit&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;weekly&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;release&quot;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-29-60" name="__codelineno-29-60" href="#__codelineno-29-60"></a><span class="w">    </span><span class="nt">timeouts</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> commit</span><span class="p">:</span><span class="w"> </span><span class="nv">3600</span><span class="p p-Indicator">,</span><span class="nt"> nightly</span><span class="p">:</span><span class="w"> </span><span class="nv">7200</span><span class="p p-Indicator">,</span><span class="nt"> weekly</span><span class="p">:</span><span class="w"> </span><span class="nv">259200</span><span class="p p-Indicator">,</span><span class="nt"> release</span><span class="p">:</span><span class="w"> </span><span class="nv">259200</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-29-60" name="__codelineno-29-60" href="#__codelineno-29-60"></a><span class="w">    </span><span class="nt">timeouts</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> commit</span><span class="p">:</span><span class="w"> </span><span class="nv">3600</span><span class="p p-Indicator">,</span><span class="nt"> regression</span><span class="p">:</span><span class="w"> </span><span class="nv">7200</span><span class="p p-Indicator">,</span><span class="nt"> weekly</span><span class="p">:</span><span class="w"> </span><span class="nv">259200</span><span class="p p-Indicator">,</span><span class="nt"> release</span><span class="p">:</span><span class="w"> </span><span class="nv">259200</span><span class="w"> </span><span class="p p-Indicator">}</span>
 <a id="__codelineno-29-61" name="__codelineno-29-61" href="#__codelineno-29-61"></a>
 <a id="__codelineno-29-62" name="__codelineno-29-62" href="#__codelineno-29-62"></a><span class="c1"># ─── Notifications ──────────────────────────────────────────────────</span>
 <a id="__codelineno-29-63" name="__codelineno-29-63" href="#__codelineno-29-63"></a><span class="nt">notifications</span><span class="p">:</span>

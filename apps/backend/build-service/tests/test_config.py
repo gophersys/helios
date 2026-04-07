@@ -8,10 +8,10 @@ from src.config import BuildServiceConfig
 
 
 class TestBuildServiceConfigFromEnv:
-    """Tests for BuildServiceConfig.from_env()."""
+    """Tests for BuildServiceConfig()."""
 
     def test_from_env_defaults(self, monkeypatch):
-        """from_env() returns expected defaults when no env vars are set."""
+        """Returns expected defaults when no env vars are set (no .env loading)."""
         for key in [
             "ENVIRONMENT", "CONCORD_API_URL", "CONCORD_API_KEY", "WORKER_ID",
             "POLL_INTERVAL", "WORKSPACE_DIR", "BUILD_SERVICE_DATABASE_URL",
@@ -23,7 +23,7 @@ class TestBuildServiceConfigFromEnv:
         ]:
             monkeypatch.delenv(key, raising=False)
 
-        cfg = BuildServiceConfig.from_env()
+        cfg = BuildServiceConfig(auto_load_env=False)
 
         assert cfg.environment == "development"
         assert cfg.api_url == "https://staging.concord.local"
@@ -55,7 +55,7 @@ class TestBuildServiceConfigFromEnv:
         monkeypatch.setenv("ENGINEERING_SIGNING_KEY", "eng==")
         monkeypatch.setenv("PRODUCTION_SIGNING_KEY", "prod==")
 
-        cfg = BuildServiceConfig.from_env()
+        cfg = BuildServiceConfig()
 
         assert cfg.environment == "production"
         assert cfg.api_url == "https://prod.example.com"
@@ -80,13 +80,18 @@ class TestBuildServiceConfigFromEnv:
         ("false", False),
         ("0", False),
         ("no", False),
-        ("", False),
     ])
     def test_metrics_enabled_parsing(self, monkeypatch, metrics_val, expected):
         """METRICS_ENABLED is parsed as bool for various truthy/falsy strings."""
         monkeypatch.setenv("METRICS_ENABLED", metrics_val)
-        cfg = BuildServiceConfig.from_env()
+        cfg = BuildServiceConfig(auto_load_env=False)
         assert cfg.metrics_enabled is expected
+
+    def test_metrics_enabled_empty_string_uses_default(self, monkeypatch):
+        """Empty string METRICS_ENABLED falls through to class default (True)."""
+        monkeypatch.setenv("METRICS_ENABLED", "")
+        cfg = BuildServiceConfig(auto_load_env=False)
+        assert cfg.metrics_enabled is True
 
     def test_service_name_property(self, config):
         """service_name property always returns 'build-service'."""

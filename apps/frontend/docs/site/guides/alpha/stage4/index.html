@@ -21,7 +21,7 @@
     
     
       
-        <title>Stage 4 Alpha Example — Nightly Product Validation - Concord</title>
+        <title>Stage 4 Alpha Example — Regression Product Validation - Concord</title>
       
     
     
@@ -77,7 +77,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#stage-4-alpha-example-nightly-product-validation" class="md-skip">
+        <a href="#stage-4-alpha-example-regression-product-validation" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Stage 4 Alpha Example — Nightly Product Validation
+              Stage 4 Alpha Example — Regression Product Validation
             
           </span>
         </div>
@@ -245,6 +245,8 @@
       
         
           
+        
+      
         
       
         
@@ -742,6 +744,34 @@
     
   
     CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/platform/zero-downtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero-Downtime Updates
   
 
     
@@ -2121,10 +2151,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#what-nightly-tests" class="md-nav__link">
+  <a href="#what-regression-tests" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Nightly Tests
+        What Regression Tests
       
     </span>
   </a>
@@ -2132,10 +2162,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#what-nightly-does-not-test" class="md-nav__link">
+  <a href="#what-regression-does-not-test" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Nightly Does NOT Test
+        What Regression Does NOT Test
       
     </span>
   </a>
@@ -2242,15 +2272,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-running-nightly" class="md-nav__link">
+  <a href="#5-running-regression" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Running Nightly
+        5. Running Regression
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="5. Running Nightly">
+    <nav class="md-nav" aria-label="5. Running Regression">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2325,16 +2355,16 @@
                 
                   
 
-<h1 id="stage-4-alpha-example-nightly-product-validation">Stage 4 Alpha Example — Nightly Product Validation<a class="headerlink" href="#stage-4-alpha-example-nightly-product-validation" title="Permanent link">&para;</a></h1>
+<h1 id="stage-4-alpha-example-regression-product-validation">Stage 4 Alpha Example — Regression Product Validation<a class="headerlink" href="#stage-4-alpha-example-regression-product-validation" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>Step-by-step walkthrough of Stage 4 (Nightly) validation for the Alpha B0 device.
+<p>Step-by-step walkthrough of Stage 4 (Regression) validation for the Alpha B0 device.
 This is the <strong>comprehensive</strong> test suite that runs every night.
 Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate.</p>
 </blockquote>
 <hr />
 <h2 id="1-overview">1. Overview<a class="headerlink" href="#1-overview" title="Permanent link">&para;</a></h2>
-<p>Stage 4 Nightly is <strong>comprehensive black-box product validation</strong>. Unlike Stage 5 Gate (which focuses on FUOTA and fast feedback), Nightly runs all the slow tests that can't fit in a 15-minute PR gate.</p>
-<h3 id="what-nightly-tests">What Nightly Tests<a class="headerlink" href="#what-nightly-tests" title="Permanent link">&para;</a></h3>
+<p>Stage 4 Regression is <strong>comprehensive black-box product validation</strong>. Unlike Stage 5 Gate (which focuses on FUOTA and fast feedback), Regression runs all the slow tests that can't fit in a 15-minute PR gate.</p>
+<h3 id="what-regression-tests">What Regression Tests<a class="headerlink" href="#what-regression-tests" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2381,10 +2411,10 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 </tr>
 </tbody>
 </table>
-<h3 id="what-nightly-does-not-test">What Nightly Does NOT Test<a class="headerlink" href="#what-nightly-does-not-test" title="Permanent link">&para;</a></h3>
+<h3 id="what-regression-does-not-test">What Regression Does NOT Test<a class="headerlink" href="#what-regression-does-not-test" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>FUOTA</strong> — Stage 5 Gate covers this (every PR)</li>
-<li><strong>Driver internals</strong> — Stage 2 Silicon covers this</li>
+<li><strong>Driver internals</strong> — Stage 2 Driver covers this</li>
 <li><strong>Subsystem integration</strong> — Stage 3 Integration covers this</li>
 </ul>
 <hr />
@@ -2462,10 +2492,10 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <p><strong>Purpose</strong>: Verify power consumption meets budget.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">timeout</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>  <span class="c1"># 5 min</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestPowerProfile</span><span class="p">:</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-PWR: Power profiling tests.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-PWR: Power profiling tests.&quot;&quot;&quot;</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_sleep_current</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-PWR-001: Sleep current &lt; 50uA.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-PWR-001: Sleep current &lt; 50uA.&quot;&quot;&quot;</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        <span class="c1"># Boot and wait for device to enter sleep</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>  <span class="c1"># Wait for sleep entry</span>
@@ -2481,7 +2511,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>        <span class="k">assert</span> <span class="n">avg_current_ua</span> <span class="o">&lt;</span> <span class="mi">50</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Sleep current </span><span class="si">{</span><span class="n">avg_current_ua</span><span class="si">}</span><span class="s2">uA exceeds 50uA budget&quot;</span>
 <a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>
 <a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_active_current</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-PWR-002: Active current &lt; 15mA (sensors sampling).&quot;&quot;&quot;</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-PWR-002: Active current &lt; 15mA (sensors sampling).&quot;&quot;&quot;</span>
 <a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>        <span class="c1"># Trigger active mode via button press</span>
 <a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">button_press</span><span class="p">(</span><span class="n">duration_s</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 <a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>  <span class="c1"># Wait for sensors to start</span>
@@ -2496,7 +2526,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>        <span class="k">assert</span> <span class="n">avg_current_ma</span> <span class="o">&lt;</span> <span class="mi">15</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Active current </span><span class="si">{</span><span class="n">avg_current_ma</span><span class="si">}</span><span class="s2">mA exceeds 15mA budget&quot;</span>
 <a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>
 <a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_modem_burst_current</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-PWR-003: Modem TX burst &lt; 300mA peak.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-PWR-003: Modem TX burst &lt; 300mA peak.&quot;&quot;&quot;</span>
 <a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>        <span class="c1"># Wait for heartbeat (triggers modem TX)</span>
 <a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>        <span class="c1"># Sample at high frequency during TX window</span>
 <a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
@@ -2515,10 +2545,10 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <p><strong>Purpose</strong>: Verify all sensors respond correctly.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">timeout</span><span class="p">(</span><span class="mi">600</span><span class="p">)</span>  <span class="c1"># 10 min</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestSensors</span><span class="p">:</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-SENS: Sensor characterization tests.&quot;&quot;&quot;</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-SENS: Sensor characterization tests.&quot;&quot;&quot;</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_accelerometer_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-SENS-001: Accelerometer reads gravity correctly.&quot;&quot;&quot;</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-SENS-001: Accelerometer reads gravity correctly.&quot;&quot;&quot;</span>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>        <span class="c1"># Device should be stationary in fixture</span>
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>        <span class="c1"># Cloud message should show ~1g on Z axis</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
@@ -2529,7 +2559,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>        <span class="k">assert</span> <span class="mf">0.9</span> <span class="o">&lt;</span> <span class="nb">abs</span><span class="p">(</span><span class="n">accel_z</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1.1</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Accel Z </span><span class="si">{</span><span class="n">accel_z</span><span class="si">}</span><span class="s2">g out of range&quot;</span>
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
 <a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_ppg_skin_detection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-SENS-002: PPG detects on-skin stimulus.&quot;&quot;&quot;</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-SENS-002: PPG detects on-skin stimulus.&quot;&quot;&quot;</span>
 <a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>        <span class="c1"># Enable peltier to simulate skin temperature</span>
 <a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">peltier_on</span><span class="p">()</span>
 <a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>  <span class="c1"># Wait for heating</span>
@@ -2541,7 +2571,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>        <span class="k">assert</span> <span class="n">on_body</span><span class="p">,</span> <span class="s2">&quot;PPG did not detect on-body with skin stimulus&quot;</span>
 <a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>
 <a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_temperature_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-SENS-003: Temperature sensor within range.&quot;&quot;&quot;</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-SENS-003: Temperature sensor within range.&quot;&quot;&quot;</span>
 <a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>        <span class="n">msg</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">cloud</span><span class="o">.</span><span class="n">wait_for_message</span><span class="p">(</span><span class="s2">&quot;EnvironmentMsgV1&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
 <a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>        <span class="n">temp_c</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;temperature&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 <a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>
@@ -2549,7 +2579,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a>        <span class="k">assert</span> <span class="mi">15</span> <span class="o">&lt;</span> <span class="n">temp_c</span> <span class="o">&lt;</span> <span class="mi">35</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Temperature </span><span class="si">{</span><span class="n">temp_c</span><span class="si">}</span><span class="s2">°C out of expected range&quot;</span>
 <a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a>
 <a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_pressure_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-SENS-004: Pressure sensor within range.&quot;&quot;&quot;</span>
+<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-SENS-004: Pressure sensor within range.&quot;&quot;&quot;</span>
 <a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a>        <span class="n">msg</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">cloud</span><span class="o">.</span><span class="n">wait_for_message</span><span class="p">(</span><span class="s2">&quot;EnvironmentMsgV1&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
 <a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a>        <span class="n">pressure_hpa</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;pressure&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 <a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a>
@@ -2560,10 +2590,10 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <p><strong>Purpose</strong>: Verify GPS acquisition performance.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">timeout</span><span class="p">(</span><span class="mi">900</span><span class="p">)</span>  <span class="c1"># 15 min</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestGPS</span><span class="p">:</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-GPS: GPS acquisition tests.&quot;&quot;&quot;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-GPS: GPS acquisition tests.&quot;&quot;&quot;</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_cold_start_ttff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-GPS-001: Cold start TTFF &lt; 60 seconds.&quot;&quot;&quot;</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-GPS-001: Cold start TTFF &lt; 60 seconds.&quot;&quot;&quot;</span>
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>        <span class="c1"># Power cycle to clear ephemeris</span>
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">power_off</span><span class="p">()</span>
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
@@ -2580,7 +2610,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>        <span class="k">assert</span> <span class="n">ttff</span> <span class="o">&lt;</span> <span class="mi">60</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Cold start TTFF </span><span class="si">{</span><span class="n">ttff</span><span class="si">}</span><span class="s2">s exceeds 60s limit&quot;</span>
 <a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>
 <a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_warm_start_ttff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-GPS-002: Warm start TTFF &lt; 10 seconds.&quot;&quot;&quot;</span>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-GPS-002: Warm start TTFF &lt; 10 seconds.&quot;&quot;&quot;</span>
 <a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>        <span class="c1"># First, get a fix (cold start)</span>
 <a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">cloud</span><span class="o">.</span><span class="n">wait_for_message</span><span class="p">(</span><span class="s2">&quot;PositionMsgV6&quot;</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;fixType&quot;</span><span class="p">:</span> <span class="s2">&quot;3D&quot;</span><span class="p">},</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span>
 <a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>
@@ -2603,10 +2633,10 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <p><strong>Purpose</strong>: Verify charger behavior.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">timeout</span><span class="p">(</span><span class="mi">600</span><span class="p">)</span>  <span class="c1"># 10 min</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestCharger</span><span class="p">:</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-CHG: Charger behavior tests.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-CHG: Charger behavior tests.&quot;&quot;&quot;</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_charger_detect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-CHG-001: Device detects charger connection.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-CHG-001: Device detects charger connection.&quot;&quot;&quot;</span>
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>        <span class="c1"># Start with charger disconnected</span>
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">charger_off</span><span class="p">()</span>
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
@@ -2619,7 +2649,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>        <span class="k">assert</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;onCharger&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;Device did not detect charger&quot;</span>
 <a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
 <a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_charger_disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-CHG-002: Device detects charger disconnection.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-CHG-002: Device detects charger disconnection.&quot;&quot;&quot;</span>
 <a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>        <span class="c1"># Start with charger connected</span>
 <a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">charger_on</span><span class="p">()</span>
 <a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
@@ -2632,7 +2662,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>        <span class="k">assert</span> <span class="n">msg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;onCharger&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;Device did not detect charger removal&quot;</span>
 <a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>
 <a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_charge_current</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-CHG-003: Charge current within spec.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-CHG-003: Charge current within spec.&quot;&quot;&quot;</span>
 <a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">charger_on</span><span class="p">()</span>
 <a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
 <a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a>
@@ -2646,10 +2676,10 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <p><strong>Purpose</strong>: Verify device responds to physical stimulus.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">timeout</span><span class="p">(</span><span class="mi">600</span><span class="p">)</span>  <span class="c1"># 10 min</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestStimulus</span><span class="p">:</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-STIM: Physical stimulus tests.&quot;&quot;&quot;</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-STIM: Physical stimulus tests.&quot;&quot;&quot;</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_button_short_press</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-STIM-001: Short button press triggers state change.&quot;&quot;&quot;</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-STIM-001: Short button press triggers state change.&quot;&quot;&quot;</span>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">button_press</span><span class="p">(</span><span class="n">duration_s</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
@@ -2658,7 +2688,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>        <span class="k">assert</span> <span class="n">msg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;No status message after button press&quot;</span>
 <a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
 <a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_button_long_press</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-STIM-002: Long button press triggers SOS/shutdown.&quot;&quot;&quot;</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-STIM-002: Long button press triggers SOS/shutdown.&quot;&quot;&quot;</span>
 <a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">button_press</span><span class="p">(</span><span class="n">duration_s</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
 <a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
 <a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>
@@ -2667,7 +2697,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>        <span class="c1"># Device may have shut down if no SOS configured</span>
 <a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>
 <a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_motion_detection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;NIGHTLY-ALPHA-STIM-003: Motion stage triggers motion event.&quot;&quot;&quot;</span>
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;REGRESSION-ALPHA-STIM-003: Motion stage triggers motion event.&quot;&quot;&quot;</span>
 <a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">ctx</span><span class="o">.</span><span class="n">fixture</span><span class="o">.</span><span class="n">has_motion</span><span class="p">():</span>
 <a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a>            <span class="n">pytest</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="s2">&quot;Motion stage not available&quot;</span><span class="p">)</span>
 <a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a>
@@ -2691,13 +2721,13 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>└── test_nfc.py              # NFC tag operations
 </code></pre></div>
 <hr />
-<h2 id="5-running-nightly">5. Running Nightly<a class="headerlink" href="#5-running-nightly" title="Permanent link">&para;</a></h2>
+<h2 id="5-running-regression">5. Running Regression<a class="headerlink" href="#5-running-regression" title="Permanent link">&para;</a></h2>
 <h3 id="cron-schedule">Cron Schedule<a class="headerlink" href="#cron-schedule" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># K8s CronJob</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">batch/v1</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CronJob</span>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">validation-alpha-nightly</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">validation-alpha-regression</span>
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="nt">spec</span><span class="p">:</span>
 <a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">  </span><span class="nt">schedule</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&quot;</span><span class="w">  </span><span class="c1"># 2 AM daily</span>
 <a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">  </span><span class="nt">jobTemplate</span><span class="p">:</span>
@@ -2705,7 +2735,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">      </span><span class="nt">template</span><span class="p">:</span>
 <a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">        </span><span class="nt">spec</span><span class="p">:</span>
 <a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">          </span><span class="nt">containers</span><span class="p">:</span>
-<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nightly</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">regression</span>
 <a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">              </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">concord/http-api:staging</span>
 <a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">              </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;pytest&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;/app/validation/alpha/tests/stage4/&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;-v&quot;</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">              </span><span class="nt">env</span><span class="p">:</span>
@@ -2723,7 +2753,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 <thead>
 <tr>
 <th>Aspect</th>
-<th>Stage 4 Nightly</th>
+<th>Stage 4 Regression</th>
 <th>Stage 5 Gate</th>
 </tr>
 </thead>
@@ -2735,7 +2765,7 @@ Duration: 30-60 minutes. Tests everything that doesn't fit in the 15-minute Gate
 </tr>
 <tr>
 <td>Trigger</td>
-<td>Nightly cron</td>
+<td>Regression cron</td>
 <td>Every PR</td>
 </tr>
 <tr>
