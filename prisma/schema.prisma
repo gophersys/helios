@@ -588,7 +588,8 @@ model BuildJob {
   priority Int @default(50)
 
   // Worker info
-  workerId String? /// Node/host that built this (e.g. "wanda")
+  workerId      String?   /// Node/host that built this (e.g. "wanda")
+  lastHeartbeat DateTime? /// Updated by worker during active builds (stale detection)
 
   // Timing
   startedAt       DateTime?

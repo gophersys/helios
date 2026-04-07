@@ -1,0 +1,71 @@
+{{- /*
+PodDisruptionBudgets — protect services during voluntary disruptions
+(node drain, cluster upgrade, spot eviction).
+
+Single-replica services use minAvailable: 0 to document intent and allow
+drain when the pod is not ready (draining state). Multi-replica services
+set minAvailable: 1 so at least one pod stays up.
+
+Build-service specifically: when draining, /ready returns 503 → pod
+is not Ready → PDB allows the drain to proceed. During active builds,
+/ready returns 200 → PDB prevents eviction.
+*/ -}}
+
+{{- if .Values.httpApi.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: concord-http-api
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.httpApi.replicas | default 1 | sub 1 | max 0 }}
+  selector:
+    matchLabels:
+      {{- include "concord.httpApi.selectorLabels" . | nindent 6 }}
+---
+{{- end }}
+
+{{- if .Values.buildService.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: concord-build-service
+  labels:
+    app: concord-build-service
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app: concord-build-service
+---
+{{- end }}
+
+{{- if .Values.frontend.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: concord-frontend
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      {{- include "concord.frontend.selectorLabels" . | nindent 6 }}
+---
+{{- end }}
+
+{{- if .Values.gitPoller.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: concord-git-poller
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app: concord-git-poller
+{{- end }}

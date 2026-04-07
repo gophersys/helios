@@ -129,6 +129,39 @@ class DockerBuildRunner:
         return match.group(1) if match else None
 
     # ------------------------------------------------------------------
+    # Orphan container cleanup
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def cleanup_orphaned_containers():
+        """Kill any lingering concord-build-* containers from a previous instance.
+
+        Called at startup to clean up containers left behind if the
+        orchestrator was killed mid-build (e.g., during a rolling update).
+        """
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "--filter", "name=concord-build-", "--format", "{{.Names}}"],
+                capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode != 0 or not result.stdout.strip():
+                return
+
+            containers = [c.strip() for c in result.stdout.strip().split("\n") if c.strip()]
+            for name in containers:
+                log.warning("Killing orphaned builder container: %s", name)
+                try:
+                    subprocess.run(["docker", "kill", name], capture_output=True, timeout=10)
+                    subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=10)
+                except Exception as e:
+                    log.warning("Failed to cleanup container %s: %s", name, e)
+
+            if containers:
+                log.info("Cleaned up %d orphaned builder container(s)", len(containers))
+        except Exception as e:
+            log.warning("Orphan container cleanup failed: %s", e)
+
+    # ------------------------------------------------------------------
     # Image management
     # ------------------------------------------------------------------
 

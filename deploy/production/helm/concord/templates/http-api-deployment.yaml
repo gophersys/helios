@@ -140,6 +140,10 @@ spec:
         - name: http-api
           image: "{{ .Values.httpApi.image.repository }}:{{ .Values.httpApi.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
           ports:
             - containerPort: {{ .Values.httpApi.port }}
               name: http

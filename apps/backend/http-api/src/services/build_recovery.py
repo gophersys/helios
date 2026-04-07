@@ -6,7 +6,13 @@ so another worker can pick them up.
 
 Uses tiered timeouts:
 - CLONING: 5 minutes (git clone + submodules should never take this long)
-- BUILDING: 10 minutes (firmware builds typically take 5-8 min)
+- BUILDING: heartbeat-based — if lastHeartbeat > 5 min old, the worker is dead.
+  Falls back to startedAt > 30 min for legacy builds without heartbeats.
+
+Workers emit heartbeats every 60s during active builds. A 5-minute heartbeat
+gap means the worker has been unresponsive for at least 4 missed heartbeats —
+it's dead. The 30-minute startedAt fallback handles builds started before the
+heartbeat feature was deployed.
 
 Builds that fail recovery 3+ times are marked FAILED permanently
 to avoid infinite retry loops on broken configs.
@@ -20,9 +26,12 @@ from src.services.database.prisma import get_db_client
 
 logger = logging.getLogger(__name__)
 
-# Tiered timeouts — CLONING is fast, BUILDING can take longer
+# CLONING: no heartbeat during clone phase, use startedAt
 CLONING_TIMEOUT_MINUTES = 5
-BUILDING_TIMEOUT_MINUTES = 10
+# BUILDING: heartbeat-based — worker sends heartbeat every 60s
+HEARTBEAT_STALE_MINUTES = 5
+# Fallback for legacy builds without heartbeats (pre-heartbeat deploys)
+BUILDING_FALLBACK_TIMEOUT_MINUTES = 30
 MAX_RECOVERY_ATTEMPTS = 3
 
 
@@ -37,9 +46,8 @@ def recover_stale_builds() -> int:
     db = get_db_client()
     now = datetime.now(timezone.utc)
     cloning_cutoff = now - timedelta(minutes=CLONING_TIMEOUT_MINUTES)
-    building_cutoff = now - timedelta(minutes=BUILDING_TIMEOUT_MINUTES)
 
-    # Find stale CLONING builds (5-minute timeout)
+    # Find stale CLONING builds (5-minute timeout on startedAt)
     stale_cloning = db.buildjob.find_many(
         where={
             "status": "CLONING",
@@ -47,15 +55,29 @@ def recover_stale_builds() -> int:
         },
     )
 
-    # Find stale BUILDING builds (10-minute timeout)
-    stale_building = db.buildjob.find_many(
+    # Find stale BUILDING builds using heartbeat-based detection.
+    # Two cases:
+    # 1. Has heartbeat but it's stale (worker died mid-build)
+    # 2. No heartbeat at all and startedAt is very old (legacy/pre-heartbeat build)
+    heartbeat_cutoff = now - timedelta(minutes=HEARTBEAT_STALE_MINUTES)
+    fallback_cutoff = now - timedelta(minutes=BUILDING_FALLBACK_TIMEOUT_MINUTES)
+
+    stale_building_heartbeat = db.buildjob.find_many(
         where={
             "status": "BUILDING",
-            "startedAt": {"lt": building_cutoff},
+            "lastHeartbeat": {"not": None, "lt": heartbeat_cutoff},
         },
     )
 
-    stale_builds = stale_cloning + stale_building
+    stale_building_legacy = db.buildjob.find_many(
+        where={
+            "status": "BUILDING",
+            "lastHeartbeat": None,
+            "startedAt": {"lt": fallback_cutoff},
+        },
+    )
+
+    stale_builds = stale_cloning + stale_building_heartbeat + stale_building_legacy
 
     if not stale_builds:
         return 0
@@ -63,7 +85,12 @@ def recover_stale_builds() -> int:
     recovered = 0
     for build in stale_builds:
         recovery_count = _get_recovery_count(build) + 1
-        timeout = CLONING_TIMEOUT_MINUTES if build.status == "CLONING" else BUILDING_TIMEOUT_MINUTES
+        if build.status == "CLONING":
+            timeout = CLONING_TIMEOUT_MINUTES
+        elif hasattr(build, "lastHeartbeat") and build.lastHeartbeat is not None:
+            timeout = HEARTBEAT_STALE_MINUTES
+        else:
+            timeout = BUILDING_FALLBACK_TIMEOUT_MINUTES
         age_min = int((now - build.startedAt).total_seconds() / 60) if build.startedAt else 0
         worker_id = build.webhookData.get("workerId", "unknown") if isinstance(build.webhookData, dict) else "unknown"
 
@@ -84,6 +111,7 @@ def recover_stale_builds() -> int:
                 data={
                     "status": "FAILED",
                     "finishedAt": now,
+                    "lastHeartbeat": None,
                     "webhookData": Json(webhook_data),
                     "errorMessage": (
                         f"Permanently failed: stuck in {build.status} {recovery_count} times "
@@ -110,6 +138,7 @@ def recover_stale_builds() -> int:
                 data={
                     "status": "QUEUED",
                     "startedAt": None,
+                    "lastHeartbeat": None,
                     "webhookData": Json(webhook_data),
                     "errorMessage": (
                         f"Auto-recovered: stuck in {build.status} for {age_min}m "

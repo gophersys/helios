@@ -268,7 +268,7 @@ _helm_deploy() {
   fi
 
   timer_start
-  helm "${helm_args[@]}" --wait --timeout 300s
+  helm "${helm_args[@]}" --wait --atomic --timeout 600s
   timer_end "Helm upgrade"
 }
 
@@ -287,6 +287,78 @@ _verify_rollout() {
     fi
   done
   $all_ok || warn "Some deployments did not reach Ready state"
+}
+
+_smoke_test() {
+  local env="$1"
+  info "Running smoke tests..."
+  local all_ok=true
+
+  # Map of service → endpoint
+  local -A endpoints=(
+    ["http-api"]="/v2/docs"
+    ["frontend"]="/"
+    ["build-service"]="/health"
+  )
+
+  for svc in "${!endpoints[@]}"; do
+    local path="${endpoints[$svc]}"
+    local svc_name="concord-${svc}"
+    local port
+
+    # Resolve ClusterIP service port
+    port=$(kubectl get svc "${svc_name}" -n "${env}" -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "")
+    if [[ -z "${port}" ]]; then
+      warn "  ✗ ${svc}: service not found"
+      all_ok=false
+      continue
+    fi
+
+    # Use kubectl exec from a temporary pod to hit the service
+    local url="http://${svc_name}:${port}${path}"
+    local status
+    status=$(kubectl run "smoke-${svc}-$$" -n "${env}" --rm -i --restart=Never \
+      --image=busybox:1.36 --timeout=30s -- \
+      wget -qO- -S "${url}" 2>&1 | grep -o "HTTP/[0-9.]* [0-9]*" | head -1 | awk '{print $2}' || echo "000")
+
+    if [[ "${status}" =~ ^2[0-9][0-9]$ ]]; then
+      info "  ✓ ${svc} ${path} → ${status}"
+    else
+      warn "  ✗ ${svc} ${path} → ${status}"
+      all_ok=false
+    fi
+  done
+
+  if $all_ok; then
+    info "Smoke tests passed"
+    return 0
+  else
+    warn "Smoke tests FAILED"
+    return 1
+  fi
+}
+
+_rollback_on_failure() {
+  local env="$1"
+  warn "Rolling back to previous release..."
+
+  local prev_rev
+  prev_rev=$(helm history concord -n "${env}" --max 2 -o json 2>/dev/null \
+    | python3 -c "import sys,json; h=json.load(sys.stdin); print(h[-2]['revision'] if len(h)>=2 else '')" 2>/dev/null || echo "")
+
+  if [[ -z "${prev_rev}" ]]; then
+    err "No previous revision to rollback to"
+    return 1
+  fi
+
+  info "Rolling back to revision ${prev_rev}..."
+  helm rollback concord "${prev_rev}" -n "${env}" --wait --timeout 300s
+
+  # Verify rollback
+  _verify_rollout "${env}"
+
+  info "Rollback complete. Investigate and fix before re-deploying."
+  return 0
 }
 
 # ═════════════════════════════════════════════════════════════════
@@ -468,15 +540,14 @@ cmd_dev_update() {
   total_start=$(date +%s)
   log "${BOLD}Updating development platform${NC}"
 
-  # Rebuild service images (parallel — Docker layer cache makes this fast)
-  step "Rebuilding service images"
+  # Rebuild + restart — --no-cache guarantees fresh source in images
+  step "Rebuilding containers"
   timer_start
-  npx nx run-many -t build -p http-api git-poller build-service -c development 2>&1 | tail -5
+  $COMPOSE build --no-cache --parallel http-api git-poller build-service 2>&1 | tail -5
   timer_end "Image builds"
 
-  # Recreate only changed containers
-  step "Updating containers"
-  $COMPOSE up -d 2>&1 | grep -v "^$"
+  step "Restarting containers"
+  $COMPOSE up -d --force-recreate --no-build 2>&1 | grep -v "^$"
   info "  ✓ containers updated"
 
   # Check if schema changed — if so, push + seed
@@ -566,6 +637,13 @@ cmd_start() {
   step "Verifying rollout"
   _verify_rollout "${env}"
 
+  # Smoke test — rollback on failure
+  step "Smoke testing"
+  if ! _smoke_test "${env}"; then
+    _rollback_on_failure "${env}"
+    exit 1
+  fi
+
   local total_elapsed=$(( $(date +%s) - total_start ))
   echo ""
   log "${BOLD}Platform started: ${env}${NC}  (${total_elapsed}s)"
@@ -597,6 +675,13 @@ cmd_update() {
   # Verify
   step "Verifying rollout"
   _verify_rollout "${env}"
+
+  # Smoke test — rollback on failure
+  step "Smoke testing"
+  if ! _smoke_test "${env}"; then
+    _rollback_on_failure "${env}"
+    exit 1
+  fi
 
   local total_elapsed=$(( $(date +%s) - total_start ))
   echo ""

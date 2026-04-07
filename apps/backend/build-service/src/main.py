@@ -55,7 +55,7 @@ def main():
     config = BuildServiceConfig.from_env()
 
     # ── Banner ──────────────────────────────────────────────────────────────
-    build_info = print_banner(
+    print_banner(
         "concord-build-service",
         Port=str(config.service_port),
         Worker=config.worker_id,
@@ -73,6 +73,13 @@ def main():
     # ── SSH ──────────────────────────────────────────────────────────────────
     _setup_ssh_key(config)
 
+    # ── Orphan container cleanup ─────────────────────────────────────────────
+    # Kill any builder containers left behind from a previous instance
+    # (e.g., pod was killed mid-build during a rolling update)
+    if config.builder_mode == "docker":
+        from src.worker.docker_runner import DockerBuildRunner
+        DockerBuildRunner.cleanup_orphaned_containers()
+
     # ── API client ───────────────────────────────────────────────────────────
     client = ConcordClient(config.api_url, config.api_key)
 
@@ -81,7 +88,6 @@ def main():
     job_queue = JobQueue()
 
     # ── Flask API (background thread) ────────────────────────────────────────
-    api_thread = None
     try:
         from src.app import create_app
         from src.api.jobs import set_job_queue
@@ -104,15 +110,11 @@ def main():
 
     def handle_signal(signum, _frame):
         name = signal.Signals(signum).name
-        log.info(f"Received {name}, shutting down...")
+        log.info(f"Received {name}, shutting down gracefully...")
         shutdown.set()
-
-    def cleanup():
-        log.info("Build Service stopped")
 
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
-    atexit.register(cleanup)
 
     # ── Worker loop (blocks until shutdown) ───────────────────────────────────
     worker = BuildWorkerLoop(config=config, client=client, shutdown_event=shutdown, job_queue=job_queue)
@@ -121,6 +123,13 @@ def main():
     except Exception:
         log.error("Worker loop crashed", exc_info=True)
         sys.exit(1)
+    finally:
+        # Clean up any running builder container after the worker loop exits.
+        # This runs AFTER the current build finishes (worker.run() blocks until
+        # process_job completes), so it only kills containers from abnormal exits.
+        if worker.docker_runner:
+            worker.docker_runner.cleanup()
+        log.info("Build Service stopped")
 
 
 if __name__ == "__main__":
