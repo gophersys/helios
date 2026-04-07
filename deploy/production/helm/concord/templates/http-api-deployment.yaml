@@ -150,6 +150,10 @@ spec:
                 name: concord-secrets
           resources:
             {{- toYaml .Values.httpApi.resources | nindent 12 }}
+          volumeMounts:
+            - name: ssh-key
+              mountPath: /root/.ssh
+              readOnly: true
           readinessProbe:
             httpGet:
               path: {{ .Values.httpApi.probes.readiness.path }}
@@ -162,4 +166,13 @@ spec:
               port: {{ .Values.httpApi.port }}
             initialDelaySeconds: {{ .Values.httpApi.probes.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.httpApi.probes.liveness.periodSeconds }}
+      volumes:
+        - name: ssh-key
+          secret:
+            secretName: bitbucket-ssh-key
+            defaultMode: 0600
+            optional: true
+            items:
+              - key: ssh-private-key
+                path: id_rsa
 {{- end }}

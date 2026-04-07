@@ -88,9 +88,14 @@ class CkBoardsService:
 
         os.makedirs(self._worktree_base, exist_ok=True)
 
-        # Write SSH key if provided
+        # Write SSH key if provided via env var, or detect mounted key file
         if ssh_key_b64:
             self._setup_ssh_key(ssh_key_b64)
+        elif os.path.isfile("/root/.ssh/id_rsa"):
+            # K8s mounts the SSH key as a read-only file — use it directly
+            self._git_env = {
+                "GIT_SSH_COMMAND": "ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null",
+            }
 
         # Clone or fetch
         self._init_repo()

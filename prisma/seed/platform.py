@@ -145,8 +145,8 @@ def seed_platform(db) -> dict:
     system_user = db.user.upsert(
         where={"email": "system@concord.local"},
         data={
-            "create": {"email": "system@concord.local", "name": "System", "permissionSetId": perm_sets["ADMIN"].id},
-            "update": {"permissionSetId": perm_sets["ADMIN"].id},
+            "create": {"email": "system@concord.local", "name": "System", "role": "ADMIN", "permissionSetId": perm_sets["ADMIN"].id},
+            "update": {"role": "ADMIN", "permissionSetId": perm_sets["ADMIN"].id},
         },
     )
 
@@ -218,6 +218,19 @@ def seed_users(db, perm_sets: dict, products: list):
                     "update": {"level": level},
                 },
             )
+
+    # Grant system accounts product access (CI API key, dev admin)
+    for sys_email in ["system@concord.local", "admin@concord.local"]:
+        sys_user = db.user.find_unique(where={"email": sys_email})
+        if sys_user:
+            for product in products:
+                db.productaccess.upsert(
+                    where={"userId_productId": {"userId": sys_user.id, "productId": product.id}},
+                    data={
+                        "create": {"userId": sys_user.id, "productId": product.id, "level": "admin"},
+                        "update": {"level": "admin"},
+                    },
+                )
 
     print(f"  ✓ {len(all_users)} users seeded")
     print(f"  ✓ Product access granted to {len(products)} product(s)")

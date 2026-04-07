@@ -22,6 +22,8 @@ spec:
     metadata:
       labels:
         app: concord-build-service
+      annotations:
+        rollme: {{ randAlphaNum 10 | quote }}
     spec:
       initContainers:
         - name: wait-for-api
