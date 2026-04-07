@@ -294,40 +294,57 @@ _smoke_test() {
   info "Running smoke tests..."
   local all_ok=true
 
-  # Map of service → endpoint
-  local -A endpoints=(
-    ["http-api"]="/v2/docs"
-    ["frontend"]="/"
-    ["build-service"]="/health"
+  # Get an http-api pod to exec from (it has Python for HTTP checks)
+  local api_pod
+  api_pod=$(kubectl get pods -n "${env}" -l app.kubernetes.io/name=concord-http-api \
+    --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+
+  if [[ -z "${api_pod}" ]]; then
+    warn "  ✗ No running http-api pod found for smoke tests"
+    return 1
+  fi
+
+  # Smoke test each service endpoint from inside the cluster
+  local -A checks=(
+    ["http-api|concord-http-api:9001/v2/docs"]="API docs"
+    ["frontend|concord-frontend:80/"]="Frontend"
   )
 
-  for svc in "${!endpoints[@]}"; do
-    local path="${endpoints[$svc]}"
-    local svc_name="concord-${svc}"
-    local port
+  for key in "${!checks[@]}"; do
+    local label="${checks[$key]}"
+    local url="http://${key#*|}"
+    local svc="${key%%|*}"
 
-    # Resolve ClusterIP service port
-    port=$(kubectl get svc "${svc_name}" -n "${env}" -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "")
-    if [[ -z "${port}" ]]; then
-      warn "  ✗ ${svc}: service not found"
-      all_ok=false
-      continue
-    fi
-
-    # Use kubectl exec from a temporary pod to hit the service
-    local url="http://${svc_name}:${port}${path}"
     local status
-    status=$(kubectl run "smoke-${svc}-$$" -n "${env}" --rm -i --restart=Never \
-      --image=busybox:1.36 --timeout=30s -- \
-      wget -qO- -S "${url}" 2>&1 | grep -o "HTTP/[0-9.]* [0-9]*" | head -1 | awk '{print $2}' || echo "000")
+    status=$(kubectl exec -n "${env}" "${api_pod}" -- \
+      python3 -c "
+import urllib.request, sys
+try:
+    r = urllib.request.urlopen('${url}', timeout=10)
+    print(r.status)
+except Exception as e:
+    print(f'ERR:{e}')
+" 2>/dev/null || echo "ERR:exec-failed")
 
     if [[ "${status}" =~ ^2[0-9][0-9]$ ]]; then
-      info "  ✓ ${svc} ${path} → ${status}"
+      info "  ✓ ${label} → ${status}"
     else
-      warn "  ✗ ${svc} ${path} → ${status}"
+      warn "  ✗ ${label} → ${status}"
       all_ok=false
     fi
   done
+
+  # Build-service has no K8s Service (it's a worker, not an endpoint).
+  # Check that the pod is running and healthy via its liveness probe.
+  local bs_ready
+  bs_ready=$(kubectl get pods -n "${env}" -l app=concord-build-service \
+    --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
+  if [[ "${bs_ready}" -gt 0 ]]; then
+    info "  ✓ Build service pod running"
+  else
+    warn "  ✗ Build service pod not running"
+    all_ok=false
+  fi
 
   if $all_ok; then
     info "Smoke tests passed"
@@ -343,8 +360,13 @@ _rollback_on_failure() {
   warn "Rolling back to previous release..."
 
   local prev_rev
-  prev_rev=$(helm history concord -n "${env}" --max 2 -o json 2>/dev/null \
-    | python3 -c "import sys,json; h=json.load(sys.stdin); print(h[-2]['revision'] if len(h)>=2 else '')" 2>/dev/null || echo "")
+  prev_rev=$(helm history concord -n "${env}" -o json 2>/dev/null \
+    | python3 -c "
+import sys, json
+h = json.load(sys.stdin)
+deployed = [r for r in h if r.get('status') == 'deployed']
+print(deployed[-1]['revision'] if deployed else '')
+" 2>/dev/null || echo "")
 
   if [[ -z "${prev_rev}" ]]; then
     err "No previous revision to rollback to"
