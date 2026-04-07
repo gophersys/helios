@@ -276,19 +276,20 @@ walkthrough() {
   case "$role" in
     ADMIN)
       bold "Next steps:"
-      echo "  1. Review and fill in secrets in the .env files created above"
+      echo "  1. Fill in secrets — run the secrets guide:"
+      cyan "       bash tools/env/secrets-guide.sh"
       echo "  2. Start the dev stack:  nx start platform"
       echo "  3. Start the frontend:   npx nx serve app"
       echo ""
       echo "  For staging/production:"
-      echo "  4. Populate infrastructure/clusters/office/secrets/.env"
-      echo "  5. Populate deploy/production/helm/values-*-secrets.yaml"
-      echo "  6. Bootstrap cluster:    ./infrastructure/ctl.sh office bootstrap"
-      echo "  7. Deploy staging:       nx start platform -c staging"
+      echo "  4. Fill infrastructure secrets:  bash tools/env/secrets-guide.sh staging"
+      echo "  5. Bootstrap cluster:    ./infrastructure/ctl.sh office bootstrap"
+      echo "  6. Deploy staging:       nx start platform -c staging"
       ;;
     MAINTAINER)
       bold "Next steps:"
-      echo "  1. Review and fill in secrets in the .env files created above"
+      echo "  1. Fill in Bitbucket credentials (optional, for firmware builds):"
+      cyan "       bash tools/env/secrets-guide.sh development"
       echo "  2. Get your kubeconfig from an ADMIN"
       echo "  3. Start the dev stack:  nx start platform"
       echo "  4. Start the frontend:   npx nx serve app"
@@ -301,8 +302,8 @@ walkthrough() {
       echo "  2. Start the frontend:   npx nx serve app"
       echo "  3. Run tests:            npx nx test http-api"
       echo ""
-      echo "  You have full access to staging, read-only production."
       echo "  No secrets to fill in — dev defaults work out of the box."
+      echo "  If you need firmware builds, run: bash tools/env/secrets-guide.sh development"
       ;;
     OPERATOR)
       bold "Next steps:"
@@ -326,6 +327,7 @@ while [[ $# -gt 0 ]]; do
     --role)     ROLE="$2"; shift 2 ;;
     --validate) ACTION="validate"; shift ;;
     --check)    ACTION="check"; shift; CHECK_ENV="${1:-staging}"; shift || true ;;
+    --secrets)  ACTION="secrets"; shift; SECRETS_SCOPE="${1:-all}"; shift || true ;;
     -h|--help|help)
       echo "Usage: $0 [--role ADMIN|MAINTAINER|DEVELOPER|OPERATOR] [--validate] [--check staging|production]"
       exit 0
@@ -340,4 +342,5 @@ case "$ACTION" in
   walkthrough)  walkthrough "$ROLE" ;;
   validate)     ;; # registry validation already ran above
   check)        check_deployed "$CHECK_ENV" ;;
+  secrets)      bash "$REPO_ROOT/tools/env/secrets-guide.sh" "${SECRETS_SCOPE:-all}" ;;
 esac
