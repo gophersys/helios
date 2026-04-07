@@ -6,7 +6,7 @@ import uuid
 import zipfile
 from typing import Dict, Optional, Tuple
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from config.env import env_config
 from flask import jsonify, request
 from werkzeug.utils import secure_filename

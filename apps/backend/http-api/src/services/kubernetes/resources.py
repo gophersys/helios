@@ -1,4 +1,4 @@
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from kubernetes.client import ApiException
 
@@ -161,7 +161,7 @@ def get_resource_yaml(kind: str, namespace: str, name: str) -> dict | None:
     }
 
 
-def apply_resource_yaml(kind: str, namespace: str, name: str, yaml_str: str) -> dict:
+def apply_resource_yaml(kind: str, namespace: str, name: str, yaml_str: str) -> dict | None:
     """
     Apply a YAML string to update a resource.
     Uses strategic merge patch.

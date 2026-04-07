@@ -314,7 +314,7 @@ def schedule_queue() -> List[Dict[str, Any]]:
     Returns list of assignments made: [{"entryId": ..., "benchId": ..., "stage": ...}]
     """
     db = get_db_client()
-    assignments = []
+    assignments: list = []
 
     # Get all queued entries, highest priority first
     queued = db.validationqueueentry.find_many(

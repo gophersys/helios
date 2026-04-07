@@ -46,11 +46,9 @@ COPY tools/corectl /tmp/corectl
 RUN pip3 install /tmp/corectl && rm -rf /tmp/corectl
 
 # ── Install Python dependencies ──
-RUN pip3 install \
-    grpcio grpcio-tools \
-    pytest pytest-timeout \
-    requests minio boto3 \
-    python-dotenv pyyaml \
+COPY deploy/runner/requirements.txt /tmp/requirements.txt
+RUN pip3 install -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt \
     && pip3 cache purge
 
 # ── Entrypoint: download test package and run ──

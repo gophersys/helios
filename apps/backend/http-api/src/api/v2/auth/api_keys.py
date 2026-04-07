@@ -3,7 +3,7 @@ import logging
 import secrets
 from datetime import datetime
 
-from dateutil import parser as dateutil_parser
+from dateutil import parser as dateutil_parser  # type: ignore[import-untyped]
 from flask import g, jsonify, request
 
 from src.lib.audit import log_audit

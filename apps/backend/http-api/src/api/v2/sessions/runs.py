@@ -611,7 +611,7 @@ def rerun_session(session_id: str):
     """
     raw = request.get_json() or {}
     data, error = SessionRerunRequest.from_json(raw)
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()

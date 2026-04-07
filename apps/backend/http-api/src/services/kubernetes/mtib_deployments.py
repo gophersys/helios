@@ -3,7 +3,7 @@ import logging
 import os
 from typing import Optional
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ def get_mtib_deployment_status(deploy_name: str) -> Optional[dict]:
         apps_v1 = get_apps_v1_api()
         dep = apps_v1.read_namespaced_deployment(name=deploy_name, namespace="default")
 
-        status = {
+        status: dict = {
             "name": deploy_name,
             "replicas": dep.status.replicas or 0,
             "readyReplicas": dep.status.ready_replicas or 0,

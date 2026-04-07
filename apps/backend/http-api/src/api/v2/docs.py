@@ -393,7 +393,7 @@ def _build_spec() -> APISpec:
     _404 = _err_resp("Not found")
     _409 = _err_resp("Conflict")
     _500 = _err_resp("Internal server error")
-    _auth_security = [{"BearerAuth": []}, {"ApiKeyAuth": []}]
+    _auth_security: list = [{"BearerAuth": []}, {"ApiKeyAuth": []}]
 
     # ── Pagination helpers ──────────────────────────────────────
     _pagination_params = [

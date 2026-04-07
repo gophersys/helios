@@ -35,7 +35,7 @@ def push_config(device_id: str):
     The config will be delivered to the device on its next heartbeat.
     """
     req, error = ConfigPushRequest.from_json(request.get_json())
-    if error:
+    if error or req is None:
         return bad_request(error)
 
     db = get_db_client()

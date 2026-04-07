@@ -69,7 +69,7 @@ def apply_resource_yaml(kind: str, namespace: str, name: str):
     err = validate_k8s_name(name, "name")
     if err: return err
     req, error = ApplyResourceYamlRequest.from_json(request.get_json())
-    if error:
+    if error or req is None:
         return bad_request(error)
 
     try:

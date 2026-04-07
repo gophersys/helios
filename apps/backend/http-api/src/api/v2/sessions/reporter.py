@@ -143,13 +143,14 @@ def report_test_list(run_id: str):
 def report_test_start(run_id: str):
     """POST /v2/validation/runs/<id>/report/test-start — Individual test started."""
     data, error = ReportTestStartRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
     session, err = _get_session_or_404(db, run_id)
     if err:
         return err
+    assert session is not None
 
     # Find or create the test definition.
     # Unique constraint: (productId, name, category). Tests with the same name
@@ -237,13 +238,14 @@ def report_test_start(run_id: str):
 def report_test_result(run_id: str):
     """POST /v2/validation/runs/<id>/report/test-result — Individual test finished."""
     data, error = ReportTestResultRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
     session, err = _get_session_or_404(db, run_id)
     if err:
         return err
+    assert session is not None
 
     # Find the test + execution (unique by productId + name + category)
     test = db.test.find_first(
@@ -374,13 +376,14 @@ def _unlock_fixture_if_locked(db, session) -> None:
 def report_finish(run_id: str):
     """POST /v2/validation/runs/<id>/report/finish — pytest session finished."""
     data, error = ReportFinishRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
     session, err = _get_session_or_404(db, run_id)
     if err:
         return err
+    assert session is not None
 
     now = datetime.now(timezone.utc)
 
@@ -528,7 +531,7 @@ def report_finish(run_id: str):
 # -------------------------------------------------
 
 
-def _find_execution_for_test(db, session, test_name: str, device_serial: str = None):
+def _find_execution_for_test(db, session, test_name: str, device_serial: "str | None" = None):
     """Find the TestExecution for a given test name and optional device serial.
 
     Returns (execution, error_response) tuple.
@@ -569,19 +572,21 @@ def _find_execution_for_test(db, session, test_name: str, device_serial: str = N
 def report_step_start(run_id: str):
     """POST /v2/validation/runs/<id>/report/step-start — Sub-step started."""
     data, error = StepStartRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
     session, err = _get_session_or_404(db, run_id)
     if err:
         return err
+    assert session is not None
 
     execution, err = _find_execution_for_test(
         db, session, data.test_name, data.device_serial,
     )
     if err:
         return err
+    assert execution is not None
 
     now = datetime.now(timezone.utc)
 
@@ -620,19 +625,21 @@ def report_step_start(run_id: str):
 def report_step_result(run_id: str):
     """POST /v2/validation/runs/<id>/report/step-result — Sub-step finished."""
     data, error = StepResultRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
     session, err = _get_session_or_404(db, run_id)
     if err:
         return err
+    assert session is not None
 
     execution, err = _find_execution_for_test(
         db, session, data.test_name, data.device_serial,
     )
     if err:
         return err
+    assert execution is not None
 
     # Find the TestStep by execution + stepIndex
     step = db.teststep.find_first(

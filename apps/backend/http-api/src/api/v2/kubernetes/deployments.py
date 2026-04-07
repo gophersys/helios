@@ -86,7 +86,7 @@ def scale_deployment(namespace: str, name: str):
     err = validate_k8s_name(name, "name")
     if err: return err
     data, error = ScaleDeploymentRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     try:

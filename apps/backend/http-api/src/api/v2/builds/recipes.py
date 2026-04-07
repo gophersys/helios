@@ -703,7 +703,7 @@ def test_recipe_build(product_id: str):
         storage = get_storage_client()
         bucket = get_bucket_name()
         slug = product.slug or product.name.lower().replace(" ", "-")
-        key = _resolve_recipe_key(db, product_id, slug, test_stage, board_revision_id)
+        key = _resolve_recipe_key(db, product_id, slug, test_stage, revision_id)
         content_bytes = content.encode("utf-8")
         storage.put_object(bucket, key, io.BytesIO(content_bytes), len(content_bytes), content_type="text/x-shellscript")
     except ValueError as ve:

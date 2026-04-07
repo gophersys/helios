@@ -26,7 +26,7 @@ class HeartbeatRequest:
     wifi_rssi: Optional[int] = None
     sd_card_free_mb: Optional[int] = None
     current_log_file: Optional[str] = None
-    power_readings: Optional[List[PowerReading]] = None
+    power_readings: Optional[List["PowerReading"]] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["HeartbeatRequest"], Optional[str]]:
@@ -115,7 +115,7 @@ class HeartbeatRequest:
 
     def to_status_data(self) -> Dict[str, Any]:
         """Convert to lastStatusData JSON format"""
-        data = {
+        data: Dict[str, Any] = {
             "firmwareVersion": self.firmware_version,
         }
         if self.uptime_seconds is not None:
@@ -188,7 +188,7 @@ class DeviceUpdateRequest:
 
     def to_update_data(self) -> Dict[str, Any]:
         """Convert to Prisma update data dict"""
-        data = {}
+        data: Dict[str, Any] = {}
         if self._has_name:
             data["name"] = self.name
         if self._has_registered:

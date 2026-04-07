@@ -61,7 +61,7 @@ def users_create():
     Body: { "email": "...", "name": "...", "role?": "...", "permissionSetId": "..." }
     """
     data, error = UserCreateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
@@ -101,7 +101,7 @@ def users_update(user_id: str):
     Body: { "name?": "...", "role?": "...", "permissionSetId?": "...", "active?": bool }
     """
     data, error = UserUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
@@ -225,7 +225,7 @@ def users_set_product_access(user_id: str):
     Replaces all existing product access entries for this user.
     """
     req_data, error = ProductAccessSetRequest.from_json(request.get_json())
-    if error:
+    if error or req_data is None:
         return bad_request(error)
 
     db = get_db_client()

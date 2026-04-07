@@ -7,7 +7,7 @@ the build service's fallback poll will pick it up within 60 seconds.
 
 import logging
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from config import env_config
 

@@ -20,7 +20,7 @@ import uuid
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 

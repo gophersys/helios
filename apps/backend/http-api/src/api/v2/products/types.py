@@ -67,8 +67,8 @@ def _parse_board_revision(rev_data, idx: int) -> Tuple[Optional[dict], Optional[
         seen_app_ids: set = set()
         for j, t in enumerate(raw_targets):
             target, err = _parse_target(t, idx, j)
-            if err:
-                return None, err
+            if err or target is None:
+                return None, err or "Invalid target"
             if target.role in seen_roles:
                 return None, f"board.revisions[{idx}]: duplicate target role '{target.role}'"
             if target.appId in seen_app_ids:
@@ -104,7 +104,7 @@ def _parse_inline_board(board_data) -> Tuple[Optional["InlineBoardInput"], Optio
         parsed_revisions = []
         for i, r in enumerate(raw_revisions):
             rev, err = _parse_board_revision(r, i)
-            if err:
+            if err or rev is None:
                 return None, err
             parsed_revisions.append(rev)
 

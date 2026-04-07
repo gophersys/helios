@@ -560,7 +560,7 @@ class BenchUpdateRequest:
 
     def to_update_data(self) -> Dict[str, Any]:
         """Return dict of fields to update (only those explicitly set)."""
-        update = {}
+        update: Dict[str, Any] = {}
         if self._has_name and self.name:
             update["name"] = self.name
         if self._has_mtib_address and self.mtib_address:
@@ -737,7 +737,7 @@ class FixtureDesignUpdateRequest:
 
     def to_update_data(self) -> Dict[str, Any]:
         """Return dict of fields to update in DB."""
-        data = {}
+        data: Dict[str, Any] = {}
         if self._has_name and self.name:
             data["name"] = self.name
         if self._has_capabilities:

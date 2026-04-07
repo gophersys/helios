@@ -111,7 +111,7 @@ def create_stage_config(product_id: str):
     if not product:
         return not_found("Product not found")
     req, err = StageConfigCreateRequest.from_json(request.get_json())
-    if err:
+    if err or req is None:
         return bad_request(err)
     existing = db.productstageconfig.find_first(
         where={"productId": product_id, "stage": req.stage, "boardRevisionId": req.boardRevisionId}
@@ -157,7 +157,7 @@ def update_stage_config(product_id: str, stage: str):
     if not config:
         return not_found(f"Stage {stage} config not found")
     req, err = StageConfigUpdateRequest.from_json(request.get_json())
-    if err:
+    if err or req is None:
         return bad_request(err)
     update_data = req.to_update_data()
     if not update_data:

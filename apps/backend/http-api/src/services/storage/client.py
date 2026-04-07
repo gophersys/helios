@@ -64,6 +64,7 @@ def _ensure_bucket_exists() -> None:
     bucket_name = env_config.STORAGE_BUCKET_NAME
 
     try:
+        assert appStorageClient is not None
         if not appStorageClient.bucket_exists(bucket_name):
             appStorageClient.make_bucket(bucket_name)
             print(f"Created storage bucket: {bucket_name}")

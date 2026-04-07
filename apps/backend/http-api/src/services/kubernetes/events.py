@@ -18,7 +18,7 @@ def list_events(
         List of serialized Event dicts sorted by lastSeen descending.
     """
     core = get_core_v1_api()
-    kwargs = {"limit": limit}
+    kwargs: dict = {"limit": limit}
     if field_selector:
         kwargs["field_selector"] = field_selector
 

@@ -10,7 +10,7 @@ API tokens use Basic auth: (email, token).
 import logging
 from typing import Any, Dict, List, Optional
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 

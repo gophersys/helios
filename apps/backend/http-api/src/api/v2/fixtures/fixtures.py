@@ -295,7 +295,7 @@ def get_fixture(fixture_id: str):
 def update_fixture(fixture_id: str):
     """Update a fixture's properties."""
     data, error = FixtureUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
@@ -358,7 +358,7 @@ def create_slot(fixture_id: str):
         return not_found("Fixture not found")
 
     data, error = SlotCreateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     # Check slotIndex uniqueness within fixture
@@ -411,7 +411,7 @@ def update_slot(fixture_id: str, slot_id: str):
         return not_found("Slot not found")
 
     data, error = SlotUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     update_data = data.to_update_data()
@@ -464,7 +464,7 @@ def assign_slot_node(fixture_id: str, slot_id: str):
         return not_found("Slot not found")
 
     data, error = SlotAssignRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     if data.nodeId is None:
@@ -528,7 +528,7 @@ def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
         logger.warning("K8s client not available — skipping MTIB deploy for %s", node.hostname)
         return None
 
-    config = {"env": {}}
+    config: dict = {"env": {}}
     deploy_name = create_mtib_deployment(
         node_hostname=node.hostname,
         fixture_id=fixture.id,

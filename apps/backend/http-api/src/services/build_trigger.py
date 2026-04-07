@@ -263,7 +263,7 @@ def trigger_stage_build(
     # Create BuildJobs — with build cache check
     from src.api.v2.builds.build_cache import compute_build_fingerprint, find_cached_build
 
-    jobs_created = []
+    jobs_created: list = []
     cached_count = 0
 
     for i, build_def in enumerate(build_defs):

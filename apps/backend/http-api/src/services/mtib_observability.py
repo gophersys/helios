@@ -2,6 +2,7 @@ import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Callable
 
 import grpc
 
@@ -272,7 +273,7 @@ class MtibObservabilityService:
             "totalPowerMw": round(total_power_mw, 2),
         }
 
-    def register_subscriber(self, sid: str, node_id: str, features: list[str], emit_fn: callable):
+    def register_subscriber(self, sid: str, node_id: str, features: list[str], emit_fn: "Callable[..., Any]"):
         """Register a WebSocket client to receive observability updates for a node.
 
         Args:

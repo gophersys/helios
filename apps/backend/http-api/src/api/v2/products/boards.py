@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Dict
 
 from flask import jsonify, request
 
@@ -58,7 +58,7 @@ def create_board(product_id: str):
         return not_found("Product not found")
 
     data, error = BoardCreateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     existing = db.board.find_first(
@@ -72,7 +72,7 @@ def create_board(product_id: str):
     if existing_ck:
         return conflict(f"Board with ckBoardsFamily '{data.ckBoardsFamily}' already exists")
 
-    create_data = {
+    create_data: Dict[str, Any] = {
         "productId": product_id,
         "name": data.name,
         "ckBoardsFamily": data.ckBoardsFamily,
@@ -169,7 +169,7 @@ def update_board(product_id: str, board_id: str):
         return not_found("Board not found")
 
     data, error = BoardUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     if data.name and data.name != existing.name:

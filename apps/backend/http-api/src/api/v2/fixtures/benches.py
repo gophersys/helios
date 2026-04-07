@@ -197,7 +197,7 @@ def get_bench(bench_id: str):
 def create_bench():
     """POST /v2/fixtures/benches - Create a new fixture (bench compat)."""
     data, error = BenchCreateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
@@ -276,7 +276,7 @@ def create_bench():
 def update_bench(bench_id: str):
     """PATCH /v2/fixtures/benches/<id> - Update a fixture (bench compat)."""
     data, error = BenchUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
@@ -390,7 +390,7 @@ def delete_bench(bench_id: str):
 def lock_bench(bench_id: str):
     """POST /v2/fixtures/benches/<id>/lock - Lock a fixture for exclusive use."""
     data, error = BenchLockRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()

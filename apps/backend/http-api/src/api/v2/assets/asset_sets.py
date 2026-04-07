@@ -141,7 +141,7 @@ def create_asset_set(product_id: str):
         return not_found("Product not found")
 
     req, err = AssetSetCreateRequest.from_json(request.get_json())
-    if err:
+    if err or req is None:
         return bad_request(err)
 
     create_data = {
@@ -176,7 +176,7 @@ def create_external_asset_set(product_id: str):
         return not_found("Product not found")
 
     req, err = ExternalAssetSetCreateRequest.from_json(request.get_json())
-    if err:
+    if err or req is None:
         return bad_request(err)
 
     create_data = {

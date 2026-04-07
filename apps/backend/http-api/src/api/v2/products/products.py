@@ -213,7 +213,7 @@ def list_products():
 def create_product():
     """Create a new product with optional inline board and revision creation."""
     data, error = ProductCreateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
@@ -327,7 +327,7 @@ def get_product(product_id: str):
 def update_product(product_id: str):
     """Update a product's properties."""
     data, error = ProductUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()

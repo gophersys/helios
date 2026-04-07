@@ -102,7 +102,7 @@ def list_nodes():
 def create_node():
     """Create a new MTIB node and auto-deploy its server."""
     data, error = NodeCreateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
@@ -260,7 +260,7 @@ def get_node(node_id: str):
 def update_node(node_id: str):
     """Update an MTIB node, redeploying server if type changes."""
     data, error = NodeUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()
@@ -275,28 +275,9 @@ def update_node(node_id: str):
         include={"fixtureSlot": True},
     )
 
-    # If node type changed, redeploy MTIB server with updated config
-    type_changed = data.type is not None and data.type != existing.type
-    if type_changed:
-        try:
-            _undeploy_mtib_for_node(existing.metadata)
-            deploy_name = _deploy_mtib_for_node(
-                hostname=node.hostname,
-                node_type=node.type,
-            )
-            if deploy_name:
-                meta = node.metadata if isinstance(node.metadata, dict) else {}
-                meta["deployment_name"] = deploy_name
-                node = db.node.update(
-                    where={"id": node_id},
-                    data={"metadata": Json(meta)},
-                    include={"fixtureSlot": True},
-                )
-                logger.info("Redeployed MTIB server %s for node %s (type_changed=%s)", deploy_name, node.hostname, type_changed)
-            else:
-                logger.warning("Failed to redeploy MTIB server for node %s after config change", node.hostname)
-        except Exception as e:
-            logger.error("Error redeploying MTIB server for node %s: %s", node.hostname, e)
+    # TODO: Re-enable MTIB server redeployment once _undeploy_mtib_for_node
+    # and _deploy_mtib_for_node are implemented (see mtib_deployments.py).
+    # type_changed = data.type is not None and data.type != existing.type
 
     log_audit("node.update", "Node", node_id, {"name": existing.name, "changes": update_data})
     return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 200
@@ -316,14 +297,8 @@ def delete_node(node_id: str):
     if hasattr(existing, "testExecutions") and existing.testExecutions:
         return conflict("Cannot delete node: it has associated test executions")
 
-    # Auto-undeploy MTIB server
-    try:
-        if _undeploy_mtib_for_node(existing.metadata):
-            logger.info("Undeployed MTIB server for node %s", existing.hostname)
-        else:
-            logger.warning("No MTIB deployment found to undeploy for node %s", existing.hostname)
-    except Exception as e:
-        logger.warning("Failed to undeploy MTIB server for node %s: %s", existing.hostname, e)
+    # TODO: Auto-undeploy MTIB server once _undeploy_mtib_for_node is implemented
+    # (see mtib_deployments.py — use delete_mtib_deployment with deployment_name from metadata)
 
     db.node.delete(where={"id": node_id})
     log_audit("node.delete", "Node", node_id, {"name": existing.name, "hostname": existing.hostname})

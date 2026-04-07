@@ -156,7 +156,7 @@ def process_queue(db=None) -> dict:
         return {"processed": False, "reason": "No fixture available", "entryId": entry.id}
 
     # Extract sessionId from result dict
-    session_id = result.get("sessionId") if isinstance(result, dict) else result
+    session_id: str = str(result.get("sessionId", "")) if isinstance(result, dict) else str(result)
 
     # Success — update queue entry with session
     now = datetime.now(timezone.utc)
@@ -172,18 +172,18 @@ def process_queue(db=None) -> dict:
     # Update pipeline status
     db.buildrun.update(
         where={"id": entry.buildRunId},
-        data={"status": "VALIDATING", "validationRunId": run_id},
+        data={"status": "VALIDATING", "validationRunId": session_id},
     )
 
     logger.info(
         "Queue entry %s started: pipeline=%s session=%s",
-        entry.id[:8], entry.buildRunId[:8], run_id[:8],
+        str(entry.id)[:8], str(entry.buildRunId)[:8], session_id[:8],
     )
 
     return {
         "processed": True,
         "entryId": entry.id,
-        "sessionId": run_id,
+        "sessionId": session_id,
         "buildRunId": entry.buildRunId,
     }
 

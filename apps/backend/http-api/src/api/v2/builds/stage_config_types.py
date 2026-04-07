@@ -5,7 +5,7 @@ Test config lives in the test repo. Build recipes are convention-driven.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 VALID_STAGES = {1, 2, 3, 4, 5}
 STAGE_NAMES = {
@@ -29,7 +29,7 @@ class StageConfigCreateRequest:
     enabled: bool = False
     boardRevisionId: Optional[str] = None
     watchBranch: Optional[str] = None
-    triggerTypes: list = None  # ["pr_push", "manual"]
+    triggerTypes: Optional[list] = None  # ["pr_push", "manual"]
     signingKeyId: Optional[str] = None
 
     @classmethod
@@ -137,7 +137,7 @@ class StageConfigUpdateRequest:
 
     def to_update_data(self) -> dict:
         """Build a dict of changed fields for the Prisma update call."""
-        update_data = {}
+        update_data: Dict[str, Any] = {}
         if self.enabled is not None:
             update_data["enabled"] = self.enabled
         if self._has_board_revision_id:

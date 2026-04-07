@@ -51,7 +51,7 @@ def _create_run_api_key(db, user_id: str, run_id: str) -> str:
 def trigger_run(run_id: str):
     """POST /v2/validation/runs/<run_id>/trigger — Create a K8s Job for this run."""
     data, error = RunTriggerRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()

@@ -4,6 +4,7 @@ import logging
 import os
 import signal
 import traceback
+from typing import Optional
 import eventlet
 
 eventlet.monkey_patch(socket=True, select=False, time=False, os=False, thread=False)
@@ -129,7 +130,7 @@ atexit.register(graceful_shutdown)
 #                                             Entry
 # -------------------------------------------------
 if __name__ == "__main__":
-    logger: Logger = None
+    logger: Optional[Logger] = None
 
     try:
         # Initialize the logger
@@ -141,7 +142,7 @@ if __name__ == "__main__":
             file_log_level=logging.DEBUG,  # Always log everything to file
             enable_log_color=True,
         )
-        logger: Logger = Logger(log_config)
+        logger = Logger(log_config)
 
         # Initialize the storage client
         init_storage_client()

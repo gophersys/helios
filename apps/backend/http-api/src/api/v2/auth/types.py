@@ -197,7 +197,7 @@ class UserUpdateRequest:
         Returns:
             Dict of fields to pass to db.user.update(data=...).
         """
-        update_data = {}
+        update_data: Dict[str, Any] = {}
         if self.name is not None:
             update_data["name"] = self.name
         if self._has_role:

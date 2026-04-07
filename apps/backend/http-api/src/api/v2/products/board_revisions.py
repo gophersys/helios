@@ -1,5 +1,6 @@
 import logging
 from io import BytesIO
+from typing import Any, Dict
 
 from flask import Response, jsonify, request
 
@@ -78,7 +79,7 @@ def create_board_revision(product_id: str, board_id: str):
         return not_found("Board not found")
 
     data, error = BoardRevisionCreateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     existing = db.boardrevision.find_first(
@@ -94,7 +95,7 @@ def create_board_revision(product_id: str, board_id: str):
     if existing_ck:
         return conflict(f"Board revision with ckBoardsName '{data.ckBoardsName}' already exists")
 
-    create_data = {
+    create_data: Dict[str, Any] = {
         "boardId": board_id,
         "version": data.version,
         "ckBoardsName": data.ckBoardsName,
@@ -137,7 +138,7 @@ def update_board_revision(product_id: str, board_id: str, revision_id: str):
         return not_found("Board revision not found")
 
     data, error = BoardRevisionUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     if data.version and data.version != revision.version:
@@ -233,7 +234,7 @@ def create_target(product_id: str, board_id: str, revision_id: str):
         return not_found("Board revision not found")
 
     data, error = TargetCreateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     # Check role uniqueness within this revision
@@ -283,7 +284,7 @@ def update_target(product_id: str, board_id: str, revision_id: str, target_id: s
         return not_found("Target not found on this revision")
 
     data, error = TargetUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     # Check uniqueness constraints for role and appId changes

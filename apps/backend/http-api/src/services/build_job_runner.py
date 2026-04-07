@@ -14,7 +14,7 @@ import secrets as secrets_module
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from config import env_config
 from src.services.database.prisma import get_db_client

@@ -16,8 +16,8 @@ FAILED=false
 #   --follow-imports=skip: only check files passed directly
 MYPY_FLAGS="--ignore-missing-imports --no-error-summary --no-implicit-optional --explicit-package-bases"
 
-# Hard gate: build-service and git-poller (0 errors — fully typed)
-for svc in build-service git-poller; do
+# Hard gate: all 3 backend services (0 errors each)
+for svc in http-api build-service git-poller; do
   src_dir="apps/backend/$svc/src"
   log_info "Type-checking $svc (hard gate)..."
   if ! MYPYPATH="$src_dir" python3 -m mypy "$src_dir" \
@@ -32,15 +32,6 @@ for svc in build-service git-poller; do
     log_ok "$svc passed"
   fi
 done
-
-# Advisory: http-api (347 existing errors — too many to fix in one pass)
-log_info "Type-checking http-api (advisory)..."
-MYPYPATH="apps/backend/http-api/src" python3 -m mypy apps/backend/http-api/src/ \
-    $MYPY_FLAGS \
-    --exclude 'tests/' \
-    --follow-imports=skip \
-    --namespace-packages \
-    2>&1 | tail -5 || log_warn "http-api has type errors (advisory — not blocking)"
 
 if $FAILED; then
   log_error "Python type check FAILED"

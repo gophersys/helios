@@ -177,7 +177,7 @@ def report_log_chunk(run_id: str):
     2. Broadcast to WebSocket subscribers immediately for live streaming
     """
     data, error = ReportLogChunkRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()

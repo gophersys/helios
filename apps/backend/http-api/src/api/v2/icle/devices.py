@@ -140,7 +140,7 @@ def update_device(device_id: str):
         }
     """
     req, error = DeviceUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or req is None:
         return bad_request(error)
 
     db = get_db_client()

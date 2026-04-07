@@ -68,7 +68,7 @@ def create_permission_set():
     Body: { "name": "...", "description?": "...", "permissions": ["products:view", ...] }
     """
     data, error = PermissionSetCreateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     # Validate permission strings
@@ -110,7 +110,7 @@ def update_permission_set(set_id: str):
     Body: { "name?": "...", "description?": "...", "permissions?": [...] }
     """
     data, error = PermissionSetUpdateRequest.from_json(request.get_json())
-    if error:
+    if error or data is None:
         return bad_request(error)
 
     db = get_db_client()

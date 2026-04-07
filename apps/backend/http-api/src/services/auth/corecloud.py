@@ -15,7 +15,7 @@ import base64
 import logging
 from typing import Optional, Tuple
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from config import env_config
 
