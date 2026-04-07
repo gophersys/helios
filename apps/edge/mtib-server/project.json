@@ -68,8 +68,8 @@
       "options": { "cwd": "{workspaceRoot}" },
       "configurations": {
         "development": { "command": "echo 'Skipping deploy for development'" },
-        "staging": { "command": "./deploy/production/ctl.sh staging deploy" },
-        "production": { "command": "./deploy/production/ctl.sh production deploy" }
+        "staging": { "command": "./deploy/ctl.sh staging deploy" },
+        "production": { "command": "./deploy/ctl.sh production deploy" }
       }
     },
     "serve": {
@@ -86,7 +86,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{projectRoot}",
-        "command": "PYTHONPATH=src:../../../libs/python:../../../libs/protocols:../../../libs python3 -m pytest tests/ -v --timeout=30"
+        "command": "python3 -m pytest"
       }
     },
     "setup": {

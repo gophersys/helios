@@ -174,46 +174,56 @@ def seed_validation(db, product, b0_rev):
 
     # No A0 stage configs — A0 is legacy, validation runs on B0 only
 
-    # ── Build recipe ──
-    # Load from the SDK recipes directory (source of truth for Alpha builds)
-    recipe_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "..",
-        "apps", "backend", "build-service", "sdk", "recipes", "alpha.sh"
-    )
-    recipe_content = ""
-    if os.path.isfile(recipe_path):
+    # ── Build recipes ──
+    # Recipes live alongside the seed data at:
+    #   recipes/{boardName}/{domain}/{stageName}/build.sh
+    # Seeded to both DB (RecipeVersion) and MinIO at:
+    #   firmware/recipes/{slug}/{boardName}/{domain}/{stageName}/build.sh
+    from seed.storage import get_seed_storage, seed_recipe_to_minio
+
+    recipes_dir = os.path.join(os.path.dirname(__file__), "recipes")
+    db.recipeversion.delete_many(where={"productId": product.id})
+    system_user = db.user.find_first(where={"email": "system@concord.local"})
+    minio_client, minio_bucket = get_seed_storage()
+    slug = product.slug or product.name.lower().replace(" ", "_")
+    version_counter = 0
+
+    stage_name_map = {1: "smoke", 2: "driver", 3: "integration", 4: "regression", 5: "fuota"}
+    for sd in VALIDATION_STAGES:
+        stage_name = stage_name_map.get(sd["stage"], f"stage-{sd['stage']}")
+        recipe_path = os.path.join(recipes_dir, b0_rev.ckBoardsName, "validation", stage_name, "build.sh")
+        if not os.path.isfile(recipe_path):
+            continue
+
         with open(recipe_path) as f:
-            recipe_content = f.read()
+            content = f.read()
 
-    if recipe_content:
-        # Clear existing recipe versions for this product
-        db.recipeversion.delete_many(where={"productId": product.id})
-
-        # Get system user for createdBy
-        system_user = db.user.find_first(where={"email": "system@concord.local"})
-
-        recipe_version = db.recipeversion.create(data={
+        version_counter += 1
+        rv = db.recipeversion.create(data={
             "productId": product.id,
-            "version": 1,
-            "content": recipe_content,
+            "version": version_counter,
+            "content": content,
             "status": "published",
-            "changeNote": "Initial recipe from alpha.sh SDK template",
+            "changeNote": f"Seed recipe for {sd['name']} ({b0_rev.version})",
             "createdById": system_user.id if system_user else None,
         })
 
-        # Link FUOTA stage config to this recipe
-        fuota_config = db.productstageconfig.find_first(
-            where={"productId": product.id, "stage": 5, "boardRevisionId": b0_rev.id}
+        # Link stage config to this recipe
+        cfg = db.productstageconfig.find_first(
+            where={"productId": product.id, "stage": sd["stage"], "boardRevisionId": b0_rev.id}
         )
-        if fuota_config:
-            db.productstageconfig.update(
-                where={"id": fuota_config.id},
-                data={"recipeVersionId": recipe_version.id},
-            )
+        if cfg:
+            db.productstageconfig.update(where={"id": cfg.id}, data={"recipeVersionId": rv.id})
 
-        print(f"  ✓ Recipe: v{recipe_version.version} ({len(recipe_content)} bytes, published)")
-    else:
-        print(f"  ⚠ Recipe: alpha.sh not found at {recipe_path}")
+        # Write to MinIO
+        minio_key = f"firmware/recipes/{slug}/{b0_rev.ckBoardsName}/validation/{stage_name}/build.sh"
+        if minio_client:
+            seed_recipe_to_minio(minio_client, minio_bucket, minio_key, content)
+
+        print(f"  ✓ Recipe: {minio_key} v{rv.version} ({len(content)} bytes)")
+
+    if version_counter == 0:
+        print(f"  ⚠ No recipes found in {recipes_dir}")
 
     enabled = sum(1 for s in VALIDATION_STAGES if s["enabled"])
     print(f"  ✓ {len(VALIDATION_STAGES)} stage configs ({enabled} enabled)")

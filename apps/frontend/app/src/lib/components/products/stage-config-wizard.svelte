@@ -202,6 +202,9 @@
     1: ['pr_push'], 2: ['auto'], 3: ['auto'], 4: ['schedule'], 5: ['pr_merge', 'manual'],
   };
 
+  // Selectable revisions (ACTIVE or DRAFT)
+  const selectableRevisions = $derived(revisions.filter((r) => r.status === 'ACTIVE' || r.status === 'DRAFT'));
+
   // Initialize when wizard opens
   $effect(() => {
     if (open) {
@@ -209,8 +212,12 @@
       error = null;
       recipeDirty = false;
 
-      // Lock to target revision if provided
-      formRevisionId = targetRevision?.id || config?.boardRevisionId || revisions.find((r) => r.status === 'ACTIVE')?.id || '';
+      // Lock to target revision if provided, or auto-select if only 1 option
+      formRevisionId = targetRevision?.id
+        || config?.boardRevisionId
+        || (selectableRevisions.length === 1 ? selectableRevisions[0].id : '')
+        || revisions.find((r) => r.status === 'ACTIVE')?.id
+        || '';
 
       if (config) {
         formBranch = config.watchBranch || 'main';
@@ -228,6 +235,40 @@
       loadLastTestBuild();
     }
   });
+
+  // Auto-select signing key when only 1 exists
+  $effect(() => {
+    if (signingKeys.length === 1 && !formSigningKeyId) {
+      formSigningKeyId = signingKeys[0].id;
+    }
+  });
+
+  // Keyboard shortcuts for wizard navigation
+  function handleKeydown(e: KeyboardEvent) {
+    if (!open) return;
+    // Ctrl+S saves recipe draft on step 3
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      if (currentStep === 3 && recipeDirty) saveRecipe();
+      return;
+    }
+    if (e.key !== 'Enter') return;
+    // Don't intercept Enter in inputs, textareas, or code editor
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if ((e.target as HTMLElement)?.closest('.cm-editor')) return;
+    // Step 3 (recipe editor) — don't intercept
+    if (currentStep === 3) return;
+    // Step 4 — Enter saves
+    if (currentStep === 4) {
+      e.preventDefault();
+      if (!saving) handleSave();
+      return;
+    }
+    // Steps 1-2 — Enter advances
+    e.preventDefault();
+    nextStep();
+  }
 
   async function loadLastTestBuild() {
     // Check if there's a recent test build for this product
@@ -332,8 +373,9 @@
     recipeSavedVersion = null;
     recipeLastSaved = null;
     try {
-      // Load published recipe from MinIO (source of truth for builds)
-      const res = await apiFetch<ApiResponse<{ content: string }>>(`/v2/products/${productId}/recipe?stage=${stage}`);
+      // Load published recipe (MinIO → legacy fallback → DB)
+      const revParam = formRevisionId ? `&boardRevisionId=${formRevisionId}` : '';
+      const res = await apiFetch<ApiResponse<{ content: string }>>(`/v2/products/${productId}/recipe?stage=${stage}${revParam}`);
       const data = res.data as any;
       recipe = data?.content ?? '';
       if (typeof recipe !== 'string') recipe = '';
@@ -630,7 +672,7 @@
     recipeSaving = true;
     error = null;
     try {
-      await api.put(`/v2/products/${productId}/recipe?stage=${stage}`, { content: recipe });
+      await api.put(`/v2/products/${productId}/recipe?stage=${stage}`, { content: recipe, boardRevisionId: formRevisionId || undefined });
       recipeLastSaved = new Date().toLocaleTimeString();
       recipeDirty = false;
     } catch (err: unknown) {
@@ -654,6 +696,7 @@
       const res = await api.post(`/v2/products/${productId}/recipe/save`, {
         content: recipe,
         stage,
+        boardRevisionId: formRevisionId || undefined,
         changeNote: `Published for Stage ${stage} ${stageName}`,
       });
       const data = (res as any).data ?? res;
@@ -666,12 +709,7 @@
     }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      e.preventDefault();
-      if (currentStep === 3 && recipeDirty) saveRecipe();
-    }
-  }
+  // Old Ctrl+S handler merged into the main handleKeydown above
 
   async function validateRecipe(): Promise<void> {
     recipeValidating = true;
@@ -858,9 +896,11 @@
               </div>
             {:else}
               <!-- Selectable -->
-              <p class="text-2xs text-text-tertiary mb-3">Which board revision to build firmware for and test against.</p>
+              <p class="text-2xs text-text-tertiary mb-3">
+                {selectableRevisions.length === 1 ? 'Auto-selected — only one active revision.' : 'Which board revision to build firmware for and test against.'}
+              </p>
               <div class="grid gap-2 sm:grid-cols-2">
-                {#each revisions.filter(r => r.status === 'ACTIVE' || r.status === 'DRAFT') as rev}
+                {#each selectableRevisions as rev}
                   <button
                     onclick={() => (formRevisionId = rev.id)}
                     class="flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-all
@@ -928,10 +968,8 @@
                 <div>
                   <button
                     onclick={() => toggleTrigger(opt.value)}
-                    class="flex w-full items-center gap-4 rounded-lg border-2 px-4 py-3 text-left transition-all
-                      {active ? 'border-accent bg-accent-muted rounded-b-none' : 'border-border bg-surface-0 hover:border-text-tertiary'}
-                      {active && opt.value === 'schedule' ? 'border-b-0' : ''}
-                      {active && opt.value === 'pr_push' ? 'border-b-0' : ''}"
+                    class="flex w-full items-center gap-4 border-2 px-4 py-3 text-left transition-all
+                      {active ? 'border-accent bg-accent-muted rounded-t-lg rounded-b-none border-b-0' : 'rounded-lg border-border bg-surface-0 hover:border-text-tertiary'}"
                   >
                     <div class="flex items-center justify-center w-9 h-9 rounded-lg {active ? 'bg-accent/15' : 'bg-surface-2'}">
                       <TIcon size={18} class={active ? 'text-accent' : 'text-text-tertiary'} />
@@ -945,31 +983,41 @@
                     {/if}
                   </button>
 
-                  <!-- Inline settings per trigger -->
-                  {#if active && opt.value === 'schedule'}
-                    <div class="border-2 border-t-0 border-accent bg-accent-muted rounded-b-lg px-4 py-3 ml-0">
-                      <label class="block">
-                        <span class="mb-1 block text-2xs font-medium text-text-primary">Cron Expression</span>
-                        <input
-                          type="text"
-                          bind:value={formCronExpression}
-                          placeholder="0 2 * * *"
-                          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-                        />
-                        <span class="mt-1 block text-2xs text-text-tertiary">
-                          Examples: <code class="bg-surface-2 px-1 rounded">0 2 * * *</code> daily 2am ·
-                          <code class="bg-surface-2 px-1 rounded">0 */6 * * *</code> every 6h ·
-                          <code class="bg-surface-2 px-1 rounded">0 0 * * 1</code> weekly Monday
-                        </span>
-                      </label>
-                    </div>
-                  {/if}
-
-                  {#if active && opt.value === 'pr_push'}
+                  <!-- Expanded panel when active -->
+                  {#if active}
                     <div class="border-2 border-t-0 border-accent bg-accent-muted rounded-b-lg px-4 py-3">
-                      <span class="text-2xs text-text-secondary">
-                        Builds will trigger when PRs target the <strong class="font-mono text-text-primary">{formBranch || 'selected'}</strong> branch above.
-                      </span>
+                      {#if opt.value === 'schedule'}
+                        <label class="block">
+                          <span class="mb-1 block text-2xs font-medium text-text-primary">Cron Expression</span>
+                          <input
+                            type="text"
+                            bind:value={formCronExpression}
+                            placeholder="0 2 * * *"
+                            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                          />
+                          <span class="mt-1 block text-2xs text-text-tertiary">
+                            Examples: <code class="bg-surface-2 px-1 rounded">0 2 * * *</code> daily 2am ·
+                            <code class="bg-surface-2 px-1 rounded">0 */6 * * *</code> every 6h ·
+                            <code class="bg-surface-2 px-1 rounded">0 0 * * 1</code> weekly Monday
+                          </span>
+                        </label>
+                      {:else if opt.value === 'pr_push'}
+                        <span class="text-2xs text-text-secondary">
+                          Builds trigger on every commit pushed to PRs targeting <strong class="font-mono text-text-primary">{formBranch || 'selected'}</strong>.
+                        </span>
+                      {:else if opt.value === 'pr_merge'}
+                        <span class="text-2xs text-text-secondary">
+                          Builds trigger when a PR is merged into <strong class="font-mono text-text-primary">{formBranch || 'selected'}</strong>.
+                        </span>
+                      {:else if opt.value === 'auto'}
+                        <span class="text-2xs text-text-secondary">
+                          This stage runs automatically after stage {stage - 1 > 0 ? stage - 1 : 1} completes successfully.
+                        </span>
+                      {:else if opt.value === 'manual'}
+                        <span class="text-2xs text-text-secondary">
+                          This stage only runs when explicitly triggered by a user from the Concord UI or API.
+                        </span>
+                      {/if}
                     </div>
                   {/if}
                 </div>

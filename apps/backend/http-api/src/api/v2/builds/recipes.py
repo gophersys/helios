@@ -5,7 +5,15 @@ downloads and executes inside the product's devcontainer-specified builder
 image. The recipe uses the Concord Build SDK for universal operations
 (version handling, CFW generation, artifact naming).
 
-Recipes are stored in MinIO at: firmware/recipes/{product_slug}/build.sh
+Recipe storage hierarchy:
+    firmware/recipes/{slug}/{boardName}/{domain}/{stageName}/build.sh
+
+    Example: firmware/recipes/alpha/alpha_b0/validation/fuota/build.sh
+
+    - slug: product slug (e.g. "alpha")
+    - boardName: ck_boards name (e.g. "alpha_b0")
+    - domain: "validation" or "manufacturing"
+    - stageName: lowercase stage name (e.g. "fuota", "smoke", "electrical")
 
 Versioning: Each save creates a new RecipeVersion (draft). Publishing copies
 the draft content to MinIO. The version history provides full audit trail
@@ -33,11 +41,58 @@ logger = logging.getLogger(__name__)
 
 RECIPE_PREFIX = "firmware/recipes"
 
+# Stage number → name mapping (lowercase, used for paths)
+_STAGE_NAMES = {1: "smoke", 2: "driver", 3: "integration", 4: "regression", 5: "fuota"}
+_MFG_STAGE_NAMES = {101: "electrical", 102: "flash", 103: "post"}
 
-def _recipe_key(product_slug: str, stage: int | None = None) -> str:
-    if stage:
-        return f"{RECIPE_PREFIX}/{product_slug}/stage-{stage}/build.sh"
-    return f"{RECIPE_PREFIX}/{product_slug}/build.sh"
+
+def _stage_domain(stage_num: int) -> str:
+    """Return 'validation' or 'manufacturing' based on stage number."""
+    return "manufacturing" if stage_num > 100 else "validation"
+
+
+def _stage_slug(stage_num: int) -> str:
+    """Return lowercase stage name for path construction."""
+    return _STAGE_NAMES.get(stage_num) or _MFG_STAGE_NAMES.get(stage_num) or f"stage-{stage_num}"
+
+
+def _recipe_key(product_slug: str, board_name: str, domain: str, stage_name: str) -> str:
+    """Build MinIO storage key for a recipe.
+
+    Path: firmware/recipes/{slug}/{boardName}/{domain}/{stageName}/build.sh
+    Example: firmware/recipes/alpha/alpha_b0/validation/fuota/build.sh
+    """
+    return f"{RECIPE_PREFIX}/{product_slug}/{board_name}/{domain}/{stage_name}/build.sh"
+
+
+def _resolve_recipe_key(db, product_id: str, product_slug: str,
+                        stage_num: int,
+                        board_revision_id: str | None = None) -> str:
+    """Resolve a stage number + optional revision into a full recipe key.
+
+    Looks up the stage config to find the board revision name, then builds
+    the hierarchical path. Raises if the board revision can't be resolved.
+    """
+    domain = _stage_domain(stage_num)
+    stage_name = _stage_slug(stage_num)
+
+    board_name = None
+    if board_revision_id:
+        rev = db.boardrevision.find_unique(where={"id": board_revision_id})
+        if rev:
+            board_name = rev.ckBoardsName
+    if not board_name:
+        config = db.productstageconfig.find_first(
+            where={"productId": product_id, "stage": stage_num},
+            include={"boardRevision": True},
+        )
+        if config and config.boardRevision:
+            board_name = config.boardRevision.ckBoardsName
+
+    if not board_name:
+        raise ValueError(f"Cannot resolve board revision for product {product_slug} stage {stage_num}")
+
+    return _recipe_key(product_slug, board_name, domain, stage_name)
 
 
 @require_permissions(Permissions.BUILDS_VIEW)
@@ -49,11 +104,16 @@ def get_recipe(product_id: str):
         return not_found("Product not found")
 
     stage = request.args.get("stage", type=int)
+    board_revision_id = request.args.get("boardRevisionId")
     slug = product.slug or product.name.lower().replace(" ", "_")
-    key = _recipe_key(slug, stage)
 
-    # Fallback: if no stage-specific recipe, try the legacy product-level one
-    fallback_key = _recipe_key(slug) if stage else None
+    if not stage:
+        return bad_request("stage query parameter is required")
+
+    try:
+        key = _resolve_recipe_key(db, product_id, slug, stage, board_revision_id)
+    except ValueError as ve:
+        return bad_request(str(ve))
 
     try:
         client = get_storage_client()
@@ -72,22 +132,6 @@ def get_recipe(product_id: str):
     except Exception as e:
         error_str = str(e)
         if "NoSuchKey" in error_str or "not found" in error_str.lower():
-            # Try fallback to legacy product-level recipe
-            if fallback_key:
-                try:
-                    response = client.get_object(bucket, fallback_key)
-                    content = response.read().decode("utf-8")
-                    response.close()
-                    return jsonify(ApiResponse.ok({
-                        "product": product.name,
-                        "slug": slug,
-                        "stage": stage,
-                        "storageKey": fallback_key,
-                        "content": content,
-                        "fallback": True,
-                    }).to_dict()), 200
-                except Exception:
-                    pass
             return jsonify(ApiResponse.ok({
                 "product": product.name,
                 "slug": slug,
@@ -116,8 +160,15 @@ def update_recipe(product_id: str):
         return bad_request("Recipe content too short")
 
     stage = data.get("stage") or request.args.get("stage", type=int)
+    if not stage:
+        return bad_request("stage is required")
+    board_revision_id = data.get("boardRevisionId")
     slug = product.slug or product.name.lower().replace(" ", "_")
-    key = _recipe_key(slug, stage)
+
+    try:
+        key = _resolve_recipe_key(db, product_id, slug, stage, board_revision_id)
+    except ValueError as ve:
+        return bad_request(str(ve))
 
     try:
         client = get_storage_client()
@@ -354,16 +405,18 @@ def save_recipe_version(product_id: str):
 
     # Auto-publish to MinIO so build service always uses the latest version
     stage = data.get("stage") or request.args.get("stage", type=int)
+    board_revision_id = data.get("boardRevisionId")
     slug = product.slug or product.name.lower().replace(" ", "_")
-    key = _recipe_key(slug, stage)
-    try:
-        storage = get_storage_client()
-        bucket = get_bucket_name()
-        content_bytes = content.encode("utf-8")
-        storage.put_object(bucket, key, io.BytesIO(content_bytes), len(content_bytes),
-                          content_type="text/x-shellscript")
-    except Exception:
-        logger.exception("Failed to publish recipe v%d to MinIO", next_version)
+    if stage:
+        try:
+            key = _resolve_recipe_key(db, product_id, slug, stage, board_revision_id)
+            storage = get_storage_client()
+            bucket = get_bucket_name()
+            content_bytes = content.encode("utf-8")
+            storage.put_object(bucket, key, io.BytesIO(content_bytes), len(content_bytes),
+                              content_type="text/x-shellscript")
+        except Exception:
+            logger.exception("Failed to publish recipe v%d to MinIO", next_version)
 
     log_audit("recipe.version.save", "Product", product_id, {
         "product": product.name,
@@ -381,7 +434,7 @@ def publish_recipe(product_id: str):
     """POST /v2/products/<id>/recipe/publish — Publish a draft version to MinIO.
 
     Finds the latest draft (or a specific version if body has {"version": N}),
-    copies its content to MinIO at firmware/recipes/{slug}/build.sh,
+    copies its content to MinIO at the hierarchical recipe path,
     and sets its status to "published".
     """
     db = get_db_client()
@@ -411,7 +464,15 @@ def publish_recipe(product_id: str):
             return not_found("No draft version found to publish")
 
     # Upload content to MinIO
-    key = _recipe_key(slug)
+    data = request.get_json() or {}
+    stage = data.get("stage") or request.args.get("stage", type=int)
+    board_revision_id = data.get("boardRevisionId")
+    if not stage:
+        return bad_request("stage is required to publish a recipe")
+    try:
+        key = _resolve_recipe_key(db, product_id, slug, stage, board_revision_id)
+    except ValueError as ve:
+        return bad_request(str(ve))
     try:
         client = get_storage_client()
         bucket = get_bucket_name()
@@ -636,13 +697,17 @@ def test_recipe_build(product_id: str):
     # Write recipe to MinIO so the build service can fetch it
     # Does NOT create a version — test builds use the editor content directly
     test_stage = data.get("stage")
+    if not test_stage:
+        return bad_request("stage is required for test builds")
     try:
         storage = get_storage_client()
         bucket = get_bucket_name()
         slug = product.slug or product.name.lower().replace(" ", "-")
-        key = _recipe_key(slug, test_stage)
+        key = _resolve_recipe_key(db, product_id, slug, test_stage, board_revision_id)
         content_bytes = content.encode("utf-8")
         storage.put_object(bucket, key, io.BytesIO(content_bytes), len(content_bytes), content_type="text/x-shellscript")
+    except ValueError as ve:
+        return bad_request(str(ve))
     except Exception:
         logger.exception("Failed to write recipe to MinIO for test build")
 

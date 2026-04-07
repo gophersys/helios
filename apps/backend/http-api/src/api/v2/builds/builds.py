@@ -85,6 +85,8 @@ def _serialize_build_job(b: Any) -> dict:
         "recipeVersionId": getattr(b, "recipeVersionId", None),
         "triggerTypes": getattr(b, "triggerType", "worker"),
         "notes": getattr(b, "notes", None),
+        # Stage from parent BuildRun (if available)
+        "stage": b.buildRun.stage if hasattr(b, "buildRun") and b.buildRun and hasattr(b.buildRun, "stage") else None,
     }
     if hasattr(b, "artifacts") and b.artifacts is not None:
         data["artifacts"] = [_serialize_build_artifact(a) for a in b.artifacts]
@@ -155,7 +157,7 @@ def list_builds():
         skip=skip,
         take=limit,
         order={"createdAt": "desc"},
-        include={"artifacts": True, "product": True},
+        include={"artifacts": True, "product": True, "buildRun": True},
     )
 
     pages = math.ceil(total / limit) if limit > 0 else 0
@@ -178,7 +180,7 @@ def get_build(build_id: str):
 
     build = db.buildjob.find_unique(
         where={"id": build_id},
-        include={"artifacts": True, "product": True},
+        include={"artifacts": True, "product": True, "buildRun": True},
     )
 
     if not build:
@@ -314,7 +316,7 @@ def create_build():
                         "configFlags": Json(config_flags),
                         "notes": data.notes,
                     },
-                    include={"artifacts": True, "product": True},
+                    include={"artifacts": True, "product": True, "buildRun": True},
                 )
                 log_audit("ci.build.cached", "BuildJob", build.id, {"reusedFromId": cached.id})
                 return jsonify(ApiResponse.created(_serialize_build_job(build)).to_dict()), 201
@@ -351,7 +353,7 @@ def create_build():
 
         build = db.buildjob.create(
             data=create_data,
-            include={"artifacts": True, "product": True},
+            include={"artifacts": True, "product": True, "buildRun": True},
         )
 
         log_audit("ci.build.create", "BuildJob", build.id, {
@@ -450,7 +452,7 @@ def update_build(build_id: str):
         updated = db.buildjob.update(
             where={"id": build_id},
             data=update_data,
-            include={"artifacts": True, "product": True},
+            include={"artifacts": True, "product": True, "buildRun": True},
         )
 
         # Update pipeline status based on build status changes
@@ -539,7 +541,7 @@ def reset_build(build_id: str):
                 "errorMessage": None,
                 "durationSeconds": None,
             },
-            include={"artifacts": True, "product": True},
+            include={"artifacts": True, "product": True, "buildRun": True},
         )
 
         log_audit("ci.build.reset", "BuildJob", build_id, {

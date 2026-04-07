@@ -35,7 +35,7 @@ def pytest_configure(config):
         "AUTH_SERVER_API_KEY": "",
     }
     for key, value in env_vars.items():
-        os.environ.setdefault(key, value)
+        os.environ[key] = value
 
 
 # ---------------------------------------------------------------------------

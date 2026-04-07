@@ -110,10 +110,15 @@ def create_stage_config(product_id: str):
     if err:
         return bad_request(err)
     existing = db.productstageconfig.find_first(
-        where={"productId": product_id, "stage": req.stage}
+        where={"productId": product_id, "stage": req.stage, "boardRevisionId": req.boardRevisionId}
     )
     if existing:
-        return conflict(f"Stage {req.stage} already exists for this product")
+        return conflict(f"Stage {req.stage} already exists for this product and revision")
+    # Block creating enabled stages for deprecated/EOL revisions
+    if req.enabled and req.boardRevisionId:
+        rev = db.boardrevision.find_unique(where={"id": req.boardRevisionId})
+        if rev and rev.status in ("DEPRECATED", "EOL"):
+            return bad_request(f"Cannot enable stage for {rev.status} revision {rev.version}")
     config = db.productstageconfig.create(
         data={
             "productId": product_id,
@@ -152,6 +157,13 @@ def update_stage_config(product_id: str, stage: str):
     update_data = req.to_update_data()
     if not update_data:
         return bad_request("No fields to update")
+    # Block enabling stages for deprecated/EOL revisions
+    enabling = update_data.get("enabled", False)
+    rev_id = update_data.get("boardRevisionId", config.boardRevisionId)
+    if enabling and rev_id:
+        rev = db.boardrevision.find_unique(where={"id": rev_id})
+        if rev and rev.status in ("DEPRECATED", "EOL"):
+            return bad_request(f"Cannot enable stage for {rev.status} revision {rev.version}")
     updated = db.productstageconfig.update(
         where={"id": config.id},
         data=update_data,

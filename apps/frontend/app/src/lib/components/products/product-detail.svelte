@@ -166,11 +166,11 @@
     <!-- ═══ TAB CONTENT ═══ -->
     <div class="mt-5">
       {#if activeTab === 'overview'}
-        <ProductOverviewTab {product} {canManage} />
+        <ProductOverviewTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'hardware'}
         <ProductHardwareTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'stages'}
-        <ProductStagesTab {product} {canManage} />
+        <ProductStagesTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'assets'}
         <ProductAssetsTab productId={product.id} {canManage} />
       {:else if activeTab === 'manufacturing'}

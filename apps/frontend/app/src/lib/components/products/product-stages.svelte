@@ -19,9 +19,10 @@
     productName?: string;
     revisions?: BoardRevision[];
     fwRepoSlug?: string;
+    onRefresh?: () => void;
   }
 
-  let { productId, productName = '', revisions = [], fwRepoSlug = '' }: Props = $props();
+  let { productId, productName = '', revisions = [], fwRepoSlug = '', onRefresh }: Props = $props();
 
   let configs = $state<ProductStageConfig[]>([]);
   let secrets = $state<Secret[]>([]);
@@ -46,6 +47,7 @@
     error = null;
     try {
       configs = await listStageConfigs(productId);
+      onRefresh?.();
     } catch (e: unknown) {
       error = e instanceof Error ? e.message : 'Failed to load stage configs';
     } finally {

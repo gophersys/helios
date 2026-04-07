@@ -5,9 +5,10 @@
   interface Props {
     product: Product;
     canManage: boolean;
+    onRefresh: () => void;
   }
 
-  let { product, canManage }: Props = $props();
+  let { product, canManage, onRefresh }: Props = $props();
 
   const revisions = $derived(
     (product.boards || []).flatMap((b) => b.revisions || [])
@@ -19,4 +20,5 @@
   productName={product.name}
   {revisions}
   fwRepoSlug={product.fwRepoSlug ?? ''}
+  {onRefresh}
 />

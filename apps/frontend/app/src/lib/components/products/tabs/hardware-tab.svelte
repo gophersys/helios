@@ -84,14 +84,22 @@
   // ── Status transitions ─────────────────────────────────
   let changingStatusId = $state<string | null>(null);
 
+  let cascadeMessage = $state<string | null>(null);
+
   async function changeStatus(rev: { id: string; boardId: string }, newStatus: string): Promise<void> {
     changingStatusId = rev.id;
     error = null;
+    cascadeMessage = null;
     try {
-      await api.put(
+      const res = await api.put(
         `/v2/products/${product.id}/boards/${rev.boardId}/revisions/${rev.id}`,
         { status: newStatus }
       );
+      const data = (res as any)?.data ?? res;
+      if (data?.disabledStages?.length) {
+        const names = data.disabledStages.map((s: any) => s.name).join(', ');
+        cascadeMessage = `Disabled ${data.disabledStages.length} linked stage(s): ${names}`;
+      }
       onRefresh();
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to change status';
@@ -153,6 +161,13 @@
 </script>
 
 <ErrorAlert message={error} />
+
+{#if cascadeMessage}
+  <div class="mb-4 rounded-lg border border-warning/30 bg-warning-muted px-4 py-3">
+    <p class="text-sm font-medium text-warning">{cascadeMessage}</p>
+    <p class="text-2xs text-text-tertiary mt-0.5">Re-enable stages from the Validation tab after reactivating this revision.</p>
+  </div>
+{/if}
 
 <div class="flex items-center justify-between mb-4">
   <h3 class="text-sm font-semibold text-text-primary">Board Revisions</h3>
@@ -297,8 +312,15 @@
                     Activate
                   </button>
                 {:else if rev.status === 'ACTIVE'}
-                  <button onclick={() => changeStatus(rev, 'DEPRECATED')} disabled={changingStatusId === rev.id}
-                    class="rounded-md bg-warning-muted px-2.5 py-1 text-2xs font-medium text-warning hover:bg-warning/20 disabled:opacity-50">
+                  {@const activeStages = stagesUsingRevision(rev.id)}
+                  <button onclick={() => {
+                    if (activeStages.length > 0) {
+                      if (!confirm(`This will disable ${activeStages.length} active stage(s): ${activeStages.join(', ')}.\n\nDeprecate ${rev.version}?`)) return;
+                    }
+                    changeStatus(rev, 'DEPRECATED');
+                  }} disabled={changingStatusId === rev.id}
+                    class="flex items-center gap-1 rounded-md bg-warning-muted px-2.5 py-1 text-2xs font-medium text-warning hover:bg-warning/20 disabled:opacity-50">
+                    {#if activeStages.length > 0}<AlertTriangle size={10} />{/if}
                     Deprecate
                   </button>
                 {:else if rev.status === 'DEPRECATED'}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import {
-    CircuitBoard, FlaskConical, Factory, Hammer, Cpu,
+    CircuitBoard, FlaskConical, Factory, Hammer,
     GitBranch, ExternalLink, Layers,
   } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
@@ -13,21 +13,43 @@
   interface Props {
     product: Product;
     canManage: boolean;
+    onRefresh: () => void;
   }
 
-  let { product }: Props = $props();
+  let { product, onRefresh }: Props = $props();
+
+  // Refresh product data every time this tab mounts (user may have changed stages)
+  onMount(() => { onRefresh(); });
 
   const revisions = $derived(
     (product.boards || []).flatMap((b) => b.revisions || [])
   );
   const activeRevisions = $derived(revisions.filter((r) => r.status === 'ACTIVE'));
   const stageConfigs = $derived((product as any).stageConfigs || []);
-  const enabledStages = $derived(stageConfigs.filter((s: any) => s.enabled));
+  const valStages = $derived(stageConfigs.filter((s: any) => s.stage <= 100));
 
-  // Map revision IDs to version names for stage display
-  const revisionMap = $derived(
-    Object.fromEntries(revisions.map((r) => [r.id, r.version]))
+  // Unique stage numbers (rows)
+  const stageNumbers = $derived(
+    ([...new Set(valStages.map((s: any) => s.stage))] as number[]).sort((a, b) => a - b)
   );
+
+  // All revisions are columns — active revisions without stages show dashes
+  const matrixRevisions = $derived(revisions);
+
+  // Lookup: (stageNumber, revisionId) → config
+  const stageMatrix = $derived(() => {
+    const map = new Map<string, any>();
+    for (const cfg of valStages) {
+      if (cfg.boardRevisionId) {
+        map.set(`${cfg.stage}:${cfg.boardRevisionId}`, cfg);
+      }
+    }
+    return map;
+  });
+
+  function getStageCell(stage: number, revId: string): any | null {
+    return stageMatrix().get(`${stage}:${revId}`) ?? null;
+  }
 
   let recentBuilds = $state<any[]>([]);
   let recentRuns = $state<any[]>([]);
@@ -70,7 +92,7 @@
 </script>
 
 <!-- Stat cards -->
-<div class="grid grid-cols-2 gap-3 sm:grid-cols-5 mb-6">
+<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
   <div class="rounded-lg border border-border bg-surface-0 p-3">
     <div class="flex items-center gap-2 text-text-tertiary mb-1">
       <CircuitBoard size={14} />
@@ -106,15 +128,6 @@
     <div class="text-xl font-semibold text-text-primary">{loading ? '—' : totalMfgSessions}</div>
     <div class="text-2xs text-text-tertiary">{totalMfgSessions === 0 ? 'no sessions yet' : 'total sessions'}</div>
   </div>
-
-  <div class="rounded-lg border border-border bg-surface-0 p-3">
-    <div class="flex items-center gap-2 text-text-tertiary mb-1">
-      <Cpu size={14} />
-      <span class="text-2xs font-medium uppercase tracking-wider">Targets</span>
-    </div>
-    <div class="text-xl font-semibold text-text-primary">{product.targets?.length ?? 0}</div>
-    <div class="text-2xs text-text-tertiary">{(product.targets?.length ?? 0) === 0 ? 'no targets' : 'SoC targets'}</div>
-  </div>
 </div>
 
 <!-- Repos -->
@@ -145,50 +158,64 @@
 {/if}
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-  <!-- Left: Validation stages -->
+  <!-- Left: Validation stage matrix -->
   <div>
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-semibold text-text-primary">Validation Stages</h3>
-      {#if stageConfigs.length > 0}
-        <span class="text-2xs text-text-tertiary">{enabledStages.length} of {stageConfigs.length} enabled</span>
+      {#if valStages.length > 0}
+        {@const enabledCount = valStages.filter((s: any) => s.enabled).length}
+        <span class="text-2xs text-text-tertiary">{enabledCount} of {valStages.length} enabled</span>
       {/if}
     </div>
-    {#if stageConfigs.length === 0}
+    {#if valStages.length === 0}
       <div class="rounded-lg border border-dashed border-border bg-surface-0 p-6 text-center">
         <FlaskConical size={24} class="mx-auto mb-2 text-text-tertiary opacity-30" />
         <p class="text-sm text-text-secondary">No validation stages configured</p>
         <p class="text-2xs text-text-tertiary mt-1">Go to the Validation tab to set up test stages for this product.</p>
       </div>
     {:else}
-      <div class="rounded-lg border border-border overflow-hidden">
-        {#each stageConfigs as cfg}
-          <div class="flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle last:border-b-0">
-            <div class="w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold {cfg.enabled ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
-              {cfg.stage}
-            </div>
-            <span class="text-sm font-medium text-text-primary">{STAGE_NAMES[cfg.stage] || cfg.name}</span>
-            {#if cfg.boardRevision}
-              <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-accent-muted text-accent">{cfg.boardRevision.version}</span>
-            {:else if cfg.boardRevisionId && revisionMap[cfg.boardRevisionId]}
-              <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-accent-muted text-accent">{revisionMap[cfg.boardRevisionId]}</span>
-            {/if}
-            {#if cfg.buildMatrix?.length}
-              <span class="flex items-center gap-1 text-2xs text-text-tertiary" title="{cfg.buildMatrix.length} build matrix entries">
-                <Layers size={10} />
-                {cfg.buildMatrix.length}
-              </span>
-            {/if}
-            <div class="flex-1"></div>
-            <StatusBadge status={cfg.enabled ? 'ACTIVE' : 'DISABLED'} />
-            {#if cfg.triggerTypes?.length > 0}
-              <div class="flex gap-1">
-                {#each cfg.triggerTypes as trigger}
-                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-2 text-text-tertiary">{trigger}</span>
+      <!-- Stage × revision matrix table with sticky stage column -->
+      <div class="rounded-lg border border-border overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="bg-surface-2">
+              <th class="sticky left-0 z-10 bg-surface-2 text-left px-4 py-2 text-2xs font-semibold uppercase tracking-wider text-text-tertiary border-r border-border-subtle min-w-[140px]">Stage</th>
+              {#each matrixRevisions as rev}
+                <th class="text-center px-4 py-2 min-w-[120px]">
+                  <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded {rev.status === 'ACTIVE' ? 'bg-accent-muted text-accent' : 'bg-surface-1 text-text-tertiary'}">{rev.version}</span>
+                </th>
+              {/each}
+            </tr>
+          </thead>
+          <tbody>
+            {#each stageNumbers as stageNum}
+              <tr class="border-t border-border-subtle">
+                <td class="sticky left-0 z-10 bg-surface-0 px-4 py-2.5 border-r border-border-subtle">
+                  <div class="flex items-center gap-2">
+                    <div class="w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold bg-accent text-white shrink-0">
+                      {stageNum}
+                    </div>
+                    <span class="font-medium text-text-primary whitespace-nowrap">{STAGE_NAMES[stageNum] || `Stage ${stageNum}`}</span>
+                  </div>
+                </td>
+                {#each matrixRevisions as rev}
+                  {@const cell = getStageCell(stageNum, rev.id)}
+                  <td class="text-center px-4 py-2.5">
+                    {#if cell?.enabled && cell.triggerTypes?.length > 0}
+                      <div class="flex flex-wrap justify-center gap-0.5">
+                        {#each cell.triggerTypes as trigger}
+                          <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-accent-muted text-accent whitespace-nowrap">{trigger}</span>
+                        {/each}
+                      </div>
+                    {:else}
+                      <span class="text-text-tertiary opacity-30">—</span>
+                    {/if}
+                  </td>
                 {/each}
-              </div>
-            {/if}
-          </div>
-        {/each}
+              </tr>
+            {/each}
+          </tbody>
+        </table>
       </div>
     {/if}
   </div>

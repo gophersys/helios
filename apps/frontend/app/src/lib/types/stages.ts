@@ -38,7 +38,6 @@ export const STAGE_NAMES: Record<number, string> = {
   4: 'Regression',
   5: 'FUOTA',
 };
-
 export const STAGE_DESCRIPTIONS: Record<number, string> = {
   1: 'Quick sanity — boot, basic comms, no hardware needed',
   2: 'Hardware validation — power, peripherals, sensors',

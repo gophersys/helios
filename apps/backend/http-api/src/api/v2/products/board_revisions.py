@@ -151,16 +151,38 @@ def update_board_revision(product_id: str, board_id: str, revision_id: str):
             data=update_data,
         )
 
+    # Cascade: when status changes to DEPRECATED or EOL, disable all linked stage configs
+    disabled_stages = []
+    new_status = update_data.get("status")
+    if new_status in ("DEPRECATED", "EOL"):
+        active_configs = db.productstageconfig.find_many(
+            where={"boardRevisionId": revision_id, "enabled": True},
+        )
+        if active_configs:
+            db.productstageconfig.update_many(
+                where={"boardRevisionId": revision_id, "enabled": True},
+                data={"enabled": False},
+            )
+            disabled_stages = [{"stage": c.stage, "name": c.name} for c in active_configs]
+            log_audit("boardRevision.cascadeDisable", "ProductStageConfig", revision_id, {
+                "reason": f"Board revision {revision.version} set to {new_status}",
+                "disabledStages": disabled_stages,
+            })
+
     # Re-fetch
     updated = db.boardrevision.find_unique(
         where={"id": revision_id},
         include={"targets": True},
     )
 
+    result = _serialize_revision(updated)
+    if disabled_stages:
+        result["disabledStages"] = disabled_stages
+
     log_audit("boardRevision.update", "BoardRevision", revision_id, {
         "version": revision.version, "changes": update_data,
     })
-    return jsonify(ApiResponse.ok(_serialize_revision(updated)).to_dict()), 200
+    return jsonify(ApiResponse.ok(result).to_dict()), 200
 
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)

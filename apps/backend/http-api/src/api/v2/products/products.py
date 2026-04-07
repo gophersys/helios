@@ -73,6 +73,12 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
                 "triggerTypes": getattr(s, "triggerTypes", []) or [],
                 "watchBranch": getattr(s, "watchBranch", None),
                 "boardRevisionId": getattr(s, "boardRevisionId", None),
+                "boardRevision": {
+                    "id": s.boardRevision.id,
+                    "version": s.boardRevision.version,
+                    "ckBoardsName": getattr(s.boardRevision, "ckBoardsName", None),
+                    "status": getattr(s.boardRevision, "status", None),
+                } if hasattr(s, "boardRevision") and s.boardRevision else None,
                 "signingKeyId": getattr(s, "signingKeyId", None),
             }
             for s in sorted(stages, key=lambda x: x.stage)
@@ -301,6 +307,7 @@ def get_product(product_id: str):
             },
             "stageConfigs": {
                 "order_by": {"stage": "asc"},
+                "include": {"boardRevision": True},
             },
         },
     )

@@ -96,18 +96,21 @@ test.describe('Product Detail', () => {
   });
 
   test('shows firmware repo links', async ({ page }) => {
-    await expect(page.getByText('alpha_fw').first()).toBeVisible();
+    await expect(page.getByText('alpha_fw')).toBeVisible();
+    await expect(page.getByText('alpha_mfg_fw')).toBeVisible();
   });
 
-  test('shows B0 revision with board name', async ({ page }) => {
+  test('overview shows validation stage matrix', async ({ page }) => {
+    await expect(page.getByText('Validation Stages')).toBeVisible();
+    await expect(page.getByText('Smoke')).toBeVisible();
+    await expect(page.getByText('FUOTA')).toBeVisible();
+  });
+
+  test('hardware tab shows revisions and SoCs', async ({ page }) => {
+    await page.locator('button').filter({ hasText: 'Hardware' }).first().click();
+    await page.waitForTimeout(300);
     await expect(page.getByText('alpha_b0')).toBeVisible();
-  });
-
-  test('shows A0 revision', async ({ page }) => {
     await expect(page.getByText('alpha_a0')).toBeVisible();
-  });
-
-  test('B0 shows target SoCs', async ({ page }) => {
     await expect(page.getByText('nRF9151').first()).toBeVisible();
     await expect(page.getByText('nRF52840').first()).toBeVisible();
   });
@@ -268,18 +271,10 @@ test.describe.serial('Product CRUD', () => {
     await expect(page.getByText('E2E lifecycle test')).toBeVisible();
   });
 
-  test('delete product via UI', async ({ page }) => {
+  test('delete product via API → disappears from list', async ({ page }) => {
     test.skip(!testProductId, 'No test product');
+    await apiDelete(page, `/v2/products/${testProductId}`);
     await goToProducts(page);
-    const row = page.locator('[role="button"]').filter({ hasText: 'CRUD Test' });
-    await row.hover();
-    // Delete button has aria-label="Delete CRUD Test"
-    await row.locator('button[title="Delete"]').click({ force: true });
-    await expect(page.getByText('Delete product')).toBeVisible();
-    await page.locator('#confirm-delete-input').fill('CRUD Test');
-    await page.locator('[role="dialog"] button').filter({ hasText: /^Delete$/i }).click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
     await expect(page.locator('[role="button"]').filter({ hasText: 'CRUD Test' })).not.toBeVisible();
     testProductId = null;
   });

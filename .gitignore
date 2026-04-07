@@ -122,3 +122,8 @@ infrastructure/clusters/office/networking/certs/*.key
 
 # Generated kubeconfigs (contain private keys)
 infrastructure/clusters/*/kubeconfigs/generated/
+
+# ---------------------------------------------------------------------------
+# Backups (local staging/production data snapshots)
+# ---------------------------------------------------------------------------
+.backups/
