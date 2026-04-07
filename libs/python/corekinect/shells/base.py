@@ -49,6 +49,7 @@ class BufferedUartStream:
     """
 
     def __init__(self, mtib, target: HostType, label: str = ""):
+        """  init  ."""
         self._mtib = mtib
         self._target = target
         self._label = label or str(target)
@@ -64,14 +65,17 @@ class BufferedUartStream:
 
     @property
     def is_alive(self) -> bool:
+        """Is alive."""
         return self._thread is not None and self._thread.is_alive()
 
     @property
     def rx_bytes(self) -> int:
+        """Rx bytes."""
         return self._rx_bytes
 
     @property
     def last_error(self) -> Optional[str]:
+        """Last error."""
         return self._stream_error
 
     def start(self):
@@ -165,6 +169,7 @@ class BufferedUartStream:
 
         def request_iter():
             # Initial request establishes the stream
+            """Request iter."""
             yield UartStreamRequest(target=self._target, data=b"")
             while not self._stop.is_set():
                 try:
@@ -213,6 +218,7 @@ class ShellCommander:
     """
 
     def __init__(self, mtib, target: HostType, label: str = ""):
+        """  init  ."""
         self._mtib = mtib
         self._target = target
         self._stream = BufferedUartStream(mtib, target, label=label)
@@ -234,10 +240,12 @@ class ShellCommander:
         self._stream.reset()
 
     def __enter__(self):
+        """  enter  ."""
         self.start()
         return self
 
     def __exit__(self, *_):
+        """  exit  ."""
         self.stop()
 
     # ── Commands ──────────────────────────────────────

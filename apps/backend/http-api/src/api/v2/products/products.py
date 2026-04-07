@@ -31,6 +31,7 @@ def _collect_targets(p: Any) -> list:
 
 
 def _serialize_product(p: Any, include_children: bool = False) -> dict:
+    """Serialize a Product DB record to an API response dict."""
     data = {
         "id": p.id,
         "name": p.name,
@@ -101,6 +102,7 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
 
 
 def _serialize_board_summary(b: Any) -> dict:
+    """Serialize a Board DB record to a summary dict for product responses."""
     result = {
         "id": b.id,
         "productId": b.productId,
@@ -119,6 +121,7 @@ def _serialize_board_summary(b: Any) -> dict:
 
 
 def _serialize_board_revision(r: Any) -> dict:
+    """Serialize a BoardRevision DB record for product detail responses."""
     result = {
         "id": r.id,
         "boardId": r.boardId,
@@ -140,6 +143,7 @@ def _serialize_board_revision(r: Any) -> dict:
 
 
 def _serialize_firmware_set(s: Any) -> dict:
+    """Serialize a FirmwareSet DB record for product detail responses."""
     data = {
         "id": s.id,
         "productId": s.productId,
@@ -159,6 +163,7 @@ def _serialize_firmware_set(s: Any) -> dict:
 
 @require_permissions(Permissions.PRODUCTS_VIEW)
 def list_products():
+    """List products with pagination, filtered by user access for non-admin roles."""
     db = get_db_client()
 
     page = max(1, request.args.get("page", 1, type=int))
@@ -206,6 +211,7 @@ def list_products():
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def create_product():
+    """Create a new product with optional inline board and revision creation."""
     data, error = ProductCreateRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
@@ -285,6 +291,7 @@ def create_product():
 
 @require_permissions(Permissions.PRODUCTS_VIEW)
 def get_product(product_id: str):
+    """Get a product with boards, firmware sets, and stage configs."""
     db = get_db_client()
     product = db.product.find_unique(
         where={"id": product_id},
@@ -318,6 +325,7 @@ def get_product(product_id: str):
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def update_product(product_id: str):
+    """Update a product's properties."""
     data, error = ProductUpdateRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
@@ -354,6 +362,7 @@ def update_product(product_id: str):
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def delete_product(product_id: str):
+    """Delete a product if it has no associated sessions or tests."""
     db = get_db_client()
     existing = db.product.find_unique(where={"id": product_id})
     if not existing:

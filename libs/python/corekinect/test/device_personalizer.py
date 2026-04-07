@@ -99,6 +99,7 @@ class DevicePersonalizer:
         known_device_id: Optional[str] = None,  # Fallback when CoreOps unavailable
         require_corecloud_key: bool = True,  # FUOTA requires key in CoreCloud - fail if upload fails
     ):
+        """  init  ."""
         self._mtib = mtib
         self._app = AlphaAppShell(mtib)
         self._comms = CommsCoprocShell(mtib)
@@ -230,6 +231,7 @@ class DevicePersonalizer:
         results = {}
 
         def _lock(name, shell):
+            """ lock."""
             try:
                 shell.start()
                 results[name] = shell.lock(timeout_s=timeout_s)

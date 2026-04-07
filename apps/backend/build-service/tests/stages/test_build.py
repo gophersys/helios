@@ -146,3 +146,81 @@ class TestDockerImageResolution:
 
         assert not result.success
         assert "pull" in result.error.lower()
+
+
+class TestFetchProductTargets:
+    """Test product target metadata fetching."""
+
+    @patch("src.worker.stages.build.BuildExecutor")
+    def test_fetches_targets_matching_board(self, MockExecutor, ctx, build_stage):
+        """Populates config_flags with matching board targets."""
+        ctx.job.product_id = "prod-1"
+        ctx.job.board = "alpha_b0"
+        ctx.client.api_get.return_value = {
+            "data": {
+                "id": "prod-1",
+                "buildConfig": {"sdk": "ncs-3.2.1"},
+                "boards": [{
+                    "revisions": [{
+                        "ckBoardsName": "alpha_b0",
+                        "targets": [
+                            {"role": "app", "appId": 109, "processor": "nRF52840"},
+                            {"role": "comms", "appId": 108, "soc": "nRF9151"},
+                        ],
+                    }],
+                }],
+            },
+        }
+        MockExecutor.return_value.run_build.return_value = (True, "ok")
+
+        build_stage.execute(ctx)
+
+        assert ctx.build_config == {"sdk": "ncs-3.2.1"}
+        targets_json = ctx.job.config_flags.get("_targets_json", "[]")
+        import json
+        targets = json.loads(targets_json)
+        assert len(targets) == 2
+        assert targets[0]["role"] == "app"
+        assert targets[1]["appId"] == 108
+
+    @patch("src.worker.stages.build.BuildExecutor")
+    def test_no_matching_board_produces_empty_targets(self, MockExecutor, ctx, build_stage):
+        """When board doesn't match any revision, targets list is empty."""
+        ctx.job.product_id = "prod-1"
+        ctx.job.board = "alpha_c0"
+        ctx.client.api_get.return_value = {
+            "data": {
+                "id": "prod-1",
+                "boards": [{
+                    "revisions": [{"ckBoardsName": "alpha_b0", "targets": []}],
+                }],
+            },
+        }
+        MockExecutor.return_value.run_build.return_value = (True, "ok")
+
+        build_stage.execute(ctx)
+
+        targets_json = ctx.job.config_flags.get("_targets_json", "[]")
+        assert targets_json == "[]"
+
+    @patch("src.worker.stages.build.BuildExecutor")
+    def test_no_product_id_skips_fetch(self, MockExecutor, ctx, build_stage):
+        """When product_id is None, target fetch is skipped entirely."""
+        ctx.job.product_id = None
+        ctx.webhook_data = {}
+        MockExecutor.return_value.run_build.return_value = (True, "ok")
+
+        build_stage.execute(ctx)
+
+        ctx.client.api_get.assert_not_called()
+
+    @patch("src.worker.stages.build.BuildExecutor")
+    def test_api_error_skips_targets(self, MockExecutor, ctx, build_stage):
+        """When API returns None, targets are not populated."""
+        ctx.job.product_id = "prod-1"
+        ctx.client.api_get.return_value = None
+        MockExecutor.return_value.run_build.return_value = (True, "ok")
+
+        build_stage.execute(ctx)
+
+        assert ctx.build_config is None

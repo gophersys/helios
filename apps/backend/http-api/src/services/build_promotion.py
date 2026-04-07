@@ -80,6 +80,7 @@ def promote_build_run_to_firmware(run_id: str) -> Optional[List[Dict[str, Any]]]
 
     # Determine release track from variant
     def variant_to_track(variant: str) -> str:
+        """Map a build variant to a release track name."""
         return "bench"  # Default for now — would come from signing key
 
     created_sets = []

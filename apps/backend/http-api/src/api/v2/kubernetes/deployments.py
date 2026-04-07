@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_deployments():
+    """List Kubernetes deployments with optional namespace and label filtering.
+
+    Returns:
+        JSON response with paginated list of deployment summaries.
+    """
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = dep_svc.list_deployments(
@@ -38,6 +43,15 @@ def list_deployments():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_deployment(namespace: str, name: str):
+    """Get a specific deployment with its associated pods.
+
+    Args:
+        namespace: Kubernetes namespace.
+        name: Deployment name.
+
+    Returns:
+        JSON response with deployment data including pods list.
+    """
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")
@@ -58,6 +72,15 @@ def get_deployment(namespace: str, name: str):
 
 @require_permissions(Permissions.KUBERNETES_MANAGE)
 def scale_deployment(namespace: str, name: str):
+    """Scale a deployment to the specified replica count.
+
+    Args:
+        namespace: Kubernetes namespace.
+        name: Deployment name.
+
+    Returns:
+        JSON response with scaled=True and the new replica count.
+    """
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")
@@ -83,6 +106,15 @@ def scale_deployment(namespace: str, name: str):
 
 @require_permissions(Permissions.KUBERNETES_MANAGE)
 def restart_deployment(namespace: str, name: str):
+    """Trigger a rolling restart of a deployment.
+
+    Args:
+        namespace: Kubernetes namespace.
+        name: Deployment name.
+
+    Returns:
+        JSON response with restarted=True on success.
+    """
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")

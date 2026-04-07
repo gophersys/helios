@@ -33,6 +33,7 @@ TEST_PACKAGES_PREFIX = "test-packages"
 
 
 def _serialize_test_package(tp: Any) -> dict:
+    """Serialize a TestPackage DB record to an API response dict."""
     return {
         "id": tp.id,
         "productId": tp.productId,
@@ -65,6 +66,7 @@ def _resolve_product(product_id: str):
 
 @require_permissions(Permissions.VALIDATION_MANAGE)
 def upload_test_package(product_id: str):
+    """POST — upload a test package archive (delegates to _upload_test_package_impl)."""
     try:
         return _upload_test_package_impl(product_id)
     except Exception as e:

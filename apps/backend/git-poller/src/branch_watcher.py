@@ -17,6 +17,15 @@ SubprocessRunner = Callable[..., subprocess.CompletedProcess]
 
 
 def _default_runner(*args, **kwargs) -> subprocess.CompletedProcess:
+    """Thin wrapper around subprocess.run used as the default runner.
+
+    Args:
+        *args: Positional arguments forwarded to subprocess.run.
+        **kwargs: Keyword arguments forwarded to subprocess.run.
+
+    Returns:
+        The CompletedProcess result from subprocess.run.
+    """
     return subprocess.run(*args, **kwargs)
 
 
@@ -72,6 +81,14 @@ class BranchWatcher:
     # ------------------------------------------------------------------
 
     def _build_env(self) -> dict:
+        """Build the subprocess environment with GIT_SSH_COMMAND set.
+
+        Prefers an active SSH agent when SSH_AUTH_SOCK is set and exists.
+        Falls back to specifying the key file path directly.
+
+        Returns:
+            A copy of the current environment with GIT_SSH_COMMAND configured.
+        """
         env = os.environ.copy()
         sock = env.get("SSH_AUTH_SOCK", "")
         if sock and os.path.exists(sock):

@@ -29,9 +29,11 @@ class VersionInfo:
 
     @property
     def version_string(self) -> str:
+        """Return the version as a dotted string (major.minor.build)."""
         return f"{self.major}.{self.minor}.{self.build}"
 
     def matches(self, other: "VersionInfo") -> bool:
+        """Return True if this version equals another VersionInfo."""
         return (self.major == other.major and
                 self.minor == other.minor and
                 self.build == other.build)
@@ -57,13 +59,16 @@ class ValidationResult:
     files_missing: list[str] = field(default_factory=list)
 
     def add_error(self, message: str, source: str = ""):
+        """Append an error and mark the result as invalid."""
         self.errors.append(ValidationError("error", message, source))
         self.valid = False
 
     def add_warning(self, message: str, source: str = ""):
+        """Append a warning without marking the result invalid."""
         self.warnings.append(ValidationError("warning", message, source))
 
     def summary(self) -> str:
+        """Return a human-readable multi-line validation summary."""
         lines = []
         if self.valid:
             lines.append("VALID: Firmware package passed all checks")

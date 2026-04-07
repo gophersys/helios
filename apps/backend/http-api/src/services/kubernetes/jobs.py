@@ -13,6 +13,16 @@ def list_jobs(
     label_selector: str | None = None,
     field_selector: str | None = None,
 ) -> list[dict]:
+    """List Kubernetes Jobs across all namespaces or within a specific namespace.
+
+    Args:
+        namespace: Limit results to this namespace. If None, lists cluster-wide.
+        label_selector: Optional Kubernetes label selector string.
+        field_selector: Optional Kubernetes field selector string.
+
+    Returns:
+        List of serialized Job dicts.
+    """
     batch = get_batch_v1_api()
     kwargs = {}
     if label_selector:
@@ -29,6 +39,15 @@ def list_jobs(
 
 
 def get_job(namespace: str, name: str) -> dict | None:
+    """Fetch a single Job by namespace and name, with associated pods.
+
+    Args:
+        namespace: Kubernetes namespace of the Job.
+        name: Name of the Job.
+
+    Returns:
+        Serialized Job dict with a 'pods' list, or None if not found.
+    """
     batch = get_batch_v1_api()
     try:
         job = batch.read_namespaced_job(name, namespace)
@@ -61,6 +80,15 @@ def get_job(namespace: str, name: str) -> dict | None:
 
 
 def delete_job(namespace: str, name: str) -> bool:
+    """Delete a Job and its dependent pods using Background propagation.
+
+    Args:
+        namespace: Kubernetes namespace of the Job.
+        name: Name of the Job.
+
+    Returns:
+        True on success, False if the Kubernetes API call fails.
+    """
     from kubernetes.client import V1DeleteOptions
     batch = get_batch_v1_api()
     try:

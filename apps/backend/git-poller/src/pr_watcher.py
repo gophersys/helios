@@ -24,6 +24,11 @@ SessionFactory = Callable[[], requests.Session]
 
 
 def _default_session_factory() -> requests.Session:
+    """Create a plain requests.Session used as the default session factory.
+
+    Returns:
+        A new requests.Session instance with no extra configuration.
+    """
     s = requests.Session()
     return s
 

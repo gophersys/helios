@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def _serialize_board(b: Any) -> dict:
+    """Serialize a Board DB record to an API response dict."""
     data = {
         "id": b.id,
         "productId": b.productId,
@@ -34,6 +35,7 @@ def _serialize_board(b: Any) -> dict:
 
 @require_permissions(Permissions.PRODUCTS_VIEW)
 def list_boards(product_id: str):
+    """List all boards for a product."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
@@ -49,6 +51,7 @@ def list_boards(product_id: str):
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def create_board(product_id: str):
+    """Create a new board for a product with optional inline revisions."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
@@ -113,6 +116,7 @@ def create_board(product_id: str):
 
 @require_permissions(Permissions.PRODUCTS_VIEW)
 def get_board(product_id: str, board_id: str):
+    """Get a board with its revisions and targets."""
     db = get_db_client()
     board = db.board.find_first(
         where={"id": board_id, "productId": product_id},
@@ -133,6 +137,7 @@ def get_board(product_id: str, board_id: str):
 
 
 def _serialize_board_revision(r: Any) -> dict:
+    """Serialize a BoardRevision DB record to an API response dict."""
     result = {
         "id": r.id,
         "boardId": r.boardId,
@@ -155,6 +160,7 @@ def _serialize_board_revision(r: Any) -> dict:
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def update_board(product_id: str, board_id: str):
+    """Update a board's properties."""
     db = get_db_client()
     existing = db.board.find_first(
         where={"id": board_id, "productId": product_id}
@@ -186,6 +192,7 @@ def update_board(product_id: str, board_id: str):
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def delete_board(product_id: str, board_id: str):
+    """Delete a board if it has no revisions."""
     db = get_db_client()
     existing = db.board.find_first(
         where={"id": board_id, "productId": product_id},

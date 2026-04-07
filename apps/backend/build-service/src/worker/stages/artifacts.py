@@ -22,6 +22,22 @@ class ArtifactStage:
     name = "artifacts"
 
     def execute(self, ctx: BuildContext) -> StageResult:
+        """Collect, verify, and upload build artifacts.
+
+        Execution order:
+        1. Collect final hex/cfw/log files from the output directory.
+        2. Fetch the product's buildConfig from the API (if not already cached).
+        3. Generate a ``build.json`` manifest when target metadata is available.
+        4. Validate artifact integrity via FirmwarePackageValidator.
+        5. Upload all artifacts with structured metadata to the Concord API.
+
+        Args:
+            ctx: Mutable build context shared across all pipeline stages.
+
+        Returns:
+            StageResult.ok() on success, or StageResult.fail(msg) if artifact
+            verification fails.
+        """
         executor = BuildExecutor(ctx.client)
 
         # 1. Collect artifacts (final hex/cfw only)

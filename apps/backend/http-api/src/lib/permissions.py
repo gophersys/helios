@@ -8,6 +8,11 @@ Actions: view, manage, trigger, run
 
 
 class Permissions:
+    """Enumeration of all platform permission strings used with @require_permissions.
+
+    Permission strings follow the format module:action.
+    """
+
     # Products & Builds
     PRODUCTS_VIEW = "products:view"
     PRODUCTS_MANAGE = "products:manage"
@@ -44,6 +49,11 @@ class Permissions:
 
     @classmethod
     def all(cls) -> set:
+        """Return the set of all permission strings defined on this class.
+
+        Returns:
+            Set of permission strings (e.g., {'products:view', 'builds:trigger', ...}).
+        """
         return {v for k, v in vars(cls).items() if isinstance(v, str) and ":" in v}
 
 

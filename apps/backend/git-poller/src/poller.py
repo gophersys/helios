@@ -181,6 +181,16 @@ class GitPoller:
         target: WatchTarget,
         current_sha: str,
     ) -> None:
+        """Compare current branch SHA against stored SHA and fire a trigger on change.
+
+        On first sight (no stored SHA) the SHA is recorded without triggering.
+        On a subsequent call where the SHA has changed, a ``pr_merge`` trigger
+        is dispatched and the stored SHA is updated on success.
+
+        Args:
+            target: The watch target describing the repo, branch, and stage.
+            current_sha: The SHA currently reported by the remote branch.
+        """
         repo_slug = target.repo_slug
         branch = target.watch_branch
         stored_sha = self._state.get_branch_sha(repo_slug, branch)
@@ -226,6 +236,19 @@ class GitPoller:
         open_prs: list[PRInfo],
         current_branch_sha: Optional[str],
     ) -> None:
+        """Reconcile open PRs against tracked state and fire triggers for changes.
+
+        Detects newly closed PRs and removes them from state.  For each open PR
+        that is new or has an updated head SHA, a ``pr_push`` trigger is fired
+        and the stored SHA is updated on success.
+
+        Args:
+            target: The watch target describing the repo, branch, and stage.
+            open_prs: Current list of open PRs returned by the PR watcher.
+            current_branch_sha: Current HEAD SHA of the target branch, used for
+                merged-PR detection (not directly consumed here but passed for
+                context).
+        """
         repo_slug = target.repo_slug
         open_ids = {pr.pr_id for pr in open_prs}
         tracked_ids = self._state.get_tracked_pr_ids(repo_slug)
@@ -283,6 +306,22 @@ class GitPoller:
         trigger_type: str,
         pr_info: Optional[PRInfo],
     ) -> bool:
+        """Dispatch a build trigger with in-process deduplication.
+
+        Builds a deduplication key from (repo_slug, commit_sha, stage,
+        trigger_type). If the same key has already been dispatched this
+        process lifetime, the call is a no-op and returns True immediately.
+
+        Args:
+            target: The watch target describing the repo, board, and stage.
+            commit_sha: The commit SHA that triggered this event.
+            trigger_type: Either ``"pr_push"`` or ``"pr_merge"``.
+            pr_info: PR metadata when trigger_type is ``"pr_push"``, else None.
+
+        Returns:
+            True if the trigger was sent (or already deduplicated), False if
+            the HTTP dispatch failed.
+        """
         dedup_key = (target.repo_slug, commit_sha, target.stage, trigger_type)
         if dedup_key in self._triggered:
             log.debug(

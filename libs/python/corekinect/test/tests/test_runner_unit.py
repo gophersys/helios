@@ -44,7 +44,9 @@ def _product_api_response():
 
 
 class TestProductContextFromDict:
+    """Tests for ProductContextFromDict."""
     def test_parses_all_fields(self):
+        """Test parses all fields."""
         data = _product_api_response()
         ctx = ProductContext.from_dict(data)
 
@@ -57,11 +59,13 @@ class TestProductContextFromDict:
         assert ctx.build_board == "alpha_b0_nrf52840"
 
     def test_parses_app_ids_from_metadata(self):
+        """Test parses app ids from metadata."""
         data = _product_api_response()
         ctx = ProductContext.from_dict(data)
         assert ctx.app_ids == {"nrf9151": 108, "nrf52840": 109}
 
     def test_derives_app_ids_from_build_config_when_metadata_empty(self):
+        """Test derives app ids from build config when metadata empty."""
         data = {
             "id": "abc",
             "metadata": {},
@@ -77,6 +81,7 @@ class TestProductContextFromDict:
         assert ctx.app_ids["nrf52840"] == 109
 
     def test_handles_missing_metadata(self):
+        """Test handles missing metadata."""
         data = {"id": "abc", "name": "Test"}
         ctx = ProductContext.from_dict(data)
         assert ctx.device_type_id == 0
@@ -84,12 +89,14 @@ class TestProductContextFromDict:
         assert ctx.app_ids == {}
 
     def test_handles_empty_dict(self):
+        """Test handles empty dict."""
         ctx = ProductContext.from_dict({})
         assert ctx.product_id == ""
         assert ctx.name == ""
         assert ctx.slug == ""
 
     def test_handles_targets_as_list(self):
+        """Test handles targets as list."""
         data = {
             "metadata": {},
             "buildConfig": {
@@ -104,6 +111,7 @@ class TestProductContextFromDict:
         assert ctx.app_ids["nrf52840"] == 109
 
     def test_skips_non_dict_target_items(self):
+        """Test skips non dict target items."""
         data = {
             "metadata": {},
             "buildConfig": {
@@ -120,7 +128,9 @@ class TestProductContextFromDict:
 
 
 class TestProductContextDefault:
+    """Tests for ProductContextDefault."""
     def test_returns_empty_context(self):
+        """Test returns empty context."""
         ctx = ProductContext.default()
         assert ctx.product_id == ""
         assert ctx.name == ""
@@ -129,18 +139,22 @@ class TestProductContextDefault:
         assert ctx.app_ids == {}
 
     def test_slug_from_product_and_board(self):
+        """Test slug from product and board."""
         ctx = ProductContext.default(product="alpha", board="b0")
         assert ctx.slug == "alpha_b0"
 
     def test_slug_from_product_only(self):
+        """Test slug from product only."""
         ctx = ProductContext.default(product="alpha")
         assert ctx.slug == "alpha"
 
     def test_slug_empty_when_nothing_provided(self):
+        """Test slug empty when nothing provided."""
         ctx = ProductContext.default()
         assert ctx.slug == ""
 
     def test_slug_empty_when_board_only(self):
+        """Test slug empty when board only."""
         ctx = ProductContext.default(board="b0")
         assert ctx.slug == ""
 
@@ -151,7 +165,9 @@ class TestProductContextDefault:
 
 
 class TestStageConfigLoad:
+    """Tests for StageConfigLoad."""
     def test_smoke_stage(self):
+        """Test smoke stage."""
         cfg = StageConfig.load("smoke")
         assert cfg.stage == "smoke"
         assert cfg.timeout_s == 300
@@ -160,6 +176,7 @@ class TestStageConfigLoad:
         assert cfg.required_checks == []
 
     def test_driver_stage(self):
+        """Test driver stage."""
         cfg = StageConfig.load("driver")
         assert cfg.stage == "driver"
         assert cfg.timeout_s == 600
@@ -168,6 +185,7 @@ class TestStageConfigLoad:
         assert "device" in cfg.required_checks
 
     def test_integration_stage(self):
+        """Test integration stage."""
         cfg = StageConfig.load("integration")
         assert cfg.stage == "integration"
         assert cfg.timeout_s == 1800
@@ -175,6 +193,7 @@ class TestStageConfigLoad:
         assert "fixture" in cfg.required_checks
 
     def test_regression_stage(self):
+        """Test regression stage."""
         cfg = StageConfig.load("regression")
         assert cfg.stage == "regression"
         assert cfg.timeout_s == 3600
@@ -183,6 +202,7 @@ class TestStageConfigLoad:
         assert "*.png" in cfg.artifact_patterns
 
     def test_fuota_stage(self):
+        """Test fuota stage."""
         cfg = StageConfig.load("fuota")
         assert cfg.stage == "fuota"
         assert cfg.timeout_s == 7200
@@ -190,10 +210,12 @@ class TestStageConfigLoad:
         assert "-s" in cfg.pytest_args
 
     def test_unknown_stage_raises_value_error(self):
+        """Test unknown stage raises value error."""
         with pytest.raises(ValueError, match="Unknown stage"):
             StageConfig.load("nonexistent")
 
     def test_unknown_stage_lists_valid_stages(self):
+        """Test unknown stage lists valid stages."""
         with pytest.raises(ValueError) as exc_info:
             StageConfig.load("bad")
         msg = str(exc_info.value)
@@ -201,12 +223,14 @@ class TestStageConfigLoad:
             assert valid in msg
 
     def test_all_stages_have_test_path(self):
+        """Test all stages have test path."""
         for stage in ("smoke", "driver", "integration", "regression", "fuota"):
             cfg = StageConfig.load(stage)
             assert cfg.test_path.startswith("tests/")
             assert cfg.test_path.endswith("/")
 
     def test_all_stages_have_positive_timeout(self):
+        """Test all stages have positive timeout."""
         for stage in ("smoke", "driver", "integration", "regression", "fuota"):
             cfg = StageConfig.load(stage)
             assert cfg.timeout_s > 0
@@ -218,7 +242,9 @@ class TestStageConfigLoad:
 
 
 class TestCheckResult:
+    """Tests for CheckResult."""
     def test_construction_passed(self):
+        """Test construction passed."""
         cr = CheckResult(
             check_id="mtib",
             description="MTIB connectivity",
@@ -231,6 +257,7 @@ class TestCheckResult:
         assert cr.duration_ms == 42
 
     def test_construction_failed(self):
+        """Test construction failed."""
         cr = CheckResult(
             check_id="device",
             description="Device SNR configured",
@@ -241,6 +268,7 @@ class TestCheckResult:
         assert cr.message == "DEVICE_SNR not set"
 
     def test_default_duration(self):
+        """Test default duration."""
         cr = CheckResult(check_id="x", description="x", passed=True, message="ok")
         assert cr.duration_ms == 0
 
@@ -251,7 +279,9 @@ class TestCheckResult:
 
 
 class TestPreflightResult:
+    """Tests for PreflightResult."""
     def test_passed_all_pass(self):
+        """Test passed all pass."""
         checks = [
             CheckResult("a", "A", True, "ok"),
             CheckResult("b", "B", True, "ok"),
@@ -261,6 +291,7 @@ class TestPreflightResult:
         assert result.passed is True
 
     def test_passed_one_fail(self):
+        """Test passed one fail."""
         checks = [
             CheckResult("a", "A", True, "ok"),
             CheckResult("b", "B", False, "nope"),
@@ -270,10 +301,12 @@ class TestPreflightResult:
         assert result.passed is False
 
     def test_passed_empty_checks(self):
+        """Test passed empty checks."""
         result = PreflightResult(checks=[])
         assert result.passed is True
 
     def test_failed_checks_returns_only_failures(self):
+        """Test failed checks returns only failures."""
         checks = [
             CheckResult("a", "A", True, "ok"),
             CheckResult("b", "B", False, "fail-b"),
@@ -287,11 +320,13 @@ class TestPreflightResult:
         assert ids == {"b", "c"}
 
     def test_failed_checks_empty_when_all_pass(self):
+        """Test failed checks empty when all pass."""
         checks = [CheckResult("a", "A", True, "ok")]
         result = PreflightResult(checks=checks)
         assert result.failed_checks == []
 
     def test_to_dict_structure(self):
+        """Test to dict structure."""
         checks = [
             CheckResult("mtib", "MTIB", True, "connected", duration_ms=10),
         ]
@@ -307,11 +342,13 @@ class TestPreflightResult:
         assert d["checks"][0]["durationMs"] == 10
 
     def test_to_dict_no_finished_at(self):
+        """Test to dict no finished at."""
         result = PreflightResult(checks=[])
         d = result.to_dict()
         assert d["finishedAt"] is None
 
     def test_started_at_is_auto_set(self):
+        """Test started at is auto set."""
         result = PreflightResult(checks=[])
         assert result.started_at is not None
         assert isinstance(result.started_at, datetime)

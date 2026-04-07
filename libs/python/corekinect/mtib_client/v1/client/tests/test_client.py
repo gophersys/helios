@@ -44,6 +44,7 @@ class TestConnect(unittest.TestCase):
     @patch("corekinect.mtib_client.v1.client.core.insecure_channel")
     @patch("corekinect.mtib_client.v1.client.core.MtibClientV1")
     def test_connect_success(self, mock_stub_cls, mock_channel):
+        """Test connect success."""
         client = MtibV1Client(MtibV1Client.Config(net=NetConfig(addr="10.0.0.1", port=50051)))
         client.logger = MagicMock()
 
@@ -63,6 +64,7 @@ class TestConnect(unittest.TestCase):
     @patch("corekinect.mtib_client.v1.client.core.insecure_channel")
     @patch("corekinect.mtib_client.v1.client.core.MtibClientV1")
     def test_connect_health_not_ready(self, mock_stub_cls, mock_channel):
+        """Test connect health not ready."""
         client = MtibV1Client(MtibV1Client.Config(net=NetConfig(addr="10.0.0.1", port=50051)))
         client.logger = MagicMock()
 
@@ -79,12 +81,14 @@ class TestConnect(unittest.TestCase):
         assert "Error checking health" in err
 
     def test_disconnect_no_channel(self):
+        """Test disconnect no channel."""
         client = _make_client()
         client.channel = None
         err = client.disconnect()
         assert err is None
 
     def test_disconnect_with_channel(self):
+        """Test disconnect with channel."""
         client = _make_client()
         client.channel = MagicMock()
         err = client.disconnect()
@@ -96,6 +100,7 @@ class TestHealthCheck(unittest.TestCase):
     """Tests for HealthCheck and HealthCheckExtended."""
 
     def test_health_check_success(self):
+        """Test health check success."""
         client = _make_client()
         resp = MagicMock()
         resp.ready = True
@@ -108,6 +113,7 @@ class TestHealthCheck(unittest.TestCase):
         assert errors == []
 
     def test_health_check_grpc_error(self):
+        """Test health check grpc error."""
         client = _make_client()
         rpc_err = _make_rpc_error("connection refused")
         client.client.HealthCheck.side_effect = rpc_err
@@ -118,6 +124,7 @@ class TestHealthCheck(unittest.TestCase):
         assert "connection refused" in err
 
     def test_health_check_extended_success(self):
+        """Test health check extended success."""
         client = _make_client()
         resp = MagicMock()
         resp.ready = True
@@ -137,9 +144,11 @@ class TestGpio(unittest.TestCase):
     """Tests for GPIO methods."""
 
     def setUp(self):
+        """Set up test fixtures."""
         self.client = _make_client()
 
     def test_gpio_config_success(self):
+        """Test gpio config success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -153,16 +162,19 @@ class TestGpio(unittest.TestCase):
         assert err is None
 
     def test_gpio_config_invalid_pin(self):
+        """Test gpio config invalid pin."""
         err = self.client.GpioConfig(gpio=99, direction=GpioDirection.OUTPUT, resistor=GpioResistorConfig.NONE)
         assert err is not None
         assert "99" in err
 
     def test_gpio_config_negative_pin(self):
+        """Test gpio config negative pin."""
         err = self.client.GpioConfig(gpio=-1, direction=GpioDirection.OUTPUT, resistor=GpioResistorConfig.NONE)
         assert err is not None
         assert "-1" in err
 
     def test_gpio_config_server_error(self):
+        """Test gpio config server error."""
         resp = MagicMock()
         resp.success = False
         resp.message = "pin busy"
@@ -173,6 +185,7 @@ class TestGpio(unittest.TestCase):
         assert "pin busy" in err
 
     def test_gpio_write_success(self):
+        """Test gpio write success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -182,11 +195,13 @@ class TestGpio(unittest.TestCase):
         assert err is None
 
     def test_gpio_write_invalid_pin(self):
+        """Test gpio write invalid pin."""
         err = self.client.GpioWrite(gpio=8, state=True)
         assert err is not None
         assert "8" in err
 
     def test_gpio_write_grpc_error(self):
+        """Test gpio write grpc error."""
         rpc_err = _make_rpc_error("deadline exceeded")
         self.client.client.GpioWrite.side_effect = rpc_err
 
@@ -195,6 +210,7 @@ class TestGpio(unittest.TestCase):
         assert "deadline exceeded" in err
 
     def test_gpio_read_success(self):
+        """Test gpio read success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -206,12 +222,14 @@ class TestGpio(unittest.TestCase):
         assert state is True
 
     def test_gpio_read_invalid_pin(self):
+        """Test gpio read invalid pin."""
         state, err = self.client.GpioRead(gpio=10)
         assert state is None
         assert err is not None
         assert "10" in err
 
     def test_gpio_read_server_failure(self):
+        """Test gpio read server failure."""
         resp = MagicMock()
         resp.success = False
         resp.message = "not configured"
@@ -226,9 +244,11 @@ class TestAdc(unittest.TestCase):
     """Tests for ADC methods."""
 
     def setUp(self):
+        """Set up test fixtures."""
         self.client = _make_client()
 
     def test_adc_read_success(self):
+        """Test adc read success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -240,17 +260,20 @@ class TestAdc(unittest.TestCase):
         assert voltage == 3.3
 
     def test_adc_read_invalid_channel(self):
+        """Test adc read invalid channel."""
         voltage, err = self.client.AdcRead(channel=8)
         assert voltage is None
         assert err is not None
         assert "8" in err
 
     def test_adc_read_negative_channel(self):
+        """Test adc read negative channel."""
         voltage, err = self.client.AdcRead(channel=-1)
         assert voltage is None
         assert err is not None
 
     def test_adc_read_grpc_error(self):
+        """Test adc read grpc error."""
         rpc_err = _make_rpc_error("timeout")
         self.client.client.AdcRead.side_effect = rpc_err
 
@@ -259,6 +282,7 @@ class TestAdc(unittest.TestCase):
         assert "timeout" in err
 
     def test_adc_read_all_success(self):
+        """Test adc read all success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -271,6 +295,7 @@ class TestAdc(unittest.TestCase):
         assert voltages[0] == 3.3
 
     def test_adc_read_all_server_error(self):
+        """Test adc read all server error."""
         resp = MagicMock()
         resp.success = False
         resp.message = "ADC not ready"
@@ -285,9 +310,11 @@ class TestPower(unittest.TestCase):
     """Tests for Power methods."""
 
     def setUp(self):
+        """Set up test fixtures."""
         self.client = _make_client()
 
     def test_power_enable_success(self):
+        """Test power enable success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -297,20 +324,24 @@ class TestPower(unittest.TestCase):
         assert err is None
 
     def test_power_enable_invalid_channel(self):
+        """Test power enable invalid channel."""
         err = self.client.PowerEnable(channel=3, voltage_v=4.5)
         assert err is not None
         assert "3" in err
 
     def test_power_enable_invalid_voltage(self):
+        """Test power enable invalid voltage."""
         err = self.client.PowerEnable(channel=0, voltage_v=7.0)
         assert err is not None
         assert "7.0" in err
 
     def test_power_enable_negative_voltage(self):
+        """Test power enable negative voltage."""
         err = self.client.PowerEnable(channel=0, voltage_v=-1.0)
         assert err is not None
 
     def test_power_disable_success(self):
+        """Test power disable success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -320,11 +351,13 @@ class TestPower(unittest.TestCase):
         assert err is None
 
     def test_power_disable_invalid_channel(self):
+        """Test power disable invalid channel."""
         err = self.client.PowerDisable(channel=5)
         assert err is not None
         assert "5" in err
 
     def test_power_read_success(self):
+        """Test power read success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -377,11 +410,13 @@ class TestPower(unittest.TestCase):
         self.client.client.PowerRead.assert_called_once()
 
     def test_power_read_invalid_channel(self):
+        """Test power read invalid channel."""
         result, err = self.client.PowerRead(channel=3)
         assert result is None
         assert err is not None
 
     def test_power_read_server_error(self):
+        """Test power read server error."""
         resp = MagicMock()
         resp.success = False
         resp.message = "INA219 not responding"
@@ -392,6 +427,7 @@ class TestPower(unittest.TestCase):
         assert "INA219" in err
 
     def test_power_measure_success(self):
+        """Test power measure success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -462,6 +498,7 @@ class TestPowerTypes(unittest.TestCase):
     """Test PowerReadResult and PowerMeasureResult construction."""
 
     def test_power_read_result_defaults(self):
+        """Test power read result defaults."""
         from corekinect.mtib_client.v1.client.types import PowerReadResult
         r = PowerReadResult()
         assert r.enabled is False
@@ -471,6 +508,7 @@ class TestPowerTypes(unittest.TestCase):
         assert r.current_na == 0.0
 
     def test_power_measure_result_defaults(self):
+        """Test power measure result defaults."""
         from corekinect.mtib_client.v1.client.types import PowerMeasureResult
         r = PowerMeasureResult()
         assert r.average_na == 0.0
@@ -478,6 +516,7 @@ class TestPowerTypes(unittest.TestCase):
         assert r.max_na == 0.0
 
     def test_power_channel_enum_values(self):
+        """Test power channel enum values."""
         from corekinect.mtib_client.v1.client.types import PowerChannel
         assert PowerChannel.DUT == 0
         assert PowerChannel.CHARGER == 1
@@ -488,9 +527,11 @@ class TestSensors(unittest.TestCase):
     """Tests for sensor methods."""
 
     def setUp(self):
+        """Set up test fixtures."""
         self.client = _make_client()
 
     def test_altimeter_read_success(self):
+        """Test altimeter read success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -506,6 +547,7 @@ class TestSensors(unittest.TestCase):
         assert altitude == 500.0
 
     def test_altimeter_read_grpc_error(self):
+        """Test altimeter read grpc error."""
         rpc_err = _make_rpc_error("sensor offline")
         self.client.client.AltimeterRead.side_effect = rpc_err
 
@@ -516,6 +558,7 @@ class TestSensors(unittest.TestCase):
         assert "sensor offline" in err
 
     def test_accel_read_success(self):
+        """Test accel read success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -531,6 +574,7 @@ class TestSensors(unittest.TestCase):
         assert z == 1.0
 
     def test_accel_read_server_failure(self):
+        """Test accel read server failure."""
         resp = MagicMock()
         resp.success = False
         resp.message = "accelerometer not found"
@@ -545,9 +589,11 @@ class TestFirmware(unittest.TestCase):
     """Tests for firmware methods."""
 
     def setUp(self):
+        """Set up test fixtures."""
         self.client = _make_client()
 
     def test_list_programmers_success(self):
+        """Test list programmers success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -559,6 +605,7 @@ class TestFirmware(unittest.TestCase):
         assert len(programmers) == 2
 
     def test_list_programmers_grpc_error(self):
+        """Test list programmers grpc error."""
         rpc_err = _make_rpc_error("not connected")
         self.client.client.ListProgrammers.side_effect = rpc_err
 
@@ -567,6 +614,7 @@ class TestFirmware(unittest.TestCase):
         assert "not connected" in err
 
     def test_list_fw_files_success(self):
+        """Test list fw files success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -578,6 +626,7 @@ class TestFirmware(unittest.TestCase):
         assert len(files) == 1
 
     def test_list_fw_files_empty(self):
+        """Test list fw files empty."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -589,6 +638,7 @@ class TestFirmware(unittest.TestCase):
         assert len(files) == 0
 
     def test_delete_fw_file_success(self):
+        """Test delete fw file success."""
         from protocols.mtib.mtib_pb2 import FwFileInfo, HostType
 
         resp = MagicMock()
@@ -601,6 +651,7 @@ class TestFirmware(unittest.TestCase):
         assert err is None
 
     def test_flash_fw_file_success(self):
+        """Test flash fw file success."""
         from protocols.mtib.mtib_pb2 import FwFileInfo, HostType
 
         resp = MagicMock()
@@ -615,6 +666,7 @@ class TestFirmware(unittest.TestCase):
         assert time_ms == 3500
 
     def test_erase_flash_success(self):
+        """Test erase flash success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -624,6 +676,7 @@ class TestFirmware(unittest.TestCase):
         assert err is None
 
     def test_enable_app_protect_success(self):
+        """Test enable app protect success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -638,9 +691,11 @@ class TestNfc(unittest.TestCase):
     """Tests for NFC methods."""
 
     def setUp(self):
+        """Set up test fixtures."""
         self.client = _make_client()
 
     def test_nfc_poll_tag_present(self):
+        """Test nfc poll tag present."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -654,6 +709,7 @@ class TestNfc(unittest.TestCase):
         assert uid == b"\x04\x01\x02\x03"
 
     def test_nfc_poll_no_tag(self):
+        """Test nfc poll no tag."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -666,6 +722,7 @@ class TestNfc(unittest.TestCase):
         assert present is False
 
     def test_nfc_poll_grpc_error(self):
+        """Test nfc poll grpc error."""
         rpc_err = _make_rpc_error("NFC hardware not found")
         self.client.client.NfcPoll.side_effect = rpc_err
 
@@ -679,9 +736,11 @@ class TestMotion(unittest.TestCase):
     """Tests for motion methods."""
 
     def setUp(self):
+        """Set up test fixtures."""
         self.client = _make_client()
 
     def test_get_motion_status_idle(self):
+        """Test get motion status idle."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -693,6 +752,7 @@ class TestMotion(unittest.TestCase):
         assert status == MotionStatus.IDLE
 
     def test_get_motion_status_error(self):
+        """Test get motion status error."""
         resp = MagicMock()
         resp.success = False
         resp.message = "motor driver fault"
@@ -703,6 +763,7 @@ class TestMotion(unittest.TestCase):
         assert "motor driver fault" in err
 
     def test_motion_home_success(self):
+        """Test motion home success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -712,6 +773,7 @@ class TestMotion(unittest.TestCase):
         assert err is None
 
     def test_motion_stop_success(self):
+        """Test motion stop success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -725,40 +787,49 @@ class TestValidation(unittest.TestCase):
     """Tests for input validation helpers."""
 
     def setUp(self):
+        """Set up test fixtures."""
         self.client = _make_client()
 
     def test_validate_gpio_valid_range(self):
+        """Test validate gpio valid range."""
         for pin in range(8):
             assert self.client._validate_gpio(pin) is None
 
     def test_validate_gpio_out_of_range(self):
+        """Test validate gpio out of range."""
         assert self.client._validate_gpio(8) is not None
         assert self.client._validate_gpio(-1) is not None
         assert self.client._validate_gpio(100) is not None
 
     def test_validate_adc_channel_valid(self):
+        """Test validate adc channel valid."""
         for ch in range(8):
             assert self.client._validate_adc_channel(ch) is None
 
     def test_validate_adc_channel_invalid(self):
+        """Test validate adc channel invalid."""
         assert self.client._validate_adc_channel(8) is not None
         assert self.client._validate_adc_channel(-1) is not None
 
     def test_validate_power_channel_valid(self):
+        """Test validate power channel valid."""
         assert self.client._validate_power_channel(0) is None
         assert self.client._validate_power_channel(1) is None
         assert self.client._validate_power_channel(2) is None  # Joulescope
 
     def test_validate_power_channel_invalid(self):
+        """Test validate power channel invalid."""
         assert self.client._validate_power_channel(3) is not None
         assert self.client._validate_power_channel(-1) is not None
 
     def test_validate_voltage_valid(self):
+        """Test validate voltage valid."""
         assert self.client._validate_voltage(0.0) is None
         assert self.client._validate_voltage(4.5) is None
         assert self.client._validate_voltage(6.0) is None
 
     def test_validate_voltage_invalid(self):
+        """Test validate voltage invalid."""
         assert self.client._validate_voltage(6.1) is not None
         assert self.client._validate_voltage(-0.1) is not None
         assert self.client._validate_voltage(12.0) is not None
@@ -768,9 +839,11 @@ class TestGetSnapshot(unittest.TestCase):
     """Tests for GetSnapshot."""
 
     def setUp(self):
+        """Set up test fixtures."""
         self.client = _make_client()
 
     def test_get_snapshot_success(self):
+        """Test get snapshot success."""
         resp = MagicMock()
         resp.success = True
         resp.message = ""
@@ -787,6 +860,7 @@ class TestGetSnapshot(unittest.TestCase):
         assert result.hw_revision == "1.2"
 
     def test_get_snapshot_server_error(self):
+        """Test get snapshot server error."""
         resp = MagicMock()
         resp.success = False
         resp.message = "snapshot unavailable"

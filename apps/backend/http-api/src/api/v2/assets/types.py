@@ -9,6 +9,8 @@ VALID_STATUSES = {"PENDING", "COMPLETE", "VALIDATED", "FAILED"}
 
 @dataclass
 class AssetSetCreateRequest:
+    """Request body for creating a new asset set."""
+
     version: str
     variant: str = "debug"
     source: str = "MANUAL_UPLOAD"
@@ -21,6 +23,7 @@ class AssetSetCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["AssetSetCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into an AssetSetCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
         version = (data.get("version") or "").strip()
@@ -49,6 +52,8 @@ class AssetSetCreateRequest:
 
 @dataclass
 class ExternalAssetSetCreateRequest:
+    """Request body for creating an asset set from an external CI build."""
+
     version: str
     externalBuildId: str
     variant: str = "debug"
@@ -60,6 +65,7 @@ class ExternalAssetSetCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ExternalAssetSetCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into an ExternalAssetSetCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
         version = (data.get("version") or "").strip()

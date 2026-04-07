@@ -27,6 +27,7 @@ _SAFE_SELECT = {
 
 
 def _serialize(s) -> dict:
+    """Serialize a Secret DB record to a safe API response dict (no values)."""
     return {
         "id": s.id,
         "name": s.name,

@@ -85,6 +85,7 @@ class MessageFactory:
         num_exceptions: int = 0,
         record_id: int = 1,
     ) -> BootMsgV2:
+        """Boot."""
         if time_of_record is None:
             time_of_record = dt_to_utc(datetime.utcnow())
         flags = _encode_boot_flags(boot_reason, mcu_type, fw_triggered)
@@ -109,6 +110,7 @@ class MessageFactory:
         num_sat: int = 8,
         record_id: int = 1,
     ) -> PositionMsgV6:
+        """Position."""
         if time_of_record is None:
             time_of_record = dt_to_utc(datetime.utcnow())
         # Encode flags: bit 0 = is_in_motion in the low byte
@@ -216,6 +218,7 @@ class MessageFactory:
         band: int = 12,
         record_id: int = 1,
     ) -> NetworkStatusMsgV4:
+        """Network status."""
         if time_of_record is None:
             time_of_record = dt_to_utc(datetime.utcnow())
         return NetworkStatusMsgV4(
@@ -258,6 +261,7 @@ class MessageFactory:
         batt_charger_fails: int = 0,
         record_id: int = 1,
     ) -> AlphaHwFailureMsg:
+        """Hw failure."""
         if time_of_record is None:
             time_of_record = dt_to_utc(datetime.utcnow())
         return AlphaHwFailureMsg(
@@ -290,6 +294,7 @@ class MessageFactory:
         sat_modem_fails: int = 0,
         record_id: int = 1,
     ) -> CommsHwFailureMsg:
+        """Comms hw failure."""
         if time_of_record is None:
             time_of_record = dt_to_utc(datetime.utcnow())
         return CommsHwFailureMsg(
@@ -329,6 +334,7 @@ class MockBiometricDataMsg(BiometricDataMsg):
     # expose them as properties.
 
     def __new__(cls, *args, _temperature=None, _pressure=None, _humidity=None, **kwargs):
+        """  new  ."""
         instance = super().__new__(cls)
         # Bypass frozen to store private attrs
         object.__setattr__(instance, "_mock_temperature", _temperature)
@@ -338,18 +344,22 @@ class MockBiometricDataMsg(BiometricDataMsg):
 
     def __init__(self, *args, _temperature=None, _pressure=None, _humidity=None, **kwargs):
         # Filter out our extra kwargs before passing to parent
+        """  init  ."""
         super().__init__(*args, **kwargs)
 
     @property
     def temperature(self) -> Optional[float]:
+        """Temperature."""
         return self._mock_temperature
 
     @property
     def pressure(self) -> Optional[float]:
+        """Pressure."""
         return self._mock_pressure
 
     @property
     def humidity(self) -> Optional[float]:
+        """Humidity."""
         return self._mock_humidity
 
 
@@ -598,6 +608,7 @@ class MockCloudClient:
     """
 
     def __init__(self, device_id: int, db_env: str = "MOCK"):
+        """  init  ."""
         self._device_id = device_id
         self._db_env = db_env
         self._test_start: Optional[datetime] = None
@@ -606,10 +617,12 @@ class MockCloudClient:
 
     @property
     def device_id(self) -> int:
+        """Device id."""
         return self._device_id
 
     @property
     def db_env(self) -> str:
+        """Db env."""
         return self._db_env
 
     def mark_test_start(self) -> None:
@@ -643,6 +656,7 @@ class MockCloudClient:
         self._messages.clear()
 
     def _require_test_start(self) -> datetime:
+        """ require test start."""
         if self._test_start is None:
             raise RuntimeError("mark_test_start() must be called before querying messages")
         return self._test_start
@@ -702,6 +716,7 @@ class MockCloudClient:
         reason_map = {0: "Normal", 1: "Exception", 2: "Fuota", 3: "Charger"}
 
         def pred(b: BootMsgV2) -> bool:
+            """Pred."""
             if boot_reason is not None and b.boot_reason != boot_reason:
                 return False
             return True
@@ -727,6 +742,7 @@ class MockCloudClient:
             # Convert message to dict before passing to predicate —
             # matches real CloudClient which always returns dicts
             def msg_pred(pos: PositionMsgV6) -> bool:
+                """Msg pred."""
                 return predicate(self._position_to_dict(pos))
 
         msg = self._poll(PositionMsgV6, msg_pred, timeout_s)
@@ -776,6 +792,7 @@ class MockCloudClient:
     ) -> Dict[str, Any]:
         """Wait for network status — returns dict matching CloudClient interface."""
         def pred(n: NetworkStatusMsgV4) -> bool:
+            """Pred."""
             return bool(n.did_lte_conn and n.did_sock_conn and n.send_success)
         msg = self._poll(NetworkStatusMsgV4, pred, timeout_s)
         return {
@@ -828,6 +845,7 @@ class MockCloudClient:
         timeout_s: float = 120,
         poll_interval_s: float = 0.05,
     ) -> T:
+        """Wait for message."""
         return self._poll(msg_class, predicate, timeout_s, poll_interval_s)
 
     def query_messages(
@@ -835,6 +853,7 @@ class MockCloudClient:
         msg_class: Type[T],
         predicate: Optional[Callable[[T], bool]] = None,
     ) -> List[T]:
+        """Query messages."""
         visible = self._visible_messages(msg_class)
         if predicate:
             return [m for m in visible if predicate(m)]
@@ -855,6 +874,7 @@ class ScenarioEngine:
     """
 
     def __init__(self, client: MockCloudClient):
+        """  init  ."""
         self._client = client
 
     def load(self, scenario: Scenario) -> None:

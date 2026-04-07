@@ -46,6 +46,7 @@ class ManifestTarget:
 
     @classmethod
     def from_dict(cls, data: dict) -> "ManifestTarget":
+        """From dict."""
         return cls(
             role=data["role"],
             processor=data["processor"],
@@ -90,6 +91,7 @@ class BuildManifest:
 
     @classmethod
     def from_dict(cls, data: dict, artifact_names: Optional[List[str]] = None) -> "BuildManifest":
+        """From dict."""
         schema = data.get("schemaVersion", 0)
 
         if schema == 1:
@@ -189,14 +191,17 @@ class BuildManifest:
 
     @property
     def device_type_id(self) -> int:
+        """Device type id."""
         return self.corecloud.get("deviceTypeId", 0)
 
     @property
     def device_variant_id(self) -> int:
+        """Device variant id."""
         return self.corecloud.get("deviceVariantId", 0)
 
     @property
     def api_env(self) -> str:
+        """Api env."""
         return self.corecloud.get("apiEnv", "")
 
 
@@ -230,21 +235,25 @@ class _BuildInfo:
 
     @property
     def has_manifest(self) -> bool:
+        """Has manifest."""
         return any(a.name == "build.json" for a in self.artifacts)
 
     def get_manifest_artifact(self) -> Optional[_ArtifactInfo]:
+        """Get manifest artifact."""
         for a in self.artifacts:
             if a.name == "build.json":
                 return a
         return None
 
     def find_artifact_by_name(self, name: str) -> Optional[_ArtifactInfo]:
+        """Find artifact by name."""
         for a in self.artifacts:
             if a.name == name:
                 return a
         return None
 
     def find_artifacts_by_extension(self, ext: str) -> List[_ArtifactInfo]:
+        """Find artifacts by extension."""
         return [a for a in self.artifacts if a.name.endswith(ext)]
 
 
@@ -281,6 +290,7 @@ class ArtifactResolver:
         **kwargs,
     ):
         # Warn about deprecated storage_config parameter
+        """  init  ."""
         if "storage_config" in kwargs:
             warnings.warn(
                 "storage_config parameter is deprecated and ignored. "
@@ -528,6 +538,7 @@ class ArtifactResolver:
 
     @property
     def pipeline_id(self) -> str:
+        """Pipeline id."""
         return self._pipeline_id
 
     @property
@@ -733,6 +744,7 @@ class ArtifactResolver:
         self._temp_files.clear()
 
     def __del__(self):
+        """  del  ."""
         try:
             self.cleanup()
         except Exception as exc:

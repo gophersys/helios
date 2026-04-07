@@ -74,6 +74,7 @@ def start_scheduler():
     from config import env_config
     if env_config.BITBUCKET_POLLER_ENABLED:
         def _poller_loop():
+            """Background loop that polls Bitbucket for new commits."""
             import time
             interval = env_config.BITBUCKET_POLLER_INTERVAL_S
             time.sleep(30)  # Initial delay to let services start

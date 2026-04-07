@@ -335,6 +335,7 @@ def create_kubernetes_job(
 # -------------------------------------------------
 @require_permissions(Permissions.VALIDATION_RUN)
 def run_tests():
+    """POST — upload a test ZIP and launch a manual validation K8s job."""
     logger = get_logger()
     zip_file_path = None
     temp_dir = None

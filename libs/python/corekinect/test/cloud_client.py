@@ -45,6 +45,7 @@ class CloudClient:
 
     def __init__(self, device_id: int, api_env: str = "VAL_1_0",
                  db_env: str = "", logger: Optional[Logger] = None):
+        """  init  ."""
         self._device_id = device_id
         self._device_id_hex = f"{device_id:016X}"
 
@@ -59,10 +60,12 @@ class CloudClient:
 
     @property
     def device_id(self) -> int:
+        """Device id."""
         return self._device_id
 
     @property
     def db_env(self) -> str:
+        """Db env."""
         return self._api_env
 
     def _get_api(self):
@@ -183,6 +186,7 @@ class CloudClient:
         reason_str = reason_map.get(boot_reason) if boot_reason is not None else None
 
         def pred(boot: Dict) -> bool:
+            """Pred."""
             if reason_str is not None and boot.get("bootReason") != reason_str:
                 return False
             return True

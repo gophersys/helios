@@ -5,6 +5,7 @@ T = TypeVar("T")
 
 
 class Serializable:
+    """Serializable."""
     _class_map = {}
 
     def __init_subclass__(cls, **kwargs):
@@ -14,6 +15,7 @@ class Serializable:
             Serializable._class_map[cls.__type__] = cls
 
     def _stringify_keys(cls, d):
+        """Recursively convert all dict keys to strings."""
         if isinstance(d, dict):
             return {str(k): cls._stringify_keys(v) for k, v in d.items()}
         if isinstance(d, list):
@@ -21,6 +23,7 @@ class Serializable:
         return d
 
     def _intify_keys(cls, d):
+        """Recursively convert digit string keys to integers."""
         if isinstance(d, dict):
             return {int(k) if k.isdigit() else k: cls._intify_keys(v) for k, v in d.items()}
         if isinstance(d, list):

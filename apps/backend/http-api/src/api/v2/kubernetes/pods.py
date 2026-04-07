@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_pods():
+    """List Kubernetes pods with optional namespace and label filtering.
+
+    Returns:
+        JSON response with paginated list of pod summaries.
+    """
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = pods_svc.list_pods(
@@ -37,6 +42,15 @@ def list_pods():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_pod(namespace: str, name: str):
+    """Get detailed information about a specific pod.
+
+    Args:
+        namespace: Kubernetes namespace.
+        name: Pod name.
+
+    Returns:
+        JSON response with detailed pod data including conditions, volumes, and events.
+    """
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")
@@ -57,6 +71,17 @@ def get_pod(namespace: str, name: str):
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_pod_logs(namespace: str, name: str):
+    """Stream or fetch tail logs from a pod container.
+
+    Query params: container, tailLines (default 100, max 10000), previous, sinceSeconds.
+
+    Args:
+        namespace: Kubernetes namespace.
+        name: Pod name.
+
+    Returns:
+        JSON response with logs dict keyed by container name.
+    """
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")
@@ -90,6 +115,15 @@ def get_pod_logs(namespace: str, name: str):
 
 @require_permissions(Permissions.KUBERNETES_MANAGE)
 def delete_pod(namespace: str, name: str):
+    """Delete a specific pod.
+
+    Args:
+        namespace: Kubernetes namespace.
+        name: Pod name.
+
+    Returns:
+        JSON response with deleted=True on success.
+    """
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")

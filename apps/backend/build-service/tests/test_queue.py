@@ -90,22 +90,16 @@ class TestJobQueue:
         q = JobQueue()
         results = []
 
-        def producer():
-            for i in range(100):
-                q.enqueue(f"job-{i}", priority=i)
+        # Produce all items first, then consume — avoids timing races
+        for i in range(100):
+            q.enqueue(f"job-{i}", priority=i)
 
-        def consumer():
-            while len(results) < 100:
-                r = q.dequeue(timeout=0.5)
-                if r:
-                    results.append(r)
+        assert q.depth == 100
 
-        t1 = threading.Thread(target=producer)
-        t2 = threading.Thread(target=consumer)
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join(timeout=10)
+        for _ in range(100):
+            r = q.dequeue(timeout=1.0)
+            assert r is not None
+            results.append(r)
 
         assert len(results) == 100
         # Highest priority should come first

@@ -20,6 +20,14 @@ SessionFactory = Callable[[], requests.Session]
 
 
 def _default_session_factory() -> requests.Session:
+    """Create a requests.Session with SSL warnings suppressed.
+
+    Suppression is needed for self-signed certificates used in dev and staging
+    environments.
+
+    Returns:
+        A new requests.Session instance.
+    """
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     return requests.Session()

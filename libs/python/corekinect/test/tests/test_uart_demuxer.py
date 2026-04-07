@@ -80,11 +80,13 @@ class MockMtib:
 
 @pytest.fixture
 def mock_mtib():
+    """Mock mtib."""
     return MockMtib()
 
 
 @pytest.fixture
 def log_dir():
+    """Log dir."""
     with tempfile.TemporaryDirectory() as d:
         yield d
 
@@ -96,10 +98,12 @@ class TestDualTargetCapture:
     """Core capture: both APP + COMMS simultaneously."""
 
     def test_default_targets_are_app_and_comms(self, mock_mtib):
+        """Test default targets are app and comms."""
         demuxer = UartDemuxer(mtib=mock_mtib, pump_hz=200)
         assert set(demuxer._targets) == {UartDemuxer.APP, UartDemuxer.COMMS}
 
     def test_captures_from_both_targets(self, mock_mtib):
+        """Test captures from both targets."""
         demuxer = UartDemuxer(mtib=mock_mtib, pump_hz=200)
         demuxer.start()
         try:
@@ -248,6 +252,7 @@ class TestCommandSending:
     """Send commands via queue while capturing."""
 
     def test_send_command(self, mock_mtib):
+        """Test send command."""
         demuxer = UartDemuxer(
             mtib=mock_mtib,
             targets=[UartDemuxer.APP],
@@ -266,6 +271,7 @@ class TestCommandSending:
             demuxer.stop()
 
     def test_send_bytes(self, mock_mtib):
+        """Test send bytes."""
         demuxer = UartDemuxer(
             mtib=mock_mtib,
             targets=[UartDemuxer.COMMS],
@@ -312,6 +318,7 @@ class TestWaitForLog:
     """Pattern matching with timeout."""
 
     def test_wait_success(self, mock_mtib):
+        """Test wait success."""
         demuxer = UartDemuxer(
             mtib=mock_mtib,
             targets=[UartDemuxer.APP],
@@ -329,6 +336,7 @@ class TestWaitForLog:
             demuxer.stop()
 
     def test_wait_timeout(self, mock_mtib):
+        """Test wait timeout."""
         demuxer = UartDemuxer(
             mtib=mock_mtib,
             targets=[UartDemuxer.APP],
@@ -392,6 +400,7 @@ class TestWaitForLog:
             result = {}
 
             def wait_thread():
+                """Wait thread."""
                 result["line"] = demuxer.wait_for_log("delayed", timeout_s=2)
 
             t = threading.Thread(target=wait_thread)
@@ -410,6 +419,7 @@ class TestLocalFileWriting:
     """Incremental file persistence for crash safety."""
 
     def test_writes_log_files(self, mock_mtib, log_dir):
+        """Test writes log files."""
         demuxer = UartDemuxer(mtib=mock_mtib, log_dir=log_dir, pump_hz=200)
         demuxer.start()
         try:
@@ -436,6 +446,7 @@ class TestLocalFileWriting:
             assert "comms line 1" in content
 
     def test_file_has_posix_timestamps(self, mock_mtib, log_dir):
+        """Test file has posix timestamps."""
         demuxer = UartDemuxer(mtib=mock_mtib, log_dir=log_dir, pump_hz=200)
         demuxer.start()
         try:
@@ -492,9 +503,11 @@ class TestOnLineCallback:
     """Callback integration for ArtifactWriter pipeline."""
 
     def test_callback_fires_for_each_line(self, mock_mtib):
+        """Test callback fires for each line."""
         received = []
 
         def on_line(target_name, posix_us, line):
+            """On line."""
             received.append((target_name, posix_us, line))
 
         demuxer = UartDemuxer(mtib=mock_mtib, pump_hz=200)
@@ -515,6 +528,7 @@ class TestOnLineCallback:
             demuxer.stop()
 
     def test_callback_includes_target_name(self, mock_mtib):
+        """Test callback includes target name."""
         received = []
         demuxer = UartDemuxer(mtib=mock_mtib, pump_hz=200)
         demuxer.on_line = lambda name, ts, line: received.append(name)
@@ -536,6 +550,7 @@ class TestOnLineCallback:
         """A broken callback must never crash the capture thread."""
 
         def bad_callback(name, ts, line):
+            """Bad callback."""
             raise RuntimeError("callback exploded")
 
         demuxer = UartDemuxer(
@@ -565,6 +580,7 @@ class TestTimeline:
     """Merged timeline across targets."""
 
     def test_get_timeline_sorted(self, mock_mtib):
+        """Test get timeline sorted."""
         demuxer = UartDemuxer(mtib=mock_mtib, pump_hz=200)
         demuxer.start()
         try:
@@ -591,6 +607,7 @@ class TestTimeline:
             demuxer.stop()
 
     def test_get_timeline_since_filter(self, mock_mtib):
+        """Test get timeline since filter."""
         demuxer = UartDemuxer(
             mtib=mock_mtib,
             targets=[UartDemuxer.APP],
@@ -619,6 +636,7 @@ class TestClearAndDump:
     """Buffer management."""
 
     def test_clear_resets_memory_buffer(self, mock_mtib):
+        """Test clear resets memory buffer."""
         demuxer = UartDemuxer(
             mtib=mock_mtib,
             targets=[UartDemuxer.APP],
@@ -637,6 +655,7 @@ class TestClearAndDump:
             demuxer.stop()
 
     def test_clear_does_not_affect_files(self, mock_mtib, log_dir):
+        """Test clear does not affect files."""
         demuxer = UartDemuxer(mtib=mock_mtib, log_dir=log_dir, pump_hz=200)
         demuxer.start()
         try:
@@ -656,6 +675,7 @@ class TestClearAndDump:
             assert "persistent" in f.read()
 
     def test_dump_to_file_single_target(self, mock_mtib):
+        """Test dump to file single target."""
         demuxer = UartDemuxer(
             mtib=mock_mtib,
             targets=[UartDemuxer.APP],
@@ -681,6 +701,7 @@ class TestClearAndDump:
             os.unlink(path)
 
     def test_dump_to_file_merged(self, mock_mtib):
+        """Test dump to file merged."""
         demuxer = UartDemuxer(mtib=mock_mtib, pump_hz=200)
         demuxer.start()
         try:
@@ -710,6 +731,7 @@ class TestPumpRate:
     """Dynamic pump rate control."""
 
     def test_set_pump_rate(self, mock_mtib):
+        """Test set pump rate."""
         demuxer = UartDemuxer(mtib=mock_mtib, pump_hz=20)
         assert demuxer._pump_interval == pytest.approx(0.05)
 
@@ -741,20 +763,24 @@ class TestTargetResolution:
     """String shorthand for targets."""
 
     def test_resolve_app(self, mock_mtib):
+        """Test resolve app."""
         demuxer = UartDemuxer(mtib=mock_mtib)
         assert demuxer._resolve_target("app") == UartDemuxer.APP
         assert demuxer._resolve_target("APP") == UartDemuxer.APP
 
     def test_resolve_comms(self, mock_mtib):
+        """Test resolve comms."""
         demuxer = UartDemuxer(mtib=mock_mtib)
         assert demuxer._resolve_target("comms") == UartDemuxer.COMMS
         assert demuxer._resolve_target("COMMS") == UartDemuxer.COMMS
 
     def test_resolve_hosttype_passthrough(self, mock_mtib):
+        """Test resolve hosttype passthrough."""
         demuxer = UartDemuxer(mtib=mock_mtib)
         assert demuxer._resolve_target(UartDemuxer.APP) == UartDemuxer.APP
 
     def test_resolve_unknown_raises(self, mock_mtib):
+        """Test resolve unknown raises."""
         demuxer = UartDemuxer(mtib=mock_mtib)
         with pytest.raises(ValueError, match="Unknown target"):
             demuxer._resolve_target("bluetooth")
@@ -764,6 +790,7 @@ class TestLifecycle:
     """Start/stop behavior."""
 
     def test_double_start_is_noop(self, mock_mtib):
+        """Test double start is noop."""
         demuxer = UartDemuxer(
             mtib=mock_mtib,
             targets=[UartDemuxer.APP],
@@ -778,6 +805,7 @@ class TestLifecycle:
             demuxer.stop()
 
     def test_stop_joins_threads(self, mock_mtib):
+        """Test stop joins threads."""
         demuxer = UartDemuxer(mtib=mock_mtib, pump_hz=200)
         demuxer.start()
         assert len(demuxer._threads) == 2
@@ -785,6 +813,7 @@ class TestLifecycle:
         assert len(demuxer._threads) == 0
 
     def test_is_running_property(self, mock_mtib):
+        """Test is running property."""
         demuxer = UartDemuxer(mtib=mock_mtib, pump_hz=200)
         assert not demuxer.is_running
         demuxer.start()

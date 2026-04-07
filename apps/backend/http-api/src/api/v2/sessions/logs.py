@@ -45,6 +45,7 @@ _FLUSH_INTERVAL_S = 30.0
 
 
 def _buffer_key(run_id: str, file: str) -> str:
+    """Build the in-memory buffer dict key for a run's log file."""
     return f"{run_id}/{file}"
 
 
@@ -160,6 +161,7 @@ atexit.register(_flush_log_buffers)
 
 
 def _get_session_or_404(db, run_id: str):
+    """Look up a session by ID, returning (session, None) or (None, 404 response)."""
     session = db.session.find_unique(where={"id": run_id})
     if not session:
         return None, not_found("Validation run not found")

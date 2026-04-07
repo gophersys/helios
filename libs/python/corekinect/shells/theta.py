@@ -297,6 +297,7 @@ class ThetaAppShell:
             input_queue.put(f"vib_test {duration_ms}\r".encode("utf-8"))
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -343,6 +344,7 @@ class ThetaAppShell:
             input_queue.put(b"gps status\r")
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -397,6 +399,7 @@ class ThetaAppShell:
             input_queue.put(b"gps start\r")
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -447,6 +450,7 @@ class ThetaAppShell:
             input_queue.put(b"gps stop\r")
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -497,6 +501,7 @@ class ThetaAppShell:
             input_queue.put(b"get_ublox\r")
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -557,6 +562,7 @@ class ThetaAppShell:
             input_queue.put(f"set_gps_power {power_val}\r".encode("utf-8"))
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -603,6 +609,7 @@ class ThetaAppShell:
             input_queue.put(b"test_ble\r")
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -655,6 +662,7 @@ class ThetaAppShell:
             input_queue.put(b"test_bms\r")
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -724,6 +732,7 @@ class ThetaAppShell:
             input_queue.put(b"test_charger\r")
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -787,6 +796,7 @@ class ThetaAppShell:
             input_queue.put(b"test_gps\r")
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -847,6 +857,7 @@ class ThetaAppShell:
             input_queue.put(f"read_ext_flash {address} {num_bytes}\r".encode("utf-8"))
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()
@@ -918,6 +929,7 @@ class ThetaAppShell:
             input_queue.put(f"write_ext_flash {address} {data}\r".encode("utf-8"))
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         cmd_data = input_queue.get_nowait()
@@ -976,6 +988,7 @@ class ThetaAppShell:
             input_queue.put(b"erase_ext_flash\r")
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 while True:
                     try:
                         data = input_queue.get_nowait()

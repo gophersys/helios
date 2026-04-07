@@ -10,4 +10,5 @@ def init_logger(config: Logger.Config):
 
 
 def get_logger():
+    """Get the global Logger instance."""
     return _logger

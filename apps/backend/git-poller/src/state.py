@@ -50,9 +50,22 @@ class PollerState:
     # ------------------------------------------------------------------
 
     def _headers(self) -> dict:
+        """Return the Authorization header dict for API requests.
+
+        Returns:
+            Dict with a single ``Authorization`` key using the ApiKey scheme.
+        """
         return {"Authorization": f"ApiKey {self._api_key}"}
 
     def _url(self, path: str = "") -> str:
+        """Build a full URL under the poller-state API path.
+
+        Args:
+            path: Optional sub-path appended after the base poller-state path.
+
+        Returns:
+            Fully qualified URL string.
+        """
         return f"{self._api_url}{_POLLER_STATE_PATH}{path}"
 
     # ------------------------------------------------------------------
@@ -94,6 +107,14 @@ class PollerState:
     # ------------------------------------------------------------------
 
     def _repo(self, repo_slug: str) -> dict:
+        """Return the in-memory state dict for a repo, creating it if absent.
+
+        Args:
+            repo_slug: The repository slug used as the state key.
+
+        Returns:
+            Dict with ``"branches"`` and ``"prs"`` sub-dicts for the repo.
+        """
         if repo_slug not in self._data:
             self._data[repo_slug] = {"branches": {}, "prs": {}}
         return self._data[repo_slug]
@@ -156,9 +177,25 @@ class PollerState:
     # ------------------------------------------------------------------
 
     def get_branch_sha(self, repo_slug: str, branch: str) -> Optional[str]:
+        """Return the stored commit SHA for a branch, or None if unseen.
+
+        Args:
+            repo_slug: Repository slug.
+            branch: Branch name.
+
+        Returns:
+            The stored SHA string, or None if this branch has not been seen.
+        """
         return self._repo(repo_slug)["branches"].get(branch)
 
     def set_branch_sha(self, repo_slug: str, branch: str, sha: str) -> None:
+        """Store a commit SHA for a branch and persist it to the API.
+
+        Args:
+            repo_slug: Repository slug.
+            branch: Branch name.
+            sha: Commit SHA to store.
+        """
         self._repo(repo_slug)["branches"][branch] = sha
         self._api_upsert(repo_slug, "branch", branch, sha)
 
@@ -167,10 +204,28 @@ class PollerState:
     # ------------------------------------------------------------------
 
     def get_pr_sha(self, repo_slug: str, pr_id: int) -> Optional[str]:
+        """Return the stored head SHA for a PR, or None if not tracked.
+
+        Args:
+            repo_slug: Repository slug.
+            pr_id: Numeric pull-request ID.
+
+        Returns:
+            The stored head SHA string, or None if this PR is not tracked.
+        """
         entry = self._repo(repo_slug)["prs"].get(str(pr_id))
         return entry["sha"] if entry else None
 
     def get_pr_source_branch(self, repo_slug: str, pr_id: int) -> Optional[str]:
+        """Return the stored source branch name for a PR, or None if not tracked.
+
+        Args:
+            repo_slug: Repository slug.
+            pr_id: Numeric pull-request ID.
+
+        Returns:
+            The source branch string, or None if this PR is not tracked.
+        """
         entry = self._repo(repo_slug)["prs"].get(str(pr_id))
         return entry["source"] if entry else None
 
@@ -181,6 +236,14 @@ class PollerState:
         sha: str,
         source_branch: str,
     ) -> None:
+        """Store a PR's head SHA and source branch, persisting to the API.
+
+        Args:
+            repo_slug: Repository slug.
+            pr_id: Numeric pull-request ID.
+            sha: Current head commit SHA of the PR.
+            source_branch: Name of the PR's source branch.
+        """
         self._repo(repo_slug)["prs"][str(pr_id)] = {
             "sha": sha,
             "source": source_branch,
@@ -194,8 +257,22 @@ class PollerState:
         )
 
     def get_tracked_pr_ids(self, repo_slug: str) -> set[int]:
+        """Return the set of PR IDs currently tracked for a repo.
+
+        Args:
+            repo_slug: Repository slug.
+
+        Returns:
+            Set of integer PR IDs that have been stored for this repo.
+        """
         return {int(k) for k in self._repo(repo_slug)["prs"]}
 
     def remove_pr(self, repo_slug: str, pr_id: int) -> None:
+        """Remove a closed PR from in-memory state and the API.
+
+        Args:
+            repo_slug: Repository slug.
+            pr_id: Numeric pull-request ID to remove.
+        """
         self._repo(repo_slug)["prs"].pop(str(pr_id), None)
         self._api_delete(repo_slug, "pr", str(pr_id))

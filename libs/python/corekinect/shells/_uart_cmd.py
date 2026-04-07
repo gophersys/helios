@@ -56,6 +56,7 @@ def send_uart_cmd(
 
         def request_iterator():
             # Send initial target identification request immediately
+            """Request iterator."""
             yield UartStreamRequest(target=target, data=b"")
             while not stop_requests.is_set():
                 try:
@@ -148,6 +149,7 @@ def drain_uart(
 
     def request_iterator():
         # Initial request to set target
+        """Request iterator."""
         yield UartStreamRequest(target=target, data=b"")
         while not stop.is_set():
             yield UartStreamRequest(target=target, data=b"")
@@ -185,6 +187,7 @@ def lock_shell(
     stop = threading.Event()
 
     def request_iterator():
+        """Request iterator."""
         start = time.time()
         while time.time() - start < spam_s and not stop.is_set():
             yield UartStreamRequest(target=target, data=b"\rlock_shell\r")

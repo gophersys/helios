@@ -78,8 +78,10 @@ def requires_capability(*caps: str) -> Callable:
     cap_strings = [_cap_to_str(c) for c in caps]
 
     def decorator(func: Callable) -> Callable:
+        """Wrap func to skip if fixture lacks required capabilities."""
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            """Invoke the wrapped test, skipping if capabilities are missing."""
             fixture = _find_fixture(func, args, kwargs)
 
             if fixture is None:

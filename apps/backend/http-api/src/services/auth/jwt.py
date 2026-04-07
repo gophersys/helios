@@ -15,6 +15,7 @@ def create_token(
     permission_set_id: str | None,
     role: str = "DEVELOPER",
 ) -> str:
+    """Create a signed JWT token with user claims."""
     payload = {
         "sub": user_id,
         "email": email,
@@ -28,6 +29,7 @@ def create_token(
 
 
 def verify_token(token: str) -> Tuple[Optional[dict], Optional[str]]:
+    """Verify and decode a JWT token, returning (payload, error)."""
     try:
         payload = jwt.decode(token, env_config.JWT_SECRET_KEY, algorithms=[ALGORITHM])
         return payload, None

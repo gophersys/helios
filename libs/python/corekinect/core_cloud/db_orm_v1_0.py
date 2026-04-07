@@ -5,10 +5,12 @@ from sqlalchemy import BigInteger, Boolean, Column, DateTime, Double, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
+    """SQLAlchemy declarative base for ORM models."""
     pass
 
 
 class Accountshistorytbl(Base):
+    """ORM mapping for the ``accountshistorytbl`` database table."""
     __tablename__ = 'accountshistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='accountshistorytbl_pkey'),
@@ -23,6 +25,7 @@ class Accountshistorytbl(Base):
 
 
 class Accountstbl(Base):
+    """ORM mapping for the ``accountstbl`` database table."""
     __tablename__ = 'accountstbl'
     __table_args__ = (
         PrimaryKeyConstraint('accountid', name='accountstbl_pkey'),
@@ -40,6 +43,7 @@ class Accountstbl(Base):
 
 
 class Configbeaconhistorytbl(Base):
+    """ORM mapping for the ``configbeaconhistorytbl`` database table."""
     __tablename__ = 'configbeaconhistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='configbeaconhistorytbl_pkey'),
@@ -60,6 +64,7 @@ class Configbeaconhistorytbl(Base):
 
 
 class Configbiometrichistorytbl(Base):
+    """ORM mapping for the ``configbiometrichistorytbl`` database table."""
     __tablename__ = 'configbiometrichistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='configbiometrichistorytbl_pkey'),
@@ -80,6 +85,7 @@ class Configbiometrichistorytbl(Base):
 
 
 class Configdronemodehistorytbl(Base):
+    """ORM mapping for the ``configdronemodehistorytbl`` database table."""
     __tablename__ = 'configdronemodehistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='configdronemodehistorytbl_pkey'),
@@ -104,6 +110,7 @@ class Configdronemodehistorytbl(Base):
 
 
 class Configemergencyv2historytbl(Base):
+    """ORM mapping for the ``configemergencyv2historytbl`` database table."""
     __tablename__ = 'configemergencyv2historytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='configemergencyv2historytbl_pkey'),
@@ -121,6 +128,7 @@ class Configemergencyv2historytbl(Base):
 
 
 class Configfallhistorytbl(Base):
+    """ORM mapping for the ``configfallhistorytbl`` database table."""
     __tablename__ = 'configfallhistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='configfallhistorytbl_pkey'),
@@ -144,6 +152,7 @@ class Configfallhistorytbl(Base):
 
 
 class Configgpshistorytbl(Base):
+    """ORM mapping for the ``configgpshistorytbl`` database table."""
     __tablename__ = 'configgpshistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='configgpshistorytbl_pkey'),
@@ -163,6 +172,7 @@ class Configgpshistorytbl(Base):
 
 
 class Configgroundhistorytbl(Base):
+    """ORM mapping for the ``configgroundhistorytbl`` database table."""
     __tablename__ = 'configgroundhistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='configgroundhistorytbl_pkey'),
@@ -188,6 +198,7 @@ class Configgroundhistorytbl(Base):
 
 
 class Confighipshistorytbl(Base):
+    """ORM mapping for the ``confighipshistorytbl`` database table."""
     __tablename__ = 'confighipshistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='confighipshistorytbl_pkey'),
@@ -208,6 +219,7 @@ class Confighipshistorytbl(Base):
 
 
 class Configlorahistorytbl(Base):
+    """ORM mapping for the ``configlorahistorytbl`` database table."""
     __tablename__ = 'configlorahistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='configlorahistorytbl_pkey'),
@@ -224,6 +236,7 @@ class Configlorahistorytbl(Base):
 
 
 class Configmodemhistorytbl(Base):
+    """ORM mapping for the ``configmodemhistorytbl`` database table."""
     __tablename__ = 'configmodemhistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='configmodemhistorytbl_pkey'),
@@ -245,6 +258,7 @@ class Configmodemhistorytbl(Base):
 
 
 class Deviceaccounthistorytbl(Base):
+    """ORM mapping for the ``deviceaccounthistorytbl`` database table."""
     __tablename__ = 'deviceaccounthistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='deviceaccounthistorytbl_pkey'),
@@ -258,6 +272,7 @@ class Deviceaccounthistorytbl(Base):
 
 
 class Devicefirmwarehistorytbl(Base):
+    """ORM mapping for the ``devicefirmwarehistorytbl`` database table."""
     __tablename__ = 'devicefirmwarehistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='devicefirmwarehistorytbl_pkey'),
@@ -277,6 +292,7 @@ class Devicefirmwarehistorytbl(Base):
 
 
 class Devicemessagestbl(Base):
+    """ORM mapping for the ``devicemessagestbl`` database table."""
     __tablename__ = 'devicemessagestbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='devicemessagestbl_pkey'),
@@ -296,6 +312,7 @@ class Devicemessagestbl(Base):
 
 
 class Deviceprofilestbl(Base):
+    """ORM mapping for the ``deviceprofilestbl`` database table."""
     __tablename__ = 'deviceprofilestbl'
     __table_args__ = (
         PrimaryKeyConstraint('deviceid', name='deviceprofilestbl_pkey'),
@@ -309,6 +326,7 @@ class Deviceprofilestbl(Base):
 
 
 class Devicetransferhistorytbl(Base):
+    """ORM mapping for the ``devicetransferhistorytbl`` database table."""
     __tablename__ = 'devicetransferhistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='devicetransferhistorytbl_pkey'),
@@ -325,6 +343,7 @@ class Devicetransferhistorytbl(Base):
 
 
 class Devicetransfertargetstbl(Base):
+    """ORM mapping for the ``devicetransfertargetstbl`` database table."""
     __tablename__ = 'devicetransfertargetstbl'
     __table_args__ = (
         PrimaryKeyConstraint('targetid', name='devicetransfertargetstbl_pkey'),
@@ -345,6 +364,7 @@ class Devicetransfertargetstbl(Base):
 
 
 class Devicetypevarianttbl(Base):
+    """ORM mapping for the ``devicetypevarianttbl`` database table."""
     __tablename__ = 'devicetypevarianttbl'
     __table_args__ = (
         PrimaryKeyConstraint('devicetypeid', 'devicevariantid', name='devicetypevarianttbl_pkey'),
@@ -362,6 +382,7 @@ class Devicetypevarianttbl(Base):
 
 
 class Fuotaprogresshistorytbl(Base):
+    """ORM mapping for the ``fuotaprogresshistorytbl`` database table."""
     __tablename__ = 'fuotaprogresshistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='fuotaprogresshistorytbl_pkey'),
@@ -383,6 +404,7 @@ class Fuotaprogresshistorytbl(Base):
 
 
 class Fuotaprogresstbl(Base):
+    """ORM mapping for the ``fuotaprogresstbl`` database table."""
     __tablename__ = 'fuotaprogresstbl'
     __table_args__ = (
         PrimaryKeyConstraint('deviceid', 'appid', name='fuotaprogresstbl_pkey'),
@@ -402,6 +424,7 @@ class Fuotaprogresstbl(Base):
 
 
 class Fuotasettingsperdevicehistorytbl(Base):
+    """ORM mapping for the ``fuotasettingsperdevicehistorytbl`` database table."""
     __tablename__ = 'fuotasettingsperdevicehistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='fuotasettingsperdevicehistorytbl_pkey'),
@@ -417,6 +440,7 @@ class Fuotasettingsperdevicehistorytbl(Base):
 
 
 class Fuotasettingsperdevicetypehistorytbl(Base):
+    """ORM mapping for the ``fuotasettingsperdevicetypehistorytbl`` database table."""
     __tablename__ = 'fuotasettingsperdevicetypehistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('recordid', name='fuotasettingsperdevicetypehistorytbl_pkey'),
@@ -434,6 +458,7 @@ class Fuotasettingsperdevicetypehistorytbl(Base):
 
 
 class Permissionstbl(Base):
+    """ORM mapping for the ``permissionstbl`` database table."""
     __tablename__ = 'permissionstbl'
     __table_args__ = (
         PrimaryKeyConstraint('permissionid', name='permissionstbl_pkey'),
@@ -451,6 +476,7 @@ class Permissionstbl(Base):
 
 
 class Rolestbl(Base):
+    """ORM mapping for the ``rolestbl`` database table."""
     __tablename__ = 'rolestbl'
     __table_args__ = (
         PrimaryKeyConstraint('roleid', name='rolestbl_pkey'),
@@ -470,6 +496,7 @@ class Rolestbl(Base):
 
 
 class Schemaversions(Base):
+    """ORM mapping for the ``schemaversions`` database table."""
     __tablename__ = 'schemaversions'
     __table_args__ = (
         PrimaryKeyConstraint('schemaversionsid', name='PK_schemaversions_Id'),
@@ -481,6 +508,7 @@ class Schemaversions(Base):
 
 
 class Webhooksperdevicehistorytbl(Base):
+    """ORM mapping for the ``webhooksperdevicehistorytbl`` database table."""
     __tablename__ = 'webhooksperdevicehistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('deviceid', 'webhookid', 'unassignedat', name='webhooksperdevicehistorytbl_pkey'),
@@ -493,6 +521,7 @@ class Webhooksperdevicehistorytbl(Base):
 
 
 class Webhooksperdevicetbl(Base):
+    """ORM mapping for the ``webhooksperdevicetbl`` database table."""
     __tablename__ = 'webhooksperdevicetbl'
     __table_args__ = (
         PrimaryKeyConstraint('deviceid', 'webhookid', name='webhooksperdevicetbl_pkey'),
@@ -504,6 +533,7 @@ class Webhooksperdevicetbl(Base):
 
 
 class Webhooksperdevicetypehistorytbl(Base):
+    """ORM mapping for the ``webhooksperdevicetypehistorytbl`` database table."""
     __tablename__ = 'webhooksperdevicetypehistorytbl'
     __table_args__ = (
         PrimaryKeyConstraint('devicetypeid', 'devicevariantid', 'unassignedat', name='webhooksperdevicetypehistorytbl_pkey'),
@@ -517,6 +547,7 @@ class Webhooksperdevicetypehistorytbl(Base):
 
 
 class Apikeystbl(Base):
+    """ORM mapping for the ``apikeystbl`` database table."""
     __tablename__ = 'apikeystbl'
     __table_args__ = (
         ForeignKeyConstraint(['accountid'], ['accountstbl.accountid'], name='fk_accountstbl_id'),
@@ -536,6 +567,7 @@ class Apikeystbl(Base):
 
 
 class Devicedatausagetbl(Base):
+    """ORM mapping for the ``devicedatausagetbl`` database table."""
     __tablename__ = 'devicedatausagetbl'
     __table_args__ = (
         ForeignKeyConstraint(['firstrecordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_first_id'),
@@ -556,6 +588,7 @@ class Devicedatausagetbl(Base):
 
 
 class Devicefirmwareappidstbl(Base):
+    """ORM mapping for the ``devicefirmwareappidstbl`` database table."""
     __tablename__ = 'devicefirmwareappidstbl'
     __table_args__ = (
         ForeignKeyConstraint(['devicetypeid', 'devicevariantid'], ['devicetypevarianttbl.devicetypeid', 'devicetypevarianttbl.devicevariantid'], name='fk_devicetype'),
@@ -571,6 +604,7 @@ class Devicefirmwareappidstbl(Base):
 
 
 class Devicestbl(Base):
+    """ORM mapping for the ``devicestbl`` database table."""
     __tablename__ = 'devicestbl'
     __table_args__ = (
         ForeignKeyConstraint(['accountid'], ['accountstbl.accountid'], name='fk_accountstbl_id'),
@@ -594,6 +628,7 @@ class Devicestbl(Base):
 
 
 class Fuotaplanstbl(Base):
+    """ORM mapping for the ``fuotaplanstbl`` database table."""
     __tablename__ = 'fuotaplanstbl'
     __table_args__ = (
         ForeignKeyConstraint(['devicetypeid', 'devicevariantid'], ['devicetypevarianttbl.devicetypeid', 'devicetypevarianttbl.devicevariantid'], name='fk_devicetype'),
@@ -615,6 +650,7 @@ class Fuotaplanstbl(Base):
 
 
 class Loginstbl(Base):
+    """ORM mapping for the ``loginstbl`` database table."""
     __tablename__ = 'loginstbl'
     __table_args__ = (
         ForeignKeyConstraint(['accountid'], ['accountstbl.accountid'], name='fk_accountstbl_id'),
@@ -636,6 +672,7 @@ class Loginstbl(Base):
 
 
 class Messagesalphahwfailtbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesalphahwfailtbl`` database table."""
     __tablename__ = 'messagesalphahwfailtbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -656,6 +693,7 @@ class Messagesalphahwfailtbl(Devicemessagestbl):
 
 
 class Messagesbeaconpositiontbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesbeaconpositiontbl`` database table."""
     __tablename__ = 'messagesbeaconpositiontbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -694,6 +732,7 @@ class Messagesbeaconpositiontbl(Devicemessagestbl):
 
 
 class Messagesbiometricdatatbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesbiometricdatatbl`` database table."""
     __tablename__ = 'messagesbiometricdatatbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -719,6 +758,7 @@ class Messagesbiometricdatatbl(Devicemessagestbl):
 
 
 class Messagesblesessionkeytbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesblesessionkeytbl`` database table."""
     __tablename__ = 'messagesblesessionkeytbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -730,6 +770,7 @@ class Messagesblesessionkeytbl(Devicemessagestbl):
 
 
 class Messagesboottbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesboottbl`` database table."""
     __tablename__ = 'messagesboottbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -745,6 +786,7 @@ class Messagesboottbl(Devicemessagestbl):
 
 
 class Messagescommshwfailtbl(Devicemessagestbl):
+    """ORM mapping for the ``messagescommshwfailtbl`` database table."""
     __tablename__ = 'messagescommshwfailtbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -762,6 +804,7 @@ class Messagescommshwfailtbl(Devicemessagestbl):
 
 
 class Messagesemergencyeventresptbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesemergencyeventresptbl`` database table."""
     __tablename__ = 'messagesemergencyeventresptbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -774,6 +817,7 @@ class Messagesemergencyeventresptbl(Devicemessagestbl):
 
 
 class Messagesemergencypositiontbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesemergencypositiontbl`` database table."""
     __tablename__ = 'messagesemergencypositiontbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -814,6 +858,7 @@ class Messagesemergencypositiontbl(Devicemessagestbl):
 
 
 class Messagesfalleventtbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesfalleventtbl`` database table."""
     __tablename__ = 'messagesfalleventtbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -826,6 +871,7 @@ class Messagesfalleventtbl(Devicemessagestbl):
 
 
 class Messageshipsdatatbl(Devicemessagestbl):
+    """ORM mapping for the ``messageshipsdatatbl`` database table."""
     __tablename__ = 'messageshipsdatatbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -847,6 +893,7 @@ class Messageshipsdatatbl(Devicemessagestbl):
 
 
 class Messageshwfailtbl(Devicemessagestbl):
+    """ORM mapping for the ``messageshwfailtbl`` database table."""
     __tablename__ = 'messageshwfailtbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -866,6 +913,7 @@ class Messageshwfailtbl(Devicemessagestbl):
 
 
 class Messagesnetworkstatusv4tbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesnetworkstatusv4tbl`` database table."""
     __tablename__ = 'messagesnetworkstatusv4tbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -893,6 +941,7 @@ class Messagesnetworkstatusv4tbl(Devicemessagestbl):
 
 
 class Messagespositionv5tbl(Devicemessagestbl):
+    """ORM mapping for the ``messagespositionv5tbl`` database table."""
     __tablename__ = 'messagespositionv5tbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -937,6 +986,7 @@ class Messagespositionv5tbl(Devicemessagestbl):
 
 
 class Messagesreboottbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesreboottbl`` database table."""
     __tablename__ = 'messagesreboottbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -949,6 +999,7 @@ class Messagesreboottbl(Devicemessagestbl):
 
 
 class Messagesscratchpadtbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesscratchpadtbl`` database table."""
     __tablename__ = 'messagesscratchpadtbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -960,6 +1011,7 @@ class Messagesscratchpadtbl(Devicemessagestbl):
 
 
 class Messagessigma5hwfailtbl(Devicemessagestbl):
+    """ORM mapping for the ``messagessigma5hwfailtbl`` database table."""
     __tablename__ = 'messagessigma5hwfailtbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -976,6 +1028,7 @@ class Messagessigma5hwfailtbl(Devicemessagestbl):
 
 
 class Messagesthetahwfailtbl(Devicemessagestbl):
+    """ORM mapping for the ``messagesthetahwfailtbl`` database table."""
     __tablename__ = 'messagesthetahwfailtbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -1013,6 +1066,7 @@ t_rolepermissiongrantstbl = Table(
 
 
 class Socketserver1messagestbl(Devicemessagestbl):
+    """ORM mapping for the ``socketserver1messagestbl`` database table."""
     __tablename__ = 'socketserver1messagestbl'
     __table_args__ = (
         ForeignKeyConstraint(['recordid'], ['devicemessagestbl.recordid'], name='fk_devicemessagestbl_id'),
@@ -1026,6 +1080,7 @@ class Socketserver1messagestbl(Devicemessagestbl):
 
 
 class Webhooksperdevicetypetbl(Base):
+    """ORM mapping for the ``webhooksperdevicetypetbl`` database table."""
     __tablename__ = 'webhooksperdevicetypetbl'
     __table_args__ = (
         ForeignKeyConstraint(['devicetypeid', 'devicevariantid'], ['devicetypevarianttbl.devicetypeid', 'devicetypevarianttbl.devicevariantid'], name='fk_devicetype'),
@@ -1041,6 +1096,7 @@ class Webhooksperdevicetypetbl(Base):
 
 
 class Webhookstbl(Base):
+    """ORM mapping for the ``webhookstbl`` database table."""
     __tablename__ = 'webhookstbl'
     __table_args__ = (
         ForeignKeyConstraint(['accountid'], ['accountstbl.accountid'], name='fk_accountstbl_id'),
@@ -1073,6 +1129,7 @@ class Webhookstbl(Base):
 
 
 class Binaryimageuploadstbl(Base):
+    """ORM mapping for the ``binaryimageuploadstbl`` database table."""
     __tablename__ = 'binaryimageuploadstbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1091,6 +1148,7 @@ class Binaryimageuploadstbl(Base):
 
 
 class Configbeacontbl(Devicestbl):
+    """ORM mapping for the ``configbeacontbl`` database table."""
     __tablename__ = 'configbeacontbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1110,6 +1168,7 @@ class Configbeacontbl(Devicestbl):
 
 
 class Configbiometrictbl(Devicestbl):
+    """ORM mapping for the ``configbiometrictbl`` database table."""
     __tablename__ = 'configbiometrictbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1150,6 +1209,7 @@ t_configdronemodetbl = Table(
 
 
 class Configemergencyv2tbl(Devicestbl):
+    """ORM mapping for the ``configemergencyv2tbl`` database table."""
     __tablename__ = 'configemergencyv2tbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1166,6 +1226,7 @@ class Configemergencyv2tbl(Devicestbl):
 
 
 class Configfalltbl(Devicestbl):
+    """ORM mapping for the ``configfalltbl`` database table."""
     __tablename__ = 'configfalltbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1188,6 +1249,7 @@ class Configfalltbl(Devicestbl):
 
 
 class Configgpstbl(Devicestbl):
+    """ORM mapping for the ``configgpstbl`` database table."""
     __tablename__ = 'configgpstbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1206,6 +1268,7 @@ class Configgpstbl(Devicestbl):
 
 
 class Configgroundtbl(Devicestbl):
+    """ORM mapping for the ``configgroundtbl`` database table."""
     __tablename__ = 'configgroundtbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1230,6 +1293,7 @@ class Configgroundtbl(Devicestbl):
 
 
 class Confighipstbl(Devicestbl):
+    """ORM mapping for the ``confighipstbl`` database table."""
     __tablename__ = 'confighipstbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1249,6 +1313,7 @@ class Confighipstbl(Devicestbl):
 
 
 class Configloratbl(Devicestbl):
+    """ORM mapping for the ``configloratbl`` database table."""
     __tablename__ = 'configloratbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1264,6 +1329,7 @@ class Configloratbl(Devicestbl):
 
 
 class Configmodemtbl(Devicestbl):
+    """ORM mapping for the ``configmodemtbl`` database table."""
     __tablename__ = 'configmodemtbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1287,6 +1353,7 @@ class Configmodemtbl(Devicestbl):
 
 
 class Devicefirmwarecurrenttbl(Base):
+    """ORM mapping for the ``devicefirmwarecurrenttbl`` database table."""
     __tablename__ = 'devicefirmwarecurrenttbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1306,6 +1373,7 @@ class Devicefirmwarecurrenttbl(Base):
 
 
 class Devicestatustbl(Devicestbl):
+    """ORM mapping for the ``devicestatustbl`` database table."""
     __tablename__ = 'devicestatustbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1336,6 +1404,7 @@ class Devicestatustbl(Devicestbl):
 
 
 class Devicetransferstbl(Devicestbl):
+    """ORM mapping for the ``devicetransferstbl`` database table."""
     __tablename__ = 'devicetransferstbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1354,6 +1423,7 @@ class Devicetransferstbl(Devicestbl):
 
 
 class Fuotaplanstagestbl(Base):
+    """ORM mapping for the ``fuotaplanstagestbl`` database table."""
     __tablename__ = 'fuotaplanstagestbl'
     __table_args__ = (
         ForeignKeyConstraint(['planid'], ['fuotaplanstbl.planid'], name='fk_planid'),
@@ -1371,6 +1441,7 @@ class Fuotaplanstagestbl(Base):
 
 
 class Fuotaplanstagetargetstbl(Base):
+    """ORM mapping for the ``fuotaplanstagetargetstbl`` database table."""
     __tablename__ = 'fuotaplanstagetargetstbl'
     __table_args__ = (
         ForeignKeyConstraint(['planid'], ['fuotaplanstbl.planid'], name='fk_planid'),
@@ -1391,6 +1462,7 @@ class Fuotaplanstagetargetstbl(Base):
 
 
 class Fuotasettingsperdevicetbl(Devicestbl):
+    """ORM mapping for the ``fuotasettingsperdevicetbl`` database table."""
     __tablename__ = 'fuotasettingsperdevicetbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),
@@ -1408,6 +1480,7 @@ class Fuotasettingsperdevicetbl(Devicestbl):
 
 
 class Fuotasettingsperdevicetypetbl(Base):
+    """ORM mapping for the ``fuotasettingsperdevicetypetbl`` database table."""
     __tablename__ = 'fuotasettingsperdevicetypetbl'
     __table_args__ = (
         ForeignKeyConstraint(['devicetypeid', 'devicevariantid'], ['devicetypevarianttbl.devicetypeid', 'devicetypevarianttbl.devicevariantid'], name='fk_devicetype'),
@@ -1429,6 +1502,7 @@ class Fuotasettingsperdevicetypetbl(Base):
 
 
 class Loginpermissiongrantshistorytbl(Base):
+    """ORM mapping for the ``loginpermissiongrantshistorytbl`` database table."""
     __tablename__ = 'loginpermissiongrantshistorytbl'
     __table_args__ = (
         ForeignKeyConstraint(['loginid'], ['loginstbl.loginid'], name='fk_loginstbl_id'),
@@ -1447,6 +1521,7 @@ class Loginpermissiongrantshistorytbl(Base):
 
 
 class Loginpermissiongrantstbl(Base):
+    """ORM mapping for the ``loginpermissiongrantstbl`` database table."""
     __tablename__ = 'loginpermissiongrantstbl'
     __table_args__ = (
         ForeignKeyConstraint(['loginid'], ['loginstbl.loginid'], name='fk_loginstbl_id'),
@@ -1463,6 +1538,7 @@ class Loginpermissiongrantstbl(Base):
 
 
 class Loginrolegrantshistorytbl(Base):
+    """ORM mapping for the ``loginrolegrantshistorytbl`` database table."""
     __tablename__ = 'loginrolegrantshistorytbl'
     __table_args__ = (
         ForeignKeyConstraint(['loginid'], ['loginstbl.loginid'], name='fk_loginstbl_id'),
@@ -1481,6 +1557,7 @@ class Loginrolegrantshistorytbl(Base):
 
 
 class Loginrolegrantstbl(Base):
+    """ORM mapping for the ``loginrolegrantstbl`` database table."""
     __tablename__ = 'loginrolegrantstbl'
     __table_args__ = (
         ForeignKeyConstraint(['loginid'], ['loginstbl.loginid'], name='fk_loginstbl_id'),
@@ -1497,6 +1574,7 @@ class Loginrolegrantstbl(Base):
 
 
 class Loginshistorytbl(Loginstbl):
+    """ORM mapping for the ``loginshistorytbl`` database table."""
     __tablename__ = 'loginshistorytbl'
     __table_args__ = (
         ForeignKeyConstraint(['loginid'], ['loginstbl.loginid'], name='fk_loginstbl_id'),
@@ -1514,6 +1592,7 @@ class Loginshistorytbl(Loginstbl):
 
 
 class Socketserversessionstbl(Base):
+    """ORM mapping for the ``socketserversessionstbl`` database table."""
     __tablename__ = 'socketserversessionstbl'
     __table_args__ = (
         ForeignKeyConstraint(['deviceid'], ['devicestbl.deviceid'], name='fk_devicestbl_id'),

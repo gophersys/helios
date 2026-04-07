@@ -18,6 +18,16 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_resource_yaml(kind: str, namespace: str, name: str):
+    """Get the YAML representation of a Kubernetes resource.
+
+    Args:
+        kind: Resource kind (e.g., 'deployment', 'pod').
+        namespace: Kubernetes namespace.
+        name: Resource name.
+
+    Returns:
+        JSON response with the resource YAML dict.
+    """
     err = validate_resource_kind(kind)
     if err: return err
     err = validate_k8s_name(namespace, "namespace")
@@ -42,6 +52,16 @@ def get_resource_yaml(kind: str, namespace: str, name: str):
 
 @require_permissions(Permissions.KUBERNETES_MANAGE)
 def apply_resource_yaml(kind: str, namespace: str, name: str):
+    """Apply (patch) a Kubernetes resource from a YAML string body.
+
+    Args:
+        kind: Resource kind (e.g., 'deployment', 'configmap').
+        namespace: Kubernetes namespace.
+        name: Resource name.
+
+    Returns:
+        JSON response with the updated resource on success.
+    """
     err = validate_resource_kind(kind)
     if err: return err
     err = validate_k8s_name(namespace, "namespace")
@@ -71,6 +91,16 @@ def apply_resource_yaml(kind: str, namespace: str, name: str):
 
 @require_permissions(Permissions.KUBERNETES_MANAGE)
 def delete_resource(kind: str, namespace: str, name: str):
+    """Delete a Kubernetes resource by kind, namespace, and name.
+
+    Args:
+        kind: Resource kind (e.g., 'deployment', 'pod').
+        namespace: Kubernetes namespace.
+        name: Resource name.
+
+    Returns:
+        JSON response with deleted=True on success.
+    """
     err = validate_resource_kind(kind)
     if err: return err
     err = validate_k8s_name(namespace, "namespace")

@@ -36,7 +36,13 @@ server.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100 MB upload limit
 
 _cors_origins = [o.strip() for o in env_config.CORS_ORIGINS.split(",") if o.strip()]
 CORS(server, origins=_cors_origins)
-socketio = SocketIO(server, debug=(env_config.ENVIRONMENT == "development"), cors_allowed_origins=_cors_origins, async_mode="eventlet", logger=(env_config.ENVIRONMENT == "development"))
+socketio = SocketIO(
+    server,
+    debug=(env_config.ENVIRONMENT == "development"),
+    cors_allowed_origins=_cors_origins,
+    async_mode="eventlet",
+    logger=(env_config.ENVIRONMENT == "development"),
+)
 
 
 # -------------------------------------------------
@@ -44,11 +50,13 @@ socketio = SocketIO(server, debug=(env_config.ENVIRONMENT == "development"), cor
 # -------------------------------------------------
 @server.route("/health")
 def health():
+    """Liveness probe endpoint."""
     return jsonify({"status": "ok", "service": "http-api"}), 200
 
 
 @server.route("/ready")
 def ready():
+    """Readiness probe endpoint that verifies database connectivity."""
     try:
         db = get_db_client()
         db.user.count()
@@ -85,6 +93,7 @@ def graceful_shutdown(signum=None, frame=None):
     # 2. Close Prisma database connection
     try:
         from src.services.database.prisma import get_db_client
+
         client = get_db_client()
         if client is not None:
             client.disconnect()
@@ -102,6 +111,7 @@ def graceful_shutdown(signum=None, frame=None):
     # 5. Close Kubernetes API client
     try:
         from src.services.kubernetes.client import close_kubernetes_client
+
         close_kubernetes_client()
         logging.getLogger("server").info("Kubernetes client closed")
     except Exception as e:
@@ -155,6 +165,7 @@ if __name__ == "__main__":
         # Must run synchronously — eventlet monkey-patching breaks subprocess in threads
         try:
             from api.v2.products.board_discovery import init_ck_boards_service
+
             init_ck_boards_service(env_config)
             logger.info("CkBoards service ready")
         except Exception as e:

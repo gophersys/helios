@@ -57,6 +57,7 @@ class UartDemuxer:
         log_dir: Optional[str] = None,
         pump_hz: float = 20,
     ):
+        """  init  ."""
         self._mtib = mtib
         self._targets = targets if targets is not None else [self.APP, self.COMMS]
         self._log_dir = log_dir
@@ -140,6 +141,7 @@ class UartDemuxer:
 
     @property
     def is_running(self) -> bool:
+        """Is running."""
         return self._running
 
     def set_pump_rate(self, hz: float) -> None:
@@ -291,6 +293,7 @@ class UartDemuxer:
 
         try:
             def request_gen():
+                """Request gen."""
                 while not self._stop_event.is_set():
                     data = b""
                     try:

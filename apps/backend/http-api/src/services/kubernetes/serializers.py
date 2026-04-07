@@ -3,6 +3,14 @@ from typing import Optional
 
 
 def _isoformat(dt: Optional[datetime]) -> Optional[str]:
+    """Convert a datetime to ISO 8601 string, adding UTC timezone if naive.
+
+    Args:
+        dt: Datetime to format, or None.
+
+    Returns:
+        ISO 8601 string, or None if dt is None.
+    """
     if dt is None:
         return None
     if dt.tzinfo is None:
@@ -11,6 +19,14 @@ def _isoformat(dt: Optional[datetime]) -> Optional[str]:
 
 
 def _age(dt: Optional[datetime]) -> str:
+    """Format a datetime as a human-readable age string relative to now.
+
+    Args:
+        dt: Creation or start datetime, or None.
+
+    Returns:
+        Age string like "3d 2h", "1h 30m", "45m", or "Unknown" if dt is None.
+    """
     if dt is None:
         return "Unknown"
     now = datetime.now(timezone.utc)
@@ -28,6 +44,14 @@ def _age(dt: Optional[datetime]) -> str:
 
 
 def serialize_namespace(ns) -> dict:
+    """Serialize a Kubernetes Namespace object to an API dict.
+
+    Args:
+        ns: kubernetes.client.V1Namespace instance.
+
+    Returns:
+        Dict with name, status, createdAt, and age fields.
+    """
     return {
         "name": ns.metadata.name,
         "status": ns.status.phase if ns.status else "Unknown",
@@ -37,6 +61,14 @@ def serialize_namespace(ns) -> dict:
 
 
 def serialize_node(node) -> dict:
+    """Serialize a Kubernetes Node object to an API dict.
+
+    Args:
+        node: kubernetes.client.V1Node instance.
+
+    Returns:
+        Dict with name, status, roles, capacity, conditions, and other node metadata.
+    """
     status = node.status
     spec = node.spec
     metadata = node.metadata
@@ -110,6 +142,14 @@ def serialize_node(node) -> dict:
 
 
 def serialize_event(event) -> dict:
+    """Serialize a Kubernetes Event object to an API dict.
+
+    Args:
+        event: kubernetes.client.CoreV1Event instance.
+
+    Returns:
+        Dict with type, reason, message, object, count, firstSeen, lastSeen, and source.
+    """
     obj = event.involved_object
     return {
         "type": event.type or "Normal",
@@ -125,6 +165,14 @@ def serialize_event(event) -> dict:
 
 
 def serialize_pod(pod) -> dict:
+    """Serialize a Kubernetes Pod object to a summary API dict.
+
+    Args:
+        pod: kubernetes.client.V1Pod instance.
+
+    Returns:
+        Dict with name, namespace, status, ready count, restarts, nodeName, and containers.
+    """
     metadata = pod.metadata
     spec = pod.spec
     status = pod.status
@@ -171,6 +219,15 @@ def serialize_pod(pod) -> dict:
 
 
 def serialize_pod_detail(pod) -> dict:
+    """Serialize a Kubernetes Pod to a detailed API dict including conditions, volumes, and tolerations.
+
+    Args:
+        pod: kubernetes.client.V1Pod instance.
+
+    Returns:
+        Extended pod dict (superset of serialize_pod) with conditions, volumes, tolerations,
+        serviceAccount, labels, annotations, and qosClass.
+    """
     base = serialize_pod(pod)
     metadata = pod.metadata
     spec = pod.spec
@@ -230,6 +287,14 @@ def serialize_pod_detail(pod) -> dict:
 
 
 def serialize_deployment(deployment) -> dict:
+    """Serialize a Kubernetes Deployment object to an API dict.
+
+    Args:
+        deployment: kubernetes.client.V1Deployment instance.
+
+    Returns:
+        Dict with name, namespace, replica counts, strategy, containers, and conditions.
+    """
     metadata = deployment.metadata
     spec = deployment.spec
     status = deployment.status
@@ -282,6 +347,14 @@ def serialize_deployment(deployment) -> dict:
 
 
 def serialize_service(service) -> dict:
+    """Serialize a Kubernetes Service object to an API dict.
+
+    Args:
+        service: kubernetes.client.V1Service instance.
+
+    Returns:
+        Dict with name, namespace, type, clusterIp, ports, and selector.
+    """
     metadata = service.metadata
     spec = service.spec
 
@@ -311,6 +384,14 @@ def serialize_service(service) -> dict:
 
 
 def serialize_job(job) -> dict:
+    """Serialize a Kubernetes Job object to an API dict.
+
+    Args:
+        job: kubernetes.client.V1Job instance.
+
+    Returns:
+        Dict with name, namespace, status, completions, duration, and conditions.
+    """
     metadata = job.metadata
     spec = job.spec
     status = job.status
@@ -376,6 +457,16 @@ def serialize_job(job) -> dict:
 
 
 def serialize_configmap(cm, include_data: bool = False) -> dict:
+    """Serialize a Kubernetes ConfigMap to an API dict.
+
+    Args:
+        cm: kubernetes.client.V1ConfigMap instance.
+        include_data: When True, include the full data key-value pairs in the response.
+
+    Returns:
+        Dict with name, namespace, dataKeys, dataCount, createdAt, age,
+        and optionally data when include_data is True.
+    """
     metadata = cm.metadata
     data = cm.data or {}
 
@@ -395,6 +486,16 @@ def serialize_configmap(cm, include_data: bool = False) -> dict:
 
 
 def serialize_secret(secret, include_data: bool = False) -> dict:
+    """Serialize a Kubernetes Secret to an API dict with masked values.
+
+    Args:
+        secret: kubernetes.client.V1Secret instance.
+        include_data: When True, include masked (first 4 chars + ****) decoded values.
+
+    Returns:
+        Dict with name, namespace, type, dataKeys, dataCount, createdAt, age,
+        and optionally masked data when include_data is True.
+    """
     metadata = secret.metadata
     data = secret.data or {}
 
@@ -423,6 +524,14 @@ def serialize_secret(secret, include_data: bool = False) -> dict:
 
 
 def serialize_role(role) -> dict:
+    """Serialize a Kubernetes Role or ClusterRole to an API dict.
+
+    Args:
+        role: kubernetes.client.V1Role or V1ClusterRole instance.
+
+    Returns:
+        Dict with name, namespace, rules, labels, createdAt, and age.
+    """
     metadata = role.metadata
     rules = []
     for r in (role.rules or []):
@@ -444,6 +553,14 @@ def serialize_role(role) -> dict:
 
 
 def serialize_role_binding(binding) -> dict:
+    """Serialize a Kubernetes RoleBinding or ClusterRoleBinding to an API dict.
+
+    Args:
+        binding: kubernetes.client.V1RoleBinding or V1ClusterRoleBinding instance.
+
+    Returns:
+        Dict with name, namespace, roleRef, subjects, createdAt, and age.
+    """
     metadata = binding.metadata
     role_ref = binding.role_ref
 
@@ -469,6 +586,14 @@ def serialize_role_binding(binding) -> dict:
 
 
 def serialize_service_account(sa) -> dict:
+    """Serialize a Kubernetes ServiceAccount to an API dict.
+
+    Args:
+        sa: kubernetes.client.V1ServiceAccount instance.
+
+    Returns:
+        Dict with name, namespace, secrets, labels, createdAt, and age.
+    """
     metadata = sa.metadata
     secrets = [s.name for s in (sa.secrets or [])] if sa.secrets else []
 

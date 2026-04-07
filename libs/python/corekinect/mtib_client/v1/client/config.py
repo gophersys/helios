@@ -1,4 +1,5 @@
 class GpioConfig:
+    """Gpio Config."""
     def __init__(
         self,
         pin_hard_reset: int = 0,
@@ -6,6 +7,7 @@ class GpioConfig:
         pin_uvp_n: int = 2,
         pin_3v3_psm: int = 3,
     ):
+        """  init  ."""
         self.pin_hard_reset: int = pin_hard_reset
         self.pin_chrg_detect: int = pin_chrg_detect
         self.pin_uvp_n: int = pin_uvp_n
@@ -13,6 +15,7 @@ class GpioConfig:
 
 
 class AdcConfig:
+    """Adc Config."""
     def __init__(
         self,
         read_delay_ms: int = 100,
@@ -22,6 +25,7 @@ class AdcConfig:
         ch_vbat: int = 3,
         ch_3v3_gps: int = 4,
     ):
+        """  init  ."""
         self.read_delay_ms: int = read_delay_ms
         self.ch_3v3: int = ch_3v3
         self.ch_vin: int = ch_vin
@@ -31,10 +35,12 @@ class AdcConfig:
 
 
 class NetConfig:
+    """Net Config."""
     def __init__(
         self,
         addr: str = "127.0.0.1",
         port: int = 50051,
     ):
+        """  init  ."""
         self.addr: str = addr
         self.port: int = port

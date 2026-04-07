@@ -4,10 +4,20 @@ from typing import Optional, Tuple
 
 @dataclass
 class ScaleDeploymentRequest:
+    """Validated input for scaling a Deployment to a specific replica count."""
+
     replicas: int
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ScaleDeploymentRequest"], Optional[str]]:
+        """Parse and validate replica count from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (ScaleDeploymentRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
         if "replicas" not in data:
@@ -22,10 +32,20 @@ class ScaleDeploymentRequest:
 
 @dataclass
 class ApplyResourceYamlRequest:
+    """Validated input for applying a Kubernetes resource from a YAML string."""
+
     yaml: str
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ApplyResourceYamlRequest"], Optional[str]]:
+        """Parse and validate a YAML string from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (ApplyResourceYamlRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
         if "yaml" not in data:

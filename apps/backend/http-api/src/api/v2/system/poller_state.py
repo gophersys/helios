@@ -20,6 +20,7 @@ _VALID_TYPES = {"branch", "pr"}
 
 
 def _serialize(entry) -> dict:
+    """Serialize a PollerState DB record to an API response dict."""
     return {
         "id": entry.id,
         "repoSlug": entry.repoSlug,

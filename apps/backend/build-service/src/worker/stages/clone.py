@@ -25,6 +25,23 @@ class CloneStage:
     name = "clone"
 
     def execute(self, ctx: BuildContext) -> StageResult:
+        """Clone firmware repositories and prepare the workspace.
+
+        Execution order:
+        1. Resolve primary and secondary repo slugs from job and webhook data.
+        2. Fetch optional build overlays from the API (non-fatal).
+        3. Clone the primary repo; fail the stage if this clone fails.
+        4. Detect the NCS version from devcontainer.json (informational).
+        5. Clone the secondary repo (non-fatal if unavailable).
+        6. Copy the Concord Build SDK into the workspace for DinD access.
+
+        Args:
+            ctx: Mutable build context shared across all pipeline stages.
+
+        Returns:
+            StageResult.ok() on success, or StageResult.fail(msg) if the
+            primary repository clone fails.
+        """
         primary, secondary = self._resolve_repos(ctx)
 
         # 1. Fetch overlays (optional, non-fatal)

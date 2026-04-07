@@ -78,7 +78,15 @@ def _run_health_server(port: int) -> None:
     import json as _json
 
     class _Handler(BaseHTTPRequestHandler):
+        """Minimal request handler for K8s health and readiness probes."""
+
         def do_GET(self):
+            """Handle GET requests for /health and /ready endpoints.
+
+            Responds with JSON ``{"status": "ok"}`` on /health (always 200),
+            ``{"status": "ready"}`` on /ready (200 when ready, 503 otherwise),
+            and 404 for any other path.
+            """
             if self.path == "/health":
                 body = _json.dumps({"status": "ok", "service": "git-poller"})
                 self.send_response(200)
@@ -100,6 +108,7 @@ def _run_health_server(port: int) -> None:
                 self.end_headers()
 
         def log_message(self, *args):
+            """Override to suppress default access-log output."""
             pass  # suppress access logs
 
     HTTPServer(("0.0.0.0", port), _Handler).serve_forever()
@@ -111,6 +120,12 @@ def _run_health_server(port: int) -> None:
 
 
 def main() -> None:
+    """Application entry point.
+
+    Reads configuration from environment variables, writes the SSH key,
+    starts the health server on a daemon thread, installs signal handlers
+    for graceful shutdown, and then runs the GitPoller loop until shutdown.
+    """
     config = GitPollerConfig()
 
     print_banner(
@@ -136,6 +151,7 @@ def main() -> None:
     poller = GitPoller(config=config)
 
     def _handle_signal(signum, _frame):
+        """Log the received signal name and request a graceful poller shutdown."""
         name = signal.Signals(signum).name
         log.info("Received %s — requesting shutdown", name)
         poller.signal_shutdown()
@@ -145,6 +161,7 @@ def main() -> None:
     atexit.register(lambda: log.info("git-poller stopped"))
 
     def _mark_ready():
+        """Set the global readiness flag after the first successful poll cycle."""
         global _ready
         _ready = True
         log.info("First poll complete — service is ready")

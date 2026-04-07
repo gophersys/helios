@@ -23,6 +23,7 @@ VALID_ROLES = {"ADMIN", "MAINTAINER", "DEVELOPER", "OPERATOR"}
 
 
 def _user_to_dict(user) -> dict:
+    """Convert a User DB record to a serializable dict via UserResponse."""
     return UserResponse.from_user(user).to_dict()
 
 

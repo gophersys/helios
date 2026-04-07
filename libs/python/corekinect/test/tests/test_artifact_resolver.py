@@ -154,9 +154,11 @@ class MockResponse:
         self.ok = 200 <= status_code < 300
 
     def json(self):
+        """Json."""
         return self._json
 
     def raise_for_status(self):
+        """Raise for status."""
         if not self.ok:
             raise Exception(f"HTTP {self.status_code}")
 
@@ -170,6 +172,7 @@ class TestBuildManifest:
     """Test build.json manifest parsing."""
 
     def test_parse_alpha_manifest(self):
+        """Test parse alpha manifest."""
         manifest = BuildManifest.from_dict(ALPHA_MANIFEST)
         assert manifest.schema_version == 1
         assert manifest.product == "alpha"
@@ -180,6 +183,7 @@ class TestBuildManifest:
         assert len(manifest.targets) == 2
 
     def test_parse_targets(self):
+        """Test parse targets."""
         manifest = BuildManifest.from_dict(ALPHA_MANIFEST)
         app = manifest.get_target("app")
         assert app is not None
@@ -197,18 +201,21 @@ class TestBuildManifest:
         assert comms.app_id == 108
 
     def test_parse_single_target_product(self):
+        """Test parse single target product."""
         manifest = BuildManifest.from_dict(SIGMA5_MANIFEST)
         assert len(manifest.targets) == 1
         assert manifest.targets[0].app_id == 201
         assert manifest.get_target("comms") is None
 
     def test_corecloud_metadata(self):
+        """Test corecloud metadata."""
         manifest = BuildManifest.from_dict(ALPHA_MANIFEST)
         assert manifest.device_type_id == 2
         assert manifest.device_variant_id == 3
         assert manifest.api_env == "val"
 
     def test_modem_firmware(self):
+        """Test modem firmware."""
         manifest = BuildManifest.from_dict(ALPHA_MANIFEST)
         assert manifest.modem_firmware is not None
         assert manifest.modem_firmware["chipset"] == "nrf9151"
@@ -218,15 +225,18 @@ class TestBuildManifest:
         assert manifest2.modem_firmware is None
 
     def test_get_target_missing_role(self):
+        """Test get target missing role."""
         manifest = BuildManifest.from_dict(ALPHA_MANIFEST)
         assert manifest.get_target("nonexistent") is None
 
     def test_all_app_ids(self):
+        """Test all app ids."""
         manifest = BuildManifest.from_dict(ALPHA_MANIFEST)
         ids = manifest.all_app_ids
         assert ids == {108, 109}
 
     def test_invalid_schema_version(self):
+        """Test invalid schema version."""
         data = {**ALPHA_MANIFEST, "schemaVersion": 99}
         with pytest.raises(ValueError, match="Unsupported.*schema.*99"):
             BuildManifest.from_dict(data)
@@ -251,6 +261,7 @@ class TestArtifactResolverManifest:
         pipeline_resp = _make_pipeline_response(builds)
 
         def mock_get(url, **kwargs):
+            """Mock get."""
             if "/builds/runs/" in url:
                 return MockResponse(pipeline_resp)
             if "/artifacts" in url:
@@ -279,6 +290,7 @@ class TestArtifactResolverManifest:
         if manifest_dict is not None:
             # Patch _download_artifact to return temp files with manifest content
             def mock_download(build_id, artifact_name):
+                """Mock download."""
                 if artifact_name.endswith("build.json") or artifact_name == "build.json":
                     tmp = tempfile.NamedTemporaryFile(
                         suffix=".json", delete=False, mode="w"
@@ -302,6 +314,7 @@ class TestArtifactResolverManifest:
         return resolver
 
     def test_get_manifest(self):
+        """Test get manifest."""
         build = _make_build_with_manifest(
             "MFG_BASE", ALPHA_MANIFEST,
             hex_and_cfw_names=["109.0.8.3-BM.hex", "108.0.8.3-BM.hex"],
@@ -314,6 +327,7 @@ class TestArtifactResolverManifest:
         assert len(manifest.targets) == 2
 
     def test_get_manifest_cached(self):
+        """Test get manifest cached."""
         build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
@@ -322,6 +336,7 @@ class TestArtifactResolverManifest:
         assert m1 is m2  # Same object, not re-downloaded
 
     def test_get_artifact_hex_by_role(self):
+        """Test get artifact hex by role."""
         build = _make_build_with_manifest(
             "MFG_BASE", ALPHA_MANIFEST,
             hex_and_cfw_names=[
@@ -336,6 +351,7 @@ class TestArtifactResolverManifest:
         assert Path(path).exists()
 
     def test_get_artifact_cfw_by_role(self):
+        """Test get artifact cfw by role."""
         build = _make_build_with_manifest(
             "MFG_BASE", ALPHA_MANIFEST,
             hex_and_cfw_names=[
@@ -350,6 +366,7 @@ class TestArtifactResolverManifest:
         assert Path(path).exists()
 
     def test_get_artifacts_all_cfws(self):
+        """Test get artifacts all cfws."""
         build = _make_build_with_manifest(
             "MFG_BASE", ALPHA_MANIFEST,
             hex_and_cfw_names=[
@@ -362,6 +379,7 @@ class TestArtifactResolverManifest:
         assert len(paths) == 2
 
     def test_get_artifacts_all_hexes(self):
+        """Test get artifacts all hexes."""
         build = _make_build_with_manifest(
             "MFG_BASE", ALPHA_MANIFEST,
             hex_and_cfw_names=[
@@ -374,6 +392,7 @@ class TestArtifactResolverManifest:
         assert len(paths) == 2
 
     def test_get_targets(self):
+        """Test get targets."""
         build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
@@ -383,6 +402,7 @@ class TestArtifactResolverManifest:
         assert roles == {"app", "comms"}
 
     def test_get_target_single(self):
+        """Test get target single."""
         build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
         resolver = self._make_resolver([build], manifest_dict=ALPHA_MANIFEST)
 
@@ -391,6 +411,7 @@ class TestArtifactResolverManifest:
         assert target.host_type == "HOST_TYPE_NRF52840"
 
     def test_single_processor_product(self):
+        """Test single processor product."""
         build = _make_build_with_manifest(
             "RELEASE", SIGMA5_MANIFEST,
             hex_and_cfw_names=["201.1.0.0-P.hex", "201.1.0.0-P.cfw"],
@@ -422,6 +443,7 @@ class TestArtifactResolverNoManifest:
         pipeline_resp = _make_pipeline_response(builds)
 
         def mock_get(url, **kwargs):
+            """Mock get."""
             if "/builds/runs/" in url:
                 return MockResponse(pipeline_resp)
             if "/artifacts" in url:
@@ -489,9 +511,11 @@ class TestArtifactResolverErrors:
     """Test error cases."""
 
     def _make_resolver_with_builds(self, builds):
+        """ make resolver with builds."""
         pipeline_resp = _make_pipeline_response(builds)
 
         def mock_get(url, **kwargs):
+            """Mock get."""
             if "/builds/runs/" in url:
                 return MockResponse(pipeline_resp)
             return MockResponse(None, 404)
@@ -512,6 +536,7 @@ class TestArtifactResolverErrors:
         return resolver
 
     def test_missing_build_label(self):
+        """Test missing build label."""
         build = _make_build("MFG_BASE", [])
         resolver = self._make_resolver_with_builds([build])
 
@@ -519,11 +544,13 @@ class TestArtifactResolverErrors:
             resolver.get_manifest("NONEXISTENT")
 
     def test_missing_artifact_role(self):
+        """Test missing artifact role."""
         build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
         resolver = self._make_resolver_with_builds([build])
 
         # Mock manifest download
         def mock_download(build_id, artifact_name):
+            """Mock download."""
             if artifact_name == "build.json":
                 tmp = tempfile.NamedTemporaryFile(
                     suffix=".json", delete=False, mode="w"
@@ -540,16 +567,19 @@ class TestArtifactResolverErrors:
             resolver.get_artifact("MFG_BASE", role="modem", artifact_type="plaintextHex")
 
     def test_empty_pipeline(self):
+        """Test empty pipeline."""
         resolver = self._make_resolver_with_builds([])
 
         with pytest.raises(KeyError, match="MFG_BASE"):
             resolver.get_manifest("MFG_BASE")
 
     def test_get_target_nonexistent_role(self):
+        """Test get target nonexistent role."""
         build = _make_build_with_manifest("MFG_BASE", ALPHA_MANIFEST)
         resolver = self._make_resolver_with_builds([build])
 
         def mock_download(build_id, artifact_name):
+            """Mock download."""
             tmp = tempfile.NamedTemporaryFile(
                 suffix=".json", delete=False, mode="w"
             )
@@ -573,6 +603,7 @@ class TestArtifactResolverCleanup:
     """Test temp file cleanup."""
 
     def test_cleanup_removes_temp_files(self):
+        """Test cleanup removes temp files."""
         with patch("corekinect.test.artifact_resolver.requests"):
             resolver = ArtifactResolver(
                 pipeline_id="p1",

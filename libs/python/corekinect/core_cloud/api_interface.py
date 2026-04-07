@@ -15,12 +15,14 @@ from corekinect.utils import SingletonThreadSafeMeta
 
 
 def _ensure_scheme(host_or_url: str, default_scheme: str = "https") -> str:
+    """ ensure scheme."""
     if "://" not in host_or_url:
         return f"{default_scheme}://{host_or_url}"
     return host_or_url
 
 
 def _ensure_url(host_or_url: str, path: str, *, default_scheme: str = "https") -> str:
+    """ ensure url."""
     if not host_or_url:
         raise ValueError("Missing host for URL construction.")
     base = _ensure_scheme(host_or_url, default_scheme=default_scheme).rstrip("/")
@@ -39,6 +41,7 @@ def _apply_namespace_env(ns: Optional[Literal["VAL_1_0", "DEV_1_0", "DEV_0_9"]])
     ns = ns.rstrip("_") + "_"
 
     def copy_first_present(target_key: str, candidates: Sequence[str]) -> None:
+        """Copy first present."""
         for c in candidates:
             v = os.getenv(c)
             if v is not None and v != "":
@@ -131,6 +134,7 @@ class CoreCloudRestInterface(metaclass=SingletonThreadSafeMeta):
         test_auth_on_enter: bool = True,
         logger: Optional[logging.Logger] = None,
     ) -> None:
+        """  init  ."""
         self._depth = 0
         self.log = logger or logging.getLogger(self.__class__.__name__)
 
@@ -170,6 +174,7 @@ class CoreCloudRestInterface(metaclass=SingletonThreadSafeMeta):
         self._test_auth_on_enter = test_auth_on_enter
 
     def __enter__(self) -> "CoreCloudRestInterface":
+        """  enter  ."""
         if self._depth > 0:
             self._depth += 1
             return self
@@ -207,6 +212,7 @@ class CoreCloudRestInterface(metaclass=SingletonThreadSafeMeta):
             raise RuntimeError(f"CoreCloud REST API connectivity check failed: {e}")
 
     def __exit__(self, exc_type, exc, tb) -> bool:
+        """  exit  ."""
         if self._depth <= 1:
             self._teardown()
             self._depth = 0
@@ -260,18 +266,22 @@ class CoreCloudRestInterface(metaclass=SingletonThreadSafeMeta):
         return resp2
 
     def _require_session(self) -> Session:
+        """ require session."""
         if not self._session:
             self._session = requests.Session()
         return self._session
 
     def _basic_auth_header(self) -> str:
+        """ basic auth header."""
         raw = f"{self.auth.username}:{self.auth.password}".encode("utf-8")
         return "Basic " + base64.b64encode(raw).decode("ascii")
 
     def _auth_url(self) -> str:
+        """ auth url."""
         return _ensure_url(self.auth.server_host_name, self.auth.path, default_scheme=self.api.default_scheme)
 
     def _ensure_token(self) -> str:
+        """ ensure token."""
         now = time.time()
         if self._token and self._token_expiry_ts and now < self._token_expiry_ts - 15:
             return self._token
@@ -315,6 +325,7 @@ class CoreCloudRestInterface(metaclass=SingletonThreadSafeMeta):
         return token
 
     def _invalidate_token(self) -> None:
+        """ invalidate token."""
         self._token = None
         self._token_expiry_ts = None
 
@@ -332,11 +343,13 @@ class CoreCloudRestInterface(metaclass=SingletonThreadSafeMeta):
         return max(0.0, min_interval - elapsed)
 
     def _maybe_throttle(self) -> None:
+        """ maybe throttle."""
         delay = self._throttle_delay()
         if delay > 0:
             time.sleep(delay)
 
     def _teardown(self) -> None:
+        """ teardown."""
         if self._session:
             try:
                 self._session.close()

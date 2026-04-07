@@ -5,6 +5,19 @@ from flask_cors import CORS
 
 
 def create_app(config=None):
+    """Create and configure the Flask application.
+
+    Registers all API blueprints and applies CORS. Optionally accepts a
+    BuildServiceConfig instance to make it available via app.config.
+
+    Args:
+        config: Optional BuildServiceConfig instance. When provided it is
+            stored under the ``BUILD_SERVICE_CONFIG`` app config key.
+
+    Returns:
+        A configured Flask application instance with all blueprints
+        registered under their canonical URL prefixes.
+    """
     app = Flask(__name__)
     CORS(app)
 

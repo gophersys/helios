@@ -62,10 +62,12 @@ class WorkerState:
 
     @property
     def uptime_seconds(self) -> int:
+        """Elapsed seconds since this worker instance started."""
         return int(time.time() - self.uptime_start)
 
     @property
     def is_busy(self) -> bool:
+        """True when a job is currently being processed."""
         return self.current_job_id is not None
 
     def to_dict(self) -> dict:

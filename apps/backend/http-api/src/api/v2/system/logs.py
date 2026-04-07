@@ -19,6 +19,7 @@ MAX_TAIL_LINES = 10000
 
 
 def register_log_handlers(socketio: SocketIO):
+    """Register WebSocket handlers for real-time pod log streaming."""
 
     @socketio.on("connect", namespace="/kubernetes")
     def handle_system_connect(auth):
@@ -46,6 +47,7 @@ def register_log_handlers(socketio: SocketIO):
 
     @socketio.on("subscribe_logs", namespace="/kubernetes")
     def handle_subscribe_logs(data):
+        """Start streaming pod logs to the requesting client."""
         ns = data.get("namespace")
         pod = data.get("pod")
         container = data.get("container")
@@ -77,6 +79,7 @@ def register_log_handlers(socketio: SocketIO):
             _active_streams[stream_key] = stop_event
 
         def stream_logs():
+            """Background task that reads and emits pod log lines."""
             log_stream = None
             try:
                 core = get_core_v1_api()
@@ -120,6 +123,7 @@ def register_log_handlers(socketio: SocketIO):
 
     @socketio.on("unsubscribe_logs", namespace="/kubernetes")
     def handle_unsubscribe_logs(data):
+        """Stop streaming pod logs for the requesting client."""
         ns = data.get("namespace", "")
         pod = data.get("pod", "")
         container = data.get("container", "")
@@ -136,6 +140,7 @@ def register_log_handlers(socketio: SocketIO):
 
     @socketio.on("disconnect", namespace="/kubernetes")
     def handle_disconnect():
+        """Clean up log streams, exec sessions, and observability subscriptions."""
         sid = request.sid
         # Clean up log streams
         with _lock:

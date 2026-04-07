@@ -34,6 +34,7 @@ _SET_INCLUDE = {
 
 
 def _serialize_build(b: Any) -> dict:
+    """Serialize a FirmwareBuild DB record to an API response dict."""
     data = {
         "id": b.id,
         "firmwareSetId": b.firmwareSetId,
@@ -56,6 +57,7 @@ def _serialize_build(b: Any) -> dict:
 
 
 def _serialize_firmware_set(s: Any) -> dict:
+    """Serialize a FirmwareSet DB record to an API response dict."""
     data = {
         "id": s.id,
         "productId": s.productId,

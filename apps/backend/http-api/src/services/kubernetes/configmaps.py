@@ -12,6 +12,15 @@ def list_configmaps(
     namespace: str | None = None,
     label_selector: str | None = None,
 ) -> list[dict]:
+    """List ConfigMaps across all namespaces or within a specific namespace.
+
+    Args:
+        namespace: Limit results to this namespace. If None, lists cluster-wide.
+        label_selector: Optional Kubernetes label selector string to filter results.
+
+    Returns:
+        List of serialized ConfigMap dicts.
+    """
     core = get_core_v1_api()
     kwargs = {}
     if label_selector:
@@ -26,6 +35,15 @@ def list_configmaps(
 
 
 def get_configmap(namespace: str, name: str) -> dict | None:
+    """Fetch a single ConfigMap by namespace and name, including its data.
+
+    Args:
+        namespace: Kubernetes namespace of the ConfigMap.
+        name: Name of the ConfigMap.
+
+    Returns:
+        Serialized ConfigMap dict with data included, or None if not found.
+    """
     core = get_core_v1_api()
     try:
         cm = core.read_namespaced_config_map(name, namespace)
@@ -40,6 +58,15 @@ def list_secrets(
     namespace: str | None = None,
     label_selector: str | None = None,
 ) -> list[dict]:
+    """List Secrets across all namespaces or within a specific namespace.
+
+    Args:
+        namespace: Limit results to this namespace. If None, lists cluster-wide.
+        label_selector: Optional Kubernetes label selector string to filter results.
+
+    Returns:
+        List of serialized Secret dicts (without secret values).
+    """
     core = get_core_v1_api()
     kwargs = {}
     if label_selector:
@@ -54,6 +81,15 @@ def list_secrets(
 
 
 def get_secret(namespace: str, name: str) -> dict | None:
+    """Fetch a single Secret by namespace and name, with masked value preview.
+
+    Args:
+        namespace: Kubernetes namespace of the Secret.
+        name: Name of the Secret.
+
+    Returns:
+        Serialized Secret dict with masked data included, or None if not found.
+    """
     core = get_core_v1_api()
     try:
         secret = core.read_namespaced_secret(name, namespace)

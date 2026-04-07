@@ -26,9 +26,11 @@ class BitbucketClient:
 
     @property
     def is_configured(self) -> bool:
+        """Whether API credentials are present and non-empty."""
         return self._auth is not None and bool(self._auth[1])
 
     def _get(self, path: str, params: Optional[Dict] = None) -> Optional[Dict]:
+        """Make an authenticated GET request to the Bitbucket API."""
         if not self._auth:
             return None
         url = f"{API_BASE}{path}"
@@ -51,6 +53,7 @@ class BitbucketClient:
         return data.get("values", []) if data else []
 
     def get_pr(self, repo_slug: str, pr_id: int) -> Optional[Dict]:
+        """Get a single pull request by ID."""
         return self._get(f"/repositories/{self._workspace}/{repo_slug}/pullrequests/{pr_id}")
 
     def list_branches(self, repo_slug: str) -> List[Dict]:

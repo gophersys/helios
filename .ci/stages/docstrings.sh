@@ -10,22 +10,23 @@ log_stage "docstrings — docstring coverage enforcement"
 FAILED=false
 
 # Shared libraries — 55% threshold (current: 56%, raise as coverage improves)
-log_info "Checking libs/python/corekinect/ (threshold: 55%)"
+log_info "Checking libs/python/corekinect/ (threshold: 90%)"
 if ! python3 -m interrogate libs/python/corekinect/ \
     --fail-under=90 \
     --ignore-init-method --ignore-magic --ignore-private --ignore-module \
+    --exclude libs/python/corekinect/test/.venv \
     --quiet 2>&1; then
-  log_error "Library docstring coverage below 55%"
+  log_error "Library docstring coverage below 90%"
   FAILED=true
 fi
 
 # http-api — 55% threshold (current: 58%, raise as coverage improves)
-log_info "Checking apps/backend/http-api/src/ (threshold: 55%)"
+log_info "Checking apps/backend/http-api/src/ (threshold: 90%)"
 if ! python3 -m interrogate apps/backend/http-api/src/ \
     --fail-under=90 \
     --ignore-init-method --ignore-magic --ignore-private --ignore-module \
     --quiet 2>&1; then
-  log_error "http-api docstring coverage below 55%"
+  log_error "http-api docstring coverage below 90%"
   FAILED=true
 fi
 

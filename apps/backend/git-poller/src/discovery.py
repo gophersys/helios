@@ -131,6 +131,7 @@ class ProductDiscovery:
 
     def invalidate_cache(self) -> None:
         """Force a fresh fetch on the next call."""
+        self._cached = []
         self._cached_at = 0.0
 
     # ------------------------------------------------------------------
@@ -138,6 +139,12 @@ class ProductDiscovery:
     # ------------------------------------------------------------------
 
     def _fetch(self) -> Optional[list[WatchTarget]]:
+        """Fetch and parse watch targets from GET /v2/products.
+
+        Returns:
+            A list of WatchTarget objects on success, or None if the request
+            fails or the API key is not configured.
+        """
         if not self._api_key:
             log.warning("Discovery: CONCORD_API_KEY not set, skipping fetch")
             return None

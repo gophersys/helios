@@ -23,6 +23,7 @@ _DESIGN_INCLUDE = {
 
 
 def _serialize_design(design) -> Dict[str, Any]:
+    """Serialize a FixtureDesign DB record to an API response dict."""
     data = {
         "id": design.id,
         "name": design.name,
@@ -54,6 +55,7 @@ def _serialize_design(design) -> Dict[str, Any]:
 
 
 def _serialize_design_summary(design) -> Dict[str, Any]:
+    """Serialize a FixtureDesign to a compact summary dict for list responses."""
     data = {
         "id": design.id,
         "name": design.name,

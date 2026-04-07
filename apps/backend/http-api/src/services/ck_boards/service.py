@@ -107,6 +107,7 @@ class CkBoardsService:
 
     @property
     def is_ready(self) -> bool:
+        """Whether the bare repo has been cloned and is ready for queries."""
         return self._ready
 
     # ------------------------------------------------------------------
@@ -149,6 +150,7 @@ class CkBoardsService:
     def _start_fetch_timer(self) -> None:
         """Periodic background fetch."""
         def _fetch_loop():
+            """Run git fetch in a loop at the configured interval."""
             while True:
                 threading.Event().wait(self._fetch_interval)
                 try:
@@ -175,6 +177,7 @@ class CkBoardsService:
         return {"branches": branches, "tags": tags}
 
     def fetch(self) -> None:
+        """Fetch latest refs from the remote repository."""
         self._run_git(["fetch", "--prune", "origin"])
 
     def discover_boards(self, branch: str) -> List[Dict[str, Any]]:
@@ -218,6 +221,7 @@ class CkBoardsService:
     # ------------------------------------------------------------------
 
     def _run_git(self, args: List[str], cwd: Optional[str] = None) -> str:
+        """Execute a git command against the bare repo and return stdout."""
         env = {**os.environ, **self._git_env}
         cmd = ["git", "--git-dir", self._bare_repo] + args
         result = subprocess.run(
@@ -228,26 +232,31 @@ class CkBoardsService:
         return result.stdout.strip()
 
     def _git_list_branches(self) -> List[str]:
+        """List all branch names from the bare repo."""
         output = self._run_git(["for-each-ref", "--format=%(refname:short)", "refs/heads/"])
         return [line for line in output.splitlines() if line]
 
     def _git_list_tags(self) -> List[str]:
+        """List all tag names from the bare repo."""
         output = self._run_git(["for-each-ref", "--format=%(refname:short)", "refs/tags/"])
         return [line for line in output.splitlines() if line]
 
     def _validate_ref(self, ref: str) -> None:
+        """Raise ValueError if ref is not a known branch or tag."""
         branches = self._git_list_branches()
         tags = self._git_list_tags()
         if ref not in branches and ref not in tags:
             raise ValueError(f"Ref '{ref}' not found in ck_boards repository")
 
     def _checkout_worktree(self, ref: str) -> str:
+        """Create an ephemeral detached worktree for the given ref."""
         worktree_id = f"{ref.replace('/', '_')}_{uuid.uuid4().hex[:8]}"
         worktree_path = os.path.join(self._worktree_base, worktree_id)
         self._run_git(["worktree", "add", "--detach", worktree_path, ref])
         return worktree_path
 
     def _remove_worktree(self, worktree_path: str) -> None:
+        """Remove a previously created worktree and prune if needed."""
         try:
             self._run_git(["worktree", "remove", "--force", worktree_path])
         except RuntimeError:
@@ -321,6 +330,7 @@ class CkBoardsService:
         return families
 
     def _scan_boards(self, worktree_path: str) -> List[Dict[str, Any]]:
+        """Scan a worktree for boards and return families sorted by name."""
         boards_dir = self._find_boards_dir(worktree_path)
         families = self._scan_boards_in_dir(boards_dir)
         return sorted(families.values(), key=lambda f: f["family"])

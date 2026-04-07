@@ -20,36 +20,47 @@ class TestValidateDeviceId:
     """Tests for the validate_device_id() helper."""
 
     def test_valid_16_char_hex_uppercase(self):
+        """Test valid 16 char hex uppercase."""
         assert validate_device_id("70B3D584C01E1FCC") is True
 
     def test_valid_16_char_hex_lowercase(self):
+        """Test valid 16 char hex lowercase."""
         assert validate_device_id("70b3d584c01e1fcc") is True
 
     def test_valid_16_char_hex_mixed_case(self):
+        """Test valid 16 char hex mixed case."""
         assert validate_device_id("70B3d584c01E1fCc") is True
 
     def test_valid_all_zeros(self):
+        """Test valid all zeros."""
         assert validate_device_id("0000000000000000") is True
 
     def test_valid_all_f(self):
+        """Test valid all f."""
         assert validate_device_id("FFFFFFFFFFFFFFFF") is True
 
     def test_too_short(self):
+        """Test too short."""
         assert validate_device_id("70B3D584C01E1FC") is False
 
     def test_too_long(self):
+        """Test too long."""
         assert validate_device_id("70B3D584C01E1FCCA") is False
 
     def test_empty_string(self):
+        """Test empty string."""
         assert validate_device_id("") is False
 
     def test_non_hex_chars(self):
+        """Test non hex chars."""
         assert validate_device_id("70B3D584C01E1FGG") is False
 
     def test_spaces(self):
+        """Test spaces."""
         assert validate_device_id("70B3 D584 C01E 1FC") is False
 
     def test_with_0x_prefix(self):
+        """Test with 0x prefix."""
         assert validate_device_id("0x70B3D584C01E1F") is False
 
 
@@ -167,29 +178,36 @@ class TestStubMethods:
     """Verify that unimplemented methods raise NotImplementedError."""
 
     def setup_method(self):
+        """Setup method."""
         self.client = CloudClient(device_id=0x70B3D584C01E1FCC)
 
     def test_wait_for_biometric_raises(self):
+        """Test wait for biometric raises."""
         with pytest.raises(NotImplementedError, match="Biometric"):
             self.client.wait_for_biometric()
 
     def test_wait_for_biometric_with_predicate_raises(self):
+        """Test wait for biometric with predicate raises."""
         with pytest.raises(NotImplementedError):
             self.client.wait_for_biometric(predicate=lambda x: True, timeout_s=10)
 
     def test_wait_for_network_status_raises(self):
+        """Test wait for network status raises."""
         with pytest.raises(NotImplementedError, match="Network status"):
             self.client.wait_for_network_status()
 
     def test_wait_for_network_status_with_timeout_raises(self):
+        """Test wait for network status with timeout raises."""
         with pytest.raises(NotImplementedError):
             self.client.wait_for_network_status(timeout_s=5)
 
     def test_query_messages_raises(self):
+        """Test query messages raises."""
         with pytest.raises(NotImplementedError, match="Message queries"):
             self.client.query_messages()
 
     def test_query_messages_with_args_raises(self):
+        """Test query messages with args raises."""
         with pytest.raises(NotImplementedError):
             self.client.query_messages("some_type", limit=10)
 
@@ -232,6 +250,7 @@ class TestHwFailureChecks:
         assert result == {"modem": True}
 
     def test_check_comms_hw_failures_returns_empty_when_no_api(self):
+        """Test check comms hw failures returns empty when no api."""
         client = CloudClient(device_id=0x70B3D584C01E1FCC)
         with patch.object(client, "_fetch_status", return_value=None):
             result = client.check_comms_hw_failures()
@@ -280,6 +299,7 @@ class TestPollStatusChange:
         call_count = 0
 
         def fetch_side_effect():
+            """Fetch side effect."""
             nonlocal call_count
             call_count += 1
             if call_count < 3:
@@ -314,6 +334,7 @@ class TestPollStatusChange:
         call_count = 0
 
         def fetch_side_effect():
+            """Fetch side effect."""
             nonlocal call_count
             call_count += 1
             return {"bootInfo": {"recordId": call_count * 10, "data": call_count}}
@@ -321,6 +342,7 @@ class TestPollStatusChange:
         pred_calls = 0
 
         def bad_then_good(data):
+            """Bad then good."""
             nonlocal pred_calls
             pred_calls += 1
             if pred_calls == 1:
@@ -390,12 +412,14 @@ class TestGetStatus:
     """Tests for the get_status() passthrough."""
 
     def test_returns_fetch_result(self):
+        """Test returns fetch result."""
         client = CloudClient(device_id=0x70B3D584C01E1FCC)
         status = {"bootInfo": {"recordId": 1}}
         with patch.object(client, "_fetch_status", return_value=status):
             assert client.get_status() == status
 
     def test_returns_none_when_unavailable(self):
+        """Test returns none when unavailable."""
         client = CloudClient(device_id=0x70B3D584C01E1FCC)
         with patch.object(client, "_fetch_status", return_value=None):
             assert client.get_status() is None
@@ -413,6 +437,7 @@ class TestConfigMethods:
     DEVICE_INT = 0x70B3D584C01E1FCC
 
     def _make_client(self):
+        """ make client."""
         return CloudClient(device_id=self.DEVICE_INT)
 
     def _mock_api(self, client):
@@ -645,6 +670,7 @@ class TestConfigMethods:
         call_count = 0
 
         def side_effect():
+            """Side effect."""
             nonlocal call_count
             call_count += 1
             if call_count < 3:
@@ -676,6 +702,7 @@ class TestConfigMethods:
         call_count = 0
 
         def side_effect():
+            """Side effect."""
             nonlocal call_count
             call_count += 1
             if call_count < 3:

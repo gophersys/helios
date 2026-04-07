@@ -30,6 +30,7 @@ _INCLUDE = {"boardRevision": True, "signingKey": True, "buildMatrixEntries": Tru
 
 
 def _serialize_stage_config(cfg) -> dict:
+    """Serialize a ProductStageConfig DB record to an API response dict."""
     data = {
         "id": cfg.id,
         "productId": cfg.productId,
@@ -69,6 +70,7 @@ def _serialize_stage_config(cfg) -> dict:
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_stage_configs(product_id: str):
+    """List all stage configs for a product."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
@@ -83,6 +85,7 @@ def list_stage_configs(product_id: str):
 
 @require_permissions(Permissions.BUILDS_VIEW)
 def get_stage_config(product_id: str, stage: str):
+    """Get a single stage config by product and stage number."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
@@ -102,6 +105,7 @@ def get_stage_config(product_id: str, stage: str):
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def create_stage_config(product_id: str):
+    """Create a new stage config for a product."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
@@ -138,6 +142,7 @@ def create_stage_config(product_id: str):
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def update_stage_config(product_id: str, stage: str):
+    """Update a stage config, optionally triggering a build."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
@@ -197,6 +202,7 @@ def update_stage_config(product_id: str, stage: str):
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def delete_stage_config(product_id: str, stage: str):
+    """Delete a stage config by product and stage number."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
@@ -217,6 +223,7 @@ def delete_stage_config(product_id: str, stage: str):
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def initialize_stages(product_id: str):
+    """Create all five default stage configs for a product."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
@@ -240,6 +247,7 @@ def initialize_stages(product_id: str):
 # =============================================================================
 
 def _serialize_build_matrix_entry(entry) -> dict:
+    """Serialize a StageBuildMatrix entry to an API response dict."""
     return {
         "id": entry.id,
         "stageConfigId": entry.stageConfigId,

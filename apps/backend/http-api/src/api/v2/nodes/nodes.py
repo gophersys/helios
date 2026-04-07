@@ -25,6 +25,7 @@ except ImportError:
 
 
 def _serialize_node(n: Any, include_slot: bool = False) -> dict:
+    """Serialize a Node DB record to an API response dict."""
     data = {
         "id": n.id,
         "name": n.name,
@@ -66,6 +67,7 @@ def _serialize_node(n: Any, include_slot: bool = False) -> dict:
 
 @require_permissions(Permissions.DEVICES_VIEW)
 def list_nodes():
+    """List MTIB nodes with pagination and type filtering."""
     db = get_db_client()
 
     page = max(1, request.args.get("page", 1, type=int))
@@ -98,6 +100,7 @@ def list_nodes():
 
 @require_permissions(Permissions.DEVICES_MANAGE)
 def create_node():
+    """Create a new MTIB node and auto-deploy its server."""
     data, error = NodeCreateRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
@@ -152,6 +155,7 @@ def create_node():
 
 @require_permissions(Permissions.DEVICES_MANAGE)
 def sync_nodes_from_k8s():
+    """Discover ARM64 nodes from K8s and compare with registered DB nodes."""
     empty_result = {"registered": [], "discovered": [], "offline": [], "k8sAvailable": False}
 
     if not K8S_AVAILABLE:
@@ -241,6 +245,7 @@ def sync_nodes_from_k8s():
 
 @require_permissions(Permissions.DEVICES_VIEW)
 def get_node(node_id: str):
+    """Get a single MTIB node by ID with fixture slot details."""
     db = get_db_client()
     node = db.node.find_unique(
         where={"id": node_id},
@@ -253,6 +258,7 @@ def get_node(node_id: str):
 
 @require_permissions(Permissions.DEVICES_MANAGE)
 def update_node(node_id: str):
+    """Update an MTIB node, redeploying server if type changes."""
     data, error = NodeUpdateRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
@@ -298,6 +304,7 @@ def update_node(node_id: str):
 
 @require_permissions(Permissions.DEVICES_MANAGE)
 def delete_node(node_id: str):
+    """Delete an MTIB node and undeploy its server."""
     db = get_db_client()
     existing = db.node.find_unique(
         where={"id": node_id},
@@ -325,6 +332,7 @@ def delete_node(node_id: str):
 
 @require_permissions(Permissions.DEVICES_MANAGE)
 def check_node_health(node_id: str):
+    """Check gRPC connectivity to an MTIB node and update its status."""
     db = get_db_client()
     node = db.node.find_unique(where={"id": node_id})
     if not node:
@@ -368,6 +376,7 @@ def check_node_health(node_id: str):
 
 @require_permissions(Permissions.DEVICES_MANAGE)
 def register_node(node_id: str):
+    """Register a discovered K8s node as an MTIB with labels and taints."""
     if not K8S_AVAILABLE:
         return internal_error("Kubernetes client not available")
 

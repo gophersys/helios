@@ -78,6 +78,7 @@ from protocols.mtib.mtib_pb2 import (
 
 @dataclass
 class Hardware:
+    """Hardware."""
     adc_count: int = 0
     gpio_count: int = 0
     j_link_count: int = 0
@@ -85,24 +86,28 @@ class Hardware:
 
 @dataclass
 class MtibV1ServerInfo:
+    """Mtib V1 Server Info."""
     name: str = ""
     version: str = ""
     hardware: Hardware = None
 
 
 class PowerChannel(IntEnum):
+    """Power Channel."""
     DUT = 0           # POWER_CHANNEL_DUT
     CHARGER = 1       # POWER_CHANNEL_CHARGER
     JOULESCOPE = 2    # POWER_CHANNEL_JOULESCOPE (optional USB power analyzer)
 
 
 class GpioDirection(IntEnum):
+    """Gpio Direction."""
     UNDEFINED = 0
     INPUT = 1
     OUTPUT = 2
 
 
 class GpioResistorConfig(IntEnum):
+    """Gpio Resistor Config."""
     UNDEFINED = 0
     PULL_UP = 1
     PULL_DOWN = 2
@@ -110,6 +115,7 @@ class GpioResistorConfig(IntEnum):
 
 
 class MotionStatus(IntEnum):
+    """Motion Status."""
     UNDEFINED = 0
     IDLE = 1
     MOVING = 2
@@ -117,6 +123,7 @@ class MotionStatus(IntEnum):
 
 
 class MotionPosition(IntEnum):
+    """Motion Position."""
     UNDEFINED = 0
     HOME = 1
     USER = 2
@@ -124,12 +131,14 @@ class MotionPosition(IntEnum):
 
 @dataclass
 class HealthCheckResponse:
+    """Health Check Response."""
     ready: bool = False
     errors: List[str] = None
 
 
 @dataclass
 class GpioReadResponse:
+    """Gpio Read Response."""
     success: bool = False
     message: str = ""
     state: bool = False
@@ -137,6 +146,7 @@ class GpioReadResponse:
 
 @dataclass
 class AdcReadResponse:
+    """Adc Read Response."""
     success: bool = False
     message: str = ""
     voltage_v: float = 0.0
@@ -144,6 +154,7 @@ class AdcReadResponse:
 
 @dataclass
 class AdcReadAllResponse:
+    """Adc Read All Response."""
     success: bool = False
     message: str = ""
     voltages_v: List[float] = None
@@ -151,6 +162,7 @@ class AdcReadAllResponse:
 
 @dataclass
 class AltimeterReadResponse:
+    """Altimeter Read Response."""
     success: bool = False
     message: str = ""
     temperature_f: float = 0.0
@@ -160,6 +172,7 @@ class AltimeterReadResponse:
 
 @dataclass
 class AccelReadResponse:
+    """Accel Read Response."""
     success: bool = False
     message: str = ""
     x_g: float = 0.0
@@ -169,6 +182,7 @@ class AccelReadResponse:
 
 @dataclass
 class GetMotionStatusResponse:
+    """Get Motion Status Response."""
     success: bool = False
     message: str = ""
     status: MotionStatus = MotionStatus.UNDEFINED
@@ -176,18 +190,21 @@ class GetMotionStatusResponse:
 
 @dataclass
 class MotionHomeResponse:
+    """Motion Home Response."""
     success: bool = False
     message: str = ""
 
 
 @dataclass
 class MotionStopResponse:
+    """Motion Stop Response."""
     success: bool = False
     message: str = ""
 
 
 @dataclass
 class ProgrammerType(IntEnum):
+    """Programmer Type."""
     UNDEFINED = 0
     JLINK = 1
     BLACKMAGIC = 2
@@ -195,12 +212,14 @@ class ProgrammerType(IntEnum):
 
 @dataclass
 class Programmer:
+    """Programmer."""
     type: ProgrammerType = ProgrammerType.UNDEFINED
     host: HostType = HostType.HOST_TYPE_NRF9160_MODEM
 
 
 @dataclass
 class ListProgrammersResponse:
+    """List Programmers Response."""
     success: bool = False
     message: str = ""
     programmers: List[Programmer] = None
@@ -208,6 +227,7 @@ class ListProgrammersResponse:
 
 @dataclass
 class ListFwFilesResponse:
+    """List Fw Files Response."""
     success: bool = False
     message: str = ""
     files: List[FwFileInfo] = None
@@ -215,6 +235,7 @@ class ListFwFilesResponse:
 
 @dataclass
 class UploadFwFileResponse:
+    """Upload Fw File Response."""
     success: bool = False
     message: str = ""
     sha256_digest: str = ""
@@ -222,12 +243,14 @@ class UploadFwFileResponse:
 
 @dataclass
 class DeleteFwFileResponse:
+    """Delete Fw File Response."""
     success: bool = False
     message: str = ""
 
 
 @dataclass
 class FlashFwFileResponse:
+    """Flash Fw File Response."""
     success: bool = False
     message: str = ""
     time_ms: int = 0
@@ -235,6 +258,7 @@ class FlashFwFileResponse:
 
 @dataclass
 class HealthCheckExtendedResponse:
+    """Health Check Extended Response."""
     ready: bool = False
     errors: List[str] = None
     hw_revision: str = ""
@@ -243,6 +267,7 @@ class HealthCheckExtendedResponse:
 
 @dataclass
 class PowerReadResult:
+    """Power Read Result."""
     enabled: bool = False
     voltage_v: float = 0.0
     current_ma: float = 0.0
@@ -252,6 +277,7 @@ class PowerReadResult:
 
 @dataclass
 class PowerMeasureResult:
+    """Power Measure Result."""
     duration_s: float = 0.0
     average_ma: float = 0.0
     min_ma: float = 0.0
@@ -265,6 +291,7 @@ class PowerMeasureResult:
 
 @dataclass
 class SnapshotResult:
+    """Snapshot Result."""
     timestamp_ms: int = 0
     hw_revision: str = ""
     power: list = None

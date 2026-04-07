@@ -19,9 +19,11 @@ class _StubFixture:
         self._caps = set(caps or [])
 
     def has(self, cap: str) -> bool:
+        """Has."""
         return cap in self._caps
 
     def has_capability(self, cap) -> bool:
+        """Has capability."""
         cap_str = cap.value if hasattr(cap, "value") else str(cap)
         return cap_str in self._caps
 
@@ -37,6 +39,7 @@ class TestRequiresCapabilityDecorator:
 
         @requires_capability("button")
         def test_func(fixture):
+            """Test func."""
             results.append("ran")
             return True
 
@@ -51,6 +54,7 @@ class TestRequiresCapabilityDecorator:
 
         @requires_capability("button")
         def test_func(fixture):
+            """Test func."""
             pytest.fail("Should not run")
 
         with pytest.raises(pytest.skip.Exception) as exc_info:
@@ -66,6 +70,7 @@ class TestRequiresCapabilityDecorator:
 
         @requires_capability("ppg_servo", "ppg_led")
         def test_func(fixture):
+            """Test func."""
             ran.append(True)
 
         test_func(fixture=fixture)
@@ -77,6 +82,7 @@ class TestRequiresCapabilityDecorator:
 
         @requires_capability("ppg_servo", "ppg_led")
         def test_func(fixture):
+            """Test func."""
             pytest.fail("Should not run")
 
         with pytest.raises(pytest.skip.Exception) as exc_info:
@@ -92,6 +98,7 @@ class TestRequiresCapabilityDecorator:
 
         @requires_capability("button")
         def test_func(fixture):
+            """Test func."""
             ran.append(True)
 
         test_func(fixture)  # positional arg
@@ -101,6 +108,7 @@ class TestRequiresCapabilityDecorator:
         """Capability requirements are stored on decorated function."""
         @requires_capability("button", "peltier")
         def test_func(fixture):
+            """Test func."""
             pass
 
         caps = get_required_capabilities(test_func)
@@ -113,6 +121,7 @@ class TestRequiresCapabilityDecorator:
 
         @requires_capability("button")
         def test_func():
+            """Test func."""
             ran.append(True)
 
         test_func()
@@ -123,6 +132,7 @@ class TestRequiresCapabilityDecorator:
         fixture = _StubFixture(["button"])
 
         class MockCtx:
+            """Tests for MockCtx."""
             pass
         ctx = MockCtx()
         ctx.fixture = fixture
@@ -131,6 +141,7 @@ class TestRequiresCapabilityDecorator:
 
         @requires_capability("button")
         def test_func(ctx, firmware_build):
+            """Test func."""
             ran.append(True)
 
         test_func(ctx=ctx, firmware_build="debug")
@@ -141,12 +152,14 @@ class TestRequiresCapabilityDecorator:
         fixture = _StubFixture([])
 
         class MockCtx:
+            """Tests for MockCtx."""
             pass
         ctx = MockCtx()
         ctx.fixture = fixture
 
         @requires_capability("button")
         def test_func(ctx, firmware_build):
+            """Test func."""
             pytest.fail("Should not run")
 
         with pytest.raises(pytest.skip.Exception):
@@ -159,6 +172,7 @@ class TestIntrospectionHelpers:
     def test_get_required_capabilities_empty(self):
         """Returns empty list for undecorated function."""
         def plain_func():
+            """Plain func."""
             pass
 
         assert get_required_capabilities(plain_func) == []
@@ -166,6 +180,7 @@ class TestIntrospectionHelpers:
     def test_get_required_feature_none(self):
         """Returns None for undecorated function."""
         def plain_func():
+            """Plain func."""
             pass
 
         assert get_required_feature(plain_func) is None

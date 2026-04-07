@@ -85,6 +85,7 @@ class CoreOpsClient:
         config: Optional[CoreOpsConfig] = None,
         logger: Optional[Logger] = None,
     ):
+        """  init  ."""
         load_dotenv(override=False)
 
         self._config = config or CoreOpsConfig()
@@ -106,6 +107,7 @@ class CoreOpsClient:
             self._atexit_reg = True
 
     def __enter__(self) -> "CoreOpsClient":
+        """  enter  ."""
         if self._depth > 0:
             self._depth += 1
             return self
@@ -116,6 +118,7 @@ class CoreOpsClient:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        """  exit  ."""
         if self._depth <= 1:
             self._teardown()
             self._depth = 0
@@ -124,6 +127,7 @@ class CoreOpsClient:
         return False
 
     def _teardown(self) -> None:
+        """ teardown."""
         if self._session:
             try:
                 self._session.close()
@@ -133,6 +137,7 @@ class CoreOpsClient:
         self._token_expiry = 0.0
 
     def _get_session(self) -> Session:
+        """ get session."""
         if self._session is None:
             self._session = requests.Session()
         return self._session

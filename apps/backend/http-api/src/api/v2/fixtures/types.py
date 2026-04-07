@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 @dataclass
 class FixtureCreateRequest:
+    """Request body for creating a fixture."""
+
     name: str
     productId: str
     type: str  # MANUFACTURING or VALIDATION
@@ -15,6 +17,7 @@ class FixtureCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["FixtureCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a FixtureCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
         name = (data.get("name") or "").strip()
@@ -62,6 +65,8 @@ class FixtureCreateRequest:
 
 @dataclass
 class FixtureUpdateRequest:
+    """Request body for updating a fixture."""
+
     name: Optional[str] = None
     description: Optional[str] = None
     active: Optional[bool] = None
@@ -71,6 +76,7 @@ class FixtureUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["FixtureUpdateRequest"], Optional[str]]:
+        """Parse and validate JSON into a FixtureUpdateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -103,6 +109,7 @@ class FixtureUpdateRequest:
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
+        """Return dict of explicitly-set fields for DB update."""
         update_data: Dict[str, Any] = {}
         if self.name is not None:
             update_data["name"] = self.name
@@ -117,6 +124,8 @@ class FixtureUpdateRequest:
 
 @dataclass
 class SlotCreateRequest:
+    """Request body for creating a fixture slot."""
+
     slotIndex: int
     label: Optional[str] = None
     # Hardware paths
@@ -132,6 +141,7 @@ class SlotCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["SlotCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a SlotCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -187,6 +197,8 @@ class SlotCreateRequest:
 
 @dataclass
 class SlotUpdateRequest:
+    """Request body for updating a fixture slot."""
+
     label: Optional[str] = None
     active: Optional[bool] = None
     jlinkAppSerial: Optional[str] = None
@@ -209,6 +221,7 @@ class SlotUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["SlotUpdateRequest"], Optional[str]]:
+        """Parse and validate JSON into a SlotUpdateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -268,6 +281,7 @@ class SlotUpdateRequest:
         return req, None
 
     def to_update_data(self) -> Dict[str, Any]:
+        """Return dict of explicitly-set fields for DB update."""
         update_data: Dict[str, Any] = {}
         if self._has_label:
             update_data["label"] = self.label
@@ -294,10 +308,13 @@ class SlotUpdateRequest:
 
 @dataclass
 class SlotAssignRequest:
+    """Request body for assigning a node to a fixture slot."""
+
     nodeId: Optional[str] = None  # null to unassign
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["SlotAssignRequest"], Optional[str]]:
+        """Parse and validate JSON into a SlotAssignRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -338,6 +355,7 @@ class BenchCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BenchCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a BenchCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -476,6 +494,7 @@ class BenchUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BenchUpdateRequest"], Optional[str]]:
+        """Parse and validate JSON into a BenchUpdateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -585,6 +604,7 @@ class BenchLockRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BenchLockRequest"], Optional[str]]:
+        """Parse and validate JSON into a BenchLockRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -614,6 +634,7 @@ class FixtureDesignCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["FixtureDesignCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a FixtureDesignCreateRequest."""
         if not data:
             return None, "Request body required"
 
@@ -672,6 +693,7 @@ class FixtureDesignUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["FixtureDesignUpdateRequest"], Optional[str]]:
+        """Parse and validate JSON into a FixtureDesignUpdateRequest."""
         if not data:
             return None, "Request body required"
 

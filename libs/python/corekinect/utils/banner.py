@@ -23,6 +23,7 @@ from typing import Optional
 
 @dataclass
 class BuildInfo:
+    """Build and runtime metadata for service startup banners."""
     service: str = "unknown"
     version: str = "dev"
     environment: str = "development"
@@ -39,10 +40,12 @@ class BuildInfo:
 
     @property
     def commit_short(self) -> str:
+        """Short 7-character git commit hash."""
         return self.git_commit[:7] if len(self.git_commit) > 7 else self.git_commit
 
     @property
     def commit_display(self) -> str:
+        """Formatted commit hash with optional branch and dirty flag."""
         parts = [self.commit_short]
         if self.git_branch and self.git_branch != "unknown":
             parts.append(f"({self.git_branch})")
@@ -52,6 +55,7 @@ class BuildInfo:
 
     @property
     def runtime_display(self) -> str:
+        """Formatted runtime info string (Python, Node, arch)."""
         parts = []
         if self.python_version:
             parts.append(f"Python {self.python_version}")
@@ -63,6 +67,7 @@ class BuildInfo:
 
     @property
     def build_display(self) -> str:
+        """Formatted build time and host string."""
         parts = []
         if self.build_time and self.build_time != "unknown":
             # Try to make it human-readable

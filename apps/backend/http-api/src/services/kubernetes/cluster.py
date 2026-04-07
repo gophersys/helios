@@ -72,6 +72,7 @@ def get_cluster_info() -> dict:
 
 
 def list_namespaces() -> list[dict]:
+    """List all Kubernetes namespaces."""
     core = get_core_v1_api()
     ns_list = core.list_namespace()
     return [serialize_namespace(ns) for ns in ns_list.items]

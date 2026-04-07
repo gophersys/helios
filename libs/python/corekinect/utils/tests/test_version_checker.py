@@ -19,6 +19,7 @@ from ..src.version_checker import is_version_supported
     ],
 )
 def test_is_version_supported_true(full_version, supported_versions):
+    """Test is version supported true."""
     assert is_version_supported(full_version, supported_versions) == True
 
 
@@ -36,6 +37,7 @@ def test_is_version_supported_true(full_version, supported_versions):
     ],
 )
 def test_is_version_supported_false(full_version, supported_versions):
+    """Test is version supported false."""
     assert is_version_supported(full_version, supported_versions) == False
 
 
@@ -48,5 +50,6 @@ def test_is_version_supported_false(full_version, supported_versions):
     ],
 )
 def test_is_version_supported_exceptions(full_version, supported_versions, expected_exception, expected_message):
+    """Test is version supported exceptions."""
     with pytest.raises(expected_exception, match=expected_message):
         is_version_supported(full_version, supported_versions)

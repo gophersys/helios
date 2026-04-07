@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_roles():
+    """List Kubernetes Roles with optional namespace filtering.
+
+    Returns:
+        JSON response with paginated list of Role dicts.
+    """
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = rbac_svc.list_roles(namespace=namespace)
@@ -31,6 +36,11 @@ def list_roles():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_cluster_roles():
+    """List all Kubernetes ClusterRoles.
+
+    Returns:
+        JSON response with paginated list of ClusterRole dicts.
+    """
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = rbac_svc.list_cluster_roles()
@@ -46,6 +56,11 @@ def list_cluster_roles():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_role_bindings():
+    """List Kubernetes RoleBindings with optional namespace filtering.
+
+    Returns:
+        JSON response with paginated list of RoleBinding dicts.
+    """
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = rbac_svc.list_role_bindings(namespace=namespace)
@@ -61,6 +76,11 @@ def list_role_bindings():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_cluster_role_bindings():
+    """List all Kubernetes ClusterRoleBindings.
+
+    Returns:
+        JSON response with paginated list of ClusterRoleBinding dicts.
+    """
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = rbac_svc.list_cluster_role_bindings()
@@ -76,6 +96,11 @@ def list_cluster_role_bindings():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_service_accounts():
+    """List Kubernetes ServiceAccounts with optional namespace filtering.
+
+    Returns:
+        JSON response with paginated list of ServiceAccount dicts.
+    """
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = rbac_svc.list_service_accounts(namespace=namespace)

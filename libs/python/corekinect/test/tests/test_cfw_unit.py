@@ -55,15 +55,19 @@ class TestReleaseTracksConstant:
     """Tests for the RELEASE_TRACKS mapping."""
 
     def test_has_bench(self):
+        """Test has bench."""
         assert RELEASE_TRACKS[0] == "B"
 
     def test_has_engineering(self):
+        """Test has engineering."""
         assert RELEASE_TRACKS[1] == "E"
 
     def test_has_production(self):
+        """Test has production."""
         assert RELEASE_TRACKS[2] == "P"
 
     def test_has_exactly_three_entries(self):
+        """Test has exactly three entries."""
         assert len(RELEASE_TRACKS) == 3
 
 
@@ -71,6 +75,7 @@ class TestHeaderSize:
     """Verify header struct is 23 bytes as documented."""
 
     def test_header_is_23_bytes(self):
+        """Test header is 23 bytes."""
         assert HEADER_SIZE == 23
 
 
@@ -223,6 +228,7 @@ class TestTrackExtraction:
         ],
     )
     def test_track_from_flag_bits(self, tmp_path, flags, expected_track):
+        """Test track from flag bits."""
         data = _make_cfw(flags=flags)
         path = _write_cfw(tmp_path, data)
         result = parse_cfw_header(path)

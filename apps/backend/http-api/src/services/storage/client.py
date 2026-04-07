@@ -22,6 +22,8 @@ appStorageClient: Optional[Minio] = None
 
 
 class StoragePrefixes:
+    """MinIO object key prefixes for each storage domain."""
+
     FIRMWARE_BUILDS = "firmware/builds"      # CI build artifacts: {product}/{build_id}/{filename}
     FIRMWARE_UPLOADS = "firmware/uploads"    # Manual firmware uploads: {product}/{filename}
     BUILD_SCRIPTS = "builds/scripts"        # Build automation: {product}/build.sh
@@ -30,6 +32,7 @@ class StoragePrefixes:
 
 
 def storage_key(prefix: str, relative_path: str) -> str:
+    """Build a full MinIO object key from a prefix and relative path."""
     return f"{prefix}/{relative_path}"
 
 

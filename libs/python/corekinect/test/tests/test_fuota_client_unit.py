@@ -77,6 +77,7 @@ class TestSafeJson:
     """Tests for _safe_json() response parsing."""
 
     def setup_method(self):
+        """Setup method."""
         self.client = FuotaClient()
 
     def test_valid_json_dict(self):
@@ -244,6 +245,7 @@ class TestCreatePlan:
     """Tests for create_plan() response validation."""
 
     def _make_stages(self):
+        """ make stages."""
         return [
             {"targets": ["108.0.5.0-BM"], "description": "From", "isSkippable": False},
             {"targets": ["108.0.5.2-BM"], "description": "To", "isSkippable": False},
@@ -313,6 +315,7 @@ class TestExecuteFuotaTransition:
         captured_stages = []
 
         def mock_create_plan(stages, desc, device_type_id, device_variant_id):
+            """Mock create plan."""
             captured_stages.extend(stages)
             return 99
 

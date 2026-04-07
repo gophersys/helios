@@ -9,6 +9,12 @@ logger = logging.getLogger(__name__)
 
 
 def list_nodes() -> list[dict]:
+    """List all Kubernetes nodes with allocated resource summaries.
+
+    Returns:
+        List of serialized Node dicts, each with an 'allocated' field showing
+        current CPU requests, memory requests, and pod count.
+    """
     core = get_core_v1_api()
     node_list = core.list_node()
 
@@ -43,6 +49,14 @@ def list_nodes() -> list[dict]:
 
 
 def get_node(name: str) -> dict | None:
+    """Fetch a single Kubernetes node by name with pods and resource allocation.
+
+    Args:
+        name: Hostname of the Kubernetes node.
+
+    Returns:
+        Serialized Node dict with 'allocated' and 'pods' fields, or None if not found.
+    """
     core = get_core_v1_api()
     try:
         node = core.read_node(name)

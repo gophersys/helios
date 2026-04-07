@@ -150,6 +150,7 @@ class DataStorageObject:
     # --------------------|  Dict Conversion  |--------------------
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize this object to a plain dictionary."""
         out: Dict[str, Any] = {}
         for f in fields(self):
             v = getattr(self, f.name)
@@ -158,6 +159,7 @@ class DataStorageObject:
 
     @classmethod
     def from_dict(cls: Type[T], data: Dict[str, Any]) -> T:
+        """Deserialize a dictionary into this dataclass type."""
         kwargs: Dict[str, Any] = {}
 
         for f in fields(cls):
@@ -177,15 +179,18 @@ class DataStorageObject:
     # --------------------|  JSON  |--------------------
 
     def marshal(self) -> str:
+        """Serialize this object to a JSON string."""
         return json.dumps(self.to_dict())
 
     @classmethod
     def unmarshal(cls: Type[T], s: str) -> T:
+        """Deserialize a JSON string into this dataclass type."""
         return cls.from_dict(json.loads(s))
 
     # --------------------|  CSV  |--------------------
     @classmethod
     def csv_headers(cls) -> List[str]:
+        """Return the CSV column headers in field order."""
         return [f.name for f in fields(cls)]
 
     def to_csv_row(self) -> List[Any]:

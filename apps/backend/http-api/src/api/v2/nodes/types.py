@@ -6,6 +6,8 @@ from database import Json
 
 @dataclass
 class NodeCreateRequest:
+    """Request body for creating a new MTIB node."""
+
     name: str
     hostname: str
     type: str
@@ -15,6 +17,7 @@ class NodeCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["NodeCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a NodeCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
         name = (data.get("name") or "").strip()
@@ -43,6 +46,8 @@ class NodeCreateRequest:
 
 @dataclass
 class NodeUpdateRequest:
+    """Request body for updating an MTIB node."""
+
     name: Optional[str] = None
     type: Optional[str] = None
     status: Optional[str] = None
@@ -55,6 +60,7 @@ class NodeUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["NodeUpdateRequest"], Optional[str]]:
+        """Parse and validate JSON into a NodeUpdateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -96,6 +102,7 @@ class NodeUpdateRequest:
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
+        """Build a dict of changed fields for the Prisma update call."""
         update_data: Dict[str, Any] = {}
         if self.name is not None:
             update_data["name"] = self.name

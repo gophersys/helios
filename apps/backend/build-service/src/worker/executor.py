@@ -220,6 +220,7 @@ class BuildExecutor:
 
         # Log streaming callback
         def _stream_log(chunk: str):
+            """Forward a log chunk to the API for real-time WebSocket broadcast."""
             self.api_client.stream_log_chunk(job.id, chunk)
 
         # ── Docker mode: delegate to dynamic container ──

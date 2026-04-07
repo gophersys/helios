@@ -12,6 +12,15 @@ def list_services(
     namespace: str | None = None,
     label_selector: str | None = None,
 ) -> list[dict]:
+    """List Kubernetes Services across all namespaces or within a specific namespace.
+
+    Args:
+        namespace: Limit results to this namespace. If None, lists cluster-wide.
+        label_selector: Optional Kubernetes label selector string.
+
+    Returns:
+        List of serialized Service dicts.
+    """
     core = get_core_v1_api()
     kwargs = {}
     if label_selector:
@@ -26,6 +35,15 @@ def list_services(
 
 
 def get_service(namespace: str, name: str) -> dict | None:
+    """Fetch a single Service by namespace and name, including endpoints.
+
+    Args:
+        namespace: Kubernetes namespace of the Service.
+        name: Name of the Service.
+
+    Returns:
+        Serialized Service dict with an 'endpoints' list, or None if not found.
+    """
     core = get_core_v1_api()
     try:
         svc = core.read_namespaced_service(name, namespace)

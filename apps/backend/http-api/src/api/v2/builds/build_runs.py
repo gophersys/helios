@@ -149,10 +149,12 @@ def download_build_run_artifacts(run_id: str):
         return not_found("No builds found for this pipeline")
 
     def get_clean_name(name: str) -> str:
+        """Strip version and variant prefix from an artifact filename."""
         match = re.match(r'^\d+\.\d+\.\d+_(debug|no_debug|release)_(.+)$', name)
         return match.group(2) if match else name
 
     def get_folder(name: str) -> str:
+        """Map artifact filename to a subfolder (firmware, cfw, or root)."""
         if name.endswith('.hex') or name.endswith('.bin'):
             return "firmware"
         elif name.endswith('.cfw'):

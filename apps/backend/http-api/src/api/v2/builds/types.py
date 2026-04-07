@@ -18,6 +18,7 @@ class BitbucketWebhookPayload:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BitbucketWebhookPayload"], Optional[str]]:
+        """Parse and validate JSON into a BitbucketWebhookPayload."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -90,6 +91,7 @@ class CiTriggerRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["CiTriggerRequest"], Optional[str]]:
+        """Parse and validate JSON into a CiTriggerRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -148,6 +150,7 @@ class BuildCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BuildCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a BuildCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -244,6 +247,7 @@ class PipelineCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["PipelineCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a PipelineCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 

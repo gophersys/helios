@@ -50,6 +50,7 @@ class TestMakeReport:
     """Tests for failure tracking via pytest_runtest_makereport."""
 
     def test_failure_adds_class_to_failed_classes(self):
+        """Test failure adds class to failed classes."""
         plugin = SequentialTestPlugin()
         cls = _make_class("TestSomething")
         item = _make_item(cls=cls)
@@ -60,6 +61,7 @@ class TestMakeReport:
         assert "TestSomething" in plugin._failed_classes
 
     def test_preflight_failure_sets_preflight_failed(self):
+        """Test preflight failure sets preflight failed."""
         plugin = SequentialTestPlugin(preflight_class="TestPreflight")
         cls = _make_class("TestPreflight")
         item = _make_item(cls=cls)
@@ -112,6 +114,7 @@ class TestRunTestSetup:
     """Tests for skip logic in pytest_runtest_setup."""
 
     def test_preflight_failed_skips_non_preflight(self):
+        """Test preflight failed skips non preflight."""
         plugin = SequentialTestPlugin(preflight_class="TestPreflight")
         plugin._preflight_failed = True
 
@@ -122,6 +125,7 @@ class TestRunTestSetup:
             plugin.pytest_runtest_setup(item)
 
     def test_preflight_failed_does_not_skip_preflight_class(self):
+        """Test preflight failed does not skip preflight class."""
         plugin = SequentialTestPlugin(preflight_class="TestPreflight")
         plugin._preflight_failed = True
 
@@ -142,6 +146,7 @@ class TestRunTestSetup:
         plugin.pytest_runtest_setup(item)  # no exception expected
 
     def test_class_failure_skips_same_class(self):
+        """Test class failure skips same class."""
         plugin = SequentialTestPlugin()
         plugin._failed_classes.add("TestFlash")
 
@@ -152,6 +157,7 @@ class TestRunTestSetup:
             plugin.pytest_runtest_setup(item)
 
     def test_class_failure_does_not_skip_different_class(self):
+        """Test class failure does not skip different class."""
         plugin = SequentialTestPlugin()
         plugin._failed_classes.add("TestFlash")
 
@@ -162,6 +168,7 @@ class TestRunTestSetup:
         plugin.pytest_runtest_setup(item)
 
     def test_no_failures_does_not_skip(self):
+        """Test no failures does not skip."""
         plugin = SequentialTestPlugin()
 
         cls = _make_class("TestAnything")
@@ -190,6 +197,7 @@ class TestPytestConfigure:
     """Tests for keyword amendment in pytest_configure."""
 
     def test_keyword_without_preflight_gets_amended(self):
+        """Test keyword without preflight gets amended."""
         plugin = SequentialTestPlugin()
         config = MagicMock()
         config.option.keyword = "test_flash"
@@ -199,6 +207,7 @@ class TestPytestConfigure:
         assert config.option.keyword == "(test_00_preflight) or (test_flash)"
 
     def test_keyword_already_containing_preflight_unchanged(self):
+        """Test keyword already containing preflight unchanged."""
         plugin = SequentialTestPlugin()
         config = MagicMock()
         config.option.keyword = "test_00_preflight or test_flash"
@@ -209,6 +218,7 @@ class TestPytestConfigure:
         assert config.option.keyword == "test_00_preflight or test_flash"
 
     def test_no_keyword_leaves_config_unchanged(self):
+        """Test no keyword leaves config unchanged."""
         plugin = SequentialTestPlugin()
         config = MagicMock()
         config.option.keyword = None
@@ -218,6 +228,7 @@ class TestPytestConfigure:
         assert config.option.keyword is None
 
     def test_empty_keyword_leaves_config_unchanged(self):
+        """Test empty keyword leaves config unchanged."""
         plugin = SequentialTestPlugin()
         config = MagicMock()
         config.option.keyword = ""

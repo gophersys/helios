@@ -333,6 +333,7 @@ class LogFilter(logging.Filter):
         self.accepted_pattern = re.compile(r"\(.*\) accepted \(.*\)")
 
     def filter(self, record):
+        """Return False for healthcheck and connection-accepted log messages."""
         # Convert the log record's message to string if it isn't already
         log_message = str(record.msg)
         # Check if the log record matches any of the specified patterns
@@ -348,6 +349,7 @@ v2 = Blueprint("v2", __name__, url_prefix="/v2")
 
 
 def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
+    """Register all v2 API routes, WebSocket handlers, and log filters."""
     # Add a log filter to avoid spamming the logs with commonly hit routes
     logger.add_filter(LogFilter())
 

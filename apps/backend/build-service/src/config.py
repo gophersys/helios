@@ -41,86 +41,107 @@ class BuildServiceConfig(EnvConfig):
     # Lowercase property aliases used throughout the codebase
     @property
     def environment(self) -> str:
+        """Deployment environment name (e.g., ``development``, ``staging``)."""
         return self.ENVIRONMENT
 
     @property
     def api_url(self) -> str:
+        """Base URL of the Concord HTTP API."""
         return self.CONCORD_API_URL
 
     @property
     def api_key(self) -> str:
+        """API key used to authenticate with the Concord HTTP API."""
         return self.CONCORD_API_KEY
 
     @property
     def worker_id(self) -> str:
+        """Unique identifier for this worker instance (defaults to hostname)."""
         return self.WORKER_ID
 
     @property
     def poll_interval(self) -> int:
+        """Seconds between polling cycles when the job queue is empty."""
         return self.POLL_INTERVAL
 
     @property
     def workspace_dir(self) -> str:
+        """Root directory for temporary build workspaces."""
         return self.WORKSPACE_DIR
 
     @property
     def service_port(self) -> int:
+        """TCP port the Flask API server listens on."""
         return self.BUILD_SERVICE_PORT
 
     @property
     def metrics_enabled(self) -> bool:
+        """Whether the Prometheus metrics endpoint is active."""
         return self.METRICS_ENABLED
 
     @property
     def builder_mode(self) -> str:
+        """Build execution mode: ``docker`` (default) or ``local``."""
         return self.BUILDER_MODE
 
     @property
     def docker_socket(self) -> str:
+        """Path to the Docker daemon socket used for spawning build containers."""
         return self.DOCKER_SOCKET
 
     @property
     def builder_timeout(self) -> int:
+        """Maximum seconds a single build container may run before being killed."""
         return self.BUILDER_TIMEOUT
 
     @property
     def default_builder_image(self) -> str:
+        """Fallback Docker image used when a repo has no devcontainer.json."""
         return self.DEFAULT_BUILDER_IMAGE
 
     @property
     def workspace_volume(self) -> str:
+        """Named Docker volume mounted at ``/workspace`` inside build containers."""
         return self.WORKSPACE_VOLUME
 
     @property
     def ccache_volume(self) -> str:
+        """Named Docker volume mounted as the ccache directory in build containers."""
         return self.CCACHE_VOLUME
 
     @property
     def builder_network(self) -> str:
+        """Docker network mode for build containers (e.g., ``host``)."""
         return self.BUILDER_NETWORK
 
     @property
     def ssh_key_path(self) -> str:
+        """Filesystem path to the SSH private key used for git clone operations."""
         return self.SSH_KEY_PATH
 
     @property
     def bitbucket_ssh_key(self) -> str:
+        """Base64-encoded SSH private key decoded to ``ssh_key_path`` at startup."""
         return self.BITBUCKET_SSH_KEY
 
     @property
     def bench_signing_key(self) -> str:
+        """Base64-encoded MCUboot signing key for bench-track builds."""
         return self.BENCH_SIGNING_KEY
 
     @property
     def engineering_signing_key(self) -> str:
+        """Base64-encoded MCUboot signing key for engineering-track builds."""
         return self.ENGINEERING_SIGNING_KEY
 
     @property
     def production_signing_key(self) -> str:
+        """Base64-encoded MCUboot signing key for production-track builds."""
         return self.PRODUCTION_SIGNING_KEY
 
     @property
     def service_name(self) -> str:
+        """Canonical service name used in logging and banners."""
         return "build-service"
 
     def signing_key_for_track(self, track: str) -> str:

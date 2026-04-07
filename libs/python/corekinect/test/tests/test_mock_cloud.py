@@ -28,20 +28,24 @@ class TestMessageFactory:
     """Message factories produce realistic message objects."""
 
     def test_boot_msg_has_required_fields(self):
+        """Test boot msg has required fields."""
         msg = MessageFactory.boot()
         assert msg.device_id is not None
         assert msg.time_of_record is not None
         assert msg.flags is not None
 
     def test_boot_msg_boot_reason_accessible(self):
+        """Test boot msg boot reason accessible."""
         msg = MessageFactory.boot(boot_reason=0)
         assert msg.boot_reason == 0
 
     def test_boot_msg_custom_device_id(self):
+        """Test boot msg custom device id."""
         msg = MessageFactory.boot(device_id=0xDEADBEEF)
         assert msg.device_id == 0xDEADBEEF
 
     def test_boot_msg_custom_timestamp(self):
+        """Test boot msg custom timestamp."""
         ts = datetime(2026, 1, 1, tzinfo=timezone.utc)
         msg = MessageFactory.boot(time_of_record=ts)
         assert msg.time_of_record == ts
@@ -53,6 +57,7 @@ class TestMessageFactory:
         assert msg.coprocessor_str == "App Core"
 
     def test_position_msg_has_required_fields(self):
+        """Test position msg has required fields."""
         msg = MessageFactory.position()
         assert msg.device_id is not None
         assert msg.latitude is not None
@@ -60,43 +65,53 @@ class TestMessageFactory:
         assert msg.is_in_motion is not None
 
     def test_position_msg_in_motion(self):
+        """Test position msg in motion."""
         msg = MessageFactory.position(is_in_motion=True)
         assert msg.is_in_motion is True
 
     def test_position_msg_stationary(self):
+        """Test position msg stationary."""
         msg = MessageFactory.position(is_in_motion=False)
         assert msg.is_in_motion is False
 
     def test_biometric_msg_has_required_fields(self):
+        """Test biometric msg has required fields."""
         msg = MessageFactory.biometric()
         assert msg.device_id is not None
         assert msg.flags is not None
 
     def test_biometric_msg_on_body(self):
+        """Test biometric msg on body."""
         msg = MessageFactory.biometric(on_body=True)
         assert msg.on_body is True
 
     def test_biometric_msg_off_body(self):
+        """Test biometric msg off body."""
         msg = MessageFactory.biometric(on_body=False)
         assert msg.on_body is False
 
     def test_biometric_msg_temperature(self):
+        """Test biometric msg temperature."""
         msg = MessageFactory.biometric(temperature=25.0)
         assert msg.temperature == 25.0
 
     def test_biometric_msg_pressure(self):
+        """Test biometric msg pressure."""
         msg = MessageFactory.biometric(pressure=1013.25)
         assert msg.pressure == 1013.25
 
     def test_biometric_msg_humidity(self):
+        """Test biometric msg humidity."""
         msg = MessageFactory.biometric(humidity=55.0)
         assert msg.humidity == 55.0
 
     def test_network_status_msg_has_required_fields(self):
+        """Test network status msg has required fields."""
         msg = MessageFactory.network_status()
         assert msg.device_id is not None
 
     def test_network_status_msg_success(self):
+        """Test network status msg success."""
         msg = MessageFactory.network_status(
             did_lte_conn=True, did_sock_conn=True, send_success=True
         )
@@ -105,28 +120,33 @@ class TestMessageFactory:
         assert msg.send_success is True
 
     def test_network_status_msg_failure(self):
+        """Test network status msg failure."""
         msg = MessageFactory.network_status(
             did_lte_conn=True, did_sock_conn=False, send_success=False
         )
         assert msg.did_sock_conn is False
 
     def test_hw_failure_msg_no_failures(self):
+        """Test hw failure msg no failures."""
         msg = MessageFactory.hw_failure()
         assert msg.device_id is not None
         assert msg.xlr_fails == 0
         assert msg.gps_fails == 0
 
     def test_hw_failure_msg_with_failures(self):
+        """Test hw failure msg with failures."""
         msg = MessageFactory.hw_failure(gps_fails=0x80, bms_fails=0x80)
         assert msg.gps_fails == 0x80
         assert msg.bms_fails == 0x80
 
     def test_comms_hw_failure_msg(self):
+        """Test comms hw failure msg."""
         msg = MessageFactory.comms_hw_failure()
         assert msg.device_id is not None
         assert msg.sim_fails == 0
 
     def test_comms_hw_failure_msg_with_failures(self):
+        """Test comms hw failure msg with failures."""
         msg = MessageFactory.comms_hw_failure(sim_fails=0x80, ipc_fails=0x80)
         assert msg.sim_fails == 0x80
         assert msg.ipc_fails == 0x80
@@ -158,10 +178,12 @@ class TestMockCloudClientInterface:
     """MockCloudClient implements the same interface as CloudClient."""
 
     def test_has_mark_test_start(self):
+        """Test has mark test start."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
 
     def test_has_wait_for_boot(self):
+        """Test has wait for boot."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
         client.inject(MessageFactory.boot(device_id=0x1234))
@@ -169,6 +191,7 @@ class TestMockCloudClientInterface:
         assert msg is not None
 
     def test_has_wait_for_position(self):
+        """Test has wait for position."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
         client.inject(MessageFactory.position(device_id=0x1234))
@@ -176,6 +199,7 @@ class TestMockCloudClientInterface:
         assert msg is not None
 
     def test_has_wait_for_biometric(self):
+        """Test has wait for biometric."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
         client.inject(MessageFactory.biometric(device_id=0x1234))
@@ -183,6 +207,7 @@ class TestMockCloudClientInterface:
         assert msg is not None
 
     def test_has_wait_for_network_status(self):
+        """Test has wait for network status."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
         client.inject(MessageFactory.network_status(
@@ -193,18 +218,21 @@ class TestMockCloudClientInterface:
         assert msg is not None
 
     def test_has_check_hw_failures(self):
+        """Test has check hw failures."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
         result = client.check_hw_failures()
         assert result.get("hasFailures") is False
 
     def test_has_check_comms_hw_failures(self):
+        """Test has check comms hw failures."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
         result = client.check_comms_hw_failures()
         assert result.get("hasFailures") is False
 
     def test_has_wait_for_message(self):
+        """Test has wait for message."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
         from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
@@ -213,6 +241,7 @@ class TestMockCloudClientInterface:
         assert msg is not None
 
     def test_has_query_messages(self):
+        """Test has query messages."""
         client = MockCloudClient(device_id=0x1234)
         client.mark_test_start()
         from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
@@ -220,10 +249,12 @@ class TestMockCloudClientInterface:
         assert isinstance(result, list)
 
     def test_has_device_id_property(self):
+        """Test has device id property."""
         client = MockCloudClient(device_id=0x1234)
         assert client.device_id == 0x1234
 
     def test_has_db_env_property(self):
+        """Test has db env property."""
         client = MockCloudClient(device_id=0x1234, db_env="DEV_1_0")
         assert client.db_env == "DEV_1_0"
 
@@ -238,29 +269,34 @@ class TestMockCloudClientInjection:
 
     @pytest.fixture
     def client(self):
+        """Client."""
         c = MockCloudClient(device_id=0x1234)
         c.mark_test_start()
         return c
 
     def test_inject_boot_then_wait(self, client):
+        """Test inject boot then wait."""
         client.inject(MessageFactory.boot(device_id=0x1234))
         msg = client.wait_for_boot(timeout_s=1)
         assert "recordId" in msg
         assert msg["bootReason"] == "Normal"
 
     def test_inject_multiple_boots_returns_first(self, client):
+        """Test inject multiple boots returns first."""
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=0))
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=1))
         msg = client.wait_for_boot(timeout_s=1)
         assert msg["bootReason"] == "Normal"
 
     def test_wait_for_boot_with_reason_filter(self, client):
+        """Test wait for boot with reason filter."""
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=0))
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=2))
         msg = client.wait_for_boot(boot_reason=2, timeout_s=1)
         assert msg["bootReason"] == "Fuota"
 
     def test_wait_for_position_with_predicate(self, client):
+        """Test wait for position with predicate."""
         client.inject(MessageFactory.position(device_id=0x1234, is_in_motion=False))
         client.inject(MessageFactory.position(device_id=0x1234, is_in_motion=True))
         msg = client.wait_for_position(
@@ -270,6 +306,7 @@ class TestMockCloudClientInjection:
         assert msg["isInMotion"] is True
 
     def test_wait_for_biometric_on_body(self, client):
+        """Test wait for biometric on body."""
         client.inject(MessageFactory.biometric(device_id=0x1234, on_body=False))
         client.inject(MessageFactory.biometric(device_id=0x1234, on_body=True))
         msg = client.wait_for_biometric(
@@ -279,6 +316,7 @@ class TestMockCloudClientInjection:
         assert msg["onSkin"] is True
 
     def test_check_hw_failures_returns_injected(self, client):
+        """Test check hw failures returns injected."""
         client.inject(MessageFactory.hw_failure(device_id=0x1234, gps_fails=0x80))
         result = client.check_hw_failures()
         assert result["hasFailures"] is True
@@ -286,12 +324,14 @@ class TestMockCloudClientInjection:
         assert result["failures"][0].gps_fails == 0x80
 
     def test_check_comms_hw_failures_returns_injected(self, client):
+        """Test check comms hw failures returns injected."""
         client.inject(MessageFactory.comms_hw_failure(device_id=0x1234, sim_fails=0x80))
         result = client.check_comms_hw_failures()
         assert result["hasFailures"] is True
         assert len(result["failures"]) == 1
 
     def test_query_messages_returns_all(self, client):
+        """Test query messages returns all."""
         from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
         client.inject(MessageFactory.boot(device_id=0x1234))
         client.inject(MessageFactory.boot(device_id=0x1234))
@@ -300,6 +340,7 @@ class TestMockCloudClientInjection:
         assert len(result) == 3
 
     def test_query_messages_with_predicate(self, client):
+        """Test query messages with predicate."""
         from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=0))
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=2))
@@ -307,10 +348,12 @@ class TestMockCloudClientInjection:
         assert len(result) == 1
 
     def test_timeout_when_no_matching_message(self, client):
+        """Test timeout when no matching message."""
         with pytest.raises(TimeoutError):
             client.wait_for_boot(timeout_s=0.1)
 
     def test_timeout_when_predicate_never_matches(self, client):
+        """Test timeout when predicate never matches."""
         client.inject(MessageFactory.boot(device_id=0x1234, boot_reason=0))
         with pytest.raises(TimeoutError):
             client.wait_for_boot(boot_reason=99, timeout_s=0.1)
@@ -332,6 +375,7 @@ class TestMockCloudClientInjection:
             client.wait_for_boot(timeout_s=0.1)
 
     def test_clear_removes_all_messages(self, client):
+        """Test clear removes all messages."""
         from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
         client.inject(MessageFactory.boot(device_id=0x1234))
         client.clear()
@@ -348,6 +392,7 @@ class TestScenarioPresets:
     """Built-in scenarios produce correct message sequences."""
 
     def test_happy_boot_scenario(self):
+        """Test happy boot scenario."""
         scenario = Scenario.happy_boot()
         assert len(scenario.messages) >= 2  # boot + network status at minimum
         boot_msgs = [m for m in scenario.messages if type(m).__name__ == "BootMsgV2"]
@@ -355,27 +400,32 @@ class TestScenarioPresets:
         assert boot_msgs[0].boot_reason == 0
 
     def test_motion_detected_scenario(self):
+        """Test motion detected scenario."""
         scenario = Scenario.motion_detected()
         pos_msgs = [m for m in scenario.messages if hasattr(m, "is_in_motion")]
         assert any(m.is_in_motion for m in pos_msgs)
 
     def test_on_skin_scenario(self):
+        """Test on skin scenario."""
         scenario = Scenario.on_skin()
         bio_msgs = [m for m in scenario.messages if hasattr(m, "on_body")]
         assert any(m.on_body for m in bio_msgs)
 
     def test_off_skin_scenario(self):
+        """Test off skin scenario."""
         scenario = Scenario.off_skin()
         bio_msgs = [m for m in scenario.messages if hasattr(m, "on_body")]
         assert any(not m.on_body for m in bio_msgs)
 
     def test_hw_failure_scenario(self):
+        """Test hw failure scenario."""
         scenario = Scenario.hw_failure(gps_fails=0x80)
         hw_msgs = [m for m in scenario.messages if hasattr(m, "gps_fails")]
         assert len(hw_msgs) >= 1
         assert hw_msgs[0].gps_fails == 0x80
 
     def test_fuota_reboot_scenario(self):
+        """Test fuota reboot scenario."""
         scenario = Scenario.fuota_reboot()
         boot_msgs = [m for m in scenario.messages if type(m).__name__ == "BootMsgV2"]
         assert any(m.boot_reason == 2 for m in boot_msgs)
@@ -393,6 +443,7 @@ class TestScenarioEngine:
     """ScenarioEngine loads scenarios into MockCloudClient."""
 
     def test_load_scenario(self):
+        """Test load scenario."""
         client = MockCloudClient(device_id=0x1234)
         engine = ScenarioEngine(client)
         client.mark_test_start()
@@ -401,6 +452,7 @@ class TestScenarioEngine:
         assert msg is not None
 
     def test_load_replaces_previous(self):
+        """Test load replaces previous."""
         from corekinect.core_cloud.msg_def_v1_0 import BootMsgV2
         client = MockCloudClient(device_id=0x1234)
         engine = ScenarioEngine(client)

@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_session_or_404(db, run_id: str):
+    """Look up a session by ID, returning (session, None) or (None, 404 response)."""
     session = db.session.find_unique(where={"id": run_id})
     if not session:
         return None, not_found("Validation run not found")

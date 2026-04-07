@@ -23,4 +23,5 @@ MIME_TYPES = {
 
 
 def presigned_url(key: str | None, download_filename: str | None = None) -> str | None:
+    """Generate a presigned download URL for a storage object."""
     return presigned_get_url(key, download_filename=download_filename)

@@ -14,6 +14,16 @@ def list_deployments(
     label_selector: str | None = None,
     field_selector: str | None = None,
 ) -> list[dict]:
+    """List Deployments across all namespaces or within a specific namespace.
+
+    Args:
+        namespace: Limit results to this namespace. If None, lists cluster-wide.
+        label_selector: Optional Kubernetes label selector string.
+        field_selector: Optional Kubernetes field selector string.
+
+    Returns:
+        List of serialized Deployment dicts.
+    """
     apps = get_apps_v1_api()
     kwargs = {}
     if label_selector:
@@ -30,6 +40,15 @@ def list_deployments(
 
 
 def get_deployment(namespace: str, name: str) -> dict | None:
+    """Fetch a single Deployment by namespace and name, with associated pods.
+
+    Args:
+        namespace: Kubernetes namespace of the Deployment.
+        name: Name of the Deployment.
+
+    Returns:
+        Serialized Deployment dict with a 'pods' list, or None if not found.
+    """
     apps = get_apps_v1_api()
     try:
         dep = apps.read_namespaced_deployment(name, namespace)
@@ -69,6 +88,16 @@ def get_deployment(namespace: str, name: str) -> dict | None:
 
 
 def scale_deployment(namespace: str, name: str, replicas: int) -> bool:
+    """Scale a Deployment to the specified replica count.
+
+    Args:
+        namespace: Kubernetes namespace of the Deployment.
+        name: Name of the Deployment.
+        replicas: Desired replica count.
+
+    Returns:
+        True on success, False if the Kubernetes API call fails.
+    """
     apps = get_apps_v1_api()
     try:
         apps.patch_namespaced_deployment_scale(
@@ -82,6 +111,15 @@ def scale_deployment(namespace: str, name: str, replicas: int) -> bool:
 
 
 def restart_deployment(namespace: str, name: str) -> bool:
+    """Trigger a rolling restart of a Deployment by patching its restartedAt annotation.
+
+    Args:
+        namespace: Kubernetes namespace of the Deployment.
+        name: Name of the Deployment.
+
+    Returns:
+        True on success, False if the Kubernetes API call fails.
+    """
     apps = get_apps_v1_api()
     try:
         now = datetime.now(timezone.utc).isoformat()

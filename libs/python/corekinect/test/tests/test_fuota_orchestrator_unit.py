@@ -17,16 +17,19 @@ from corekinect.test.tests.stubs import StubArtifactResolver, StubFuotaClient
 
 @pytest.fixture
 def stub_client():
+    """Stub client."""
     return StubFuotaClient()
 
 
 @pytest.fixture
 def orchestrator(stub_client):
+    """Orchestrator."""
     return FuotaOrchestrator(fuota_client=stub_client, fixture_controller=None)
 
 
 @pytest.fixture
 def resolver():
+    """Resolver."""
     r = StubArtifactResolver()
     yield r
     r.cleanup()
@@ -206,6 +209,7 @@ class TestWaitForCloudCheckin:
         original = stub_client._api_request
 
         def advancing_api_request(method, path, **kwargs):
+            """Advancing api request."""
             call_count["n"] += 1
             if call_count["n"] >= 2:
                 stub_client.set_device_record_id(self.DEVICE_ID, 5)

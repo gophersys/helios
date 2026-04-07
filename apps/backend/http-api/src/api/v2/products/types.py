@@ -6,6 +6,8 @@ from database import Json
 
 @dataclass
 class TargetInput:
+    """Inline firmware target definition (role + SoC + AppID)."""
+
     role: str
     soc: str
     appId: int
@@ -111,6 +113,8 @@ def _parse_inline_board(board_data) -> Tuple[Optional["InlineBoardInput"], Optio
 
 @dataclass
 class ProductCreateRequest:
+    """Validated input for creating a new product with optional inline board."""
+
     name: str
     description: Optional[str] = None
     active: bool = True
@@ -123,6 +127,14 @@ class ProductCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ProductCreateRequest"], Optional[str]]:
+        """Parse and validate product creation fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (ProductCreateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
         name = (data.get("name") or "").strip()
@@ -178,6 +190,12 @@ class ProductCreateRequest:
 
 @dataclass
 class ProductUpdateRequest:
+    """Validated input for updating an existing product.
+
+    Only fields explicitly included in the request body are applied.
+    Internal _has_* flags distinguish "field set to null" from "field omitted".
+    """
+
     name: Optional[str] = None
     description: Optional[str] = None
     active: Optional[bool] = None
@@ -195,6 +213,14 @@ class ProductUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ProductUpdateRequest"], Optional[str]]:
+        """Parse and validate product update fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (ProductUpdateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -260,6 +286,11 @@ class ProductUpdateRequest:
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
+        """Build the Prisma update dict containing only explicitly-set fields.
+
+        Returns:
+            Dict of fields to pass to db.product.update(data=...).
+        """
         update_data: Dict[str, Any] = {}
         if self.name is not None:
             update_data["name"] = self.name
@@ -282,6 +313,8 @@ class ProductUpdateRequest:
 
 @dataclass
 class BoardCreateRequest:
+    """Validated input for creating a new board with optional inline revisions."""
+
     name: str
     ckBoardsFamily: str
     vendor: str = "corekinect"
@@ -291,6 +324,14 @@ class BoardCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BoardCreateRequest"], Optional[str]]:
+        """Parse and validate board creation fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (BoardCreateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
         name = (data.get("name") or "").strip()
@@ -379,6 +420,8 @@ class BoardCreateRequest:
 
 @dataclass
 class BoardUpdateRequest:
+    """Validated input for updating an existing board."""
+
     name: Optional[str] = None
     ckBoardsFamily: Optional[str] = None
     vendor: Optional[str] = None
@@ -390,6 +433,14 @@ class BoardUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BoardUpdateRequest"], Optional[str]]:
+        """Parse and validate board update fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (BoardUpdateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
         name = data.get("name")
@@ -429,6 +480,11 @@ class BoardUpdateRequest:
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
+        """Build the Prisma update dict containing only explicitly-set fields.
+
+        Returns:
+            Dict of fields to pass to db.board.update(data=...).
+        """
         update_data: Dict[str, Any] = {}
         if self.name is not None:
             update_data["name"] = self.name
@@ -445,6 +501,8 @@ class BoardUpdateRequest:
 
 @dataclass
 class BoardRevisionCreateRequest:
+    """Validated input for creating a new board revision."""
+
     version: str
     ckBoardsName: str
     socs: List[str]
@@ -455,6 +513,14 @@ class BoardRevisionCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BoardRevisionCreateRequest"], Optional[str]]:
+        """Parse and validate board revision creation fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (BoardRevisionCreateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
         version = (data.get("version") or "").strip()
@@ -493,6 +559,8 @@ class BoardRevisionCreateRequest:
 
 @dataclass
 class BoardRevisionUpdateRequest:
+    """Validated input for updating an existing board revision."""
+
     version: Optional[str] = None
     ckBoardsName: Optional[str] = None
     socs: Optional[List[str]] = None
@@ -508,6 +576,14 @@ class BoardRevisionUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["BoardRevisionUpdateRequest"], Optional[str]]:
+        """Parse and validate board revision update fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (BoardRevisionUpdateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -565,6 +641,11 @@ class BoardRevisionUpdateRequest:
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
+        """Build the Prisma update dict containing only explicitly-set fields.
+
+        Returns:
+            Dict of fields to pass to db.boardrevision.update(data=...).
+        """
         update_data: Dict[str, Any] = {}
         if self.version is not None:
             update_data["version"] = self.version
@@ -585,12 +666,22 @@ class BoardRevisionUpdateRequest:
 
 @dataclass
 class FirmwareBuildUpdateRequest:
+    """Validated input for updating a firmware build record."""
+
     status: Optional[str] = None
     notes: Optional[str] = None
     _has_notes: bool = False
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["FirmwareBuildUpdateRequest"], Optional[str]]:
+        """Parse and validate firmware build update fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (FirmwareBuildUpdateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -612,6 +703,11 @@ class FirmwareBuildUpdateRequest:
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
+        """Build the Prisma update dict containing only explicitly-set fields.
+
+        Returns:
+            Dict of fields to pass to db.firmwarebuild.update(data=...).
+        """
         update_data: Dict[str, Any] = {}
         if self.status is not None:
             update_data["status"] = self.status
@@ -622,12 +718,22 @@ class FirmwareBuildUpdateRequest:
 
 @dataclass
 class TargetCreateRequest:
+    """Validated input for creating a firmware target on a board revision."""
+
     role: str
     soc: str
     appId: int
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["TargetCreateRequest"], Optional[str]]:
+        """Parse and validate target creation fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (TargetCreateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
         role = (data.get("role") or "").strip()
@@ -644,6 +750,8 @@ class TargetCreateRequest:
 
 @dataclass
 class TargetUpdateRequest:
+    """Validated input for updating a firmware target on a board revision."""
+
     role: Optional[str] = None
     soc: Optional[str] = None
     appId: Optional[int] = None
@@ -653,6 +761,14 @@ class TargetUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["TargetUpdateRequest"], Optional[str]]:
+        """Parse and validate target update fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (TargetUpdateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
         role = data.get("role")
@@ -685,6 +801,11 @@ class TargetUpdateRequest:
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
+        """Build the Prisma update dict containing only explicitly-set fields.
+
+        Returns:
+            Dict of fields to pass to db.target.update(data=...).
+        """
         update_data: Dict[str, Any] = {}
         if self._has_role:
             update_data["role"] = self.role

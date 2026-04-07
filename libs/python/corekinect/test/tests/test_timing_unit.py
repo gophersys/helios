@@ -20,18 +20,22 @@ class TestCommonTimingDefaults:
     """Tests for CommonTiming default field values."""
 
     def test_power_cycle_off(self):
+        """Test power cycle off."""
         t = CommonTiming()
         assert t.POWER_CYCLE_OFF == 2.0
 
     def test_power_cycle_on(self):
+        """Test power cycle on."""
         t = CommonTiming()
         assert t.POWER_CYCLE_ON == 10.0
 
     def test_uart_settle(self):
+        """Test uart settle."""
         t = CommonTiming()
         assert t.UART_SETTLE == 0.5
 
     def test_mtib_connect(self):
+        """Test mtib connect."""
         t = CommonTiming()
         assert t.MTIB_CONNECT == 10
 
@@ -48,26 +52,31 @@ class TestCommonTimingFrozen:
     """Tests that CommonTiming is a frozen (immutable) dataclass."""
 
     def test_cannot_modify_power_cycle_off(self):
+        """Test cannot modify power cycle off."""
         t = CommonTiming()
         with pytest.raises(FrozenInstanceError):
             t.POWER_CYCLE_OFF = 99.0
 
     def test_cannot_modify_power_cycle_on(self):
+        """Test cannot modify power cycle on."""
         t = CommonTiming()
         with pytest.raises(FrozenInstanceError):
             t.POWER_CYCLE_ON = 99.0
 
     def test_cannot_modify_uart_settle(self):
+        """Test cannot modify uart settle."""
         t = CommonTiming()
         with pytest.raises(FrozenInstanceError):
             t.UART_SETTLE = 99.0
 
     def test_cannot_modify_mtib_connect(self):
+        """Test cannot modify mtib connect."""
         t = CommonTiming()
         with pytest.raises(FrozenInstanceError):
             t.MTIB_CONNECT = 99
 
     def test_cannot_add_new_attribute(self):
+        """Test cannot add new attribute."""
         t = CommonTiming()
         with pytest.raises(FrozenInstanceError):
             t.NEW_FIELD = 42
@@ -81,6 +90,7 @@ class TestCommonSingleton:
     """Tests for the COMMON module-level instance."""
 
     def test_common_is_common_timing_instance(self):
+        """Test common is common timing instance."""
         assert isinstance(COMMON, CommonTiming)
 
     def test_common_matches_default_values(self):
@@ -108,6 +118,7 @@ class TestTimeoutDecorator:
 
         @timeout(300)
         def test_example():
+            """Test example."""
             pass
 
         markers = list(test_example.pytestmark)
@@ -120,10 +131,12 @@ class TestTimeoutDecorator:
 
         @timeout(60)
         def test_quick():
+            """Test quick."""
             pass
 
         @timeout(900)
         def test_slow():
+            """Test slow."""
             pass
 
         quick_markers = [m for m in test_quick.pytestmark if m.name == "timeout"]
@@ -137,6 +150,7 @@ class TestTimeoutDecorator:
 
         @timeout(10)
         def test_callable():
+            """Test callable."""
             return 42
 
         assert test_callable() == 42
@@ -147,6 +161,7 @@ class TestTimeoutDecorator:
 
         @timeout(10)
         def test_my_func():
+            """Test my func."""
             pass
 
         assert test_my_func.__name__ == "test_my_func"

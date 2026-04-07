@@ -22,6 +22,8 @@ VALID_TRIGGER_TYPES = {"pr_push", "pr_merge", "auto", "schedule", "manual"}
 
 @dataclass
 class StageConfigCreateRequest:
+    """Request body for creating a product stage configuration."""
+
     stage: int
     name: str
     enabled: bool = False
@@ -32,6 +34,7 @@ class StageConfigCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["StageConfigCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a StageConfigCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -72,6 +75,8 @@ class StageConfigCreateRequest:
 
 @dataclass
 class StageConfigUpdateRequest:
+    """Request body for updating a product stage configuration."""
+
     enabled: Optional[bool] = None
     boardRevisionId: Optional[str] = None
     watchBranch: Optional[str] = None
@@ -84,6 +89,7 @@ class StageConfigUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict, stage: Optional[int] = None) -> Tuple[Optional["StageConfigUpdateRequest"], Optional[str]]:
+        """Parse and validate JSON into a StageConfigUpdateRequest."""
         if data is None:
             return None, "Request body must contain JSON data"
 
@@ -130,6 +136,7 @@ class StageConfigUpdateRequest:
         ), None
 
     def to_update_data(self) -> dict:
+        """Build a dict of changed fields for the Prisma update call."""
         update_data = {}
         if self.enabled is not None:
             update_data["enabled"] = self.enabled

@@ -23,6 +23,22 @@ class SigningStage:
     name = "signing"
 
     def execute(self, ctx: BuildContext) -> StageResult:
+        """Deploy MCUboot signing keys to both firmware repos.
+
+        Tries two key sources in priority order:
+        1. ``webhookData.signingKeyValue`` — base64-encoded key from Concord Secrets.
+        2. ``/keys/{product}/*.pem`` — K8s secret volume mount.
+
+        If no key is found, logs a warning and returns success so unsigned
+        builds can still proceed (encrypted builds will fail at the build step).
+
+        Args:
+            ctx: Mutable build context shared across all pipeline stages.
+
+        Returns:
+            StageResult.ok() always — missing keys produce a warning, not a
+            hard failure.
+        """
         product_base = ctx.job.product.lower().replace("_fw", "").replace("_mfg", "")
 
         # 1. Try signing key from webhook data (base64-encoded)

@@ -344,6 +344,7 @@ class MsgBase(Serializable, ABC):
         *,
         env: str = "VAL_1_0",
     ) -> List[Self]:
+        """Query records for multiple devices since a server-side timestamp."""
         if not dut_ids:
             return []
         filters = [cls.orm_model.timeofrecord > start_time]
@@ -360,6 +361,7 @@ class MsgBase(Serializable, ABC):
         *,
         env: str = "VAL_1_0",
     ) -> List[Self]:
+        """Query records for multiple devices since a device-side timestamp."""
         if not dut_ids:
             return []
         if not cls.device_time_fields:
@@ -386,6 +388,7 @@ class MsgBase(Serializable, ABC):
         *,
         env: str = "VAL_1_0",
     ) -> List[Self]:
+        """Query records for multiple devices since a given record ID."""
         if not dut_ids:
             return []
         filters = [cls.orm_model.recordid > start_record_id]
@@ -452,6 +455,7 @@ class ConfMsgBase(MsgBase):
         return missing
 
     def _validate_for_send(self) -> None:
+        """Validate all required fields are set before sending to the API."""
         miss = self.missing_fields()
         if miss:
             raise ValueError(f"{type(self).__name__}: missing required fields: {miss}")
@@ -680,73 +684,96 @@ class DeviceMessageLog(MsgBase):
 
 # [501] Ack V1; TODO: Needs to be implemented...
 class AckMsgV1:
+    """Ack V1."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[501] Ack Message V1 not supported at this time")
 
 
 # [502] Time Request; TODO: Needs to be implemented...
 class TimeRequestMsgV1:
+    """Time Request."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[502] Time Request Message V1 not supported at this time")
 
 
 # [503] Time Response; TODO: Needs to be implemented...
 class TimeResponseMsgV1:
+    """Time Response."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[503] Time Response Message V1 not supported at this time")
 
 
 # [504] Firmware Update; TODO: Needs to be implemented...
 class FirmwareUpdateMsgV1:
+    """Firmware Update."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[504] Firmware Update Message V1 not supported at this time")
 
 
 # [505] Firmware Update Response; TODO: Needs to be implemented...
 class FirmwareUpdateResponseMsgV1:
+    """Firmware Update Response."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[505] Firmware Update Response Message V1 not supported at this time")
 
 
 # [506] Firmware Update Reset; TODO: Needs to be implemented...
 class FirmwareUpdateResetMsgV1:
+    """Firmware Update Reset."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[506] Firmware Update Reset Message V1 not supported at this time")
 
 
 # [507] Network Status; TODO: Needs to be implemented...
 class NetworkStatusMsgV1:
+    """Network Status."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[507] Network Status Message V1 not supported at this time")
 
 
 # [508] Network Status V2; TODO: Needs to be implemented...
 class NetworkStatusMsgV2:
+    """Network Status V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[508] Network Status Message V2 not supported at this time")
 
 
 # [509] Network Status V3; TODO: Needs to be implemented...
 class NetworkStatusMsgV3:
+    """Network Status V3."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[509] Network Status Message V3 not supported at this time")
 
 
 # [510] Firmware Update Prepare; TODO: Needs to be implemented...
 class FirmwareUpdatePrepareMsgV1:
+    """Firmware Update Prepare."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[510] Firmware Update Prepare Message V1 not supported at this time")
 
 
 # [511] Firmware Update V2; TODO: Needs to be implemented...
 class FirmwareUpdateMsgV2:
+    """Firmware Update V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[511] Firmware Update Message V2 not supported at this time")
 
 
 # [512] Network Status V4
 @dataclass(frozen=True, slots=True)
 class NetworkStatusMsgV4(MsgBase):
+    """CoreCloud message type."""
     record_id: int = None
     time_of_connection: datetime = None
     did_lte_conn: bool = None
@@ -814,110 +841,142 @@ class NetworkStatusMsgV4(MsgBase):
 
     @property
     def flags_lte_connected(self) -> bool:
+        """Perform flags lte connected."""
         return extract_bits(self.flags, self.flags_lte_connected_bits, cast=bool, default=None)
 
     @property
     def flags_socket_connected(self) -> bool:
+        """Perform flags socket connected."""
         return extract_bits(self.flags, self.flags_socket_connected_bits, cast=bool, default=None)
 
     @property
     def flags_send_success(self) -> bool:
+        """Perform flags send success."""
         return extract_bits(self.flags, self.flags_send_success_bits, cast=bool, default=None)
 
     @property
     def flags_wireless_technology(self) -> int:
+        """Perform flags wireless technology."""
         return extract_bits(self.flags, self.flags_wireless_technology_bits, cast=int, default=None)
 
     @property
     def flags_active_sim_slot(self) -> int:
+        """Perform flags active sim slot."""
         return extract_bits(self.flags, self.flags_active_sim_slot_bits, cast=int, default=None)
 
     @property
     def flags_early_socket_disconnect(self) -> bool:
+        """Perform flags early socket disconnect."""
         return extract_bits(self.flags, self.flags_early_socket_disconnect_bits, cast=bool, default=None)
 
     @property
     def flags_dnssec_resolved(self) -> bool:
+        """Perform flags dnssec resolved."""
         return extract_bits(self.flags, self.flags_dnssec_resolved_bits, cast=bool, default=None)
 
     @property
     def flags_reserved(self) -> int:
+        """Perform flags reserved."""
         return extract_bits(self.flags, self.flags_reserved_bits, cast=int, default=None)
 
     @property
     def wireless_technology_str(self):
+        """Perform wireless technology str."""
         return self._get_reason_from_mapping(self.flags_wireless_technology, self.wireless_technology_map)
 
 
 # [513] Boot Message V1; TODO: Needs to be implemented...
 class BootMsgV1:
+    """Boot Message V1."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[513] Boot Message V1 not supported at this time")
 
 
 # [514] Firmware V2; TODO: Needs to be implemented...
 class FirmwareMsgV2:
+    """Firmware V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[514] Firmware Message V2 not supported at this time")
 
 
 # [515] Reboot V1; TODO: Needs to be implemented...
 class RebootMsgV1:
+    """Reboot V1."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[515] Reboot Message V1 not supported at this time")
 
 
 # [516] Emergency Mode Config V2; TODO: Needs to be implemented...
 class EmergencyModeConfigMsgV2:
+    """Emergency Mode Config V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[516] Emergency Mode Config Message V2 not supported at this time")
 
 
 # [517] Ground Mode Config; TODO: Needs to be implemented...
 class GroundModeConfigMsgV1:
+    """Ground Mode Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[517] Ground Mode Config Message V1 not supported at this time")
 
 
 # [518] Fall Config; TODO: Needs to be implemented...
 class FallConfigMsgV1:
+    """Fall Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[518] Fall Config Message V1 not supported at this time")
 
 
 # [519] Fall Event; TODO: Needs to be implemented...
 class FallEventMsgV1:
+    """Fall Event."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[519] Fall Event Message V1 not supported at this time")
 
 
 # [520] Position V4; TODO: Needs to be implemented...
 class PositionMsgV4:
+    """Position V4."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[520] Position Message V4 not supported at this time")
 
 
 # [521] Hardware Failure V2; TODO: Needs to be implemented...
 class HardwareFailureMsgV2:
+    """Hardware Failure V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[521] Hardware Failure Message V2 not supported at this time")
 
 
 # [522] LoRa Config; TODO: Needs to be implemented...
 class LoRaConfigMsgV1:
+    """LoRa Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[522] LoRa Config Message V1 not supported at this time")
 
 
 # [523] Position V5; TODO: Needs to be implemented...
 class PositionMsgV5:
+    """Position V5."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[523] Position Message V5 not supported at this time")
 
 
 # [524] GPS Config; TODO: Needs to be implemented...
 @dataclass(frozen=True, slots=True)
 class GPSConfMsg(ConfMsgBase):
+    """CoreCloud message type."""
     is_psm_enabled: bool = None
     is_aiding_enabled: bool = None
     gnss_update_freq: int = None
@@ -962,6 +1021,7 @@ class GPSConfMsg(ConfMsgBase):
     packed_struct = None
 
     def _extra_validate(self) -> None:
+        """Perform message-specific field validation beyond the base checks."""
         if self.gnss_update_freq is not None and self.gnss_update_freq < 0:
             raise ValueError("gnss_update_freq must be >= 0")
         if self.target_fix_accuracy is not None and self.target_fix_accuracy <= 0:
@@ -970,91 +1030,119 @@ class GPSConfMsg(ConfMsgBase):
             raise ValueError("target_fix_pdop must be > 0")
 
     def _validate_for_send(self) -> None:
+        """Validate all required fields are set before sending to the API."""
         super(type(self), self)._validate_for_send()
         self._extra_validate()
 
 
 # [525] Emergency Position; TODO: Needs to be implemented...
 class EmergencyPositionMsgV1:
+    """Emergency Position."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[525] Emergency Position Message V1 not supported at this time")
 
 
 # [526] Emergency Event Response; TODO: Needs to be implemented...
 class EmergencyEventResponseMsgV1:
+    """Emergency Event Response."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[526] Emergency Event Response Message V1 not supported at this time")
 
 
 # [527] BLE Position; TODO: Needs to be implemented...
 class BLEPositionMsgV1:
+    """BLE Position."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[527] BLE Position Message V1 not supported at this time")
 
 
 # [528] BLE Beacon Config; TODO: Needs to be implemented...
 class BLEBeaconConfigMsgV1:
+    """BLE Beacon Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[528] BLE Beacon Config Message V1 not supported at this time")
 
 
 # [529] BLE Session Key; TODO: Needs to be implemented...
 class BLESessionKeyMsgV1:
+    """BLE Session Key."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[529] BLE Session Key Message V1 not supported at this time")
 
 
 # [530] Garmin Biometric Data; TODO: Needs to be implemented...
 class GarminBiometricDataMsgV1:
+    """Garmin Biometric Data."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[530] Garmin Biometric Data Message V1 not supported at this time")
 
 
 # [531] U-blox Aiding Request; TODO: Needs to be implemented...
 class UBloxAidingRequestMsgV1:
+    """U-blox Aiding Request."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[531] U-blox Aiding Request Message V1 not supported at this time")
 
 
 # [532] U-blox Ephemeris Aiding; TODO: Needs to be implemented...
 class UBloxEphemerisAidingMsgV1:
+    """U-blox Ephemeris Aiding."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[532] U-blox Ephemeris Aiding Message V1 not supported at this time")
 
 
 # [533] U-blox Time Aiding; TODO: Needs to be implemented...
 class UBloxTimeAidingMsgV1:
+    """U-blox Time Aiding."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[533] U-blox Time Aiding Message V1 not supported at this time")
 
 
 # [534] HIPS Sensor Data; TODO: Needs to be implemented...
 class HIPSSensorDataMsgV1:
+    """HIPS Sensor Data."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[534] HIPS Sensor Data Message V1 not supported at this time")
 
 
 # [535] HIPS Config; TODO: Needs to be implemented...
 class HIPSSensorConfigMsgV1:
+    """HIPS Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[535] HIPS Config Message V1 not supported at this time")
 
 
 # [536] SIM Config; TODO: Needs to be implemented...
 class SIMConfigMsgV1:
+    """SIM Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[536] SIM Config Message V1 not supported at this time")
 
 
 # [537] Socket Server Config; TODO: Needs to be implemented...
 class SocketServerConfigMsgV1:
+    """Socket Server Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[537] Socket Server Config Message V1 not supported at this time")
 
 
 # [538] Ground Mode Config V2; TODO: Needs to be implemented...
 @dataclass(frozen=True, slots=True)
 class GroundModeConfigV2(ConfMsgBase):
+    """CoreCloud message type."""
     gps_heartbeat_period_minutes: int = None
     continuous_motion_period_seconds: int = None
     stop_motion_timeout_seconds: int = None
@@ -1104,6 +1192,7 @@ class GroundModeConfigV2(ConfMsgBase):
     packed_struct = None
 
     def _extra_validate(self) -> None:
+        """Perform message-specific field validation beyond the base checks."""
         if self.gps_heartbeat_period_minutes is not None and self.gps_heartbeat_period_minutes < 0:
             raise ValueError("gps_heartbeat_period_minutes must be >= 0")
         if self.continuous_motion_period_seconds is not None and self.continuous_motion_period_seconds < 0:
@@ -1134,25 +1223,31 @@ class GroundModeConfigV2(ConfMsgBase):
             raise ValueError("motion_initial_acquisition_on_time_seconds must be >= 0")
 
     def _validate_for_send(self) -> None:
+        """Validate all required fields are set before sending to the API."""
         super(type(self), self)._validate_for_send()
         self._extra_validate()
 
 
 # [539] Modem Config; TODO: Needs to be implemented...
 class ModemConfigMsgV1:
+    """Modem Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[539] Modem Config Message V1 not supported at this time")
 
 
 # [540] Manufacturing Test; TODO: Needs to be implemented...
 class ManufacturingTestMsgV1:
+    """Manufacturing Test."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[540] Manufacturing Test Message V1 not supported at this time")
 
 
 # [541] Scratchpad
 @dataclass(frozen=True, slots=True)
 class ScratchpadMsg(MsgBase):
+    """CoreCloud message type."""
     payload_b64: str = None
 
     uid: int = 541
@@ -1162,48 +1257,62 @@ class ScratchpadMsg(MsgBase):
 
     @property
     def payload_as_string(self) -> str:
+        """Perform payload as string."""
         return base64_to_str(self.payload_b64)
 
 
 # [542] Ack V2; TODO: Needs to be implemented...
 class AckMsgV2:
+    """Ack V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[542] Ack Message V2 not supported at this time")
 
 
 # [543] Reboot V2; TODO: Needs to be implemented...
 class RebootMsgV2:
+    """Reboot V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[543] Reboot Message V2 not supported at this time")
 
 
 # [544] Firmware V3; TODO: Needs to be implemented...
 class FirmwareMsgV3:
+    """Firmware V3."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[544] Firmware Message V3 not supported at this time")
 
 
 # [545] Firmware Update V3; TODO: Needs to be implemented...
 class FirmwareUpdateMsgV3:
+    """Firmware Update V3."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[545] Firmware Update Message V3 not supported at this time")
 
 
 # [546] Firmware Update Response V2; TODO: Needs to be implemented...
 class FirmwareUpdateResponseMsgV2:
+    """Firmware Update Response V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[546] Firmware Update Response Message V2 not supported at this time")
 
 
 # [547] Firmware Update Reset V2; TODO: Needs to be implemented...
 class FirmwareUpdateResetMsgV2:
+    """Firmware Update Reset V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[547] Firmware Update Reset Message V2 not supported at this time")
 
 
 # [548] Boot V2
 @dataclass(frozen=True, slots=True)
 class BootMsgV2(MsgBase):
+    """CoreCloud message type."""
     record_id: int = None
     time_of_boot: datetime = None
     flags: int = None
@@ -1259,32 +1368,39 @@ class BootMsgV2(MsgBase):
 
     @property
     def flag_mcu(self) -> int:
+        """Perform flag mcu."""
         return extract_bits(self.flags, self.mcu_type_bits, cast=int, default=None)
 
     @property
     def triggered_by(self) -> bool:
+        """Perform triggered by."""
         return extract_bits(self.flags, self.fw_triggered_bits, cast=bool, default=None)
 
     @property
     def boot_reason(self) -> int:
+        """Perform boot reason."""
         return extract_bits(self.flags, self.boot_reason_bits, cast=int, default=None)
 
     @property
     def coprocessor_str(self) -> str:
+        """Perform coprocessor str."""
         return self._get_reason_from_mapping(self.flag_mcu, self.mcu_type_map)
 
     @property
     def fw_triggered_str(self) -> str:
+        """Perform fw triggered str."""
         return self._get_reason_from_mapping(self.triggered_by, self.fw_triggered_map)
 
     @property
     def boot_reason_str(self) -> str:
+        """Perform boot reason str."""
         return self._get_reason_from_mapping(self.boot_reason, self.boot_reason_map)
 
 
 # [549] Comms Coprocessor HW Failure
 @dataclass(frozen=True, slots=True)
 class CommsHwFailureMsg(MsgBase):
+    """CoreCloud message type."""
     record_id: int = None
     time_of_event: datetime = None
     sim_fails: int = None
@@ -1343,44 +1459,55 @@ class CommsHwFailureMsg(MsgBase):
 
     @property
     def sim_failure_reason(self):
+        """Perform sim failure reason."""
         return self._get_reason_from_mapping(self.sim_fails, self.map_sim_fails)
 
     @property
     def lora_failure_reason(self):
+        """Perform lora failure reason."""
         return self._get_reason_from_mapping(self.lora_fails, self.map_lora_fails)
 
     @property
     def ipc_failure_reason(self):
+        """Perform ipc failure reason."""
         return self._get_reason_from_mapping(self.ipc_fails, self.map_ipc_fails)
 
     @property
     def ext_flash_failure_reason(self):
+        """Perform ext flash failure reason."""
         return self._get_reason_from_mapping(self.ext_flash_fails, self.map_ext_flash_fails)
 
     @property
     def sec_elem_failure_reason(self):
+        """Perform sec elem failure reason."""
         return self._get_reason_from_mapping(self.sec_elem_fails, self.map_sec_elem_fails)
 
     @property
     def sat_modem_failure_reason(self):
+        """Perform sat modem failure reason."""
         return self._get_reason_from_mapping(self.sat_modem_fails, self.map_sat_modem_fails)
 
 
 # [550] Socket Server Configuration V2; TODO: Needs to be implemented...
 class SocketServerConfigMsgV2:
+    """Socket Server Configuration V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[550] Socket Server Configuration Message V2 not supported at this time")
 
 
 # [551] Modem Config V2; TODO: Needs to be implemented...
 class ModemConfigMsgV2:
+    """Modem Config V2."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[551] Modem Config Message V2 not supported at this time")
 
 
 # [552] Sigma5 HW Failure
 @dataclass(frozen=True, slots=True)
 class Sigma5HwFailureMsg(MsgBase):
+    """CoreCloud message type."""
     xlr_fails: int = None
     alt_fails: int = None
     gps_fails: int = None
@@ -1431,40 +1558,51 @@ class Sigma5HwFailureMsg(MsgBase):
 
     @property
     def xlr_failure_reason(self) -> str:
+        """Perform xlr failure reason."""
         return self._get_reason_from_mapping(self.xlr_fails, self.map_xlr_fails)
 
     @property
     def alt_failure_reason(self) -> str:
+        """Perform alt failure reason."""
         return self._get_reason_from_mapping(self.alt_fails, self.map_alt_fails)
 
     @property
     def gps_failure_reason(self) -> str:
+        """Perform gps failure reason."""
         return self._get_reason_from_mapping(self.gps_fails, self.map_gps_fails)
 
     @property
     def bms_failure_reason(self) -> str:
+        """Perform bms failure reason."""
         return self._get_reason_from_mapping(self.bms_fails, self.map_bms_fails)
 
     @property
     def ext_flash_failure_reason(self) -> str:
+        """Perform ext flash failure reason."""
         return self._get_reason_from_mapping(self.ext_flash_fails, self.map_ext_flash_fails)
 
 
 # [553] Iridium Config; TODO: Needs to be implemented...
 class IridiumConfigMsgV1:
+    """Iridium Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[553] Iridium Config Message V1 not supported at this time")
 
 
 # [554] Iridium Status; TODO: Needs to be implemented...
 class IridiumStatusMsgV1:
+    """Iridium Status."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[554] Iridium Status Message V1 not supported at this time")
 
 
 # [555] User Notification
 class UserNotificationMsgV1:
+    """User Notification."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[555] User Notification Message V1 not supported at this time")
 
 
@@ -1825,6 +1963,7 @@ class PositionMsgV6(MsgBase):
 # [557] Biometric Data
 @dataclass(frozen=True, slots=True)
 class BiometricDataMsg(MsgBase):
+    """CoreCloud message type."""
     record_id: int = None
     time_of_measurement: datetime = None
     flags: int = None
@@ -1878,18 +2017,22 @@ class BiometricDataMsg(MsgBase):
     # Decode flags
     @property
     def on_body(self) -> bool:
+        """Perform on body."""
         return extract_bits(self.flags, self.on_body_bits, cast=bool, default=None)
 
 
 # [558] Biometric Config; TODO: Needs to be implemented...
 class BiometricConfigMsgV1:
+    """Biometric Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[558] Biometric Config Message V1 not supported at this time.")
 
 
 # [559] Alpha HW Failure
 @dataclass(frozen=True, slots=True)
 class AlphaHwFailureMsg(MsgBase):
+    """CoreCloud message type."""
     record_id: int = None
     time_of_event: datetime = None
     xlr_fails: int = None
@@ -1960,60 +2103,77 @@ class AlphaHwFailureMsg(MsgBase):
 
     @property
     def xlr_failure_reason(self) -> str:
+        """Perform xlr failure reason."""
         return self._get_reason_from_mapping(self.xlr_fails, self.map_xlr_fails)
 
     @property
     def alt_failure_reason(self) -> str:
+        """Perform alt failure reason."""
         return self._get_reason_from_mapping(self.alt_fails, self.map_alt_fails)
 
     @property
     def gps_failure_reason(self) -> str:
+        """Perform gps failure reason."""
         return self._get_reason_from_mapping(self.gps_fails, self.map_gps_fails)
 
     @property
     def bms_failure_reason(self) -> str:
+        """Perform bms failure reason."""
         return self._get_reason_from_mapping(self.bms_fails, self.map_bms_fails)
 
     @property
     def ext_flash_failure_reason(self) -> str:
+        """Perform ext flash failure reason."""
         return self._get_reason_from_mapping(self.ext_flash_fails, self.map_ext_flash_fails)
 
     @property
     def ppg_failure_reason(self) -> str:
+        """Perform ppg failure reason."""
         return self._get_reason_from_mapping(self.ppg_fails, self.map_ppg_fails)
 
     @property
     def imu_failure_reason(self) -> str:
+        """Perform imu failure reason."""
         return self._get_reason_from_mapping(self.imu_fails, self.map_imu_fails)
 
     @property
     def ir_failure_reason(self) -> str:
+        """Perform ir failure reason."""
         return self._get_reason_from_mapping(self.ir_fails, self.map_ir_fails)
 
     @property
     def batt_charger_failure_reason(self) -> str:
+        """Perform batt charger failure reason."""
         return self._get_reason_from_mapping(self.batt_charger_fails, self.map_batt_charger_fails)
 
 
 # [560] LoRa Config V2; Needs to be implemented
 class LoRaConfigMsgV2:
+    """LoRa Config V2; Needs to be implemented."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[560] LoRa Config Message V2 not supported at this time.")
 
 
 # [561] Binary Image Upload; TODO: Needs to be implemented...
 class BinaryImageUploadMsgV1:
+    """Binary Image Upload."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[561] Binary Image Upload Message V1 not supported at this time.")
 
 
 # [562] Drone Mode Config; TODO: Needs to be implemented...
 class DroneModeConfigMsgV1:
+    """Drone Mode Config."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[562] Drone Mode Config Message V1 not supported at this time.")
 
 
 # [563] Theta HW Failure; TODO: Needs to be implemented...
 class ThetaHwFailureMsgV1:
+    """Theta HW Failure."""
     def __init__(self):
+        """Perform   init  ."""
         raise NotImplementedError(f"[563] Theta HW Failure Message V1 not supported at this time.")

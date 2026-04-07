@@ -31,6 +31,7 @@ def init_ck_boards_service(config) -> None:
 
 
 def get_ck_boards_service():
+    """Return the global CkBoardsService instance (or None if not initialized)."""
     return _ck_boards_service
 
 

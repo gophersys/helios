@@ -25,6 +25,22 @@ class BuildStage:
     name = "build"
 
     def execute(self, ctx: BuildContext) -> StageResult:
+        """Resolve the builder image and run the firmware build.
+
+        Execution order:
+        1. Fetch product target metadata from the Concord API.
+        2. Resolve and pull the Docker builder image from devcontainer.json.
+        3. Update the build record status to ``BUILDING``.
+        4. Execute the build script via BuildExecutor (Docker or local).
+        5. Extract the version string from build output.
+
+        Args:
+            ctx: Mutable build context shared across all pipeline stages.
+
+        Returns:
+            StageResult.ok() on success, or StageResult.fail(msg) if the
+            image cannot be resolved/pulled or the build script exits non-zero.
+        """
         # 1. Fetch product targets for SDK env vars
         self._fetch_product_targets(ctx)
 

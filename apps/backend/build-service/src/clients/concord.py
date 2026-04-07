@@ -20,6 +20,7 @@ class ConcordClient:
         self.api_key = api_key
 
     def _headers(self) -> Dict[str, str]:
+        """Build default request headers including the API key authorization."""
         return {
             "Authorization": f"ApiKey {self.api_key}",
             "Content-Type": "application/json",

@@ -3,6 +3,7 @@ from typing import Optional, Tuple, Union
 
 
 def set_bits(num: int, start: int, end: int, value: int) -> int | None:
+    """Set a range of bits in an integer value."""
     if not all(isinstance(i, int) for i in [num, start, end, value]):
         return None
     if start > end:
@@ -16,6 +17,7 @@ def set_bits(num: int, start: int, end: int, value: int) -> int | None:
 
 
 def get_bits(num: int, start: int, end: int) -> int | None:
+    """Extract a range of bits from an integer value."""
     if not all(isinstance(i, int) for i in [num, start, end]):
         return None
     if start > end:
@@ -26,6 +28,7 @@ def get_bits(num: int, start: int, end: int) -> int | None:
 
 
 def _to_int(value, *, default: int = 0) -> int:
+    """Convert a value to int, returning default on failure."""
     if value is None:
         return default
     # check bool BEFORE int (bool is apparently a subclass of int)
@@ -45,6 +48,7 @@ def _to_int(value, *, default: int = 0) -> int:
 
 
 def get_bits_safe(num: Union[int, bool, bytes, bytearray], start: int, end: int) -> int:
+    """Extract bits from an integer with input normalization."""
     if start > end:
         start, end = end, start
     if start < 0 or end < 0:
@@ -62,6 +66,7 @@ def extract_bits(
     default: int | bool = None,  # if flags is None
     scale: float = 1.0,
 ) -> int | bool | None:
+    """Extract and cast bits from a flags integer using a (start, end) range tuple."""
     if not (
         isinstance(bit_range, tuple)
         and len(bit_range) == 2
@@ -83,6 +88,7 @@ def extract_bits(
 
 
 def has_bit(v: Union[int, bool, bytes, bytearray], bit: int) -> Optional[bool]:
+    """Check if a specific bit is set in an integer value."""
     if v is None:
         return None
     if bit < 0:

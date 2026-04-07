@@ -4,11 +4,21 @@ from typing import Any, Dict, List, Optional, Tuple
 
 @dataclass
 class LoginRequest:
+    """Parsed login credentials from a POST /auth/login request body."""
+
     email: str
     password: str
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["LoginRequest"], Optional[str]]:
+        """Parse and validate login credentials from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (LoginRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
         email = (data.get("email") or "").strip().lower()
@@ -22,6 +32,8 @@ class LoginRequest:
 
 @dataclass
 class UserResponse:
+    """Serialized user record returned by auth and user management endpoints."""
+
     id: str
     email: str
     name: str
@@ -35,6 +47,14 @@ class UserResponse:
 
     @classmethod
     def from_user(cls, user) -> "UserResponse":
+        """Construct a UserResponse from a Prisma User model instance.
+
+        Args:
+            user: Prisma User model with optional permissionSet relation loaded.
+
+        Returns:
+            UserResponse with all fields populated.
+        """
         perm_set_name = None
         if hasattr(user, "permissionSet") and user.permissionSet is not None:
             perm_set_name = user.permissionSet.name
@@ -52,6 +72,11 @@ class UserResponse:
         )
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize to a JSON-safe dict for API responses.
+
+        Returns:
+            Dict with user fields. updatedAt is omitted when None.
+        """
         d = {
             "id": self.id,
             "email": self.email,
@@ -70,6 +95,8 @@ class UserResponse:
 
 @dataclass
 class UserCreateRequest:
+    """Validated input for creating a new user account."""
+
     email: str
     name: str
     role: Optional[str]
@@ -77,6 +104,14 @@ class UserCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["UserCreateRequest"], Optional[str]]:
+        """Parse and validate user creation fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (UserCreateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -99,6 +134,12 @@ class UserCreateRequest:
 
 @dataclass
 class UserUpdateRequest:
+    """Validated input for updating an existing user account.
+
+    Only fields explicitly included in the request body are applied.
+    Internal _has_* flags distinguish "field set to null" from "field omitted".
+    """
+
     name: Optional[str] = None
     role: Optional[str] = None
     permissionSetId: Optional[str] = None
@@ -108,6 +149,14 @@ class UserUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["UserUpdateRequest"], Optional[str]]:
+        """Parse and validate user update fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (UserUpdateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -143,6 +192,11 @@ class UserUpdateRequest:
         return req, None
 
     def to_update_data(self) -> Dict[str, Any]:
+        """Build the Prisma update dict containing only explicitly-set fields.
+
+        Returns:
+            Dict of fields to pass to db.user.update(data=...).
+        """
         update_data = {}
         if self.name is not None:
             update_data["name"] = self.name
@@ -157,12 +211,22 @@ class UserUpdateRequest:
 
 @dataclass
 class PermissionSetCreateRequest:
+    """Validated input for creating a new permission set (role)."""
+
     name: str
     description: Optional[str]
     permissions: List[str]
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["PermissionSetCreateRequest"], Optional[str]]:
+        """Parse and validate permission set creation fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (PermissionSetCreateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -188,6 +252,11 @@ class PermissionSetCreateRequest:
 
 @dataclass
 class PermissionSetUpdateRequest:
+    """Validated input for updating an existing permission set.
+
+    Only fields explicitly included in the request body are applied.
+    """
+
     name: Optional[str] = None
     description: Optional[str] = None
     permissions: Optional[List[str]] = None
@@ -195,6 +264,14 @@ class PermissionSetUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["PermissionSetUpdateRequest"], Optional[str]]:
+        """Parse and validate permission set update fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (PermissionSetUpdateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -224,6 +301,11 @@ class PermissionSetUpdateRequest:
         ), None
 
     def to_update_data(self) -> Dict[str, Any]:
+        """Build the Prisma update dict containing only explicitly-set fields.
+
+        Returns:
+            Dict of fields to pass to db.permissionset.update(data=...).
+        """
         update_data: Dict[str, Any] = {}
         if self.name is not None:
             update_data["name"] = self.name
@@ -238,11 +320,21 @@ class PermissionSetUpdateRequest:
 
 @dataclass
 class ApiKeyCreateRequest:
+    """Validated input for creating a new API key."""
+
     name: str
     expiresAt: Optional[str]
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ApiKeyCreateRequest"], Optional[str]]:
+        """Parse and validate API key creation fields from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict from the request body.
+
+        Returns:
+            Tuple of (ApiKeyCreateRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -260,10 +352,20 @@ VALID_ACCESS_LEVELS = {"admin", "develop", "operate", "view"}
 
 @dataclass
 class ProductAccessSetRequest:
+    """Validated input for setting per-product access levels for a user."""
+
     access: List[Dict[str, str]]
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ProductAccessSetRequest"], Optional[str]]:
+        """Parse and validate product access entries from a JSON request body.
+
+        Args:
+            data: Parsed JSON dict containing an 'access' array.
+
+        Returns:
+            Tuple of (ProductAccessSetRequest, None) on success, or (None, error_message) on failure.
+        """
         if not data:
             return None, "Request body must contain JSON data"
 

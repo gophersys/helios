@@ -13,6 +13,7 @@ from corekinect.utils.serde.convert import convert_str_to_type  # your shared co
 
 
 def test_position_msg_v6_from_csv_matches_pandas(csv_file_path: str | Path, env: Env = "VAL_1_0"):
+    """Test position msg v6 from csv matches pandas."""
     log = Logger(log_name=test_position_msg_v6_from_csv_matches_pandas.__name__)
     assert csv_file_path.exists(), f"csv_file_path does not exist: {csv_file_path}"
 
@@ -89,6 +90,7 @@ def test_position_msg_v6_from_csv_matches_pandas(csv_file_path: str | Path, env:
 
 
 def ad_hoc_testing():
+    """Ad hoc testing."""
     last_pos = PositionMsgV6.get_last(dut_id=0x70B3D584C01E1445, env="VAL_1_0")
     print(last_pos.temperature_fahrenheit)
     breakpoint

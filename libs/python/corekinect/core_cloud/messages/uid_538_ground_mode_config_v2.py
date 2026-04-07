@@ -92,6 +92,7 @@ class GroundModeConfigV2(ConfigMessageBase, MessageBase, MessageCodec):
     def binary_layout(cls):
         # Using the exact spec you posted (v0.9 variant)
         # (name, struct_code) order matters
+        """Binary layout."""
         return [
             ("message_id", "B"),
             ("message_length", "H"),
@@ -111,6 +112,7 @@ class GroundModeConfigV2(ConfigMessageBase, MessageBase, MessageCodec):
         ]
 
     def pack_items(self):
+        """Pack items."""
         return [
             ("B", self.message_id),
             ("H", 0),

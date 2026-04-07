@@ -6,6 +6,7 @@ _spec: APISpec | None = None
 
 
 def _build_spec() -> APISpec:
+    """Build the OpenAPI 3.0.3 specification for the Concord API."""
     spec = APISpec(
         title="Concord API",
         version="2.0.0",
@@ -364,6 +365,7 @@ def _build_spec() -> APISpec:
 
     # ── Reusable responses ──────────────────────────────────────
     def _err_resp(desc):
+        """Build an error response schema reference for the given description."""
         return {"description": desc, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
 
     _deleted_resp = {"description": "Resource deleted", "content": {"application/json": {"schema": {
@@ -374,6 +376,7 @@ def _build_spec() -> APISpec:
     }}}}
 
     def _ok(ref_or_schema, *, array=False):
+        """Build a success response schema, optionally wrapping in an array."""
         if isinstance(ref_or_schema, str):
             inner = {"$ref": f"#/components/schemas/{ref_or_schema}"}
         else:
@@ -399,6 +402,7 @@ def _build_spec() -> APISpec:
     ]
 
     def _paginated(ref):
+        """Build a paginated success response schema for the given ref."""
         return _ok({"type": "object", "properties": {
             "data": {"type": "array", "items": {"$ref": f"#/components/schemas/{ref}"}},
             "pagination": {"type": "object", "properties": {
@@ -421,6 +425,7 @@ def _build_spec() -> APISpec:
 
     # ── Helper to add paths ─────────────────────────────────────
     def path(url, **kwargs):
+        """Register an API path with its operations in the spec."""
         parameters = kwargs.pop("parameters", None)
         spec.path(path=url, operations=kwargs, parameters=parameters)
 

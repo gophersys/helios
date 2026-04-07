@@ -23,6 +23,23 @@ class RecipeStage:
     name = "recipe"
 
     def execute(self, ctx: BuildContext) -> StageResult:
+        """Resolve and install the build recipe script.
+
+        Tries three sources in priority order:
+        1. Pinned recipe version from the API (``recipeVersionId``).
+        2. Stage-specific recipe from the API (``job.stage``).
+        3. The repo's own ``scripts/build.sh``, ``build_all.sh``, or ``build.sh``.
+
+        After writing the recipe to ``<work_dir>/scripts/build.sh``, patches
+        the SDK source path for DinD workspace-relative access.
+
+        Args:
+            ctx: Mutable build context shared across all pipeline stages.
+
+        Returns:
+            StageResult.ok() on success, or StageResult.fail(msg) if no
+            build recipe can be found from any source.
+        """
         scripts_dir = ctx.work_dir / "scripts"
         scripts_dir.mkdir(parents=True, exist_ok=True)
         recipe_path = scripts_dir / "build.sh"

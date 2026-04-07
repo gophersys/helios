@@ -7,6 +7,16 @@ def list_events(
     limit: int = 100,
     field_selector: str | None = None,
 ) -> list[dict]:
+    """List Kubernetes Events, sorted by most recent first.
+
+    Args:
+        namespace: Limit results to this namespace. If None, lists cluster-wide.
+        limit: Maximum number of events to return.
+        field_selector: Optional Kubernetes field selector string to filter results.
+
+    Returns:
+        List of serialized Event dicts sorted by lastSeen descending.
+    """
     core = get_core_v1_api()
     kwargs = {"limit": limit}
     if field_selector:

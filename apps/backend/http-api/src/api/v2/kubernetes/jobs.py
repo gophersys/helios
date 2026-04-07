@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_jobs():
+    """List Kubernetes jobs with optional namespace and label filtering.
+
+    Returns:
+        JSON response with paginated list of job summaries.
+    """
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = jobs_svc.list_jobs(
@@ -37,6 +42,15 @@ def list_jobs():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_job(namespace: str, name: str):
+    """Get a specific Kubernetes job with associated pods.
+
+    Args:
+        namespace: Kubernetes namespace.
+        name: Job name.
+
+    Returns:
+        JSON response with job data including pods list.
+    """
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")
@@ -57,6 +71,15 @@ def get_job(namespace: str, name: str):
 
 @require_permissions(Permissions.KUBERNETES_MANAGE)
 def delete_job(namespace: str, name: str):
+    """Delete a Kubernetes job and its dependent pods.
+
+    Args:
+        namespace: Kubernetes namespace.
+        name: Job name.
+
+    Returns:
+        JSON response with deleted=True on success.
+    """
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")

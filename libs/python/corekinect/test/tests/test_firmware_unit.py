@@ -26,6 +26,7 @@ class TestFirmwareAsset:
     """Test FirmwareAsset dataclass construction and defaults."""
 
     def test_construction_all_fields(self):
+        """Test construction all fields."""
         asset = FirmwareAsset(
             storage_key="firmware/builds/alpha/abc/app.hex",
             local_path="/tmp/fw_abc123.hex",
@@ -87,6 +88,7 @@ class TestGetFirmwarePathFromEnv:
     """Test get_firmware_path_from_env() environment variable reading."""
 
     def test_returns_path_when_set(self):
+        """Test returns path when set."""
         with patch.dict(os.environ, {
             "FIRMWARE_BUCKET_FILE_PATH": "firmware/builds/alpha/abc123/app.hex",
         }):
@@ -94,6 +96,7 @@ class TestGetFirmwarePathFromEnv:
             assert result == "firmware/builds/alpha/abc123/app.hex"
 
     def test_returns_none_when_not_set(self):
+        """Test returns none when not set."""
         with patch.dict(os.environ, {}, clear=True):
             result = get_firmware_path_from_env()
             assert result is None
@@ -105,6 +108,7 @@ class TestGetFirmwarePathFromEnv:
             assert result == ""
 
     def test_preserves_full_path(self):
+        """Test preserves full path."""
         path = "firmware/builds/alpha_fw/build-xyz/0.8.3_comms_nrf9151.hex"
         with patch.dict(os.environ, {"FIRMWARE_BUCKET_FILE_PATH": path}):
             result = get_firmware_path_from_env()
@@ -120,6 +124,7 @@ class TestStorageConfigFirmware:
     """Test _StorageConfig (firmware module's EnvConfig subclass)."""
 
     def test_defaults_no_env_vars(self):
+        """Test defaults no env vars."""
         with patch.dict(os.environ, {}, clear=True):
             cfg = _StorageConfig(auto_load_env=False)
             assert cfg.STORAGE_URL is None
@@ -129,11 +134,13 @@ class TestStorageConfigFirmware:
             assert cfg.FIRMWARE_BUCKET_FILE_PATH is None
 
     def test_reads_storage_url(self):
+        """Test reads storage url."""
         with patch.dict(os.environ, {"STORAGE_URL": "http://minio:9000"}, clear=True):
             cfg = _StorageConfig(auto_load_env=False)
             assert cfg.STORAGE_URL == "http://minio:9000"
 
     def test_reads_all_storage_vars(self):
+        """Test reads all storage vars."""
         env = {
             "STORAGE_URL": "https://minio.prod:9000",
             "STORAGE_ACCESS_KEY": "admin",

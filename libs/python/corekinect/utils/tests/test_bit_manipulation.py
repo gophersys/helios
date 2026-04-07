@@ -4,6 +4,7 @@ from ..src.bit_manipulation import get_bits, set_bits
 
 
 def test_get_bits_basic():
+    """Test get bits basic."""
     assert get_bits(0b1111, 0, 3) == 0b1111  # Correct
     assert get_bits(0b101010, 1, 4) == 0b0101  # Updated expected value to 0b0101 (5)
     assert get_bits(0, 0, 0) == 0
@@ -11,12 +12,14 @@ def test_get_bits_basic():
 
 
 def test_get_bits_edge_cases():
+    """Test get bits edge cases."""
     assert get_bits(-1, 0, 31) == 0xFFFFFFFF  # Assuming 32-bit representation
     with pytest.raises(TypeError):
         get_bits("255", 0, 3)  # Invalid type for 'num'
 
 
 def test_set_bits_basic():
+    """Test set bits basic."""
     # Set bits 0-3 to 0b0000 in 0b1111 -> 0b0000
     assert set_bits(0b1111, 0, 3, 0b0000) == 0b0000
     # Set bits 1-4 to 0b1010 in 0b0000 -> 0b1010
@@ -26,6 +29,7 @@ def test_set_bits_basic():
 
 
 def test_set_bits_edge_cases():
+    """Test set bits edge cases."""
     # Setting bits beyond the existing bits should work (assuming 32 bits)
     result = set_bits(0, 16, 23, 0xFF)
     assert result == 0x00FF0000

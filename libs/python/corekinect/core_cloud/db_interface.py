@@ -17,6 +17,7 @@ from corekinect.utils import SingletonThreadSafeMeta
 
 
 class SSHConfig(EnvConfig):
+    """S S H Config."""
     ENV_PREFIX = "SSH_"
 
     host: Optional[str] = None
@@ -33,6 +34,7 @@ class SSHConfig(EnvConfig):
 
 
 class DBConfig(EnvConfig):
+    """D B Config."""
     ENV_PREFIX = "DB_"
 
     # Either provide URI or components:
@@ -86,6 +88,7 @@ def _apply_namespace_env(ns: Optional[Literal["VAL_1_0", "DEV_1_0", "DEV_0_9"]])
     }
 
     def copy_first_present(target_key: str, candidates: list[str]) -> None:
+        """Copy first present."""
         for c in candidates:
             v = os.getenv(c)
             if v is not None and v != "":
@@ -123,6 +126,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
         test_query: Optional[str] = "SELECT 1",
         sql_echo: bool = False,
     ):
+        """  init  ."""
         self._depth = 0
 
         load_dotenv(override=False)
@@ -149,6 +153,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
 
     def __enter__(self):
         # Reentry guard
+        """  enter  ."""
         if self._depth > 0:
             self._depth += 1
             return self.session
@@ -221,6 +226,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
             raise
 
     def __exit__(self, exc_type, exc_value, traceback):
+        """  exit  ."""
         if self._depth <= 1:
             self._teardown()
             self._depth = 0
@@ -229,6 +235,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
         return False
 
     def _teardown(self):
+        """ teardown."""
         if self.session:
             try:
                 self.session.close()
@@ -254,6 +261,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
 
     @classmethod
     def reset_singleton(cls, env: str | None = None) -> None:
+        """Reset singleton."""
         store = getattr(type(cls), "_instances", {})
         key = (cls, env) if env is not None else cls
         inst = store.pop(key, None)
@@ -277,6 +285,7 @@ class CoreCloudDBInterface(metaclass=SingletonThreadSafeMeta):
 
 
 def _run_codegen(conn_str, out_file):
+    """ run codegen."""
     import sys, subprocess
 
     with open(out_file, "w", encoding="utf-8") as f:
@@ -288,6 +297,7 @@ def _run_codegen(conn_str, out_file):
 
 
 def _update_cc_test_data_v1p0_orm():
+    """ update cc test data v1p0 orm."""
     load_dotenv(override=False)
     _apply_namespace_env("VAL_1_0")
     db = DBConfig(namespace="VAL_1_0")

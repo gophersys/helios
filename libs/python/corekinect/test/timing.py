@@ -60,6 +60,7 @@ def timeout(seconds: int) -> Callable[[F], F]:
     """
 
     def decorator(func: F) -> F:
+        """Decorator."""
         return pytest.mark.timeout(seconds)(func)
 
     return decorator

@@ -48,6 +48,13 @@ def _setup_ssh_key(config):
 
 
 def main():
+    """Entry point for the build service.
+
+    Loads configuration, writes the SSH key when provided via environment
+    variable, starts the Flask API server in a background thread, installs
+    signal handlers for graceful shutdown, then blocks in the worker loop
+    until a SIGTERM or SIGINT is received.
+    """
     from src.config import BuildServiceConfig
     from src.clients.concord import ConcordClient
     from src.worker.loop import BuildWorkerLoop
@@ -109,6 +116,7 @@ def main():
     shutdown = threading.Event()
 
     def handle_signal(signum, _frame):
+        """Set the shutdown event so the worker loop exits cleanly."""
         name = signal.Signals(signum).name
         log.info(f"Received {name}, shutting down gracefully...")
         shutdown.set()

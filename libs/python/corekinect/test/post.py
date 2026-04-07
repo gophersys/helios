@@ -42,6 +42,7 @@ class PostResult:
     app_ble_mac: Optional[str] = None
 
     def summary(self) -> str:
+        """Summary."""
         lines = []
         for s in self.steps:
             status = "PASS" if s.passed else "FAIL"
@@ -121,6 +122,7 @@ def run_post(mtib_client, skip_ext_flash: bool = False) -> PostResult:
             lock_results = {}
 
             def _lock_shell(name, shell):
+                """ lock shell."""
                 lock_results[name] = shell.lock(timeout_s=10)
 
             t_app = threading.Thread(target=_lock_shell, args=("app", app))

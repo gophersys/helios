@@ -86,6 +86,7 @@ def register_observability_handlers(socketio: SocketIO):
 
             # Define emit function to send updates to this client
             def emit_update(filtered_snapshot: dict):
+                """Send a filtered observability snapshot to the subscriber."""
                 try:
                     socketio.emit("observability_update", filtered_snapshot, room=sid, namespace="/kubernetes")
                 except Exception as e:

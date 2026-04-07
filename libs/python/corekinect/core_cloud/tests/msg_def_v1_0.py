@@ -2,6 +2,7 @@ from corekinect.core_cloud.msg_def_v1_0 import *
 
 
 def gps_config():
+    """Gps config."""
     conf = GPSConfMsg(
         is_psm_enabled=False,
         is_aiding_enabled=False,
@@ -14,6 +15,7 @@ def gps_config():
 
 
 def ground_config():
+    """Ground config."""
     conf = GroundModeConfigV2(
         gps_heartbeat_period_minutes=60,
         continuous_motion_period_seconds=6,
@@ -32,6 +34,7 @@ def ground_config():
 
 
 def position_message():
+    """Position message."""
     msg = PositionMsgV6.last(0x70B3D584C01E1445, env="VAL_1_0")
     print(msg.device_id_str)
     print(msg.temperature_celsius)
@@ -39,6 +42,7 @@ def position_message():
 
 
 def scratchpad_message():
+    """Scratchpad message."""
     from zoneinfo import ZoneInfo
 
     start_time = datetime(2025, 10, 23, 16, 0, 0, tzinfo=ZoneInfo("America/Phoenix"))

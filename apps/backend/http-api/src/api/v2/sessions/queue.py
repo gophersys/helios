@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # -------------------------------------------------------------------
 
 def _serialize_queue_entry(entry) -> dict:
+    """Serialize a ValidationQueueEntry DB record to an API response dict."""
     data = {
         "id": entry.id,
         "buildRunId": entry.buildRunId,

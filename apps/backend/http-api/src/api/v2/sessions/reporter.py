@@ -31,6 +31,7 @@ _socketio = None
 
 
 def set_validation_socketio(sio):
+    """Store the SocketIO instance for emitting validation events."""
     global _socketio
     _socketio = sio
 
@@ -65,6 +66,7 @@ def _emit_validation_event(event: str, data: dict, run_id: str | None = None):
 
 
 def _get_session_or_404(db, run_id: str):
+    """Look up a session by ID, returning (session, None) or (None, 404 response)."""
     session = db.session.find_unique(where={"id": run_id})
     if not session:
         return None, not_found("Validation run not found")

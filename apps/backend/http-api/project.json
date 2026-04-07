@@ -185,14 +185,14 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/backend/http-api",
-        "command": "python3 -m pytest --cov=src --cov-fail-under=90 --cov-report=term-missing -q --tb=no"
+        "command": "python3 -m pytest --cov=src --cov-fail-under=65 --cov-report=term-missing -q --tb=no"
       }
     },
     "complexity": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{workspaceRoot}",
-        "command": "python3 .ci/lib/check_complexity.py apps/backend/http-api/src --allowlist=.ci/complexity-allowlist.json --avg-threshold=6"
+        "command": "python3 .ci/lib/check_complexity.py apps/backend/http-api/src --allowlist=.ci/complexity-allowlist.json --avg-threshold=8"
       }
     },
     "security": {

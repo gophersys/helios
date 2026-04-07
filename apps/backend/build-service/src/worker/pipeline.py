@@ -57,10 +57,19 @@ class StageResult:
 
     @classmethod
     def ok(cls) -> StageResult:
+        """Return a successful StageResult with no error message."""
         return cls(success=True)
 
     @classmethod
     def fail(cls, error: str) -> StageResult:
+        """Return a failed StageResult with a descriptive error message.
+
+        Args:
+            error: Human-readable description of why the stage failed.
+
+        Returns:
+            A StageResult with ``success=False`` and the supplied error string.
+        """
         return cls(success=False, error=error)
 
 

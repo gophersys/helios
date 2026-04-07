@@ -50,18 +50,22 @@ class CfwMetadata:
 
     @property
     def is_manufacturing(self) -> bool:
+        """True if the manufacturing flag is set."""
         return bool(self.flags & 0x01)
 
     @property
     def release_track(self) -> int:
+        """Release track integer: 0=Bench, 1=Engineering, 2=Production."""
         return (self.flags >> 1) & 0x03
 
     @property
     def is_debug(self) -> bool:
+        """True if the debug logging flag is set."""
         return bool(self.flags & 0x08)
 
     @property
     def version_string(self) -> str:
+        """Formatted version string with app_id, version, and track flags."""
         tracks = {0: "B", 1: "E", 2: "P"}
         s = tracks.get(self.release_track, "?")
         if self.is_manufacturing:
@@ -76,6 +80,7 @@ def encode_flags(
     manufacturing: bool = False,
     debug: bool = False,
 ) -> int:
+    """Encode release track, manufacturing, and debug flags into a single byte."""
     flags = (release_track & 0x03) << 1
     if manufacturing:
         flags |= 0x01

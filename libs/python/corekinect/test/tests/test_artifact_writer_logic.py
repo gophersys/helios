@@ -41,21 +41,27 @@ class TestPowerConstants:
     """Verify binary format constants are correct and self-consistent."""
 
     def test_magic_bytes(self):
+        """Test magic bytes."""
         assert POWER_MAGIC == b"CKPWR001"
 
     def test_magic_length(self):
+        """Test magic length."""
         assert len(POWER_MAGIC) == 8
 
     def test_header_size(self):
+        """Test header size."""
         assert POWER_HEADER_SIZE == 32
 
     def test_flag_ch0_value(self):
+        """Test flag ch0 value."""
         assert POWER_FLAG_HAS_CH0 == 0x01
 
     def test_flag_ch1_value(self):
+        """Test flag ch1 value."""
         assert POWER_FLAG_HAS_CH1 == 0x02
 
     def test_flag_joulescope_value(self):
+        """Test flag joulescope value."""
         assert POWER_FLAG_HAS_JOULESCOPE == 0x04
 
     def test_flags_are_distinct_bits(self):
@@ -81,6 +87,7 @@ class TestPowerHeaderRoundTrip:
     """Test that headers pack to 32 bytes and round-trip correctly."""
 
     def test_pack_produces_32_bytes(self):
+        """Test pack produces 32 bytes."""
         header = struct.pack(
             "<8sIIQ8x",
             POWER_MAGIC,
@@ -91,6 +98,7 @@ class TestPowerHeaderRoundTrip:
         assert len(header) == POWER_HEADER_SIZE
 
     def test_round_trip_ch0_only(self):
+        """Test round trip ch0 only."""
         flags = POWER_FLAG_HAS_CH0
         rate = 500
         ts = 1710000000000000
@@ -104,6 +112,7 @@ class TestPowerHeaderRoundTrip:
         assert t == ts
 
     def test_round_trip_all_flags(self):
+        """Test round trip all flags."""
         flags = POWER_FLAG_HAS_CH0 | POWER_FLAG_HAS_CH1 | POWER_FLAG_HAS_JOULESCOPE
         rate = 10000
         ts = 1709971200999999
@@ -123,6 +132,7 @@ class TestPowerHeaderRoundTrip:
         assert reserved == b"\x00" * 8
 
     def test_zero_timestamp(self):
+        """Test zero timestamp."""
         header = struct.pack("<8sIIQ8x", POWER_MAGIC, 0, 0, 0)
         assert len(header) == POWER_HEADER_SIZE
         _, _, _, ts = struct.unpack("<8sIIQ", header[:24])
@@ -192,6 +202,7 @@ class TestPowerSampleSerialization:
         assert v == 3300
 
     def test_timestamp_offset_zero(self):
+        """Test timestamp offset zero."""
         parts = [struct.pack("<I", 0)]
         parts.append(struct.pack("<Hh", 4500, 100))
         data = b"".join(parts)
@@ -208,6 +219,7 @@ class TestPowerSampleDataclassLogic:
     """Test PowerSample construction edge cases."""
 
     def test_all_fields_populated(self):
+        """Test all fields populated."""
         sample = PowerSample(
             timestamp_offset_us=12345,
             ch0_voltage_mv=4500,
@@ -226,6 +238,7 @@ class TestPowerSampleDataclassLogic:
         assert sample.js_voltage_mv == 3300
 
     def test_all_optional_fields_default_none(self):
+        """Test all optional fields default none."""
         sample = PowerSample(timestamp_offset_us=0)
         assert sample.ch0_voltage_mv is None
         assert sample.ch0_current_ua is None
@@ -247,6 +260,7 @@ class TestPowerSampleDataclassLogic:
         assert flags == POWER_FLAG_HAS_CH0
 
     def test_flag_auto_detect_ch0_ch1(self):
+        """Test flag auto detect ch0 ch1."""
         sample = PowerSample(
             timestamp_offset_us=0,
             ch0_voltage_mv=4500,
@@ -262,6 +276,7 @@ class TestPowerSampleDataclassLogic:
         assert flags == (POWER_FLAG_HAS_CH0 | POWER_FLAG_HAS_CH1)
 
     def test_flag_auto_detect_all(self):
+        """Test flag auto detect all."""
         sample = PowerSample(
             timestamp_offset_us=0,
             ch0_current_ua=100,
@@ -299,6 +314,7 @@ class TestArtifactInfoDataclass:
     """Test ArtifactInfo construction and defaults."""
 
     def test_construction_all_fields(self):
+        """Test construction all fields."""
         info = ArtifactInfo(
             name="test_boot",
             status="passed",
@@ -345,24 +361,28 @@ class TestArtifactWriterObjectPath:
     """Test _object_path uses the correct prefix from source code."""
 
     def _make_writer(self, run_id="run-abc"):
+        """ make writer."""
         with patch.dict(os.environ, {}, clear=True):
             writer = ArtifactWriter()
         writer.run_id = run_id
         return writer
 
     def test_session_level_path(self):
+        """Test session level path."""
         writer = self._make_writer()
         writer._current_test = None
         path = writer._object_path("manifest.json")
         assert path == "sessions/run-abc/manifest.json"
 
     def test_test_level_path(self):
+        """Test test level path."""
         writer = self._make_writer()
         writer._current_test = "test_boot"
         path = writer._object_path("output.log")
         assert path == "sessions/run-abc/test_boot/output.log"
 
     def test_test_name_override(self):
+        """Test test name override."""
         writer = self._make_writer()
         writer._current_test = "test_boot"
         path = writer._object_path("power.bin", test_name="test_power")
@@ -385,12 +405,14 @@ class TestArtifactWriterManifestTracking:
     """Test manifest tracking across multiple test lifecycles."""
 
     def _make_writer(self):
+        """ make writer."""
         with patch.dict(os.environ, {}, clear=True):
             writer = ArtifactWriter()
         writer.run_id = "run-123"
         return writer
 
     def test_multiple_tests_tracked(self):
+        """Test multiple tests tracked."""
         writer = self._make_writer()
         writer.start_test("test_boot")
         writer.finish_test("test_boot", status="passed")
@@ -412,6 +434,7 @@ class TestArtifactWriterManifestTracking:
         assert writer._current_test is None
 
     def test_current_test_property(self):
+        """Test current test property."""
         writer = self._make_writer()
         assert writer.current_test is None
 
@@ -484,32 +507,39 @@ class TestArtifactWriterDisabledBehavior:
     """Test that disabled writer returns correct values without errors."""
 
     def _make_disabled_writer(self):
+        """ make disabled writer."""
         with patch.dict(os.environ, {}, clear=True):
             writer = ArtifactWriter()
         assert not writer.enabled
         return writer
 
     def test_write_object_returns_false(self):
+        """Test write object returns false."""
         writer = self._make_disabled_writer()
         assert writer._write_object("test/path", b"data") is False
 
     def test_read_object_returns_none(self):
+        """Test read object returns none."""
         writer = self._make_disabled_writer()
         assert writer._read_object("test/path") is None
 
     def test_append_to_object_returns_false(self):
+        """Test append to object returns false."""
         writer = self._make_disabled_writer()
         assert writer._append_to_object("test/path", b"data") is False
 
     def test_append_to_object_empty_data_returns_false(self):
+        """Test append to object empty data returns false."""
         writer = self._make_disabled_writer()
         assert writer._append_to_object("test/path", b"") is False
 
     def test_get_artifact_url_returns_none(self):
+        """Test get artifact url returns none."""
         writer = self._make_disabled_writer()
         assert writer.get_artifact_url("file.log") is None
 
     def test_write_bytes_returns_false(self):
+        """Test write bytes returns false."""
         writer = self._make_disabled_writer()
         assert writer.write_bytes("path.jsonl", b"content") is False
 
@@ -528,6 +558,7 @@ class TestStorageConfigWriter:
     """Test _StorageConfig (writer module's EnvConfig subclass)."""
 
     def test_defaults(self):
+        """Test defaults."""
         with patch.dict(os.environ, {}, clear=True):
             cfg = _StorageConfig(auto_load_env=False)
             assert cfg.STORAGE_URL is None
@@ -540,11 +571,13 @@ class TestStorageConfigWriter:
             assert cfg.CONCORD_API_HOST is None
 
     def test_reads_run_id(self):
+        """Test reads run id."""
         with patch.dict(os.environ, {"CONCORD_RUN_ID": "run-xyz"}, clear=True):
             cfg = _StorageConfig(auto_load_env=False)
             assert cfg.CONCORD_RUN_ID == "run-xyz"
 
     def test_reads_api_config(self):
+        """Test reads api config."""
         env = {
             "CONCORD_API_URL": "https://concord.local",
             "CONCORD_API_KEY": "ck_run_test123",

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_services():
+    """List Kubernetes services with optional namespace filtering."""
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = svc_svc.list_services(
@@ -35,6 +36,7 @@ def list_services():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_service(namespace: str, name: str):
+    """Get a specific Kubernetes service by namespace and name."""
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")

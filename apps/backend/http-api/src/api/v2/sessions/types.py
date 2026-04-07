@@ -11,6 +11,7 @@ class SessionRerunRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["SessionRerunRequest"], Optional[str]]:
+        """Parse and validate JSON into a SessionRerunRequest."""
         if not data:
             # Allow empty body — rerun with same pipeline
             return cls(), None
@@ -37,6 +38,7 @@ class RunCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["RunCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a RunCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -97,6 +99,7 @@ class ReportStartRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ReportStartRequest"], Optional[str]]:
+        """Parse and validate JSON into a ReportStartRequest."""
         if not data:
             return None, "Request body must contain JSON data"
         return cls(), None
@@ -110,6 +113,7 @@ class ReportTestStartRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ReportTestStartRequest"], Optional[str]]:
+        """Parse and validate JSON into a ReportTestStartRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -138,6 +142,7 @@ class ReportTestResultRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ReportTestResultRequest"], Optional[str]]:
+        """Parse and validate JSON into a ReportTestResultRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -201,6 +206,7 @@ class ReportFinishRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ReportFinishRequest"], Optional[str]]:
+        """Parse and validate JSON into a ReportFinishRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -253,6 +259,7 @@ class RunTriggerRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["RunTriggerRequest"], Optional[str]]:
+        """Parse and validate JSON into a RunTriggerRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -301,6 +308,7 @@ class ReportLogChunkRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["ReportLogChunkRequest"], Optional[str]]:
+        """Parse and validate JSON into a ReportLogChunkRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -353,6 +361,7 @@ class StepStartRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["StepStartRequest"], Optional[str]]:
+        """Parse and validate JSON into a StepStartRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -395,6 +404,7 @@ class StepResultRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["StepResultRequest"], Optional[str]]:
+        """Parse and validate JSON into a StepResultRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
@@ -479,6 +489,7 @@ class ValidationTestsRunRequest:
 
 @dataclass
 class QueueEntryCreateRequest:
+    """Request body for creating a new validation queue entry."""
     buildRunId: str
     stage: int
     priority: Optional[int] = None  # Override stage config priority
@@ -487,6 +498,7 @@ class QueueEntryCreateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["QueueEntryCreateRequest"], Optional[str]]:
+        """Parse and validate JSON into a QueueEntryCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
         build_run_id = (data.get("buildRunId") or "").strip()
@@ -514,6 +526,7 @@ class QueueEntryCreateRequest:
 
 @dataclass
 class QueueEntryUpdateRequest:
+    """Request body for updating a validation queue entry."""
     priority: Optional[int] = None
     status: Optional[str] = None
     benchId: Optional[str] = None
@@ -523,6 +536,7 @@ class QueueEntryUpdateRequest:
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["QueueEntryUpdateRequest"], Optional[str]]:
+        """Parse and validate JSON into a QueueEntryUpdateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
         priority = data.get("priority")

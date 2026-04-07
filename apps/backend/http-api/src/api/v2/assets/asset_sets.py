@@ -29,6 +29,7 @@ _ASSET_SET_INCLUDE = {
 
 
 def _serialize_asset(asset) -> dict:
+    """Serialize an Asset DB record to an API response dict."""
     return {
         "id": asset.id,
         "assetSetId": asset.assetSetId,
@@ -46,6 +47,7 @@ def _serialize_asset(asset) -> dict:
 
 
 def _serialize_asset_set(asset_set) -> dict:
+    """Serialize an AssetSet DB record to an API response dict."""
     data = {
         "id": asset_set.id,
         "productId": asset_set.productId,

@@ -30,6 +30,7 @@ class MockDutConfig:
     iccids: Optional[List[str]] = None
 
     def __post_init__(self):
+        """  post init  ."""
         if self.iccids is None:
             object.__setattr__(self, 'iccids', ["89148000009808560116", "89457300000037581199"])
 
@@ -48,6 +49,7 @@ class MockFixtureProfile:
     button_active_low: bool = True
 
     def __post_init__(self):
+        """  post init  ."""
         if self.dut is None:
             object.__setattr__(self, 'dut', MockDutConfig())
 
@@ -87,6 +89,7 @@ class MockFixtureController:
     """
 
     def __init__(self, profile: Optional[MockFixtureProfile] = None):
+        """  init  ."""
         self.profile = profile or MockFixtureProfile()
         self._powered = True
         self._peltier_active = False
@@ -102,21 +105,25 @@ class MockFixtureController:
         return True
 
     def power_on(self) -> None:
+        """Power on."""
         log.info("MockFixture: power_on()")
         self._powered = True
         self._button_pressed = False
 
     def power_off(self) -> None:
+        """Power off."""
         log.info("MockFixture: power_off()")
         self._powered = False
         self._button_pressed = False
 
     def power_cycle(self, off_time_s: float = 2.0, boot_time_s: float = 5.0) -> None:
+        """Power cycle."""
         log.info("MockFixture: power_cycle(off=%.1fs, boot=%.1fs)", off_time_s, boot_time_s)
         self._powered = True
         self._button_pressed = False
 
     def verify_dut_powered(self) -> bool:
+        """Verify dut powered."""
         log.info("MockFixture: verify_dut_powered() -> %s", self._powered)
         return self._powered
 
@@ -150,37 +157,48 @@ class MockFixtureController:
         return 1 if self.profile.battery_installed else 0
 
     def set_peltier(self, on: bool) -> None:
+        """Set peltier."""
         log.info("MockFixture: set_peltier(%s)", on)
         self._peltier_active = on
 
     def simulate_on_skin(self, on: bool = True) -> None:
+        """Simulate on skin."""
         log.info("MockFixture: simulate_on_skin(on=%s)", on)
 
     def simulate_heartbeat(self, bpm: int = 72) -> None:
+        """Simulate heartbeat."""
         log.info("MockFixture: simulate_heartbeat(bpm=%d)", bpm)
 
     def stop_heartbeat(self) -> None:
+        """Stop heartbeat."""
         log.info("MockFixture: stop_heartbeat()")
 
     def connect_charger(self) -> None:
+        """Connect charger."""
         log.info("MockFixture: connect_charger()")
 
     def disconnect_charger(self) -> None:
+        """Disconnect charger."""
         log.info("MockFixture: disconnect_charger()")
 
     def charger_power_on(self) -> None:
+        """Charger power on."""
         log.info("MockFixture: charger_power_on()")
 
     def charger_power_off(self) -> None:
+        """Charger power off."""
         log.info("MockFixture: charger_power_off()")
 
     def shake(self, duration_s: float = 10, speed_mm_s: float = 50) -> None:
+        """Shake."""
         log.info("MockFixture: shake(duration=%.1fs, speed=%.0f mm/s)", duration_s, speed_mm_s)
 
     def stop_motion(self) -> None:
+        """Stop motion."""
         log.info("MockFixture: stop_motion()")
 
     def press_button(self, duration_s: float = 0.5) -> None:
+        """Press button."""
         log.info("MockFixture: press_button(duration=%.1fs)", duration_s)
         self._button_pressed = True
 
@@ -189,6 +207,7 @@ class MockFixtureController:
         self.press_button(duration_s=duration_s)
 
     def long_press_button(self, duration_s: float = 3.0) -> None:
+        """Long press button."""
         log.info("MockFixture: long_press_button(duration=%.1fs)", duration_s)
         # >= 8s press simulates power off (device behavior)
         if duration_s >= 8.0:
@@ -228,6 +247,7 @@ class MockFixtureController:
         return {"3v3": 3.30, "batt_sys": 4.20, "vbckp": 3.30, "sys": 4.50}
 
     def flash_firmware(self, hex_path: str, target: str = "nrf52840") -> None:
+        """Flash firmware."""
         log.info("MockFixture: flash_firmware(%s, target=%s)", hex_path, target)
         # Flashing implies power cycle — reset all transient state
         self._powered = True
@@ -239,18 +259,22 @@ class _MockMtibStub:
     """Minimal MTIB stub so ctx.fixture._mtib.GpioWrite() doesn't crash."""
 
     def __init__(self, fixture: Optional["MockFixtureController"] = None):
+        """  init  ."""
         self._fixture = fixture
 
     def GpioWrite(self, gpio: int, state: bool) -> None:
+        """Gpiowrite."""
         log.info("MockMtib: GpioWrite(gpio=%d, state=%s)", gpio, state)
         # Track peltier state for temperature simulation
         if self._fixture and gpio == self._fixture.profile.peltier_gpio:
             self._fixture._peltier_active = state
 
     def GpioConfig(self, gpio: int, **kwargs) -> None:
+        """Gpioconfig."""
         log.info("MockMtib: GpioConfig(gpio=%d)", gpio)
 
     def GpioRead(self, gpio: int) -> bool:
+        """Gpioread."""
         log.info("MockMtib: GpioRead(gpio=%d)", gpio)
         return False
 
@@ -264,21 +288,27 @@ class MockUartDemuxer:
     """No-op replacement for UartDemuxer in mock mode."""
 
     def __init__(self):
+        """  init  ."""
         self._log_buffer: List[Tuple[float, str]] = []
 
     def start(self) -> None:
+        """Start."""
         log.info("MockUart: start()")
 
     def stop(self) -> None:
+        """Stop."""
         log.info("MockUart: stop()")
 
     def clear(self) -> None:
+        """Clear."""
         self._log_buffer.clear()
 
     def get_lines(self) -> List[Tuple[float, str]]:
+        """Get lines."""
         return list(self._log_buffer)
 
     def dump_to_file(self, path: str) -> None:
+        """Dump to file."""
         log.info("MockUart: dump_to_file(%s) — no data in mock mode", path)
 
 
@@ -305,22 +335,27 @@ class MockPowerMeasurement:
     # Aliases used by PowerProfiler
     @property
     def average_ma(self) -> float:
+        """Average ma."""
         return self.avg_current_ma
 
     @property
     def max_ma(self) -> float:
+        """Max ma."""
         return self.peak_current_ma
 
     @property
     def min_ma(self) -> float:
+        """Min ma."""
         return self.min_current_ma
 
     @property
     def average_mv(self) -> float:
+        """Average mv."""
         return self.avg_voltage_mv
 
     @property
     def sample_count(self) -> int:
+        """Sample count."""
         return self.samples
 
 
@@ -331,6 +366,7 @@ class MockPowerTrace:
     measurement: Optional[MockPowerMeasurement] = None
 
     def __post_init__(self):
+        """  post init  ."""
         if not self.samples:
             # Generate 10 plausible samples
             for i in range(10):
@@ -343,17 +379,21 @@ class MockPowerProfiler:
     """No-op replacement for PowerProfiler in mock mode."""
 
     def __init__(self):
+        """  init  ."""
         self._continuous = False
 
     def measure(self, channel: int = 0, duration_s: float = 10) -> MockPowerMeasurement:
+        """Measure."""
         log.info("MockPower: measure(ch=%d, duration=%.1fs)", channel, duration_s)
         return MockPowerMeasurement(duration_s=duration_s)
 
     def start_continuous(self, channel: int = 0) -> None:
+        """Start continuous."""
         log.info("MockPower: start_continuous(ch=%d)", channel)
         self._continuous = True
 
     def stop_continuous(self) -> MockPowerTrace:
+        """Stop continuous."""
         log.info("MockPower: stop_continuous()")
         self._continuous = False
         return MockPowerTrace()

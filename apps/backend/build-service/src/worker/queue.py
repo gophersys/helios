@@ -71,8 +71,10 @@ class JobQueue:
 
     @property
     def depth(self) -> int:
+        """Current number of items waiting in the queue."""
         return self._queue.qsize()
 
     @property
     def is_empty(self) -> bool:
+        """True when no jobs are waiting to be dequeued."""
         return self._queue.empty()

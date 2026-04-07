@@ -71,6 +71,33 @@ class TestNotifyEndpoint:
         assert job_queue.depth == 1
 
 
+class TestNotifyNoQueue:
+    """Tests for /jobs/notify when queue is not initialized."""
+
+    def test_notify_returns_503_when_queue_not_set(self, config):
+        """Returns 503 when job queue hasn't been injected yet."""
+        set_job_queue(None)
+        app = create_app(config)
+        app.config["TESTING"] = True
+        with app.test_client() as c:
+            resp = c.post("/jobs/notify",
+                          data=json.dumps({"jobId": "job-x"}),
+                          content_type="application/json")
+            assert resp.status_code == 503
+        set_job_queue(None)
+
+
+class TestCancelEndpoint:
+    """Tests for POST /jobs/cancel."""
+
+    def test_cancel_no_active_build(self, client):
+        """Returns 200 with no_active_build when nothing is running."""
+        resp = client.post("/jobs/cancel")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["status"] == "no_active_build"
+
+
 class TestHealthEndpoint:
     def test_health_returns_200(self, client):
         resp = client.get("/health")

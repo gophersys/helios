@@ -126,103 +126,128 @@ class PositionMsgV6(MessageBase, MessageCodec):
 
     @property
     def flags_reserved_31_28(self) -> Optional[int]:
+        """Flags reserved 31 28."""
         return int(get_bits(self.flags, *self.reserved_31_28_bits)) if self.flags is not None else None
 
     @property
     def flags_aiding_data_used(self) -> Optional[bool]:
+        """Flags aiding data used."""
         return bool(get_bits(self.flags, *self.aiding_data_used_bits)) if self.flags is not None else None
 
     @property
     def flags_on_charger(self) -> Optional[bool]:
+        """Flags on charger."""
         return bool(get_bits(self.flags, *self.on_charger_bits)) if self.flags is not None else None
 
     @property
     def flags_fix_type(self) -> Optional[int]:
+        """Flags fix type."""
         return int(get_bits(self.flags, *self.fix_type_bits)) if self.flags is not None else None
 
     @property
     def flags_num_of_satellites(self) -> Optional[int]:
+        """Flags num of satellites."""
         return int(get_bits(self.flags, *self.num_of_satellites_bits)) if self.flags is not None else None
 
     @property
     def flags_confirmed_time_available(self) -> Optional[bool]:
+        """Flags confirmed time available."""
         return bool(get_bits(self.flags, *self.confirmed_time_available_bits)) if self.flags is not None else None
 
     @property
     def flags_confirmed_time(self) -> Optional[bool]:
+        """Flags confirmed time."""
         return bool(get_bits(self.flags, *self.confirmed_time_bits)) if self.flags is not None else None
 
     @property
     def flags_confirmed_date(self) -> Optional[bool]:
+        """Flags confirmed date."""
         return bool(get_bits(self.flags, *self.confirmed_date_bits)) if self.flags is not None else None
 
     @property
     def flags_valid_time(self) -> Optional[bool]:
+        """Flags valid time."""
         return bool(get_bits(self.flags, *self.valid_time_bits)) if self.flags is not None else None
 
     @property
     def flags_valid_date(self) -> Optional[bool]:
+        """Flags valid date."""
         return bool(get_bits(self.flags, *self.valid_date_bits)) if self.flags is not None else None
 
     @property
     def flags_gnss_fix_ok(self) -> Optional[bool]:
+        """Flags gnss fix ok."""
         return bool(get_bits(self.flags, *self.gnss_fix_ok_bits)) if self.flags is not None else None
 
     @property
     def flags_gnss_fix_valid(self) -> Optional[bool]:
+        """Flags gnss fix valid."""
         return bool(get_bits(self.flags, *self.gnss_fix_valid_bits)) if self.flags is not None else None
 
     @property
     def flags_psm_state(self) -> Optional[int]:
+        """Flags psm state."""
         return int(get_bits(self.flags, *self.psm_state_bits)) if self.flags is not None else None
 
     @property
     def flags_reserved_7_5(self) -> Optional[int]:
+        """Flags reserved 7 5."""
         return int(get_bits(self.flags, *self.reserved_7_5_bits)) if self.flags is not None else None
 
     @property
     def flags_update_reason(self) -> Optional[int]:
+        """Flags update reason."""
         return int(get_bits(self.flags, *self.update_reason_bits)) if self.flags is not None else None
 
     @property
     def flags_in_motion(self) -> Optional[bool]:
+        """Flags in motion."""
         return bool(get_bits(self.flags, *self.in_motion_bits)) if self.flags is not None else None
 
     @property
     def update_reason_str(self) -> str:
+        """Update reason str."""
         v = self.flags_update_reason
         return self.update_reason_map.get(v, f"Unknown: {v}")
 
     @property
     def fix_type_str(self) -> str:
+        """Fix type str."""
         v = self.flags_fix_type
         return self.update_reason_map.get(v, f"Unknown: {v}")
 
     @property
     def psm_state_str(self) -> str:
+        """Psm state str."""
         v = self.flags_psm_state
         return self.update_reason_map.get(v, f"Unknown: {v}")
 
     @property
     def pressure_altitude_feet(self) -> Optional[int]:
+        """Pressure altitude feet."""
         return self.pressure_altitude
 
     @property
     def pressure_altitude_meters(self) -> Optional[float]:
+        """Pressure altitude meters."""
         return feet_to_meters(self.pressure_altitude) if self.pressure_altitude is not None else None
 
     @property
     def gps_altitude_feet(self) -> Optional[int]:
+        """Gps altitude feet."""
         return meters_to_feet(self.gps_altitude) if self.gps_altitude is not None else None
 
     @property
     def gps_altitude_meters(self) -> Optional[int]:
+        """Gps altitude meters."""
         return self.gps_altitude
 
     @property
     def temperature_celsius(self) -> Optional[float]:
+        """Temperature celsius."""
         return self.temperature
 
     @property
     def temperature_fahrenheit(self) -> Optional[float]:
+        """Temperature fahrenheit."""
         return celsius_to_fahrenheit(self.temperature) if self.temperature is not None else None

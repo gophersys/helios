@@ -1131,6 +1131,7 @@ class MtibV1Client:
             CHUNK_SIZE = 1024 * 1024  # 1MB chunks
 
             def request_iterator():
+                """Yield UART stream requests from the input queue."""
                 # Stream the file content in chunks
                 with open(file_path, "rb") as f:
                     first_chunk = True

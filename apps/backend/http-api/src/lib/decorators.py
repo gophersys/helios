@@ -52,6 +52,7 @@ def require_auth(f):
 
     @wraps(f)
     def decorated(*args, **kwargs):
+        """Authenticate via JWT or API key, injecting current_user into g."""
         if not env_config.AUTH_ENABLED:
             # If a Bearer token is present, decode it (dev login flow).
             # Otherwise fall back to the default admin identity.
@@ -137,9 +138,11 @@ def require_permissions(*permission_strings):
     """
 
     def decorator(f):
+        """Wrap the handler with auth and permission checks."""
         @wraps(f)
         @require_auth
         def decorated(*args, **kwargs):
+            """Check permissions after authentication."""
             if not env_config.AUTH_ENABLED:
                 g.effective_role = "ADMIN"
                 return f(*args, **kwargs)
@@ -206,9 +209,11 @@ def require_role(min_role: str):
     """
 
     def decorator(f):
+        """Wrap the handler with auth and role-level checks."""
         @wraps(f)
         @require_auth
         def wrapper(*args, **kwargs):
+            """Enforce minimum role level after authentication."""
             if not env_config.AUTH_ENABLED:
                 g.effective_role = "ADMIN"
                 return f(*args, **kwargs)
@@ -235,9 +240,11 @@ def require_product_access(min_level: str, product_param: str = "product_id"):
     LEVEL_HIERARCHY = {"admin": 4, "develop": 3, "operate": 2, "view": 1}
 
     def decorator(f):
+        """Wrap the handler with auth and product-level access checks."""
         @wraps(f)
         @require_auth
         def wrapper(*args, **kwargs):
+            """Enforce product-level access after authentication."""
             if not env_config.AUTH_ENABLED:
                 g.effective_role = "ADMIN"
                 return f(*args, **kwargs)

@@ -48,11 +48,13 @@ class StreamCapture(io.TextIOBase):
     """Tee stream writes to a callback while passing through to the original stream."""
 
     def __init__(self, original_stream, callback):
+        """  init  ."""
         self.original = original_stream
         self.callback = callback
         self._lock = threading.Lock()
 
     def write(self, data):
+        """Write."""
         if data:
             with self._lock:
                 # Write to original stream
@@ -64,15 +66,18 @@ class StreamCapture(io.TextIOBase):
         return len(data) if data else 0
 
     def flush(self):
+        """Flush."""
         if self.original:
             self.original.flush()
 
     def fileno(self):
+        """Fileno."""
         if self.original:
             return self.original.fileno()
         raise io.UnsupportedOperation("fileno")
 
     def isatty(self):
+        """Isatty."""
         return self.original.isatty() if self.original else False
 
 
@@ -83,11 +88,13 @@ class StepReporter:
     """
 
     def __init__(self, reporter: "ConcordReporter", step_name: str):
+        """  init  ."""
         self.reporter = reporter
         self.step_name = step_name
         self.step_index = reporter._next_step_index()
 
     def __enter__(self):
+        """  enter  ."""
         self.reporter._fire_callback("step-start", {
             "testName": self.reporter._current_test_name,
             "deviceSerial": self.reporter._current_device,
@@ -98,6 +105,7 @@ class StepReporter:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """  exit  ."""
         passed = exc_type is None
         self.reporter._fire_callback("step-result", {
             "testName": self.reporter._current_test_name,
@@ -114,9 +122,11 @@ class NoOpStepReporter:
     """No-op step context manager for offline mode."""
 
     def __enter__(self):
+        """  enter  ."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """  exit  ."""
         return False
 
 
@@ -217,6 +227,7 @@ class ConcordReporter:
     # -- HTTP helpers -------------------------------------------------
 
     def _headers(self) -> Dict[str, str]:
+        """ headers."""
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"ApiKey {self.api_key}"

@@ -124,6 +124,7 @@ class GitOps:
         env["GIT_SSH_COMMAND"] = f"ssh -i {self.ssh_key_path} -o StrictHostKeyChecking=no -o BatchMode=yes"
 
         def _log(msg: str):
+            """Log locally and stream the message to the API for the build log."""
             log.info(msg)
             if job_id:
                 self.api_client.stream_log_chunk(job_id, msg + "\n")

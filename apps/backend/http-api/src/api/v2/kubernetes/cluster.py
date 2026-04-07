@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_cluster():
+    """Get cluster version, node count, and resource summary.
+
+    Returns:
+        JSON response with kubernetesVersion, platforms, nodeCount, and resource counts.
+    """
     try:
         data = get_cluster_info()
         return jsonify(ApiResponse.ok(data).to_dict()), 200
@@ -28,6 +33,11 @@ def get_cluster():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_namespaces():
+    """List all Kubernetes namespaces.
+
+    Returns:
+        JSON response with list of namespace dicts.
+    """
     try:
         data = list_namespaces()
         return jsonify(ApiResponse.ok(data).to_dict()), 200

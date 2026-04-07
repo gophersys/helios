@@ -10,6 +10,7 @@ from ..unified_core.message_codec import MessageCodec
 
 @dataclass(frozen=True, slots=True)
 class ThetaHwFailureMessageV1(MessageBase, MessageCodec):
+    """Theta Hw Failure Message V1."""
     __type__ = "UID_563"
     UID = 563
     _schema = {"V1_0": Messagesthetahwfailtbl, "V0_9": None}
@@ -31,6 +32,7 @@ class ThetaHwFailureMessageV1(MessageBase, MessageCodec):
     timestamp: int = 0
 
     def pack_items(self):
+        """Pack items."""
         return [
             ("B", self.message_id),
             ("H", self.message_length),
@@ -68,24 +70,30 @@ class ThetaHwFailureMessageV1(MessageBase, MessageCodec):
 
     @property
     def xlr_failure_reason(self) -> str:
+        """Xlr failure reason."""
         return self._get_reason_from_mapping(self.xlr_fails, self.map_xlr_fails)
 
     @property
     def alt_failure_reason(self) -> str:
+        """Alt failure reason."""
         return self._get_reason_from_mapping(self.alt_fails, self.map_alt_fails)
 
     @property
     def gps_failure_reason(self) -> str:
+        """Gps failure reason."""
         return self._get_reason_from_mapping(self.gps_fails, self.map_gps_fails)
 
     @property
     def bms_failure_reason(self) -> str:
+        """Bms failure reason."""
         return self._get_reason_from_mapping(self.bms_fails, self.map_bms_fails)
 
     @property
     def ext_flash_failure_reason(self) -> str:
+        """Ext flash failure reason."""
         return self._get_reason_from_mapping(self.ext_flash_fails, self.map_ext_flash_fails)
 
     @property
     def batt_charger_failure_reason(self) -> str:
+        """Batt charger failure reason."""
         return self._get_reason_from_mapping(self.batt_charger_fails, self.map_batt_charger_fails)

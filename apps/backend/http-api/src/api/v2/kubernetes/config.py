@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_configmaps():
+    """List Kubernetes ConfigMaps with optional namespace and label filtering.
+
+    Returns:
+        JSON response with paginated list of ConfigMap dicts.
+    """
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = config_svc.list_configmaps(
@@ -36,6 +41,15 @@ def list_configmaps():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_configmap(namespace: str, name: str):
+    """Get a specific ConfigMap with its data.
+
+    Args:
+        namespace: Kubernetes namespace.
+        name: ConfigMap name.
+
+    Returns:
+        JSON response with ConfigMap dict including data keys.
+    """
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")
@@ -56,6 +70,11 @@ def get_configmap(namespace: str, name: str):
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_secrets():
+    """List Kubernetes Secrets with optional namespace and label filtering.
+
+    Returns:
+        JSON response with paginated list of Secret dicts (without secret values).
+    """
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     try:
         data = config_svc.list_secrets(
@@ -74,6 +93,7 @@ def list_secrets():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_secret(namespace: str, name: str):
+    """Get a specific Kubernetes secret with masked data preview."""
     err = validate_k8s_name(namespace, "namespace")
     if err: return err
     err = validate_k8s_name(name, "name")

@@ -26,44 +26,55 @@ class GitPollerConfig(EnvConfig):
     # Lowercase property aliases used throughout the codebase
     @property
     def environment(self) -> str:
+        """Deployment environment name (e.g. development, staging, production)."""
         return self.ENVIRONMENT
 
     @property
     def concord_api_url(self) -> str:
+        """Base URL of the Concord HTTP API used for state and event dispatch."""
         return self.CONCORD_API_URL
 
     @property
     def concord_api_key(self) -> str:
+        """API key sent as ``Authorization: ApiKey <key>`` to the Concord API."""
         return self.CONCORD_API_KEY
 
     @property
     def poll_interval(self) -> int:
+        """Seconds to wait between poll cycles."""
         return self.POLL_INTERVAL
 
     @property
     def product_cache_ttl(self) -> int:
+        """Seconds to cache the product/watch-target list before re-fetching."""
         return self.PRODUCT_CACHE_TTL
 
     @property
     def service_port(self) -> int:
+        """TCP port for the health/readiness HTTP server."""
         return self.SERVICE_PORT
 
     @property
     def ssh_key_path(self) -> str:
+        """Filesystem path where the SSH private key is written (or expected)."""
         return self.SSH_KEY_PATH
 
     @property
     def bitbucket_ssh_key(self) -> str:
+        """Base64-encoded SSH private key written to ssh_key_path at startup."""
         return self.BITBUCKET_SSH_KEY
 
     @property
     def bitbucket_workspace(self) -> str:
+        """Bitbucket workspace (organisation) slug used in REST API calls."""
         return self.BITBUCKET_WORKSPACE
 
     @property
     def bitbucket_api_token(self) -> str:
+        """Bitbucket Cloud API token for REST API authentication."""
         return self.BITBUCKET_API_TOKEN
 
     @property
     def bitbucket_email(self) -> str:
+        """Email address paired with bitbucket_api_token for Basic auth."""
         return self.BITBUCKET_EMAIL

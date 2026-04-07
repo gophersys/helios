@@ -59,6 +59,7 @@ class BootInfo:
         )
 
     def to_api(self) -> Dict[str, Any]:
+        """Serialize to CoreCloud API JSON (camelCase keys)."""
         return {
             "recordId": self.record_id,
             "timeOfBoot": self.time_of_boot,
@@ -89,6 +90,7 @@ class PositionInfo:
 
     @classmethod
     def from_api(cls, data: Dict[str, Any]) -> PositionInfo:
+        """Construct from CoreCloud API JSON (camelCase keys)."""
         if not data:
             return cls()
         return cls(
@@ -111,6 +113,7 @@ class PositionInfo:
         )
 
     def to_api(self) -> Dict[str, Any]:
+        """Serialize to CoreCloud API JSON (camelCase keys)."""
         return {
             "recordId": self.record_id,
             "timeOfFix": self.time_of_fix,
@@ -158,6 +161,7 @@ class HwFailInfo:
 
     @classmethod
     def from_api(cls, data: Dict[str, Any]) -> HwFailInfo:
+        """Construct from CoreCloud API JSON (camelCase keys)."""
         if not data:
             return cls()
         return cls(
@@ -175,6 +179,7 @@ class HwFailInfo:
         )
 
     def to_api(self) -> Dict[str, Any]:
+        """Serialize to CoreCloud API JSON (camelCase keys)."""
         return {
             "recordId": self.record_id,
             "timeOfEvent": self.time_of_event,
@@ -205,6 +210,7 @@ class CommsHwFailInfo:
 
     @property
     def has_failures(self) -> bool:
+        """True if any failure counter is non-zero."""
         return any([
             self.sim_fails, self.lora_fails, self.ipc_fails,
             self.ext_flash_fails, self.sec_elem_fails, self.sat_modem_fails,
@@ -212,6 +218,7 @@ class CommsHwFailInfo:
 
     @classmethod
     def from_api(cls, data: Dict[str, Any]) -> CommsHwFailInfo:
+        """Construct from CoreCloud API JSON (camelCase keys)."""
         if not data:
             return cls()
         return cls(
@@ -226,6 +233,7 @@ class CommsHwFailInfo:
         )
 
     def to_api(self) -> Dict[str, Any]:
+        """Serialize to CoreCloud API JSON (camelCase keys)."""
         return {
             "recordId": self.record_id,
             "timeOfEvent": self.time_of_event,
@@ -291,6 +299,7 @@ class DeviceInfo:
 
     @classmethod
     def from_api(cls, data: Dict[str, Any]) -> DeviceInfo:
+        """Construct from CoreCloud API JSON (camelCase keys)."""
         if not data:
             return cls()
         return cls(
@@ -398,6 +407,7 @@ class FuotaStage:
 
     @classmethod
     def from_api(cls, data: Dict[str, Any]) -> FuotaStage:
+        """Construct from CoreCloud API JSON (camelCase keys)."""
         if not data:
             return cls()
         return cls(
@@ -407,6 +417,7 @@ class FuotaStage:
         )
 
     def to_api(self) -> Dict[str, Any]:
+        """Serialize to CoreCloud API JSON (camelCase keys)."""
         return {
             "targets": self.targets,
             "description": self.description,
@@ -426,6 +437,7 @@ class FuotaPlan:
 
     @classmethod
     def from_api(cls, data: Dict[str, Any]) -> FuotaPlan:
+        """Construct from CoreCloud API JSON (camelCase keys)."""
         if not data:
             return cls()
         raw_stages = data.get("stages", [])
@@ -452,10 +464,12 @@ class FuotaProgress:
 
     @property
     def is_complete(self) -> bool:
+        """True if delivery has reached 100%."""
         return self.percent_complete >= 100
 
     @classmethod
     def from_api(cls, data: Dict[str, Any]) -> FuotaProgress:
+        """Construct from CoreCloud API JSON (camelCase keys)."""
         if not data:
             return cls()
         return cls(
@@ -480,6 +494,7 @@ class FuotaDeviceSettings:
 
     @classmethod
     def from_api(cls, data: Dict[str, Any]) -> FuotaDeviceSettings:
+        """Construct from CoreCloud API JSON (camelCase keys)."""
         if not data:
             return cls()
         return cls(
@@ -498,6 +513,7 @@ class FuotaAssignResult:
 
     @classmethod
     def from_api(cls, data: Dict[str, Any]) -> FuotaAssignResult:
+        """Construct from CoreCloud API JSON (camelCase keys)."""
         if not data:
             return cls()
         return cls(
@@ -519,10 +535,12 @@ class RegistrationResult:
 
     @property
     def any_newly_registered(self) -> bool:
+        """True if at least one device was newly registered."""
         return len(self.registered_devices) > 0
 
     @classmethod
     def from_api(cls, data: Dict[str, Any]) -> RegistrationResult:
+        """Construct from CoreCloud API JSON (camelCase keys)."""
         if not data:
             return cls()
         return cls(

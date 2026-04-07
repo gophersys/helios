@@ -140,6 +140,7 @@ def register_exec_handlers(socketio: SocketIO):
                 traceback.print_exc()
 
         def run_exec():
+            """Background task that reads K8s exec output and emits via WebSocket."""
             # Start blocking K8s websocket reader in a real OS thread
             reader = threading.Thread(target=_blocking_reader, daemon=True)
             reader.start()

@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_events():
+    """List Kubernetes events with optional type filtering."""
     page, limit, namespace, label_selector, field_selector = parse_list_params()
     event_type = request.args.get("type", None)  # Normal or Warning
 

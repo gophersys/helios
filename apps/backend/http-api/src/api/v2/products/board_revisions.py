@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def _serialize_revision(r) -> dict:
+    """Serialize a BoardRevision DB record to an API response dict."""
     result = {
         "id": r.id,
         "boardId": r.boardId,
@@ -66,6 +67,7 @@ def get_board_revision(product_id: str, board_id: str, revision_id: str):
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def create_board_revision(product_id: str, board_id: str):
+    """POST — create a new board revision under a board."""
     db = get_db_client()
 
     # Validate board exists and belongs to product
@@ -118,6 +120,7 @@ def create_board_revision(product_id: str, board_id: str):
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def update_board_revision(product_id: str, board_id: str, revision_id: str):
+    """PUT — update a board revision's properties and cascade status changes."""
     db = get_db_client()
 
     # Validate board exists and belongs to product
@@ -187,6 +190,7 @@ def update_board_revision(product_id: str, board_id: str, revision_id: str):
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def delete_board_revision(product_id: str, board_id: str, revision_id: str):
+    """DELETE — remove a board revision and its targets."""
     db = get_db_client()
 
     # Validate board exists and belongs to product
@@ -214,6 +218,7 @@ def delete_board_revision(product_id: str, board_id: str, revision_id: str):
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def create_target(product_id: str, board_id: str, revision_id: str):
+    """POST — add a product target (processor role + appId) to a revision."""
     db = get_db_client()
 
     board = db.board.find_first(where={"id": board_id, "productId": product_id})
@@ -255,6 +260,7 @@ def create_target(product_id: str, board_id: str, revision_id: str):
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def update_target(product_id: str, board_id: str, revision_id: str, target_id: str):
+    """PUT — update a product target's role, soc, or appId."""
     db = get_db_client()
 
     board = db.board.find_first(where={"id": board_id, "productId": product_id})
@@ -304,6 +310,7 @@ def update_target(product_id: str, board_id: str, revision_id: str, target_id: s
 
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def delete_target(product_id: str, board_id: str, revision_id: str, target_id: str):
+    """DELETE — remove a product target from a revision."""
     db = get_db_client()
 
     board = db.board.find_first(where={"id": board_id, "productId": product_id})

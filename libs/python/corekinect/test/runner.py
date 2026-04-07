@@ -238,13 +238,16 @@ class PreflightResult:
 
     @property
     def passed(self) -> bool:
+        """Passed."""
         return all(c.passed for c in self.checks)
 
     @property
     def failed_checks(self) -> List[CheckResult]:
+        """Failed checks."""
         return [c for c in self.checks if not c.passed]
 
     def to_dict(self) -> Dict[str, Any]:
+        """To dict."""
         return {
             "passed": self.passed,
             "startedAt": self.started_at.isoformat(),
@@ -276,6 +279,7 @@ class PreflightChecker:
     ]
 
     def __init__(self, config: StageConfig):
+        """  init  ."""
         self.config = config
 
     def check_all(self) -> PreflightResult:
@@ -442,6 +446,7 @@ class RunReporter:
     """Reports run progress to Concord API."""
 
     def __init__(self, run_id: str):
+        """  init  ."""
         self.run_id = run_id
         self.api_url = os.environ.get("CONCORD_API_URL", "").rstrip("/")
         self.api_key = os.environ.get("CONCORD_API_KEY", "")
@@ -502,6 +507,7 @@ class ArtifactCollector:
     """Collects and uploads test artifacts."""
 
     def __init__(self, config: StageConfig, reporter: RunReporter):
+        """  init  ."""
         self.config = config
         self.reporter = reporter
         self.artifacts_dir = Path(os.environ.get("ARTIFACTS_DIR", "/tmp/artifacts"))
@@ -534,6 +540,7 @@ class ValidationRunner:
     """Unified validation test runner."""
 
     def __init__(self, stage: str, run_id: str):
+        """  init  ."""
         self.stage = stage
         self.run_id = run_id
         self.config = StageConfig.load(stage)

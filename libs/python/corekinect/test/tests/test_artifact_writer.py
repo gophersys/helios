@@ -23,9 +23,11 @@ class TestPowerFormat:
     """Test binary power trace format."""
 
     def test_header_size_constant(self):
+        """Test header size constant."""
         assert POWER_HEADER_SIZE == 32
 
     def test_magic_value(self):
+        """Test magic value."""
         assert POWER_MAGIC == b"CKPWR001"
         assert len(POWER_MAGIC) == 8
 

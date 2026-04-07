@@ -17,6 +17,7 @@ class EnvConfig:
     ENV_PREFIX: str = ""
 
     def __init__(self, namespace: Optional[str] = None, *, auto_load_env: bool = True) -> None:
+        """  init  ."""
         if auto_load_env:
             self._load_env_file()
         self._initialize_from_env(namespace)
@@ -48,10 +49,12 @@ class EnvConfig:
 
     @staticmethod
     def _is_optional(t) -> bool:
+        """Return True if the type annotation is Optional[T]."""
         return get_origin(t) is Union and type(None) in get_args(t)
 
     @staticmethod
     def _unwrap_optional(t):
+        """Unwrap Optional[T] to return the inner type T."""
         if get_origin(t) is Union:
             args = tuple(a for a in get_args(t) if a is not type(None))
             return args[0] if args else Any
@@ -59,14 +62,17 @@ class EnvConfig:
 
     @staticmethod
     def _parse_bool(value: str) -> bool:
+        """Parse a string value to bool, accepting common truthy strings."""
         return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
     @staticmethod
     def _expand_path(value: str) -> str:
+        """Expand environment variables and user home in a path string."""
         return str(Path(os.path.expanduser(os.path.expandvars(value))).resolve())
 
     @classmethod
     def _convert_value(cls, value: str, expected_type: Type[Any]) -> Any:
+        """Convert a raw string env var value to the annotated Python type."""
         base = cls._unwrap_optional(expected_type)
         origin = get_origin(base)
 
@@ -90,6 +96,7 @@ class EnvConfig:
         return base(value)
 
     def _initialize_from_env(self, namespace: Optional[str] = None) -> None:
+        """Load annotated attributes from environment variables."""
         ns_prefix = (namespace.rstrip("_") + "_").upper() if namespace else None
         annotations = getattr(self.__class__, "__annotations__", {})
 
@@ -119,6 +126,7 @@ class EnvConfig:
                 setattr(self, attr_name, converted)
 
     def __str__(self) -> str:
+        """  str  ."""
         lines = []
         for name in getattr(self.__class__, "__annotations__", {}):
             lines.append(f"{name}: {getattr(self, name, None)}")

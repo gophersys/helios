@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def _serialize_audit_log(entry: Any) -> dict:
+    """Serialize an AuditLog DB record to an API response dict."""
     data = {
         "id": entry.id,
         "userId": entry.userId,

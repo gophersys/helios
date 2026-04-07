@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 # -------------------------------------------------
 
 def _serialize_session(s: Any, include_executions: bool = False) -> dict:
+    """Serialize a Session DB record to an API response dict."""
     data = {
         "id": s.id,
         "name": s.name,
@@ -67,6 +68,7 @@ def _serialize_session(s: Any, include_executions: bool = False) -> dict:
 
 
 def _serialize_device(d: Any) -> dict:
+    """Serialize a SessionDevice DB record to an API response dict."""
     data = {
         "id": d.id,
         "serialNumber": d.serialNumber,
@@ -80,6 +82,7 @@ def _serialize_device(d: Any) -> dict:
 
 
 def _serialize_execution(ex: Any, include_results: bool = False) -> dict:
+    """Serialize a TestExecution DB record to an API response dict."""
     data = {
         "id": ex.id,
         "testId": ex.testId,
@@ -103,6 +106,7 @@ def _serialize_execution(ex: Any, include_results: bool = False) -> dict:
 
 
 def _serialize_step(step: Any) -> dict:
+    """Serialize a TestStep DB record to an API response dict."""
     return {
         "id": step.id,
         "executionId": step.executionId,
@@ -121,6 +125,7 @@ def _serialize_step(step: Any) -> dict:
 
 
 def _serialize_build_job(b: Any) -> dict:
+    """Serialize a BuildJob DB record to an API response dict."""
     # Calculate duration from timestamps if available
     duration_seconds = None
     if b.startedAt and b.finishedAt:
@@ -162,6 +167,7 @@ def _serialize_build_job(b: Any) -> dict:
 
 
 def _serialize_build_run(p: Any) -> dict:
+    """Serialize a BuildRun DB record to an API response dict."""
     data = {
         "id": p.id,
         "name": p.name,

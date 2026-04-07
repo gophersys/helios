@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def list_nodes():
+    """List all Kubernetes nodes with resource allocation summaries.
+
+    Returns:
+        JSON response with list of node dicts including CPU, memory, and pod allocation.
+    """
     try:
         data = nodes_svc.list_nodes()
         return jsonify(ApiResponse.ok(data).to_dict()), 200
@@ -28,6 +33,14 @@ def list_nodes():
 
 @require_permissions(Permissions.KUBERNETES_VIEW)
 def get_node(node_name: str):
+    """Get a specific Kubernetes node with pods and resource allocation.
+
+    Args:
+        node_name: Hostname of the Kubernetes node.
+
+    Returns:
+        JSON response with node data, allocated resources, and running pods.
+    """
     try:
         data = nodes_svc.get_node(node_name)
         if data is None:

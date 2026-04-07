@@ -17,6 +17,7 @@ from ..src.encoding import (
 
 
 def test_to_hex():
+    """Test to hex."""
     data = b"\x00\xff"
     assert to_hex(data) == "00ff"
     data = b"hello"
@@ -24,6 +25,7 @@ def test_to_hex():
 
 
 def test_hex_to_base10():
+    """Test hex to base10."""
     assert hex_to_base10("0x1a") == 26
     assert hex_to_base10("1a") == 26
     assert hex_to_base10(26) == 26
@@ -32,6 +34,7 @@ def test_hex_to_base10():
 
 
 def test_int_to_padded_hex():
+    """Test int to padded hex."""
     assert int_to_padded_hex(26, num_bytes=2) == "001a"
     assert int_to_padded_hex(255, num_bytes=1) == "ff"
     result = int_to_padded_hex(1, num_bytes=4, do_print=True)
@@ -39,6 +42,7 @@ def test_int_to_padded_hex():
 
 
 def test_int_to_padded_bin():
+    """Test int to padded bin."""
     assert int_to_padded_bin(5, num_bytes=1) == "00000101"
     assert int_to_padded_bin(255, num_bytes=2) == "0000000011111111"
     result = int_to_padded_bin(3, num_bytes=4, do_print=True)
@@ -46,6 +50,7 @@ def test_int_to_padded_bin():
 
 
 def test_hex_to_base64():
+    """Test hex to base64."""
     hex_str = "48656c6c6f"  # 'Hello'
     assert hex_to_base64(hex_str) == base64.b64encode(b"Hello").decode("utf-8")
     hex_str = "776f726c64"  # 'world'
@@ -53,6 +58,7 @@ def test_hex_to_base64():
 
 
 def test_to_base64():
+    """Test to base64."""
     data = b"Hello World"
     assert to_base64(data) == base64.b64encode(data).decode("utf-8")
     data = b"\x00\xff\x10"
@@ -60,6 +66,7 @@ def test_to_base64():
 
 
 def test_to_bin():
+    """Test to bin."""
     assert to_bin(5) == "101"
     assert to_bin("0b1010") == "1010"
     assert to_bin("10") == "1010"  # Interpreted as decimal 10
@@ -68,6 +75,7 @@ def test_to_bin():
 
 
 def test_print_binary(capsys):
+    """Test print binary."""
     print_binary(5)
     captured = capsys.readouterr()
     assert captured.out.strip() == "101"
@@ -78,5 +86,6 @@ def test_print_binary(capsys):
 
 @pytest.mark.skip(reason="Test not implemented")
 def test_hex_lat_long_to_base_10():
+    """Test hex lat long to base 10."""
     # test not implemented
     pass

@@ -66,6 +66,7 @@ def simulate_run(run_id: str):
     total = len(DEMO_TESTS)
 
     def _run_simulation():
+        """Emit simulated test events on a background timer."""
         nonlocal passed_count, failed_count
 
         for i, test in enumerate(DEMO_TESTS):

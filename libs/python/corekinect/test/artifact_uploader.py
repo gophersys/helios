@@ -28,6 +28,7 @@ class ArtifactUploader:
     """Uploads test artifacts to MinIO. Opt-in via STORAGE_URL env var."""
 
     def __init__(self):
+        """  init  ."""
         cfg = _StorageConfig()
         self.storage_url = cfg.STORAGE_URL or ""
         self.access_key = cfg.STORAGE_ACCESS_KEY or ""
@@ -38,6 +39,7 @@ class ArtifactUploader:
         self._client: Optional[Minio] = None
 
     def _get_client(self) -> "Minio":
+        """ get client."""
         if self._client is None:
             # Strip http:// prefix for Minio client
             endpoint = self.storage_url.replace("http://", "").replace("https://", "")

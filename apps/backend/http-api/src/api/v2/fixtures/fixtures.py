@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 @require_permissions(Permissions.FIXTURES_VIEW)
 def dashboard_overview():
+    """Get fixture dashboard with health summaries for all fixtures."""
     db = get_db_client()
 
     fixtures = db.fixture.find_many(
@@ -101,6 +102,7 @@ def dashboard_overview():
 
 
 def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
+    """Serialize a Fixture DB record to an API response dict."""
     data = {
         "id": f.id,
         "name": f.name,
@@ -137,6 +139,7 @@ def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
 
 
 def _serialize_slot(s: Any) -> dict:
+    """Serialize a FixtureSlot DB record to an API response dict."""
     data = {
         "id": s.id,
         "fixtureId": s.fixtureId,
@@ -173,6 +176,7 @@ def _serialize_slot(s: Any) -> dict:
 
 @require_permissions(Permissions.FIXTURES_VIEW)
 def list_fixtures():
+    """List fixtures with pagination and optional type/product filtering."""
     db = get_db_client()
 
     page = max(1, request.args.get("page", 1, type=int))
@@ -210,6 +214,7 @@ def list_fixtures():
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def create_fixture():
+    """Create a fixture with auto-generated slots."""
     data, error = FixtureCreateRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
@@ -268,6 +273,7 @@ def create_fixture():
 
 @require_permissions(Permissions.FIXTURES_VIEW)
 def get_fixture(fixture_id: str):
+    """Get a fixture with its slots and node details."""
     db = get_db_client()
     fixture = db.fixture.find_unique(
         where={"id": fixture_id},
@@ -287,6 +293,7 @@ def get_fixture(fixture_id: str):
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def update_fixture(fixture_id: str):
+    """Update a fixture's properties."""
     data, error = FixtureUpdateRequest.from_json(request.get_json())
     if error:
         return bad_request(error)
@@ -317,6 +324,7 @@ def update_fixture(fixture_id: str):
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def delete_fixture(fixture_id: str):
+    """Delete a fixture if it has no slots with assigned nodes."""
     db = get_db_client()
     existing = db.fixture.find_unique(
         where={"id": fixture_id},
@@ -343,6 +351,7 @@ def delete_fixture(fixture_id: str):
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def create_slot(fixture_id: str):
+    """Add a new slot to a fixture."""
     db = get_db_client()
     fixture = db.fixture.find_unique(where={"id": fixture_id})
     if not fixture:
@@ -393,6 +402,7 @@ def create_slot(fixture_id: str):
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def update_slot(fixture_id: str, slot_id: str):
+    """Update a fixture slot's properties."""
     db = get_db_client()
     slot = db.fixtureslot.find_first(
         where={"id": slot_id, "fixtureId": fixture_id}
@@ -416,6 +426,7 @@ def update_slot(fixture_id: str, slot_id: str):
 
 @require_permissions(Permissions.FIXTURES_MANAGE)
 def delete_slot(fixture_id: str, slot_id: str):
+    """Delete a fixture slot if it has no assigned node."""
     db = get_db_client()
     slot = db.fixtureslot.find_first(
         where={"id": slot_id, "fixtureId": fixture_id},

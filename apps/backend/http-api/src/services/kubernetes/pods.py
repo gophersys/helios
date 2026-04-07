@@ -13,6 +13,16 @@ def list_pods(
     label_selector: str | None = None,
     field_selector: str | None = None,
 ) -> list[dict]:
+    """List Pods across all namespaces or within a specific namespace.
+
+    Args:
+        namespace: Limit results to this namespace. If None, lists cluster-wide.
+        label_selector: Optional Kubernetes label selector string.
+        field_selector: Optional Kubernetes field selector string.
+
+    Returns:
+        List of serialized Pod summary dicts.
+    """
     core = get_core_v1_api()
     kwargs = {}
     if label_selector:
@@ -29,6 +39,16 @@ def list_pods(
 
 
 def get_pod(namespace: str, name: str) -> dict | None:
+    """Fetch a single Pod by namespace and name with events.
+
+    Args:
+        namespace: Kubernetes namespace of the Pod.
+        name: Name of the Pod.
+
+    Returns:
+        Detailed serialized Pod dict with conditions, volumes, tolerations, and events,
+        or None if not found.
+    """
     core = get_core_v1_api()
     try:
         pod = core.read_namespaced_pod(name, namespace)
@@ -109,6 +129,15 @@ def get_pod_logs(
 
 
 def delete_pod(namespace: str, name: str) -> bool:
+    """Delete a Pod by namespace and name.
+
+    Args:
+        namespace: Kubernetes namespace of the Pod.
+        name: Name of the Pod.
+
+    Returns:
+        True on success, False if the Kubernetes API call fails.
+    """
     core = get_core_v1_api()
     try:
         core.delete_namespaced_pod(name, namespace)

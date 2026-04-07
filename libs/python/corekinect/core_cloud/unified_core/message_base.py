@@ -74,6 +74,7 @@ class MessageBase(Generic[TMsg]):
     @classmethod
     @lru_cache(maxsize=64)
     def _schema_config(cls, env: Env) -> RepositorySchemaConfig:
+        """ schema config."""
         schema_version: Schema = SCHEMA_BY_ENV[env]
         schema_mapping = cls._schema
 
@@ -119,6 +120,7 @@ class MessageBase(Generic[TMsg]):
     @classmethod
     @lru_cache(maxsize=64)
     def _get_message_mapper(cls, env: Env):
+        """ get message mapper."""
         schema_version: Schema = SCHEMA_BY_ENV[env]
         return message_mapper(cls, schema_version)
 
