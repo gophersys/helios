@@ -64,11 +64,11 @@ httpApi:
   nodeSelector: {}
   probes:
     readiness:
-      path: /v2/docs
+      path: /ready
       initialDelaySeconds: 10
       periodSeconds: 10
     liveness:
-      path: /v2/docs
+      path: /health
       initialDelaySeconds: 30
       periodSeconds: 30
 
@@ -96,6 +96,13 @@ docs:
   image:
     repository: containers.ad.corekinect.com/concord-docs
     tag: staging
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
 
 # ── Ingress ─────────────────────────────────────────────────
 ingress:
@@ -122,11 +129,21 @@ config:
 # ── Git Poller ────────────────────────────────────────────────
 gitPoller:
   enabled: false
-  pollInterval: "15"
+  pollInterval: "5"
+  productCacheTtl: "60"
+  bitbucketWorkspace: "corekinect"
   nodeSelector: {}
   image:
     repository: containers.ad.corekinect.com/concord-git-poller
     tag: latest
+  port: 9003
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
 
 # ── Secrets ─────────────────────────────────────────────────
 # IMPORTANT: Real secret values should go in values-<env>-secrets.yaml (gitignored).

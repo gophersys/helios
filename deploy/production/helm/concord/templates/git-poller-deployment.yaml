@@ -72,27 +72,22 @@ spec:
                   key: bitbucket-api-token
                   optional: true
           ports:
-            - containerPort: 9003
+            - containerPort: {{ .Values.gitPoller.port }}
               name: health
           readinessProbe:
             httpGet:
               path: /ready
-              port: 9003
+              port: {{ .Values.gitPoller.port }}
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health
-              port: 9003
+              port: {{ .Values.gitPoller.port }}
             initialDelaySeconds: 15
             periodSeconds: 30
           resources:
-            requests:
-              cpu: "50m"
-              memory: "64Mi"
-            limits:
-              cpu: "200m"
-              memory: "128Mi"
+            {{- toYaml .Values.gitPoller.resources | nindent 12 }}
           volumeMounts:
             - name: ssh-key
               mountPath: /root/.ssh
