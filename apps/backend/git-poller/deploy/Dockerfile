@@ -27,5 +27,6 @@ ENV PYTHONPATH="/app/libs/python:${PYTHONPATH}"
 
 COPY apps/backend/git-poller/src/ src/
 
+ENV PYTHONPATH="/app/src:${PYTHONPATH}"
 EXPOSE 9003
-CMD ["python3", "-u", "-m", "src.main"]
+CMD ["python3", "-u", "-m", "main"]
