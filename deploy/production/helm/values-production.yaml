@@ -66,6 +66,7 @@ config:
   BITBUCKET_SSH_KEY: "" # Set via values-production-secrets.yaml
   CK_BOARDS_REPO_URL: "git@bitbucket.org:corekinect/ck_boards.git"
   CK_BOARDS_FETCH_INTERVAL: "60"
+  BUILD_SERVICE_URL: "http://concord-build-service:9002"
   STORAGE_URL: "http://concord-minio:9000"
   STORAGE_BUCKET_NAME: "concord"
   AUTH_SERVER_URL: "https://auth.office.corekinect.cloud:2013"
@@ -86,10 +87,11 @@ buildService:
       cpu: "2"
       memory: "2Gi"
 
-# Git Poller — polls firmware repos for new commits
+# Git Poller — stage-aware polling for PR + branch changes
 gitPoller:
   enabled: true
-  pollInterval: "300"
+  pollInterval: "5"
+  productCacheTtl: "60"
   image:
     repository: containers.ad.corekinect.com/concord-git-poller
     tag: production

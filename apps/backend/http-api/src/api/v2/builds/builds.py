@@ -366,6 +366,15 @@ def create_build():
             "triggerType": data.trigger_type,
         })
 
+        # Notify build service (fire-and-forget)
+        if build.status == "QUEUED":
+            try:
+                from services.build_notifier import notify_build_service
+                priority = 100 if data.trigger_type == "manual" else 50
+                notify_build_service(build.id, priority=priority)
+            except Exception:
+                pass  # Fallback poll will catch it
+
         return jsonify(ApiResponse.created(_serialize_build_job(build)).to_dict()), 201
 
     except Exception as e:
@@ -852,3 +861,31 @@ def stream_build_log(build_id: str):
     except Exception as e:
         logger.error("Failed to stream build log: %s", e)
         return internal_error("Failed to stream build log")
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def report_build_progress(build_id: str):
+    """POST /v2/builds/<id>/progress — Report step-level build progress.
+
+    Used by build workers to report which stage they're in.
+    Broadcasts via WebSocket for real-time UI updates.
+    """
+    from .webhook import _emit_ci_event
+
+    data = request.get_json() or {}
+    step = data.get("step", "")
+    progress = data.get("progress", 0)
+    message = data.get("message", "")
+
+    if not step:
+        return bad_request("step is required")
+
+    # Broadcast via WebSocket
+    _emit_ci_event("ci_build_progress", {
+        "buildId": build_id,
+        "step": step,
+        "progress": progress,
+        "message": message,
+    })
+
+    return jsonify(ApiResponse.ok({"step": step, "progress": progress}).to_dict()), 200

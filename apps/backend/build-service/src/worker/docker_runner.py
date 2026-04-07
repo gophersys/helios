@@ -20,10 +20,19 @@ import re
 import signal
 import subprocess
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 log = logging.getLogger("build-service")
+
+
+@dataclass
+class DevcontainerConfig:
+    """Parsed devcontainer.json configuration relevant to CI builds."""
+    image: str = ""
+    container_env: Dict[str, str] = field(default_factory=dict)
+    post_create_command: Optional[str] = None
 
 
 class DockerBuildRunner:
@@ -70,6 +79,48 @@ class DockerBuildRunner:
         except Exception as e:
             log.warning("Failed to parse devcontainer.json in %s: %s", repo_dir, e)
         return None
+
+    @staticmethod
+    def parse_devcontainer(repo_dir: Path) -> DevcontainerConfig:
+        """Parse a repo's .devcontainer/devcontainer.json for CI-relevant fields.
+
+        Extracts:
+          - image: container image URL
+          - containerEnv: environment variables to pass to the builder
+          - postCreateCommand: command to run after container creation (before build)
+
+        Returns a DevcontainerConfig with defaults for any missing fields.
+        """
+        devcontainer = repo_dir / ".devcontainer" / "devcontainer.json"
+        config = DevcontainerConfig()
+
+        if not devcontainer.exists():
+            return config
+
+        try:
+            text = devcontainer.read_text()
+            # Strip // comments (common in devcontainer.json)
+            text = re.sub(r"//.*$", "", text, flags=re.MULTILINE)
+            data = json.loads(text)
+
+            config.image = data.get("image", "")
+            config.container_env = data.get("containerEnv", {})
+
+            # postCreateCommand can be a string or a list
+            pcc = data.get("postCreateCommand")
+            if isinstance(pcc, list):
+                config.post_create_command = " && ".join(pcc)
+            elif isinstance(pcc, str):
+                config.post_create_command = pcc
+
+            if config.image:
+                log.info("Parsed devcontainer.json: image=%s, env_vars=%d, postCreate=%s",
+                         config.image, len(config.container_env),
+                         "yes" if config.post_create_command else "no")
+        except Exception as e:
+            log.warning("Failed to parse devcontainer.json in %s: %s", repo_dir, e)
+
+        return config
 
     @staticmethod
     def extract_ncs_version(image: str) -> Optional[str]:
@@ -216,6 +267,7 @@ class DockerBuildRunner:
         job_id: str,
         env: Dict[str, str],
         cmd: List[str],
+        container_env: Optional[Dict[str, str]] = None,
     ) -> List[str]:
         """Construct the docker run command with proper mounts and env vars."""
         docker_cmd = [
@@ -265,6 +317,12 @@ class DockerBuildRunner:
             if key in ("ZEPHYR_BASE", "ZEPHYR_SDK_INSTALL_DIR", "ZEPHYR_TOOLCHAIN_VARIANT"):
                 continue  # Let the image defaults apply
             docker_cmd.extend(["-e", f"{key}={value}"])
+
+        # Merge containerEnv from devcontainer.json (lower priority than build env)
+        if container_env:
+            for key, value in container_env.items():
+                if key not in env and key not in ("ZEPHYR_BASE", "ZEPHYR_SDK_INSTALL_DIR", "ZEPHYR_TOOLCHAIN_VARIANT"):
+                    docker_cmd.extend(["-e", f"{key}={value}"])
 
         # Always set ccache env vars
         docker_cmd.extend([

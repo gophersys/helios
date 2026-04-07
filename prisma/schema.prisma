@@ -584,6 +584,9 @@ model BuildJob {
   buildRunId String?
   buildRun   BuildRun? @relation(fields: [buildRunId], references: [id])
 
+  // Priority queue — higher number = processed first (manual=100, webhook=50, scheduled=25)
+  priority Int @default(50)
+
   // Worker info
   workerId String? /// Node/host that built this (e.g. "wanda")
 
@@ -607,6 +610,7 @@ model BuildJob {
   @@index([matrixLabel])
   @@index([productId])
   @@index([status])
+  @@index([status, priority])
   @@index([buildRunId])
   @@index([buildFingerprint])
   @@map("build_jobs")

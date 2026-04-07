@@ -49,7 +49,6 @@ def _setup_ssh_key(config):
 
 def main():
     from src.config import BuildServiceConfig
-    from src.db.client import init_db, close_db
     from src.clients.concord import ConcordClient
     from src.worker.loop import BuildWorkerLoop
 
@@ -74,21 +73,20 @@ def main():
     # ── SSH ──────────────────────────────────────────────────────────────────
     _setup_ssh_key(config)
 
-    # ── Local DB ─────────────────────────────────────────────────────────────
-    try:
-        init_db()
-        log.info("Local database connected")
-    except Exception as e:
-        log.warning(f"Local database unavailable (running without local state): {e}")
-
     # ── API client ───────────────────────────────────────────────────────────
     client = ConcordClient(config.api_url, config.api_key)
+
+    # ── Job queue (push-based delivery) ──────────────────────────────────────
+    from src.worker.queue import JobQueue
+    job_queue = JobQueue()
 
     # ── Flask API (background thread) ────────────────────────────────────────
     api_thread = None
     try:
         from src.app import create_app
+        from src.api.jobs import set_job_queue
         app = create_app(config)
+        set_job_queue(job_queue)
         api_thread = threading.Thread(
             target=lambda: app.run(host="0.0.0.0", port=config.service_port, use_reloader=False),
             daemon=True,
@@ -96,8 +94,8 @@ def main():
         )
         api_thread.start()
         log.info(f"API server started on :{config.service_port}")
-    except ImportError:
-        log.info("No API module found, running worker-only mode")
+    except ImportError as e:
+        log.warning(f"Flask API not available (missing dependency?): {e}")
     except Exception as e:
         log.warning(f"Failed to start API server: {e}")
 
@@ -110,12 +108,6 @@ def main():
         shutdown.set()
 
     def cleanup():
-        log.info("Graceful shutdown initiated (atexit)")
-        try:
-            close_db()
-            log.info("Local database closed")
-        except Exception:
-            pass
         log.info("Build Service stopped")
 
     signal.signal(signal.SIGTERM, handle_signal)
@@ -123,7 +115,7 @@ def main():
     atexit.register(cleanup)
 
     # ── Worker loop (blocks until shutdown) ───────────────────────────────────
-    worker = BuildWorkerLoop(config=config, client=client, shutdown_event=shutdown)
+    worker = BuildWorkerLoop(config=config, client=client, shutdown_event=shutdown, job_queue=job_queue)
     try:
         worker.run()
     except Exception:

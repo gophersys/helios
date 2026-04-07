@@ -128,6 +128,24 @@ class ConcordClient:
         except Exception:
             pass  # Don't fail build if streaming fails
 
+    def report_progress(self, job_id: str, step: str, progress: int = 0,
+                        message: str = "") -> None:
+        """Report step-level build progress to the API.
+
+        Fire-and-forget — never fails the build if the API is slow or down.
+        The API broadcasts this as a ci_build_progress SocketIO event.
+        """
+        try:
+            requests.post(
+                f"{self.api_url}/v2/builds/{job_id}/progress",
+                json={"step": step, "progress": progress, "message": message},
+                headers=self._headers(),
+                timeout=2,
+                verify=False,
+            )
+        except Exception:
+            pass  # Fire-and-forget
+
     def heartbeat(self, job_id: str) -> None:
         """Send a heartbeat to keep the build alive during long operations.
 

@@ -70,6 +70,7 @@ services:
       BITBUCKET_POLLER_ENABLED: "false"
       CK_BOARDS_REPO_URL: git@bitbucket.org:corekinect/ck_boards.git
       CK_BOARDS_FETCH_INTERVAL: "60"
+      BUILD_SERVICE_URL: http://build-service:9002
     depends_on:
       db:
         condition: service_healthy
@@ -88,11 +89,14 @@ services:
     environment:
       CONCORD_API_URL: http://http-api:9001
       CONCORD_API_KEY: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG
-      POLL_INTERVAL: "30"
+      POLL_INTERVAL: "5"
+      PRODUCT_CACHE_TTL: "60"
       SERVICE_PORT: "9003"
       ENVIRONMENT: development
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY:-}
       BITBUCKET_WORKSPACE: corekinect
+      BITBUCKET_API_TOKEN: ${BITBUCKET_API_TOKEN:-}
+      BITBUCKET_EMAIL: ${BITBUCKET_EMAIL:-mateo@corekinect.com}
     depends_on:
       http-api:
         condition: service_healthy

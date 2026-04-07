@@ -51,15 +51,10 @@ spec:
                 secretKeyRef:
                   name: concord-build-service-secrets
                   key: api-key
-            - name: BUILD_SERVICE_DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: concord-build-service-secrets
-                  key: database-url
             - name: BUILD_SERVICE_PORT
               value: "9002"
             - name: POLL_INTERVAL
-              value: "5"
+              value: "60"
             - name: WORKER_ID
               valueFrom:
                 fieldRef:
@@ -98,13 +93,15 @@ spec:
               name: http
               protocol: TCP
           readinessProbe:
-            exec:
-              command: ["python3", "-c", "import os; os.kill(1, 0)"]
+            httpGet:
+              path: /ready
+              port: 9002
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            exec:
-              command: ["python3", "-c", "import os; os.kill(1, 0)"]
+            httpGet:
+              path: /health
+              port: 9002
             initialDelaySeconds: 15
             periodSeconds: 30
           resources:

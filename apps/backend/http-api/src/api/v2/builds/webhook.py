@@ -217,6 +217,15 @@ def webhook_bitbucket():
             )
             builds.append(build)
 
+        # Notify build service for each QUEUED build (fire-and-forget, webhook = normal priority)
+        try:
+            from services.build_notifier import notify_build_service
+            for b in builds:
+                if b.status == "QUEUED":
+                    notify_build_service(b.id, priority=50)
+        except Exception:
+            pass
+
         log_audit("ci.webhook.received", "BuildJob", builds[0].id if builds else "", {
             "eventKey": payload.event_key,
             "repoSlug": payload.repo_slug,
@@ -295,6 +304,13 @@ def trigger_build_run():
             "branch": build.branch,
             "variant": build.variant,
         })
+
+        # Notify build service (fire-and-forget, manual trigger = high priority)
+        try:
+            from services.build_notifier import notify_build_service
+            notify_build_service(build.id, priority=100)
+        except Exception:
+            pass
 
         return jsonify(ApiResponse.created(
             _serialize_build_job(build)

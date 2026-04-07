@@ -68,6 +68,9 @@ class AppConfig(EnvConfig):
     CK_BOARDS_REPO_URL: str = "git@bitbucket.org:corekinect/ck_boards.git"
     CK_BOARDS_FETCH_INTERVAL: int = 60
 
+    # Build Service — push notifications for new build jobs
+    BUILD_SERVICE_URL: str = ""  # e.g., http://concord-build-service:9002
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._validate()

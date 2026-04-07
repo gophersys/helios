@@ -249,6 +249,7 @@ from .builds.builds import (
     download_single_artifact as download_ci_single_artifact,
     get_build_log as get_ci_build_log,
     stream_build_log as stream_ci_build_log,
+    report_build_progress as report_ci_build_progress,
     create_build as create_ci_build,
     update_build as update_ci_build,
     upload_build_artifact as upload_ci_build_artifact,
@@ -677,6 +678,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/builds/<build_id>/artifacts/<artifact_name>",                             endpoint="download_ci_single_artifact", view_func=download_ci_single_artifact, methods=["GET"])
     v2.add_url_rule("/builds/<build_id>/log",                                                   endpoint="get_ci_build_log",         view_func=get_ci_build_log,      methods=["GET"])
     v2.add_url_rule("/builds/<build_id>/log",                                                   endpoint="stream_ci_build_log",      view_func=stream_ci_build_log,   methods=["POST"])
+    v2.add_url_rule("/builds/<build_id>/progress",                                              endpoint="report_ci_build_progress", view_func=report_ci_build_progress, methods=["POST"])
     v2.add_url_rule("/builds/<build_id>/reset",                                                 endpoint="reset_ci_build",           view_func=reset_ci_build,        methods=["POST"])
 
     # Builds - PR Pipelines & Summary
