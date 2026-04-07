@@ -187,7 +187,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/backend/git-poller",
-        "command": "python3 -m bandit -r src/ -ll -q --exit-zero 2>&1 || true"
+        "command": "python3 -m bandit -r src/ -lll -iii -q --exclude src/tests"
       }
     }
   }

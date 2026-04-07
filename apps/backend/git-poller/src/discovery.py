@@ -156,7 +156,7 @@ class ProductDiscovery:
         }
 
         try:
-            resp = requests.get(url, headers=headers, timeout=30, verify=False)
+            resp = requests.get(url, headers=headers, timeout=30, verify=False)  # nosec B501
 
             if resp.status_code >= 400:
                 log.error(

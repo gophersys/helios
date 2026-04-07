@@ -2,18 +2,21 @@
 # Pipeline: Pull Request
 # Runs on every PR. Must pass before merge.
 #
-# Stage 1: env-check (fast, validates environment contract)
+# Stage 1: env-check + secret-scan (fast safety gates)
 # Stage 2: ALL quality gates in parallel (lint, typecheck, test, coverage,
-#           complexity, security, contracts, schema-check, docstrings, docs-build)
-# Stage 3: build (only after all gates pass)
+#           complexity, security, dep-audit, contracts, schema-check,
+#           docstrings, docs-build, typecheck-python)
+# Stage 3: integration tests (real DB, real services)
+# Stage 4: build (only after all gates pass)
 #
-# Parallel execution via background jobs — ~4min instead of ~15min sequential.
+# Parallel execution via background jobs — ~5min instead of ~20min sequential.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-# ── Stage 1: Environment contract (must pass before anything else) ──
+# ── Stage 1: Safety gates (must pass before anything else) ──
 bash "$DIR/stages/env-check.sh"
+bash "$DIR/stages/secret-scan.sh"
 
 # ── Stage 2: All quality gates in parallel ──
 PIDS=()
@@ -29,16 +32,18 @@ run_stage() {
   STAGES+=("$name")
 }
 
-run_stage "lint"         "$DIR/stages/lint.sh"
-run_stage "typecheck"    "$DIR/stages/typecheck.sh"
-run_stage "test"         "$DIR/stages/test.sh"
-run_stage "coverage"     "$DIR/stages/coverage.sh"
-run_stage "complexity"   "$DIR/stages/complexity.sh"
-run_stage "security"     "$DIR/stages/security.sh"
-run_stage "contracts"    "$DIR/stages/contracts.sh"
-run_stage "schema-check" "$DIR/stages/schema-check.sh"
-run_stage "docstrings"   "$DIR/stages/docstrings.sh"
-run_stage "docs-build"   "$DIR/stages/docs-build.sh"
+run_stage "lint"             "$DIR/stages/lint.sh"
+run_stage "typecheck"        "$DIR/stages/typecheck.sh"
+run_stage "typecheck-python" "$DIR/stages/typecheck-python.sh"
+run_stage "test"             "$DIR/stages/test.sh"
+run_stage "coverage"         "$DIR/stages/coverage.sh"
+run_stage "complexity"       "$DIR/stages/complexity.sh"
+run_stage "security"         "$DIR/stages/security.sh"
+run_stage "dep-audit"        "$DIR/stages/dep-audit.sh"
+run_stage "contracts"        "$DIR/stages/contracts.sh"
+run_stage "schema-check"     "$DIR/stages/schema-check.sh"
+run_stage "docstrings"       "$DIR/stages/docstrings.sh"
+run_stage "docs-build"       "$DIR/stages/docs-build.sh"
 
 # Wait for all and collect results
 for i in "${!PIDS[@]}"; do
@@ -56,5 +61,9 @@ if $FAILED; then
   exit 1
 fi
 
-# ── Stage 3: Build (only if all gates passed) ──
+# ── Stage 3: Integration tests (real DB, compose stack) ──
+# Only run after all unit/static gates pass — these are slower
+bash "$DIR/stages/test-integration.sh"
+
+# ── Stage 4: Build (only if everything passed) ──
 bash "$DIR/stages/build.sh" staging

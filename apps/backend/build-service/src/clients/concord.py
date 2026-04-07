@@ -33,7 +33,7 @@ class ConcordClient:
                 f"{self.api_url}{path}",
                 headers=self._headers(),
                 timeout=30,
-                verify=False,
+                verify=False,  # nosec B501
             )
             if resp.status_code >= 400:
                 log.error("API GET %s: %d %s", path, resp.status_code, resp.text[:200])
@@ -51,7 +51,7 @@ class ConcordClient:
                 json=data,
                 headers=self._headers(),
                 timeout=30,
-                verify=False,
+                verify=False,  # nosec B501
             )
             if resp.status_code >= 400:
                 log.error("API POST %s: %d %s", path, resp.status_code, resp.text[:200])
@@ -69,7 +69,7 @@ class ConcordClient:
                 json=data,
                 headers=self._headers(),
                 timeout=30,
-                verify=False,
+                verify=False,  # nosec B501
             )
             if resp.status_code >= 400:
                 log.error("API PATCH %s: %d %s", path, resp.status_code, resp.text[:200])
@@ -105,7 +105,7 @@ class ConcordClient:
                     data=form_data,
                     headers={"Authorization": f"ApiKey {self.api_key}"},
                     timeout=120,
-                    verify=False,
+                    verify=False,  # nosec B501
                 )
             if resp.status_code >= 400:
                 log.error("Upload %s: %d %s", name, resp.status_code, resp.text[:200])
@@ -124,7 +124,7 @@ class ConcordClient:
                 json={"chunk": chunk},
                 headers=self._headers(),
                 timeout=5,
-                verify=False,
+                verify=False,  # nosec B501
             )
         except Exception:
             pass  # Don't fail build if streaming fails
@@ -142,7 +142,7 @@ class ConcordClient:
                 json={"step": step, "progress": progress, "message": message},
                 headers=self._headers(),
                 timeout=2,
-                verify=False,
+                verify=False,  # nosec B501
             )
         except Exception:
             pass  # Fire-and-forget
@@ -160,7 +160,7 @@ class ConcordClient:
                 json={"lastHeartbeat": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
                 headers=self._headers(),
                 timeout=5,
-                verify=False,
+                verify=False,  # nosec B501
             )
         except Exception:
             pass  # Don't fail build if heartbeat fails

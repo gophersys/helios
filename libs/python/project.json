@@ -81,7 +81,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "libs/python",
-        "command": "python3 -m bandit -r corekinect/ -ll -q --exit-zero 2>&1 || true"
+        "command": "python3 -m bandit -r corekinect/ -lll -iii -q --exclude corekinect/test/.venv"
       }
     }
   }

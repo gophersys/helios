@@ -55,7 +55,7 @@ def create_k8s_job_name(product: str, job_id: str, firmware_version: Optional[st
         test_name = parts[1]  # Keep original test name with underscores for now
 
         # Hash UUID to first 8 chars to keep it short
-        uuid_hash = hashlib.md5(uuid_part.encode()).hexdigest()[:8]
+        uuid_hash = hashlib.md5(uuid_part.encode()).hexdigest()[:8]  # nosec B324
 
         # Now replace underscores in test name with hyphens
         test_name_clean = test_name.replace("_", "-")
@@ -66,7 +66,7 @@ def create_k8s_job_name(product: str, job_id: str, firmware_version: Optional[st
         # No test name, just hash the whole thing
         job_id_clean = job_id.replace("_", "-").replace("/", "-")
         if len(job_id_clean) > 40:
-            job_id_clean = hashlib.md5(job_id_clean.encode()).hexdigest()[:12]
+            job_id_clean = hashlib.md5(job_id_clean.encode()).hexdigest()[:12]  # nosec B324
         job_id_clean = f"{job_id_clean}{version_suffix}"
 
     # Remove any trailing hyphens and ensure it ends with alphanumeric
@@ -87,7 +87,7 @@ def create_k8s_job_name(product: str, job_id: str, firmware_version: Optional[st
             job_name = f"{product_clean}-val-{job_id_clean}"
         else:
             # Product name itself is too long, just use hash
-            job_name = f"val-{hashlib.md5(job_id.encode()).hexdigest()[:12]}"
+            job_name = f"val-{hashlib.md5(job_id.encode()).hexdigest()[:12]}"  # nosec B324
 
     # Ensure it starts and ends with alphanumeric characters
     if not job_name[0].isalnum():

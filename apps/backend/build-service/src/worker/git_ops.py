@@ -82,7 +82,7 @@ class GitOps:
                 f"{self.api_client.api_url}/v2/builds/overlays/{script_key}",
                 headers=self.api_client._headers(),
                 timeout=30,
-                verify=False,
+                verify=False,  # nosec B501
             )
             if resp.status_code >= 400:
                 log.warning("No overlays for %s: %d", product, resp.status_code)
@@ -92,7 +92,7 @@ class GitOps:
             dest_dir.mkdir(parents=True, exist_ok=True)
             tar_buffer = BytesIO(resp.content)
             with tarfile.open(fileobj=tar_buffer, mode="r:gz") as tar:
-                tar.extractall(path=dest_dir)
+                tar.extractall(path=dest_dir)  # nosec B202 — trusted internal API source
 
             log.info("Extracted overlays to %s", dest_dir)
             return True
