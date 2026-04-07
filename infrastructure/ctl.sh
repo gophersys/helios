@@ -10,8 +10,9 @@
 #   eks       — AWS EKS cluster (placeholder)
 #
 # Actions:
-#   bootstrap   — Apply all manifests: namespaces, RBAC, certs, storage
-#   status      — Show cluster readiness (namespaces, RBAC, certs, storage)
+#   bootstrap   — Apply all manifests: namespaces, RBAC, certs, storage, secrets
+#   secrets     — Create/update K8s secrets from .env (standalone)
+#   status      — Show cluster readiness (namespaces, RBAC, certs, storage, secrets)
 #   validate    — Dry-run all manifests, report errors
 #   diff        — Show what bootstrap would change vs live state
 # ───────────────────────────────────────────────────────────────
@@ -116,6 +117,20 @@ cmd_status() {
   done
   echo ""
 
+  # Secrets
+  echo -e "${BOLD}=== Secrets ===${NC}"
+  for ns_name in $(yq -r '.namespaces[]' "${cluster_yaml}" 2>/dev/null); do
+    local secrets_found=0
+    for secret_name in bitbucket-ssh-key concord-build-service-secrets corecloud-validation theta-mcuboot-keys; do
+      if kubectl get secret "${secret_name}" -n "${ns_name}" >/dev/null 2>&1; then
+        echo -e "  ${GREEN}✓${NC} ${ns_name}/${secret_name}"
+        secrets_found=$((secrets_found + 1))
+      fi
+    done
+    [[ ${secrets_found} -eq 0 ]] && echo -e "  ${YELLOW}!${NC} ${ns_name}: no app secrets found"
+  done
+  echo ""
+
   # Nodes
   echo -e "${BOLD}=== Nodes ===${NC}"
   kubectl get nodes -o wide --no-headers 2>/dev/null | while read -r line; do
@@ -178,16 +193,21 @@ ${BOLD}Clusters:${NC}
 $(for d in "${CLUSTERS_DIR}"/*/; do [[ -d "$d" ]] && echo "  $(basename "$d")"; done)
 
 ${BOLD}Actions:${NC}
-  ${GREEN}bootstrap${NC}    Apply all manifests (namespaces, RBAC, certs, storage)
-  ${GREEN}status${NC}       Show cluster readiness
-  ${GREEN}validate${NC}     Dry-run all manifests
-  ${GREEN}diff${NC}         Show what bootstrap would change
+  ${GREEN}bootstrap${NC}       Install deps + apply all manifests + secrets (idempotent)
+  ${GREEN}secrets${NC}         Create/update K8s secrets from .env (standalone)
+  ${GREEN}kubeconfig${NC}      Generate/list/revoke role-scoped kubeconfigs
+  ${GREEN}teardown${NC}        Remove everything Concord installed (destructive)
+  ${GREEN}status${NC}          Show cluster readiness
+  ${GREEN}validate${NC}        Dry-run all manifests
+  ${GREEN}diff${NC}            Show what bootstrap would change
 
 ${BOLD}Examples:${NC}
   ./infrastructure/ctl.sh office bootstrap     # Set up the office cluster
   ./infrastructure/ctl.sh office status        # Check readiness
   ./infrastructure/ctl.sh office validate      # Preview changes
-  ./infrastructure/ctl.sh eks bootstrap        # Set up EKS (placeholder)
+  ./infrastructure/ctl.sh office kubeconfig create --user chris@corekinect.com --role DEVELOPER
+  ./infrastructure/ctl.sh office kubeconfig list
+  ./infrastructure/ctl.sh office kubeconfig batch  # Generate for entire team
 
 EOF
 }
@@ -204,8 +224,39 @@ ACTION="${2:-status}"
 
 validate_cluster "${CLUSTER}"
 
+cmd_secrets() {
+  local cluster="$1"
+  local cluster_dir="${CLUSTERS_DIR}/${cluster}"
+  local secrets_script="${cluster_dir}/secrets/create-all.sh"
+
+  if [[ ! -f "${secrets_script}" ]]; then
+    err "No secrets/create-all.sh found for cluster '${cluster}'"
+    exit 1
+  fi
+
+  log "Creating secrets for cluster: ${BOLD}${cluster}${NC}"
+  bash "${secrets_script}" "${@:2}"
+}
+
 case "${ACTION}" in
   bootstrap)  cmd_bootstrap "${CLUSTER}" ;;
+  secrets)    cmd_secrets "${CLUSTER}" "${@:3}" ;;
+  teardown)
+    if [[ -f "${CLUSTERS_DIR}/${CLUSTER}/teardown.sh" ]]; then
+      bash "${CLUSTERS_DIR}/${CLUSTER}/teardown.sh" "${@:3}"
+    else
+      err "No teardown.sh found for cluster '${CLUSTER}'"
+      exit 1
+    fi
+    ;;
+  kubeconfig)
+    kc_script="${CLUSTERS_DIR}/${CLUSTER}/kubeconfigs/generate.sh"
+    if [[ ! -f "${kc_script}" ]]; then
+      err "No kubeconfig generator found for cluster '${CLUSTER}'"
+      exit 1
+    fi
+    bash "${kc_script}" "${@:3}"
+    ;;
   status)     cmd_status "${CLUSTER}" ;;
   validate)   cmd_validate "${CLUSTER}" ;;
   diff)       cmd_diff "${CLUSTER}" ;;

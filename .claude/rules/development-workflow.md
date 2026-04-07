@@ -7,8 +7,8 @@ Three environments, strict promotion gates, quality checks at each stage.
 | Environment | Purpose | Infrastructure | Deploy Method |
 |------------|---------|---------------|---------------|
 | **Development** | Local testing, fast iteration | Docker Compose | `nx start platform` |
-| **Staging** | Integration testing, pre-prod validation | Kubernetes | `./deploy/ctl.sh staging deploy` |
-| **Production** | Live system | Kubernetes | `./deploy/ctl.sh production deploy` |
+| **Staging** | Integration testing, pre-prod validation | Kubernetes | `nx start platform -c staging` |
+| **Production** | Live system | Kubernetes | `nx update platform -c production` |
 
 ## Development Stage
 
@@ -17,44 +17,29 @@ Three environments, strict promotion gates, quality checks at each stage.
 ### Start Development
 
 ```bash
-# 1. Start infrastructure (DB, MinIO, InfluxDB)
+# Start all backend services in Docker containers
 nx start platform
 
-# 2. Run apps via Nx
-npx nx serve http-api        # Backend on :9001
-npx nx serve app        # Frontend on :4200
+# Start the frontend (only UI uses nx serve for HMR)
+npx nx serve app              # Frontend on :4200
 ```
+
+Backend services always run in containers — never use `nx serve` for backends. After making code changes, run `nx update platform` to rebuild and hot-swap containers.
 
 ### Before Committing
 
-Run all quality checks:
-
 ```bash
-# Type checks
 npx nx typecheck http-api
 npx nx typecheck app
-
-# Tests
 npx nx test http-api
 npx nx test app
-
-# Lint (if configured)
-npx nx lint http-api
-npx nx lint app
 ```
-
-**All checks must pass before committing.**
 
 ### Commit Conventions
 
 ```bash
-# Feature
 git commit -m "feat(http-api): add device firmware endpoint"
-
-# Bug fix
 git commit -m "fix(app): correct validation status display"
-
-# Refactor
 git commit -m "refactor(protocols): consolidate device message types"
 ```
 
@@ -62,38 +47,18 @@ git commit -m "refactor(protocols): consolidate device message types"
 
 **Goal**: Verify changes work in K8s environment identical to production.
 
-### Gate Requirements
-
-Before deploying to staging:
-
-1. All development checks pass
-2. Code is committed and pushed
-3. No breaking changes to API contracts (or version bump)
-
 ### Deploy to Staging
 
 ```bash
 # Preview changes
-./deploy/ctl.sh diff staging
+./deploy/ctl.sh staging diff
 
-# Deploy (builds + pushes + helm upgrade)
-./deploy/ctl.sh staging deploy
+# Full deploy (builds + pushes + helm upgrade, zero downtime)
+nx update platform -c staging
 
 # Verify
-./deploy/ctl.sh staging status
+nx run platform:status -c staging
 ./deploy/ctl.sh staging logs http-api
-```
-
-### Staging Validation
-
-After deploy, verify:
-
-```bash
-# API health
-curl -s https://staging.concord.local/v2/docs | head
-
-# Run integration tests (if available)
-npx nx test validation-alpha --configuration=staging
 ```
 
 ## Production Promotion
@@ -102,52 +67,39 @@ npx nx test validation-alpha --configuration=staging
 
 ### Gate Requirements
 
-Before deploying to production:
-
-1. Staging deploy successful
-2. Staging validation passed
-3. No open P0/P1 issues related to the change
-4. Team sign-off (for major changes)
+1. Staging deploy successful and validated
+2. No open P0/P1 issues related to the change
+3. Team sign-off (for major changes)
 
 ### Deploy to Production
 
 ```bash
-# Preview changes
-./deploy/ctl.sh diff production
-
-# Deploy
-./deploy/ctl.sh production deploy
-
-# Verify
-./deploy/ctl.sh production status
-./deploy/ctl.sh production logs http-api
+./deploy/ctl.sh production diff
+nx update platform -c production
+nx run platform:status -c production
 ```
 
 ### Rollback (if needed)
 
 ```bash
-# Rollback Helm release
 helm rollback concord -n production
-
-# Or redeploy previous version
-./deploy/ctl.sh production deploy --set httpApi.image.tag=<previous-tag>
+helm history concord -n production  # List revisions
 ```
 
 ## Quick Reference
 
 | Action | Command |
 |--------|---------|
-| Start dev infra | `nx start platform` |
-| Stop dev infra | `nx stop platform` |
-| Run backend | `npx nx serve http-api` |
-| Run frontend | `npx nx serve app` |
+| Start dev platform | `nx start platform` |
+| Update after code change | `nx update platform` |
+| Stop dev platform | `nx stop platform` |
+| Start frontend (HMR) | `npx nx serve app` |
 | Run tests | `npx nx test http-api` |
 | Type check | `npx nx typecheck http-api` |
-| Build staging | `npx nx run http-api:containerize -c staging` |
-| Deploy staging | `./deploy/ctl.sh staging deploy` |
-| Deploy production | `./deploy/ctl.sh production deploy` |
-| Check status | `./deploy/ctl.sh status staging` |
-| View diff | `./deploy/ctl.sh diff staging` |
+| Deploy staging | `nx update platform -c staging` |
+| Deploy production | `nx update platform -c production` |
+| Check status | `nx run platform:status -c staging` |
+| View diff | `./deploy/ctl.sh staging diff` |
 
 ## Environment Configuration
 
@@ -155,8 +107,8 @@ Every config field must exist in ALL environments:
 
 | File | Purpose |
 |------|---------|
-| `deploy/local/.env` | Development secrets |
-| `deploy/helm/values-staging.yaml` | Staging config |
-| `deploy/helm/values-production.yaml` | Production config |
+| `deploy/development/docker-compose.yaml` | Development config |
+| `deploy/production/helm/values-staging.yaml` | Staging config |
+| `deploy/production/helm/values-production.yaml` | Production config |
 
 When adding a new config field, update all three files.

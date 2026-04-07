@@ -1,5 +1,5 @@
 # Production namespace RoleBindings
-# More restrictive than staging — no developer write access.
+# Locked down — only ADMINs have full access. Everyone else is read-only.
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -20,14 +20,14 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: concord-maintainer-full
+  name: concord-maintainer-readonly
   namespace: production
   labels:
     app.kubernetes.io/part-of: concord
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: concord-namespace-admin
+  name: concord-namespace-readonly
 subjects:
   - apiGroup: rbac.authorization.k8s.io
     kind: Group

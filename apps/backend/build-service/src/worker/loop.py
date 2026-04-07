@@ -306,7 +306,7 @@ class BuildWorkerLoop:
             product_id = job.product_id or (_webhook_data.get("productId"))
 
             # Try API recipe first (stored in MinIO via Products → Build Config)
-            # Stage-specific recipes: firmware/recipes/{slug}/stage-{N}/build.sh
+            # Recipes: firmware/recipes/{slug}/{board}/{domain}/{stage}/build.sh
             if product_id:
                 # If a pinned recipe version exists, fetch that specific version
                 recipe_version_id = job.recipe_version_id

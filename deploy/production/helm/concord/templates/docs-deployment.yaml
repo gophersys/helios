@@ -8,6 +8,11 @@ metadata:
     app.kubernetes.io/component: frontend
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: concord-docs
@@ -23,6 +28,18 @@ spec:
         imagePullPolicy: {{ .Values.global.imagePullPolicy | default "Always" }}
         ports:
         - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 30
         resources:
           requests:
             cpu: "25m"

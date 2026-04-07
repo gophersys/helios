@@ -10,7 +10,7 @@ ARG BUILD_HOST=unknown
 WORKDIR /app
 
 # Dependencies first (cached layer)
-COPY apps/docs/requirements.txt .
+COPY apps/frontend/docs/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy corekinect library + protocols for API reference generation

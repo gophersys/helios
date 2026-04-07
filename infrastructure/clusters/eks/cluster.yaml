@@ -16,13 +16,112 @@ storage:
   defaultClass: gp3
   provisioner: ebs.csi.aws.com
 
+# ── Cluster Dependencies ───────────────────────────────────────
+dependencies:
+  - name: cert-manager
+    chart: jetstack/cert-manager
+    repo: https://charts.jetstack.io
+    version: v1.17.2
+    namespace: cert-manager
+
+  # EKS-specific: AWS Load Balancer Controller
+  # - name: aws-load-balancer-controller
+  #   chart: eks/aws-load-balancer-controller
+  #   repo: https://aws.github.io/eks-charts
+  #   version: 1.8.0
+  #   namespace: kube-system
+
+  # EKS-specific: EBS CSI driver for gp3 storage
+  # - name: aws-ebs-csi-driver
+  #   chart: aws-ebs-csi-driver/aws-ebs-csi-driver
+  #   repo: https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+  #   version: 2.35.0
+  #   namespace: kube-system
+
+# ── Workload Types ─────────────────────────────────────────────
+# Same 5 types as office. EKS uses managed node groups instead
+# of named physical nodes. Edge nodes connect via VPN.
+
+workloadTypes:
+  platform:
+    description: Concord application services
+    requirements:
+      cpu: 2
+      memory: 4Gi
+    instanceType: m6i.large
+    nodeGroup: concord-platform
+
+  data:
+    description: Stateful storage — consider RDS + S3 instead
+    requirements:
+      cpu: 2
+      memory: 8Gi
+      storage: gp3 EBS
+    instanceType: r6i.large
+    nodeGroup: concord-data
+    notes: >
+      Set infrastructure.postgres.enabled=false and
+      infrastructure.minio.enabled=false in Helm values
+      when using RDS + S3.
+
+  build:
+    description: General-purpose build execution
+    requirements:
+      cpu: 8
+      memory: 16Gi
+      docker: DinD sidecar (no host Docker socket on EKS)
+    instanceType: c6i.2xlarge
+    nodeGroup: concord-build
+    scaling:
+      min: 0
+      max: 4
+      spotEnabled: true
+
+  worker:
+    description: Ephemeral job execution
+    requirements:
+      cpu: 2
+      memory: 4Gi
+    instanceType: t3.large
+    nodeGroup: concord-worker
+    scaling:
+      min: 0
+      max: 10
+      spotEnabled: true
+    notes: >
+      Workers connect to on-premise edge nodes via VPN for
+      hardware-in-the-loop testing.
+
+  edge:
+    description: Hardware-attached — always on-premise, connects via VPN
+    requirements:
+      arch: arm64
+      physical: USB/serial to MTIB hardware
+    notes: >
+      Edge nodes are NOT part of the EKS cluster. They remain
+      on-premise and are reachable via Site-to-Site VPN at
+      their 10.4.45.x addresses. Use EKS Hybrid Nodes if
+      K8s pod scheduling on edge is needed.
+
+# ── Nodes ──────────────────────────────────────────────────────
+# EKS uses managed node groups — individual nodes are ephemeral.
+# Listed here for schema compliance; actual nodes are auto-provisioned.
+
 nodes:
   servers: []
   agents:
-    - name: managed-node-group
+    - name: concord-platform-group
       ip: 0.0.0.0
-      labels:
-        node-role: apps
+      workloads: [platform]
+    - name: concord-data-group
+      ip: 0.0.0.0
+      workloads: [data]
+    - name: concord-build-group
+      ip: 0.0.0.0
+      workloads: [build]
+    - name: concord-worker-group
+      ip: 0.0.0.0
+      workloads: [worker]
   edge: []
 
 namespaces:

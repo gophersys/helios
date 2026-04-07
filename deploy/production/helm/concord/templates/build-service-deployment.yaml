@@ -95,6 +95,16 @@ spec:
             - containerPort: 9002
               name: http
               protocol: TCP
+          readinessProbe:
+            exec:
+              command: ["python3", "-c", "import os; os.kill(1, 0)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["python3", "-c", "import os; os.kill(1, 0)"]
+            initialDelaySeconds: 15
+            periodSeconds: 30
           resources:
             requests:
               cpu: {{ .Values.buildService.resources.requests.cpu | default "500m" | quote }}

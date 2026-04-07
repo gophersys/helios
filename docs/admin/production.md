@@ -11,9 +11,9 @@ development → staging → production
 ### 1. Deploy to Staging
 
 ```bash
-./deploy/ctl.sh diff staging        # Preview changes
-./deploy/ctl.sh staging deploy      # Build + push + helm upgrade
-./deploy/ctl.sh staging status      # Verify pods are healthy
+./deploy/ctl.sh staging diff        # Preview changes
+nx update platform -c staging       # Build + push + helm upgrade (zero downtime)
+nx run platform:status -c staging   # Verify pods are healthy
 ```
 
 ### 2. Validate on Staging
@@ -29,9 +29,9 @@ kubectl logs -n staging -l app.kubernetes.io/name=concord-http-api --tail=50
 ### 3. Deploy to Production
 
 ```bash
-./deploy/ctl.sh diff production     # Preview changes
-./deploy/ctl.sh production deploy   # Build + push + helm upgrade
-./deploy/ctl.sh production status   # Verify
+./deploy/ctl.sh production diff     # Preview changes
+nx update platform -c production    # Build + push + helm upgrade (zero downtime)
+nx run platform:status -c production # Verify
 ```
 
 ## Rollback
@@ -56,8 +56,8 @@ helm rollback concord 5 -n production
 Pin a specific image tag if you need to go back further:
 
 ```bash
-helm upgrade concord ./deploy/helm/concord -n production \
-  -f ./deploy/helm/values-production.yaml \
+helm upgrade concord ./deploy/production/helm/concord -n production \
+  -f ./deploy/production/helm/values-production.yaml \
   --set httpApi.image.tag=staging-v1.2.3
 ```
 
@@ -74,7 +74,7 @@ kubectl rollout restart deployment/concord-http-api -n production
 Migrations run automatically via init container on deploy. Prisma runs `migrate deploy` before the API starts.
 
 If a migration fails:
-1. Check init container logs: `kubectl logs -n production <pod> -c init-migrate`
+1. Check init container logs: `kubectl logs -n production <pod> -c migrate-and-seed`
 2. The API pod won't start until the migration succeeds
 3. Fix the migration in code, redeploy to staging, verify, then push to production
 
@@ -85,7 +85,7 @@ Never run migrations manually in production. Always go through the deploy pipeli
 ### JWT Secret
 
 1. Generate a new key: `openssl rand -hex 32`
-2. Update `deploy/helm/values-production.yaml`
+2. Update `deploy/production/helm/values-production.yaml`
 3. Redeploy — all existing tokens are invalidated, users will need to re-login
 
 ### CoreCloud API Keys

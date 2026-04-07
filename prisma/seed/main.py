@@ -52,7 +52,15 @@ def seed():
         from seed.platform import seed_users
         seed_users(db, perm_sets, products=[alpha["product"]])
 
-        print("\n✓ Seed complete")
+        # ── 5. Verify seed integrity ──
+        from seed.verify import verify
+        errors = verify(db)
+        if errors:
+            print(f"\n✗ Seed verification FAILED — {len(errors)} error(s):")
+            for e in errors:
+                print(f"  ✗ {e}")
+            raise SystemExit(1)
+        print("\n✓ Seed complete (verified)")
 
     finally:
         db.disconnect()

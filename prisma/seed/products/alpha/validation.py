@@ -1,8 +1,10 @@
-"""Alpha B0 validation seed — fixture designs, fixtures, and stage configs.
+"""Alpha B0 validation seed — fixture designs, fixtures, stage configs, and build recipe.
 
 Validation fixtures have 1 MTIB per slot (single-DUT testing).
 5 validation stages: Smoke, Driver, Integration, Regression, FUOTA.
 """
+
+import os
 
 from database import Json
 
@@ -41,11 +43,11 @@ ALPHA_B0_VAL_PROFILE = {
 # ── Validation stages ────────────────────────────────────────
 
 VALIDATION_STAGES = [
-    {"stage": 1, "name": "Smoke", "enabled": True, "watchBranch": "main", "triggerTypes": ["pr_push", "manual"]},
+    {"stage": 1, "name": "Smoke", "enabled": False, "triggerTypes": ["pr_push", "manual"]},
     {"stage": 2, "name": "Driver", "enabled": False, "triggerTypes": ["manual"]},
     {"stage": 3, "name": "Integration", "enabled": False, "triggerTypes": ["manual"]},
-    {"stage": 4, "name": "Regression", "enabled": True, "watchBranch": "main", "triggerTypes": ["schedule", "manual"]},
-    {"stage": 5, "name": "FUOTA", "enabled": True, "watchBranch": "main", "triggerTypes": ["pr_merge", "manual"]},
+    {"stage": 4, "name": "Regression", "enabled": False, "triggerTypes": ["schedule", "manual"]},
+    {"stage": 5, "name": "FUOTA", "enabled": True, "watchBranch": "concord-main", "triggerTypes": ["pr_push", "pr_merge", "manual"]},
 ]
 
 # ── Fixture instances ────────────────────────────────────────
@@ -62,8 +64,8 @@ VAL_FIXTURES = [
 
 
 def seed_validation(db, product, b0_rev):
-    """Seed validation fixture design, fixtures, and stage configs for Alpha B0."""
-    print("\n=== Alpha B0: Validation ===")
+    """Seed validation fixture design, fixtures, and stage configs."""
+    print("\n=== Alpha: Validation ===")
 
     # ── Fixture design ──
     design = db.fixturedesign.upsert(
@@ -170,5 +172,48 @@ def seed_validation(db, product, b0_rev):
         else:
             print(f"  ✓ Stage {sd['name']}: no matrix (stages lib not available)")
 
+    # No A0 stage configs — A0 is legacy, validation runs on B0 only
+
+    # ── Build recipe ──
+    # Load from the SDK recipes directory (source of truth for Alpha builds)
+    recipe_path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "..",
+        "apps", "backend", "build-service", "sdk", "recipes", "alpha.sh"
+    )
+    recipe_content = ""
+    if os.path.isfile(recipe_path):
+        with open(recipe_path) as f:
+            recipe_content = f.read()
+
+    if recipe_content:
+        # Clear existing recipe versions for this product
+        db.recipeversion.delete_many(where={"productId": product.id})
+
+        # Get system user for createdBy
+        system_user = db.user.find_first(where={"email": "system@concord.local"})
+
+        recipe_version = db.recipeversion.create(data={
+            "productId": product.id,
+            "version": 1,
+            "content": recipe_content,
+            "status": "published",
+            "changeNote": "Initial recipe from alpha.sh SDK template",
+            "createdById": system_user.id if system_user else None,
+        })
+
+        # Link FUOTA stage config to this recipe
+        fuota_config = db.productstageconfig.find_first(
+            where={"productId": product.id, "stage": 5, "boardRevisionId": b0_rev.id}
+        )
+        if fuota_config:
+            db.productstageconfig.update(
+                where={"id": fuota_config.id},
+                data={"recipeVersionId": recipe_version.id},
+            )
+
+        print(f"  ✓ Recipe: v{recipe_version.version} ({len(recipe_content)} bytes, published)")
+    else:
+        print(f"  ⚠ Recipe: alpha.sh not found at {recipe_path}")
+
     enabled = sum(1 for s in VALIDATION_STAGES if s["enabled"])
-    print(f"  ✓ {len(VALIDATION_STAGES)} stages ({enabled} enabled)")
+    print(f"  ✓ {len(VALIDATION_STAGES)} stage configs ({enabled} enabled)")

@@ -20,8 +20,7 @@ paths:
 
 ## Frontend
 
-- Never access `localStorage` directly for auth tokens — use `api()` / `apiUpload()` / `apiUploadRaw()` from `src/app/api.ts`
-- Validate URLs with `isSafeUrl()` from `src/app/utils/url.ts` before rendering as `<a href>`
-- Never use `dangerouslySetInnerHTML`
+- Never access `localStorage` directly for auth tokens — use `api` / `apiUpload()` / `apiUploadRaw()` from `$lib/api`
+- Never use `{@html ...}` with untrusted content (Svelte's equivalent of dangerouslySetInnerHTML)
 - All API errors must be caught and displayed to users — no empty `catch {}` blocks
 - Form submissions must have `submitting` state to prevent double-submit

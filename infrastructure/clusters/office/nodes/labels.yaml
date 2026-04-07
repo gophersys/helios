@@ -1,78 +1,56 @@
-# Node label definitions for the office K3s cluster.
-# These are applied via bootstrap.sh using kubectl label.
+# Node labels for the office K3s cluster.
+# Applied by bootstrap.sh using kubectl label.
 #
-# This file is NOT a K8s manifest — it's a reference document
-# consumed by bootstrap.sh to set node labels idempotently.
+# Label scheme:
+#   concord.corekinect.com/workload=<primary>     — primary workload type (for simple nodeSelector)
+#   concord.corekinect.com/workload-<type>=true    — all workload types (for nodeAffinity)
 #
-# Node roles:
-#   server   — K3s control plane (etcd + API server)
-#   agent    — K3s worker (general workloads)
-#   edge     — ARM64 Verdin SoMs running MTIB server
+# The primary workload is the first item in the workloads list.
+# Multi-role nodes get multiple workload-<type>=true labels.
 #
-# Node purposes:
-#   platform       — Runs Concord platform services (API, frontend, DB)
-#   manufacturing  — Runs manufacturing workloads near physical fixtures
-#   builder        — Runs firmware build containers (needs Docker socket)
-#   validation     — Runs MTIB server on edge devices
+# Workload types: platform, data, build, worker, edge
 
 nodes:
   # ── Control plane (3x HA) ────────────────────────────────────
   - name: concordserver01
-    labels:
-      corekinect.com/role: server
-      corekinect.com/purpose: platform
+    workloads: [platform]
 
   - name: concordserver02
-    labels:
-      corekinect.com/role: server
-      corekinect.com/purpose: platform
+    workloads: [platform]
 
   - name: concordserver03
-    labels:
-      corekinect.com/role: server
-      corekinect.com/purpose: platform
+    workloads: [platform, data]
 
   # ── Agents (general workers) ─────────────────────────────────
   - name: concordagent01
-    labels:
-      corekinect.com/role: agent
-      corekinect.com/purpose: manufacturing
+    workloads: [platform, worker]
 
   - name: concordagent02
-    labels:
-      corekinect.com/role: agent
-      corekinect.com/purpose: manufacturing
+    workloads: [platform, worker]
 
   - name: concordagent03
-    labels:
-      corekinect.com/role: agent
+    workloads: [data, worker]
 
   # ── Builders ─────────────────────────────────────────────────
   - name: concordproxy
-    labels:
-      corekinect.com/purpose: builder
+    workloads: [build]
 
   - name: wanda
-    labels:
-      corekinect.com/purpose: builder
-      corekinect.com/role: agent
+    workloads: [build]
 
   # ── Edge (ARM64 Verdin SoMs) ─────────────────────────────────
   - name: verdin-imx8mm-15005665
+    workloads: [edge]
     labels:
-      corekinect.com/role: edge
-      corekinect.com/purpose: validation
       corekinect.com/mtib-revision: "1.2"
       corekinect.com/validation-product: alpha
 
   - name: verdin-imx8mm-15005700
+    workloads: [edge]
     labels:
-      corekinect.com/role: edge
-      corekinect.com/purpose: validation
       corekinect.com/mtib-revision: "1.2"
 
   - name: verdin-imx8mm-15702161
+    workloads: [edge]
     labels:
-      corekinect.com/role: edge
-      corekinect.com/purpose: validation
       corekinect.com/mtib-revision: "1.1"

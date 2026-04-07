@@ -10,13 +10,13 @@ infrastructure:
   postgres:
     enabled: true
     user: concord
-    password: concord-prod-2026
+    password: OVERRIDE-IN-SECRETS-OVERLAY
     database: concord
     storage: 10Gi
   minio:
     enabled: true
-    rootUser: concordadmin
-    rootPassword: concord-minio-prod-2026
+    rootUser: OVERRIDE-IN-SECRETS-OVERLAY
+    rootPassword: OVERRIDE-IN-SECRETS-OVERLAY
     storage: 10Gi
   pypi:
     enabled: true
@@ -94,12 +94,33 @@ gitPoller:
     repository: containers.ad.corekinect.com/concord-git-poller
     tag: production
 
+networkPolicies:
+  enabled: true
+
+resourceQuotas:
+  enabled: true
+  cpu: "8"
+  memory: "10Gi"
+
+backups:
+  postgres:
+    enabled: true
+    schedule: "0 2 * * *"
+    retain: 30
+    preUpgrade: true
+    verify: true
+  minio:
+    enabled: true
+    schedule: "0 3 * * 0"
+    hostPath: "/var/lib/concord/backups/minio"
+
+# Secrets — real values in values-production-secrets.yaml (gitignored)
 secrets:
-  DATABASE_URL: "postgresql://concord:concord-prod-2026@concord-postgres:5432/concord"
-  DIRECT_DATABASE_URL: "postgresql://concord:concord-prod-2026@concord-postgres:5432/concord"
-  STORAGE_ACCESS_KEY: "CHANGE-ME-use-secrets-overlay"
-  STORAGE_SECRET_ACCESS_KEY: "CHANGE-ME-use-secrets-overlay"
-  JWT_SECRET_KEY: "CHANGE-ME-use-secrets-overlay"
-  AUTH_SERVER_API_KEY: "CHANGE-ME-use-secrets-overlay"
-  DELETE_ALL_KEY: "CHANGE-ME-use-secrets-overlay"
-  BITBUCKET_WEBHOOK_SECRET: "CHANGE-ME-use-secrets-overlay"
+  DATABASE_URL: "OVERRIDE-IN-SECRETS-OVERLAY"
+  DIRECT_DATABASE_URL: "OVERRIDE-IN-SECRETS-OVERLAY"
+  STORAGE_ACCESS_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
+  STORAGE_SECRET_ACCESS_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
+  JWT_SECRET_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
+  AUTH_SERVER_API_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
+  DELETE_ALL_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
+  BITBUCKET_WEBHOOK_SECRET: "OVERRIDE-IN-SECRETS-OVERLAY"

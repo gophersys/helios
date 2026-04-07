@@ -51,7 +51,7 @@ Documentation is served via Zensical (next-gen static site generator from the Ma
 
 ```bash
 npx nx serve docs      # http://localhost:4000
-npx nx run docs:build  # static site in apps/docs/site/
+npx nx run docs:build  # static site in apps/frontend/docs/site/
 ```
 
 When adding a new document, also add it to `mkdocs.yml` in the `nav:` section.

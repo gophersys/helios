@@ -1,0 +1,172 @@
+{{- if .Values.networkPolicies.enabled }}
+---
+# ── PostgreSQL: only http-api and backup jobs can connect ───
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: concord-postgres-restrict
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: concord-postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    # http-api (migrations + queries)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-http-api
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Backup CronJobs
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-postgres
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Pre-upgrade backup hook
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-pre-upgrade
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Backup verification
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-verify
+      ports:
+        - port: 5432
+          protocol: TCP
+---
+# ── MinIO: only http-api, build-service, and backup jobs ───
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: concord-minio-restrict
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: concord-minio
+  policyTypes:
+    - Ingress
+  ingress:
+    # http-api (presigned URLs, artifact storage)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-http-api
+      ports:
+        - port: 9000
+          protocol: TCP
+    # build-service (artifact upload)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: concord-build-service
+      ports:
+        - port: 9000
+          protocol: TCP
+    # Postgres backup job (stores dumps in MinIO)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-postgres
+      ports:
+        - port: 9000
+          protocol: TCP
+    # Pre-upgrade backup
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-pre-upgrade
+      ports:
+        - port: 9000
+          protocol: TCP
+    # MinIO mirror backup
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-minio
+      ports:
+        - port: 9000
+          protocol: TCP
+    # Backup verification
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-backup-verify
+      ports:
+        - port: 9000
+          protocol: TCP
+---
+# ── http-api: ingress + internal services only ─────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: concord-http-api-restrict
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: concord-http-api
+  policyTypes:
+    - Ingress
+  ingress:
+    # Traefik ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 9001
+          protocol: TCP
+    # Frontend (nginx reverse proxy)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: concord-frontend
+      ports:
+        - port: 9001
+          protocol: TCP
+    # Build service (API calls)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: concord-build-service
+      ports:
+        - port: 9001
+          protocol: TCP
+    # Git poller (API calls)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: concord-git-poller
+      ports:
+        - port: 9001
+          protocol: TCP
+    # Validation jobs (reporter callbacks)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: validation
+      ports:
+        - port: 9001
+          protocol: TCP
+    # Health probes from kubelet
+    - from: []
+      ports:
+        - port: 9001
+          protocol: TCP
+{{- end }}

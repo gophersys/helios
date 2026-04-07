@@ -15,18 +15,20 @@ Concord runs in **three environments**: `development`, `staging`, `production`. 
 | Env | How it runs | Auth | Config source |
 |-----|------------|------|---------------|
 | `development` | Nx serve + Docker Compose infra | Varies | `.env` / shell exports |
-| `staging` | K8s via Helm (`ctl.sh staging deploy`) | `AUTH_ENABLED=true` | `deploy/helm/values-staging.yaml` |
-| `production` | K8s via Helm (`ctl.sh production deploy`) | `AUTH_ENABLED=true` | `deploy/helm/values-production.yaml` |
+| `staging` | K8s via Helm (`ctl.sh staging deploy`) | `AUTH_ENABLED=true` | `deploy/production/helm/values-staging.yaml` |
+| `production` | K8s via Helm (`ctl.sh production deploy`) | `AUTH_ENABLED=true` | `deploy/production/helm/values-production.yaml` |
 
 ## Development Workflow
 
 ```bash
-# 1. Start infrastructure (DB, MinIO, InfluxDB)
+# Start all backend services in Docker containers
 nx start platform
 
-# 2. Run apps via Nx
-npx nx serve http-api         # Backend on :9001
-npx nx serve app         # Frontend on :4200
+# After code changes — rebuild + hot-swap containers
+nx update platform
+
+# Frontend (only UI uses nx serve for HMR)
+npx nx serve app              # Frontend on :4200
 ```
 
 ## Wiring Config Fields End-to-End
@@ -36,7 +38,7 @@ When adding a new environment-dependent feature (e.g., a config toggle):
 1. **Python code**: Add the field to `config/env.py` (ProxyConfig) with a sensible default
 2. **Backend logic**: Read via `env_config.FIELD_NAME` — never hardcode the value
 3. **Helm values**: Add to `config:` or `secrets:` in BOTH `values-staging.yaml` AND `values-production.yaml`
-4. **Docker Compose**: Add to `deploy/local/docker-compose.yaml` environment block
+4. **Docker Compose**: Add to `deploy/development/docker-compose.yaml` environment block
 5. **Tests**: Add to `tests/conftest.py:pytest_configure()` AND `tests/unit/test_env_config.py`
 
 Failure to complete ALL steps leads to "works in dev, breaks in production" bugs.
@@ -61,19 +63,17 @@ Failure to complete ALL steps leads to "works in dev, breaks in production" bugs
 ## Deployment Commands
 
 ```bash
-# Build + deploy to staging
-./deploy/ctl.sh staging deploy
+# Deploy to staging (zero downtime)
+nx update platform -c staging
 
-# Build + deploy to production
-./deploy/ctl.sh production deploy
+# Deploy to production
+nx update platform -c production
 
 # Check status
-./deploy/ctl.sh staging status
-./deploy/ctl.sh production status
+nx run platform:status -c staging
 
-# Preview Helm changes before deploying (requires helm-diff plugin)
-./deploy/ctl.sh diff staging
-./deploy/ctl.sh diff production
+# Preview Helm changes
+./deploy/ctl.sh staging diff
 ```
 
 ## DB Migrations

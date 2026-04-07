@@ -22,6 +22,9 @@ WORKDIR /app
 COPY apps/backend/git-poller/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY libs/python/ /app/libs/python/
+ENV PYTHONPATH="/app/libs/python:${PYTHONPATH}"
+
 COPY apps/backend/git-poller/src/ src/
 
 EXPOSE 9003

@@ -58,6 +58,32 @@ for cluster_dir in "${INFRA_ROOT}"/clusters/*/; do
   else
     fail "${cluster}: dry-run does not reference kubectl apply"
   fi
+
+  # Dry-run should reference helm upgrade (cluster dependencies)
+  if echo "${dry_output}" | grep -q "helm upgrade"; then
+    pass "${cluster}: dry-run references helm upgrade (dependencies)"
+  else
+    fail "${cluster}: dry-run does not reference helm upgrade"
+  fi
+
+  # teardown.sh must exist
+  teardown="${cluster_dir}teardown.sh"
+  if [[ -f "${teardown}" ]]; then
+    pass "${cluster}: teardown.sh exists"
+    if [[ -x "${teardown}" ]]; then
+      pass "${cluster}: teardown.sh is executable"
+    else
+      fail "${cluster}: teardown.sh is not executable"
+    fi
+    # Must support --dry-run
+    if grep -q '\-\-dry-run' "${teardown}"; then
+      pass "${cluster}: teardown.sh supports --dry-run"
+    else
+      fail "${cluster}: teardown.sh does not support --dry-run"
+    fi
+  else
+    fail "${cluster}: teardown.sh not found"
+  fi
 done
 
 # ── ctl.sh must exist at infrastructure root ──────────────────

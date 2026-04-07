@@ -16,82 +16,202 @@ storage:
   defaultClass: local-path
   provisioner: rancher.io/local-path
 
+# ── Cluster Dependencies ───────────────────────────────────────
+# Helm charts installed by bootstrap.sh as cluster-level services.
+# These are infrastructure services that applications depend on —
+# NOT the applications themselves (those live in deploy/).
+#
+# Order matters: dependencies are installed top-to-bottom.
+# Each dependency can override shared values from dependencies/<name>/values.yaml.
+
+dependencies:
+  - name: cert-manager
+    chart: jetstack/cert-manager
+    repo: https://charts.jetstack.io
+    version: v1.17.2
+    namespace: cert-manager
+    # values: uses shared defaults from infrastructure/dependencies/cert-manager/values.yaml
+    postInstall:
+      # After cert-manager is running, apply the CA issuer + certificates
+      - networking/cert-manager-ca.yaml
+      - networking/certificates/staging-cert.yaml
+
+  # ── Future dependencies (uncomment when ready) ────────────────
+  # - name: opentelemetry-collector
+  #   chart: open-telemetry/opentelemetry-collector
+  #   repo: https://open-telemetry.github.io/opentelemetry-helm-charts
+  #   version: 0.108.0
+  #   namespace: observability
+  #
+  # - name: vault
+  #   chart: hashicorp/vault
+  #   repo: https://helm.releases.hashicorp.com
+  #   version: 0.28.0
+  #   namespace: vault
+
+# ── Workload Types ─────────────────────────────────────────────
+# Abstract workload categories that map to K8s nodeSelectors.
+# Each type defines what runs on it, minimum requirements, and
+# which nodes in this cluster fulfill that role.
+#
+# Pods use: nodeSelector: { concord.corekinect.com/workload: <type> }
+# A single node can serve multiple workload types.
+
+workloadTypes:
+  platform:
+    description: Concord application services (API, frontend, docs, git-poller, pypi)
+    requirements:
+      cpu: 2
+      memory: 4Gi
+      network: cluster-internal + ingress
+    services:
+      - http-api
+      - frontend
+      - docs
+      - git-poller
+      - pypi
+
+  data:
+    description: Stateful storage services (databases, object storage)
+    requirements:
+      cpu: 2
+      memory: 4Gi
+      storage: SSD preferred, PVC-backed
+      network: cluster-internal only
+    services:
+      - postgres
+      - minio
+    notes: >
+      On managed cloud (EKS), replace with RDS + S3 and disable
+      in-cluster infrastructure via Helm values.
+
+  build:
+    description: General-purpose build execution (firmware, containers, packages)
+    requirements:
+      cpu: 4
+      memory: 8Gi
+      storage: Fast temp disk for workspaces + ccache
+      docker: Socket or DinD access required
+      network: Outbound internet (pull dependencies), cluster-internal
+    services:
+      - build-service
+      - build-workers (dynamically spawned)
+    notes: >
+      Horizontal scaling lever for build throughput. Add more build
+      nodes to parallelize firmware builds, container builds, etc.
+
+  worker:
+    description: Ephemeral job execution (validation runs, manufacturing jobs)
+    requirements:
+      cpu: 1
+      memory: 2Gi
+      network: Cluster-internal + edge node access (gRPC to MTIBs)
+    services:
+      - validation-runner (K8s Jobs)
+      - manufacturing-jobs (K8s Jobs)
+    notes: >
+      Horizontal scaling lever for test/manufacturing throughput.
+      Stateless — more workers = more parallel product validation.
+
+  edge:
+    description: Hardware-attached nodes with physical access to DUTs
+    requirements:
+      arch: arm64
+      network: LAN access to test fixtures (UART, SWD, power)
+      physical: USB/serial connection to MTIB hardware
+    services:
+      - mtib-server
+    notes: >
+      Always on-premise by definition. In a hybrid cloud setup,
+      edge nodes stay in the lab and connect via VPN to the
+      cloud-hosted control plane.
+
+# ── Nodes ──────────────────────────────────────────────────────
+# Each node lists its workload types (can have multiple).
+# bootstrap.sh applies concord.corekinect.com/workload-<type>=true
+# for each type, plus concord.corekinect.com/workload=<primary>.
+
 nodes:
   servers:
     - name: concordserver01
       ip: 10.4.45.11
+      cpu: 2
+      memory: 4Gi
       roles: [control-plane, etcd, master]
-      labels:
-        corekinect.com/role: server
-        corekinect.com/purpose: platform
+      workloads: [platform]
 
     - name: concordserver02
       ip: 10.4.45.12
+      cpu: 2
+      memory: 4Gi
       roles: [control-plane, etcd, master]
-      labels:
-        corekinect.com/role: server
-        corekinect.com/purpose: platform
+      workloads: [platform]
 
     - name: concordserver03
       ip: 10.4.45.13
+      cpu: 2
+      memory: 4Gi
       roles: [control-plane, etcd, master]
-      labels:
-        corekinect.com/role: server
-        corekinect.com/purpose: platform
+      workloads: [platform, data]
 
   agents:
     - name: concordagent01
       ip: 10.4.45.21
-      labels:
-        corekinect.com/role: agent
-        corekinect.com/purpose: manufacturing
+      cpu: 2
+      memory: 4Gi
+      workloads: [platform, worker]
 
     - name: concordagent02
       ip: 10.4.45.22
-      labels:
-        corekinect.com/role: agent
-        corekinect.com/purpose: manufacturing
+      cpu: 2
+      memory: 4Gi
+      workloads: [platform, worker]
 
     - name: concordagent03
       ip: 10.4.45.23
-      labels:
-        corekinect.com/role: agent
+      cpu: 2
+      memory: 4Gi
+      workloads: [data, worker]
 
     - name: concordproxy
       ip: 10.4.45.30
-      labels:
-        corekinect.com/purpose: builder
+      cpu: 8
+      memory: 16Gi
+      workloads: [build]
 
     - name: wanda
       ip: 10.4.45.32
-      labels:
-        corekinect.com/purpose: builder
-        corekinect.com/role: agent
+      cpu: 16
+      memory: 32Gi
+      workloads: [build]
 
   edge:
     - name: verdin-imx8mm-15005665
       ip: 10.4.45.33
+      cpu: 4
+      memory: 2Gi
       arch: arm64
+      workloads: [edge]
       labels:
-        corekinect.com/role: edge
-        corekinect.com/purpose: validation
         corekinect.com/mtib-revision: "1.2"
         corekinect.com/validation-product: alpha
 
     - name: verdin-imx8mm-15005700
       ip: 10.4.45.34
+      cpu: 4
+      memory: 2Gi
       arch: arm64
+      workloads: [edge]
       labels:
-        corekinect.com/role: edge
-        corekinect.com/purpose: validation
         corekinect.com/mtib-revision: "1.2"
 
     - name: verdin-imx8mm-15702161
       ip: 10.4.45.32
+      cpu: 4
+      memory: 2Gi
       arch: arm64
+      workloads: [edge]
       labels:
-        corekinect.com/role: edge
-        corekinect.com/purpose: validation
         corekinect.com/mtib-revision: "1.1"
 
 namespaces:

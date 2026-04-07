@@ -117,7 +117,7 @@ cmd_build() {
   local env="${1:-staging}"
   shift || true
   local targets=("$@")
-  [[ ${#targets[@]} -eq 0 ]] && targets=("api" "frontend" "git-poller")
+  [[ ${#targets[@]} -eq 0 ]] && targets=("api" "frontend" "git-poller" "build-service" "docs")
 
   local version
   version=$(get_version)
@@ -164,6 +164,9 @@ cmd_build() {
       git-poller|poller)
         timer_start
         docker buildx build \
+          --build-arg APP_VERSION --build-arg ENVIRONMENT \
+          --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg GIT_DIRTY \
+          --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/backend/git-poller/deploy/Dockerfile \
           --tag "${REGISTRY_GIT_POLLER}:${env}" \
           --load . > /dev/null 2>&1
@@ -171,14 +174,13 @@ cmd_build() {
         ;;
       validation|val)
         timer_start
-        local val_git_hash
-        val_git_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
         docker buildx build \
           --build-arg APP_VERSION --build-arg ENVIRONMENT \
-          --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg BUILD_TIME \
+          --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg GIT_DIRTY \
+          --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/validation/alpha/deploy/Dockerfile \
           --tag "${REGISTRY_VALIDATION}:${env}" \
-          --tag "${REGISTRY_VALIDATION}:${env}-${val_git_hash}" \
+          --tag "${REGISTRY_VALIDATION}:${env}-${GIT_COMMIT}" \
           --load . > /dev/null 2>&1
         timer_end "Validation build"
         ;;
@@ -186,7 +188,8 @@ cmd_build() {
         timer_start
         docker buildx build \
           --build-arg APP_VERSION --build-arg ENVIRONMENT \
-          --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg BUILD_TIME \
+          --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg GIT_DIRTY \
+          --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/backend/build-service/deploy/Dockerfile \
           --tag "${REGISTRY_BUILD_SERVICE}:${env}" \
           --load . > /dev/null 2>&1
@@ -294,7 +297,7 @@ cmd_deploy() {
   local env="$1"
   shift || true
   local targets=("$@")
-  [[ ${#targets[@]} -eq 0 ]] && targets=("api" "frontend" "git-poller")
+  [[ ${#targets[@]} -eq 0 ]] && targets=("api" "frontend" "git-poller" "build-service" "docs")
 
   local version
   version=$(get_version)
@@ -603,6 +606,24 @@ cmd_update() {
 cmd_stop() {
   local env="$1"
 
+  # Production safety gate — require explicit confirmation
+  if [[ "${env}" == "production" ]]; then
+    if [[ "${2:-}" != "--confirm-delete" ]]; then
+      err "Refusing to stop production without explicit confirmation."
+      echo ""
+      echo "  Production stop will:"
+      echo "    • Remove all application pods (http-api, frontend, etc.)"
+      echo "    • PVCs are protected (helm.sh/resource-policy: keep)"
+      echo "    • Database and MinIO data survive on disk"
+      echo ""
+      echo "  If you are sure, run:"
+      echo "    ./deploy/ctl.sh production stop --confirm-delete"
+      echo ""
+      exit 1
+    fi
+    warn "Production stop confirmed. Proceeding..."
+  fi
+
   log "${BOLD}Stopping platform: ${env}${NC}"
 
   _preflight
@@ -611,7 +632,8 @@ cmd_stop() {
   if helm list -n "${env}" --short 2>/dev/null | grep -q "^concord$"; then
     log "Removing Helm release from ${env}..."
     helm uninstall concord -n "${env}" --wait 2>&1 | sed 's/^/  /'
-    log "Platform stopped: ${env}"
+    log "${BOLD}Platform stopped: ${env}${NC}"
+    info "PVCs preserved — data is safe. Run 'nx start platform -c ${env}' to redeploy."
   else
     info "Nothing to stop — no Helm release 'concord' in namespace ${env}"
   fi
@@ -705,7 +727,7 @@ case "${ENV}" in
     case "${ACTION}" in
       start)   cmd_start "${ENV}" ;;
       update)  cmd_update "${ENV}" ;;
-      stop)    cmd_stop "${ENV}" ;;
+      stop)    cmd_stop "${ENV}" "$@" ;;
       deploy)  cmd_deploy "${ENV}" "$@" ;;
       quick)   cmd_quick "${ENV}" "$@" ;;
       status)  cmd_status "${ENV}" ;;

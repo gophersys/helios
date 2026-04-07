@@ -1,0 +1,385 @@
+{{- if .Values.backups.postgres.enabled }}
+---
+# ── PostgreSQL Backup CronJob ──────────────────────────────
+# Runs pg_dump → gzip → stores in MinIO under backups/postgres/<env>/
+# Retention: keeps last N backups, deletes older ones
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: concord-backup-postgres
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    app.kubernetes.io/name: concord-backup-postgres
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ .Values.backups.postgres.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: concord-backup-postgres
+        spec:
+          {{- include "concord.workloadNodeSelector" (dict "workload" "data" "extra" dict) | nindent 10 }}
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: postgres:16-alpine
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+
+                  ENV="{{ .Values.global.environment }}"
+                  TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+                  FILENAME="concord-${TIMESTAMP}.sql.gz"
+                  BACKUP_DIR="/tmp/backup"
+                  RETAIN={{ .Values.backups.postgres.retain | default 14 }}
+
+                  mkdir -p "${BACKUP_DIR}"
+
+                  echo "[backup] Starting PostgreSQL backup: ${FILENAME}"
+                  echo "[backup] Environment: ${ENV}"
+
+                  # Dump database
+                  PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
+                    -h concord-postgres \
+                    -U "${POSTGRES_USER}" \
+                    -d "${POSTGRES_DB}" \
+                    --no-owner --no-acl \
+                    | gzip > "${BACKUP_DIR}/${FILENAME}"
+
+                  SIZE=$(du -h "${BACKUP_DIR}/${FILENAME}" | cut -f1)
+                  echo "[backup] Dump complete: ${FILENAME} (${SIZE})"
+
+                  # Install MinIO client
+                  apk add --no-cache curl > /dev/null 2>&1
+                  curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+                  chmod +x /usr/local/bin/mc
+
+                  # Configure MinIO
+                  mc alias set concord \
+                    "http://concord-minio:9000" \
+                    "${MINIO_ROOT_USER}" \
+                    "${MINIO_ROOT_PASSWORD}" \
+                    --api S3v4 > /dev/null
+
+                  # Ensure bucket + path exists
+                  mc mb --ignore-existing concord/backups > /dev/null 2>&1 || true
+
+                  # Upload
+                  mc cp "${BACKUP_DIR}/${FILENAME}" "concord/backups/postgres/${ENV}/${FILENAME}"
+                  echo "[backup] Uploaded to backups/postgres/${ENV}/${FILENAME}"
+
+                  # Retention: list backups, sort by name (timestamp), delete oldest beyond retain count
+                  BACKUPS=$(mc ls "concord/backups/postgres/${ENV}/" --json 2>/dev/null | grep -o '"key":"[^"]*"' | sed 's/"key":"//;s/"//' | sort)
+                  COUNT=$(echo "${BACKUPS}" | grep -c "\.sql\.gz$" || true)
+
+                  if [ "${COUNT}" -gt "${RETAIN}" ]; then
+                    DELETE_COUNT=$((COUNT - RETAIN))
+                    echo "[backup] Retention: ${COUNT} backups found, keeping ${RETAIN}, deleting ${DELETE_COUNT}"
+                    echo "${BACKUPS}" | head -n "${DELETE_COUNT}" | while read -r old; do
+                      mc rm "concord/backups/postgres/${ENV}/${old}" > /dev/null 2>&1 || true
+                      echo "[backup] Deleted: ${old}"
+                    done
+                  else
+                    echo "[backup] Retention: ${COUNT} backups (within ${RETAIN} limit)"
+                  fi
+
+                  echo "[backup] PostgreSQL backup complete"
+              env:
+                - name: POSTGRES_USER
+                  value: {{ .Values.infrastructure.postgres.user | default "concord" }}
+                - name: POSTGRES_PASSWORD
+                  value: {{ .Values.infrastructure.postgres.password | default "concord" }}
+                - name: POSTGRES_DB
+                  value: {{ .Values.infrastructure.postgres.database | default "concord" }}
+                - name: MINIO_ROOT_USER
+                  value: {{ .Values.infrastructure.minio.rootUser | default "minioadmin" }}
+                - name: MINIO_ROOT_PASSWORD
+                  value: {{ .Values.infrastructure.minio.rootPassword | default "minioadmin" }}
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+{{- end }}
+{{- if .Values.backups.minio.enabled }}
+---
+# ── MinIO Backup CronJob ───────────────────────────────────
+# Mirrors MinIO data to a hostPath volume on a different node
+# This provides a second copy of firmware artifacts
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: concord-backup-minio
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    app.kubernetes.io/name: concord-backup-minio
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ .Values.backups.minio.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: concord-backup-minio
+        spec:
+          {{- include "concord.workloadNodeSelector" (dict "workload" "data" "extra" dict) | nindent 10 }}
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: minio/mc:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+
+                  ENV="{{ .Values.global.environment }}"
+                  TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+
+                  echo "[backup] Starting MinIO mirror: ${ENV}"
+
+                  # Configure source
+                  mc alias set concord \
+                    "http://concord-minio:9000" \
+                    "${MINIO_ROOT_USER}" \
+                    "${MINIO_ROOT_PASSWORD}" \
+                    --api S3v4
+
+                  # Mirror all buckets to backup volume
+                  # Uses --overwrite to only copy changed files (incremental)
+                  mc mirror --overwrite concord/ "/backup/${ENV}/"
+
+                  # Write manifest
+                  echo "{\"timestamp\":\"${TIMESTAMP}\",\"environment\":\"${ENV}\"}" > "/backup/${ENV}/.last-backup.json"
+
+                  echo "[backup] MinIO mirror complete: ${ENV}"
+              env:
+                - name: MINIO_ROOT_USER
+                  value: {{ .Values.infrastructure.minio.rootUser | default "minioadmin" }}
+                - name: MINIO_ROOT_PASSWORD
+                  value: {{ .Values.infrastructure.minio.rootPassword | default "minioadmin" }}
+              volumeMounts:
+                - name: backup-volume
+                  mountPath: /backup
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+          volumes:
+            - name: backup-volume
+              hostPath:
+                path: {{ .Values.backups.minio.hostPath | default "/var/lib/concord/backups/minio" }}
+                type: DirectoryOrCreate
+{{- end }}
+{{- if .Values.backups.postgres.preUpgrade }}
+---
+# ── Pre-Upgrade Backup Hook ────────────────────────────────
+# Runs a database backup before every helm upgrade
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: concord-backup-pre-upgrade
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    app.kubernetes.io/name: concord-backup-pre-upgrade
+    app.kubernetes.io/component: backup
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: concord-backup-pre-upgrade
+    spec:
+      {{- include "concord.workloadNodeSelector" (dict "workload" "data" "extra" dict) | nindent 6 }}
+      restartPolicy: Never
+      containers:
+        - name: backup
+          image: postgres:16-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              ENV="{{ .Values.global.environment }}"
+              TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+              FILENAME="pre-upgrade-${TIMESTAMP}.sql.gz"
+
+              echo "[pre-upgrade] Backing up database before upgrade..."
+
+              apk add --no-cache curl > /dev/null 2>&1
+              curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+              chmod +x /usr/local/bin/mc
+
+              mc alias set concord \
+                "http://concord-minio:9000" \
+                "${MINIO_ROOT_USER}" \
+                "${MINIO_ROOT_PASSWORD}" \
+                --api S3v4 > /dev/null
+
+              mc mb --ignore-existing concord/backups > /dev/null 2>&1 || true
+
+              PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
+                -h concord-postgres \
+                -U "${POSTGRES_USER}" \
+                -d "${POSTGRES_DB}" \
+                --no-owner --no-acl \
+                | gzip | mc pipe "concord/backups/postgres/${ENV}/${FILENAME}"
+
+              echo "[pre-upgrade] Backup saved: backups/postgres/${ENV}/${FILENAME}"
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.infrastructure.postgres.user | default "concord" }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.infrastructure.postgres.password | default "concord" }}
+            - name: POSTGRES_DB
+              value: {{ .Values.infrastructure.postgres.database | default "concord" }}
+            - name: MINIO_ROOT_USER
+              value: {{ .Values.infrastructure.minio.rootUser | default "minioadmin" }}
+            - name: MINIO_ROOT_PASSWORD
+              value: {{ .Values.infrastructure.minio.rootPassword | default "minioadmin" }}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+{{- end }}
+{{- if .Values.backups.postgres.verify }}
+---
+# ── Backup Verification CronJob ────────────────────────────
+# Weekly: downloads latest backup, restores to temp DB, validates schema
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: concord-backup-verify
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    app.kubernetes.io/name: concord-backup-verify
+    app.kubernetes.io/component: backup
+spec:
+  schedule: "0 5 * * 1"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: concord-backup-verify
+        spec:
+          {{- include "concord.workloadNodeSelector" (dict "workload" "data" "extra" dict) | nindent 10 }}
+          restartPolicy: Never
+          containers:
+            - name: verify
+              image: postgres:16-alpine
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+
+                  ENV="{{ .Values.global.environment }}"
+
+                  echo "[verify] Starting backup verification for ${ENV}"
+
+                  # Install mc
+                  apk add --no-cache curl > /dev/null 2>&1
+                  curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+                  chmod +x /usr/local/bin/mc
+
+                  mc alias set concord \
+                    "http://concord-minio:9000" \
+                    "${MINIO_ROOT_USER}" \
+                    "${MINIO_ROOT_PASSWORD}" \
+                    --api S3v4 > /dev/null
+
+                  # Find latest backup
+                  LATEST=$(mc ls "concord/backups/postgres/${ENV}/" --json 2>/dev/null \
+                    | grep -o '"key":"[^"]*"' | sed 's/"key":"//;s/"//' \
+                    | grep "^concord-" | sort | tail -1)
+
+                  if [ -z "${LATEST}" ]; then
+                    echo "[verify] FAIL — no backups found in backups/postgres/${ENV}/"
+                    exit 1
+                  fi
+
+                  echo "[verify] Latest backup: ${LATEST}"
+
+                  # Download
+                  mc cp "concord/backups/postgres/${ENV}/${LATEST}" /tmp/verify.sql.gz > /dev/null
+
+                  # Create temp database
+                  PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+                    -h concord-postgres -U "${POSTGRES_USER}" -d postgres \
+                    -c "DROP DATABASE IF EXISTS concord_verify;" \
+                    -c "CREATE DATABASE concord_verify;" > /dev/null 2>&1
+
+                  # Restore
+                  gunzip -c /tmp/verify.sql.gz | PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+                    -h concord-postgres -U "${POSTGRES_USER}" -d concord_verify \
+                    > /dev/null 2>&1
+
+                  # Validate — check key tables exist
+                  TABLES=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+                    -h concord-postgres -U "${POSTGRES_USER}" -d concord_verify \
+                    -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';")
+                  TABLES=$(echo "${TABLES}" | tr -d ' ')
+
+                  # Cleanup temp database
+                  PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+                    -h concord-postgres -U "${POSTGRES_USER}" -d postgres \
+                    -c "DROP DATABASE IF EXISTS concord_verify;" > /dev/null 2>&1
+
+                  if [ "${TABLES}" -gt 20 ]; then
+                    echo "[verify] PASS — restored ${LATEST}, found ${TABLES} tables"
+                  else
+                    echo "[verify] FAIL — only ${TABLES} tables restored (expected 20+)"
+                    exit 1
+                  fi
+              env:
+                - name: POSTGRES_USER
+                  value: {{ .Values.infrastructure.postgres.user | default "concord" }}
+                - name: POSTGRES_PASSWORD
+                  value: {{ .Values.infrastructure.postgres.password | default "concord" }}
+                - name: MINIO_ROOT_USER
+                  value: {{ .Values.infrastructure.minio.rootUser | default "minioadmin" }}
+                - name: MINIO_ROOT_PASSWORD
+                  value: {{ .Values.infrastructure.minio.rootPassword | default "minioadmin" }}
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+{{- end }}

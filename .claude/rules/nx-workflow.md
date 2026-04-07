@@ -8,81 +8,66 @@ Nx provides caching, dependency tracking, and parallel execution. Running raw co
 
 ## Commands Reference
 
-### Development
+### Platform Lifecycle
 
 ```bash
-# Start development infrastructure (DB, MinIO, InfluxDB)
-nx start platform
+# Development
+nx start platform              # Start all services in Docker containers
+nx update platform             # Rebuild + hot-swap changed containers
+nx stop platform               # Compose down
 
-# Run backend locally (after infra is up)
-npx nx serve http-api
+# Staging / Production
+nx start platform -c staging   # Full 0→running (infra + secrets + build + deploy)
+nx update platform -c staging  # Rebuild + deploy (zero downtime)
+nx stop platform -c staging    # Helm uninstall
+nx run platform:status -c staging
 
-# Run frontend locally
-npx nx serve app
-
-# Run both in parallel
-npx nx run-many -t serve dev -p http-api app
+# Frontend only (HMR dev server — only UI uses nx serve)
+npx nx serve app               # SvelteKit on :4200
 ```
 
 ### Testing
 
 ```bash
-# Backend tests
 npx nx test http-api
-
-# Frontend tests
 npx nx test app
-
-# Type checking
 npx nx typecheck http-api
 npx nx typecheck app
-
-# All tests in parallel
-npx nx run-many -t test typecheck
+npx nx run-many -t test typecheck  # All in parallel
 ```
 
-### Building
+### Building (handled automatically by update/start)
 
 ```bash
-# Build for staging
 npx nx run http-api:containerize -c staging
 npx nx run app:containerize -c staging
-
-# Build for production
-npx nx run http-api:containerize -c production
-npx nx run app:containerize -c production
 ```
 
-### Deployment
+### Infrastructure
 
 ```bash
-# Deploy to staging (includes build)
-./deploy/ctl.sh staging deploy
-
-# Deploy to production (includes build)
-./deploy/ctl.sh production deploy
-
-# Preview changes before deploy
-./deploy/ctl.sh diff staging
-./deploy/ctl.sh diff production
+npx nx test infrastructure                    # Run all infra tests
+npx nx run infrastructure:bootstrap -c office # Set up cluster
+npx nx run infrastructure:secrets -c office   # Create K8s secrets
+npx nx run infrastructure:status -c office    # Check readiness
 ```
 
 ## NEVER Do These
 
 ```bash
-# WRONG - bypasses Nx caching
+# WRONG — backends always run in containers, never via nx serve
+npx nx serve http-api
+
+# WRONG — bypasses Nx
 cd apps/backend/http-api && python3 -m src.main
 
-# WRONG - bypasses Nx
+# WRONG — use nx update platform instead
 docker build -t concord/http-api .
 
-# WRONG - no dependency tracking
-pytest tests/
-
-# RIGHT - use Nx
-npx nx serve http-api
-npx nx run http-api:containerize
-npx nx test http-api
+# RIGHT
+nx start platform           # Start everything
+nx update platform          # After code changes
+npx nx test http-api        # Run tests
 ```
 
 ## Nx Project Dependencies
@@ -95,22 +80,18 @@ When modifying code, Nx automatically tracks dependencies:
 - `validation-alpha` depends on `protocols`
 - `mtib-server` depends on `protocols`
 
-After changing a library, Nx will rebuild all dependents. Don't manually rebuild each project.
+After changing a library, Nx will rebuild all dependents.
 
 ## Caching
 
-Nx caches build/test outputs in `.nx/cache`. The cache is valid based on:
-- Source file hashes
-- Dependency output hashes
-- Environment variables in `nx.json`
+Nx caches build/test outputs in `.nx/cache`. Docker layer caching handles container builds — unchanged services rebuild in sub-second.
 
 If you need to bypass cache (rare): `npx nx reset && npx nx <command>`
 
 ## Adding New Projects
 
-When adding a new app or library:
-
 1. Create `project.json` in the project root
-2. Define targets: `build`, `test`, `serve`, `containerize`
+2. Define targets: `build`, `test`, `containerize`
 3. Add `implicitDependencies` if needed
-4. Add to appropriate `nx.json` target defaults
+4. Add Helm template + values entries
+5. Add to `deploy/ctl.sh` build/push targets

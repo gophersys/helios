@@ -16,11 +16,22 @@
     Factory,
     ScanEye,
   } from 'lucide-svelte';
-  import { PUBLIC_APP_VERSION } from '$env/static/public';
+  import { PUBLIC_APP_VERSION, PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
+
   import ConcordLogo from '$lib/components/concord-logo.svelte';
   import KubernetesIcon from '$lib/components/icons/kubernetes-icon.svelte';
+
+  // Environment display
+  const appEnv = PUBLIC_APP_ENVIRONMENT || 'development';
+  const isProduction = appEnv === 'production';
+  const isDev = appEnv === 'development' || appEnv === 'local' || !appEnv;
+  const envConfig = (() => {
+    if (appEnv === 'staging') return { label: 'STAGING', text: 'text-accent', bg: 'bg-accent-muted', dot: 'bg-accent' };
+    if (isDev) return { label: 'DEV', text: 'text-warning', bg: 'bg-warning-muted', dot: 'bg-warning' };
+    return { label: appEnv.toUpperCase(), text: 'text-warning', bg: 'bg-warning-muted', dot: 'bg-warning' };
+  })();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type IconComponent = any;
@@ -50,16 +61,17 @@
   let viewAsOpen = $state(false);
 
   const VIEW_AS_ROLES = [
-    { value: null,        label: 'Your View' },
-    { value: 'DEVELOPER', label: 'Developer' },
-    { value: 'OPERATOR',  label: 'Operator' },
+    { value: null,          label: 'Your View' },
+    { value: 'MAINTAINER',  label: 'Maintainer' },
+    { value: 'DEVELOPER',   label: 'Developer' },
+    { value: 'OPERATOR',    label: 'Operator' },
   ] as const;
 
   // Primary navigation items
   const primaryItems: NavItem[] = [
     { to: '/products', icon: Package, label: 'Products', permission: 'products:view' },
     { to: '/builds', icon: Hammer, label: 'Builds', permission: 'builds:view' },
-    { to: '/validation', icon: FlaskConical, label: 'Validation' },
+    { to: '/validation', icon: FlaskConical, label: 'Validation', permission: 'validation:view' },
     { to: '/manufacturing', icon: Factory, label: 'Manufacturing', permission: 'manufacturing:view' },
     { to: '/fixtures', icon: Cpu, label: 'Fixtures', permission: 'fixtures:view' },
   ];
@@ -299,8 +311,8 @@
       {#if !collapsed}<span class="truncate">Settings</span>{/if}
     </button>
 
-    <!-- View As (Admin/Maintainer only) -->
-    {#if auth.canViewAs && !collapsed}
+    <!-- View As (Admin/Maintainer only, dev environment only) -->
+    {#if isDev && auth.canViewAs && !collapsed}
       <div class="relative">
         <button
           onclick={() => (viewAsOpen = !viewAsOpen)}
@@ -378,9 +390,21 @@
       </div>
     {/if}
 
-    {#if !collapsed && PUBLIC_APP_VERSION}
-      <div class="px-3 pt-1 text-center">
-        <span class="text-2xs text-text-tertiary opacity-50">v{PUBLIC_APP_VERSION}</span>
+    {#if !collapsed}
+      <div class="px-3 pt-1 flex items-center justify-center gap-2">
+        {#if !isProduction}
+          <span class="inline-flex items-center gap-1.5 rounded-full {envConfig.bg} px-2 py-0.5 text-2xs font-medium {envConfig.text}">
+            <span class="h-1.5 w-1.5 rounded-full {envConfig.dot}"></span>
+            {envConfig.label}
+          </span>
+        {/if}
+        {#if PUBLIC_APP_VERSION}
+          <span class="text-2xs text-text-tertiary opacity-50">v{PUBLIC_APP_VERSION}</span>
+        {/if}
+      </div>
+    {:else if !isProduction}
+      <div class="flex justify-center pt-1 pb-1">
+        <span class="h-2 w-2 rounded-full {envConfig.dot}" title="{envConfig.label}"></span>
       </div>
     {/if}
   </div>

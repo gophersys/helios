@@ -76,7 +76,7 @@ deploy/helm/concord/files/build-worker/*.py
 # Secrets & credentials (NEVER commit)
 # ---------------------------------------------------------------------------
 .env
-deploy/helm/values-*-secrets.yaml
+deploy/production/helm/values-*-secrets.yaml
 *.pem
 *.key
 **/credentials.json
@@ -118,3 +118,7 @@ logs/
 .cache/
 *.bak
 .config.old
+infrastructure/clusters/office/networking/certs/*.key
+
+# Generated kubeconfigs (contain private keys)
+infrastructure/clusters/*/kubeconfigs/generated/

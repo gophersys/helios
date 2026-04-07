@@ -15,17 +15,14 @@ Minimum hardware: 4 CPU, 8GB RAM, 100GB storage. MinIO needs its own PV for firm
 Start with staging. Production comes after you've verified everything works.
 
 ```bash
-# Preview what will be deployed
-./deploy/ctl.sh diff staging
-
-# Deploy to staging (builds containers, pushes, runs helm upgrade)
-./deploy/ctl.sh staging deploy
+# Full first-time setup (bootstraps infrastructure + deploys apps)
+nx start platform -c staging
 
 # Verify pods are healthy
-./deploy/ctl.sh staging status
+nx run platform:status -c staging
 ```
 
-The deploy creates the PostgreSQL database, runs Prisma migrations via init container, and starts the API + frontend.
+The deploy bootstraps the cluster (namespaces, RBAC, certs, secrets), creates the PostgreSQL database, runs Prisma migrations + seed via init container, and starts all services.
 
 ## Creating the First Admin User
 
@@ -50,7 +47,7 @@ Concord uses Google OAuth with JWT tokens. Auth is toggled via the `AUTH_ENABLED
 1. Set your Google OAuth client ID and secret in the Helm values:
 
 ```yaml
-# deploy/helm/values-staging.yaml
+# deploy/production/helm/values-staging.yaml
 httpApi:
   env:
     AUTH_ENABLED: "true"
@@ -62,7 +59,7 @@ httpApi:
 2. Redeploy:
 
 ```bash
-./deploy/ctl.sh staging deploy
+nx update platform -c staging
 ```
 
 3. Verify auth is working — unauthenticated requests should return 401:
@@ -96,8 +93,8 @@ Every config field must exist in all three environment files:
 
 | File | Environment |
 |------|-------------|
-| `deploy/local/.env` | Development |
-| `deploy/helm/values-staging.yaml` | Staging |
-| `deploy/helm/values-production.yaml` | Production |
+| `deploy/development/.env` | Development |
+| `deploy/production/helm/values-staging.yaml` | Staging |
+| `deploy/production/helm/values-production.yaml` | Production |
 
 Add a new secret to one, add it to all three.

@@ -141,3 +141,26 @@ secrets:
   AUTH_SERVER_API_KEY: ""
   DELETE_ALL_KEY: "staging-delete-key"
   BITBUCKET_WEBHOOK_SECRET: ""
+
+# ── Backups ────────────────────────────────────────────────
+backups:
+  postgres:
+    enabled: false
+    schedule: "0 2 * * *"       # Daily at 2:00 AM UTC
+    retain: 14                   # Keep last 14 backups
+    preUpgrade: false            # Backup before every helm upgrade
+    verify: false                # Weekly restore verification
+  minio:
+    enabled: false
+    schedule: "0 3 * * 0"       # Weekly on Sunday at 3:00 AM UTC
+    hostPath: "/var/lib/concord/backups/minio"
+
+# ── Network Policies ──────────────────────────────────────
+networkPolicies:
+  enabled: false
+
+# ── Resource Quotas ───────────────────────────────────────
+resourceQuotas:
+  enabled: false
+  cpu: "4"
+  memory: "8Gi"

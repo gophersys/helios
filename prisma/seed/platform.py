@@ -163,11 +163,16 @@ def seed_platform(db) -> dict:
     print(f"  ✓ CI API key: {ci_key[:16]}...")
 
     # Signing keys
-    for key_name, key_type in [("Bench Signing Key", "signing_key"), ("Engineering Signing Key", "signing_key"), ("Production Signing Key", "signing_key")]:
-        existing = db.secret.find_first(where={"name": key_name})
-        if not existing:
-            db.secret.create(data={"name": key_name, "type": key_type, "value": "", "description": f"Base64-encoded PEM for {key_name.lower()}", "createdById": system_user.id})
-    print("  ✓ Signing keys")
+    # Single dev signing key — production/engineering keys added via UI
+    existing = db.secret.find_first(where={"name": "Development Signing Key"})
+    if not existing:
+        db.secret.create(data={"name": "Development Signing Key", "type": "signing_key", "value": "", "description": "Base64-encoded PEM for development builds", "createdById": system_user.id})
+    # Clean up old keys from prior seeds
+    for old_name in ("Bench Signing Key", "Engineering Signing Key", "Production Signing Key"):
+        old = db.secret.find_first(where={"name": old_name})
+        if old:
+            db.secret.delete(where={"id": old.id})
+    print("  ✓ Signing key: Development Signing Key")
 
     # Recipe templates
     for tmpl in RECIPE_TEMPLATES:

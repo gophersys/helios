@@ -73,8 +73,8 @@ annotations:
 
 Before any deploy:
 
-1. **Diff first**: `./deploy/ctl.sh diff staging`
-2. **Check current state**: `./deploy/ctl.sh status staging`
+1. **Diff first**: `./deploy/ctl.sh staging diff`
+2. **Check current state**: `nx run platform:status -c staging`
 3. **Verify image exists**: `docker images | grep concord`
 
 ## Deploy Verification
@@ -114,8 +114,8 @@ helm rollback concord 5 -n staging
 
 ```bash
 # Set specific image tag
-helm upgrade concord ./deploy/helm/concord -n staging \
-  -f ./deploy/helm/values-staging.yaml \
+helm upgrade concord ./deploy/production/helm/concord -n staging \
+  -f ./deploy/production/helm/values-staging.yaml \
   --set httpApi.image.tag=staging-v1.2.3
 ```
 
@@ -150,6 +150,12 @@ kubectl scale deployment concord-http-api --replicas=0
 
 # NEVER skip health checks
 # (don't remove readiness/liveness probes)
+
+# NEVER delete PVCs without a verified backup
+kubectl delete pvc concord-postgres-pvc -n production  # DATA LOSS
+
+# NEVER stop production without --confirm-delete
+./deploy/ctl.sh production stop  # blocked by safety gate
 ```
 
 ## Incident Response
@@ -157,6 +163,6 @@ kubectl scale deployment concord-http-api --replicas=0
 If deploy causes issues:
 
 1. **Immediate**: `helm rollback concord -n staging`
-2. **Verify**: `./deploy/ctl.sh status staging`
+2. **Verify**: `nx run platform:status -c staging`
 3. **Investigate**: `kubectl logs -n staging -l app.kubernetes.io/name=concord-http-api --previous`
 4. **Fix**: Address root cause before re-deploying

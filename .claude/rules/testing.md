@@ -3,8 +3,8 @@ paths:
   - "apps/backend/http-api/src/**/*.py"
   - "apps/frontend/app/src/**/*.{ts,svelte}"
   - "apps/frontend/app/src/**/*.{ts,svelte}"
-  - "deploy/helm/**/*.yaml"
-  - "deploy/local/**/*.yaml"
+  - "deploy/production/helm/**/*.yaml"
+  - "deploy/development/**/*.yaml"
   - "config/**/*.py"
 ---
 
@@ -51,7 +51,7 @@ When adding a **new field** to `config/env.py` (ProxyConfig):
 
 ### Helm values consistency
 
-When modifying `deploy/helm/values-staging.yaml` or `deploy/helm/values-production.yaml`:
+When modifying `deploy/production/helm/values-staging.yaml` or `deploy/production/helm/values-production.yaml`:
 
 1. Mirror config/secret changes to **both** environment files
 2. The tests in `tests/unit/test_env_config.py:TestHelmValuesCompleteness` will catch missing keys

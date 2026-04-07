@@ -81,9 +81,9 @@ def seed_product(db) -> dict:
                 "boardId": board.id, "version": "A0", "ckBoardsName": "alpha_a0",
                 "socs": ["nrf9160", "nrf52840"],
                 "notes": "Alpha A0 — initial board (nRF9160 + nRF52840)",
-                "status": "DEPRECATED",
+                "status": "ACTIVE",
             },
-            "update": {"ckBoardsName": "alpha_a0", "socs": ["nrf9160", "nrf52840"]},
+            "update": {"ckBoardsName": "alpha_a0", "socs": ["nrf9160", "nrf52840"], "status": "ACTIVE"},
         },
     )
     for t in [{"role": "comms", "soc": "nRF9160", "appId": 106}, {"role": "app", "soc": "nRF52840", "appId": 109}]:
@@ -106,6 +106,7 @@ def seed_product(db) -> dict:
             "update": {
                 "ckBoardsName": "alpha_b0", "socs": ["nrf9151", "nrf52840"],
                 "deviceType": 2, "deviceVariant": 3, "modemVersion": "2.0.2",
+                "status": "ACTIVE",
             },
         },
     )

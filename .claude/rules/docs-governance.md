@@ -8,7 +8,7 @@ When creating or modifying documentation:
 
 1. **Check the layer map** (see `docs-system.md`). Place the doc in the correct layer.
 2. **Update the index.** Add the doc to the parent `index.md` table.
-3. **Update MkDocs nav.** Add the doc to `apps/docs/mkdocs.yml` under the correct section.
+3. **Update MkDocs nav.** Add the doc to `mkdocs.yml` (repo root) under the correct section.
 4. **Add cross-references.** If the doc relates to other docs, add relative links.
 5. **Update `.instrumentation.json`** if you created a new rule or skill based on doc content.
 

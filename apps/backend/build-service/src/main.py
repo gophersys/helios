@@ -15,19 +15,35 @@ log = Logger(log_name="build-service")
 
 
 def _setup_ssh_key(config):
-    """Decode base64 SSH key to file if provided via env var."""
+    """Decode base64 SSH key to file if provided via env var.
+
+    In K8s, the key is volume-mounted directly at SSH_KEY_PATH (read-only).
+    The env var path is a fallback for Docker Compose / local dev.
+    """
     import base64
     from pathlib import Path
 
+    key_path = Path(config.ssh_key_path)
+
+    # K8s volume mount: file or parent dir exists as read-only secret projection
+    if key_path.exists():
+        log.info(f"SSH key found at {key_path} (volume mount)")
+        return
+    if key_path.parent.exists() and key_path.parent.is_mount():
+        log.info(f"SSH key mount at {key_path.parent} (waiting for secret projection)")
+        return
+
     if config.bitbucket_ssh_key:
-        ssh_dir = Path(config.ssh_key_path).parent
-        ssh_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-        key_data = base64.b64decode(config.bitbucket_ssh_key)
-        key_path = Path(config.ssh_key_path)
-        key_path.write_bytes(key_data)
-        key_path.chmod(0o600)
-        log.info(f"SSH key written to {config.ssh_key_path} ({len(key_data)} bytes)")
-    elif not Path(config.ssh_key_path).exists():
+        try:
+            ssh_dir = key_path.parent
+            ssh_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            key_data = base64.b64decode(config.bitbucket_ssh_key)
+            key_path.write_bytes(key_data)
+            key_path.chmod(0o600)
+            log.info(f"SSH key written to {key_path} ({len(key_data)} bytes)")
+        except OSError as e:
+            log.warning(f"Cannot write SSH key to {key_path}: {e} — assuming read-only mount")
+    else:
         log.warning("No SSH key available — git clone will fail")
 
 
@@ -50,8 +66,8 @@ def main():
     # ── Logger ──────────────────────────────────────────────────────────────
     Logger.Config(
         logger_name="build-service",
-        log_level=20,  # INFO
-        log_path="logs",
+        overall_log_level=20,  # INFO
+        log_directory="logs",
         enable_log_color=True,
     )
 

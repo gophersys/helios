@@ -6,6 +6,8 @@ metadata:
   name: concord-postgres-pvc
   labels:
     {{- include "concord.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
 spec:
   accessModes: ["ReadWriteOnce"]
   resources:

@@ -5,8 +5,23 @@
   import { getToken } from '$lib/api';
   import ConcordLogo from '$lib/components/concord-logo.svelte';
   import { browser } from '$app/environment';
+  import { PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
 
   const auth = getAuth();
+
+  // Environment display — staging gets a badge, production gets nothing
+  const appEnv = PUBLIC_APP_ENVIRONMENT || 'development';
+  const isProduction = appEnv === 'production';
+  const envBadgeLabel = (() => {
+    if (appEnv === 'staging') return 'STAGING';
+    if (appEnv === 'local') return 'LOCAL';
+    if (appEnv === 'development' || !appEnv) return 'DEVELOPMENT';
+    return appEnv.toUpperCase();
+  })();
+  const envBadgeColor = (() => {
+    if (appEnv === 'staging') return { text: 'text-accent', bg: 'bg-accent-muted', dot: 'bg-accent' };
+    return { text: 'text-warning', bg: 'bg-warning-muted', dot: 'bg-warning' };
+  })();
 
   let error = $state<string | null>(null);
   let loading = $state(false);
@@ -99,7 +114,7 @@
         y: Math.random() * canvas.height,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        size: 8 + Math.random() * 6,
+        size: 16 + Math.random() * 12,
         rotation: angle,
         trail: []
       };
@@ -389,6 +404,11 @@
           <span class="h-2 w-2 rounded-full bg-warning animate-pulse"></span>
           {devEnvironment.toUpperCase()}
         </div>
+      {:else if !isProduction}
+        <div class="inline-flex items-center gap-2 rounded-full {envBadgeColor.bg} px-3 py-1.5 text-xs font-medium {envBadgeColor.text}">
+          <span class="h-2 w-2 rounded-full {envBadgeColor.dot} animate-pulse"></span>
+          {envBadgeLabel}
+        </div>
       {:else}
         <p class="text-base text-text-secondary">
           Sign in to continue
@@ -446,12 +466,14 @@
           <span class="ml-2 text-sm text-text-secondary">Signing in...</span>
         </div>
       {:else}
-        <form onsubmit={handleLogin} class="space-y-4">
+        <form onsubmit={handleLogin} method="post" class="space-y-4">
           <div>
             <label for="email" class="block text-sm font-medium text-text-secondary mb-1">Email</label>
             <input
               id="email"
-              type="text"
+              name="email"
+              type="email"
+              autocomplete="email"
               bind:value={email}
               placeholder="you@company.com"
               required
@@ -462,7 +484,9 @@
             <label for="password" class="block text-sm font-medium text-text-secondary mb-1">Password</label>
             <input
               id="password"
+              name="password"
               type="password"
+              autocomplete="current-password"
               bind:value={password}
               placeholder="Enter your password"
               required

@@ -96,11 +96,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # ----------------------------------------------------
-#                                                  App
+#                                       Dependencies
 # ----------------------------------------------------
-
-# By installing these first you save a lot of time when making changes to the source code
-# and rebuilding the application
 WORKDIR /app
 COPY ./apps/backend/http-api/setup.py setup.py
 RUN pip3 install -e . && \
@@ -108,40 +105,23 @@ RUN pip3 install -e . && \
     pip3 cache purge
 
 # ----------------------------------------------------
-#                                               App
+#                                       App + Libraries
 # ----------------------------------------------------
 WORKDIR /app
-
-# Cache bust — invalidates source layers when code changes (allows dropping --no-cache)
 ARG CACHE_BUST=0
 
-# Copy the Python libraries used by the app (host versions)
 COPY ./libs/python /libs/python
-
-# Copy the GENERATED Prisma client from the builder stage AFTER the host copy.
-# The builder-generated client has correct container paths; the host copy has
-# wrong absolute paths baked in from the dev machine.
 COPY --from=prisma-builder /concord/libs/python/database /libs/python/database
-
-# Copy the standalone engine binaries from the builder.
 COPY --from=prisma-builder /tmp/prisma-query-engine /app/prisma-query-engine-debian-openssl-3.0.x
 COPY --from=prisma-builder /tmp/prisma-schema-engine /app/prisma-schema-engine-debian-openssl-3.0.x
 
-# Copy Node.js + npm from the builder so `prisma migrate deploy` runs instantly.
-# prisma-client-python requires BOTH node AND npm to use the global install;
-# without npm it falls back to nodeenv which downloads a ~25MB binary at runtime.
-ARG NODE_VERSION=22.19.0
-COPY --from=prisma-builder /root/.nvm/versions/node/v${NODE_VERSION}/bin/node /usr/local/bin/node
-COPY --from=prisma-builder /root/.nvm/versions/node/v${NODE_VERSION}/lib/node_modules/npm /usr/local/lib/node_modules/npm
-RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
+# Pre-warm prisma nodeenv + CLI cache (avoids runtime downloads in init container)
+RUN python3 -c "from prisma.cli import setup; setup()" 2>&1 || \
+    python3 -m prisma version 2>&1 || true
 
-# Copy the protocols used by the app
 COPY ./libs/protocols/mtib /libs/protocols/mtib
 
-# Set the PYTHONPATH to include the libs directory
 ENV PYTHONPATH="/libs:/libs/python:/libs/protocols"
-
-# Tell Prisma where the pre-built engine binaries live (no runtime downloads)
 ENV PRISMA_QUERY_ENGINE_BINARY="/app/prisma-query-engine-debian-openssl-3.0.x"
 ENV PRISMA_SCHEMA_ENGINE_BINARY="/app/prisma-schema-engine-debian-openssl-3.0.x"
 

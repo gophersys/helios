@@ -84,11 +84,32 @@ spec:
               r = subprocess.run(
                   [sys.executable, '-m', 'prisma', 'migrate', 'deploy',
                    '--schema', '/prisma/schema.prisma'],
-                  capture_output=False, text=True
+                  capture_output=True, text=True
               )
+              print(r.stdout, flush=True)
               if r.returncode != 0:
-                  print(f'Migration failed (exit {r.returncode})', flush=True)
-                  sys.exit(r.returncode)
+                  # P3009 = failed migration from prior crash. Auto-resolve and retry.
+                  if 'P3009' in (r.stderr or r.stdout or ''):
+                      import re
+                      m = re.search(r'The `(\S+)` migration', r.stdout + r.stderr)
+                      if m:
+                          failed = m.group(1)
+                          print(f'Resolving failed migration: {failed}', flush=True)
+                          subprocess.run(
+                              [sys.executable, '-m', 'prisma', 'migrate', 'resolve',
+                               '--rolled-back', failed, '--schema', '/prisma/schema.prisma'],
+                              capture_output=False, text=True
+                          )
+                          print('Retrying migrations...', flush=True)
+                          r = subprocess.run(
+                              [sys.executable, '-m', 'prisma', 'migrate', 'deploy',
+                               '--schema', '/prisma/schema.prisma'],
+                              capture_output=False, text=True
+                          )
+                  if r.returncode != 0:
+                      print(r.stderr, flush=True)
+                      print(f'Migration failed (exit {r.returncode})', flush=True)
+                      sys.exit(r.returncode)
               print('Migrations complete.', flush=True)
 
               # Step 2: Seed (idempotent — upserts, safe to run repeatedly)
