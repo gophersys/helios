@@ -91,6 +91,7 @@ nav:
       - System Design: architecture/validation/system.md
       - Test Runner: architecture/validation/test-runner.md
     - CoreCloud: architecture/platform/corecloud-library.md
+    - Zero-Downtime Updates: architecture/platform/zero-downtime.md
 
   - Admin Guide:
     - admin/index.md
