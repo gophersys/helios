@@ -1,19 +1,10 @@
 import base64
-import struct
 
 import pytest
 
-from ..src.encoding import (
-    hex_lat_long_to_base_10,
-    hex_to_base10,
-    hex_to_base64,
-    int_to_padded_bin,
-    int_to_padded_hex,
-    print_binary,
-    to_base64,
-    to_bin,
-    to_hex,
-)
+from ..encoding.byte_str import bytes_to_base64, hex_to_base64, to_hex
+from ..encoding.numbers import hex_to_base10, int_to_padded_bin, int_to_padded_hex
+from ..geo.coordinate_encoding import hex_lat_long_to_base_10
 
 
 def test_to_hex():
@@ -57,31 +48,12 @@ def test_hex_to_base64():
     assert hex_to_base64(hex_str) == base64.b64encode(b"world").decode("utf-8")
 
 
-def test_to_base64():
-    """Test to base64."""
+def test_bytes_to_base64():
+    """Test bytes to base64."""
     data = b"Hello World"
-    assert to_base64(data) == base64.b64encode(data).decode("utf-8")
+    assert bytes_to_base64(data) == base64.b64encode(data).decode("utf-8")
     data = b"\x00\xff\x10"
-    assert to_base64(data) == base64.b64encode(data).decode("utf-8")
-
-
-def test_to_bin():
-    """Test to bin."""
-    assert to_bin(5) == "101"
-    assert to_bin("0b1010") == "1010"
-    assert to_bin("10") == "1010"  # Interpreted as decimal 10
-    with pytest.raises(ValueError):
-        to_bin("invalid")  # Cannot convert to int
-
-
-def test_print_binary(capsys):
-    """Test print binary."""
-    print_binary(5)
-    captured = capsys.readouterr()
-    assert captured.out.strip() == "101"
-    print_binary("0b1010")
-    captured = capsys.readouterr()
-    assert captured.out.strip() == "1010"
+    assert bytes_to_base64(data) == base64.b64encode(data).decode("utf-8")
 
 
 @pytest.mark.skip(reason="Test not implemented")

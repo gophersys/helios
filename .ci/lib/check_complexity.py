@@ -35,8 +35,10 @@ def check_complexity(src_dir: str, threshold: int, avg_threshold: float, allowli
     grades = {"A": 0, "B": 0, "C": 0, "D+": 0}
 
     for p in sorted(Path(src_dir).rglob("*.py")):
-        # Skip test files — tests legitimately have high CC (many assertions)
+        # Skip test files and virtual environments
         if "/tests/" in str(p) or p.name.startswith("test_"):
+            continue
+        if "/.venv/" in str(p) or "/site-packages/" in str(p):
             continue
         try:
             blocks = cc_visit(p.read_text())

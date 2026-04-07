@@ -1,6 +1,6 @@
 import pytest
 
-from ..src.progress import progress_bar
+from ..cli.progress import progress_bar
 
 
 def test_progress_bar_zero():

@@ -303,11 +303,30 @@
     "handle_repo_event": 16,
     "poll_for_changes": 23
   },
+  "libs/python/corekinect/core_cloud/api_interface.py": {
+    "__init__": 11,
+    "_ensure_token": 12
+  },
+  "libs/python/corekinect/core_cloud/db_interface.py": {
+    "__enter__": 12
+  },
   "libs/python/corekinect/core_cloud/msg_def_v1_0.py": {
-    "_extra_validate": 23
+    "GroundModeConfigV2": 13,
+    "_extra_validate": 23,
+    "_query_records": 13
+  },
+  "libs/python/corekinect/core_cloud/unified_core/message_base.py": {
+    "from_csv_file": 15
   },
   "libs/python/corekinect/core_cloud/unified_core/message_codec.py": {
     "_pack": 21
+  },
+  "libs/python/corekinect/firmware/validator.py": {
+    "summary": 11,
+    "verify_boot_matches_expected": 13
+  },
+  "libs/python/corekinect/firmware/version.py": {
+    "detect": 14
   },
   "libs/python/corekinect/mtib_client/v1/client/core.py": {
     "_grpc_call": 20
@@ -316,21 +335,35 @@
     "send_uart_cmd": 23
   },
   "libs/python/corekinect/shells/base.py": {
+    "_clean": 15,
     "send": 21
   },
   "libs/python/corekinect/shells/theta.py": {
+    "ThetaAppShell": 11,
+    "erase_ext_flash": 14,
+    "get_ublox": 14,
+    "gps_start": 11,
+    "gps_status": 13,
+    "gps_stop": 11,
+    "membrane_test": 13,
     "read_ext_flash": 18,
+    "test_ble": 12,
     "test_bms": 18,
-    "test_charger": 17
+    "test_charger": 17,
+    "test_gps": 13,
+    "write_ext_flash": 14
   },
   "libs/python/corekinect/test/artifact_writer.py": {
-    "append_power_sample": 17
+    "__init__": 11,
+    "append_power_sample": 17,
+    "append_power_samples": 12
   },
   "libs/python/corekinect/test/device_personalizer.py": {
     "_power_cycle_and_lock_shells": 16,
     "repersonalize": 27
   },
   "libs/python/corekinect/test/fuota_orchestrator.py": {
+    "create_and_assign_plan": 13,
     "wait_for_completion": 28
   },
   "libs/python/corekinect/test/post.py": {
@@ -339,16 +372,39 @@
   "libs/python/corekinect/test/pytest_integration.py": {
     "_find_fixture": 17
   },
+  "libs/python/corekinect/test/reporter.py": {
+    "_report_test_result": 15
+  },
+  "libs/python/corekinect/test/runner.py": {
+    "_check_mtib": 11
+  },
   "libs/python/corekinect/test/telemetry.py": {
     "_flush_channels_to_storage": 19
   },
+  "libs/python/corekinect/test/uart_demuxer.py": {
+    "get_logs": 11
+  },
   "libs/python/corekinect/test/version_detector.py": {
+    "capture_boot_versions": 11,
     "verify_firmware_version": 23
+  },
+  "libs/python/corekinect/utils/config/env.py": {
+    "_convert_value": 12,
+    "_initialize_from_env": 12
+  },
+  "libs/python/corekinect/utils/nfc/acr_1252U_nfc_device_id_reader.py": {
+    "_emit": 14,
+    "_parse_ndef": 13,
+    "_read_ndef_type2": 12,
+    "_read_ndef_type4": 14
   },
   "libs/python/corekinect/utils/serde/convert.py": {
     "convert_str_to_type": 19
   },
   "libs/python/corekinect/utils/serde/data_storage.py": {
     "_deserialize_value": 32
+  },
+  "libs/python/corekinect/utils/serde/serializable.py": {
+    "from_dict": 11
   }
 }

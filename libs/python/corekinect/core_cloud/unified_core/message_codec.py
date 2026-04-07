@@ -44,11 +44,18 @@ Typical Usage:
     ```
 """
 
+from __future__ import annotations
+
 import base64
 import struct
 from dataclasses import fields
 from datetime import datetime, timezone
-from typing import ClassVar, Self, Type, Any, Optional
+from typing import ClassVar, Type, Any, Optional
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 # Mapping from struct format codes to their byte sizes
 # Only codes we support are included here

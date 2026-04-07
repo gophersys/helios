@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from ..src.log import Logger
+from ..logx.logger import Logger
 
 
 def test_logger_creation():

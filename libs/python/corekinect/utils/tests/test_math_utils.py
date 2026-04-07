@@ -1,6 +1,6 @@
 import pytest
 
-from ..src.math_utils import haversine
+from ..geo.distance import haversine
 
 
 def test_haversine_zero_distance():

@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from ..src.datetime_utils import (
+from ..timeutil.formaters import (
     mst_datetime_to_utc_str,
     mst_str_to_utc_datetime,
     str_to_datetime,
