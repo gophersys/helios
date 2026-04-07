@@ -32,12 +32,13 @@ kind: PodDisruptionBudget
 metadata:
   name: concord-build-service
   labels:
-    app: concord-build-service
+    {{- include "concord.labels" . | nindent 4 }}
+    {{- include "concord.buildService.selectorLabels" . | nindent 4 }}
 spec:
   minAvailable: 0
   selector:
     matchLabels:
-      app: concord-build-service
+      {{- include "concord.buildService.selectorLabels" . | nindent 6 }}
 ---
 {{- end }}
 
@@ -63,9 +64,10 @@ metadata:
   name: concord-git-poller
   labels:
     {{- include "concord.labels" . | nindent 4 }}
+    {{- include "concord.gitPoller.selectorLabels" . | nindent 4 }}
 spec:
   minAvailable: 0
   selector:
     matchLabels:
-      app: concord-git-poller
+      {{- include "concord.gitPoller.selectorLabels" . | nindent 6 }}
 {{- end }}

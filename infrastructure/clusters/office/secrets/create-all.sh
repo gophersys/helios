@@ -101,16 +101,26 @@ fi
 echo ""
 
 # ── Secret 2: concord-build-service-secrets ─────────────────────
+# Used by: build-service (API auth), git-poller (API auth + Bitbucket REST)
 log "concord-build-service-secrets"
 BUILD_SERVICE_API_KEY="${BUILD_SERVICE_API_KEY:-}"
-BUILD_SERVICE_DATABASE_URL="${BUILD_SERVICE_DATABASE_URL:-}"
+BITBUCKET_EMAIL="${BITBUCKET_EMAIL:-}"
+BITBUCKET_API_TOKEN="${BITBUCKET_API_TOKEN:-}"
 if [[ -z "${BUILD_SERVICE_API_KEY}" ]]; then
   warn "  BUILD_SERVICE_API_KEY not set — skipping"
 else
+  local_args=(
+    --from-literal=api-key="${BUILD_SERVICE_API_KEY}"
+  )
+  # Bitbucket REST API credentials (optional — needed for PR monitoring)
+  if [[ -n "${BITBUCKET_EMAIL}" ]]; then
+    local_args+=(--from-literal=bitbucket-email="${BITBUCKET_EMAIL}")
+  fi
+  if [[ -n "${BITBUCKET_API_TOKEN}" ]]; then
+    local_args+=(--from-literal=bitbucket-api-token="${BITBUCKET_API_TOKEN}")
+  fi
   for ns in "${NAMESPACES[@]}"; do
-    apply_secret "${ns}" generic concord-build-service-secrets \
-      --from-literal=api-key="${BUILD_SERVICE_API_KEY}" \
-      --from-literal=database-url="${BUILD_SERVICE_DATABASE_URL}"
+    apply_secret "${ns}" generic concord-build-service-secrets "${local_args[@]}"
   done
 fi
 echo ""

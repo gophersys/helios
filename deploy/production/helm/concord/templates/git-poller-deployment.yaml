@@ -3,11 +3,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: concord-git-poller
-  namespace: {{ .Release.Namespace }}
   labels:
-    app: concord-git-poller
-    app.kubernetes.io/component: git-poller
-    app.kubernetes.io/part-of: concord
+    {{- include "concord.labels" . | nindent 4 }}
+    {{- include "concord.gitPoller.selectorLabels" . | nindent 4 }}
 spec:
   replicas: 1
   strategy:
@@ -17,15 +15,19 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      app: concord-git-poller
+      {{- include "concord.gitPoller.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: concord-git-poller
+        {{- include "concord.labels" . | nindent 8 }}
+        {{- include "concord.gitPoller.selectorLabels" . | nindent 8 }}
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
         rollme: {{ randAlphaNum 10 | quote }}
     spec:
       {{- include "concord.workloadNodeSelector" (dict "workload" "platform" "extra" .Values.gitPoller.nodeSelector) | nindent 6 }}
+      terminationGracePeriodSeconds: 30
       initContainers:
         - name: wait-for-api
           image: busybox:1.36
@@ -45,7 +47,9 @@ spec:
             - name: SSH_KEY_PATH
               value: "/root/.ssh/id_rsa"
             - name: POLL_INTERVAL
-              value: {{ .Values.gitPoller.pollInterval | default "15" | quote }}
+              value: {{ .Values.gitPoller.pollInterval | default "5" | quote }}
+            - name: PRODUCT_CACHE_TTL
+              value: {{ .Values.gitPoller.productCacheTtl | default "60" | quote }}
             - name: CONCORD_API_URL
               value: "http://concord-http-api:9001"
             - name: CONCORD_API_KEY
@@ -53,12 +57,26 @@ spec:
                 secretKeyRef:
                   name: concord-build-service-secrets
                   key: api-key
+            - name: BITBUCKET_WORKSPACE
+              value: {{ .Values.gitPoller.bitbucketWorkspace | default "corekinect" | quote }}
+            - name: BITBUCKET_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: concord-build-service-secrets
+                  key: bitbucket-email
+                  optional: true
+            - name: BITBUCKET_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: concord-build-service-secrets
+                  key: bitbucket-api-token
+                  optional: true
           ports:
             - containerPort: 9003
               name: health
           readinessProbe:
             httpGet:
-              path: /health
+              path: /ready
               port: 9003
             initialDelaySeconds: 5
             periodSeconds: 10

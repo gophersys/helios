@@ -24,6 +24,30 @@ app.kubernetes.io/component: frontend
 {{- end }}
 
 {{/*
+Build-service selector labels
+*/}}
+{{- define "concord.buildService.selectorLabels" -}}
+app.kubernetes.io/name: concord-build-service
+app.kubernetes.io/component: build-service
+{{- end }}
+
+{{/*
+Git-poller selector labels
+*/}}
+{{- define "concord.gitPoller.selectorLabels" -}}
+app.kubernetes.io/name: concord-git-poller
+app.kubernetes.io/component: git-poller
+{{- end }}
+
+{{/*
+Docs selector labels
+*/}}
+{{- define "concord.docs.selectorLabels" -}}
+app.kubernetes.io/name: concord-docs
+app.kubernetes.io/component: docs
+{{- end }}
+
+{{/*
 Workload node selector — places pods on nodes matching a workload type.
 Uses concord.corekinect.com/workload-<type>=true so multi-role nodes
 are matched (e.g., a node with workload-platform=true AND workload-worker=true).

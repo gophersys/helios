@@ -337,7 +337,7 @@ except Exception as e:
   # Build-service has no K8s Service (it's a worker, not an endpoint).
   # Check that the pod is running and healthy via its liveness probe.
   local bs_ready
-  bs_ready=$(kubectl get pods -n "${env}" -l app=concord-build-service \
+  bs_ready=$(kubectl get pods -n "${env}" -l app.kubernetes.io/name=concord-build-service \
     --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
   if [[ "${bs_ready}" -gt 0 ]]; then
     info "  ✓ Build service pod running"
