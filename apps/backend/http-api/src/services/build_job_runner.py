@@ -132,6 +132,9 @@ def create_build_k8s_job(build_job_id: str) -> Optional[str]:
                 },
                 "spec": {
                     "restartPolicy": "Never",
+                    "nodeSelector": {
+                        "concord.corekinect.com/workload-build": "true",
+                    },
                     "containers": [{
                         "name": "builder",
                         "image": builder_image,

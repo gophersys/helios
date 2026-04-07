@@ -17,21 +17,8 @@ spec:
     spec:
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
-      # Run on regular agent nodes (x86), connect to MTIB remotely
-      # No nodeSelector - use any available node except edge nodes
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/arch
-                operator: In
-                values:
-                - amd64
-              - key: corekinect.com/role
-                operator: NotIn
-                values:
-                - edge
+      nodeSelector:
+        concord.corekinect.com/workload-worker: "true"
       containers:
       - name: "validation-{{PRODUCT}}"
         image: "containers.ad.corekinect.com/concord-validation-{{PRODUCT}}:{{IMAGE_TAG}}"
