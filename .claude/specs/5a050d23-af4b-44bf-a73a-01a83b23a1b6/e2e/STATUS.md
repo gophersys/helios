@@ -29,8 +29,8 @@
 | 8 | Val Queue | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 9 | Val Execution | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 10 | Mfg Backend | IMPLEMENT | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T09:30Z | e2e-mfg-backend |
-| 11 | Mfg Frontend | IMPLEMENT | IN_PROGRESS | 1 | 2026-04-09T09:45Z | 2026-04-09T09:45Z | e2e-mfg-frontend |
-| 12 | Mfg Wizard | IMPLEMENT | IN_PROGRESS | 1 | 2026-04-09T09:45Z | 2026-04-09T09:45Z | e2e-mfg-wizard |
+| 11 | Mfg Frontend | IMPLEMENT | COMPLETE | 1 | 2026-04-09T09:45Z | 2026-04-09T11:00Z | e2e-mfg-frontend |
+| 12 | Mfg Wizard | IMPLEMENT | COMPLETE | 1 | 2026-04-09T09:45Z | 2026-04-09T10:30Z | e2e-mfg-wizard |
 | 13 | Mfg E2E | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 14 | User Mgmt | TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-08T06:50Z | e2e-users |
 | 15 | Role Stories | TEST | PENDING | 0 | - | - | (wave 5, sequential) |
@@ -81,4 +81,24 @@
 - Permissions: manufacturing:view/run/manage already existed, no changes needed
 - Tests: 34 new tests (8 config + 14 sessions + 12 reporter), all passing
 - Full suite: 2134 passed, 0 failures, no regressions
+- No blocked items
+
+### Stage 11: Mfg Frontend (COMPLETE)
+- Types: ManufacturingFixture, ManufacturingSession, ManufacturingPanel, ManufacturingUnit, ManufacturingStage, ManufacturingSessionDetail added to models.ts
+- Routes: 3 pages — /manufacturing (hub with fixtures + sessions tabs), /manufacturing/session/[id] (live runner), /manufacturing/sessions (history)
+- Components: 8 new files in components/manufacturing/ (fixture-card, session-card, panel-runner, unit-card, unit-stage-progress, panel-results-grid, panel-history, session-header)
+- WebSocket: subscribeManufacturingSession + getManufacturingSocket added to websocket.ts for real-time unit/stage/panel events
+- Permission gating: manufacturing:view for all pages, manufacturing:run for session creation/panel running/session ending
+- Tests: 27 new tests covering fixture model, session model, unit model, panel runner logic, panel grid, permission gating, stage ordering
+- Full suite: 549 tests passed + 1 skipped, 0 failures, no regressions
+- Typecheck: clean pass
+- No blocked items
+
+### Stage 12: Mfg Wizard (COMPLETE)
+- Frontend: 4 new Svelte components (manufacturing-tab, manufacturing-config-wizard, manufacturing-stage-config, firmware-source-picker)
+- Product detail: Manufacturing tab replaced placeholder with full config display + wizard trigger
+- Types: ManufacturingConfig, ManufacturingStageConfig, ManufacturingPersonalizationConfig, ManufacturingPassCriteria added to models.ts
+- Wizard: 4-step modal (base config, stage config, pass criteria, review) with create/update support
+- Tests: 26 new tests (7 tab + 13 wizard + 6 picker), all passing
+- Full suite: 549 passed, 0 failures, no regressions
 - No blocked items

@@ -18,7 +18,7 @@ If you are reading this after context compaction:
 
 # Stage 12: Manufacturing Setup Wizard (IMPLEMENTATION)
 
-**Status:** Pending
+**Status:** COMPLETE
 **Type:** IMPLEMENT (new feature, TDD)
 **Dependencies:** Stages 10, 11
 **Estimated Unit Tests:** ~15
@@ -132,9 +132,35 @@ test('manual upload shows file input')
 
 ## Gate Criteria
 
-- [ ] Manufacturing tab appears on product detail page
-- [ ] Config wizard creates ManufacturingConfig via API
-- [ ] Firmware source picker works for all 3 modes
-- [ ] Pass criteria configurable per stage
-- [ ] Permission gating: manufacturing:manage required to configure
-- [ ] All 15 vitest unit tests pass
+- [x] Manufacturing tab appears on product detail page
+- [x] Config wizard creates ManufacturingConfig via API
+- [x] Firmware source picker works for all 3 modes
+- [x] Pass criteria configurable per stage
+- [x] Permission gating: manufacturing:manage required to configure
+- [x] All 26 vitest unit tests pass (exceeded 15 target)
+
+---
+
+## Reconciliation
+
+### What was built
+- **manufacturing-tab.svelte** — Displays "not configured" empty state or full config summary (stages, firmware source, pass criteria, personalization). Permission-gated "Configure Manufacturing" button.
+- **manufacturing-config-wizard.svelte** — 4-step modal wizard: (1) Board revision + enable toggle, (2) Stage config + firmware source, (3) Pass criteria + personalization, (4) Review & save. Supports create and update flows.
+- **manufacturing-stage-config.svelte** — Per-stage toggle + expandable config form. Electrical: voltage/current/I2C. Flash: target selection + J-Link speed. POST: substep toggles.
+- **firmware-source-picker.svelte** — Radio-card selector for latest_build, specific_version, manual_upload.
+- **product-detail.svelte** — Replaced placeholder Manufacturing tab content with `ProductManufacturingTab` component.
+- **models.ts** — Added `ManufacturingConfig`, `ManufacturingStageConfig`, `ManufacturingPersonalizationConfig`, `ManufacturingPassCriteria` interfaces.
+
+### Tests added
+- `manufacturing-tab.test.ts` — 7 tests: display logic, firmware source labels, permission gating
+- `manufacturing-config-wizard.test.ts` — 13 tests: revision filtering, step validation, stage config, pass criteria, payload construction, edit restore
+- `firmware-source-picker.test.ts` — 6 tests: option existence, uniqueness, selection behavior
+
+### API integration
+- Wizard calls `POST /v2/products/:id/manufacturing` (create) or `PUT /v2/products/:id/manufacturing` (update) from Stage 10 backend
+- Tab reads config via `GET /v2/products/:id/manufacturing`, handles 404 as "not configured"
+
+### No blocked items
+- Full test suite: 549 passed, 0 failures, 1 skipped (pre-existing)
+- Typecheck: clean pass
+- No regressions in existing 496 tests
