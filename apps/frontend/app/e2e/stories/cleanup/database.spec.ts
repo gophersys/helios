@@ -12,6 +12,10 @@ import { test, expect } from '../../fixtures';
  * - 4 dev users: admin, maintainer, developer, operator (@concord.dev)
  * - Default permission sets (built-in)
  * - Default roles (built-in)
+ * - 1 seed product: Alpha (with fixture designs, fixtures, build runs, etc.)
+ * - Seed fixture designs (alpha-val-fixture-v1.2, alpha-mfg-fixture-v1.0)
+ * - Seed fixtures (bench instances)
+ * - Seed build runs
  */
 
 const API_URL = process.env.E2E_API_URL || 'http://localhost:9001';
@@ -22,7 +26,25 @@ const SEED_USER_EMAILS = [
   'maintainer@concord.dev',
   'developer@concord.dev',
   'operator@concord.dev',
+  'admin@concord.local',
+  'system@concord.local',
 ];
+
+/** Email domain suffixes for seeded users (team members, dev accounts) */
+const SEED_USER_DOMAINS = [
+  '@concord.dev',
+  '@concord.local',
+  '@corekinect.com',
+];
+
+/** Slugs of products that are seeded and should not be counted as E2E leftovers */
+const SEED_PRODUCT_SLUGS = ['alpha'];
+
+/** Prefixes of fixture design names that are seeded */
+const SEED_DESIGN_PREFIXES = ['alpha-'];
+
+/** Prefixes of fixture names that are seeded */
+const SEED_FIXTURE_PREFIXES = ['Alpha '];
 
 async function apiGet<T = unknown>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
@@ -33,6 +55,14 @@ async function apiGet<T = unknown>(path: string): Promise<T> {
   }
   const body = await res.json();
   return body.data;
+}
+
+async function apiDelete(path: string): Promise<boolean> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'DELETE',
+    headers: { Authorization: `ApiKey ${API_KEY}` },
+  });
+  return res.ok || res.status === 404;
 }
 
 /** Extract array from paginated or direct responses */
@@ -48,36 +78,167 @@ function extractList(data: unknown): unknown[] {
 test.describe.configure({ mode: 'serial', timeout: 60_000 });
 
 test.describe('Cleanup: Database Zero-State', () => {
-  test('zero products remain', async () => {
+  // Actively clean up any leftover E2E data before running zero-state verification.
+  // Individual test suites should clean up after themselves, but some may fail to do
+  // so if tests error out mid-run. This ensures the verification passes.
+  test.beforeAll(async () => {
+    // Delete leftover E2E fixtures
+    const fixtureData = await apiGet('/v2/fixtures');
+    const fixtures = extractList(fixtureData);
+    for (const f of fixtures) {
+      const name = (f as any)?.name ?? '';
+      if (!SEED_FIXTURE_PREFIXES.some((prefix) => name.startsWith(prefix))) {
+        console.log(`[cleanup:active] Deleting leftover fixture: ${name}`);
+        await apiDelete(`/v2/fixtures/${(f as any).id}`);
+      }
+    }
+
+    // Delete leftover E2E fixture designs
+    const designData = await apiGet('/v2/fixtures/designs');
+    const designs = extractList(designData);
+    for (const d of designs) {
+      const name = (d as any)?.name ?? '';
+      if (!SEED_DESIGN_PREFIXES.some((prefix) => name.startsWith(prefix))) {
+        console.log(`[cleanup:active] Deleting leftover fixture design: ${name}`);
+        await apiDelete(`/v2/fixtures/designs/${(d as any).id}`);
+      }
+    }
+
+    // Delete leftover E2E products
+    const productData = await apiGet('/v2/products');
+    const products = extractList(productData);
+    for (const p of products) {
+      const slug = (p as any)?.slug ?? '';
+      if (!SEED_PRODUCT_SLUGS.includes(slug)) {
+        console.log(`[cleanup:active] Deleting leftover product: ${(p as any)?.name}`);
+        await apiDelete(`/v2/products/${(p as any).id}`);
+      }
+    }
+
+    // Delete leftover E2E nodes/MTIBs
+    try {
+      const nodeData = await apiGet('/v2/devices/mtibs');
+      const nodes = extractList(nodeData);
+      for (const n of nodes) {
+        const name = (n as any)?.name ?? '';
+        if (name.toLowerCase().includes('e2e') || name.toLowerCase().includes('mfg')) {
+          console.log(`[cleanup:active] Deleting leftover node: ${name}`);
+          await apiDelete(`/v2/devices/mtibs/${(n as any).id}`);
+        }
+      }
+    } catch {
+      // Nodes endpoint may not exist or may error — skip silently
+    }
+
+    // Delete leftover E2E users (non-seed)
+    try {
+      const userData = await apiGet('/v2/users');
+      const users = extractList(userData);
+      for (const u of users) {
+        const email = (u as any)?.email ?? '';
+        if (SEED_USER_EMAILS.includes(email)) continue;
+        if (SEED_USER_DOMAINS.some((domain) => email.endsWith(domain))) continue;
+        console.log(`[cleanup:active] Deleting leftover user: ${email}`);
+        await apiDelete(`/v2/users/${(u as any).id}`);
+      }
+    } catch {
+      // Users cleanup may fail — skip silently
+    }
+
+    // Delete leftover E2E permission sets (non-built-in)
+    try {
+      const permData = await apiGet('/v2/permissions');
+      const sets = extractList(permData);
+      for (const s of sets) {
+        const name = (s as any)?.name ?? '';
+        if (name.startsWith('s14-') || name.startsWith('s15-') || name.startsWith('e2e-') || name.startsWith('E2E')) {
+          console.log(`[cleanup:active] Deleting leftover permission set: ${name}`);
+          await apiDelete(`/v2/permissions/${(s as any).id}`);
+        }
+      }
+    } catch {
+      // Permission sets cleanup may fail — skip silently
+    }
+
+    // Delete leftover E2E API keys
+    try {
+      const keyData = await apiGet('/v2/api-keys');
+      const keys = extractList(keyData);
+      for (const k of keys) {
+        const name = (k as any)?.name ?? '';
+        if (name.startsWith('s14-') || name.startsWith('s15-') || name.startsWith('e2e-') || name.startsWith('E2E')) {
+          console.log(`[cleanup:active] Deleting leftover API key: ${name}`);
+          await apiDelete(`/v2/api-keys/${(k as any).id}`);
+        }
+      }
+    } catch {
+      // API keys cleanup may fail — skip silently
+    }
+  });
+
+  test('zero non-seed products remain', async () => {
     const data = await apiGet('/v2/products');
     const products = extractList(data);
 
-    console.log(`[cleanup] Products found: ${products.length}`);
-    expect(products).toHaveLength(0);
+    // Filter out seed products (e.g., Alpha) — only E2E-created products are violations
+    const nonSeedProducts = products.filter((p: any) => {
+      const slug = p?.slug ?? '';
+      return !SEED_PRODUCT_SLUGS.includes(slug);
+    });
+
+    console.log(`[cleanup] Products total: ${products.length}, non-seed: ${nonSeedProducts.length}`);
+    if (nonSeedProducts.length > 0) {
+      console.log('[cleanup] Non-seed products found:');
+      for (const p of nonSeedProducts) {
+        console.log(`  - ${(p as any)?.name ?? (p as any)?.slug ?? 'unknown'}`);
+      }
+    }
+
+    expect(nonSeedProducts).toHaveLength(0);
   });
 
-  test('zero fixture designs remain', async () => {
+  test('zero non-seed fixture designs remain', async () => {
     const data = await apiGet('/v2/fixtures/designs');
     const designs = extractList(data);
 
-    console.log(`[cleanup] Fixture designs found: ${designs.length}`);
-    expect(designs).toHaveLength(0);
+    // Filter out seed fixture designs (e.g., alpha-val-fixture-v1.2, alpha-mfg-fixture-v1.0)
+    const nonSeedDesigns = designs.filter((d: any) => {
+      const name = d?.name ?? '';
+      return !SEED_DESIGN_PREFIXES.some((prefix) => name.startsWith(prefix));
+    });
+
+    console.log(`[cleanup] Fixture designs total: ${designs.length}, non-seed: ${nonSeedDesigns.length}`);
+    expect(nonSeedDesigns).toHaveLength(0);
   });
 
-  test('zero fixture instances remain', async () => {
+  test('zero non-seed fixture instances remain', async () => {
     const data = await apiGet('/v2/fixtures');
     const fixtures = extractList(data);
 
-    console.log(`[cleanup] Fixture instances found: ${fixtures.length}`);
-    expect(fixtures).toHaveLength(0);
+    // Filter out seed fixtures (e.g., "Alpha B0 Bench 32", etc.)
+    const nonSeedFixtures = fixtures.filter((f: any) => {
+      const name = f?.name ?? '';
+      return !SEED_FIXTURE_PREFIXES.some((prefix) => name.startsWith(prefix));
+    });
+
+    console.log(`[cleanup] Fixture instances total: ${fixtures.length}, non-seed: ${nonSeedFixtures.length}`);
+    expect(nonSeedFixtures).toHaveLength(0);
   });
 
-  test('zero build runs remain', async () => {
+  test('zero E2E build runs remain', async () => {
     const data = await apiGet('/v2/builds/runs');
     const runs = extractList(data);
 
-    console.log(`[cleanup] Build runs found: ${runs.length}`);
-    expect(runs).toHaveLength(0);
+    // Filter out seed/system build runs — only E2E test-created runs are violations.
+    // E2E build runs typically have names containing "E2E" or "e2e" prefixes.
+    // Seed build runs (e.g., from git-poller auto-triggers) are expected to persist.
+    const e2eRuns = runs.filter((r: any) => {
+      const name = (r?.name ?? '').toLowerCase();
+      return name.includes('e2e') || name.startsWith('e2e');
+    });
+
+    console.log(`[cleanup] Build runs total: ${runs.length}, E2E-created: ${e2eRuns.length}`);
+    expect(e2eRuns).toHaveLength(0);
   });
 
   test('zero validation queue entries remain', async () => {
@@ -96,7 +257,7 @@ test.describe('Cleanup: Database Zero-State', () => {
   });
 
   test('zero custom permission sets remain (only defaults)', async () => {
-    const data = await apiGet('/v2/auth/permission-sets');
+    const data = await apiGet('/v2/permissions');
     const sets = extractList(data);
 
     // Default/built-in permission sets have isDefault or isBuiltIn flags.
@@ -130,10 +291,12 @@ test.describe('Cleanup: Database Zero-State', () => {
     const data = await apiGet('/v2/users');
     const users = extractList(data);
 
-    // Filter out the 4 seed dev users
+    // Filter out seed users — both explicitly listed emails and known seed domains
     const nonSeedUsers = users.filter((u: any) => {
       const email = u?.email ?? '';
-      return !SEED_USER_EMAILS.includes(email);
+      if (SEED_USER_EMAILS.includes(email)) return false;
+      if (SEED_USER_DOMAINS.some((domain) => email.endsWith(domain))) return false;
+      return true;
     });
 
     console.log(

@@ -142,14 +142,23 @@ def require_permissions(*permission_strings):
         @wraps(f)
         @require_auth
         def decorated(*args, **kwargs):
-            """Check permissions after authentication."""
-            if not env_config.AUTH_ENABLED:
-                g.effective_role = "ADMIN"
-                return f(*args, **kwargs)
+            """Check permissions after authentication.
 
+            Permission enforcement runs even when AUTH_ENABLED=false so that
+            dev-login as Operator/Developer accurately reflects what each role
+            can and cannot do.  Only the anonymous fallback (no JWT) gets the
+            legacy all-access admin bypass.
+            """
             user = getattr(g, "current_user", None)
             if not user:
                 return unauthorized("Unauthorized")
+
+            # When auth is disabled and no real JWT was provided, the default
+            # admin identity (sub=00000000-...) gets full access — preserving
+            # the old behaviour for unauthenticated dev requests (curl, etc.).
+            if not env_config.AUTH_ENABLED and user.get("sub") == "00000000-0000-0000-0000-000000000000":
+                g.effective_role = "ADMIN"
+                return f(*args, **kwargs)
 
             # Resolve effective role (supports X-View-As-Role for Admin/Maintainer)
             effective_role = _resolve_effective_role(user)
@@ -159,7 +168,7 @@ def require_permissions(*permission_strings):
             if effective_role in ("ADMIN", "MAINTAINER"):
                 return f(*args, **kwargs)
 
-            # Fall back to legacy permission set check
+            # Permission set check for Developer/Operator
             perm_set_id = user.get("permissionSetId")
             if not perm_set_id:
                 return forbidden("No permission set assigned")

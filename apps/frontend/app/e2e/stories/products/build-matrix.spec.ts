@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { loginAsRole } from '../../helpers/auth-extended';
-import { createProductViaAPI } from '../../helpers/api-extended';
 
 /**
  * Build Matrix Configuration — per-stage build matrix entries.
@@ -25,30 +24,60 @@ let productId: string;
 
 test.describe('Build Matrix', () => {
   test.beforeAll(async () => {
-    const product = await createProductViaAPI({
-      name: productName,
-      slug: `e2e-matrix-${uniqueSuffix}`,
-      description: 'Product for build matrix E2E tests',
-    });
-    productId = product.id;
-
-    // Initialize stages via API
     const API_URL = process.env.E2E_API_URL || 'http://localhost:9001';
     const API_KEY = 'ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG';
+    const headers = { Authorization: `ApiKey ${API_KEY}`, 'Content-Type': 'application/json' };
+
+    // Create product WITH board data so active revisions appear on Validation tab
+    const createRes = await fetch(`${API_URL}/v2/products`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: productName,
+        slug: `e2e-matrix-${uniqueSuffix}`,
+        description: 'Product for build matrix E2E tests',
+        board: {
+          ckBoardsFamily: `matrix-${uniqueSuffix}`,
+          revisions: [{
+            version: 'b0',
+            ckBoardsName: `matrix_b0_${uniqueSuffix}`,
+            socs: ['nrf52840'],
+            deviceType: 0,
+            deviceVariant: 0,
+          }],
+        },
+      }),
+    });
+    const createBody = await createRes.json();
+    productId = createBody.data.id;
+
+    // Activate the board revision so it appears in the per-revision stage list
+    const boards = createBody.data.boards || [];
+    const revisions = boards[0]?.revisions || [];
+    if (revisions.length > 0) {
+      await fetch(`${API_URL}/v2/products/${productId}/boards/${boards[0].id}/revisions/${revisions[0].id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ status: 'ACTIVE' }),
+      });
+    }
+
+    // Initialize stages via API
     await fetch(`${API_URL}/v2/products/${productId}/stages/initialize`, {
       method: 'POST',
-      headers: { Authorization: `ApiKey ${API_KEY}`, 'Content-Type': 'application/json' },
+      headers,
       body: '{}',
     });
 
     // Configure Stage 1 to enable it (so we can access build matrix in review)
     await fetch(`${API_URL}/v2/products/${productId}/stages/1`, {
       method: 'PUT',
-      headers: { Authorization: `ApiKey ${API_KEY}`, 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         enabled: true,
         watchBranch: 'main',
         triggerTypes: ['manual'],
+        boardRevisionId: revisions[0]?.id,
       }),
     });
   });

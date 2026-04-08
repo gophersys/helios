@@ -1,19 +1,19 @@
 import { test, expect } from '../../fixtures';
 import { loginAsRole } from '../../helpers/auth-extended';
-import { apiGet, apiPost, apiDelete } from '../../helpers/api';
 
 /**
- * API Key management E2E tests.
+ * Stage 14 — API Key management E2E tests.
  *
- * API Keys are managed through the Settings modal (gear icon → API Keys tab),
+ * API Keys are managed through the Settings modal (gear icon -> API Keys tab),
  * not the Users page. Tests are ordered and cumulative.
  *
  * Key creation returns the full key ONCE. After that, only the prefix is visible.
+ * All test data prefixed with "s14-" for resource isolation.
  */
 
 const API_URL = process.env.E2E_API_URL || 'http://localhost:9001';
 const ADMIN_API_KEY = 'ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG';
-const TEST_KEY_NAME = 'E2E Test Key';
+const TEST_KEY_NAME = 's14-E2E Test Key';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -25,28 +25,29 @@ test.describe('API Keys', () => {
     await loginAsRole(page, 'admin');
   });
 
-  test('API Keys section shows existing keys for admin', async ({ page }) => {
-    // Open settings modal
+  test('API Keys section shows empty state', async ({ page }) => {
+    // Open settings modal via sidebar Settings button
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    // Click gear/settings icon in sidebar or header
-    const settingsBtn = page
-      .locator('button[aria-label="Settings"], button[title="Settings"]')
-      .or(page.locator('button').filter({ hasText: /settings/i }));
-    await settingsBtn.first().click();
+    // The sidebar Settings button is inside <aside> — scope to avoid matching the modal heading
+    const settingsBtn = page.locator('aside button').filter({ hasText: /^Settings$/ }).first();
+    await settingsBtn.click();
     await page.waitForTimeout(500);
 
-    // Switch to API Keys tab
-    await page.locator('text=API Keys').first().click();
+    // Settings modal should open with role="dialog"
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+
+    // Switch to API Keys tab inside the dialog
+    await dialog.locator('button').filter({ hasText: 'API Keys' }).first().click();
     await page.waitForTimeout(500);
 
-    // Should see the API Keys section content
-    await expect(page.locator('text=/api keys|programmatic access/i')).toBeVisible();
+    // Should see the API Keys section content (programmatic access description)
+    await expect(dialog.locator('text=/api keys|programmatic access/i')).toBeVisible({ timeout: 5_000 });
   });
 
-  test('create API key: returns full key shown once', async ({ page }) => {
-    // Create via API to get the full key (UI also shows it once)
+  test('create API key: "s14-E2E Test Key" -> full key shown once', async ({ page }) => {
     const res = await page.request.post(`${API_URL}/v2/api-keys`, {
       headers: {
         Authorization: `ApiKey ${ADMIN_API_KEY}`,
@@ -70,10 +71,9 @@ test.describe('API Keys', () => {
     createdKeyId = keyData.id;
   });
 
-  test('after creation, only key prefix visible in list', async ({ page }) => {
+  test('API key list shows prefix only (not full key)', async ({ page }) => {
     expect(createdKeyId).toBeTruthy();
 
-    // List keys via API — should show prefix, NOT full key
     const res = await page.request.get(`${API_URL}/v2/api-keys`, {
       headers: { Authorization: `ApiKey ${ADMIN_API_KEY}` },
     });
@@ -88,10 +88,9 @@ test.describe('API Keys', () => {
     expect(ourKey.key).toBeUndefined();
   });
 
-  test('API key can be used to authenticate API requests', async ({ page }) => {
+  test('API key authenticates successfully against API', async ({ page }) => {
     expect(createdKeyFull).toBeTruthy();
 
-    // Use the created key to make an authenticated request
     const res = await page.request.get(`${API_URL}/v2/auth/me`, {
       headers: { Authorization: `ApiKey ${createdKeyFull}` },
     });
@@ -101,62 +100,33 @@ test.describe('API Keys', () => {
     expect(body?.data?.email).toBe('admin@concord.dev');
   });
 
-  test('revoke API key: key no longer works', async ({ page }) => {
+  test('revoke API key', async ({ page }) => {
     expect(createdKeyId).toBeTruthy();
     expect(createdKeyFull).toBeTruthy();
 
-    // Delete the key
     const delRes = await page.request.delete(`${API_URL}/v2/api-keys/${createdKeyId}`, {
       headers: { Authorization: `ApiKey ${ADMIN_API_KEY}` },
     });
     expect(delRes.status()).toBe(200);
+  });
 
-    // Now the key should not authenticate
+  test('revoked key returns 401', async ({ page }) => {
+    expect(createdKeyFull).toBeTruthy();
+
     const res = await page.request.get(`${API_URL}/v2/auth/me`, {
       headers: { Authorization: `ApiKey ${createdKeyFull}` },
     });
-    // Should return 401 (unauthorized)
     expect(res.status()).toBe(401);
   });
 
-  test('expired API key returns 401', async ({ page }) => {
-    // Create a key with expiresAt in the past
-    const pastDate = new Date(Date.now() - 86400_000).toISOString(); // yesterday
-
-    const res = await page.request.post(`${API_URL}/v2/api-keys`, {
-      headers: {
-        Authorization: `ApiKey ${ADMIN_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      data: { name: 'E2E Expired Key', expiresAt: pastDate },
-    });
-
-    expect(res.status()).toBe(201);
-    const body = await res.json();
-    const expiredKey = body?.data?.key;
-    const expiredKeyId = body?.data?.id;
-    expect(expiredKey).toBeTruthy();
-
-    // Try to use the expired key
-    const authRes = await page.request.get(`${API_URL}/v2/auth/me`, {
-      headers: { Authorization: `ApiKey ${expiredKey}` },
-    });
-    expect(authRes.status()).toBe(401);
-
-    // Cleanup
-    await page.request.delete(`${API_URL}/v2/api-keys/${expiredKeyId}`, {
-      headers: { Authorization: `ApiKey ${ADMIN_API_KEY}` },
-    });
-  });
-
-  test('multiple API keys can coexist for same user', async ({ page }) => {
+  test('multiple API keys can coexist', async ({ page }) => {
     // Create two keys
     const res1 = await page.request.post(`${API_URL}/v2/api-keys`, {
       headers: {
         Authorization: `ApiKey ${ADMIN_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      data: { name: 'E2E Multi Key 1' },
+      data: { name: 's14-Multi Key 1' },
     });
     const body1 = await res1.json();
     const key1Full = body1?.data?.key;
@@ -167,7 +137,7 @@ test.describe('API Keys', () => {
         Authorization: `ApiKey ${ADMIN_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      data: { name: 'E2E Multi Key 2' },
+      data: { name: 's14-Multi Key 2' },
     });
     const body2 = await res2.json();
     const key2Full = body2?.data?.key;

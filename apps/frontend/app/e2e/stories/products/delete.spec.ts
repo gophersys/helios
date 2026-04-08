@@ -81,9 +81,9 @@ test.describe('Product Delete', () => {
     await productRow.getByRole('button', { name: /delete/i }).click();
 
     // Confirmation dialog should appear
-    const dialog = page.getByRole('dialog');
+    const dialog = page.locator('[role="dialog"]');
     await expect(dialog).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText('Delete product')).toBeVisible();
+    await expect(dialog.locator('#delete-dialog-title')).toContainText('Delete product');
   });
 
   test('confirmation dialog requires typing product name', async ({ page }) => {
@@ -122,13 +122,17 @@ test.describe('Product Delete', () => {
     const productRow = page.locator('[role="button"]').filter({ hasText: deletableProductName }).first();
     await expect(productRow).toBeVisible({ timeout: 10_000 });
     await productRow.hover();
-    await productRow.getByRole('button', { name: /delete/i }).click();
+    await page.waitForTimeout(200); // Let hover CSS transition settle
+
+    // The delete button uses aria-label="Delete {name}" — click it
+    const deleteBtn = productRow.locator('button[aria-label^="Delete"]');
+    await deleteBtn.click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 5_000 });
 
-    // Click Cancel
-    await dialog.getByRole('button', { name: /cancel/i }).click();
+    // Click Cancel — the dialog Cancel button text is "Cancel" (exact match avoids "Cancel deletion" X button)
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
 
     // Dialog should close
     await expect(dialog).not.toBeVisible({ timeout: 3_000 });

@@ -22,6 +22,9 @@ test.describe('Fixture Designs: CRUD', () => {
   const designName = `Alpha E2E v1.2 ${uniqueSuffix}`;
   let designId: string;
 
+  // Use a known seeded board revision (Alpha B0)
+  const BOARD_REVISION_ID = 'cmnqaxivu000otjnrfiu2x0l0';
+
   test.afterAll(async () => {
     // Cleanup: delete design if it was created
     if (designId) {
@@ -37,8 +40,9 @@ test.describe('Fixture Designs: CRUD', () => {
     const design = await createFixtureDesign({
       name: designName,
       description: 'E2E test fixture design',
-      // Design API uses product + revision, not boardRevisionId
-    } as any);
+      boardRevisionId: BOARD_REVISION_ID,
+      revision: '1.2',
+    });
 
     expect(design).toBeTruthy();
     expect(design.id).toBeTruthy();
@@ -61,8 +65,8 @@ test.describe('Fixture Designs: CRUD', () => {
 
   test('update design notes', async () => {
     const updated = await updateFixtureDesign(designId, {
-      name: designName, // keep the same name
-    } as any);
+      notes: 'Updated via E2E test',
+    });
     expect(updated).toBeTruthy();
   });
 
@@ -71,7 +75,9 @@ test.describe('Fixture Designs: CRUD', () => {
       await createFixtureDesign({
         name: designName,
         description: 'Duplicate name test',
-      } as any);
+        boardRevisionId: BOARD_REVISION_ID,
+        revision: '1.2',
+      });
       // Should not reach here
       expect(true).toBe(false);
     } catch (error: any) {
@@ -84,7 +90,9 @@ test.describe('Fixture Designs: CRUD', () => {
     const tempDesign = await createFixtureDesign({
       name: `Temp Design ${uniqueSuffix}`,
       description: 'To be deleted',
-    } as any);
+      boardRevisionId: BOARD_REVISION_ID,
+      revision: '1.0',
+    });
     expect(tempDesign.id).toBeTruthy();
 
     await deleteFixtureDesign(tempDesign.id);

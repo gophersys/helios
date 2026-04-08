@@ -117,8 +117,9 @@ test.describe('Admin role story', () => {
 
   test('View-As-Role dropdown is available', async ({ page }) => {
     await loginAdminAndGoHome(page);
-    const viewAsBtn = page.locator('button').filter({ hasText: /view as/i });
-    await expect(viewAsBtn).toBeVisible();
+    // The View As button is inside the sidebar <aside> and shows "View as..." or "Viewing as ..."
+    const viewAsBtn = page.locator('aside button').filter({ hasText: /view(?:ing)? as/i });
+    await expect(viewAsBtn).toBeVisible({ timeout: 10_000 });
   });
 
   test('View-As Maintainer — sidebar changes after reload', async ({ page }) => {
@@ -126,9 +127,8 @@ test.describe('Admin role story', () => {
     const sidebar = new SidebarComponent(page);
 
     await sidebar.viewAsRole('Maintainer');
-    await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('text=Viewing as Maintainer')).toBeVisible();
+    await expect(page.locator('text=Viewing as Maintainer')).toBeVisible({ timeout: 10_000 });
 
     // Maintainer still has system:view and users:view
     await sidebar.expectItems(['Dashboard', 'Products', 'Builds', 'Validation', 'Manufacturing', 'Fixtures']);
@@ -141,14 +141,13 @@ test.describe('Admin role story', () => {
     const sidebar = new SidebarComponent(page);
 
     await sidebar.viewAsRole('Developer');
-    await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('text=Viewing as Developer')).toBeVisible();
+    await expect(page.locator('text=Viewing as Developer')).toBeVisible({ timeout: 10_000 });
     await sidebar.expectItems(['Dashboard', 'Products', 'Builds', 'Validation', 'Manufacturing', 'Fixtures']);
 
-    const systemBtn = page.locator('button').filter({ hasText: 'System' });
+    const systemBtn = page.locator('aside button').filter({ hasText: 'System' });
     await expect(systemBtn).not.toBeVisible();
-    const adminBtn = page.locator('button').filter({ hasText: 'Admin' });
+    const adminBtn = page.locator('aside button').filter({ hasText: 'Admin' });
     await expect(adminBtn).not.toBeVisible();
   });
 
@@ -157,9 +156,8 @@ test.describe('Admin role story', () => {
     const sidebar = new SidebarComponent(page);
 
     await sidebar.viewAsRole('Operator');
-    await page.waitForLoadState('networkidle');
 
-    await expect(page.locator('text=Viewing as Operator')).toBeVisible();
+    await expect(page.locator('text=Viewing as Operator')).toBeVisible({ timeout: 10_000 });
     await sidebar.expectItems(['Dashboard', 'Manufacturing']);
     await sidebar.expectHidden(['Products', 'Builds', 'Validation', 'Fixtures']);
   });
@@ -170,13 +168,13 @@ test.describe('Admin role story', () => {
 
     // Set to Operator (most restricted)
     await sidebar.viewAsRole('Operator');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=Viewing as Operator')).toBeVisible({ timeout: 10_000 });
     await sidebar.expectHidden(['Products', 'Builds', 'Validation', 'Fixtures']);
 
     // Reset
     await sidebar.viewAsRole(null);
-    await page.waitForLoadState('networkidle');
 
+    // Full Admin sidebar should be restored
     await sidebar.expectItems(['Dashboard', 'Products', 'Builds', 'Validation', 'Manufacturing', 'Fixtures']);
     await sidebar.expandSection('System');
     await sidebar.expectItems(['Kubernetes']);

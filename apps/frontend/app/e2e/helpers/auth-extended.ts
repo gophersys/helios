@@ -48,7 +48,7 @@ export async function loginAsRoleViaUI(page: Page, role: Role): Promise<void> {
   await page.waitForLoadState('networkidle');
 
   const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
-  const btn = page.locator('button').filter({ hasText: new RegExp(`^${roleLabel}$`, 'i') });
+  const btn = page.getByRole('button', { name: new RegExp(roleLabel, 'i') });
   await btn.waitFor({ timeout: 5_000 });
   await btn.click();
 

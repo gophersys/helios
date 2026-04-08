@@ -146,9 +146,14 @@ test.describe('Fixture Deletion: Constraints', () => {
     }
   });
 
-  test('deleting a nonexistent fixture returns 404', async () => {
+  test('deleting a nonexistent fixture is a no-op (idempotent)', async () => {
+    // concordDelete treats 404 as success (idempotent delete)
+    // so this should not throw — verify it completes silently
+    await deleteFixture('nonexistent-fixture-id');
+
+    // Verify the fixture truly doesn't exist by checking GET returns 404
     try {
-      await deleteFixture('nonexistent-fixture-id');
+      await getFixture('nonexistent-fixture-id');
       expect(true).toBe(false);
     } catch (error: any) {
       expect(error.message).toContain('404');

@@ -105,7 +105,7 @@ async function checkExternalConnectivity(): Promise<void> {
 
   // Bitbucket API — non-critical (some tests may skip)
   try {
-    const res = await fetch('https://api.bitbucket.org/2.0/', { signal: AbortSignal.timeout(5_000) });
+    const res = await fetch('https://api.bitbucket.org/2.0/repositories/corekinect?pagelen=1', { signal: AbortSignal.timeout(5_000) });
     if (!res.ok) warnings.push(`Bitbucket API returned ${res.status}`);
   } catch {
     warnings.push('Bitbucket API unreachable — Bitbucket-dependent tests will fail');

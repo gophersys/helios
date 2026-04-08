@@ -135,10 +135,9 @@ test.describe('Sidebar visibility per role', () => {
   test('sidebar shows user avatar and email', async ({ page }) => {
     await loginAndGoHome(page, 'admin');
 
-    // The sidebar shows the user initial in a circular avatar
-    // and the user's name or email below it
-    const nav = page.locator('aside');
-    await expect(nav.locator('text=admin@concord.dev').or(nav.locator('text=Admin User').or(nav.locator('text=Admin')))).toBeVisible();
+    // The sidebar shows the user's name
+    const sidebar = page.locator('aside');
+    await expect(sidebar.getByText('Admin User')).toBeVisible();
   });
 
   test('Admin sees View-As-Role dropdown', async ({ page }) => {

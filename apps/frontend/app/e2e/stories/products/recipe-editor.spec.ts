@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { loginAsRole } from '../../helpers/auth-extended';
-import { createProductViaAPI } from '../../helpers/api-extended';
+// createProductViaAPI replaced with direct fetch to include board data
 
 /**
  * Recipe Editor — build script editor within the Stage Config Wizard (Step 3).
@@ -41,21 +41,64 @@ async function navigateToRecipeEditor(page: import('@playwright/test').Page): Pr
 
 test.describe('Recipe Editor', () => {
   test.beforeAll(async () => {
-    const product = await createProductViaAPI({
-      name: productName,
-      slug: `e2e-recipe-${uniqueSuffix}`,
-      description: 'Product for recipe editor E2E tests',
-    });
-    productId = product.id;
-
-    // Initialize stages via API (POST /v2/products/{id}/stages/initialize)
     const API_URL = process.env.E2E_API_URL || 'http://localhost:9001';
     const API_KEY = 'ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG';
+    const headers = { Authorization: `ApiKey ${API_KEY}`, 'Content-Type': 'application/json' };
+
+    // Create product WITH board data so revisions exist for wizard step 1
+    const createRes = await fetch(`${API_URL}/v2/products`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: productName,
+        slug: `e2e-recipe-${uniqueSuffix}`,
+        description: 'Product for recipe editor E2E tests',
+        board: {
+          ckBoardsFamily: `recipe-${uniqueSuffix}`,
+          revisions: [{
+            version: 'b0',
+            ckBoardsName: `recipe_b0_${uniqueSuffix}`,
+            socs: ['nrf52840'],
+            deviceType: 0,
+            deviceVariant: 0,
+          }],
+        },
+      }),
+    });
+    const createBody = await createRes.json();
+    productId = createBody.data.id;
+
+    // Activate the board revision
+    const boards = createBody.data.boards || [];
+    const revisions = boards[0]?.revisions || [];
+    if (revisions.length > 0) {
+      await fetch(`${API_URL}/v2/products/${productId}/boards/${boards[0].id}/revisions/${revisions[0].id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ status: 'ACTIVE' }),
+      });
+    }
+
+    // Initialize stages
     await fetch(`${API_URL}/v2/products/${productId}/stages/initialize`, {
       method: 'POST',
-      headers: { Authorization: `ApiKey ${API_KEY}`, 'Content-Type': 'application/json' },
+      headers,
       body: '{}',
     });
+
+    // Configure Stage 1 so wizard opens in Edit mode with pre-filled form
+    if (revisions.length > 0) {
+      await fetch(`${API_URL}/v2/products/${productId}/stages/1`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          enabled: true,
+          watchBranch: 'main',
+          triggerTypes: ['manual'],
+          boardRevisionId: revisions[0]?.id,
+        }),
+      });
+    }
   });
 
   test('recipe editor shows file name "build.sh" in status bar', async ({ page }) => {

@@ -124,20 +124,32 @@ test.describe('Cleanup: MinIO', () => {
     // reports no lingering test data.
     //
     // Direct bucket listing requires the MinIO/S3 SDK. Instead, we verify
-    // through the application layer that no resources reference MinIO objects.
+    // through the application layer that no E2E-created resources reference
+    // MinIO objects. Seed data (Alpha product, system build runs) is expected
+    // to persist and is excluded from the check.
     const minioHealthy = await checkTcpPort(MINIO_HOST, MINIO_PORT);
     expect(minioHealthy).toBe(true);
 
-    // Cross-verify: no products, no build runs, no active sessions
-    // means no application-level references to MinIO objects
+    // Cross-verify: no E2E-created products or build runs remain.
+    // Seed data (Alpha product, auto-triggered build runs) is expected.
+    const SEED_PRODUCT_SLUGS = ['alpha'];
     const products = extractList(await apiGet('/v2/products'));
+    const nonSeedProducts = products.filter((p: any) => {
+      const slug = p?.slug ?? '';
+      return !SEED_PRODUCT_SLUGS.includes(slug);
+    });
+
     const runs = extractList(await apiGet('/v2/builds/runs'));
+    const e2eRuns = runs.filter((r: any) => {
+      const name = (r?.name ?? '').toLowerCase();
+      return name.includes('e2e') || name.startsWith('e2e');
+    });
 
     console.log(
-      `[cleanup] MinIO cross-check: products=${products.length}, buildRuns=${runs.length}`,
+      `[cleanup] MinIO cross-check: products=${products.length} (non-seed=${nonSeedProducts.length}), buildRuns=${runs.length} (e2e=${e2eRuns.length})`,
     );
-    expect(products).toHaveLength(0);
-    expect(runs).toHaveLength(0);
+    expect(nonSeedProducts).toHaveLength(0);
+    expect(e2eRuns).toHaveLength(0);
 
     console.log('[cleanup] MinIO buckets confirmed clean of E2E test data (via API layer)');
   });

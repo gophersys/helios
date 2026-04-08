@@ -4,10 +4,13 @@
   import {
     ChevronDown,
     ChevronRight,
-    Search,
     ChevronLeft,
     ChevronsLeft,
     ChevronsRight,
+    Search,
+    Calendar,
+    X,
+    ArrowRight,
   } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch } from '$lib/api';
@@ -22,20 +25,7 @@
 
   const auth = getAuth();
 
-  const ENTITY_TYPES = [
-    'User',
-    'PermissionSet',
-    'ApiKey',
-    'MTIB',
-    'InventoryComponent',
-    'ComponentRevision',
-    'InventoryAssembly',
-    'AssemblyRevision',
-    'Codebase',
-    'Release',
-    'Artifact',
-  ];
-
+  // Action verb → past tense for display
   function getVerbPastTense(verb: string): string {
     const map: Record<string, string> = {
       create: 'created',
@@ -45,6 +35,25 @@
       register: 'registered',
       unregister: 'unregistered',
       upload: 'uploaded',
+      trigger: 'triggered',
+      cancel: 'cancelled',
+      complete: 'completed',
+      assign: 'assigned',
+      unassign: 'unassigned',
+      deploy: 'deployed',
+      undeploy: 'undeployed',
+      lock: 'locked',
+      unlock: 'unlocked',
+      login: 'logged in',
+      promote: 'promoted',
+      schedule: 'scheduled',
+      sync: 'synced',
+      start: 'started',
+      end: 'ended',
+      rerun: 'reran',
+      retrigger: 'retriggered',
+      reset: 'reset',
+      cleanup: 'cleaned up',
     };
     return map[verb] || verb;
   }
@@ -59,30 +68,54 @@
     return { verb: action, entity: '' };
   }
 
+  // Color coding for action categories
+  function getActionColor(action: string): string {
+    if (action.includes('create') || action.includes('register')) return 'text-success';
+    if (action.includes('delete') || action.includes('deactivate') || action.includes('cleanup')) return 'text-error';
+    if (action.includes('login')) return 'text-accent';
+    return 'text-text-primary';
+  }
+
   let entries = $state<AuditEntry[]>([]);
   let pagination = $state<Pagination>({ page: 1, limit: 50, total: 0, pages: 0 });
+  let entityTypes = $state<string[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let expandedId = $state<string | null>(null);
 
+  // Filters
   let entityType = $state('');
   let actionSearch = $state('');
+  let dateFrom = $state('');
+  let dateTo = $state('');
   let page = $state(1);
+
+  async function fetchEntityTypes(): Promise<void> {
+    try {
+      const res = await apiFetch<ApiResponse<string[]>>('/v2/system/history/entity-types');
+      entityTypes = res.data;
+    } catch {
+      // Fallback silently — filter will still work with manual input
+    }
+  }
 
   async function fetchHistory(): Promise<void> {
     loading = true;
+    error = null;
     try {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('limit', '50');
       if (entityType) params.set('entityType', entityType);
       if (actionSearch) params.set('action', actionSearch);
+      if (dateFrom) params.set('from', new Date(dateFrom).toISOString());
+      if (dateTo) params.set('to', new Date(dateTo + 'T23:59:59').toISOString());
 
-      const res = await apiFetch<ApiResponse<{ entries: AuditEntry[]; pagination: Pagination }>>(
+      const res = await apiFetch<ApiResponse<{ data: AuditEntry[]; pagination: Pagination }>>(
         '/v2/system/history?' + params.toString()
       );
 
-      entries = res.data.entries;
+      entries = res.data.data;
       pagination = res.data.pagination;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load history';
@@ -96,36 +129,83 @@
       goto('/');
       return;
     }
+    fetchEntityTypes();
     fetchHistory();
   });
 
-  // Refetch when page changes (filter changes trigger this via page reset)
+  // Refetch when page changes
   $effect(() => {
     const _p = page;
     fetchHistory();
   });
 
-  // Reset to page 1 when filters change (this triggers the page effect above)
+  // Reset to page 1 when filters change
   $effect(() => {
     const _et = entityType;
     const _as = actionSearch;
+    const _df = dateFrom;
+    const _dt = dateTo;
     page = 1;
   });
 
   function toggleExpand(id: string): void {
     expandedId = expandedId === id ? null : id;
   }
+
+  function clearFilters(): void {
+    entityType = '';
+    actionSearch = '';
+    dateFrom = '';
+    dateTo = '';
+    page = 1;
+  }
+
+  const hasActiveFilters = $derived(!!entityType || !!actionSearch || !!dateFrom || !!dateTo);
 </script>
 
-{#snippet DetailValue(value: unknown)}
-  {#if value === null || value === undefined}
-    <span class="text-text-tertiary">null</span>
-  {:else if typeof value === 'boolean'}
-    <span class={value ? 'text-success' : 'text-error'}>{String(value)}</span>
-  {:else if typeof value === 'object'}
-    <pre class="mt-1 max-h-40 overflow-auto rounded bg-surface-0 p-2 text-2xs text-text-secondary">{JSON.stringify(value, null, 2)}</pre>
+{#snippet DiffValue(label: string, value: unknown)}
+  <div>
+    <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">{label}</div>
+    <div class="mt-0.5 text-sm">
+      {#if value === null || value === undefined}
+        <span class="text-text-tertiary italic">null</span>
+      {:else if typeof value === 'boolean'}
+        <span class={value ? 'text-success' : 'text-error'}>{String(value)}</span>
+      {:else if typeof value === 'object'}
+        <pre class="mt-1 max-h-40 overflow-auto rounded bg-surface-0 p-2 text-2xs text-text-secondary">{JSON.stringify(value, null, 2)}</pre>
+      {:else}
+        <span class="text-text-primary">{String(value)}</span>
+      {/if}
+    </div>
+  </div>
+{/snippet}
+
+{#snippet BeforeAfterDiff(details: Record<string, unknown>)}
+  {#if details.before && details.after && typeof details.before === 'object' && typeof details.after === 'object'}
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <div class="mb-2 text-xs font-semibold text-error">Before</div>
+        <div class="space-y-2">
+          {#each Object.entries(details.before as Record<string, unknown>) as [key, value]}
+            {@render DiffValue(key, value)}
+          {/each}
+        </div>
+      </div>
+      <div>
+        <div class="mb-2 text-xs font-semibold text-success">After</div>
+        <div class="space-y-2">
+          {#each Object.entries(details.after as Record<string, unknown>) as [key, value]}
+            {@render DiffValue(key, value)}
+          {/each}
+        </div>
+      </div>
+    </div>
   {:else}
-    <span class="text-text-primary">{String(value)}</span>
+    <div class="grid grid-cols-2 gap-x-8 gap-y-3">
+      {#each Object.entries(details) as [key, value]}
+        {@render DiffValue(key, value)}
+      {/each}
+    </div>
   {/if}
 {/snippet}
 
@@ -137,7 +217,7 @@
   <div class="mb-6">
     <PageHeader
       title="History"
-      description="Audit log of actions across the system (last 30 days)."
+      description="System-wide audit log — every create, update, and delete across the platform."
     />
   </div>
 
@@ -146,10 +226,7 @@
   <!-- Filters -->
   <div class="mb-4 flex flex-wrap items-center gap-3">
     <div class="relative">
-      <Search
-        size={16}
-        class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
-      />
+      <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
       <input
         type="text"
         bind:value={actionSearch}
@@ -158,14 +235,47 @@
         class="rounded-lg border border-border bg-surface-0 py-2 pl-8 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
       />
     </div>
+
     <Select
       bind:value={entityType}
       class="w-auto"
       placeholder="All entity types"
-      options={ENTITY_TYPES.map(t => ({ value: t, label: t }))}
+      options={entityTypes.map((t) => ({ value: t, label: t }))}
     />
+
+    <!-- Date range -->
+    <div class="flex items-center gap-1.5">
+      <div class="relative">
+        <Calendar size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-tertiary" />
+        <input
+          type="date"
+          bind:value={dateFrom}
+          aria-label="From date"
+          class="rounded-lg border border-border bg-surface-0 py-2 pl-8 pr-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+        />
+      </div>
+      <ArrowRight size={14} class="text-text-tertiary" />
+      <input
+        type="date"
+        bind:value={dateTo}
+        aria-label="To date"
+        class="rounded-lg border border-border bg-surface-0 px-2 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+      />
+    </div>
+
+    {#if hasActiveFilters}
+      <button
+        onclick={clearFilters}
+        class="flex items-center gap-1 rounded-lg px-2 py-2 text-xs text-text-tertiary hover:bg-surface-2 hover:text-text-secondary"
+        aria-label="Clear filters"
+      >
+        <X size={14} />
+        Clear
+      </button>
+    {/if}
+
     <span class="ml-auto text-2xs text-text-tertiary">
-      {pagination.total} entries
+      {pagination.total.toLocaleString()} entries
     </span>
   </div>
 
@@ -175,15 +285,15 @@
   {:else if entries.length === 0}
     <EmptyState message="No audit entries found." />
   {:else}
-    <div class="table-wrapper">
-      <table class="table">
+    <div class="overflow-hidden rounded-xl border border-border">
+      <table class="w-full">
         <thead>
-          <tr class="border-b border-border">
-            <th class="table-header w-8 px-3"></th>
-            <th class="table-header">Action</th>
-            <th class="table-header">Entity</th>
-            <th class="table-header">User</th>
-            <th class="table-header text-right">When</th>
+          <tr class="border-b border-border bg-surface-1">
+            <th class="w-8 px-3 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary"></th>
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Action</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Entity</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">User</th>
+            <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">When</th>
           </tr>
         </thead>
         <tbody>
@@ -192,7 +302,7 @@
             {@const { verb, entity } = formatAction(entry.action)}
             {@const hasDetails = entry.details && Object.keys(entry.details).length > 0}
 
-            <tr class="table-row {hasDetails ? 'table-row-interactive' : ''}">
+            <tr class="border-b border-border-subtle last:border-0">
               <td colspan="5" class="p-0">
                 <div>
                   <button
@@ -201,7 +311,7 @@
                       ? 'cursor-pointer hover:bg-surface-2'
                       : 'cursor-default'}"
                   >
-                    <div class="w-8 shrink-0 px-3 h-12 flex items-center">
+                    <div class="w-8 shrink-0 px-3 py-3 flex items-center">
                       {#if hasDetails}
                         {#if isExpanded}
                           <ChevronDown size={16} class="text-text-tertiary" />
@@ -210,33 +320,33 @@
                         {/if}
                       {/if}
                     </div>
-                    <div class="flex-1 px-4 h-12 flex items-center">
-                      <span class="font-medium text-text-primary">{verb}</span>
+                    <div class="flex-1 px-4 py-3 flex items-center gap-1">
+                      <span class="font-medium {getActionColor(entry.action)}">{verb}</span>
                       {#if entity}
-                        <span class="ml-1 text-text-secondary">{entity}</span>
+                        <span class="text-text-secondary">{entity}</span>
                       {/if}
                     </div>
-                    <div class="shrink-0 px-4 h-12 flex items-center">
+                    <div class="shrink-0 px-4 py-3 flex items-center gap-2">
                       <span class="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary">
                         {entry.entityType}
                       </span>
                       {#if entry.entityId}
-                        <span class="ml-2 font-mono text-2xs text-text-tertiary">
+                        <span class="font-mono text-2xs text-text-tertiary">
                           {entry.entityId.length > 12
-                            ? entry.entityId.slice(0, 12) + '...'
+                            ? entry.entityId.slice(0, 12) + '…'
                             : entry.entityId}
                         </span>
                       {/if}
                     </div>
-                    <div class="shrink-0 px-4 h-12 flex items-center">
+                    <div class="shrink-0 px-4 py-3 flex items-center">
                       {#if entry.user}
-                        <span class="text-text-secondary">{entry.user.name}</span>
+                        <span class="text-sm text-text-secondary">{entry.user.name}</span>
                       {:else}
-                        <span class="text-text-tertiary">System</span>
+                        <span class="text-sm text-text-tertiary italic">System</span>
                       {/if}
                     </div>
-                    <div class="shrink-0 px-4 h-12 flex items-center justify-end">
-                      <span class="text-text-tertiary" title={formatDateTime(entry.createdAt)}>
+                    <div class="shrink-0 px-4 py-3 flex items-center justify-end">
+                      <span class="text-sm text-text-tertiary" title={formatDateTime(entry.createdAt)}>
                         {formatTimeAgo(entry.createdAt)}
                       </span>
                     </div>
@@ -245,19 +355,8 @@
                   <!-- Expanded details -->
                   {#if isExpanded && hasDetails}
                     <div class="border-t border-border-subtle bg-surface-1 px-12 py-4">
-                      <div class="grid grid-cols-2 gap-x-8 gap-y-3">
-                        {#each Object.entries(entry.details!) as [key, value]}
-                          <div>
-                            <div class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">
-                              {key}
-                            </div>
-                            <div class="mt-0.5 text-sm">
-                              {@render DetailValue(value)}
-                            </div>
-                          </div>
-                        {/each}
-                      </div>
-                      <div class="mt-3 flex items-center gap-4 text-2xs text-text-tertiary">
+                      {@render BeforeAfterDiff(entry.details!)}
+                      <div class="mt-4 flex items-center gap-4 border-t border-border-subtle pt-3 text-2xs text-text-tertiary">
                         <span>{formatDateTime(entry.createdAt)}</span>
                         {#if entry.ipAddress}
                           <span>IP: {entry.ipAddress}</span>
@@ -286,7 +385,7 @@
           onclick={() => (page = 1)}
           disabled={page <= 1}
           aria-label="First page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
+          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30"
         >
           <ChevronsLeft size={16} />
         </button>
@@ -294,7 +393,7 @@
           onclick={() => (page = Math.max(1, page - 1))}
           disabled={page <= 1}
           aria-label="Previous page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
+          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30"
         >
           <ChevronLeft size={16} />
         </button>
@@ -302,7 +401,7 @@
           onclick={() => (page = Math.min(pagination.pages, page + 1))}
           disabled={page >= pagination.pages}
           aria-label="Next page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
+          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30"
         >
           <ChevronRight size={16} />
         </button>
@@ -310,7 +409,7 @@
           onclick={() => (page = pagination.pages)}
           disabled={page >= pagination.pages}
           aria-label="Last page"
-          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30 disabled:hover:bg-transparent"
+          class="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-1 disabled:opacity-30"
         >
           <ChevronsRight size={16} />
         </button>

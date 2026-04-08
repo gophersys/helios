@@ -15,6 +15,7 @@
     Shield,
     Factory,
     ScanEye,
+    History,
   } from 'lucide-svelte';
   import { PUBLIC_APP_VERSION, PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
@@ -94,6 +95,7 @@
   // System items
   const systemItems: NavItem[] = [
     { to: '/kubernetes', icon: KubernetesIcon, label: 'Kubernetes', permission: 'system:view' },
+    { to: '/history', icon: History, label: 'History', permission: 'system:view' },
   ];
 
   const visibleSystemItems = $derived(

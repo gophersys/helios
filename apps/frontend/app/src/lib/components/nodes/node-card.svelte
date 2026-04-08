@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { Cpu, Pencil, Trash2, HeartPulse, Wrench, Activity, Loader2 } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import type { ConcordNode } from '$lib/types/models';
@@ -32,9 +31,7 @@
   );
 
   function handleCardClick() {
-    if (isServerOnline || deployState === 'deploying') {
-      goto(`/mtib/${node.id}`);
-    }
+    // No-op: MTIB dashboard route removed
   }
 </script>
 

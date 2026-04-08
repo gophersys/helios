@@ -11,13 +11,23 @@ import {
  *
  * These tests are ordered and cumulative: sync operations in earlier tests
  * set up state that later tests verify.
+ *
+ * Requires BITBUCKET_EMAIL and BITBUCKET_API_TOKEN environment variables.
+ * Tests are skipped when credentials are not available (e.g., running on host
+ * outside the Docker container where secrets are injected).
  */
 
 const REPOS = ['alpha_fw', 'alpha_mfg_fw'] as const;
 
+const hasBitbucketCredentials =
+  !!process.env.BITBUCKET_EMAIL && !!process.env.BITBUCKET_API_TOKEN;
+
 test.describe.configure({ mode: 'serial', timeout: 300_000 });
 
 test.describe('Bitbucket: concord-main sync', () => {
+  // Skip entire suite when credentials are not available
+  test.skip(!hasBitbucketCredentials, 'BITBUCKET_EMAIL and BITBUCKET_API_TOKEN are required');
+
   // Bitbucket API calls with rate-limit retries can take a while
   test.beforeAll(async () => {
     test.setTimeout(300_000);

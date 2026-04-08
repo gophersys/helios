@@ -84,7 +84,7 @@ from .products.test_packages import (
 
 # System handlers
 from .system.info import get_system_info
-from .system.history import get_history_entry, list_history
+from .system.history import get_history_entry, get_entity_history, list_entity_types, list_history
 from .system.logs import register_log_handlers
 from .system.exec import register_exec_handlers
 from .system.observability_ws import register_observability_handlers, register_icle_handlers
@@ -274,6 +274,36 @@ from .builds.scripts import (
 from .builds.overlays import (
     get_overlays,
     list_overlays,
+)
+
+# Manufacturing config (on product)
+from .products.manufacturing_config import (
+    get_manufacturing_config,
+    create_manufacturing_config,
+    update_manufacturing_config,
+    delete_manufacturing_config,
+)
+
+# Manufacturing sessions
+from .manufacturing.sessions import (
+    list_manufacturing_fixtures,
+    create_manufacturing_session,
+    list_manufacturing_sessions,
+    get_manufacturing_session,
+    add_manufacturing_panel,
+    end_manufacturing_session,
+    get_manufacturing_results,
+    set_manufacturing_socketio,
+)
+
+# Manufacturing reporter callbacks
+from .manufacturing.reporter import (
+    report_panel_start,
+    report_unit_start,
+    report_stage_result,
+    report_unit_result,
+    report_panel_complete,
+    set_manufacturing_reporter_socketio,
 )
 
 # Stage config handlers (product validation stages)
@@ -475,9 +505,35 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     # Products - Run Manifest (execution graph for validation pipeline)
     v2.add_url_rule("/products/<product_id>/manifest",                                           endpoint="get_product_manifest",     view_func=get_run_manifest,      methods=["GET"])
 
+    # Products - Manufacturing Config
+    v2.add_url_rule("/products/<product_id>/manufacturing",                                      endpoint="get_mfg_config",           view_func=get_manufacturing_config,    methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/manufacturing",                                      endpoint="create_mfg_config",        view_func=create_manufacturing_config, methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/manufacturing",                                      endpoint="update_mfg_config",        view_func=update_manufacturing_config, methods=["PUT"])
+    v2.add_url_rule("/products/<product_id>/manufacturing",                                      endpoint="delete_mfg_config",        view_func=delete_manufacturing_config, methods=["DELETE"])
+
+    # Manufacturing — Fixtures listing
+    v2.add_url_rule("/manufacturing/fixtures",                                                   endpoint="list_mfg_fixtures",        view_func=list_manufacturing_fixtures, methods=["GET"])
+
+    # Manufacturing — Sessions
+    v2.add_url_rule("/manufacturing/sessions",                                                   endpoint="list_mfg_sessions",        view_func=list_manufacturing_sessions, methods=["GET"])
+    v2.add_url_rule("/manufacturing/sessions",                                                   endpoint="create_mfg_session",       view_func=create_manufacturing_session, methods=["POST"])
+    v2.add_url_rule("/manufacturing/sessions/<session_id>",                                      endpoint="get_mfg_session",          view_func=get_manufacturing_session,   methods=["GET"])
+    v2.add_url_rule("/manufacturing/sessions/<session_id>/panels",                               endpoint="add_mfg_panel",            view_func=add_manufacturing_panel,     methods=["POST"])
+    v2.add_url_rule("/manufacturing/sessions/<session_id>/end",                                  endpoint="end_mfg_session",          view_func=end_manufacturing_session,   methods=["POST"])
+    v2.add_url_rule("/manufacturing/sessions/<session_id>/results",                              endpoint="get_mfg_results",          view_func=get_manufacturing_results,   methods=["GET"])
+
+    # Manufacturing — Reporter callbacks
+    v2.add_url_rule("/manufacturing/sessions/<session_id>/report/panel-start",                   endpoint="mfg_report_panel_start",   view_func=report_panel_start,          methods=["POST"])
+    v2.add_url_rule("/manufacturing/sessions/<session_id>/report/unit-start",                    endpoint="mfg_report_unit_start",    view_func=report_unit_start,           methods=["POST"])
+    v2.add_url_rule("/manufacturing/sessions/<session_id>/report/stage-result",                  endpoint="mfg_report_stage_result",  view_func=report_stage_result,         methods=["POST"])
+    v2.add_url_rule("/manufacturing/sessions/<session_id>/report/unit-result",                   endpoint="mfg_report_unit_result",   view_func=report_unit_result,          methods=["POST"])
+    v2.add_url_rule("/manufacturing/sessions/<session_id>/report/panel-complete",                endpoint="mfg_report_panel_complete", view_func=report_panel_complete,       methods=["POST"])
+
     # System - History
-    v2.add_url_rule("/system/history",              view_func=list_history,      methods=["GET"])
-    v2.add_url_rule("/system/history/<entry_id>",   view_func=get_history_entry, methods=["GET"])
+    v2.add_url_rule("/system/history",                                        view_func=list_history,       methods=["GET"])
+    v2.add_url_rule("/system/history/entity-types",                           view_func=list_entity_types,  methods=["GET"])
+    v2.add_url_rule("/system/history/<entry_id>",                             view_func=get_history_entry,  methods=["GET"])
+    v2.add_url_rule("/system/history/entity/<entity_type>/<entity_id>",       view_func=get_entity_history, methods=["GET"])
 
     # System: Build info (no auth required)
     v2.add_url_rule("/system/info",                 view_func=get_system_info, methods=["GET"])
@@ -734,5 +790,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     set_icle_socketio(socketio)
     set_validation_socketio(socketio)
     set_ci_socketio(socketio)
+    set_manufacturing_socketio(socketio)
+    set_manufacturing_reporter_socketio(socketio)
 
     server.register_blueprint(v2)

@@ -109,3 +109,54 @@ def get_history_entry(entry_id: str):
         return not_found("Audit log entry not found")
 
     return jsonify(ApiResponse.ok(_serialize_audit_log(entry)).to_dict()), 200
+
+
+@require_permissions(Permissions.SYSTEM_VIEW)
+def list_entity_types():
+    """Return the distinct entity types that have audit log entries."""
+    db = get_db_client()
+    # Prisma doesn't support DISTINCT on a single column directly,
+    # so we use a raw query via groupBy-like approach.
+    results = db.auditlog.group_by(
+        by=["entityType"],
+        order={"entityType": "asc"},
+    )
+    types = [r["entityType"] for r in results]
+    return jsonify(ApiResponse.ok(types).to_dict()), 200
+
+
+@require_permissions(Permissions.SYSTEM_VIEW)
+def get_entity_history(entity_type: str, entity_id: str):
+    """Get audit log entries for a specific entity.
+
+    This powers the "History" tab on detail pages (products, users, fixtures, etc.).
+    """
+    db = get_db_client()
+
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 25, type=int)), 100)
+    skip = (page - 1) * limit
+
+    where = {
+        "entityType": entity_type,
+        "entityId": entity_id,
+    }
+
+    total = db.auditlog.count(where=where)
+    entries = db.auditlog.find_many(
+        where=where,
+        order={"createdAt": "desc"},
+        skip=skip,
+        take=limit,
+        include={"user": True},
+    )
+
+    return jsonify(ApiResponse.ok({
+        "data": [_serialize_audit_log(e) for e in entries],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit if limit > 0 else 0,
+        },
+    }).to_dict()), 200

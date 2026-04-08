@@ -132,8 +132,8 @@ test.describe('Maintainer role story', () => {
     const usersPage = new UsersPage(page);
     await usersPage.expectVisible();
 
-    // Maintainer can see users (has users:view)
-    await expect(page.locator('text=admin@concord.dev')).toBeVisible();
+    // Maintainer can see users (has users:view) — wait for table to load
+    await expect(page.locator('text=admin@concord.dev')).toBeVisible({ timeout: 15_000 });
     // But cannot manage (no users:manage) — Add User button should not appear
     await expect(page.getByRole('button', { name: /add user/i })).not.toBeVisible();
   });

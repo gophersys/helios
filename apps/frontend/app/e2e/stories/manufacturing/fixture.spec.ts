@@ -86,7 +86,8 @@ test.describe('Manufacturing Fixture Setup', () => {
     const design = await createFixtureDesign({
       name: `MFG Design ${suffix}`,
       description: 'E2E manufacturing fixture design',
-      slotCount: 2,
+      boardRevisionId: 'cmnqaxivu000otjnrfiu2x0l0', // Alpha B0
+      revision: '1.0',
     });
 
     expect(design).toBeTruthy();
@@ -124,7 +125,7 @@ test.describe('Manufacturing Fixture Setup', () => {
     const node = await createNode({
       name: `MFG MTIB ${suffix}`,
       hostname: `mfg-mtib-${suffix}`,
-      type: 'mtib',
+      type: 'MANUFACTURING',
       ipAddress: '10.4.45.99',
       hardwareRevision: 'REV1.2',
     });

@@ -25,9 +25,15 @@ const timestamp = Date.now();
 const BRANCH_1 = `e2e/s5-test-${timestamp}`;
 const BRANCH_2 = `e2e/s5-cache-test-${timestamp}`;
 
+const hasBitbucketCredentials =
+  !!process.env.BITBUCKET_EMAIL && !!process.env.BITBUCKET_API_TOKEN;
+
 test.describe.configure({ mode: 'serial', timeout: 300_000 });
 
 test.describe('Bitbucket: branch & PR lifecycle', () => {
+  // Skip entire suite when credentials are not available
+  test.skip(!hasBitbucketCredentials, 'BITBUCKET_EMAIL and BITBUCKET_API_TOKEN are required');
+
   let pr1Id: number;
   let pr2Id: number;
 

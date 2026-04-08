@@ -26,12 +26,13 @@ export class UsersPage extends BasePage {
 
   /** Switch between tabs (e.g. 'Users', 'Permission Sets'). */
   async switchTab(tab: string): Promise<void> {
-    await this.page
-      .getByRole('tab', { name: new RegExp(tab, 'i') })
-      .or(this.page.getByText(tab, { exact: true }))
-      .first()
-      .click();
-    await this.page.waitForTimeout(300);
+    // Tab buttons are plain <button> elements in the tab bar (not role="tab")
+    const tabBtn = this.page
+      .locator('button')
+      .filter({ hasText: new RegExp(`^${tab}$`) })
+      .first();
+    await tabBtn.click();
+    await this.page.waitForTimeout(500);
   }
 
   /** Create a new user via the UI. */

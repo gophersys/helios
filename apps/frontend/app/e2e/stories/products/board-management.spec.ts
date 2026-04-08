@@ -1,7 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { loginAsRole } from '../../helpers/auth-extended';
-import { createProductViaAPI } from '../../helpers/api-extended';
-import { apiPost } from '../../helpers/api';
 
 /**
  * Board Management — revision CRUD, status transitions, and sync on the Hardware tab.
@@ -17,13 +15,38 @@ test.describe('Board Management', () => {
   let boardId: string;
 
   test.beforeAll(async () => {
-    // Create product via wizard-like API call that includes board data
-    const product = await createProductViaAPI({
-      name: productName,
-      slug: `e2e-board-${uniqueSuffix}`,
-      description: 'Product for board management tests',
+    const API_URL = process.env.E2E_API_URL || 'http://localhost:9001';
+    const API_KEY = 'ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG';
+    const headers = { Authorization: `ApiKey ${API_KEY}`, 'Content-Type': 'application/json' };
+
+    // Create product WITH board data so the Hardware tab has a board entity
+    const createRes = await fetch(`${API_URL}/v2/products`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: productName,
+        slug: `e2e-board-${uniqueSuffix}`,
+        description: 'Product for board management tests',
+        board: {
+          ckBoardsFamily: `boardmgmt-${uniqueSuffix}`,
+          revisions: [{
+            version: 'b0',
+            ckBoardsName: `boardmgmt_b0_${uniqueSuffix}`,
+            socs: ['nrf52840', 'nrf9151'],
+            deviceType: 0,
+            deviceVariant: 0,
+          }],
+        },
+      }),
     });
-    productId = product.id;
+    const createBody = await createRes.json();
+    productId = createBody.data.id;
+
+    // Store boardId for potential use in later tests
+    const boards = createBody.data.boards || [];
+    if (boards.length > 0) {
+      boardId = boards[0].id;
+    }
   });
 
   test('board revision list shows revisions section on Hardware tab', async ({ page }) => {

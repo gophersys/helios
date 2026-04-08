@@ -224,7 +224,9 @@ export interface DesignConfig {
   name: string;
   description?: string;
   boardRevisionId?: string;
+  revision?: string;
   slotCount?: number;
+  notes?: string;
 }
 
 export interface FixtureDesign {

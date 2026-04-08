@@ -9,6 +9,7 @@ import logging
 from flask import jsonify, request
 
 from config import env_config
+from src.lib.audit import log_audit
 from src.lib.errors import bad_request, not_found, forbidden
 from src.lib.types import ApiResponse
 from src.services.auth.jwt import create_token
@@ -91,6 +92,7 @@ def dev_login():
     token = create_token(user.id, user.email, user.name, user.permissionSetId, role=user_role)
 
     logger.info("Dev login: %s (%s)", user.email, user_role)
+    log_audit("login", "User", user.id, {"email": user.email, "role": user_role, "mode": "dev"})
 
     return jsonify(ApiResponse.ok({
         "token": token,

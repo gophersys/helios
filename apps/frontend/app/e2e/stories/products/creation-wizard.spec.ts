@@ -16,14 +16,13 @@ test.describe.configure({ mode: 'serial' });
 let createdProductId: string | undefined;
 
 test.describe('Product Creation Wizard', () => {
-  test('Products page shows empty state when no products exist', async ({ page }) => {
+  test('Products page loads and shows heading', async ({ page }) => {
     await loginAsRole(page, 'admin');
     await page.goto('/products');
     await page.waitForLoadState('networkidle');
 
-    // Either the empty state message or the filter "no matches" message
-    const emptyState = page.getByText(/no products/i);
-    await expect(emptyState).toBeVisible({ timeout: 10_000 });
+    // Page loads with the Products heading regardless of DB state
+    await expect(page.getByRole('heading', { name: 'Products' })).toBeVisible({ timeout: 10_000 });
   });
 
   test('Create Product button visible for Admin', async ({ page }) => {
@@ -95,7 +94,7 @@ test.describe('Product Creation Wizard', () => {
     const select = page.locator('#branch-select');
     await select.selectOption('main');
 
-    // Click Next
+    // Click the wizard's Next button
     await page.getByRole('button', { name: /next/i }).click();
 
     // Step 2: "Select product family" heading

@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { loginAsRole } from '../../helpers/auth-extended';
-import { createProductViaAPI, configureStage } from '../../helpers/api-extended';
+import { configureStage } from '../../helpers/api-extended';
 
 /**
  * Stage Configuration Wizard — 4-step wizard for configuring validation stages.
@@ -24,12 +24,43 @@ let productId: string;
 
 test.describe('Stage Config Wizard', () => {
   test.beforeAll(async () => {
-    const product = await createProductViaAPI({
-      name: productName,
-      slug: `e2e-stage-cfg-${uniqueSuffix}`,
-      description: 'Product for stage config wizard E2E tests',
+    const API_URL = process.env.E2E_API_URL || 'http://localhost:9001';
+    const API_KEY = 'ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG';
+    const headers = { Authorization: `ApiKey ${API_KEY}`, 'Content-Type': 'application/json' };
+
+    // Create product WITH board data so active revisions exist for per-revision stage rows
+    const createRes = await fetch(`${API_URL}/v2/products`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: productName,
+        slug: `e2e-stage-cfg-${uniqueSuffix}`,
+        description: 'Product for stage config wizard E2E tests',
+        board: {
+          ckBoardsFamily: `stage-cfg-${uniqueSuffix}`,
+          revisions: [{
+            version: 'b0',
+            ckBoardsName: `stage_cfg_b0_${uniqueSuffix}`,
+            socs: ['nrf52840'],
+            deviceType: 0,
+            deviceVariant: 0,
+          }],
+        },
+      }),
     });
-    productId = product.id;
+    const createBody = await createRes.json();
+    productId = createBody.data.id;
+
+    // Activate the board revision so it appears in the per-revision stage list
+    const boards = createBody.data.boards || [];
+    const revisions = boards[0]?.revisions || [];
+    if (revisions.length > 0) {
+      await fetch(`${API_URL}/v2/products/${productId}/boards/${boards[0].id}/revisions/${revisions[0].id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ status: 'ACTIVE' }),
+      });
+    }
   });
 
   // ── Navigation to Validation tab ──────────────────────────

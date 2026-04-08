@@ -24,9 +24,7 @@ export class LoginPage extends BasePage {
   async loginAsRole(role: Role): Promise<void> {
     await this.goto();
     const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
-    const btn = this.page
-      .locator('button')
-      .filter({ hasText: new RegExp(`^${roleLabel}$`, 'i') });
+    const btn = this.page.getByRole('button', { name: new RegExp(roleLabel, 'i') });
     await btn.click();
     await this.page.waitForURL((url) => !url.pathname.includes('/login'), {
       timeout: 10_000,
@@ -48,7 +46,7 @@ export class LoginPage extends BasePage {
   async expectRoleButtons(): Promise<void> {
     for (const role of ['Admin', 'Maintainer', 'Developer', 'Operator']) {
       await expect(
-        this.page.locator('button').filter({ hasText: new RegExp(`^${role}$`, 'i') }),
+        this.page.getByRole('button', { name: new RegExp(role, 'i') }),
       ).toBeVisible();
     }
   }

@@ -111,7 +111,6 @@ test.describe('View-As-Role', () => {
     const sidebar = new SidebarComponent(page);
 
     await sidebar.viewAsRole('Developer');
-    await page.waitForLoadState('networkidle');
 
     const viewAsValue = await page.evaluate(() =>
       localStorage.getItem('concord-view-as-role')
@@ -125,14 +124,12 @@ test.describe('View-As-Role', () => {
 
     // First set View-As to Operator (most restricted)
     await sidebar.viewAsRole('Operator');
-    await page.waitForLoadState('networkidle');
 
     // Verify restricted view
     await sidebar.expectHidden(['Products', 'Builds', 'Validation', 'Fixtures']);
 
     // Reset to own view (null)
     await sidebar.viewAsRole(null);
-    await page.waitForLoadState('networkidle');
 
     // Full Admin sidebar should be restored
     await sidebar.expectItems(['Dashboard', 'Products', 'Builds', 'Validation', 'Manufacturing', 'Fixtures']);

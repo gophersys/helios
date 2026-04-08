@@ -8,27 +8,32 @@ import { expect } from '@playwright/test';
 export class SidebarComponent {
   constructor(private page: Page) {}
 
-  private get nav() {
-    return this.page.locator('nav');
+  /** The full sidebar aside element (contains nav + expanded sections). */
+  private get sidebar() {
+    return this.page.locator('aside');
   }
 
   /** Assert that the listed items are visible in the sidebar. */
   async expectItems(items: string[]): Promise<void> {
     for (const label of items) {
-      await expect(this.nav.getByText(label, { exact: true })).toBeVisible();
+      await expect(
+        this.sidebar.getByRole('link', { name: label }),
+      ).toBeVisible();
     }
   }
 
   /** Assert that the listed items are NOT visible. */
   async expectHidden(items: string[]): Promise<void> {
     for (const label of items) {
-      await expect(this.nav.getByText(label, { exact: true })).not.toBeVisible();
+      await expect(
+        this.sidebar.getByRole('link', { name: label }),
+      ).not.toBeVisible();
     }
   }
 
   /** Click a sidebar nav item to navigate. */
   async navigateTo(item: string): Promise<void> {
-    await this.nav.getByText(item, { exact: true }).click();
+    await this.sidebar.getByRole('link', { name: item }).click();
     await this.page.waitForLoadState('networkidle');
   }
 
@@ -37,7 +42,7 @@ export class SidebarComponent {
    * D15: These are behind expandable toggle buttons that must be clicked.
    */
   async expandSection(section: 'Admin' | 'System'): Promise<void> {
-    const btn = this.page.locator('button').filter({ hasText: section });
+    const btn = this.sidebar.getByRole('button', { name: section, exact: true });
     await btn.click();
     // Wait for the expand animation
     await this.page.waitForTimeout(300);
@@ -53,19 +58,26 @@ export class SidebarComponent {
    * Sets the sidebar to show navigation as the specified role would see it.
    */
   async viewAsRole(role: 'Maintainer' | 'Developer' | 'Operator' | null): Promise<void> {
-    // Open the view-as dropdown
-    const viewAsBtn = this.page.locator('button').filter({ hasText: /view as/i });
-    if (await viewAsBtn.isVisible()) {
-      await viewAsBtn.click();
-      await this.page.waitForTimeout(200);
-    }
+    // Open the view-as dropdown — button text is "View as..." or "Viewing as <Role>"
+    const viewAsBtn = this.page.locator('button').filter({ hasText: /view(?:ing)? as/i });
+    await viewAsBtn.waitFor({ state: 'visible', timeout: 10_000 });
+    await viewAsBtn.click();
+    await this.page.waitForTimeout(300);
 
     if (role === null) {
-      // Reset to own view
-      await this.page.getByText('Your View', { exact: true }).click();
+      // Reset to own view — the label includes the user's role in parens, e.g. "Your View (Admin)"
+      // Clicking triggers window.location.reload(), so wait for navigation
+      await Promise.all([
+        this.page.waitForLoadState('load'),
+        this.page.getByText(/Your View/).click(),
+      ]);
     } else {
-      await this.page.getByText(role, { exact: true }).click();
+      // Clicking triggers window.location.reload(), so wait for navigation
+      await Promise.all([
+        this.page.waitForLoadState('load'),
+        this.page.getByText(role, { exact: true }).click(),
+      ]);
     }
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState('networkidle');
   }
 }
