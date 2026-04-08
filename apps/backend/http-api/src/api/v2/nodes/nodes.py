@@ -297,18 +297,8 @@ def delete_node(node_id: str):
     if hasattr(existing, "testExecutions") and existing.testExecutions:
         return conflict("Cannot delete node: it has associated test executions")
 
-    # Undeploy MTIB server if one was deployed for this node
-    meta = existing.metadata if isinstance(existing.metadata, dict) else {}
-    deploy_name = meta.get("deployment_name")
-    if deploy_name:
-        try:
-            from src.services.kubernetes.mtib_deployments import delete_mtib_deployment
-            delete_mtib_deployment(deploy_name)
-            logger.info("Undeployed MTIB server %s for deleted node %s", deploy_name, existing.hostname)
-        except ImportError:
-            logger.warning("K8s client not available — skipping MTIB undeploy for %s", existing.hostname)
-        except Exception as e:
-            logger.error("Failed to undeploy MTIB server %s: %s", deploy_name, e)
+    # TODO: Auto-undeploy MTIB server once _undeploy_mtib_for_node is implemented
+    # (see mtib_deployments.py — use delete_mtib_deployment with deployment_name from metadata)
 
     db.node.delete(where={"id": node_id})
     log_audit("node.delete", "Node", node_id, {"name": existing.name, "hostname": existing.hostname})
@@ -410,30 +400,3 @@ def register_node(node_id: str):
     )
     log_audit("node.register", "Node", node.id, {"name": name, "hostname": hostname, "type": node_type})
     return jsonify(ApiResponse.ok(_serialize_node(node, include_slot=True)).to_dict()), 201
-
-
-# ── MTIB Deployment Helpers ──────────────────────────────────
-
-
-def _deploy_mtib_for_node(hostname: str, node_type: str) -> str | None:
-    """Deploy an MTIB server K8s Deployment for a standalone node (not yet in a fixture slot).
-
-    Creates a K8s Deployment pinned to the node's hostname and returns the
-    deployment name on success, None on failure.
-    """
-    try:
-        from src.services.kubernetes.mtib_deployments import create_mtib_deployment
-    except ImportError:
-        logger.warning("K8s client not available — skipping MTIB deploy for %s", hostname)
-        return None
-
-    purpose = "manufacturing" if node_type == "MANUFACTURING" else "validation"
-    config: dict = {"env": {}}
-    deploy_name = create_mtib_deployment(
-        node_hostname=hostname,
-        fixture_id="standalone",
-        deployment_id=f"node-{purpose}",
-        slot_index=0,
-        config=config,
-    )
-    return deploy_name

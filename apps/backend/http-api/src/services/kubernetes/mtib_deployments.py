@@ -7,29 +7,6 @@ import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
-# Environment → K8s namespace mapping for MTIB deployments.
-# All environments deploy MTIB pods to K8s — only the namespace differs.
-_ENV_NAMESPACE_MAP = {
-    "development": "development",
-    "staging": "staging",
-    "production": "production",
-}
-
-
-def _get_mtib_namespace() -> str:
-    """Resolve the K8s namespace for MTIB deployments.
-
-    Priority:
-      1. MTIB_NAMESPACE env var (explicit override)
-      2. Derived from ENVIRONMENT env var via mapping
-      3. Falls back to "development"
-    """
-    explicit = os.environ.get("MTIB_NAMESPACE", "").strip()
-    if explicit:
-        return explicit
-    env = os.environ.get("ENVIRONMENT", "development").strip().lower()
-    return _ENV_NAMESPACE_MAP.get(env, "development")
-
 
 def create_mtib_deployment(
     node_hostname: str,
@@ -97,11 +74,10 @@ def create_mtib_deployment(
     manifest = manifest.replace("{{MEMORY_LIMIT}}", mem_lim)
 
     try:
-        namespace = _get_mtib_namespace()
         spec = yaml.safe_load(manifest)
         apps_v1 = get_apps_v1_api()
-        apps_v1.create_namespaced_deployment(namespace=namespace, body=spec)
-        logger.info("Created K8s deployment: %s (namespace=%s)", deploy_name, namespace)
+        apps_v1.create_namespaced_deployment(namespace="default", body=spec)
+        logger.info("Created K8s deployment: %s", deploy_name)
         return deploy_name
     except ApiException as e:
         if e.status == 409:
@@ -123,10 +99,9 @@ def delete_mtib_deployment(deploy_name: str) -> bool:
         return False
 
     try:
-        namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
-        apps_v1.delete_namespaced_deployment(name=deploy_name, namespace=namespace)
-        logger.info("Deleted K8s deployment: %s (namespace=%s)", deploy_name, namespace)
+        apps_v1.delete_namespaced_deployment(name=deploy_name, namespace="default")
+        logger.info("Deleted K8s deployment: %s", deploy_name)
         return True
     except ApiException as e:
         if e.status == 404:
@@ -145,13 +120,11 @@ def get_mtib_deployment_status(deploy_name: str) -> Optional[dict]:
         return None
 
     try:
-        namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
-        dep = apps_v1.read_namespaced_deployment(name=deploy_name, namespace=namespace)
+        dep = apps_v1.read_namespaced_deployment(name=deploy_name, namespace="default")
 
         status: dict = {
             "name": deploy_name,
-            "namespace": namespace,
             "replicas": dep.status.replicas or 0,
             "readyReplicas": dep.status.ready_replicas or 0,
             "availableReplicas": dep.status.available_replicas or 0,
@@ -160,7 +133,7 @@ def get_mtib_deployment_status(deploy_name: str) -> Optional[dict]:
         # Get pods
         core_v1 = get_core_v1_api()
         selector = ",".join(f"{k}={v}" for k, v in (dep.spec.selector.match_labels or {}).items())
-        pods = core_v1.list_namespaced_pod(namespace=namespace, label_selector=selector)
+        pods = core_v1.list_namespaced_pod(namespace="default", label_selector=selector)
         status["pods"] = []
         for p in pods.items:
             pod_info = {
@@ -188,10 +161,9 @@ def list_mtib_deployments() -> list:
         return []
 
     try:
-        namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
         deps = apps_v1.list_namespaced_deployment(
-            namespace=namespace,
+            namespace="default",
             label_selector="corekinect.com/managed-by=concord",
         )
         results = []

@@ -6,7 +6,6 @@
   import ProductHardwareTab from './tabs/hardware-tab.svelte';
   import ProductStagesTab from './tabs/stages-tab.svelte';
   import ProductAssetsTab from './tabs/assets-tab.svelte';
-  import ProductManufacturingTab from './tabs/manufacturing-tab.svelte';
   import {
     Pencil, Check, X,
     LayoutDashboard, CircuitBoard, FlaskConical, Package, Factory,
@@ -175,7 +174,11 @@
       {:else if activeTab === 'assets'}
         <ProductAssetsTab productId={product.id} {canManage} />
       {:else if activeTab === 'manufacturing'}
-        <ProductManufacturingTab {product} {canManage} {onRefresh} />
+        <div class="py-8 text-center">
+          <Factory size={32} class="mx-auto mb-3 text-text-tertiary opacity-40" />
+          <p class="text-sm text-text-secondary">Manufacturing configuration coming soon.</p>
+          <p class="mt-1 text-2xs text-text-tertiary">Configure manufacturing stages to enable production test runs.</p>
+        </div>
       {/if}
     </div>
   </div>

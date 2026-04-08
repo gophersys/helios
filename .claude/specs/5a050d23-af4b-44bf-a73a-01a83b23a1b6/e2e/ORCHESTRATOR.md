@@ -173,6 +173,62 @@ async function ensureAuth(page: Page) {
 
 ---
 
+## Resource Pooling — Shared Platform Between Teammates
+
+All teammates in a wave share ONE running platform (docker-compose stack).
+No separate instances per teammate. This saves resources but requires discipline.
+
+### Global Setup (ONCE, before any wave)
+
+```bash
+# Lead does this before creating any team:
+nx stop platform                     # Stop everything
+npx prisma migrate reset --force     # Wipe DB completely
+npx prisma migrate deploy            # Re-run migrations
+python3 -m seed.main --platform-only # Seed roles, permissions, dev users ONLY
+nx start platform                    # Restart
+curl -s localhost:9001/v2/docs       # Verify health
+```
+
+After this, the platform stays running for ALL waves. No more wipes.
+
+### Stage-Prefixed Test Data (MANDATORY)
+
+Every teammate prefixes ALL test data with `s{STAGE_NUMBER}-`:
+
+| Teammate | Prefix | Example Product | Example Branch |
+|----------|--------|-----------------|----------------|
+| Stage 2 (Auth) | `s2-` | `s2-test-product` | `e2e/s2-branch` |
+| Stage 3 (Products) | `s3-` | `s3-Alpha-Test` | `e2e/s3-feature` |
+| Stage 7 (Fixtures) | `s7-` | `s7-E2E-Fixture` | — |
+| Stage 10 (Mfg) | `s10-` | `s10-mfg-config` | — |
+| Stage 14 (Users) | `s14-` | — (creates `s14-test@e2e.dev`) | — |
+
+### Cleanup Per Teammate
+
+Each teammate cleans up ITS OWN prefixed data at stage end.
+Stage 16 does a final sweep to catch stragglers.
+NEVER wipe the entire DB during wave execution.
+
+### Hardware Is Serial
+
+MTIB (10.4.45.33) can only be used by ONE stage at a time.
+Stages 9 and 13 (which need MTIB) run in Wave 4 SEQUENTIALLY, never parallel.
+
+### Include in EVERY Teammate Prompt
+
+```
+RESOURCE POOLING: You share the platform with other teammates.
+- DO NOT wipe the database or restart the platform
+- Prefix ALL test data with "s{YOUR_STAGE}-" (e.g., "s3-Alpha-Product")
+- Clean up your prefixed data when your stage completes
+- The API (localhost:9001) and frontend (localhost:4200) handle concurrent access
+- MTIB hardware is NOT available to you unless you are in Wave 4
+- Use SendMessage to coordinate if you need data another teammate created
+```
+
+---
+
 ## Agent Prompt Template
 
 Every agent gets this prompt structure. It MUST be self-contained — the agent has NO conversation history.

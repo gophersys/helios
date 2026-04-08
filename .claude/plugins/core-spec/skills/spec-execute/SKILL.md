@@ -101,77 +101,46 @@ If a stage has been `IN_PROGRESS` for >2 hours with no STATUS.md update:
 - Re-launch with "previous attempt stalled" hint
 - Max 3 re-launches before marking BLOCKED
 
-## Agent Teams (NOT plain subagents)
+## Worktree Agent Swarms
 
-Use **agent teams** for wave execution. Teams are long-lived instances that can
-message each other via SendMessage and share a task list.
+### Launching Parallel Agents
 
-### Required Setting
-
-Verify `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set in BOTH:
-- `.claude/settings.json` (project)
-- `~/.claude/settings.json` (user)
-
-### Launching a Wave as a Team
-
-For each wave, create a team with worktree-isolated teammates:
+ALWAYS use `isolation: "worktree"` for parallel stages:
 
 ```
-Create an agent team for Wave N with these teammates:
-
-Teammate "stage-1-foundation":
-  - isolation: worktree
-  - Task: <paste FULL content of STAGE-01.md>
-  - Context: <paste relevant MEMORY.md decisions>
-
-Teammate "stage-5-bitbucket":
-  - isolation: worktree
-  - Task: <paste FULL content of STAGE-05.md>
-  - Context: <paste relevant MEMORY.md decisions>
-
-All teammates must:
-- Follow TDD (tests first)
-- Update STATUS.md after every action
-- SendMessage to other teammates on discoveries
-- Commit with descriptive messages (no AI attribution)
-- Mark stage COMPLETE when done
+Agent({
+  description: "Stage N: <name>",
+  isolation: "worktree",
+  mode: "bypassPermissions",
+  prompt: <FULL stage file + MEMORY.md decisions + retry protocol>
+})
 ```
 
-### Why Teams Over Subagents
+Launch ALL wave agents in a SINGLE message (parallel tool calls).
 
-| Feature | Why It Matters |
-|---------|---------------|
-| **SendMessage** | Teammates tell each other about API discrepancies, patterns, bugs |
-| **Shared task list** | Self-claiming prevents duplicate work |
-| **Long-lived** | Don't disappear after one task — can handle follow-up issues |
-| **Coordination** | When one teammate discovers a spec error, others adapt immediately |
-
-### Wave Lifecycle
+### Wave-Based Execution
 
 ```
-WAVE N:
-  1. Create team with N teammates (one per stage)
-  2. Each teammate works in worktree isolation
-  3. Teammates communicate via SendMessage
-  4. Shared task list tracks progress
-  5. All teammates report COMPLETE
-  GATE: Lead merges worktrees
-  GATE: Post-stage reconciliation per stage
-  GATE: Deploy to staging + verify
-  6. Clean up team
-  7. Launch Wave N+1
+WAVE 1: Foundation stages (no dependencies)
+  GATE: Merge all worktrees
+  GATE: Post-stage reconciliation
+  GATE: Deploy to staging + verify (if applicable)
+
+WAVE 2: Stages depending on Wave 1
+  GATE: Same as above
+
+...repeat until all stages complete...
 ```
 
 ### Merging Waves
 
-After all teammates in a wave complete:
+After all stages in a wave complete:
 1. `git merge worktree-<branch> --no-edit` for each
 2. Resolve conflicts if any
 3. Run typecheck/tests
 4. Reconcile each stage against spec
 5. Deploy to staging (if applicable)
-6. Clean up team
-7. Advance to next wave
+6. Advance to next wave
 
 ## Post-Stage Reconciliation
 
