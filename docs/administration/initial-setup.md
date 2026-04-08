@@ -1,32 +1,35 @@
+---
+min_role: ADMIN
+---
 # Initial Setup
 
 ## Cluster Requirements
 
-Concord runs on K3s with Traefik as the ingress controller. You'll need three namespaces:
+Concord runs on K3s with Traefik as the ingress controller. Three namespaces are required:
 
 - `staging` — pre-production validation
 - `production` — live system
-- `validation` — test runner jobs (K8s Jobs spawned per validation run)
+- `validation` — K8s Jobs spawned per validation run
 
 Minimum hardware: 4 CPU, 8GB RAM, 100GB storage. MinIO needs its own PV for firmware artifacts.
 
 ## First Deploy
 
-Start with staging. Production comes after you've verified everything works.
+Start with staging. Production comes after everything checks out.
 
 ```bash
-# Full first-time setup (bootstraps infrastructure + deploys apps)
+# Full first-time setup: bootstraps infrastructure + deploys apps
 nx start platform -c staging
 
 # Verify pods are healthy
 nx run platform:status -c staging
 ```
 
-The deploy bootstraps the cluster (namespaces, RBAC, certs, secrets), creates the PostgreSQL database, runs Prisma migrations + seed via init container, and starts all services.
+This bootstraps the cluster (namespaces, RBAC, certs, secrets), creates the PostgreSQL database, runs Prisma migrations + seed via init container, and starts all services.
 
-## Creating the First Admin User
+## First Admin User
 
-After the first deploy, you need to seed an admin user. Hit the API directly:
+After the initial deploy, seed an admin user through the API directly:
 
 ```bash
 curl -X POST https://staging.concord.local/v2/users \
@@ -40,9 +43,9 @@ curl -X POST https://staging.concord.local/v2/users \
 
 This only works when `AUTH_ENABLED=false` (the default for first setup). Enable auth after creating the admin account.
 
-## Configuring Auth
+## Auth Configuration
 
-Concord uses Google OAuth with JWT tokens. Auth is toggled via the `AUTH_ENABLED` environment variable.
+Concord uses Google OAuth with JWT tokens. Auth is controlled by the `AUTH_ENABLED` environment variable.
 
 1. Set your Google OAuth client ID and secret in the Helm values:
 
@@ -62,26 +65,26 @@ httpApi:
 nx update platform -c staging
 ```
 
-3. Verify auth is working — unauthenticated requests should return 401:
+3. Verify — unauthenticated requests should return 401:
 
 ```bash
 curl -s https://staging.concord.local/v2/products
 # Should return {"errors": ["Unauthorized"]}
 ```
 
-## Setting Up Secrets
+## Secrets
 
-Three categories of secrets need configuration:
+Three categories:
 
-**JWT signing key** — used for auth tokens. Generate a random key:
+**JWT signing key** — used for auth tokens. Generate with:
 
 ```bash
 openssl rand -hex 32
 ```
 
-**CoreCloud API keys** — needed for device registration, FUOTA, and telemetry. Get these from the CoreCloud admin panel. The validation API key goes in the `corecloud-validation` K8s secret in both `staging` and `validation` namespaces.
+**CoreCloud API keys** — required for device registration, FUOTA, and telemetry. Get these from the CoreCloud admin panel. The validation API key goes in the `corecloud-validation` K8s secret in both `staging` and `validation` namespaces.
 
-**MinIO credentials** — S3-compatible storage for firmware artifacts. Set in Helm values:
+**MinIO credentials** — S3-compatible storage for firmware artifacts:
 
 ```yaml
 minio:

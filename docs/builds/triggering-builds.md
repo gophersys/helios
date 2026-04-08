@@ -1,28 +1,28 @@
-# Builds
+---
+min_role: DEVELOPER
+---
+# Triggering Builds
 
-## Viewing Builds
+## Build List
 
-Go to **Builds** in the sidebar. You'll see a list of all builds for your products, newest first. Each build shows:
+Open **Builds** to see all builds across products, newest first. Each entry shows:
 
-- **Version** — firmware version (e.g., `0.5.2`)
-- **Product** — which product it's for
+- **Version** — firmware version (`0.5.2`)
+- **Product** — which product this build targets
 - **Firmware type** — MFG or production
 - **Status** — queued, building, success, or failed
-- **Trigger** — what started the build (git push, manual, PR)
-- **Commit** — the source commit hash
+- **Trigger** — what started it (git push, manual, PR)
+- **Commit** — source commit hash
 
-Click a build to see its artifacts, logs, and metadata.
+Click any build to see its artifacts, compilation log, and metadata.
 
-## Triggering a Build
+## Manual Trigger
 
-### From the UI
+### UI
 
-1. Go to **Builds**
-2. Click **Trigger Build**
-3. Select the product, firmware type, and branch
-4. Click **Start**
+Open **Builds**, click **Trigger Build**, select the product, firmware type, and branch, then click **Start**. Manual builds run through the same pipeline as automated ones — same caching, same artifact storage, same output paths.
 
-### From the API
+### API
 
 ```bash
 curl -X POST https://concord.local/v2/builds/trigger \
@@ -35,46 +35,40 @@ curl -X POST https://concord.local/v2/builds/trigger \
   }'
 ```
 
-Builds triggered manually use the same pipeline as automated builds — same caching, same artifact storage.
-
 ## Build Matrix
 
-Each product defines which firmware types get built. Alpha B0 builds:
+Each product defines which firmware types get built. Alpha B0 produces two:
 
 | Firmware Type | Targets | Artifacts |
 |---------------|---------|-----------|
-| `alpha_mfg_fw` | nRF52840 (109), nRF9151 (108) | hex files, CFW files (bench+mfg track) |
-| `alpha_fw` | nRF52840 (109), nRF9151 (108) | hex files, CFW files (production track) |
+| `alpha_mfg_fw` | nRF52840 (AppID 109), nRF9151 (AppID 108) | hex files + CFW files (bench+mfg track) |
+| `alpha_fw` | nRF52840 (AppID 109), nRF9151 (AppID 108) | hex files + CFW files (production track) |
 
-Both types produce hex files (for J-Link flashing) and CFW files (for FUOTA). The difference is in firmware features and the track flag in the CFW filename.
+Both produce hex files for J-Link flashing and CFW files for FUOTA. The difference is in firmware features — MFG includes the manufacturing shell and debug logging, production strips both.
 
 ## Downloading Artifacts
 
-### From the UI
+### UI
 
-1. Open a build
-2. Scroll to **Artifacts**
-3. Click the download icon next to the file you need
+Open a build, scroll to **Artifacts**, and click the download icon next to the file you need.
 
-### From the API
+### API
 
 ```bash
-# List artifacts for a build
+# List artifacts
 curl https://concord.local/v2/builds/<build-id>/artifacts \
   -H "Authorization: Bearer <token>"
 
-# Download a specific artifact
+# Download
 curl -O https://concord.local/v2/builds/<build-id>/artifacts/<artifact-id>/download \
   -H "Authorization: Bearer <token>"
 ```
 
-### Artifact Naming
+## Artifact Naming
 
-Hex files: `{version}_{target}_{chipset}.hex` (e.g., `0.5.2_app_nrf52840.hex`)
+Hex files follow `{version}_{target}_{chipset}.hex` — for example, `0.5.2_app_nrf52840.hex`.
 
-CFW files: `{appId}.{version}-{track}.cfw` (e.g., `108.0.5.2-BM.cfw`)
-
-Track flags in CFW filenames:
+CFW files follow `{appId}.{version}-{track}.cfw`. The track flags encode the build variant:
 
 | Flag | Meaning |
 |------|---------|
@@ -84,4 +78,4 @@ Track flags in CFW filenames:
 | M | Manufacturing |
 | D | Debug |
 
-A CFW named `109.0.8.3-BMD.cfw` is AppID 109 (nRF52840 app), version 0.8.3, bench + manufacturing + debug track.
+So `109.0.8.3-BMD.cfw` is AppID 109 (nRF52840 app), version 0.8.3, built for bench + manufacturing + debug.

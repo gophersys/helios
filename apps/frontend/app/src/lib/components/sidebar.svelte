@@ -16,10 +16,12 @@
     Factory,
     ScanEye,
     History,
+    BookOpen,
   } from 'lucide-svelte';
   import { PUBLIC_APP_VERSION, PUBLIC_APP_ENVIRONMENT } from '$env/static/public';
   import { getTheme } from '$lib/stores/theme.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
+  import { getDocsUrl } from '$lib/docs';
 
   import ConcordLogo from '$lib/components/concord-logo.svelte';
   import KubernetesIcon from '$lib/components/icons/kubernetes-icon.svelte';
@@ -312,6 +314,23 @@
       <Settings size={18} strokeWidth={1.75} class="shrink-0" />
       {#if !collapsed}<span class="truncate">Settings</span>{/if}
     </button>
+
+    <!-- Documentation -->
+    <a
+      href={getDocsUrl($page.url.pathname)}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={collapsed ? 'Documentation' : undefined}
+      class="group relative flex w-full items-center rounded-lg text-sm font-medium transition-all text-text-secondary hover:bg-sidebar-hover hover:text-text-primary"
+      class:justify-center={collapsed}
+      class:px-0={collapsed}
+      class:py-2={true}
+      class:gap-3={!collapsed}
+      class:px-3={!collapsed}
+    >
+      <BookOpen size={18} strokeWidth={1.75} class="shrink-0" />
+      {#if !collapsed}<span class="truncate">Documentation</span>{/if}
+    </a>
 
     <!-- View As (Admin/Maintainer only, dev environment only) -->
     {#if isDev && auth.canViewAs && !collapsed}

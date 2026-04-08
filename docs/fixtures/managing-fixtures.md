@@ -1,18 +1,13 @@
-# Fixtures & MTIBs
+---
+min_role: MAINTAINER
+---
+# Managing Fixtures
 
-## What's a Fixture?
+## MTIB Nodes
 
-A fixture = MTIB + sensors wired for a specific product. It's the physical test bench that talks to the DUT (device under test).
+Before creating fixtures, register the MTIB hardware with Concord.
 
-The **MTIB** (Manufacturing Test Interface Board) is the base hardware — a Toradex Verdin module with power supplies, GPIO, UART, ADC, J-Link muxing, and optional motion control. The **fixture** adds product-specific wiring: which GPIOs drive which sensors, power rail config, UART mapping.
-
-## Adding an MTIB Node
-
-Before you can create fixtures, register the MTIB with Concord.
-
-1. Go to **Fixtures > Nodes**
-2. Click **Add Node**
-3. Fill in:
+Open **Fixtures > Nodes** and click **Add Node**:
 
 | Field | Example | Notes |
 |-------|---------|-------|
@@ -21,11 +16,11 @@ Before you can create fixtures, register the MTIB with Concord.
 | Port | `50053` | gRPC port (default) |
 | Revision | `REV 1.2` | Hardware revision of the MTIB |
 
-The system will test connectivity when you save. If it can't reach the gRPC server, it'll tell you.
+Concord tests gRPC connectivity on save and reports failures immediately.
 
-## Creating a Fixture Design
+## Fixture Designs
 
-A fixture design describes the hardware layout for a product. It's defined in the product's validation repo as a YAML + Python pair.
+A fixture design describes the hardware layout for a product. It lives in the product's validation repo as a YAML + Python pair.
 
 The YAML declares capabilities:
 
@@ -45,7 +40,7 @@ peltier:
   temp_adc_channel: 7
 ```
 
-The Python controller implements the fixture logic:
+The Python controller implements fixture logic:
 
 ```python
 # fixtures/alpha_b0/controller.py
@@ -56,23 +51,23 @@ class AlphaB0Fixture(BaseFixture):
         self.gpio_write(self.config.button.gpio_pin, False)
 ```
 
-Register the design in Concord by uploading it through the UI (**Fixtures > Designs > Add Design**) or via `corectl`:
+Upload the design through **Fixtures > Designs > Add Design** or via the CLI:
 
 ```bash
 corectl fixture upload ./fixtures/alpha_b0/
 ```
 
-## Creating Fixture Instances
+## Fixture Instances
 
-A fixture instance ties a design to a physical MTIB node. One MTIB can host multiple fixture instances if it has the wiring.
+A fixture instance ties a design to a physical MTIB node. One MTIB can host multiple instances if it has the wiring.
 
-1. Go to **Fixtures > Instances**
-2. Click **Add Instance**
-3. Select the MTIB node (e.g., `MTIB-REV1.2-33`)
-4. Select the fixture design (e.g., `Alpha B0`)
-5. Set the slot name (e.g., `slot-1`)
+Open **Fixtures > Instances**, click **Add Instance**, and configure:
 
-## Assigning Devices to Slots
+1. Select the MTIB node (e.g., `MTIB-REV1.2-33`)
+2. Select the fixture design (e.g., `Alpha B0`)
+3. Set the slot name (e.g., `slot-1`)
+
+## Device Assignment
 
 Once a fixture instance exists, assign a DUT to it:
 
@@ -80,7 +75,7 @@ Once a fixture instance exists, assign a DUT to it:
 2. Click **Assign Device**
 3. Enter the device serial number (e.g., `0964`)
 
-The system looks up the device in CoreCloud and links it. Validation runs will target this device on this fixture.
+Concord looks up the device in CoreCloud and links it. Validation runs target this device on this fixture.
 
 ### J-Link Probe Mapping
 
@@ -91,4 +86,4 @@ Each fixture instance needs J-Link probe serial numbers mapped to targets:
 | `821009543` | NRF52 | nRF52840 app processor |
 | `821009541` | NRF91 | nRF9151 comms coprocessor |
 
-Set these in the fixture instance configuration. The test runner uses them for flashing operations.
+Set these in the fixture instance configuration. The test runner uses them for `nrfjprog` flashing operations.

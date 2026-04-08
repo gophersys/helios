@@ -1,3 +1,6 @@
+---
+min_role: ADMIN
+---
 # Production Operations
 
 ## Deploy Flow
@@ -19,41 +22,38 @@ nx run platform:status -c staging   # Verify pods are healthy
 ### 2. Validate on Staging
 
 ```bash
-# Check API health
 curl -s https://staging.concord.local/v2/docs | head
 
-# Check logs for errors
 kubectl logs -n staging -l app.kubernetes.io/name=concord-http-api --tail=50
 ```
 
-### 3. Deploy to Production
+### 3. Promote to Production
 
 ```bash
 ./deploy/ctl.sh production diff     # Preview changes
 nx update platform -c production    # Build + push + helm upgrade (zero downtime)
-nx run platform:status -c production # Verify
+nx run platform:status -c production
 ```
 
 ## Rollback
 
-If something breaks after a production deploy, roll back immediately. Investigate later.
+If something breaks after a production deploy, roll back first and investigate later.
 
 ### Helm Rollback (fastest)
 
 ```bash
-# See release history
 helm history concord -n production
 
-# Roll back to previous release
+# Previous release
 helm rollback concord -n production
 
-# Roll back to a specific revision
+# Specific revision
 helm rollback concord 5 -n production
 ```
 
 ### Image Rollback
 
-Pin a specific image tag if you need to go back further:
+Pin a specific image tag to go back further:
 
 ```bash
 helm upgrade concord ./deploy/production/helm/concord -n production \
@@ -74,6 +74,7 @@ kubectl rollout restart deployment/concord-http-api -n production
 Migrations run automatically via init container on deploy. Prisma runs `migrate deploy` before the API starts.
 
 If a migration fails:
+
 1. Check init container logs: `kubectl logs -n production <pod> -c migrate-and-seed`
 2. The API pod won't start until the migration succeeds
 3. Fix the migration in code, redeploy to staging, verify, then push to production
@@ -86,7 +87,7 @@ Never run migrations manually in production. Always go through the deploy pipeli
 
 1. Generate a new key: `openssl rand -hex 32`
 2. Update `deploy/production/helm/values-production.yaml`
-3. Redeploy — all existing tokens are invalidated, users will need to re-login
+3. Redeploy — all existing tokens are invalidated, users re-login
 
 ### CoreCloud API Keys
 
@@ -97,19 +98,19 @@ Never run migrations manually in production. Always go through the deploy pipeli
 ### MinIO Credentials
 
 1. Update Helm values
-2. Redeploy — the MinIO pod will restart with new credentials
+2. Redeploy — the MinIO pod restarts with new credentials
 3. Verify artifact access still works
 
 ## Retention & Cleanup
 
-**Build artifacts** — stored in MinIO under `firmware-builds/`. No automatic cleanup. Periodically review old builds and remove artifacts for deprecated products.
+**Build artifacts** are stored in MinIO under `firmware-builds/`. No automatic cleanup — periodically review old builds and remove artifacts for deprecated products.
 
-**Validation runs** — stored in PostgreSQL. Run data grows over time. Consider archiving runs older than 6 months.
+**Validation runs** are stored in PostgreSQL. Run data grows over time. Consider archiving runs older than 6 months.
 
-**K8s Jobs** — validation runner jobs in the `validation` namespace. Completed jobs are cleaned up by K8s TTL controller (`ttlSecondsAfterFinished`). Failed jobs are kept for debugging — clean them manually:
+**K8s Jobs** in the `validation` namespace are cleaned up by the TTL controller (`ttlSecondsAfterFinished`). Failed jobs stick around for debugging — clean them manually:
 
 ```bash
 kubectl delete jobs -n validation --field-selector status.successful=0
 ```
 
-**Logs** — pod logs are ephemeral. If you need persistent logging, set up a log aggregator (Loki, ELK, etc.).
+**Logs** are ephemeral. For persistent logging, set up a log aggregator (Loki, ELK, etc.).

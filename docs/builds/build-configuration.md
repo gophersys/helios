@@ -1,92 +1,77 @@
-# Build System
+---
+min_role: DEVELOPER
+---
+# Build Configuration
 
-## Build Recipes
+## Recipes
 
-A build recipe defines how to build firmware for a product. It specifies the toolchain, build commands, and output artifacts.
-
-Recipes live in the product's firmware repo and are registered in Concord. Each recipe produces hex files (for J-Link flashing) and CFW files (for FUOTA).
-
-Example recipe structure:
+A build recipe tells the build service how to compile firmware for a specific product and variant. It specifies the toolchain, build commands, and which artifacts to extract. Recipes live in the firmware repo under `recipes/`:
 
 ```
 recipes/
-  alpha_mfg_fw/     # Manufacturing firmware
-  alpha_fw/          # Production firmware
+  alpha_mfg_fw/     # Manufacturing firmware — shell enabled, debug logging
+  alpha_fw/          # Production firmware — no shell, quiet logging
 ```
 
-Each recipe maps to a firmware type. Alpha has two:
+Each recipe maps to a firmware type:
 
-| Recipe | Firmware Type | What It Builds |
-|--------|--------------|----------------|
-| `alpha_mfg_fw` | Manufacturing | MFG shell enabled, debug logging, bench track |
-| `alpha_fw` | Production | No shell, quiet logging, production track |
+| Recipe | Firmware Type | Output |
+|--------|--------------|--------|
+| `alpha_mfg_fw` | Manufacturing | hex + CFW files, bench track, MFG shell active |
+| `alpha_fw` | Production | hex + CFW files, production track, shell stripped |
+
+Register recipes in Concord through the product's firmware settings. The build service reads the recipe on each job, so changes to the recipe in the repo take effect on the next build.
 
 ## Stage Configs
 
-Stages control which firmware gets built at each step of the validation pipeline. Configure stages per product in **Products > Settings > Stages**.
+Stages control which firmware gets built and tested at each step of the validation pipeline. Configure them in **Products > Settings > Stages**:
 
-| Stage | Builds | Purpose |
-|-------|--------|---------|
-| Smoke | MFG firmware | Quick sanity check on fresh boards |
-| POST | MFG firmware | Manufacturing production test |
-| Validation | MFG + Production | Full test suite |
-| FUOTA | Production CFW | Over-the-air update verification |
-| Release | Production | Final release candidate |
+| Stage | Firmware Built | Purpose |
+|-------|---------------|---------|
+| Smoke | MFG | Quick sanity check — does the board boot and respond? |
+| POST | MFG | Full manufacturing production test on the fixture |
+| Validation | MFG + Production | Complete test suite across both variants |
+| FUOTA | Production CFW | Over-the-air update verification end-to-end |
+| Release | Production | Final release candidate gate |
 
 ## CI Pipeline
 
-The build pipeline runs automatically:
+The automated pipeline runs on every qualifying commit:
 
-1. **Git poller** watches configured branches for new commits
-2. **Build service** picks up the change and starts a build job
-3. **Artifacts** (hex, CFW) are stored in MinIO under `firmware-builds/{product}/{fw_type}/{variant}/{version}/`
-4. **Concord API** records the build with metadata (commit hash, branch, version, artifact manifest)
+1. **Git poller** detects new commits on watched branches
+2. **Build service** picks up the job and compiles against the board target
+3. **Artifacts** (hex, CFW) land in MinIO at `firmware-builds/{product}/{fw_type}/{variant}/{version}/`
+4. **Concord API** records the build with metadata — commit hash, branch, version, artifact manifest
 
-Builds are cached by content hash. If the source hasn't changed, the build is skipped and the previous artifacts are reused. Cache keys include:
+Builds are cached by content hash. If the source and toolchain haven't changed, the build is skipped and previous artifacts are reused. The cache key includes source file hashes, toolchain version, and recipe config.
 
-- Source file hashes
-- Toolchain version
-- Recipe config
+### Branch Triggers
 
-### Build Triggers
+| Trigger | Behavior |
+|---------|----------|
+| Push to `main` | Automatic build of latest |
+| Push to `release/*` | Automatic build of release candidate |
+| Pull request opened/updated | Automatic build of PR artifacts (short-lived cache) |
+| Manual (UI or API) | On-demand, same pipeline |
+| Version file change | Automatic on detected version bump |
 
-| Trigger | When |
-|---------|------|
-| Git push to `main` | Automatic — builds latest |
-| Git push to `release/*` | Automatic — builds release candidate |
-| Pull request | Automatic — builds PR artifacts (not cached long-term) |
-| Manual | Click **Trigger Build** in the UI or call the API |
-| Version bump | Automatic — detected by version file change |
+## Troubleshooting
 
-## Troubleshooting Failed Builds
-
-### Build stuck in QUEUED
-
-The build service might be down or overloaded. Check:
-
+**Build stuck in QUEUED** — the build service may be down or overloaded:
 ```bash
 kubectl logs -n staging -l app.kubernetes.io/name=concord-build-service --tail=50
 ```
 
-### Build fails with toolchain error
+**Toolchain error** — the Docker build image is missing the right SDK version. Check the recipe's `Dockerfile` and verify the base image matches the expected Zephyr SDK.
 
-The Docker build image might be missing the right toolchain version. Check the recipe's `Dockerfile` and make sure the base image matches.
-
-### Artifacts not appearing
-
-Check MinIO connectivity:
-
+**Artifacts not appearing** — check MinIO connectivity from the API pod:
 ```bash
 kubectl exec -n staging deploy/concord-http-api -- \
   python3 -c "from minio import Minio; print(Minio('minio:9000').list_buckets())"
 ```
 
-### Cache not working
-
-If builds aren't being cached when they should be, check the cache fingerprint. The build service logs the fingerprint on each build:
-
+**Cache not working** — the build service logs the cache fingerprint on each job. Compare fingerprints between builds to find what changed:
 ```bash
 kubectl logs -n staging -l app.kubernetes.io/name=concord-build-service | grep "fingerprint"
 ```
-
-A changed fingerprint means something in the source or config changed. Compare fingerprints between builds to find what shifted.
+A different fingerprint means something in the source, toolchain version, or recipe config shifted.

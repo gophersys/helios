@@ -1,7 +1,13 @@
 site_name: Concord
+site_url: https://docs.concord.local/
 site_description: Continuous delivery platform for embedded systems
 docs_dir: docs
 site_dir: apps/frontend/docs/site
+
+# Exclude internal and archived docs from the build
+exclude_docs: |
+  _internal/
+  _archive/
 
 theme:
   name: material
@@ -19,13 +25,13 @@ theme:
         icon: material/brightness-7
         name: Switch to dark mode
   features:
-    - navigation.sections
-    - navigation.expand
-    - navigation.path
-    - navigation.indexes
-    - search.suggest
-    - content.code.copy
-    - toc.follow
+    - "navigation.tabs"
+    - "navigation.tabs.sticky"
+    - "navigation.indexes"
+    - "navigation.instant"
+    - "toc.follow"
+    - "search.suggest"
+    - "content.code.copy"
 
 markdown_extensions:
   - tables
@@ -45,6 +51,9 @@ markdown_extensions:
   - md_in_html
   - toc:
       permalink: true
+
+hooks:
+  - hooks/role_filter.py
 
 plugins:
   - search
@@ -71,67 +80,94 @@ extra:
 
 extra_javascript:
   - assets/js/external-links.js
+  - assets/js/role-filter.js
 
 nav:
   - Home: index.md
 
+  - Products:
+    - products/index.md
+    - Creating Products: products/creating-products.md
+    - Board Revisions: products/board-revisions.md
+    - Firmware Repos: products/firmware-repos.md
+    - Build Matrix: products/build-matrix.md
+    - Recipe Editor: products/recipe-editor.md
+    - Stage Config: products/stage-config.md
+
+  - Builds:
+    - builds/index.md
+    - Triggering Builds: builds/triggering-builds.md
+    - Build Configuration: builds/build-configuration.md
+    - CI Integration: builds/ci-integration.md
+    - Build Monitoring: builds/monitoring.md
+    - Build Artifacts: builds/artifacts.md
+
+  - Validation:
+    - validation/index.md
+    - Running Validation: validation/running-validation.md
+    - Writing Tests: validation/writing-tests.md
+    - Stages Overview: validation/stages-overview.md
+    - Results: validation/results.md
+    - Queue: validation/queue.md
+    - Run Detail: validation/run-detail.md
+    - Real-Time View: validation/realtime.md
+
+  - Manufacturing:
+    - manufacturing/index.md
+    - Configuration: manufacturing/configuration.md
+    - Manufacturing Fixtures: manufacturing/fixture.md
+    - Sessions: manufacturing/sessions.md
+    - Station Setup: manufacturing/station-setup.md
+    - Running POST: manufacturing/running-post.md
+    - Reading Results: manufacturing/reading-results.md
+
+  - Fixtures:
+    - fixtures/index.md
+    - Managing Fixtures: fixtures/managing-fixtures.md
+    - Fixture Designs: fixtures/designs.md
+    - Fixture Instances: fixtures/instances.md
+    - Slots & Deployment: fixtures/slots-and-deployment.md
+
+  - Administration:
+    - administration/index.md
+    - Initial Setup: administration/initial-setup.md
+    - Users & Roles: administration/users-and-roles.md
+    - Permission Sets: administration/permission-sets.md
+    - API Keys: administration/api-keys.md
+    - Production Operations: administration/production-operations.md
+
+  - Reference:
+    - reference/index.md
+    - Python SDK:
+      - reference/python-sdk/index.md
+      - Test Framework:
+        - reference/python-sdk/test-framework/index.md
+        - TestContext: reference/python-sdk/test-framework/context.md
+        - CloudClient: reference/python-sdk/test-framework/cloud-client.md
+        - UartDemuxer: reference/python-sdk/test-framework/uart-demuxer.md
+        - PowerProfiler: reference/python-sdk/test-framework/power-profiler.md
+        - StageAssets: reference/python-sdk/test-framework/stage-assets.md
+        - DevicePersonalizer: reference/python-sdk/test-framework/device-personalizer.md
+        - Reporter: reference/python-sdk/test-framework/reporter.md
+        - POST: reference/python-sdk/test-framework/post.md
+        - Telemetry: reference/python-sdk/test-framework/telemetry.md
+      - CoreCloud:
+        - reference/python-sdk/corecloud/client.md
+        - reference/python-sdk/corecloud/models.md
+    - REST API: reference/rest-api.md
+    - corectl CLI: reference/corectl.md
+    - Stages & Errors: reference/stages-and-errors.md
+
   - Platform:
-    - architecture/platform/index.md
-    - System Architecture: architecture/platform/unified-platform.md
-    - Products & Boards: architecture/platform/hardware-registry.md
+    - platform/index.md
+    - System Architecture: platform/system-architecture.md
     - Build System:
-      - architecture/build/index.md
-      - Build Service: architecture/build/build-service.md
-      - Product Builds: architecture/build/product-build-system.md
-      - Artifact Contract: architecture/build/artifact-contract.md
-      - CI Pipeline: architecture/platform/ci-pipeline.md
-    - Validation:
-      - architecture/validation/index.md
-      - Stages Overview: architecture/validation/stages-overview.md
-      - System Design: architecture/validation/system.md
-      - Test Runner: architecture/validation/test-runner.md
-    - CoreCloud: architecture/platform/corecloud-library.md
-    - Zero-Downtime Updates: architecture/platform/zero-downtime.md
-
-  - Admin Guide:
-    - admin/index.md
-    - Initial Setup: admin/setup.md
-    - Users & Roles: admin/users.md
-    - Production Operations: admin/production.md
-
-  - Maintainer Guide:
-    - maintainer/index.md
-    - Products: maintainer/products.md
-    - Fixtures & MTIBs: maintainer/fixtures.md
-    - Build System: maintainer/builds.md
-
-  - Developer Guide:
-    - developer/index.md
-    - Getting Started: developer/getting-started.md
-    - Builds: developer/builds.md
-    - Validation: developer/validation.md
-    - Writing Tests: developer/writing-tests.md
-
-  - Operator Guide:
-    - operator/index.md
-    - Manufacturing: operator/manufacturing.md
-
-  - API Reference:
-    - api/index.md
-    - Test Framework:
-      - TestContext: api/test/context.md
-      - CloudClient: api/test/cloud-client.md
-      - UartDemuxer: api/test/uart-demuxer.md
-      - PowerProfiler: api/test/power-profiler.md
-      - StageAssets: api/test/stage-assets.md
-      - DevicePersonalizer: api/test/device-personalizer.md
-      - Reporter: api/test/reporter.md
-      - POST: api/test/post.md
-      - Telemetry: api/test/telemetry.md
-      - Pytest Integration: api/test/pytest-integration.md
-    - Stages & Errors:
-      - Stages: api/stages.md
-      - Errors: api/errors.md
-    - CoreCloud:
-      - Client: api/core-cloud/client.md
-      - Models: api/core-cloud/models.md
+      - platform/build-system/index.md
+      - Build Service: platform/build-system/build-service.md
+      - Product Builds: platform/build-system/product-builds.md
+      - Artifact Contract: platform/build-system/artifact-contract.md
+    - Validation System:
+      - platform/validation-system/index.md
+      - System Design: platform/validation-system/system-design.md
+      - Test Runner: platform/validation-system/test-runner.md
+    - CoreCloud: platform/corecloud.md

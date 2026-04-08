@@ -11,11 +11,42 @@ export function getToken(): string | null {
 export function setToken(token: string): void {
   if (!browser) return;
   localStorage.setItem(TOKEN_KEY, token);
+  setAuthCookie(token);
 }
 
 export function clearToken(): void {
   if (!browser) return;
   localStorage.removeItem(TOKEN_KEY);
+  clearAuthCookie();
+}
+
+/**
+ * Set a JWT cookie on the parent domain so the docs subdomain can read it.
+ * This enables auth and role-based filtering on docs.{host}.
+ */
+function setAuthCookie(token: string): void {
+  const domain = getParentDomain();
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `concord-auth=${token}; Domain=${domain}; Path=/; SameSite=Lax; Max-Age=86400${secure}`;
+}
+
+function clearAuthCookie(): void {
+  const domain = getParentDomain();
+  document.cookie = `concord-auth=; Domain=${domain}; Path=/; Max-Age=0`;
+}
+
+/**
+ * Extract the parent domain for cookie sharing.
+ * staging.concord.local → .concord.local
+ * concord.local → .concord.local
+ * localhost → localhost (no dot prefix)
+ */
+function getParentDomain(): string {
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return hostname;
+  const parts = hostname.split('.');
+  if (parts.length <= 2) return '.' + hostname;
+  return '.' + parts.slice(-2).join('.');
 }
 
 export async function apiFetch<T = unknown>(

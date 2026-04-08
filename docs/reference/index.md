@@ -1,24 +1,16 @@
+---
+min_role: DEVELOPER
+---
 # Reference
 
-Lookup material: operational procedures, hardware specs, test catalogs.
+API specs, SDK docs, CLI usage, and error codes.
 
-## FUOTA
+## Python SDK
 
-| Document | Description |
-|----------|-------------|
-| [fuota-workflow.md](fuota-workflow.md) | Complete FUOTA setup and execution (flash → personalize → OTA → verify) |
-| [fuota-api.md](fuota-api.md) | CoreCloud FUOTA REST API endpoints |
+The [corekinect Python SDK](python-sdk/) ships the libraries used for writing validation tests and talking to Concord infrastructure — [test framework](python-sdk/test-framework/) classes, [CoreCloud client](python-sdk/corecloud/), and hardware abstractions.
 
-## Testing
+## APIs & Tools
 
-| Document | Description |
-|----------|-------------|
-| [alpha-test-cases.md](alpha-test-cases.md) | Alpha product test case catalog (89 cases from PRDTST Jira) |
-| [traceability-matrix.md](traceability-matrix.md) | Test case traceability matrix |
-| [twister-hil.md](twister-hil.md) | Twister test runner and HIL testing reference |
-
-## Hardware
-
-| Document | Description |
-|----------|-------------|
-| [interfaces/](interfaces/index.md) | Component interface/contract specs (planned: LSM6DSO, BQ25180, etc.) |
+- [REST API](rest-api.md) — endpoint reference for `/v2/`
+- [corectl CLI](corectl.md) — command-line interface
+- [Stages & Errors](stages-and-errors.md) — validation stage definitions and error codes

@@ -18,9 +18,10 @@ COPY libs/python/ /app/libs/python/
 COPY libs/protocols/ /app/libs/protocols/
 COPY libs/ /app/libs/
 
-# Copy docs source + config
+# Copy docs source + config + hooks
 COPY mkdocs.yml /app/
 COPY docs/ /app/docs/
+COPY hooks/ /app/hooks/
 
 # Build with PYTHONPATH so mkdocstrings finds the library
 ENV PYTHONPATH=/app/libs/python:/app/libs/protocols:/app/libs
@@ -40,4 +41,5 @@ RUN mkdocs build -d /app/site 2>&1 || \
 
 FROM nginx:alpine
 COPY --from=builder /app/site /usr/share/nginx/html
+COPY apps/frontend/docs/deploy/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

@@ -1,25 +1,17 @@
-# Products
+---
+min_role: DEVELOPER
+---
+# Creating Products
 
-## What's a Product?
+## UI
 
-A product in Concord represents a hardware device that goes through firmware builds, validation, and manufacturing. Each product has:
+Open **Products**, click **Add Product**, and fill in three fields:
 
-- **Board revisions** — hardware variants (e.g., Alpha B0, Alpha B1). Different revisions can have different firmware, test fixtures, and validation stages.
-- **Targets** — the processors on the board. Alpha B0 has two: nRF52840 (app, AppID 109) and nRF9151 (comms, AppID 108).
-- **Firmware repos** — the source code that gets built into hex/CFW files.
+- **Name** — human-readable identifier ("Alpha B0")
+- **Slug** — URL-safe string, auto-generated from the name (`alpha-b0`)
+- **Description** — one sentence describing the device
 
-## Creating a Product
-
-### Via the UI
-
-1. Go to **Products**
-2. Click **Add Product**
-3. Fill in:
-   - **Name** — human-readable (e.g., "Alpha B0")
-   - **Slug** — URL-safe identifier (e.g., `alpha-b0`), auto-generated from name
-   - **Description** — what the device is, one sentence
-
-### Via the API
+## API
 
 ```bash
 curl -X POST https://concord.local/v2/products \
@@ -33,27 +25,24 @@ curl -X POST https://concord.local/v2/products \
 
 ## Adding Board Revisions
 
-Each revision represents a distinct hardware version. When the PCB changes, create a new revision.
+Each revision maps to a distinct PCB version. When the board changes, create a new revision.
 
-1. Open the product detail page
-2. Click **Add Revision**
-3. Set the revision name (e.g., "B0", "B1")
-4. Define targets — one entry per processor:
+Open the product detail page, click **Add Revision**, set the revision name (B0, B1, C0), then define targets — one per processor:
 
 | Field | Example | Notes |
 |-------|---------|-------|
-| Name | `app` | Short identifier |
-| Chipset | `nRF52840` | Used by build system |
-| AppID | `109` | Matches CFW naming |
+| Name | `app` | Short identifier for this target |
+| Chipset | `nRF52840` | Drives toolchain selection in the build system |
+| AppID | `109` | Must match the AppID in CFW filenames |
 
 ## Connecting Firmware Repos
 
-Products link to firmware repositories for automated builds. The build system polls for changes and triggers builds when new commits land.
+The build system needs a source repo to compile from.
 
-1. Go to **Product > Settings > Firmware**
-2. Add a firmware source:
-   - **Repo URL** — Bitbucket/GitHub repo (e.g., `https://bitbucket.org/corekinect/alpha-fw`)
-   - **Build recipe** — which recipe to use (see [Build System](builds.md))
-   - **Branch filter** — which branches trigger builds (default: `main`, `release/*`)
+Open **Product > Settings > Firmware** and add a firmware source:
 
-The product's firmware artifacts end up in MinIO under `firmware-builds/{product}/{fw_type}/{variant}/{version}/`.
+- **Repo URL** — Bitbucket or GitHub (`https://bitbucket.org/corekinect/alpha-fw`)
+- **Build recipe** — which recipe compiles this firmware (see [Build Configuration](../builds/build-configuration.md))
+- **Branch filter** — branches that trigger builds (default: `main`, `release/*`)
+
+Build artifacts land in MinIO at `firmware-builds/{product}/{fw_type}/{variant}/{version}/`.

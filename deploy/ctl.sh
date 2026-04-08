@@ -308,6 +308,7 @@ _smoke_test() {
   local -A checks=(
     ["http-api|concord-http-api:9001/v2/docs"]="API docs"
     ["frontend|concord-frontend:80/"]="Frontend"
+    ["docs|concord-docs:80/"]="Docs"
   )
 
   for key in "${!checks[@]}"; do

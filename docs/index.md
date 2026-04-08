@@ -1,23 +1,17 @@
+---
+min_role: OPERATOR
+---
 # Concord
 
-Continuous delivery platform for embedded systems. Firmware build, validation, and deployment — from commit to device.
+Concord turns firmware commits into tested, flashable artifacts and gets them onto production hardware. Push code, build hex files, validate across five stages, and flash devices on the manufacturing line — one pipeline, no gaps.
 
-**Start here:** [The Thesis](vision/thesis.md) — Why Concord exists and what it measures.
+| Role | Start here |
+|------|-----------|
+| **Developer** | [Products](products/) to register hardware, [Builds](builds/) to compile firmware |
+| **Operator** | [Manufacturing](manufacturing/) for factory-floor flashing and POST |
+| **Maintainer** | [Fixtures](fixtures/) to configure test hardware, [Build Configuration](builds/build-configuration/) for recipes |
+| **Admin** | [Administration](administration/) for users, roles, and platform settings |
 
-## Documentation Layers
+The pipeline flows in order: define a [product](products/) and its board targets, [build](builds/) firmware from source, run [validation](validation/) (smoke through FUOTA), then [manufacture](manufacturing/) devices using approved artifacts. [Fixtures](fixtures/) are the test hardware that connects to your DUTs at each stage.
 
-| Layer | Purpose | Start Here |
-|-------|---------|------------|
-| [Vision](vision/thesis.md) | **Why** — the intellectual foundation | [thesis.md](vision/thesis.md) |
-| [Architecture](architecture/index.md) | **What** — system design and decisions | [architecture/index.md](architecture/index.md) |
-| [Reference](reference/index.md) | **Lookup** — specs, APIs, hardware, procedures | [reference/index.md](reference/index.md) |
-| [Guides](guides/index.md) | **How-to** — step-by-step walkthroughs | [guides/index.md](guides/index.md) |
-| [Research](research/index.md) | **Findings** — investigation notes and analysis | [research/index.md](research/index.md) |
-
-## Supporting
-
-| Section | Description |
-|---------|-------------|
-| [Journals](journals/README.md) | Development progress logs (Feb-Mar 2026) |
-| [Diagrams](diagrams/) | Draw.io system diagrams |
-| [Archive](_archive/README.md) | Historical documents (completed plans, superseded designs) |
+For API endpoints and system internals, see [Reference](reference/) and [Platform](platform/).
