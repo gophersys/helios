@@ -31,6 +31,46 @@ from .types import PipelineCreateRequest
 logger = logging.getLogger(__name__)
 
 
+def _build_zip_root_folder(build_run) -> str:
+    """Derive a human-readable root folder name for artifact ZIP archives."""
+    commit_short = build_run.commitSha[:7] if build_run.commitSha else "build"
+    branch_safe = re.sub(r'[^\w\-]', '_', build_run.branch or "main")
+    return f"{build_run.product}_{branch_safe}_{commit_short}"
+
+
+def _artifact_zip_path(root_folder: str, product: str, variant_folder: str, name: str) -> str:
+    """Build the path within a ZIP for an artifact, routing to subfolders by extension."""
+    clean = re.sub(r'^\d+\.\d+\.\d+_(debug|no_debug|release)_', '', name)
+    if clean.endswith('.hex') or clean.endswith('.bin'):
+        return f"{root_folder}/{product}/{variant_folder}/firmware/{clean}"
+    if clean.endswith('.cfw'):
+        return f"{root_folder}/{product}/{variant_folder}/cfw/{clean}"
+    return f"{root_folder}/{product}/{variant_folder}/{clean}"
+
+
+def _collect_artifacts_zip(storage, build_run, root_folder: str) -> bytes:
+    """Download all build artifacts and pack them into a ZIP archive."""
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for build in build_run.builds:
+            if not build.artifacts:
+                continue
+            variant = build.variant or "release"
+            variant_folder = "release" if variant == "no_debug" else variant
+            for artifact in build.artifacts:
+                try:
+                    response = storage.get_object("concord", artifact.storageKey)
+                    content = response.read()
+                    response.close()
+                    response.release_conn()
+                    zip_path = _artifact_zip_path(root_folder, build.product, variant_folder, artifact.name)
+                    zf.writestr(zip_path, content)
+                except Exception as e:
+                    logger.warning("Failed to add %s to ZIP: %s", artifact.name, e)
+    zip_buffer.seek(0)
+    return zip_buffer.getvalue()
+
+
 @require_permissions(Permissions.BUILDS_VIEW)
 def list_build_runs():
     """GET /v2/builds/pipelines — List pipeline runs."""
@@ -148,64 +188,18 @@ def download_build_run_artifacts(run_id: str):
     if not build_run.builds:
         return not_found("No builds found for this pipeline")
 
-    def get_clean_name(name: str) -> str:
-        """Strip version and variant prefix from an artifact filename."""
-        match = re.match(r'^\d+\.\d+\.\d+_(debug|no_debug|release)_(.+)$', name)
-        return match.group(2) if match else name
-
-    def get_folder(name: str) -> str:
-        """Map artifact filename to a subfolder (firmware, cfw, or root)."""
-        if name.endswith('.hex') or name.endswith('.bin'):
-            return "firmware"
-        elif name.endswith('.cfw'):
-            return "cfw"
-        return ""
-
     try:
         storage = get_storage_client()
+        root_folder = _build_zip_root_folder(build_run)
+        zip_buffer = _collect_artifacts_zip(storage, build_run, root_folder)
 
-        commit_short = build_run.commitSha[:7] if build_run.commitSha else "build"
-        branch_safe = re.sub(r'[^\w\-]', '_', build_run.branch or "main")
-        root_folder = f"{build_run.product}_{branch_safe}_{commit_short}"
-
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-            for build in build_run.builds:
-                if not build.artifacts:
-                    continue
-
-                variant = build.variant or "release"
-                variant_folder = "release" if variant == "no_debug" else variant
-
-                for artifact in build.artifacts:
-                    try:
-                        response = storage.get_object("concord", artifact.storageKey)
-                        content = response.read()
-                        response.close()
-                        response.release_conn()
-
-                        clean_name = get_clean_name(artifact.name)
-                        subfolder = get_folder(clean_name)
-
-                        if subfolder:
-                            zip_path = f"{root_folder}/{build.product}/{variant_folder}/{subfolder}/{clean_name}"
-                        else:
-                            zip_path = f"{root_folder}/{build.product}/{variant_folder}/{clean_name}"
-
-                        zf.writestr(zip_path, content)
-                    except Exception as e:
-                        logger.warning("Failed to add %s to ZIP: %s", artifact.name, e)
-                        continue
-
-        zip_buffer.seek(0)
         zip_filename = f"{root_folder}.zip"
-
         return Response(
-            zip_buffer.getvalue(),
+            zip_buffer,
             mimetype="application/zip",
             headers={
                 "Content-Disposition": f'attachment; filename="{_sanitize_filename(zip_filename)}"',
-                "Content-Length": str(len(zip_buffer.getvalue())),
+                "Content-Length": str(len(zip_buffer)),
             },
         )
 

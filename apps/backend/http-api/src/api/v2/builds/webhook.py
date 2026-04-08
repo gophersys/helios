@@ -157,6 +157,40 @@ def _create_build_job(db, payload: BitbucketWebhookPayload, product_config: dict
     return build
 
 
+def _create_webhook_builds(db, product_config: dict, payload) -> list:
+    """Create BuildJob records for each target in the product config."""
+    builds = []
+    board = product_config.get("board", "alpha_b0")
+    product_id = product_config.get("product_id")
+    for target in product_config.get("targets", ["app"]):
+        create_data = {
+            "product": {"connect": {"id": product_id}},
+            "board": board,
+            "target": target,
+            "variant": product_config.get("default_variant", "debug"),
+            "mtibRev": "1.2",
+            "branch": payload.branch,
+            "commitSha": payload.commit_sha,
+            "status": "QUEUED",
+        }
+        if payload.raw:
+            create_data["webhookData"] = Json(payload.raw)
+        build = db.buildjob.create(data=create_data, include={"artifacts": True, "product": True, "buildRun": True})
+        builds.append(build)
+    return builds
+
+
+def _notify_queued_builds(builds: list):
+    """Fire-and-forget notification to the build service for queued builds."""
+    try:
+        from services.build_notifier import notify_build_service
+        for b in builds:
+            if b.status == "QUEUED":
+                notify_build_service(b.id, priority=50)
+    except Exception:
+        pass
+
+
 def webhook_bitbucket():
     """POST /v2/builds/webhooks/bitbucket — Receive Bitbucket Server webhook.
 
@@ -194,34 +228,8 @@ def webhook_bitbucket():
         logger.info("Resolved product '%s' (id=%s) from DB for repo %s",
                     product_record.name, product_record.id, payload.repo_slug)
 
-        # Create build job(s) — one per target in the product config
-        builds = []
-        board = product_config.get("board", "alpha_b0")
-        product_id = product_config.get("product_id")
-        for target in product_config.get("targets", ["app"]):
-            create_data = {
-                "product": {"connect": {"id": product_id}},
-                "board": board,
-                "target": target,
-                "variant": product_config.get("default_variant", "debug"),
-                "mtibRev": "1.2",
-                "branch": payload.branch,
-                "commitSha": payload.commit_sha,
-                "status": "QUEUED",
-            }
-            if payload.raw:
-                create_data["webhookData"] = Json(payload.raw)
-            build = db.buildjob.create(data=create_data, include={"artifacts": True, "product": True, "buildRun": True})
-            builds.append(build)
-
-        # Notify build service for each QUEUED build (fire-and-forget, webhook = normal priority)
-        try:
-            from services.build_notifier import notify_build_service
-            for b in builds:
-                if b.status == "QUEUED":
-                    notify_build_service(b.id, priority=50)
-        except Exception:
-            pass
+        builds = _create_webhook_builds(db, product_config, payload)
+        _notify_queued_builds(builds)
 
         log_audit("ci.webhook.received", "BuildJob", builds[0].id if builds else "", {
             "eventKey": payload.event_key,

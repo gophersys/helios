@@ -54,6 +54,20 @@ def authenticate_corecloud(email: str, password: str) -> Tuple[Optional[dict], O
 
     body = {"grant_type": "password"}
 
+    resp, err = _make_auth_request(token_url, headers, body)
+    if err:
+        return None, err
+
+    data, err = _parse_auth_response(resp)
+    if err:
+        return None, err
+
+    # Identity confirmed — return the email as the verified identity.
+    return {"email": email, "name": email.split("@")[0], "role": "user"}, None
+
+
+def _make_auth_request(token_url: str, headers: dict, body: dict):
+    """Execute the auth HTTP request. Returns (response, None) or (None, error_message)."""
     try:
         resp = requests.post(token_url, headers=headers, data=body, timeout=10, verify=True)
     except requests.exceptions.ConnectionError:
@@ -65,31 +79,24 @@ def authenticate_corecloud(email: str, password: str) -> Tuple[Optional[dict], O
     except Exception as e:
         logger.error("Core Cloud auth request failed: %s", e)
         return None, "Auth server error"
+    return resp, None
 
+
+_TOKEN_FIELDS = ("accessToken", "access_token", "token", "id_token", "jwt")
+
+
+def _parse_auth_response(resp):
+    """Validate the auth response status and extract a token. Returns (data, None) or (None, error)."""
     if resp.status_code == 401:
         return None, "Invalid email or password"
-
     if resp.status_code != 200:
-        logger.warning(
-            "Core Cloud auth returned %d: %s", resp.status_code, resp.text[:200]
-        )
+        logger.warning("Core Cloud auth returned %d: %s", resp.status_code, resp.text[:200])
         return None, f"Auth server error ({resp.status_code})"
-
     try:
         data = resp.json()
     except ValueError:
         return None, "Invalid response from auth server"
-
-    # Verify we got a token (confirms the credentials are valid)
-    token = (
-        data.get("accessToken")
-        or data.get("access_token")
-        or data.get("token")
-        or data.get("id_token")
-        or data.get("jwt")
-    )
+    token = next((data.get(f) for f in _TOKEN_FIELDS if data.get(f)), None)
     if not token:
         return None, "Auth server returned no token"
-
-    # Identity confirmed — return the email as the verified identity.
-    return {"email": email, "name": email.split("@")[0], "role": "user"}, None
+    return data, None

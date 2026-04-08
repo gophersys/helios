@@ -350,6 +350,22 @@ def check_node_health(node_id: str):
 
 
 @require_permissions(Permissions.DEVICES_MANAGE)
+def _apply_edge_labels(hostname: str, purpose: str):
+    """Apply edge node labels and taints in K8s. Returns error response or None on success."""
+    try:
+        core_v1 = get_core_v1_api()
+        body = {
+            "metadata": {"labels": {"corekinect.com/role": "edge", "corekinect.com/purpose": purpose}},
+            "spec": {"taints": [{"key": "corekinect.com/role", "value": "edge", "effect": "NoSchedule"}]},
+        }
+        core_v1.patch_node(hostname, body)
+    except ApiException:
+        return internal_error("Failed to apply K8s labels")
+    except Exception:
+        return internal_error("Kubernetes API unavailable")
+    return None
+
+
 def register_node(node_id: str):
     """Register a discovered K8s node as an MTIB with labels and taints."""
     if not K8S_AVAILABLE:
@@ -366,45 +382,19 @@ def register_node(node_id: str):
         return bad_request("Type must be MANUFACTURING or VALIDATION")
 
     db = get_db_client()
-
-    # Check if node with this hostname already exists
-    existing = db.node.find_first(where={"hostname": hostname})
-    if existing:
+    if db.node.find_first(where={"hostname": hostname}):
         return conflict("Node with this hostname already exists")
 
-    # Apply K8s labels and taints
     purpose = "manufacturing" if node_type == "MANUFACTURING" else "validation"
-    try:
-        core_v1 = get_core_v1_api()
-        body = {
-            "metadata": {
-                "labels": {
-                    "corekinect.com/role": "edge",
-                    "corekinect.com/purpose": purpose,
-                }
-            },
-            "spec": {
-                "taints": [
-                    {"key": "corekinect.com/role", "value": "edge", "effect": "NoSchedule"}
-                ]
-            }
-        }
-        core_v1.patch_node(hostname, body)
-    except ApiException:
-        return internal_error("Failed to apply K8s labels")
-    except Exception:
-        return internal_error("Kubernetes API unavailable")
+    err = _apply_edge_labels(hostname, purpose)
+    if err:
+        return err
 
-    # Get IP from K8s node
     ip_address = req_data.get("ip", "")
-
     node = db.node.create(
         data={
-            "name": name,
-            "hostname": hostname,
-            "type": node_type,
-            "status": "ONLINE",
-            "ipAddress": ip_address if ip_address else None,
+            "name": name, "hostname": hostname, "type": node_type,
+            "status": "ONLINE", "ipAddress": ip_address if ip_address else None,
         },
         include={"fixtureSlot": True},
     )

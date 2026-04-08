@@ -56,7 +56,7 @@
   "apps/backend/http-api/src/api/v2/auth/types.py": {
     "PermissionSetCreateRequest": 11,
     "ProductAccessSetRequest": 11,
-    "from_json": 14
+    "from_json": 12
   },
   "apps/backend/http-api/src/api/v2/auth/permission_sets.py": {
     "update_permission_set": 11
@@ -65,21 +65,19 @@
     "users_update": 12
   },
   "apps/backend/http-api/src/api/v2/builds/build_runs.py": {
-    "download_build_run_artifacts": 13,
     "list_build_runs": 19,
     "validate_build_run": 17
   },
   "apps/backend/http-api/src/api/v2/builds/builds.py": {
     "create_build": 24,
-    "update_build": 38,
-    "upload_build_artifact": 14
+    "update_build": 38
   },
   "apps/backend/http-api/src/api/v2/builds/pr_builds.py": {
     "list_pr_pipelines": 28
   },
   "apps/backend/http-api/src/api/v2/builds/recipes.py": {
     "publish_recipe": 12,
-    "save_recipe_version": 14,
+    "save_recipe_version": 12,
     "test_recipe_build": 31,
     "update_recipe": 11,
     "validate_recipe": 16
@@ -102,8 +100,7 @@
   },
   "apps/backend/http-api/src/api/v2/builds/webhook.py": {
     "_product_to_build_config": 21,
-    "list_ci_repos": 23,
-    "webhook_bitbucket": 14
+    "list_ci_repos": 23
   },
   "apps/backend/http-api/src/api/v2/fixtures/benches.py": {
     "_serialize_bench": 23,
@@ -119,9 +116,7 @@
   "apps/backend/http-api/src/api/v2/fixtures/fixtures.py": {
     "_serialize_fixture": 19,
     "_serialize_slot": 11,
-    "assign_slot_node": 14,
-    "create_fixture": 14,
-    "create_slot": 13,
+    "create_fixture": 11,
     "dashboard_overview": 21
   },
   "apps/backend/http-api/src/api/v2/fixtures/types.py": {
@@ -148,13 +143,13 @@
   },
   "apps/backend/http-api/src/api/v2/nodes/nodes.py": {
     "create_node": 11,
-    "register_node": 13,
+    "register_node": 12,
     "sync_nodes_from_k8s": 21
   },
   "apps/backend/http-api/src/api/v2/nodes/types.py": {
     "NodeCreateRequest": 11,
-    "NodeUpdateRequest": 13,
-    "from_json": 16
+    "NodeUpdateRequest": 12,
+    "from_json": 13
   },
   "apps/backend/http-api/src/api/v2/products/board_revisions.py": {
     "update_board_revision": 13,
@@ -212,11 +207,10 @@
     "_serialize_session": 23,
     "_serialize_step": 11,
     "cancel_run": 26,
-    "get_run_job": 14,
     "rerun_session": 11
   },
   "apps/backend/http-api/src/api/v2/sessions/scheduler.py": {
-    "_create_validation_run": 14,
+    "_resolve_fixture_slot_info": 11,
     "_trigger_validation_job": 30,
     "on_build_complete": 19,
     "schedule_queue": 16
@@ -242,15 +236,8 @@
   "apps/backend/http-api/src/api/v2/system/poller_state.py": {
     "upsert_poller_state": 12
   },
-  "apps/backend/http-api/src/api/v2/system/secrets.py": {
-    "create_secret": 13
-  },
   "apps/backend/http-api/src/services/artifact_validator.py": {
-    "_check_build_artifacts": 26,
-    "validate_pipeline_artifacts": 14
-  },
-  "apps/backend/http-api/src/services/auth/corecloud.py": {
-    "authenticate_corecloud": 14
+    "_check_build_artifacts": 13
   },
   "apps/backend/http-api/src/services/build_job_runner.py": {
     "create_build_k8s_job": 25
@@ -263,11 +250,11 @@
     "recover_stale_builds": 12
   },
   "apps/backend/http-api/src/services/build_run_service.py": {
+    "_expand_matrix_entry": 12,
     "_find_available_fixture": 12,
     "check_pipeline_completion": 38,
     "create_build_jobs": 20,
     "create_build_run_record": 11,
-    "generate_matrix_build_specs": 13,
     "resolve_pipeline_context": 20,
     "serialize_build_run": 12,
     "trigger_pipeline_validation": 61
@@ -299,7 +286,7 @@
     "serialize_node": 32,
     "serialize_pod": 19,
     "serialize_pod_detail": 27,
-    "serialize_service": 14
+    "serialize_service": 11
   },
   "apps/backend/http-api/src/services/webhook_trigger.py": {
     "handle_repo_event": 16,

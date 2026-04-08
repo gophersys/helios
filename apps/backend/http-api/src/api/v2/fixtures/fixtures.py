@@ -232,10 +232,10 @@ def create_fixture():
         return conflict("Fixture with this name already exists")
 
     # Check stationId uniqueness if provided
-    if hasattr(data, "stationId") and data.stationId:
-        existing_station = db.fixture.find_first(where={"stationId": data.stationId})
-        if existing_station:
-            return conflict(f"Fixture with stationId '{data.stationId}' already exists")
+    station_id = getattr(data, "stationId", None)
+    if station_id:
+        if db.fixture.find_first(where={"stationId": station_id}):
+            return conflict(f"Fixture with stationId '{station_id}' already exists")
 
     # Build create payload
     create_data: dict = {
@@ -244,10 +244,11 @@ def create_fixture():
         "type": data.type,
         "description": data.description,
     }
-    if hasattr(data, "stationId") and data.stationId:
-        create_data["stationId"] = data.stationId
-    if hasattr(data, "designId") and data.designId:
-        create_data["designId"] = data.designId
+    if station_id:
+        create_data["stationId"] = station_id
+    design_id = getattr(data, "designId", None)
+    if design_id:
+        create_data["designId"] = design_id
     if data.metadata is not None:
         create_data["metadata"] = Json(data.metadata)
 
@@ -373,24 +374,15 @@ def create_slot(fixture_id: str):
         "slotIndex": data.slotIndex,
         "label": data.label,
     }
-    # Hardware paths
-    if data.jlinkAppSerial:
-        slot_data["jlinkAppSerial"] = data.jlinkAppSerial
-    if data.jlinkCommsSerial:
-        slot_data["jlinkCommsSerial"] = data.jlinkCommsSerial
-    if data.uartAppPath:
-        slot_data["uartAppPath"] = data.uartAppPath
-    if data.uartCommsPath:
-        slot_data["uartCommsPath"] = data.uartCommsPath
-    # DUT identity
-    if data.dutDeviceId:
-        slot_data["dutDeviceId"] = data.dutDeviceId
-    if data.dutSnr:
-        slot_data["dutSnr"] = data.dutSnr
-    if data.dutImei:
-        slot_data["dutImei"] = data.dutImei
-    if data.dutIccids:
-        slot_data["dutIccids"] = data.dutIccids
+    # Copy optional fields that are set
+    _optional_fields = (
+        "jlinkAppSerial", "jlinkCommsSerial", "uartAppPath", "uartCommsPath",
+        "dutDeviceId", "dutSnr", "dutImei", "dutIccids",
+    )
+    for field in _optional_fields:
+        value = getattr(data, field, None)
+        if value:
+            slot_data[field] = value
 
     slot = db.fixtureslot.create(
         data=slot_data,
@@ -468,48 +460,57 @@ def assign_slot_node(fixture_id: str, slot_id: str):
         return bad_request(error)
 
     if data.nodeId is None:
-        # ── Unassign: undeploy MTIB server, clear node ──
-        if slot.nodeId:
-            _undeploy_mtib_for_slot(db, slot.nodeId)
-        updated = db.fixtureslot.update(
-            where={"id": slot_id},
-            data={"nodeId": None},
-            include={"node": True},
-        )
-        log_audit("fixture.slot.unassign", "FixtureSlot", slot_id, {
-            "fixtureId": fixture_id, "previousNodeId": slot.nodeId,
-        })
-        return jsonify(ApiResponse.ok(_serialize_slot(updated)).to_dict()), 200
+        return _unassign_slot_node(db, fixture_id, slot_id, slot)
 
-    # ── Assign: validate, deploy MTIB server, link node ──
-    node = db.node.find_unique(where={"id": data.nodeId})
+    return _assign_slot_node_to(db, fixture_id, slot_id, slot, fixture, data.nodeId)
+
+
+def _unassign_slot_node(db, fixture_id: str, slot_id: str, slot):
+    """Unassign a node from a slot — undeploy MTIB server and clear the link."""
+    if slot.nodeId:
+        _undeploy_mtib_for_slot(db, slot.nodeId)
+    updated = db.fixtureslot.update(
+        where={"id": slot_id},
+        data={"nodeId": None},
+        include={"node": True},
+    )
+    log_audit("fixture.slot.unassign", "FixtureSlot", slot_id, {
+        "fixtureId": fixture_id, "previousNodeId": slot.nodeId,
+    })
+    return jsonify(ApiResponse.ok(_serialize_slot(updated)).to_dict()), 200
+
+
+def _assign_slot_node_to(db, fixture_id: str, slot_id: str, slot, fixture, node_id: str):
+    """Assign a node to a slot — validate, deploy MTIB, link the node."""
+    from src.lib.errors import bad_request, conflict, not_found
+
+    node = db.node.find_unique(where={"id": node_id})
     if not node:
         return not_found("Node not found")
 
     if node.type != fixture.type:
         return bad_request(f"Node type '{node.type}' does not match fixture type '{fixture.type}'")
 
-    existing_assignment = db.fixtureslot.find_first(where={"nodeId": data.nodeId})
+    existing_assignment = db.fixtureslot.find_first(where={"nodeId": node_id})
     if existing_assignment and existing_assignment.id != slot_id:
         return conflict(f"Node is already assigned to another slot (fixture slot {existing_assignment.id})")
 
     # If replacing a different node, undeploy the old one
-    if slot.nodeId and slot.nodeId != data.nodeId:
+    if slot.nodeId and slot.nodeId != node_id:
         _undeploy_mtib_for_slot(db, slot.nodeId)
 
     updated = db.fixtureslot.update(
         where={"id": slot_id},
-        data={"nodeId": data.nodeId},
+        data={"nodeId": node_id},
         include={"node": True},
     )
 
-    # Auto-deploy MTIB server on the newly assigned node
     deploy_name = _deploy_mtib_for_slot(node, fixture, slot.slotIndex)
     if deploy_name:
         logger.info("Auto-deployed MTIB server %s for slot %d on %s", deploy_name, slot.slotIndex, node.hostname)
 
     log_audit("fixture.slot.assign", "FixtureSlot", slot_id, {
-        "fixtureId": fixture_id, "nodeId": data.nodeId,
+        "fixtureId": fixture_id, "nodeId": node_id,
         "previousNodeId": slot.nodeId, "deploymentName": deploy_name,
     })
     return jsonify(ApiResponse.ok(_serialize_slot(updated)).to_dict()), 200

@@ -44,6 +44,29 @@ class NodeCreateRequest:
         ), None
 
 
+def _parse_nonempty_str(data: dict, field: str) -> Tuple[Optional[str], Optional[str]]:
+    """Parse an optional string field, returning error if explicitly set to empty."""
+    value = data.get(field)
+    if value is None:
+        return None, None
+    value = value.strip()
+    if not value:
+        return None, f"{field.replace('_', ' ').title()} cannot be empty"
+    return value, None
+
+
+def _parse_enum_str(data: dict, field: str, valid: set, label: str = "") -> Tuple[Optional[str], Optional[str]]:
+    """Parse an optional string field and validate against an enum set."""
+    value = data.get(field)
+    if value is None:
+        return None, None
+    value = value.strip().upper()
+    if value not in valid:
+        display = label or field.replace("_", " ").title()
+        return None, f"{display} must be {', '.join(sorted(valid))}"
+    return value, None
+
+
 @dataclass
 class NodeUpdateRequest:
     """Request body for updating an MTIB node."""
@@ -58,44 +81,43 @@ class NodeUpdateRequest:
     _has_revision: bool = False
     _has_metadata: bool = False
 
+    _VALID_TYPES = {"MANUFACTURING", "VALIDATION"}
+    _VALID_STATUSES = {"ONLINE", "OFFLINE", "MAINTENANCE", "ERROR"}
+
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["NodeUpdateRequest"], Optional[str]]:
         """Parse and validate JSON into a NodeUpdateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
-        name = data.get("name")
-        if name is not None:
-            name = name.strip()
-            if not name:
-                return None, "Name cannot be empty"
-        node_type = data.get("type")
-        if node_type is not None:
-            node_type = node_type.strip().upper()
-            if node_type not in ("MANUFACTURING", "VALIDATION"):
-                return None, "Type must be MANUFACTURING or VALIDATION"
-        status = data.get("status")
-        if status is not None:
-            status = status.strip().upper()
-            if status not in ("ONLINE", "OFFLINE", "MAINTENANCE", "ERROR"):
-                return None, "Status must be ONLINE, OFFLINE, MAINTENANCE, or ERROR"
-        ip_address = data.get("ipAddress")
+        name, err = _parse_nonempty_str(data, "name")
+        if err:
+            return None, err
+
+        node_type, err = _parse_enum_str(data, "type", cls._VALID_TYPES)
+        if err:
+            return None, err
+
+        status, err = _parse_enum_str(data, "status", cls._VALID_STATUSES)
+        if err:
+            return None, err
+
         has_ip = "ipAddress" in data
-        hardware_revision = data.get("hardwareRevision")
         has_revision = "hardwareRevision" in data
-        metadata = data.get("metadata")
         has_metadata = "metadata" in data
 
         if name is None and node_type is None and status is None and not has_ip and not has_revision and not has_metadata:
             return None, "No fields to update"
 
+        ip_address = data.get("ipAddress")
+        hardware_revision = data.get("hardwareRevision")
         return cls(
             name=name,
             type=node_type,
             status=status,
             ipAddress=ip_address.strip() if ip_address else ip_address,
             hardwareRevision=hardware_revision.strip() if hardware_revision else hardware_revision,
-            metadata=metadata,
+            metadata=data.get("metadata"),
             _has_ip=has_ip,
             _has_revision=has_revision,
             _has_metadata=has_metadata,

@@ -64,7 +64,7 @@ def test_node_update_invalid_status():
     from src.api.v2.nodes.types import NodeUpdateRequest
     req, err = NodeUpdateRequest.from_json({"status": "INVALID"})
     assert req is None
-    assert err == "Status must be ONLINE, OFFLINE, MAINTENANCE, or ERROR"
+    assert err == "Status must be ERROR, MAINTENANCE, OFFLINE, ONLINE"
 
 
 def test_node_update_no_fields():

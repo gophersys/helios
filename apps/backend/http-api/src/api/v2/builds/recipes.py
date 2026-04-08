@@ -359,6 +359,21 @@ def get_recipe_version_by_id(product_id: str, version_id: str):
     return jsonify(ApiResponse.ok(_serialize_version(version, include_content=True)).to_dict()), 200
 
 
+def _auto_publish_recipe(db, product_id: str, slug: str, stage, board_revision_id, content: str, version: int):
+    """Publish recipe content to MinIO if a stage is specified. Logs but does not raise on failure."""
+    if not stage:
+        return
+    try:
+        key = _resolve_recipe_key(db, product_id, slug, stage, board_revision_id)
+        storage = get_storage_client()
+        bucket = get_bucket_name()
+        content_bytes = content.encode("utf-8")
+        storage.put_object(bucket, key, io.BytesIO(content_bytes), len(content_bytes),
+                          content_type="text/x-shellscript")
+    except Exception:
+        logger.exception("Failed to publish recipe v%d to MinIO", version)
+
+
 @require_permissions(Permissions.BUILDS_MANAGE)
 def save_recipe_version(product_id: str):
     """POST /v2/products/<id>/recipe/save — Save a new draft version.
@@ -407,16 +422,7 @@ def save_recipe_version(product_id: str):
     stage = data.get("stage") or request.args.get("stage", type=int)
     board_revision_id = data.get("boardRevisionId")
     slug = product.slug or product.name.lower().replace(" ", "_")
-    if stage:
-        try:
-            key = _resolve_recipe_key(db, product_id, slug, stage, board_revision_id)
-            storage = get_storage_client()
-            bucket = get_bucket_name()
-            content_bytes = content.encode("utf-8")
-            storage.put_object(bucket, key, io.BytesIO(content_bytes), len(content_bytes),
-                              content_type="text/x-shellscript")
-        except Exception:
-            logger.exception("Failed to publish recipe v%d to MinIO", next_version)
+    _auto_publish_recipe(db, product_id, slug, stage, board_revision_id, content, next_version)
 
     log_audit("recipe.version.save", "Product", product_id, {
         "product": product.name,

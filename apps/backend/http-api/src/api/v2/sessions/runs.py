@@ -529,6 +529,32 @@ def cancel_run(run_id: str):
     return jsonify(ApiResponse.ok(_serialize_session(session)).to_dict()), 200
 
 
+def _resolve_active_pod(job_info: dict, namespace: str):
+    """Find the active pod from job info and resolve its container names."""
+    pod = None
+    containers = []
+    pods = job_info.get("pods") or []
+
+    # Prefer running pod, fall back to most recent
+    for p in pods:
+        if p["status"] == "Running":
+            pod = p
+            break
+    if not pod and pods:
+        pod = pods[-1]
+
+    if pod:
+        from src.services.kubernetes.client import get_core_v1_api
+        try:
+            core = get_core_v1_api()
+            pod_obj = core.read_namespaced_pod(pod["name"], namespace)
+            containers = [c.name for c in (pod_obj.spec.containers or [])]
+        except Exception:
+            containers = ["validation"]
+
+    return pod, containers
+
+
 @require_permissions(Permissions.VALIDATION_VIEW)
 def get_run_job(run_id: str):
     """GET /v2/validation/runs/<id>/job — Get K8s job and pod info for live log streaming."""
@@ -566,27 +592,7 @@ def get_run_job(run_id: str):
             "message": "K8s job not found (may have been cleaned up)",
         }).to_dict()), 200
 
-    # Find the active pod
-    pod = None
-    containers = []
-    if job_info.get("pods"):
-        # Prefer running pod, fall back to most recent
-        for p in job_info["pods"]:
-            if p["status"] == "Running":
-                pod = p
-                break
-        if not pod and job_info["pods"]:
-            pod = job_info["pods"][-1]  # Most recent
-
-    # Get container names from the pod
-    if pod:
-        from src.services.kubernetes.client import get_core_v1_api
-        try:
-            core = get_core_v1_api()
-            pod_obj = core.read_namespaced_pod(pod["name"], namespace)
-            containers = [c.name for c in (pod_obj.spec.containers or [])]
-        except Exception:
-            containers = ["validation"]  # Default container name
+    pod, containers = _resolve_active_pod(job_info, namespace)
 
     return jsonify(ApiResponse.ok({
         "jobName": job_name,

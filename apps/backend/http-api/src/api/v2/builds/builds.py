@@ -637,13 +637,7 @@ def upload_build_artifact(build_id: str):
             length=size_bytes,
         )
 
-        # Extract optional metadata from form fields
-        role = request.form.get("role") or None
-        processor = request.form.get("processor") or None
-        artifact_type = request.form.get("artifactType") or None
-        content_type = request.form.get("contentType") or None
-
-        # Create artifact record
+        # Create artifact record with optional metadata from form fields
         create_data = {
             "buildJobId": build_id,
             "name": file.filename,
@@ -651,14 +645,10 @@ def upload_build_artifact(build_id: str):
             "sizeBytes": size_bytes,
             "checksum": checksum,
         }
-        if role is not None:
-            create_data["role"] = role
-        if processor is not None:
-            create_data["processor"] = processor
-        if artifact_type is not None:
-            create_data["artifactType"] = artifact_type
-        if content_type is not None:
-            create_data["contentType"] = content_type
+        for field in ("role", "processor", "artifactType", "contentType"):
+            value = request.form.get(field)
+            if value:
+                create_data[field] = value
 
         artifact = db.buildartifact.create(data=create_data)
 

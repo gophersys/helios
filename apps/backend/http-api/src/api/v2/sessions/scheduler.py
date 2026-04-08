@@ -52,6 +52,18 @@ def _create_job_api_key(db, entry_id: str) -> str:
     return raw_key
 
 
+def _resolve_fixture_slot_info(fixture):
+    """Extract DUT serial, device ID, and MTIB address from a fixture's first slot."""
+    slots = fixture.slots if hasattr(fixture, "slots") and fixture.slots else []
+    first_slot = slots[0] if slots else None
+    device_snr = (first_slot.dutSnr if first_slot else None) or "UNKNOWN"
+    dut_device_id = first_slot.dutDeviceId if first_slot else None
+    mtib_address = None
+    if first_slot and hasattr(first_slot, "node") and first_slot.node:
+        mtib_address = f"{first_slot.node.ipAddress}:50053" if first_slot.node.ipAddress else None
+    return device_snr, dut_device_id, mtib_address
+
+
 def _create_validation_run(
     db,
     entry_id: str,
@@ -82,15 +94,7 @@ def _create_validation_run(
     session_name = f"Queue {entry_id[:8]} - Stage {stage_name}"
 
     # Get DUT info from fixture's first active slot
-    slots = fixture.slots if hasattr(fixture, "slots") and fixture.slots else []
-    first_slot = slots[0] if slots else None
-    device_snr = (first_slot.dutSnr if first_slot else None) or "UNKNOWN"
-    dut_device_id = first_slot.dutDeviceId if first_slot else None
-
-    # Derive MTIB address from slot's node
-    mtib_address = None
-    if first_slot and hasattr(first_slot, "node") and first_slot.node:
-        mtib_address = f"{first_slot.node.ipAddress}:50053" if first_slot.node.ipAddress else None
+    device_snr, dut_device_id, mtib_address = _resolve_fixture_slot_info(fixture)
 
     # Create session
     session = db.session.create(

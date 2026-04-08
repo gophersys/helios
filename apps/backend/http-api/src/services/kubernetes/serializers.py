@@ -346,6 +346,17 @@ def serialize_deployment(deployment) -> dict:
     }
 
 
+def _serialize_service_port(p) -> dict:
+    """Serialize a single Kubernetes service port."""
+    return {
+        "name": p.name or "",
+        "port": p.port,
+        "targetPort": str(p.target_port) if p.target_port else "",
+        "protocol": p.protocol or "TCP",
+        "nodePort": p.node_port,
+    }
+
+
 def serialize_service(service) -> dict:
     """Serialize a Kubernetes Service object to an API dict.
 
@@ -358,16 +369,7 @@ def serialize_service(service) -> dict:
     metadata = service.metadata
     spec = service.spec
 
-    ports = []
-    if spec and spec.ports:
-        for p in spec.ports:
-            ports.append({
-                "name": p.name or "",
-                "port": p.port,
-                "targetPort": str(p.target_port) if p.target_port else "",
-                "protocol": p.protocol or "TCP",
-                "nodePort": p.node_port,
-            })
+    ports = [_serialize_service_port(p) for p in spec.ports] if spec and spec.ports else []
 
     return {
         "name": metadata.name,

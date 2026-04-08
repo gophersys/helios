@@ -46,6 +46,24 @@ def list_secrets():
     return jsonify(ApiResponse.ok([_serialize(s) for s in secrets]).to_dict()), 200
 
 
+_VALID_SECRET_TYPES = {"signing_key", "ssh_key", "api_token"}
+
+
+def _validate_secret_fields(data: dict):
+    """Validate and extract secret creation fields. Returns (name, type, value, description) or raises."""
+    name = (data.get("name") or "").strip()
+    if not name:
+        return None, "name is required"
+    secret_type = (data.get("type") or "").strip()
+    if secret_type not in _VALID_SECRET_TYPES:
+        return None, f"type must be {', '.join(sorted(_VALID_SECRET_TYPES))}"
+    value = (data.get("value") or "").strip()
+    if not value:
+        return None, "value is required"
+    description = (data.get("description") or "").strip() or None
+    return (name, secret_type, value, description), None
+
+
 @require_permissions(Permissions.SYSTEM_MANAGE)
 def create_secret():
     """POST /v2/system/secrets"""
@@ -54,19 +72,10 @@ def create_secret():
     if not data:
         return bad_request("Request body required")
 
-    name = (data.get("name") or "").strip()
-    if not name:
-        return bad_request("name is required")
-
-    secret_type = (data.get("type") or "").strip()
-    if secret_type not in ("signing_key", "ssh_key", "api_token"):
-        return bad_request("type must be signing_key, ssh_key, or api_token")
-
-    value = (data.get("value") or "").strip()
-    if not value:
-        return bad_request("value is required")
-
-    description = (data.get("description") or "").strip() or None
+    fields, err = _validate_secret_fields(data)
+    if err:
+        return bad_request(err)
+    name, secret_type, value, description = fields
 
     existing = db.secret.find_first(where={"name": name})
     if existing:
@@ -75,7 +84,6 @@ def create_secret():
     from flask import g
     user_id = getattr(g, "current_user", {}).get("sub")
 
-    # Verify user exists before linking (auth bypass uses dummy ID)
     create_data: dict = {
         "name": name,
         "type": secret_type,

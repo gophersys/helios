@@ -445,36 +445,46 @@ def generate_matrix_build_specs(
     product_id = product_record.id if product_record else None
 
     for entry in matrix:
-        role = entry.get("role", "unknown")
-        firmware = entry.get("firmware", f"{repo_base}_fw")
-        source = entry.get("source", "head")
-        target = "mfg" if "_mfg" in firmware else "app"
-
-        # For "head" app builds, generate 4 sub-builds with sequential versions
-        if source == "head" and target == "app":
-            prefix, max_build = get_max_build_number(db, product_id, target) if product_id else (None, 0)
-            if prefix:
-                sub_builds = _generate_head_app_sub_builds(
-                    board, branch, commit_sha, firmware, prefix, max_build, idx,
-                )
-                builds.extend(sub_builds)
-                idx += len(sub_builds)
-                continue
-
-        for variant in ("release",):
-            label = f"{role.upper()}_{variant.upper()}" if target != "mfg" else role.upper()
-            version_override = None
-            if source == "head" and product_id:
-                version_override = auto_increment_version(db, product_id, variant, target)
-
-            if source in ("head", "latest", "latest_prev"):
-                builds.append(_make_build_spec(
-                    board, target, variant, branch, commit_sha,
-                    label, idx, source, firmware, version_override,
-                ))
-            idx += 1
+        new_specs, count = _expand_matrix_entry(
+            entry, repo_base, board, branch, commit_sha, product_id, db, idx,
+        )
+        builds.extend(new_specs)
+        idx += count
 
     return builds
+
+
+def _expand_matrix_entry(entry, repo_base, board, branch, commit_sha, product_id, db, idx):
+    """Expand a single buildMatrix entry into build specs. Returns (specs, count)."""
+    role = entry.get("role", "unknown")
+    firmware = entry.get("firmware", f"{repo_base}_fw")
+    source = entry.get("source", "head")
+    target = "mfg" if "_mfg" in firmware else "app"
+
+    # For "head" app builds, generate 4 sub-builds with sequential versions
+    if source == "head" and target == "app" and product_id:
+        prefix, max_build = get_max_build_number(db, product_id, target)
+        if prefix:
+            sub_builds = _generate_head_app_sub_builds(
+                board, branch, commit_sha, firmware, prefix, max_build, idx,
+            )
+            return sub_builds, len(sub_builds)
+
+    specs = []
+    for variant in ("release",):
+        label = f"{role.upper()}_{variant.upper()}" if target != "mfg" else role.upper()
+        version_override = None
+        if source == "head" and product_id:
+            version_override = auto_increment_version(db, product_id, variant, target)
+
+        if source in ("head", "latest", "latest_prev"):
+            specs.append(_make_build_spec(
+                board, target, variant, branch, commit_sha,
+                label, idx, source, firmware, version_override,
+            ))
+        idx += 1
+
+    return specs, len(specs) or 1
 
 
 # ── Pipeline lifecycle ───────────────────────────────────────────────────

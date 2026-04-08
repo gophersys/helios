@@ -250,6 +250,24 @@ class PermissionSetCreateRequest:
         ), None
 
 
+def _parse_optional_name(data: dict) -> Optional[str]:
+    """Extract and strip optional name field. Returns '' if explicitly empty."""
+    name = data.get("name")
+    if name is not None:
+        return name.strip()
+    return None
+
+
+def _parse_optional_permissions(data: dict) -> Tuple[Optional[List[str]], Optional[str]]:
+    """Parse and validate optional permissions list. Returns (permissions, error)."""
+    permissions = data.get("permissions")
+    if permissions is None:
+        return None, None
+    if not isinstance(permissions, list):
+        return None, "Permissions must be a list"
+    return [p.strip() for p in permissions if isinstance(p, str) and p.strip()], None
+
+
 @dataclass
 class PermissionSetUpdateRequest:
     """Validated input for updating an existing permission set.
@@ -275,20 +293,16 @@ class PermissionSetUpdateRequest:
         if not data:
             return None, "Request body must contain JSON data"
 
-        name = data.get("name")
-        if name is not None:
-            name = name.strip()
-            if not name:
-                return None, "Name cannot be empty"
+        name = _parse_optional_name(data)
+        if name == "":
+            return None, "Name cannot be empty"
 
         description = data.get("description")
         has_description = "description" in data
 
-        permissions = data.get("permissions")
-        if permissions is not None and not isinstance(permissions, list):
-            return None, "Permissions must be a list"
-        if permissions is not None:
-            permissions = [p.strip() for p in permissions if isinstance(p, str) and p.strip()]
+        permissions, err = _parse_optional_permissions(data)
+        if err:
+            return None, err
 
         if name is None and not has_description and permissions is None:
             return None, "No fields to update"
