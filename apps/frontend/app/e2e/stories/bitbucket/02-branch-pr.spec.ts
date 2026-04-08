@@ -22,10 +22,10 @@ import {
 
 const REPO = 'alpha_fw';
 const timestamp = Date.now();
-const BRANCH_1 = `e2e/test-${timestamp}`;
-const BRANCH_2 = `e2e/cache-test-${timestamp}`;
+const BRANCH_1 = `e2e/s5-test-${timestamp}`;
+const BRANCH_2 = `e2e/s5-cache-test-${timestamp}`;
 
-test.describe.configure({ mode: 'serial' });
+test.describe.configure({ mode: 'serial', timeout: 300_000 });
 
 test.describe('Bitbucket: branch & PR lifecycle', () => {
   let pr1Id: number;
@@ -33,13 +33,14 @@ test.describe('Bitbucket: branch & PR lifecycle', () => {
 
   // Safety cleanup before suite in case a previous run left debris
   test.beforeAll(async () => {
+    test.setTimeout(300_000);
     await cleanupE2EPRs(REPO);
     await cleanupE2EBranches(REPO);
   });
 
   // ── Branch creation ───────────────────────────────────
 
-  test('create feature branch "e2e/test-{timestamp}" from concord-main', async () => {
+  test('create feature branch "e2e/s5-test-{timestamp}" from concord-main', async () => {
     await createBranch(REPO, BRANCH_1, 'concord-main');
     // If we get here without throwing, the branch was created
   });
@@ -52,7 +53,7 @@ test.describe('Bitbucket: branch & PR lifecycle', () => {
 
   // ── PR creation ───────────────────────────────────────
 
-  test('open PR: e2e/test-{timestamp} → concord-main with title "E2E Test PR"', async () => {
+  test('open PR: e2e/s5-test-{timestamp} → concord-main with title "E2E Test PR"', async () => {
     // Create a commit so the branch diverges from concord-main (Bitbucket rejects empty PRs)
     await createFileCommit(
       REPO,
@@ -92,7 +93,7 @@ test.describe('Bitbucket: branch & PR lifecycle', () => {
 
   // ── Second branch + PR ────────────────────────────────
 
-  test('create second branch "e2e/cache-test-{timestamp}" from same commit', async () => {
+  test('create second branch "e2e/s5-cache-test-{timestamp}" from same commit', async () => {
     await createBranch(REPO, BRANCH_2, 'concord-main');
 
     const branches = await listBranches(REPO, 'e2e/');

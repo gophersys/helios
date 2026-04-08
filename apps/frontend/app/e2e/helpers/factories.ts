@@ -3,6 +3,9 @@
  * Generate consistent, uniquely-named test data with timestamp suffixes.
  */
 
+/** Prefix for all Stage 1 test data — enables cleanup without affecting other stages. */
+const PREFIX = 's1';
+
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
@@ -18,8 +21,8 @@ export interface ProductConfig {
 export function productConfig(overrides?: Partial<ProductConfig>): ProductConfig {
   const id = uid();
   return {
-    name: `E2E Product ${id}`,
-    slug: `e2e-product-${id}`,
+    name: `${PREFIX}-Product-${id}`,
+    slug: `${PREFIX}-product-${id}`,
     description: `Auto-generated product for E2E testing (${id})`,
     ...overrides,
   };
@@ -40,7 +43,7 @@ export function fixtureDesignConfig(
 ): DesignConfig {
   const id = uid();
   return {
-    name: `E2E Design ${id}`,
+    name: `${PREFIX}-Design-${id}`,
     description: `Auto-generated fixture design (${id})`,
     boardRevisionId,
     slotCount: 1,
@@ -64,7 +67,7 @@ export function fixtureConfig(
 ): FixtureConfig {
   const id = uid();
   return {
-    name: `E2E Fixture ${id}`,
+    name: `${PREFIX}-Fixture-${id}`,
     designId: '',
     type,
     productId,
@@ -86,7 +89,7 @@ export function nodeConfig(
 ): NodeConfig {
   const id = uid();
   return {
-    hostname: `e2e-node-${id}`,
+    hostname: `${PREFIX}-node-${id}`,
     type,
     address: `10.0.0.${Math.floor(Math.random() * 254) + 1}`,
     ...overrides,
@@ -107,10 +110,10 @@ export interface UserConfig {
 export function userConfig(role: Role, overrides?: Partial<UserConfig>): UserConfig {
   const id = uid();
   return {
-    email: `e2e-${role.toLowerCase()}-${id}@test.concord.dev`,
-    name: `E2E ${role.charAt(0) + role.slice(1).toLowerCase()} ${id}`,
+    email: `${PREFIX}-${role.toLowerCase()}-${id}@test.concord.dev`,
+    name: `${PREFIX} ${role.charAt(0) + role.slice(1).toLowerCase()} ${id}`,
     role,
-    password: `e2e-pass-${id}`,
+    password: `${PREFIX}-pass-${id}`,
     ...overrides,
   };
 }

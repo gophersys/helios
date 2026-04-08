@@ -15,11 +15,12 @@ import {
 
 const REPOS = ['alpha_fw', 'alpha_mfg_fw'] as const;
 
-test.describe.configure({ mode: 'serial' });
+test.describe.configure({ mode: 'serial', timeout: 300_000 });
 
 test.describe('Bitbucket: concord-main sync', () => {
   // Bitbucket API calls with rate-limit retries can take a while
   test.beforeAll(async () => {
+    test.setTimeout(300_000);
     for (const repo of REPOS) {
       await cleanupE2EPRs(repo);
       await cleanupE2EBranches(repo);
@@ -29,8 +30,7 @@ test.describe('Bitbucket: concord-main sync', () => {
   let alphaFwMainSha: string;
   let alphaFwConcordMainSha: string;
 
-  test('fetch main branch HEAD SHA from alpha_fw', async ({ }, testInfo) => {
-    testInfo.setTimeout(120_000);
+  test('fetch main branch HEAD SHA from alpha_fw', async () => {
     alphaFwMainSha = await getBranchSHA('alpha_fw', 'main');
 
     expect(alphaFwMainSha).toBeTruthy();

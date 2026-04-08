@@ -158,17 +158,22 @@ export default async function globalSetup(): Promise<void> {
   await checkTcpPort('minio', 'localhost', Number(MINIO_PORT));
   console.log('[e2e] All local services reachable.');
 
-  // 2 — Database wipe + migration
-  console.log('[e2e] Resetting database (prisma migrate reset --force)...');
-  resetDatabase();
-  console.log('[e2e] Database reset complete.');
+  // 2 — Database wipe + migration (DISABLED for resource pooling — other stages share the platform)
+  // To enable for isolated runs, set E2E_RESET_DB=1
+  if (process.env.E2E_RESET_DB === '1') {
+    console.log('[e2e] Resetting database (prisma migrate reset --force)...');
+    resetDatabase();
+    console.log('[e2e] Database reset complete.');
 
-  // 3 — Seed platform data
-  console.log('[e2e] Seeding platform data...');
-  runPlatformSeed();
-  console.log('[e2e] Seed complete.');
+    // 3 — Seed platform data
+    console.log('[e2e] Seeding platform data...');
+    runPlatformSeed();
+    console.log('[e2e] Seed complete.');
+  } else {
+    console.log('[e2e] Skipping DB reset (E2E_RESET_DB not set — resource pooling mode).');
+  }
 
-  // 4 — Wait for API health after the reset
+  // 4 — Wait for API health
   console.log('[e2e] Waiting for API health...');
   await waitForApiHealth();
   console.log('[e2e] API is healthy.');
