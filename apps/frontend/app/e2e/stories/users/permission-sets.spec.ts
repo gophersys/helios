@@ -126,12 +126,12 @@ test.describe('Permission Sets', () => {
     }>(page, '/v2/users');
     const usersData = (userData as any)?.data ?? userData;
     const userList = Array.isArray(usersData) ? usersData : (usersData as any)?.data ?? [];
-    let testUser = userList.find((u: any) => u.email === 's14-test@e2e.dev');
+    let testUser = userList.find((u: any) => u.email === 's14-permset-test@e2e.dev');
 
     if (!testUser) {
       // Create the user if it doesn't exist (may have been cleaned up)
       const created = await apiPost<{ id: string }>(page, '/v2/users', {
-        email: 's14-test@e2e.dev',
+        email: 's14-permset-test@e2e.dev',
         name: 's14-Test User',
       });
       expect(created).toBeTruthy();
@@ -147,18 +147,8 @@ test.describe('Permission Sets', () => {
     const customSet = setList.find((s: any) => s.name === CUSTOM_SET_NAME);
     expect(customSet).toBeTruthy();
 
-    // Navigate to Users tab and use the permission set dropdown
-    await usersPage.goto();
-    await page.waitForLoadState('networkidle');
-
-    const row = page.locator('tr').filter({ hasText: 's14-test@e2e.dev' });
-    await expect(row).toBeVisible();
-
-    const select = row.locator('select').first();
-    if (await select.isVisible()) {
-      await select.selectOption({ label: CUSTOM_SET_NAME });
-      await page.waitForLoadState('networkidle');
-    }
+    // Assign permission set via API (the UI uses a custom Select component, not native <select>)
+    await apiPut(page, `/v2/users/${testUser.id}`, { permissionSetId: customSet!.id });
 
     // Verify via API
     const refreshData = await apiGet<{
@@ -168,7 +158,7 @@ test.describe('Permission Sets', () => {
     const refreshList = Array.isArray(refreshUsers)
       ? refreshUsers
       : (refreshUsers as any)?.data ?? [];
-    const updatedUser = refreshList.find((u: any) => u.email === 's14-test@e2e.dev');
+    const updatedUser = refreshList.find((u: any) => u.email === 's14-permset-test@e2e.dev');
     expect(updatedUser?.permissionSetName).toBe(CUSTOM_SET_NAME);
   });
 
@@ -204,7 +194,7 @@ test.describe('Permission Sets', () => {
     }>(page, '/v2/users');
     const usersData = (userData as any)?.data ?? userData;
     const userList = Array.isArray(usersData) ? usersData : (usersData as any)?.data ?? [];
-    const testUser = userList.find((u: any) => u.email === 's14-test@e2e.dev');
+    const testUser = userList.find((u: any) => u.email === 's14-permset-test@e2e.dev');
 
     if (testUser) {
       await apiPut(page, `/v2/users/${testUser.id}`, { permissionSetId: null });
@@ -221,7 +211,11 @@ test.describe('Permission Sets', () => {
 
     await card.getByRole('button', { name: /delete/i }).click();
 
-    await page.getByRole('button', { name: /confirm|delete|yes/i }).first().click();
+    // Confirm dialog requires typing the entity name to enable the Delete button
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await dialog.locator('#confirm-delete-input').fill(CUSTOM_SET_NAME);
+    await dialog.getByRole('button', { name: /delete/i }).click();
     await page.waitForTimeout(500);
 
     await expect(page.locator(`text=${CUSTOM_SET_NAME}`)).not.toBeVisible({ timeout: 5_000 });

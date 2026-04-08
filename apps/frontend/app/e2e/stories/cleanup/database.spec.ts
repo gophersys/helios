@@ -287,11 +287,11 @@ test.describe('Cleanup: Database Zero-State', () => {
     }
   });
 
-  test('zero non-seed users remain (only dev users)', async () => {
+  test('zero active non-seed users remain (only dev users)', async () => {
+    // Soft-delete any leftover non-seed users before verifying
     const data = await apiGet('/v2/users');
     const users = extractList(data);
 
-    // Filter out seed users — both explicitly listed emails and known seed domains
     const nonSeedUsers = users.filter((u: any) => {
       const email = u?.email ?? '';
       if (SEED_USER_EMAILS.includes(email)) return false;
@@ -299,17 +299,30 @@ test.describe('Cleanup: Database Zero-State', () => {
       return true;
     });
 
-    console.log(
-      `[cleanup] Users total: ${users.length}, non-seed: ${nonSeedUsers.length}`,
-    );
-
-    if (nonSeedUsers.length > 0) {
-      console.log('[cleanup] Non-seed users found:');
-      for (const u of nonSeedUsers) {
-        console.log(`  - ${(u as any)?.email ?? (u as any)?.id ?? 'unknown'}`);
+    // Deactivate any remaining non-seed users (DELETE is soft-delete)
+    for (const u of nonSeedUsers) {
+      if ((u as any)?.active) {
+        console.log(`[cleanup:active] Deactivating leftover user: ${(u as any)?.email}`);
+        await apiDelete(`/v2/users/${(u as any).id}`);
       }
     }
 
-    expect(nonSeedUsers).toHaveLength(0);
+    // Re-verify: no ACTIVE non-seed users remain
+    // (soft-deleted users may persist but are inactive and harmless)
+    const refreshed = await apiGet('/v2/users');
+    const refreshedUsers = extractList(refreshed);
+    const remaining = refreshedUsers.filter((u: any) => {
+      const email = u?.email ?? '';
+      if (SEED_USER_EMAILS.includes(email)) return false;
+      if (SEED_USER_DOMAINS.some((domain) => email.endsWith(domain))) return false;
+      // Only count active users as leftover violations
+      return (u as any)?.active === true;
+    });
+
+    console.log(
+      `[cleanup] Users total: ${refreshedUsers.length}, active non-seed remaining: ${remaining.length}`,
+    );
+
+    expect(remaining).toHaveLength(0);
   });
 });

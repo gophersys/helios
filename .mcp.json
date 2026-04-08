@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "chrome-devtools-mcp@latest",
+        "--headless",
+        "--executablePath", "/usr/bin/google-chrome",
+        "--isolated",
+        "--chromeArg=--no-sandbox",
+        "--chromeArg=--disable-setuid-sandbox",
+        "--chromeArg=--disable-dev-shm-usage"
+      ]
+    }
+  }
+}

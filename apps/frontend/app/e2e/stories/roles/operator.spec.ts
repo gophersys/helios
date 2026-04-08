@@ -165,7 +165,7 @@ test.describe('Operator role story', () => {
   test('validation:view via API denied (403)', async ({ page }) => {
     const token = await getOperatorToken(page);
 
-    const res = await page.request.get(`${API_URL}/v2/validation/runs`, {
+    const res = await page.request.get(`${API_URL}/v2/sessions`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     expect(res.status()).toBe(403);

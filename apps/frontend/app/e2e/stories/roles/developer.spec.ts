@@ -159,7 +159,7 @@ test.describe('Developer role story', () => {
   test('validation:run via API succeeds', async ({ page }) => {
     const token = await getDeveloperToken(page);
 
-    const res = await page.request.get(`${API_URL}/v2/validation/runs`, {
+    const res = await page.request.get(`${API_URL}/v2/sessions`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     expect(res.status()).toBe(200);

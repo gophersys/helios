@@ -12,6 +12,19 @@ import { ProductWizardComponent } from '../../pages/product-wizard.component';
 
 test.describe.configure({ mode: 'serial' });
 
+/** Select a branch that has board families (feature/alpha_b0 is known to have them). */
+async function selectBranchWithBoards(page: import('@playwright/test').Page): Promise<void> {
+  const select = page.locator('#branch-select');
+  const options = await select.locator('option').allTextContents();
+  // Prefer feature/alpha_b0 which has alpha boards; fall back to any feature/* branch
+  const preferred = options.find(o => o === 'feature/alpha_b0')
+    || options.find(o => o.startsWith('feature/'))
+    || options[0];
+  if (preferred) {
+    await select.selectOption(preferred);
+  }
+}
+
 // Shared state across cumulative tests
 let createdProductId: string | undefined;
 
@@ -82,7 +95,7 @@ test.describe('Product Creation Wizard', () => {
     expect(count).toBeGreaterThan(0);
   });
 
-  test('Step 1: selecting "main" branch proceeds to step 2', async ({ page }) => {
+  test('Step 1: selecting a branch proceeds to step 2', async ({ page }) => {
     await loginAsRole(page, 'admin');
     await page.goto('/products');
     await page.waitForLoadState('networkidle');
@@ -90,9 +103,7 @@ test.describe('Product Creation Wizard', () => {
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
 
-    // "main" should be auto-selected if present
-    const select = page.locator('#branch-select');
-    await select.selectOption('main');
+    await selectBranchWithBoards(page);
 
     // Click the wizard's Next button
     await page.getByRole('button', { name: /next/i }).click();
@@ -108,7 +119,7 @@ test.describe('Product Creation Wizard', () => {
 
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
-    await page.locator('#branch-select').selectOption('main');
+    await selectBranchWithBoards(page);
     await page.getByRole('button', { name: /next/i }).click();
     await expect(page.getByText('Select product family')).toBeVisible({ timeout: 15_000 });
 
@@ -126,7 +137,7 @@ test.describe('Product Creation Wizard', () => {
 
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
-    await page.locator('#branch-select').selectOption('main');
+    await selectBranchWithBoards(page);
     await page.getByRole('button', { name: /next/i }).click();
 
     // Wait for boards and select alpha
@@ -147,7 +158,7 @@ test.describe('Product Creation Wizard', () => {
     // Walk to step 3
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
-    await page.locator('#branch-select').selectOption('main');
+    await selectBranchWithBoards(page);
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
@@ -171,7 +182,7 @@ test.describe('Product Creation Wizard', () => {
     // Walk to step 3
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
-    await page.locator('#branch-select').selectOption('main');
+    await selectBranchWithBoards(page);
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
@@ -204,7 +215,7 @@ test.describe('Product Creation Wizard', () => {
     // Walk to step 3
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
-    await page.locator('#branch-select').selectOption('main');
+    await selectBranchWithBoards(page);
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
@@ -226,7 +237,7 @@ test.describe('Product Creation Wizard', () => {
     // Walk to step 3
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
-    await page.locator('#branch-select').selectOption('main');
+    await selectBranchWithBoards(page);
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
@@ -249,7 +260,7 @@ test.describe('Product Creation Wizard', () => {
     // Walk to step 3
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
-    await page.locator('#branch-select').selectOption('main');
+    await selectBranchWithBoards(page);
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
@@ -276,7 +287,7 @@ test.describe('Product Creation Wizard', () => {
     // Walk to step 3
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
-    await page.locator('#branch-select').selectOption('main');
+    await selectBranchWithBoards(page);
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
@@ -311,7 +322,7 @@ test.describe('Product Creation Wizard', () => {
     // Walk through entire wizard
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
-    await page.locator('#branch-select').selectOption('main');
+    await selectBranchWithBoards(page);
     await page.getByRole('button', { name: /next/i }).click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();

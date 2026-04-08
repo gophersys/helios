@@ -217,3 +217,13 @@ RUN case "${TARGETPLATFORM}" in \
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install pip-audit detect-secrets bandit mutmut
 
+# ----------------------------------------------------
+#                                    Playwright (E2E)
+# ----------------------------------------------------
+# Install Chromium + system deps for E2E tests and Chrome DevTools MCP.
+# Symlink to /usr/local/bin/google-chrome so chrome-devtools-mcp finds it.
+RUN npx playwright install chromium && \
+    npx playwright install-deps chromium && \
+    CHROME_BIN=$(find /root/.cache/ms-playwright -name chrome -path '*/chrome-linux64/*' | head -1) && \
+    ln -sf "$CHROME_BIN" /usr/local/bin/google-chrome
+

@@ -329,7 +329,7 @@ def delete_fixture(fixture_id: str):
     db = get_db_client()
     existing = db.fixture.find_unique(
         where={"id": fixture_id},
-        include={"sessions": True, "deployments": True},
+        include={"sessions": True},
     )
     if not existing:
         return not_found("Fixture not found")
@@ -337,10 +337,6 @@ def delete_fixture(fixture_id: str):
     # Check for active sessions
     if hasattr(existing, "sessions") and existing.sessions:
         return conflict("Cannot delete fixture: it has associated sessions")
-
-    # Check for active deployments
-    if hasattr(existing, "deployments") and existing.deployments:
-        return conflict("Cannot delete fixture: it has associated deployments")
 
     db.fixture.delete(where={"id": fixture_id})
     log_audit("fixture.delete", "Fixture", fixture_id, {"name": existing.name, "type": existing.type})
@@ -522,6 +518,7 @@ def _assign_slot_node_to(db, fixture_id: str, slot_id: str, slot, fixture, node_
 def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
     """Deploy an MTIB server K8s Deployment for a node in a fixture slot.
     Stores the deployment name in Node.metadata["deployment_name"].
+    After deployment, polls gRPC port 50053 on the node IP for up to 60s.
     """
     try:
         from src.services.kubernetes.mtib_deployments import create_mtib_deployment
@@ -542,7 +539,35 @@ def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
         meta = node.metadata if isinstance(node.metadata, dict) else {}
         meta["deployment_name"] = deploy_name
         db.node.update(where={"id": node.id}, data={"metadata": meta, "status": "ONLINE"})
+
+        # gRPC health check — poll TCP 50053 on the node IP
+        if node.ipAddress:
+            _poll_grpc_health(node.ipAddress, 50053, timeout_s=60)
+
     return deploy_name
+
+
+def _poll_grpc_health(host: str, port: int, timeout_s: int = 60) -> bool:
+    """Poll a TCP port until it accepts connections or timeout is reached.
+
+    This is a best-effort health check — failure is logged but does not
+    block the deployment from being recorded.
+    """
+    import socket
+    import time
+
+    deadline = time.monotonic() + timeout_s
+    interval = 2.0
+    while time.monotonic() < deadline:
+        try:
+            sock = socket.create_connection((host, port), timeout=3)
+            sock.close()
+            logger.info("gRPC health check passed: %s:%d", host, port)
+            return True
+        except (OSError, socket.timeout):
+            time.sleep(interval)
+    logger.warning("gRPC health check timed out after %ds: %s:%d", timeout_s, host, port)
+    return False
 
 
 def _undeploy_mtib_for_slot(db, node_id: str) -> bool:

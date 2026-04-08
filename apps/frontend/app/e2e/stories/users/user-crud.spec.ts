@@ -13,8 +13,9 @@ import { apiGet, apiPost, apiPut } from '../../helpers/api';
  * All test data prefixed with "s14-" for resource isolation.
  */
 
-const TEST_USER_EMAIL = 's14-test@e2e.dev';
-const TEST_USER_NAME = 's14-Test User';
+const TEST_USER_SUFFIX = Date.now();
+const TEST_USER_EMAIL = `s14-test-${TEST_USER_SUFFIX}@e2e.dev`;
+const TEST_USER_NAME = `s14-Test User ${TEST_USER_SUFFIX}`;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -84,7 +85,10 @@ test.describe('User CRUD', () => {
 
     await usersPage.goto();
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('text=s14-Updated Name')).toBeVisible();
+    // The user might be below the fold — scroll it into view
+    const nameCell = page.locator('text=s14-Updated Name').first();
+    await nameCell.scrollIntoViewIfNeeded();
+    await expect(nameCell).toBeVisible({ timeout: 10_000 });
   });
 
   test('change user role via API', async ({ page }) => {

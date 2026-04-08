@@ -181,6 +181,27 @@ export default async function globalSetup(): Promise<void> {
   // 5 — External connectivity (warnings only)
   await checkExternalConnectivity();
 
+  // 6 — Pull Bitbucket credentials from Docker container if not already set
+  if (!process.env.BITBUCKET_API_TOKEN || !process.env.BITBUCKET_EMAIL) {
+    try {
+      const containerEnv = execSync(
+        'docker exec development-http-api-1 env',
+        { encoding: 'utf-8', timeout: 5_000 },
+      );
+      for (const key of ['BITBUCKET_API_TOKEN', 'BITBUCKET_EMAIL', 'BITBUCKET_WORKSPACE']) {
+        const match = containerEnv.match(new RegExp(`^${key}=(.+)$`, 'm'));
+        if (match && match[1] && !process.env[key]) {
+          process.env[key] = match[1];
+        }
+      }
+      if (process.env.BITBUCKET_API_TOKEN) {
+        console.log('[e2e] Bitbucket credentials loaded from Docker container.');
+      }
+    } catch {
+      console.log('[e2e] Could not read Bitbucket credentials from Docker container.');
+    }
+  }
+
   // Store URLs in env for helpers
   process.env.E2E_API_URL = API_URL;
   process.env.E2E_BASE_URL = FRONTEND_URL;

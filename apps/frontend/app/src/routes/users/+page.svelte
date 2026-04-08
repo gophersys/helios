@@ -38,8 +38,10 @@
 
   async function fetchUsers(): Promise<void> {
     try {
-      const data = await apiFetch<ApiResponse<FullUser[]>>('/v2/users');
-      users = data.data;
+      const data = await apiFetch<ApiResponse<{ data: FullUser[]; pagination: unknown }>>('/v2/users');
+      // Users endpoint returns paginated response: { data: [...], pagination: {...} }
+      const payload = data.data;
+      users = Array.isArray(payload) ? payload : (payload as any).data ?? [];
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load users';
     } finally {
@@ -49,12 +51,15 @@
 
   async function fetchPermissionSets(): Promise<void> {
     try {
-      const data = await apiFetch<ApiResponse<PermissionSet[]>>('/v2/permissions');
-      permissionSets = data.data;
+      const data = await apiFetch<ApiResponse<{ data: PermissionSet[]; pagination: unknown }>>('/v2/permissions');
+      // Permissions endpoint returns paginated response: { data: [...], pagination: {...} }
+      const payload = data.data;
+      const sets = Array.isArray(payload) ? payload : (payload as any).data ?? [];
+      permissionSets = sets;
       // Set default selection
-      if (data.data.length > 0 && !formPermissionSetId) {
-        const viewerSet = data.data.find((s) => s.name === 'Viewer');
-        formPermissionSetId = viewerSet?.id || data.data[0].id;
+      if (sets.length > 0 && !formPermissionSetId) {
+        const viewerSet = sets.find((s: PermissionSet) => s.name === 'Viewer');
+        formPermissionSetId = viewerSet?.id || sets[0].id;
       }
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load permission sets';

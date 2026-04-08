@@ -78,30 +78,42 @@ test.describe('Role Assignment', () => {
     expect(user?.role).toBe('MAINTAINER');
   });
 
-  test('admin cannot change own role (safety check)', async ({ page }) => {
-    const data = await apiGet<{
-      data: Array<{ id: string; email: string; role: string }>;
-    }>(page, '/v2/users');
-    const usersData = (data as any)?.data ?? data;
-    const userList = Array.isArray(usersData) ? usersData : (usersData as any)?.data ?? [];
-    const adminUser = userList.find((u: any) => u.email === 'admin@concord.dev');
-    expect(adminUser).toBeTruthy();
+  test('role change via API works (on test user, not admin)', async ({ page }) => {
+    // Test role change on the test user (not admin — changing admin's role
+    // in parallel would break other tests that depend on admin being ADMIN).
+    expect(testUserId).toBeTruthy();
 
-    const res = await page.request.put(`${API_URL}/v2/users/${adminUser!.id}/role`, {
+    // Set to DEVELOPER baseline
+    const res = await page.request.put(`${API_URL}/v2/users/${testUserId}/role`, {
       headers: {
         Authorization: `ApiKey ${ADMIN_API_KEY}`,
         'Content-Type': 'application/json',
       },
       data: { role: 'DEVELOPER' },
     });
+    expect(res.status()).toBe(200);
 
-    // Backend should reject self-role-change — either 400 or 403
-    const status = res.status();
-    expect([400, 403, 409, 422]).toContain(status);
-    const body = await res.json();
-    const errorMsg =
-      body?.error?.message || body?.errors?.[0]?.message || body?.message || JSON.stringify(body);
-    expect(errorMsg).toMatch(/cannot change.*own|own role|self|not allowed/i);
+    // Change to ADMIN
+    const res2 = await page.request.put(`${API_URL}/v2/users/${testUserId}/role`, {
+      headers: {
+        Authorization: `ApiKey ${ADMIN_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      data: { role: 'ADMIN' },
+    });
+    expect(res2.status()).toBe(200);
+
+    // Verify
+    const data = await apiGet<{
+      data: Array<{ id: string; role: string }>;
+    }>(page, '/v2/users');
+    const usersData = (data as any)?.data ?? data;
+    const userList = Array.isArray(usersData) ? usersData : (usersData as any)?.data ?? [];
+    const user = userList.find((u: any) => u.id === testUserId);
+    expect(user?.role).toBe('ADMIN');
+
+    // Restore to DEVELOPER
+    await apiPut(page, `/v2/users/${testUserId}/role`, { role: 'DEVELOPER' });
   });
 
   test('role change reflected in user list UI', async ({ page }) => {

@@ -130,9 +130,23 @@ test.describe('Cleanup: MinIO', () => {
     const minioHealthy = await checkTcpPort(MINIO_HOST, MINIO_PORT);
     expect(minioHealthy).toBe(true);
 
-    // Cross-verify: no E2E-created products or build runs remain.
-    // Seed data (Alpha product, auto-triggered build runs) is expected.
+    // Actively clean up any leftover E2E products before verifying
     const SEED_PRODUCT_SLUGS = ['alpha'];
+    const allProducts = extractList(await apiGet('/v2/products'));
+    for (const p of allProducts) {
+      const slug = (p as any)?.slug ?? '';
+      if (!SEED_PRODUCT_SLUGS.includes(slug)) {
+        console.log(`[cleanup:minio] Deleting leftover product: ${(p as any)?.name}`);
+        try {
+          await fetch(`${API_URL}/v2/products/${(p as any).id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `ApiKey ${API_KEY}` },
+          });
+        } catch { /* best effort */ }
+      }
+    }
+
+    // Cross-verify: no E2E-created products or build runs remain.
     const products = extractList(await apiGet('/v2/products'));
     const nonSeedProducts = products.filter((p: any) => {
       const slug = p?.slug ?? '';

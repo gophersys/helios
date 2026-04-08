@@ -16,7 +16,8 @@
     "source=/mnt,target=/mnt,type=bind",
     "source=${localEnv:HOME}/.kube,target=/root/.kube,type=bind,readonly",
     "source=${localEnv:HOME}/.ssh-devcontainer,target=/root/.ssh,type=bind,readonly",
-    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind"
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind",
+    "source=${localEnv:HOME}/.claude,target=${localEnv:HOME}/.claude,type=bind"
   ],
   "customizations": {
     "vscode": {

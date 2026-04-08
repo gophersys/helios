@@ -19,18 +19,18 @@ import {
 
 const REPOS = ['alpha_fw', 'alpha_mfg_fw'] as const;
 
-const hasBitbucketCredentials =
-  !!process.env.BITBUCKET_EMAIL && !!process.env.BITBUCKET_API_TOKEN;
-
 test.describe.configure({ mode: 'serial', timeout: 300_000 });
 
 test.describe('Bitbucket: concord-main sync', () => {
-  // Skip entire suite when credentials are not available
-  test.skip(!hasBitbucketCredentials, 'BITBUCKET_EMAIL and BITBUCKET_API_TOKEN are required');
-
   // Bitbucket API calls with rate-limit retries can take a while
   test.beforeAll(async () => {
     test.setTimeout(300_000);
+    if (!process.env.BITBUCKET_EMAIL || !process.env.BITBUCKET_API_TOKEN) {
+      throw new Error(
+        'BITBUCKET_EMAIL and BITBUCKET_API_TOKEN are required. ' +
+        'Global setup should inject them from the Docker container.',
+      );
+    }
     for (const repo of REPOS) {
       await cleanupE2EPRs(repo);
       await cleanupE2EBranches(repo);

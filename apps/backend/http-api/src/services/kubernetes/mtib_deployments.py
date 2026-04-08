@@ -7,6 +7,28 @@ import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
+# Environment → K8s namespace mapping for MTIB deployments
+_ENV_NAMESPACE_MAP = {
+    "production": "production",
+    "staging": "staging",
+    "development": "development",
+}
+
+
+def _get_mtib_namespace() -> str:
+    """Resolve the K8s namespace for MTIB deployments.
+
+    Priority:
+    1. MTIB_NAMESPACE env var (explicit override)
+    2. ENVIRONMENT env var mapped to namespace
+    3. Default: "development"
+    """
+    explicit = os.environ.get("MTIB_NAMESPACE", "").strip()
+    if explicit:
+        return explicit
+    environment = os.environ.get("ENVIRONMENT", "development").strip().lower()
+    return _ENV_NAMESPACE_MAP.get(environment, "development")
+
 
 def create_mtib_deployment(
     node_hostname: str,
@@ -75,8 +97,9 @@ def create_mtib_deployment(
 
     try:
         spec = yaml.safe_load(manifest)
+        namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
-        apps_v1.create_namespaced_deployment(namespace="default", body=spec)
+        apps_v1.create_namespaced_deployment(namespace=namespace, body=spec)
         logger.info("Created K8s deployment: %s", deploy_name)
         return deploy_name
     except ApiException as e:
@@ -99,8 +122,9 @@ def delete_mtib_deployment(deploy_name: str) -> bool:
         return False
 
     try:
+        namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
-        apps_v1.delete_namespaced_deployment(name=deploy_name, namespace="default")
+        apps_v1.delete_namespaced_deployment(name=deploy_name, namespace=namespace)
         logger.info("Deleted K8s deployment: %s", deploy_name)
         return True
     except ApiException as e:
@@ -120,8 +144,9 @@ def get_mtib_deployment_status(deploy_name: str) -> Optional[dict]:
         return None
 
     try:
+        namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
-        dep = apps_v1.read_namespaced_deployment(name=deploy_name, namespace="default")
+        dep = apps_v1.read_namespaced_deployment(name=deploy_name, namespace=namespace)
 
         status: dict = {
             "name": deploy_name,
@@ -133,7 +158,7 @@ def get_mtib_deployment_status(deploy_name: str) -> Optional[dict]:
         # Get pods
         core_v1 = get_core_v1_api()
         selector = ",".join(f"{k}={v}" for k, v in (dep.spec.selector.match_labels or {}).items())
-        pods = core_v1.list_namespaced_pod(namespace="default", label_selector=selector)
+        pods = core_v1.list_namespaced_pod(namespace=namespace, label_selector=selector)
         status["pods"] = []
         for p in pods.items:
             pod_info = {
@@ -161,9 +186,10 @@ def list_mtib_deployments() -> list:
         return []
 
     try:
+        namespace = _get_mtib_namespace()
         apps_v1 = get_apps_v1_api()
         deps = apps_v1.list_namespaced_deployment(
-            namespace="default",
+            namespace=namespace,
             label_selector="corekinect.com/managed-by=concord",
         )
         results = []

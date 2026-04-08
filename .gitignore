@@ -129,3 +129,5 @@ infrastructure/clusters/*/kubeconfigs/generated/
 # Backups (local staging/production data snapshots)
 # ---------------------------------------------------------------------------
 .backups/
+e2e-report/
+.coverage

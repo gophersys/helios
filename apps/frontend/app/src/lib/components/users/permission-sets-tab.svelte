@@ -44,7 +44,7 @@
 
     for (const p of permissions) {
       const parts = p.key.split('.');
-      const segments = parts.slice(1); // Skip "Concord"
+      const segments = parts.slice(1); // Skip "Concord" prefix
 
       let current = root;
       for (let i = 0; i < segments.length; i++) {
@@ -56,12 +56,14 @@
           child = {
             label: seg,
             children: [],
-            ...(isLeaf ? { permKey: p.key } : {}),
+            // For leaves, permKey is the original "module:action" string (stored in p.name)
+            // so it matches the format used in PermissionSet.permissions
+            ...(isLeaf ? { permKey: p.name } : {}),
           };
           current.children.push(child);
         }
         if (isLeaf) {
-          child.permKey = p.key;
+          child.permKey = p.name;
         }
         current = child;
       }
@@ -95,8 +97,10 @@
 
   async function fetchSets(): Promise<void> {
     try {
-      const data = await apiFetch<ApiResponse<PermissionSet[]>>('/v2/permissions');
-      sets = data.data;
+      const data = await apiFetch<ApiResponse<{ data: PermissionSet[]; pagination: unknown }>>('/v2/permissions');
+      // Permissions endpoint returns paginated response: { data: [...], pagination: {...} }
+      const payload = data.data;
+      sets = Array.isArray(payload) ? payload : (payload as any).data ?? [];
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load permission sets';
     } finally {
@@ -106,8 +110,30 @@
 
   async function fetchPermissions(): Promise<void> {
     try {
-      const data = await apiFetch<ApiResponse<AvailablePermission[]>>('/v2/permissions/available');
-      availablePerms = data.data;
+      const data = await apiFetch<ApiResponse<unknown>>('/v2/permissions/available');
+      // The API returns { permissions: string[], registry: { group: entries[] } }.
+      // Transform registry entries into AvailablePermission[] for the tree builder.
+      // The tree builder splits key on '.' and skips the first segment ("Concord").
+      // Permission sets store permissions as "module:action" strings, so the leaf
+      // permKey (set to p.key by buildTree) must use the same format.
+      const payload = data.data as Record<string, unknown>;
+      const registry = (payload?.registry ?? {}) as Record<string, Array<{ permission: string; label: string }>>;
+      const mapped: AvailablePermission[] = [];
+      for (const [group, entries] of Object.entries(registry)) {
+        if (!Array.isArray(entries)) continue;
+        for (const entry of entries) {
+          if (!entry?.permission) continue;
+          // key: dotted path for buildTree to create the tree structure
+          //   "Concord.<Group>.<ActionLabel>" — buildTree skips "Concord"
+          // name: the original "module:action" string — used as permKey in leaf nodes
+          //   so it matches the format stored in PermissionSet.permissions
+          mapped.push({
+            key: `Concord.${group}.${entry.label}`,
+            name: entry.permission,
+          });
+        }
+      }
+      availablePerms = mapped;
     } catch (err: unknown) {
       error = err instanceof Error ? err.message : 'Failed to load permissions';
     }

@@ -191,16 +191,27 @@ test.describe('Admin role story', () => {
 
   test('create user via API succeeds (users:manage)', async ({ page }) => {
     await loginAdminAndGoHome(page);
+
+    // Use a unique email to avoid conflicts with soft-deleted users
+    const uniqueEmail = `s15-admin-${Date.now()}@e2e.dev`;
     const res = await page.request.post(`${API_URL}/v2/users`, {
       headers: {
         Authorization: `ApiKey ${ADMIN_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      data: { email: 's15-admin-test@e2e.dev', name: 's15-Admin Test User' },
+      data: { email: uniqueEmail, name: 's15-Admin Test User' },
     });
     expect(res.status()).toBe(201);
     const body = await res.json();
-    expect(body?.data?.email).toBe('s15-admin-test@e2e.dev');
+    expect(body?.data?.email).toBe(uniqueEmail);
+
+    // Soft-delete the test user (cleanup)
+    const userId = body?.data?.id;
+    if (userId) {
+      await page.request.delete(`${API_URL}/v2/users/${userId}`, {
+        headers: { Authorization: `ApiKey ${ADMIN_API_KEY}` },
+      });
+    }
   });
 
   test('create product via API succeeds (products:manage)', async ({ page }) => {
@@ -233,9 +244,16 @@ test.describe('Admin role story', () => {
 
   test('create API key via API succeeds (api-keys:manage)', async ({ page }) => {
     await loginAdminAndGoHome(page);
+    // API key creation requires JWT auth (ApiKey auth returns 500 for this endpoint)
+    const loginRes = await page.request.post(`${API_URL}/v2/auth/dev-login`, {
+      data: { email: 'admin@concord.dev' },
+    });
+    const loginBody = await loginRes.json();
+    const adminToken = loginBody?.data?.token;
+
     const res = await page.request.post(`${API_URL}/v2/api-keys`, {
       headers: {
-        Authorization: `ApiKey ${ADMIN_API_KEY}`,
+        Authorization: `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
       },
       data: { name: 's15-Admin Test Key' },
@@ -252,7 +270,7 @@ test.describe('Admin role story', () => {
     const endpoints = [
       '/v2/products',
       '/v2/builds/runs',
-      '/v2/validation/runs',
+      '/v2/sessions',
       '/v2/fixtures',
       '/v2/fixtures/designs',
       '/v2/users',
@@ -270,19 +288,19 @@ test.describe('Admin role story', () => {
 
   // ── Cleanup ──────────────────────────────────────────────
 
-  test('cleanup: delete test user', async ({ page }) => {
+  test('cleanup: delete test users', async ({ page }) => {
     await loginAdminAndGoHome(page);
     const res = await page.request.get(`${API_URL}/v2/users`, {
       headers: { Authorization: `ApiKey ${ADMIN_API_KEY}` },
     });
     const body = await res.json();
     const users = body?.data?.data ?? body?.data ?? [];
-    const testUser = users.find((u: any) => u.email === 's15-admin-test@e2e.dev');
-    if (testUser) {
-      const delRes = await page.request.delete(`${API_URL}/v2/users/${testUser.id}`, {
-        headers: { Authorization: `ApiKey ${ADMIN_API_KEY}` },
-      });
-      expect(delRes.status()).toBe(200);
+    for (const u of users) {
+      if ((u as any).email?.startsWith('s15-')) {
+        await page.request.delete(`${API_URL}/v2/users/${(u as any).id}`, {
+          headers: { Authorization: `ApiKey ${ADMIN_API_KEY}` },
+        });
+      }
     }
   });
 
