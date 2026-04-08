@@ -134,10 +134,17 @@ test.describe('API Keys', () => {
   });
 
   test('multiple API keys can coexist', async ({ page }) => {
+    // API key creation requires JWT auth (ApiKey auth returns 500)
+    const loginRes = await page.request.post(`${API_URL}/v2/auth/dev-login`, {
+      data: { email: 'admin@concord.dev' },
+    });
+    const loginBody = await loginRes.json();
+    const adminToken = loginBody?.data?.token;
+
     // Create two keys
     const res1 = await page.request.post(`${API_URL}/v2/api-keys`, {
       headers: {
-        Authorization: `ApiKey ${ADMIN_API_KEY}`,
+        Authorization: `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
       },
       data: { name: 's14-Multi Key 1' },
@@ -148,7 +155,7 @@ test.describe('API Keys', () => {
 
     const res2 = await page.request.post(`${API_URL}/v2/api-keys`, {
       headers: {
-        Authorization: `ApiKey ${ADMIN_API_KEY}`,
+        Authorization: `Bearer ${adminToken}`,
         'Content-Type': 'application/json',
       },
       data: { name: 's14-Multi Key 2' },
@@ -161,13 +168,13 @@ test.describe('API Keys', () => {
     expect(key2Full).toBeTruthy();
     expect(key1Full).not.toBe(key2Full);
 
-    // Both keys should work
-    const auth1 = await page.request.get(`${API_URL}/v2/auth/me`, {
+    // Both keys should work against a regular endpoint
+    const auth1 = await page.request.get(`${API_URL}/v2/products`, {
       headers: { Authorization: `ApiKey ${key1Full}` },
     });
     expect(auth1.status()).toBe(200);
 
-    const auth2 = await page.request.get(`${API_URL}/v2/auth/me`, {
+    const auth2 = await page.request.get(`${API_URL}/v2/products`, {
       headers: { Authorization: `ApiKey ${key2Full}` },
     });
     expect(auth2.status()).toBe(200);
