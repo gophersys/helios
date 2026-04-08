@@ -402,8 +402,30 @@ export interface QueueFilters {
 
 export interface QueueEntry {
   id: string;
+  buildRunId: string;
+  stage: number;
+  priority: number;
   status: string;
-  productId?: string;
+  fixtureId?: string | null;
+  sessionId?: string | null;
+  reason?: string | null;
+  errorMessage?: string | null;
+  requestedAt?: string;
+  assignedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  buildRun?: { id: string; name: string; product: string; branch: string; status: string };
+  fixture?: { id: string; name: string; status: string } | null;
+  session?: { id: string; name: string; status: string } | null;
+}
+
+export interface QueueStats {
+  queued: number;
+  running: number;
+  completed: number;
+  failed: number;
+  cancelled: number;
+  total: number;
 }
 
 export async function getQueueEntries(filters?: QueueFilters): Promise<QueueEntry[]> {
@@ -411,7 +433,94 @@ export async function getQueueEntries(filters?: QueueFilters): Promise<QueueEntr
   if (filters?.status) params.set('status', filters.status);
   if (filters?.productId) params.set('productId', filters.productId);
   const qs = params.toString();
-  return concordGet<QueueEntry[]>(`/v2/validation/queue${qs ? `?${qs}` : ''}`);
+  const result = await concordGet<{ data: QueueEntry[]; pagination: unknown }>(`/v2/sessions/queue${qs ? `?${qs}` : ''}`);
+  return (result as any)?.data || result;
+}
+
+export async function getQueueEntry(entryId: string): Promise<QueueEntry> {
+  return concordGet<QueueEntry>(`/v2/sessions/queue/${entryId}`);
+}
+
+export async function createQueueEntry(data: {
+  buildRunId: string;
+  stage?: number;
+  priority?: number;
+  reason?: string;
+}): Promise<QueueEntry> {
+  return concordPost<QueueEntry>('/v2/sessions/queue', data);
+}
+
+export async function cancelQueueEntryAPI(entryId: string): Promise<QueueEntry> {
+  return concordPost<QueueEntry>(`/v2/sessions/queue/${entryId}/cancel`, {});
+}
+
+export async function promoteQueueEntryAPI(entryId: string): Promise<QueueEntry> {
+  return concordPost<QueueEntry>(`/v2/sessions/queue/${entryId}/promote`, {});
+}
+
+export async function updateQueueEntry(entryId: string, data: { priority?: number; reason?: string }): Promise<QueueEntry> {
+  const res = await fetch(`${API_URL}/v2/sessions/queue/${entryId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `ApiKey ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(`PATCH /v2/sessions/queue/${entryId} failed (${res.status}): ${JSON.stringify(body)}`);
+  return body.data;
+}
+
+export async function getQueueStats(): Promise<QueueStats> {
+  return concordGet<QueueStats>('/v2/sessions/queue/stats');
+}
+
+export async function triggerScheduler(): Promise<{ processed: boolean; reason?: string; entryId?: string; sessionId?: string }> {
+  return concordPost('/v2/sessions/queue/schedule', {});
+}
+
+// ── Build Runs ──────────────────────────────────────────────
+
+export interface BuildRunConfig {
+  product: string;
+  board: string;
+  branch: string;
+  name?: string;
+  triggerType?: string;
+  matrixMode?: string;
+}
+
+export interface BuildRun {
+  id: string;
+  name: string;
+  status: string;
+  product: string;
+  branch: string;
+  board: string;
+}
+
+export async function createBuildRun(config: BuildRunConfig): Promise<BuildRun> {
+  return concordPost<BuildRun>('/v2/builds/runs', config);
+}
+
+export async function getBuildRun(runId: string): Promise<BuildRun> {
+  return concordGet<BuildRun>(`/v2/builds/runs/${runId}`);
+}
+
+export async function waitForQueueStatus(
+  entryId: string,
+  targetStatus: string | string[],
+  timeout = 60_000,
+): Promise<QueueEntry> {
+  const statuses = Array.isArray(targetStatus) ? targetStatus : [targetStatus];
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const entry = await getQueueEntry(entryId);
+    if (statuses.includes(entry.status)) return entry;
+    await new Promise((r) => setTimeout(r, 2_000));
+  }
+  throw new Error(`Queue entry ${entryId} did not reach status ${statuses.join('|')} within ${timeout / 1000}s`);
 }
 
 // ── Sessions ─────────────────────────────────────────────────

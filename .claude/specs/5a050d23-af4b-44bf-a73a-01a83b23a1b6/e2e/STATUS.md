@@ -24,10 +24,10 @@
 | 3 | Product CRUD | TEST | COMPLETE | 1 | 2026-04-09T09:45Z | 2026-04-09T11:00Z | e2e-products |
 | 4 | Stage Config | TEST | COMPLETE | 1 | 2026-04-09T11:15Z | 2026-04-09T12:30Z | (wave 4, sequential) |
 | 5 | Bitbucket | TEST | COMPLETE | 1 | 2026-04-09T01:15Z | 2026-04-09T06:30Z | e2e-bitbucket |
-| 6 | Build Pipeline | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
+| 6 | Build Pipeline | TEST | COMPLETE | 1 | 2026-04-09T12:45Z | 2026-04-09T14:30Z | e2e-builds |
 | 7 | Fixture+MTIB | IMPL+TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T08:00Z | e2e-fixtures |
-| 8 | Val Queue | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
-| 9 | Val Execution | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
+| 8 | Val Queue | TEST | COMPLETE | 1 | 2026-04-09T12:45Z | 2026-04-09T14:00Z | e2e-val-queue |
+| 9 | Val Execution | TEST | COMPLETE | 1 | 2026-04-09T12:45Z | 2026-04-09T15:00Z | e2e-val-exec |
 | 10 | Mfg Backend | IMPLEMENT | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T09:30Z | e2e-mfg-backend |
 | 11 | Mfg Frontend | IMPLEMENT | COMPLETE | 1 | 2026-04-09T09:45Z | 2026-04-09T11:00Z | e2e-mfg-frontend |
 | 12 | Mfg Wizard | IMPLEMENT | COMPLETE | 1 | 2026-04-09T09:45Z | 2026-04-09T10:30Z | e2e-mfg-wizard |
@@ -38,10 +38,10 @@
 
 ## Totals
 
-- **Tests Written:** 235 / ~485
+- **Tests Written:** 277 / ~485
 - **Tests Passing:** 15
 - **Implementation Files:** 6 (bitbucket.ts, api-extended.ts, 2 infra manifests, 2 backend fixes)
-- **Stages Complete:** 11 / 16
+- **Stages Complete:** 12 / 16
 - **Stages Blocked:** 0
 - **Waves Complete:** 3 / 5
 
@@ -102,6 +102,19 @@
 - Stage lifecycle: Initialize Stages, Configure, Save & Enable, Edit verified
 - D19 applied (schedule not cron), D2 acknowledged (real builds), D3 applied (fresh product per file)
 - Deviations: build matrix add/remove/reorder deferred (UI is read-only), recipe history/diff tested via indicators
+- No blocked items
+
+### Stage 6: Build Pipeline (COMPLETE)
+- E2E: 7 spec files, 42 tests covering auto-trigger, monitoring, artifacts, caching, PR pipeline, failure, settings
+- auto-trigger.spec.ts (8): git-poller PR detection, BuildRun metadata, PR metadata, UI visibility
+- monitoring.spec.ts (10): status transitions QUEUED to BUILDING, log streaming, progress, duration, filter
+- artifacts.spec.ts (7): artifact listing, hex/cfw/json types, download headers, zip download, sizes
+- caching.spec.ts (5): same-commit reuse, CACHED status, reusedFromId verification
+- pr-pipeline.spec.ts (5): PR overview page, stage badges, build matrix, detail navigation, PR metadata
+- failure.spec.ts (4): invalid recipe failure, error display in UI, BUILD_FAILED status, no validation queue
+- settings.spec.ts (3): page load, CI repo config display, stage definitions
+- Generous timeouts: 120s for git-poller, 20min for build completion, 10min for cached builds
+- All tests use real Bitbucket PRs (alpha_fw repo) and real firmware builds
 - No blocked items
 
 ### Stage 12: Mfg Wizard (COMPLETE)

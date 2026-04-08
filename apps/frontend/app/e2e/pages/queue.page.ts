@@ -7,7 +7,7 @@ import { BasePage } from './base.page';
  */
 export class QueuePage extends BasePage {
   protected get path() {
-    return '/validation'; // Queue may be a tab or sub-route of validation
+    return '/validation/queue';
   }
 
   /** Assert the queue shows exactly `count` entries. */
