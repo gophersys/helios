@@ -1,0 +1,72 @@
+# Development namespace RoleBindings
+# Open access — all roles get full admin (mirrors dev namespace).
+# Also grants concord-api SA deployment management for MTIB pods.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-admin-full
+  namespace: development
+  labels:
+    app.kubernetes.io/part-of: concord
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: concord-admins
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-developer-full
+  namespace: development
+  labels:
+    app.kubernetes.io/part-of: concord
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: concord-developers
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-viewer-readonly
+  namespace: development
+  labels:
+    app.kubernetes.io/part-of: concord
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-readonly
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: concord-viewers
+---
+# Grant the concord-api service account full access to manage
+# MTIB server deployments in the development namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: concord-api-mtib-manager
+  namespace: development
+  labels:
+    app.kubernetes.io/part-of: concord
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: concord-namespace-admin
+subjects:
+  - kind: ServiceAccount
+    name: concord-api
+    namespace: staging
+  - kind: ServiceAccount
+    name: concord-api
+    namespace: production

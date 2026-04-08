@@ -541,8 +541,35 @@ def _deploy_mtib_for_slot(node, fixture, slot_index: int) -> str | None:
         db = get_db_client()
         meta = node.metadata if isinstance(node.metadata, dict) else {}
         meta["deployment_name"] = deploy_name
-        db.node.update(where={"id": node.id}, data={"metadata": meta, "status": "ONLINE"})
+
+        # Verify gRPC health before marking ONLINE
+        grpc_ok = False
+        if hasattr(node, "ipAddress") and node.ipAddress:
+            grpc_ok = _poll_grpc_health(node.ipAddress, timeout_s=60)
+
+        node_status = "ONLINE" if grpc_ok else "DEPLOYING"
+        db.node.update(where={"id": node.id}, data={"metadata": meta, "status": node_status})
+        if not grpc_ok:
+            logger.warning("MTIB gRPC not yet responding on %s — marked DEPLOYING", node.ipAddress)
     return deploy_name
+
+
+def _poll_grpc_health(ip: str, port: int = 50053, timeout_s: int = 60) -> bool:
+    """Poll gRPC port on a node IP until it responds or timeout expires."""
+    import socket
+    import time
+
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        try:
+            sock = socket.create_connection((ip, port), timeout=3)
+            sock.close()
+            logger.info("gRPC health check passed: %s:%d", ip, port)
+            return True
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            time.sleep(2)
+    logger.warning("gRPC health check timed out: %s:%d after %ds", ip, port, timeout_s)
+    return False
 
 
 def _undeploy_mtib_for_slot(db, node_id: str) -> bool:

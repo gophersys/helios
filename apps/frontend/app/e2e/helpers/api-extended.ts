@@ -236,43 +236,136 @@ export async function createFixtureDesign(config: DesignConfig): Promise<Fixture
   return concordPost<FixtureDesign>('/v2/fixtures/designs', config);
 }
 
+export async function deleteFixtureDesign(designId: string): Promise<void> {
+  await concordDelete(`/v2/fixtures/designs/${designId}`);
+}
+
+export async function getFixtureDesign(designId: string): Promise<FixtureDesign> {
+  return concordGet<FixtureDesign>(`/v2/fixtures/designs/${designId}`);
+}
+
+export async function updateFixtureDesign(designId: string, data: Partial<DesignConfig>): Promise<FixtureDesign> {
+  const res = await fetch(`${API_URL}/v2/fixtures/designs/${designId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `ApiKey ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(`PATCH /v2/fixtures/designs/${designId} failed (${res.status}): ${JSON.stringify(body)}`);
+  return body.data;
+}
+
+export async function listFixtureDesigns(): Promise<FixtureDesign[]> {
+  const result = await concordGet<{ data: FixtureDesign[] }>('/v2/fixtures/designs');
+  return (result as any).data || result;
+}
+
 export interface FixtureConfig {
   name: string;
   designId?: string;
   type?: string;
   productId?: string;
+  stationId?: string;
+  description?: string;
+  slots?: Array<{ slotIndex: number; label?: string }>;
 }
 
 export interface Fixture {
   id: string;
   name: string;
+  type?: string;
+  status?: string;
+  stationId?: string;
+  slots?: Array<{ id: string; slotIndex: number; label?: string; nodeId?: string }>;
+  [key: string]: unknown;
 }
 
 export async function createFixture(config: FixtureConfig): Promise<Fixture> {
   return concordPost<Fixture>('/v2/fixtures', config);
 }
 
+export async function getFixture(fixtureId: string): Promise<Fixture> {
+  return concordGet<Fixture>(`/v2/fixtures/${fixtureId}`);
+}
+
+export async function updateFixture(fixtureId: string, data: Partial<FixtureConfig>): Promise<Fixture> {
+  return concordPut<Fixture>(`/v2/fixtures/${fixtureId}`, data);
+}
+
+export async function deleteFixture(fixtureId: string): Promise<void> {
+  await concordDelete(`/v2/fixtures/${fixtureId}`);
+}
+
+export async function listFixtures(): Promise<Fixture[]> {
+  const result = await concordGet<{ data: Fixture[] }>('/v2/fixtures');
+  return (result as any).data || result;
+}
+
+export async function createSlot(fixtureId: string, data: { slotIndex: number; label?: string }): Promise<{ id: string; slotIndex: number }> {
+  return concordPost<{ id: string; slotIndex: number }>(`/v2/fixtures/${fixtureId}/slots`, data);
+}
+
+export async function deleteSlot(fixtureId: string, slotId: string): Promise<void> {
+  await concordDelete(`/v2/fixtures/${fixtureId}/slots/${slotId}`);
+}
+
 export async function assignNodeToSlot(
   fixtureId: string,
   slotId: string,
-  nodeId: string,
-): Promise<void> {
-  await concordPut(`/v2/fixtures/${fixtureId}/slots/${slotId}`, { nodeId });
+  nodeId: string | null,
+): Promise<unknown> {
+  return concordPost(`/v2/fixtures/${fixtureId}/slots/${slotId}/assign`, { nodeId });
+}
+
+export async function deployFixture(fixtureId: string): Promise<unknown> {
+  return concordPost(`/v2/fixtures/${fixtureId}/deploy`, {});
+}
+
+export async function undeployFixture(fixtureId: string): Promise<unknown> {
+  return concordPost(`/v2/fixtures/${fixtureId}/undeploy`, {});
+}
+
+export async function getFixtureDeployStatus(fixtureId: string): Promise<unknown> {
+  return concordGet(`/v2/fixtures/${fixtureId}/deploy-status`);
 }
 
 export interface NodeConfig {
+  name: string;
   hostname: string;
   type?: string;
-  address?: string;
+  ipAddress?: string;
+  hardwareRevision?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Node {
   id: string;
+  name: string;
   hostname: string;
+  type?: string;
+  status?: string;
+  ipAddress?: string;
+  [key: string]: unknown;
 }
 
 export async function createNode(config: NodeConfig): Promise<Node> {
-  return concordPost<Node>('/v2/nodes', config);
+  return concordPost<Node>('/v2/devices/mtibs', config);
+}
+
+export async function getNode(nodeId: string): Promise<Node> {
+  return concordGet<Node>(`/v2/devices/mtibs/${nodeId}`);
+}
+
+export async function deleteNode(nodeId: string): Promise<void> {
+  await concordDelete(`/v2/devices/mtibs/${nodeId}`);
+}
+
+export async function listNodes(): Promise<Node[]> {
+  const result = await concordGet<{ data: Node[] }>('/v2/devices/mtibs');
+  return (result as any).data || result;
 }
 
 // ── Users ────────────────────────────────────────────────────

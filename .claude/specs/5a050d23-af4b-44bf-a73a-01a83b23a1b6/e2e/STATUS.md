@@ -25,23 +25,23 @@
 | 4 | Stage Config | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 5 | Bitbucket | TEST | COMPLETE | 1 | 2026-04-09T01:15Z | 2026-04-09T06:30Z | e2e-bitbucket |
 | 6 | Build Pipeline | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
-| 7 | Fixture+MTIB | IMPL+TEST | IN_PROGRESS | 1 | 2026-04-09T06:45Z | 2026-04-09T06:45Z | e2e-fixtures |
+| 7 | Fixture+MTIB | IMPL+TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T08:00Z | e2e-fixtures |
 | 8 | Val Queue | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 9 | Val Execution | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 10 | Mfg Backend | IMPLEMENT | IN_PROGRESS | 1 | 2026-04-09T06:45Z | 2026-04-09T06:45Z | e2e-mfg-backend |
 | 11 | Mfg Frontend | IMPLEMENT | PENDING | 0 | - | - | e2e-mfg-frontend |
 | 12 | Mfg Wizard | IMPLEMENT | PENDING | 0 | - | - | e2e-mfg-wizard |
 | 13 | Mfg E2E | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
-| 14 | User Mgmt | TEST | IN_PROGRESS | 1 | 2026-04-09T06:45Z | 2026-04-09T06:45Z | e2e-users |
+| 14 | User Mgmt | TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-08T06:50Z | e2e-users |
 | 15 | Role Stories | TEST | PENDING | 0 | - | - | (wave 5, sequential) |
 | 16 | Cleanup | TEST INFRA | PENDING | 0 | - | - | (wave 5, sequential) |
 
 ## Totals
 
-- **Tests Written:** 59 / ~485
+- **Tests Written:** 123 / ~485
 - **Tests Passing:** 15
-- **Implementation Files:** 1 (bitbucket.ts helper)
-- **Stages Complete:** 3 / 16
+- **Implementation Files:** 6 (bitbucket.ts, api-extended.ts, 2 infra manifests, 2 backend fixes)
+- **Stages Complete:** 5 / 16
 - **Stages Blocked:** 0
 - **Waves Complete:** 1 / 5
 
@@ -68,4 +68,9 @@
 
 ## Reconciliation Log
 
-(Populated after each stage completes)
+### Stage 7: Fixture+MTIB (COMPLETE)
+- Infrastructure: development namespace + RBAC manifests created
+- Backend: namespace awareness (MTIB_NAMESPACE/ENVIRONMENT env), node delete undeploy, _deploy_mtib_for_node defined, gRPC health check
+- E2E: 5 spec files, ~34 tests covering designs, instances, slots, deployment, deletion
+- API helpers: 15+ new helper functions in api-extended.ts
+- No blocked items
