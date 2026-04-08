@@ -14,7 +14,7 @@ Concord runs in **three environments**: `development`, `staging`, `production`. 
 
 | Env | How it runs | Auth | Config source |
 |-----|------------|------|---------------|
-| `development` | Nx serve + Docker Compose infra | Varies | `.env` / shell exports |
+| `development` | Docker Compose (all backends) + `nx serve` (frontend only) | `AUTH_ENABLED=false` | `.env` / shell exports |
 | `staging` | K8s via Helm (`ctl.sh staging deploy`) | `AUTH_ENABLED=true` | `deploy/production/helm/values-staging.yaml` |
 | `production` | K8s via Helm (`ctl.sh production deploy`) | `AUTH_ENABLED=true` | `deploy/production/helm/values-production.yaml` |
 
@@ -40,6 +40,8 @@ When adding a new environment-dependent feature (e.g., a config toggle):
 3. **Helm values**: Add to `config:` or `secrets:` in BOTH `values-staging.yaml` AND `values-production.yaml`
 4. **Docker Compose**: Add to `deploy/development/docker-compose.yaml` environment block
 5. **Tests**: Add to `tests/conftest.py:pytest_configure()` AND `tests/unit/test_env_config.py`
+
+**Note:** Development uses docker-compose for ALL backend services. The ONLY K8s interaction in dev is MTIB server deployment to edge nodes in the `development` namespace. See `infrastructure.md` for the K8s cluster layout.
 
 Failure to complete ALL steps leads to "works in dev, breaks in production" bugs.
 

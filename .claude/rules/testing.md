@@ -105,15 +105,20 @@ mock_db.permissionset.find_unique.return_value = make_obj(
 - `authed_client` — Wraps client with auth headers + superadmin permissions
 - `make_obj(**kwargs)` — Creates `SimpleNamespace` for mock DB returns
 
-## Frontend Test Patterns
+## Frontend Test Patterns (SvelteKit + Vitest)
 
-### Test helpers (from `src/testing/`)
-- `renderApp(ui, { auth?, route? })` — Wraps with AuthContext + MemoryRouter
-- `authenticatedAuth(permissions?)` — Mock auth context with given permissions
-- `unauthenticatedAuth()` — Mock auth context without user
-- `mockFetch(data)` / `mockFetchRoutes(routes)` — Mock `global.fetch`
-- `createProduct()`, `createCodebase()`, etc. — Factory functions for test data
+### Test helpers (from `src/tests/helpers.ts`)
+- `createMockFetch(data)` — Mock global.fetch with typed response
+- `createMockUser(overrides?)` — Factory for User objects
+- `createMockProduct(overrides?)` — Factory for Product objects
+- `createMockCodebase(overrides?)` — Factory for Codebase objects
+- `createMockApiResponse(data)` — Wrap data in `{data, errors: []}` envelope
+- `createMockLocalStorage()` / `setupLocalStorageMock()` — Storage mocks
+- `expectFetchCalledWith(url, options?)` — Assert fetch was called correctly
+- `waitFor(fn)` — Poll until assertion passes
+- `advanceTimersAndFlush()` / `flushPromises()` — Timer utilities
 
 ### Test file naming
-- Colocated: `<component>.spec.tsx` next to `<component>.tsx`
-- Pure utils: `<util>.spec.ts` next to `<util>.ts`
+- Colocated: `<component>.test.ts` next to `<component>.svelte`
+- Pure utils: `<util>.test.ts` next to `<util>.ts`
+- Run: `cd apps/frontend/app && npx vitest run`

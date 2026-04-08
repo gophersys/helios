@@ -1,6 +1,6 @@
 ---
 name: concord-add-crud-feature
-description: Create a full-stack CRUD feature (Prisma + HTTP API + React frontend) following Concord patterns
+description: Create a full-stack CRUD feature (Prisma + HTTP API + SvelteKit frontend) following Concord patterns
 user-invocable: true
 argument-hint: <feature-name> <description>
 ---
@@ -43,27 +43,27 @@ Key requirements:
 
 Verify: `python3 -c "import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]"`
 
-## Phase 3 — Frontend
+## Phase 3 — Frontend (SvelteKit)
 
 Follow the pattern in `apps/frontend/app/src/routes/products/`:
 
-1. **types/models.ts** — Add interfaces for new entities
-2. **<domain>-page.tsx** — List page with cards, inline form, detail routing
-3. **<domain>-card.tsx** — Card component with hover-reveal actions
-4. **<domain>-detail.tsx** — Detail view with tabs
-5. **app.tsx** — Lazy import + route registration
-6. **sidebar.tsx** — Navigation link with permission gate
+1. **`src/lib/types/models.ts`** — Add interfaces for new entities
+2. **`src/routes/<domain>/+page.svelte`** — List page with search, filter, pagination, cards
+3. **`src/lib/components/<domain>/<entity>-card.svelte`** — Card component
+4. **`src/lib/components/<domain>/<entity>-detail.svelte`** — Detail view with tabs (if needed)
+5. **`src/routes/<domain>/[id]/+page.svelte`** — Detail route (if needed)
+6. **`src/lib/components/sidebar.svelte`** — Add navigation link with permission gate
 
 Key requirements:
-- Permission check with `<Navigate>` redirect
-- `<ErrorAlert>`, `<ConfirmDeleteDialog>`, `<Select>`, `<StatusBadge>` from `components/ui/`
-- `submitting` state on all forms
-- `api()` for requests, never direct `localStorage`
-- `aria-label` on icon buttons
-- Design tokens for all colors (never hardcoded)
-- `animate-fade-in` on page root
+- Permission check on mount: `if (!auth.hasPermission('<domain>:view')) goto('/')`
+- Use `$lib/components/ui/` components: `error-alert`, `confirm-delete-dialog`, `select`, `status-badge`, `pagination`
+- `submitting` state on all forms with `disabled={submitting}` on buttons
+- Use `$lib/api` for ALL API calls (never direct `fetch` or `localStorage`)
+- Use Svelte 5 runes: `$state`, `$derived`, `$effect`
+- `aria-label` on icon buttons, icons from `lucide-svelte`
+- Design tokens for all colors (never hardcoded hex values)
 
-Verify: `npx tsc --noEmit && npx vite build`
+Verify: `npx nx typecheck app && npx nx build app`
 
 ## Phase 4 — Verification
 
@@ -93,10 +93,11 @@ Verify: `npx tsc --noEmit && npx vite build`
    - Patch `log_audit` at `api.v2.<domain>.<entity>.log_audit` (not `src.api...`)
    - For delete tests with storage cleanup, patch `get_storage_client` and `get_bucket_name`
 
-3. **Frontend tests** — Add `<domain>-page.spec.tsx`:
-   - Use `renderApp()` from `src/testing/render-app`
-   - Use `mockFetch()` / `mockFetchRoutes()` from `src/testing/mock-api`
+3. **Frontend tests** — Add `src/lib/components/<domain>/<component>.test.ts`:
+   - Use `createMockFetch()` from `src/tests/helpers.ts`
+   - Use `createMockUser()`, `createMockProduct()` etc. from `src/tests/helpers.ts`
    - Test permission guard, loading state, data rendering, form submission
+   - Run: `cd apps/frontend/app && npx vitest run`
 
 4. **Run both suites**:
    - `cd apps/backend/http-api && PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:. pytest tests/ -v`
