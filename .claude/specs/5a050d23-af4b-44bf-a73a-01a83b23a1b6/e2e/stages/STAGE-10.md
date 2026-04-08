@@ -18,7 +18,7 @@ If you are reading this after context compaction:
 
 # Stage 10: Manufacturing Backend (IMPLEMENTATION)
 
-**Status:** Pending
+**Status:** COMPLETE
 **Type:** IMPLEMENT (new feature, TDD)
 **Dependencies:** Stage 7 (Fixture & MTIB Fixes)
 **Estimated Unit Tests:** ~25
@@ -243,4 +243,51 @@ test_reporter_broadcasts_websocket_events()
 - [ ] Session start locks fixture, session end releases it
 - [ ] Panel/unit lifecycle works (start → stage results → complete)
 - [ ] WebSocket events broadcast correctly
-- [ ] All 25 unit tests pass
+- [x] All 34 unit tests pass
+
+---
+
+## Reconciliation
+
+### What Was Built
+
+**Prisma Schema** (`prisma/schema.prisma`):
+- 3 new enums: `ManufacturingSessionStatus`, `PanelStatus`, `UnitStatus`
+- 4 new models: `ManufacturingConfig`, `ManufacturingSession`, `ManufacturingPanel`, `ManufacturingUnit`
+- Reverse relations added on `Product`, `BoardRevision`, `Fixture`, `User`
+- Named relation `ManufacturingOperator` on User to avoid conflict with existing Session relation
+
+**Manufacturing Module** (`src/api/v2/manufacturing/`):
+- `__init__.py` — empty module init
+- `types.py` — 9 request dataclasses with `from_json()` validation
+- `config.py` — 4 CRUD endpoints with `@require_permissions(MANUFACTURING_MANAGE)`
+- `sessions.py` — 7 endpoints (list fixtures, start/list/get/run panel/end/results) with correct permission gates
+- `reporter.py` — 5 callback endpoints with `@require_auth` (panel-start, unit-start, stage-result, unit-result, panel-complete)
+
+**Router** (`src/api/v2/router.py`):
+- 16 new URL rules registered under `/v2/products/<id>/manufacturing` and `/v2/manufacturing/sessions/`
+- SocketIO setup for `/manufacturing` namespace via `set_manufacturing_socketio()`
+
+**Tests** (`tests/api/manufacturing/`):
+- `test_config.py` — 8 tests: CRUD + permissions + error cases
+- `test_sessions.py` — 14 tests: fixture listing, session lifecycle, panel creation, pagination, detail
+- `test_reporter.py` — 12 tests: all 5 callbacks, WebSocket event broadcasting, error paths
+- **Total: 34 tests, all passing**
+- Full suite regression: 2134 passed, 11 skipped, 0 failures
+
+### Permissions (already existed)
+- `manufacturing:view`, `manufacturing:run`, `manufacturing:manage` were already defined in `src/lib/permissions.py`
+- Operator role already had all three permissions in `DEFAULT_ROLES`
+- Developer role already had `manufacturing:view`
+- No permission changes needed
+
+### Design Decisions
+- Reporter endpoints use `@require_auth` (not `@require_permissions`) matching the validation reporter pattern (D20)
+- Session start locks fixture via `LOCKED` status + `lockedBy` field, matching existing fixture locking pattern
+- Unit stages stored as JSON array in `ManufacturingUnit.stages`, appended by stage-result callback
+- Panel/session counts are denormalized for dashboard performance (same pattern as Session model)
+- WebSocket events emitted on `/manufacturing` namespace (separate from `/validation`)
+
+### No Changes Needed Downstream
+- Stage 11 (Mfg Frontend) and Stage 12 (Mfg Wizard) can now build on these endpoints
+- Stage 13 (Mfg E2E) test assumptions are met: all specified endpoints exist with correct signatures

@@ -127,22 +127,54 @@ READY_TO_LAUNCH_WAVE_N → WAVE_N_RUNNING → READY_TO_MERGE_WAVE_N
 
 At any point: → BLOCKED (if >4 stages blocked and no forward progress)
 
-## Agent Spawning Rules
+## Agent Teams (NOT plain subagents)
 
-### Worktree Isolation (MANDATORY for parallel agents)
+Use **agent teams**, not basic subagents. Teams are long-lived instances that can
+message each other, share a task list, and self-claim work.
+
+### Required Setting
+
+The project `.claude/settings.json` AND `~/.claude/settings.json` must have:
+```json
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
+```
+
+Verify this exists before launching. If missing, create it.
+
+### Teams vs Subagents
+
+| Aspect | Subagents (DON'T use) | Agent Teams (USE THIS) |
+|--------|----------------------|----------------------|
+| Lifetime | Spawn, return, gone | Long-lived, persistent |
+| Communication | Only report to parent | Message each other via SendMessage |
+| Task list | None | Shared, self-claiming |
+| Coordination | Parent controls all | Teammates self-organize |
+| Worktrees | Manual isolation | Can combine with worktree isolation |
+
+### Launching a Team for a Wave
+
+For each wave, create a team with one teammate per stage:
 
 ```
-Agent({
-  description: "Stage N: <name>",
-  isolation: "worktree",
-  mode: "bypassPermissions",
-  prompt: <SELF-CONTAINED — full stage file + memory decisions>
-})
+Create an agent team for Wave N. Spawn teammates:
+- stage-1-foundation: Implement Stage 1 (Foundation). Use worktree isolation.
+- stage-5-bitbucket: Implement Stage 5 (Bitbucket helpers). Use worktree isolation.
+
+Each teammate should:
+1. Read their stage file from <spec-path>/stages/STAGE-NN.md
+2. Read MEMORY.md for decisions
+3. Follow TDD: tests first, then implementation
+4. Update STATUS.md after every significant action
+5. Commit with descriptive messages (no AI attribution)
+6. Message other teammates if they discover something relevant
+7. When done, mark their stage COMPLETE in STATUS.md
 ```
 
-Each agent gets its own git branch. No conflicts between parallel agents.
-
-### Agent Prompt Must Include
+### Teammate Prompts Must Include
 
 1. Full stage file content (not a reference — the ACTUAL content)
 2. Relevant decisions from MEMORY.md
@@ -150,11 +182,46 @@ Each agent gets its own git branch. No conflicts between parallel agents.
 4. The bounded retry protocol
 5. Instructions to update STATUS.md after every significant action
 6. Instructions to commit with descriptive messages (no AI attribution)
+7. Instructions to use SendMessage to notify other teammates of discoveries
 
-### Wave-Based Parallelism
+### Worktree Isolation WITH Teams
 
-Group stages into waves based on dependency graph. All stages in a wave
-launch simultaneously. Merge all worktrees between waves.
+Teammates can use `isolation: "worktree"` to get separate git branches.
+This prevents file conflicts between parallel teammates:
+
+```
+Agent({
+  description: "Stage N: <name>",
+  isolation: "worktree",
+  mode: "bypassPermissions",
+  prompt: <teammate instructions>
+})
+```
+
+### Wave-Based Team Execution
+
+```
+WAVE 1: Create team with N teammates (one per stage)
+  → Teammates work in parallel on separate worktrees
+  → Teammates message each other about discoveries
+  → Shared task list tracks who's working on what
+  GATE: All teammates report COMPLETE
+  → Lead merges worktrees, reconciles, deploys to staging
+  → Clean up team
+
+WAVE 2: Create new team for next wave
+  ...repeat...
+```
+
+### Inter-Teammate Communication
+
+Teammates should use `SendMessage` when they:
+- Discover a bug that affects another teammate's stage
+- Find that an API endpoint works differently than the spec says
+- Need a file created by another teammate
+- Want to share a pattern that worked well
+
+This is the key advantage of teams over subagents — they can COORDINATE.
 
 ## Bounded Retry Protocol
 

@@ -5,13 +5,13 @@
 
 ---
 
-**State:** WAVE_4_RUNNING
-**Wave:** 4 of 5
-**Stage:** 9 of 16
-**Progress:** 58%
-**Last Updated:** 2026-04-09T11:15:00Z
+**State:** ALL_COMPLETE
+**Wave:** 5 of 5
+**Stage:** 16 of 16
+**Progress:** 100%
+**Last Updated:** 2026-04-09T17:00:00Z
 
-**Next Action:** Wave 4 running — sequential stages 4→6→8→9 + parallel stage 13 (Mfg E2E).
+**Next Action:** All 16 stages complete. 375+ E2E tests written across 10 domains. Manufacturing backend + frontend implemented. Ready for review.
 
 ---
 
@@ -33,17 +33,17 @@
 | 12 | Mfg Wizard | IMPLEMENT | COMPLETE | 1 | 2026-04-09T09:45Z | 2026-04-09T10:30Z | e2e-mfg-wizard |
 | 13 | Mfg E2E | TEST | COMPLETE | 1 | 2026-04-09T11:15Z | 2026-04-09T12:30Z | e2e-mfg-e2e |
 | 14 | User Mgmt | TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-08T06:50Z | e2e-users |
-| 15 | Role Stories | TEST | PENDING | 0 | - | - | (wave 5, sequential) |
-| 16 | Cleanup | TEST INFRA | PENDING | 0 | - | - | (wave 5, sequential) |
+| 15 | Role Stories | TEST | COMPLETE | 1 | 2026-04-09T15:15Z | 2026-04-09T16:30Z | e2e-roles |
+| 16 | Cleanup | TEST INFRA | COMPLETE | 1 | 2026-04-09T15:15Z | 2026-04-09T16:00Z | e2e-cleanup |
 
 ## Totals
 
-- **Tests Written:** 277 / ~485
-- **Tests Passing:** 15
-- **Implementation Files:** 6 (bitbucket.ts, api-extended.ts, 2 infra manifests, 2 backend fixes)
-- **Stages Complete:** 12 / 16
+- **Tests Written:** 375 / ~485
+- **Tests Passing:** 15 (Bitbucket verified; others need running dev stack)
+- **Implementation Files:** 20+ (mfg backend, mfg frontend, infra manifests, MTIB fixes, helpers)
+- **Stages Complete:** 16 / 16
 - **Stages Blocked:** 0
-- **Waves Complete:** 3 / 5
+- **Waves Complete:** 5 / 5
 
 ## Spec Deepening (Complete)
 
@@ -115,6 +115,16 @@
 - settings.spec.ts (3): page load, CI repo config display, stage definitions
 - Generous timeouts: 120s for git-poller, 20min for build completion, 10min for cached builds
 - All tests use real Bitbucket PRs (alpha_fw repo) and real firmware builds
+- No blocked items
+
+### Stage 16: Cleanup & Orchestration (COMPLETE)
+- E2E: 4 spec files, 18 tests covering Bitbucket (4), CoreCloud (3), Database (7), MinIO (4)
+- Global teardown: full cleanup logic added (DB, Bitbucket, MinIO) — runs even on suite failure
+- Cleanup is idempotent: safe to run multiple times, no-ops when already clean
+- Database cleanup: deletes queue entries, sessions, mfg sessions/configs, build runs, fixtures/designs, products (in dependency order)
+- Bitbucket cleanup: decline E2E PRs then delete e2e/* branches in both alpha_fw and alpha_mfg_fw
+- MinIO cleanup: best-effort via storage endpoint, verified indirectly via DB state
+- CoreCloud: no delete API exists — verifies no active FUOTA plans or pending operations
 - No blocked items
 
 ### Stage 12: Mfg Wizard (COMPLETE)

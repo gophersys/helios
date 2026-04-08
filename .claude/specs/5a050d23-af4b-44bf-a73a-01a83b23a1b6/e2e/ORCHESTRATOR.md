@@ -45,16 +45,17 @@ STATUS.md contains `**State:**` which is one of:
 
 ### State: READY_TO_LAUNCH_WAVE_N
 
-**Action:** Launch all agents for Wave N in parallel worktrees.
+**Action:** Create an AGENT TEAM for Wave N (not plain subagents!).
 
-For each stage in the wave:
-1. Read the stage file (stages/STAGE-NN.md)
-2. Read the relevant story files if applicable
-3. Compose a SELF-CONTAINED agent prompt (see Agent Prompt Template below)
-4. Launch with `isolation: "worktree"`, `mode: "bypassPermissions"`
+1. Create a team with one teammate per stage in the wave
+2. Each teammate gets `isolation: "worktree"` for git branch isolation
+3. Each teammate prompt includes FULL stage file content + MEMORY.md decisions
+4. Teammates can SendMessage to each other about discoveries
 5. Update STATUS.md: stage status → IN_PROGRESS, State → WAVE_N_RUNNING
 
-**Important:** Launch ALL agents in a SINGLE message (parallel tool calls). Don't wait between them.
+**IMPORTANT:** Use AGENT TEAMS (not plain subagents). Teams are long-lived instances that can message each other via SendMessage and share a task list. This requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings (already configured).
+
+Create a team for the wave. Each teammate gets `isolation: "worktree"` for git branch isolation. Teammates should use SendMessage when they discover something that affects other stages.
 
 ### State: WAVE_N_RUNNING
 
