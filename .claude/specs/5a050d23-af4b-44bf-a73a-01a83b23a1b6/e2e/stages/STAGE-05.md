@@ -18,7 +18,7 @@ If you are reading this after context compaction:
 
 # Stage 5: Bitbucket Integration
 
-**Status:** Pending
+**Status:** COMPLETE
 **Dependencies:** Stage 1
 **Estimated Tests:** ~15
 
@@ -79,9 +79,34 @@ async function cleanupE2EPRs(repo: string): Promise<void>;       // Declines all
 
 ## Gate Criteria
 
-- [ ] concord-main synced with main in both repos
-- [ ] Feature branches created and verified in Bitbucket
-- [ ] PRs created with correct source/target
-- [ ] PRs can be declined and branches deleted
-- [ ] All cleanup operations leave repos in clean state
-- [ ] All 15 tests pass
+- [x] concord-main synced with main in both repos
+- [x] Feature branches created and verified in Bitbucket
+- [x] PRs created with correct source/target
+- [x] PRs can be declined and branches deleted
+- [x] All cleanup operations leave repos in clean state
+- [x] All 15 tests pass
+
+---
+
+## Reconciliation
+
+### Files Created
+- `apps/frontend/app/e2e/helpers/bitbucket.ts` — Bitbucket Cloud REST API helpers (branches, PRs, cleanup)
+- `apps/frontend/app/e2e/stories/bitbucket/01-sync.spec.ts` — 5 tests for concord-main sync
+- `apps/frontend/app/e2e/stories/bitbucket/02-branch-pr.spec.ts` — 10 tests for branch/PR lifecycle
+- `apps/frontend/app/e2e/global-teardown.ts` — Stub (required by e2e.config.ts from Stage 1)
+
+### Key Implementation Decisions
+- **Rate limit handling**: Bitbucket Cloud enforces aggressive rate limits. All API calls use exponential backoff with up to 8 retries (max ~12 min wait). Tests need 300s timeout.
+- **Empty PR workaround**: Bitbucket rejects PRs with no changes. Tests create a file commit via the source API (`/src` endpoint) before opening PRs.
+- **Content-Type fix**: The decline/delete endpoints reject `Content-Type: application/json` when no body is sent. `bbFetch` now only sets Content-Type when a body is present.
+- **File ordering**: Tests prefixed with `01-`/`02-` to ensure sync runs before branch-pr (sync creates `concord-main` which branch-pr depends on).
+- **Cleanup scope**: `cleanupE2EPRs` declines PRs matching "E2E", "[Test]", or from `e2e/*` branches to handle debris from any test suite.
+
+### Run Command
+```bash
+npx playwright test --config=playwright.config.ts --timeout=300000 e2e/stories/bitbucket/
+```
+
+### Test Results
+All 15 tests passing (3.7 min total due to rate limit backoff).

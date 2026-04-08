@@ -23,7 +23,7 @@
 | 2 | Auth & Nav | TEST | PENDING | 0 | - | - | e2e-auth |
 | 3 | Product CRUD | TEST | PENDING | 0 | - | - | e2e-products |
 | 4 | Stage Config | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
-| 5 | Bitbucket | TEST | IN_PROGRESS | 1 | 2026-04-09T01:15Z | 2026-04-09T01:15Z | e2e-bitbucket |
+| 5 | Bitbucket | TEST | COMPLETE | 1 | 2026-04-09T01:15Z | 2026-04-09T06:30Z | e2e-bitbucket |
 | 6 | Build Pipeline | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 7 | Fixture+MTIB | IMPL+TEST | PENDING | 0 | - | - | e2e-fixtures |
 | 8 | Val Queue | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
@@ -38,10 +38,10 @@
 
 ## Totals
 
-- **Tests Written:** 0 / ~485
-- **Tests Passing:** 0
-- **Implementation Files:** 0
-- **Stages Complete:** 1 / 16
+- **Tests Written:** 15 / ~485
+- **Tests Passing:** 15
+- **Implementation Files:** 1 (bitbucket.ts helper)
+- **Stages Complete:** 2 / 16
 - **Stages Blocked:** 0
 - **Waves Complete:** 0 / 5
 
