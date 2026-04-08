@@ -5,7 +5,7 @@ setup(
     version="1.0",
     packages=find_packages(),
     extras_require={
-        "test": ["pytest>=8.0", "pytest-cov>=6.0"],
+        "test": ["pytest>=8.0", "pytest-cov>=6.0", "pytest-xdist>=3.0"],
     },
     install_requires=[
         "grpcio==1.76.0",

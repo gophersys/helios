@@ -28,6 +28,8 @@ venv/
 .venv/
 .mypy_cache/
 .pytest_cache/
+.coverage
+coverage/
 
 # ---------------------------------------------------------------------------
 # Build outputs
