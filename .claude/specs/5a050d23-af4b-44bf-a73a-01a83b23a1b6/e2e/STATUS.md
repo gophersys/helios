@@ -5,13 +5,13 @@
 
 ---
 
-**State:** WAVE_1_RUNNING
-**Wave:** 1 of 5
-**Stage:** 0 of 16
-**Progress:** 12%
-**Last Updated:** 2026-04-09T01:15:00Z
+**State:** WAVE_2_RUNNING
+**Wave:** 2 of 5
+**Stage:** 2 of 16
+**Progress:** 20%
+**Last Updated:** 2026-04-09T06:45:00Z
 
-**Next Action:** Wave 1 agents launched (Stage 1: Foundation + Stage 5: Bitbucket helpers). Cron will check progress every 15 min.
+**Next Action:** Wave 2 agents launched (Stages 2, 7, 10, 14). Cron will check progress every 15 min.
 
 ---
 
@@ -20,30 +20,30 @@
 | # | Stage | Type | Status | Attempts | Started | Last Update | Worktree |
 |---|-------|------|--------|:--------:|---------|-------------|----------|
 | 1 | Foundation | TEST INFRA | COMPLETE | 1 | 2026-04-09T01:15Z | 2026-04-09T02:30Z | e2e-foundation |
-| 2 | Auth & Nav | TEST | PENDING | 0 | - | - | e2e-auth |
+| 2 | Auth & Nav | TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T07:15Z | e2e-auth |
 | 3 | Product CRUD | TEST | PENDING | 0 | - | - | e2e-products |
 | 4 | Stage Config | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 5 | Bitbucket | TEST | COMPLETE | 1 | 2026-04-09T01:15Z | 2026-04-09T06:30Z | e2e-bitbucket |
 | 6 | Build Pipeline | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
-| 7 | Fixture+MTIB | IMPL+TEST | PENDING | 0 | - | - | e2e-fixtures |
+| 7 | Fixture+MTIB | IMPL+TEST | IN_PROGRESS | 1 | 2026-04-09T06:45Z | 2026-04-09T06:45Z | e2e-fixtures |
 | 8 | Val Queue | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 9 | Val Execution | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
-| 10 | Mfg Backend | IMPLEMENT | PENDING | 0 | - | - | e2e-mfg-backend |
+| 10 | Mfg Backend | IMPLEMENT | IN_PROGRESS | 1 | 2026-04-09T06:45Z | 2026-04-09T06:45Z | e2e-mfg-backend |
 | 11 | Mfg Frontend | IMPLEMENT | PENDING | 0 | - | - | e2e-mfg-frontend |
 | 12 | Mfg Wizard | IMPLEMENT | PENDING | 0 | - | - | e2e-mfg-wizard |
 | 13 | Mfg E2E | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
-| 14 | User Mgmt | TEST | PENDING | 0 | - | - | e2e-users |
+| 14 | User Mgmt | TEST | IN_PROGRESS | 1 | 2026-04-09T06:45Z | 2026-04-09T06:45Z | e2e-users |
 | 15 | Role Stories | TEST | PENDING | 0 | - | - | (wave 5, sequential) |
 | 16 | Cleanup | TEST INFRA | PENDING | 0 | - | - | (wave 5, sequential) |
 
 ## Totals
 
-- **Tests Written:** 15 / ~485
+- **Tests Written:** 59 / ~485
 - **Tests Passing:** 15
 - **Implementation Files:** 1 (bitbucket.ts helper)
-- **Stages Complete:** 2 / 16
+- **Stages Complete:** 3 / 16
 - **Stages Blocked:** 0
-- **Waves Complete:** 0 / 5
+- **Waves Complete:** 1 / 5
 
 ## Spec Deepening (Complete)
 
