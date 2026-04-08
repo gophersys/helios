@@ -45,6 +45,8 @@ run_stage "schema-check"     "$DIR/stages/schema-check.sh"
 run_stage "docstrings"       "$DIR/stages/docstrings.sh"
 run_stage "docs-build"       "$DIR/stages/docs-build.sh"
 run_stage "dep-pin"          "$DIR/stages/dep-pin.sh"
+run_stage "api-compat"       "$DIR/stages/api-compat.sh"
+run_stage "migration-safety" "$DIR/stages/migration-safety.sh"
 
 # Wait for all and collect results
 for i in "${!PIDS[@]}"; do

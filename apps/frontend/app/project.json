@@ -191,6 +191,13 @@
         "cwd": "apps/frontend/app",
         "command": "npx eslint ."
       }
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/frontend/app",
+        "command": "npx vitest run --coverage --coverage.thresholds.statements=9"
+      }
     }
   }
 }
