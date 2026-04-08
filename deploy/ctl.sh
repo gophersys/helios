@@ -279,7 +279,7 @@ _verify_rollout() {
   deployments=$(kubectl get deployments -n "${env}" --no-headers -o custom-columns=":metadata.name" 2>/dev/null || true)
   local all_ok=true
   for dep in ${deployments}; do
-    if kubectl rollout status "deployment/${dep}" -n "${env}" --timeout=120s &>/dev/null; then
+    if kubectl rollout status "deployment/${dep}" -n "${env}" --timeout=180s &>/dev/null; then
       info "  ✓ ${dep}"
     else
       warn "  ✗ ${dep} not ready"
@@ -440,6 +440,7 @@ _restart_targets() {
         api|http-api|backend) kubectl rollout status deployment/concord-http-api -n "${env}" --timeout=90s > /dev/null 2>&1 ;;
         frontend|fe|app|ui)   kubectl rollout status deployment/concord-frontend -n "${env}" --timeout=30s > /dev/null 2>&1 ;;
         git-poller|poller)    kubectl rollout status deployment/concord-git-poller -n "${env}" --timeout=30s > /dev/null 2>&1 ;;
+        docs)                 kubectl rollout status deployment/concord-docs -n "${env}" --timeout=30s > /dev/null 2>&1 ;;
       esac
     done
     timer_end "Rollout"
