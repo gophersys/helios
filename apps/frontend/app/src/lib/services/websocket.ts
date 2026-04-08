@@ -6,6 +6,7 @@ import type { IcleUpdateEvent } from '$lib/types/icle';
 
 let systemSocket: Socket | null = null;
 let validationSocket: Socket | null = null;
+let manufacturingSocket: Socket | null = null;
 
 export interface LogSubscription {
   namespace: string;
@@ -900,6 +901,172 @@ export function subscribeValidationLogs(
     socket.off('connect', connectHandler);
     if (socket.connected) {
       socket.emit('unsubscribe_validation_logs', { runId, testName, file });
+    }
+  };
+}
+
+// ── Manufacturing Namespace ──────────────────────────────────────────────────
+
+/**
+ * Get or create the Socket.IO connection to /manufacturing namespace.
+ */
+export function getManufacturingSocket(): Socket | null {
+  if (!browser) return null;
+
+  if (manufacturingSocket?.connected) {
+    return manufacturingSocket;
+  }
+
+  const token = getToken();
+  if (!token) {
+    console.warn('No auth token available for manufacturing WebSocket connection');
+    return null;
+  }
+
+  if (manufacturingSocket) {
+    manufacturingSocket.disconnect();
+  }
+
+  manufacturingSocket = io('/manufacturing', {
+    auth: { token },
+    transports: ['polling', 'websocket'],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 10000,
+  });
+
+  manufacturingSocket.on('connect', () => {
+    console.log('Manufacturing WebSocket connected');
+  });
+
+  manufacturingSocket.on('connect_error', (err) => {
+    console.error('Manufacturing WebSocket connection error:', err.message);
+  });
+
+  manufacturingSocket.on('disconnect', (reason) => {
+    console.log('Manufacturing WebSocket disconnected:', reason);
+  });
+
+  return manufacturingSocket;
+}
+
+/**
+ * Disconnect the manufacturing socket.
+ */
+export function disconnectManufacturingSocket(): void {
+  if (manufacturingSocket) {
+    manufacturingSocket.disconnect();
+    manufacturingSocket = null;
+  }
+}
+
+export interface ManufacturingUnitStartEvent {
+  sessionId: string;
+  panelId: string;
+  slotIndex: number;
+  slotLabel: string | null;
+  serialNumber: string | null;
+}
+
+export interface ManufacturingStageResultEvent {
+  sessionId: string;
+  panelId: string;
+  unitId: string;
+  slotIndex: number;
+  stage: string;
+  status: string;
+  durationMs: number | null;
+  errorMessage: string | null;
+}
+
+export interface ManufacturingUnitResultEvent {
+  sessionId: string;
+  panelId: string;
+  unitId: string;
+  slotIndex: number;
+  status: string;
+  serialNumber: string | null;
+  errorMessage: string | null;
+}
+
+export interface ManufacturingPanelCompleteEvent {
+  sessionId: string;
+  panelId: string;
+  status: string;
+  passCount: number;
+  failCount: number;
+  unitCount: number;
+}
+
+/**
+ * Subscribe to real-time manufacturing session events.
+ */
+export function subscribeManufacturingSession(
+  sessionId: string,
+  callbacks: {
+    onUnitStart?: (data: ManufacturingUnitStartEvent) => void;
+    onStageResult?: (data: ManufacturingStageResultEvent) => void;
+    onUnitResult?: (data: ManufacturingUnitResultEvent) => void;
+    onPanelComplete?: (data: ManufacturingPanelCompleteEvent) => void;
+  },
+  onError?: (message: string) => void
+): () => void {
+  const socket = getManufacturingSocket();
+  if (!socket) {
+    onError?.('Manufacturing WebSocket not available');
+    return () => {};
+  }
+
+  const unitStartHandler = (data: ManufacturingUnitStartEvent) => {
+    if (data.sessionId === sessionId) callbacks.onUnitStart?.(data);
+  };
+
+  const stageResultHandler = (data: ManufacturingStageResultEvent) => {
+    if (data.sessionId === sessionId) callbacks.onStageResult?.(data);
+  };
+
+  const unitResultHandler = (data: ManufacturingUnitResultEvent) => {
+    if (data.sessionId === sessionId) callbacks.onUnitResult?.(data);
+  };
+
+  const panelCompleteHandler = (data: ManufacturingPanelCompleteEvent) => {
+    if (data.sessionId === sessionId) callbacks.onPanelComplete?.(data);
+  };
+
+  const errorHandler = (data: { message: string }) => {
+    onError?.(data.message);
+  };
+
+  socket.on('manufacturing_unit_start', unitStartHandler);
+  socket.on('manufacturing_stage_result', stageResultHandler);
+  socket.on('manufacturing_unit_result', unitResultHandler);
+  socket.on('manufacturing_panel_complete', panelCompleteHandler);
+  socket.on('error', errorHandler);
+
+  const emitSubscribe = () => {
+    socket.emit('subscribe_manufacturing_session', { sessionId });
+  };
+
+  const connectHandler = () => {
+    emitSubscribe();
+  };
+
+  if (socket.connected) {
+    emitSubscribe();
+  } else {
+    socket.on('connect', connectHandler);
+  }
+
+  return () => {
+    socket.off('manufacturing_unit_start', unitStartHandler);
+    socket.off('manufacturing_stage_result', stageResultHandler);
+    socket.off('manufacturing_unit_result', unitResultHandler);
+    socket.off('manufacturing_panel_complete', panelCompleteHandler);
+    socket.off('error', errorHandler);
+    socket.off('connect', connectHandler);
+    if (socket.connected) {
+      socket.emit('unsubscribe_manufacturing_session', { sessionId });
     }
   };
 }

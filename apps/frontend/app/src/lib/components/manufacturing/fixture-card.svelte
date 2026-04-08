@@ -1,0 +1,56 @@
+<script lang="ts">
+  import { goto } from '$app/navigation';
+  import { Play } from 'lucide-svelte';
+  import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import type { ManufacturingFixture } from '$lib/types/models';
+
+  let {
+    fixture,
+    canRun = false,
+    onStartSession,
+  }: {
+    fixture: ManufacturingFixture;
+    canRun?: boolean;
+    onStartSession?: (fixtureId: string) => void;
+  } = $props();
+</script>
+
+<div class="rounded-xl border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-2/50">
+  <div class="flex items-start justify-between gap-3">
+    <div class="min-w-0 flex-1">
+      <h3 class="text-sm font-semibold text-text-primary">{fixture.name}</h3>
+      {#if fixture.productName}
+        <p class="text-2xs text-text-tertiary mt-0.5">{fixture.productName}</p>
+      {/if}
+      {#if fixture.description}
+        <p class="text-2xs text-text-tertiary mt-1 truncate">{fixture.description}</p>
+      {/if}
+    </div>
+    <StatusBadge status={fixture.status} />
+  </div>
+
+  <div class="mt-3 flex items-center justify-between">
+    <span class="text-2xs text-text-secondary">
+      {fixture.slotCount} {fixture.slotCount === 1 ? 'slot' : 'slots'}
+    </span>
+
+    <div class="flex items-center gap-2">
+      {#if fixture.activeSessionId}
+        <button
+          onclick={() => goto(`/manufacturing/session/${fixture.activeSessionId}`)}
+          class="text-2xs font-medium text-accent hover:text-accent-hover transition-colors"
+        >
+          View active session
+        </button>
+      {:else if canRun && fixture.status === 'AVAILABLE'}
+        <button
+          onclick={() => onStartSession?.(fixture.id)}
+          class="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-2xs font-medium text-white hover:bg-accent-hover transition-colors"
+        >
+          <Play size={12} />
+          New Session
+        </button>
+      {/if}
+    </div>
+  </div>
+</div>

@@ -179,10 +179,64 @@ test('permission check redirects if no manufacturing:view')
 
 ## Gate Criteria
 
-- [ ] `/manufacturing` page shows fixtures and sessions tabs
-- [ ] Fixture cards show correct status and "New Session" button
-- [ ] Session runner page loads with QR input and panel grid
-- [ ] Unit cards update in real-time via WebSocket
-- [ ] Panel history shows completed panels
-- [ ] Permission gating works (manufacturing:run for actions, manufacturing:view for read)
-- [ ] All 20 vitest unit tests pass
+- [x] `/manufacturing` page shows fixtures and sessions tabs
+- [x] Fixture cards show correct status and "New Session" button
+- [x] Session runner page loads with QR input and panel grid
+- [x] Unit cards update in real-time via WebSocket
+- [x] Panel history shows completed panels
+- [x] Permission gating works (manufacturing:run for actions, manufacturing:view for read)
+- [x] All 27 vitest unit tests pass (exceeded 20 target)
+
+---
+
+## Reconciliation
+
+**Status:** COMPLETE
+**Date:** 2026-04-09
+
+### Deliverables
+
+**Types** (`src/lib/types/models.ts`):
+- ManufacturingSessionStatus, ManufacturingUnitStatus, ManufacturingStageType (type aliases)
+- ManufacturingFixture, ManufacturingSession, ManufacturingPanel, ManufacturingUnit, ManufacturingStage, ManufacturingSessionDetail (interfaces)
+
+**Routes** (3 pages):
+- `src/routes/manufacturing/+page.svelte` — Hub with Fixtures tab (card grid) and Sessions tab (paginated list)
+- `src/routes/manufacturing/session/[id]/+page.svelte` — Live session runner with QR input, active panel grid, panel history
+- `src/routes/manufacturing/sessions/+page.svelte` — Standalone session history with full filtering
+
+**Components** (8 files in `src/lib/components/manufacturing/`):
+- `fixture-card.svelte` — Fixture with status badge, slot count, "New Session" button
+- `session-card.svelte` — Session summary row with product, fixture, operator, pass/fail counts, duration
+- `panel-runner.svelte` — QR input, "Run Panel" button, "End Session" with confirmation dialog
+- `unit-card.svelte` — Per-DUT card with slot label, serial number, stage progress, error message
+- `unit-stage-progress.svelte` — Electrical > Flash > POST progress indicators with connecting lines
+- `panel-results-grid.svelte` — Grid of UnitCards with summary bar and progress indicator
+- `panel-history.svelte` — Accordion of completed panels with expand/collapse
+- `session-header.svelte` — Session info with live elapsed timer, back navigation, summary stats
+
+**WebSocket** (`src/lib/services/websocket.ts`):
+- `getManufacturingSocket()` — Socket.IO `/manufacturing` namespace connection
+- `disconnectManufacturingSocket()` — Cleanup
+- `subscribeManufacturingSession()` — Room-based subscription with callbacks for unit_start, stage_result, unit_result, panel_complete
+
+**Tests** (27 tests in `manufacturing.test.ts`):
+- Fixture model: 5 tests (name/product, AVAILABLE, LOCKED, can/cannot start session)
+- Session model: 4 tests (active duration, completed duration, operator info, pass/fail counts)
+- Unit model: 5 tests (slot/serial, stage indicators, running-to-passed, failed with error, duration)
+- Panel runner: 4 tests (disabled while running, valid QR enables submit, empty QR disables, inactive session disables)
+- Panel grid: 4 tests (unit count, completed count, progress percentage, partial progress)
+- Permission gating: 3 tests (view, run, manage)
+- Stage ordering: 2 tests (correct order, missing stages filled as QUEUED)
+
+### Conventions Followed
+- Svelte 5 runes ($state, $derived, $effect, $props) throughout
+- Design tokens (bg-surface-0/1/2, text-text-primary/secondary/tertiary, bg-accent, border-border)
+- Permission gating: manufacturing:view on all pages, manufacturing:run for action buttons
+- API pattern: apiFetch with ApiResponse wrapper, same as products/validation
+- Auto-refresh: 15s polling on list pages
+
+### Upstream Impact
+- Stage 12 (Mfg Wizard): No conflicts. Stage 12 added ManufacturingConfig types separately; both coexist.
+- Stage 13 (Mfg E2E): Ready for E2E tests against these frontend pages.
+- No changes to existing pages or components. No backend changes needed.
