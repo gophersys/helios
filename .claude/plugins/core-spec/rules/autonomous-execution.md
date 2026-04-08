@@ -78,8 +78,12 @@ Then follow the STATE MACHINE:
 
 State: READY_TO_LAUNCH_WAVE_N
   → Read stage files for this wave
-  → Launch agents with isolation: "worktree", mode: "bypassPermissions"
-  → Launch ALL wave agents in a SINGLE message (parallel)
+  → Create agent team for this wave (TeamCreate)
+  → Launch teammates STAGGERED (45s between each — see rate-limit-resilience.md)
+  → Each teammate gets isolation: "worktree", mode: "bypassPermissions"
+  → Include worktree safety checks (see worktree-safety.md)
+  → Include resource pooling rules in each prompt
+  → Start heartbeat files (see watchdog-protocol.md)
   → Update STATUS.md: State → WAVE_N_RUNNING
 
 State: WAVE_N_RUNNING

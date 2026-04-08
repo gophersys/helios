@@ -56,7 +56,17 @@
         ]
       }
     ],
-    "UserPromptSubmit": [],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/verify-spec.sh",
+            "timeout": 3000
+          }
+        ]
+      }
+    ],
     "PostToolUse": [],
     "SubagentStart": [
       {

@@ -2,8 +2,8 @@
 name: core-spec:spec-execute
 description: "Stage-gated spec execution with TDD, worktree agent swarms, cron-driven orchestration, bounded retries, reconciliation, and staging promotion."
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, CronCreate, CronList
-argument-hint: "'start', 'resume', 'gate', 'autonomous', or stage number"
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, CronCreate, CronList, TeamCreate, TeamDelete, SendMessage
+argument-hint: "'start', 'resume', 'gate', 'autonomous', 'skip N', 'pause', 'cost', 'health', or stage number"
 ---
 
 # Spec Execute — Stage-Gated Test-Driven Execution
@@ -19,7 +19,11 @@ Execute specs stage by stage with mandatory test gates, worktree-isolated agent 
 | `gate` | Run gate check for current stage |
 | `stage N` | Jump to stage N (only if dependencies met) |
 | `parallel` | Identify and start parallel stages |
-| `autonomous` | Set up cron + worktree swarms for overnight execution |
+| `autonomous` | Set up cron + agent teams for overnight execution |
+| `skip N` | Skip stage N with reason (marks SKIPPED in STATUS.md) |
+| `pause` | Save current state, stop execution (can resume later) |
+| `cost` | Show cumulative token/cost estimate from STATUS.md |
+| `health` | Show team health: heartbeats, stalls, blockers, active teammates |
 
 ## Core Protocol
 

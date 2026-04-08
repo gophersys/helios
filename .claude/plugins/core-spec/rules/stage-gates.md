@@ -87,9 +87,40 @@ Document expected error cases and how they should be handled:
 | NULL input | Check at entry | Return NULL/error code |
 | OOM | Check malloc return | Cleanup and return NULL |
 
+## Retry Log
+| Attempt | Approach | Error | Result | Timestamp |
+|---------|----------|-------|--------|-----------|
+(filled during execution — agents MUST document each retry attempt)
+
 ## Notes
 [Any additional context, gotchas, or implementation hints]
 ```
+
+## Retry Tracking (MANDATORY)
+
+Every stage file MUST include a `## Retry Log` section. Agents MUST fill it
+during execution. If the retry log is empty when a test is marked BLOCKED,
+the gate check FAILS — you cannot skip a test without documenting your attempts.
+
+### Required Retry Log Format
+
+```markdown
+## Retry Log
+| Attempt | Approach | Error | Result | Timestamp |
+|---------|----------|-------|--------|-----------|
+| 1 | Fix obvious error (wrong import path) | ModuleNotFoundError | Still failing — different module | 02:15 |
+| 2 | Read source, found actual module name | TypeError: missing arg | Different error, progress | 02:25 |
+| 3 | Checked MEMORY.md D18, found config needed | Config loaded but wrong port | Closer | 02:35 |
+| 4 | Different approach: mock the dependency | Mock works but assertion wrong | Partial | 02:45 |
+| 5 | Simplify: test basic connectivity only | N/A | BLOCKED — marking and moving on | 02:50 |
+```
+
+### Enforcement
+
+- Gate check reads the Retry Log section
+- If a test is BLOCKED but Retry Log has <5 entries → gate FAILS
+- Each entry must have a DIFFERENT approach (not "tried again")
+- Timestamps prove the agent actually spent time investigating
 
 ## Gate Check Protocol — STRICTLY ENFORCED
 
