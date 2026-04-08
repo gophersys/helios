@@ -64,12 +64,20 @@ export default defineConfig({
 **File:** `apps/frontend/app/e2e/global-setup.ts`
 
 Responsibilities:
-- Start docker-compose test stack (if not running)
-- Wait for API health check (`/v2/docs`)
-- Run database migration (`prisma migrate deploy`)
-- Run platform seed ONLY (creates roles, permission sets, dev users — NOT product data)
-- Verify external connectivity (Bitbucket API, CoreCloud, optionally MTIB)
+- Verify dev docker-compose stack is running (http-api on :9001, postgres on :5433, minio on :8675)
+- If not running: `nx start platform` (or error — don't auto-start, user should have started it)
+- Wipe database: `npx prisma migrate reset --force` (destructive! fresh start every time)
+- Re-run migrations: `npx prisma migrate deploy`
+- Run platform seed ONLY (roles, permission sets, dev users — NOT product data)
+- Wait for API health check (`GET /v2/docs` returns 200)
+- Verify external connectivity:
+  - Bitbucket API: `GET https://api.bitbucket.org/2.0/` (any response = OK)
+  - CoreCloud: TLS handshake to auth.office.corekinect.cloud:2013
+  - K8s: `kubectl cluster-info` (needed for MTIB deployment only)
+  - MTIB node: `kubectl get node verdin-imx8mm-15005665` (Ready?)
 - Store base URLs and credentials in environment
+
+**CRITICAL:** Dev is docker-compose for ALL backend services. The ONLY K8s interaction is MTIB server deployment on edge nodes (done in Stage 7, not here).
 
 ### 1.3 Global Teardown
 

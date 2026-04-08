@@ -83,6 +83,38 @@ The actual UI uses "schedule" as the trigger type name, not "cron". Fixed in sta
 ### D20: Session reporter uses bare @require_auth (2026-04-08)
 Reporter endpoints (`/report/test-result`, etc.) use `@require_auth` only — any valid API key holder can post results, no specific permission required. This is intentional (CI runner needs to report).
 
+### D21: MTIB server deployment — K8s only, all environments (2026-04-09)
+ALL environments use K8s. There is a `development` namespace. MTIB nodes join the K8s cluster as bare nodes (no labels, no taints). The system discovers unregistered nodes via K8s API, registers them during fixture creation, and deploys the MTIB server as a K8s Deployment pinned to that node. No SSH, no Docker, no environment branching. Same code path everywhere.
+
+### D22: Dev stack for E2E — nuke and fresh start (2026-04-09)
+E2E tests use the dev docker-compose stack (port 9001, not test stack on 9010). Before each suite run, wipe the DB completely (`prisma migrate reset --force`) then re-run migrations + platform seed only. This is destructive but ensures full reproducibility.
+
+### D23: Dev stack already running (2026-04-09)
+Pre-flight confirmed: http-api, build-service, git-poller all UP. Playwright 1.59.1 installed with Chromium cached. All deps (Flask, Prisma, MinIO, Node, Python) ready. 387GB disk free.
+
+### D24: Development environment is docker-compose + ONE K8s touchpoint (2026-04-09)
+Development runs entirely on docker-compose locally (http-api, build-service, git-poller, postgres, minio, frontend). The ONLY K8s interaction in dev is deploying the MTIB server pod to the edge node in a `development` namespace. This is the CI-dedicated MTIB. Everything else is local containers — NO K8s for backend services in dev.
+
+The http-api container has kubeconfig access to the office K3s cluster (10.4.45.10:6443) for managing MTIB deployments. This is the same in staging/prod — the only difference is the namespace (development vs staging vs production).
+
+### D25: MTIB K8s node identity (2026-04-09)
+- K8s hostname: `verdin-imx8mm-15005665` (NOT "mtib-e2e-dev")
+- IP: 10.4.45.33
+- Role: edge
+- Status: Ready
+- No MTIB server pod currently deployed (gRPC 50053 refused)
+- No `development` namespace exists yet — must be created
+
+### D26: Infrastructure folder needs development namespace (2026-04-09)
+The `infrastructure/clusters/office/` directory manages the K8s cluster. It needs:
+1. A `development` namespace definition (alongside staging/production)
+2. RBAC for the concord-api service account in the development namespace
+3. The MTIB server deployment to target the development namespace
+Stage 7 must create these infrastructure manifests as part of the implementation.
+
+### D27: Staging promotion after every wave (2026-04-09)
+After each wave merges, deploy to staging (`nx update platform -c staging`) and re-run the same E2E tests against the K8s-hosted backend. This catches K8s-specific bugs (networking, auth, init containers, resource limits). Staging failures are logged but don't block dev progress — marked as STAGING_BLOCKED. Tests must handle both auth modes: dev (dev-login buttons, AUTH_ENABLED=false) and staging (API key auth, AUTH_ENABLED=true).
+
 ## Errors Encountered
 
 (None yet — spec phase)

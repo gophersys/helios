@@ -44,27 +44,36 @@ Build a comprehensive, user-story-driven end-to-end test suite for the Concord p
 ### 3.1 Architecture
 
 ```
-Playwright (Chromium)
-    │
-    ├─→ SvelteKit Frontend (:4200)
-    │       │
-    │       └─→ HTTP API (Flask, :9001)
-    │               │
-    │               ├─→ PostgreSQL (:5433)
-    │               ├─→ MinIO (:8675)
-    │               ├─→ Bitbucket API (api.bitbucket.org)
-    │               └─→ CoreCloud (val.office.corekinect.cloud:2018)
-    │
-    ├─→ Git Poller (polls Bitbucket, triggers builds)
-    │
-    ├─→ Build Service (executes firmware builds in Docker)
-    │
-    └─→ MTIB 10.4.45.33 (gRPC :50053)
-            │
-            ├─→ J-Link probes (821009543 NRF52, 821009541 NRF91)
-            ├─→ UART (/dev/verdin-uart1, /dev/verdin-uart2)
-            └─→ DUT: Alpha B0 (SNR 0964, Device 70B3D584C01E1FCC)
-                     No battery — ch0 only at 4.5V
+┌── LOCAL (docker-compose) ─────────────────────────────────────┐
+│                                                                │
+│  Playwright (Chromium)                                         │
+│      │                                                         │
+│      ├─→ SvelteKit Frontend (:4200)                           │
+│      │       └─→ HTTP API (Flask, :9001) ←─── kubeconfig ──┐  │
+│      │               ├─→ PostgreSQL (:5433)                 │  │
+│      │               ├─→ MinIO (:8675)                      │  │
+│      │               ├─→ Bitbucket API (api.bitbucket.org)  │  │
+│      │               └─→ CoreCloud (val:2018)               │  │
+│      │                                                      │  │
+│      ├─→ Git Poller (polls Bitbucket)                       │  │
+│      └─→ Build Service (firmware builds in Docker)          │  │
+│                                                              │  │
+└──────────────────────────────────────────────────────────────┘  │
+                                                                  │
+┌── K8s CLUSTER (office, 10.4.45.10) ──────────────────────────┐ │
+│                                                                │ │
+│  development namespace ←────────────────────────────────────── ┘ │
+│      │                                                          │
+│      └─→ MTIB Server Pod (on verdin-imx8mm-15005665)           │
+│              │ gRPC :50053 (hostPort)                            │
+│              ├─→ J-Link 821009543 (NRF52) + 821009541 (NRF91)  │
+│              ├─→ UART /dev/verdin-uart1, /dev/verdin-uart2      │
+│              └─→ DUT: Alpha B0, SNR 0964, no battery, ch0@4.5V │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+The ONLY K8s interaction from development is MTIB server deployment.
+All backend services run locally in docker-compose.
 ```
 
 ### 3.2 External Integrations

@@ -5,13 +5,13 @@
 
 ---
 
-**State:** SPEC_COMPLETE_READY_TO_COMMIT
-**Wave:** 0 of 5
+**State:** READY_TO_LAUNCH_WAVE_1
+**Wave:** 1 of 5
 **Stage:** 0 of 16
 **Progress:** 10%
-**Last Updated:** 2026-04-09T00:30:00Z
+**Last Updated:** 2026-04-09T00:45:00Z
 
-**Next Action:** Commit spec files, update STATUS.md State to READY_TO_LAUNCH_WAVE_1, cron takes over.
+**Next Action:** Cron will fire and launch Wave 1 (Stage 1: Foundation + Stage 5: Bitbucket helpers) in parallel worktrees.
 
 ---
 

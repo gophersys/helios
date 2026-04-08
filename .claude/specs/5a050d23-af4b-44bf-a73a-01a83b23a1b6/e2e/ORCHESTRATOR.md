@@ -90,8 +90,9 @@ For each stage in the wave:
    ```
 4. If typecheck fails: fix the issues
 5. Run the POST-STAGE RECONCILIATION for each merged stage
-6. Update STATUS.md: State → READY_TO_LAUNCH_WAVE_(N+1)
-7. Commit the merge: `git commit -m "merge: wave N complete — stages X, Y, Z"`
+6. Commit the merge: `git commit -m "merge: wave N complete — stages X, Y, Z"`
+7. DEPLOY TO STAGING and re-run wave tests (see Staging Promotion below)
+8. Update STATUS.md: State → READY_TO_LAUNCH_WAVE_(N+1)
 
 ### State: ALL_COMPLETE
 
@@ -100,6 +101,74 @@ For each stage in the wave:
 ### State: BLOCKED
 
 **Action:** Log the blocking issue. Try to unblock if possible. If not, report status.
+
+---
+
+## Staging Promotion Protocol (after every wave merge)
+
+After merging a wave and passing reconciliation, deploy to staging and re-run tests:
+
+```
+1. Deploy to staging:
+   nx update platform -c staging
+   # Rebuilds images, pushes to registry, helm upgrade, zero downtime
+
+2. Verify staging health:
+   nx run platform:status -c staging
+   # All pods Running, health probes passing
+
+3. Re-run the wave's tests against staging:
+   # Tests must support configurable base URLs
+   PLAYWRIGHT_BASE_URL=https://staging.concord.local \
+   API_URL=https://staging.concord.local \
+   AUTH_MODE=api_key \
+   npx playwright test --config=e2e.config.ts <wave-test-files>
+
+4. Compare results:
+   # Same tests must pass on both dev and staging
+   # If a test passes dev but fails staging → K8s-specific bug
+   # Document in MEMORY.md under "Staging Deviations"
+
+5. If staging tests fail:
+   - Try to fix (max 3 attempts)
+   - If unfixable: mark as STAGING_BLOCKED in STATUS.md
+   - Continue to next wave (staging failures don't block dev progress)
+   - Log for morning review
+
+6. Notify Discord:
+   "🚀 Wave N → staging. Dev: X/Y passing, Staging: X/Y passing"
+```
+
+### Auth Difference: Dev vs Staging
+
+| Aspect | Dev (docker-compose) | Staging (K8s) |
+|--------|---------------------|---------------|
+| AUTH_ENABLED | false | true |
+| Login method | Dev-login buttons (no password) | API key or real credentials |
+| Test auth | `loginAsRole(page, 'admin')` via dev-login | `loginViaAPIKey(page)` via CI admin key |
+| API calls | No auth header needed | `Authorization: ApiKey ck_ci_admin_...` |
+
+Tests must be written to handle BOTH modes. The auth helpers should detect the environment:
+
+```typescript
+async function ensureAuth(page: Page) {
+  if (process.env.AUTH_MODE === 'api_key') {
+    await loginViaAPIKey(page);  // staging: use CI admin key
+  } else {
+    await loginAsRole(page, 'admin');  // dev: use dev-login
+  }
+}
+```
+
+### What Staging Catches That Dev Misses
+
+- K8s service discovery (DNS-based, not localhost)
+- Init container migration timing (race conditions)
+- Resource limits (OOM, CPU throttling)
+- Ingress routing (path-based, TLS termination)
+- Real auth flow (JWT verification, permission enforcement)
+- Inter-service communication (http-api ↔ build-service ↔ git-poller)
+- PVC-backed storage (vs docker volumes)
 
 ---
 
