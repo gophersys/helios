@@ -146,6 +146,7 @@ All shared data services in `shared-services` namespace:
 | NATS | `nats.shared-services.svc.cluster.local` | 4222 |
 | MinIO | `minio.shared-services.svc.cluster.local` | 9000 |
 | OTEL Collector | `otel-collector.shared-services.svc.cluster.local` | 4317 |
+| CouchDB | `couchdb.shared-services.svc.cluster.local` | 5984 |
 | Vaultwarden | `vaultwarden.shared-services.svc.cluster.local` | 80 |
 
 ## ARM Builder

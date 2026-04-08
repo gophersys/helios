@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: couchdb
+  labels:
+    {{- include "shared-couchdb.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: couchdb
+      protocol: TCP
+      name: couchdb
+  selector:
+    {{- include "shared-couchdb.selectorLabels" . | nindent 4 }}
