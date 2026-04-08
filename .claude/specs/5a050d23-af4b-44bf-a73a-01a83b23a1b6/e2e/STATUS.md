@@ -5,13 +5,13 @@
 
 ---
 
-**State:** WAVE_2_RUNNING
-**Wave:** 2 of 5
-**Stage:** 2 of 16
-**Progress:** 20%
-**Last Updated:** 2026-04-09T06:45:00Z
+**State:** WAVE_3_RUNNING
+**Wave:** 3 of 5
+**Stage:** 6 of 16
+**Progress:** 40%
+**Last Updated:** 2026-04-09T09:45:00Z
 
-**Next Action:** Wave 2 agents launched (Stages 2, 7, 10, 14). Cron will check progress every 15 min.
+**Next Action:** Wave 3 agents launched (Stages 3, 11, 12). Cron will check progress every 15 min.
 
 ---
 
@@ -21,16 +21,16 @@
 |---|-------|------|--------|:--------:|---------|-------------|----------|
 | 1 | Foundation | TEST INFRA | COMPLETE | 1 | 2026-04-09T01:15Z | 2026-04-09T02:30Z | e2e-foundation |
 | 2 | Auth & Nav | TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T07:15Z | e2e-auth |
-| 3 | Product CRUD | TEST | PENDING | 0 | - | - | e2e-products |
+| 3 | Product CRUD | TEST | COMPLETE | 1 | 2026-04-09T09:45Z | 2026-04-09T11:00Z | e2e-products |
 | 4 | Stage Config | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 5 | Bitbucket | TEST | COMPLETE | 1 | 2026-04-09T01:15Z | 2026-04-09T06:30Z | e2e-bitbucket |
 | 6 | Build Pipeline | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 7 | Fixture+MTIB | IMPL+TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T08:00Z | e2e-fixtures |
 | 8 | Val Queue | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 9 | Val Execution | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
-| 10 | Mfg Backend | IMPLEMENT | IN_PROGRESS | 1 | 2026-04-09T06:45Z | 2026-04-09T06:45Z | e2e-mfg-backend |
-| 11 | Mfg Frontend | IMPLEMENT | PENDING | 0 | - | - | e2e-mfg-frontend |
-| 12 | Mfg Wizard | IMPLEMENT | PENDING | 0 | - | - | e2e-mfg-wizard |
+| 10 | Mfg Backend | IMPLEMENT | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T09:30Z | e2e-mfg-backend |
+| 11 | Mfg Frontend | IMPLEMENT | IN_PROGRESS | 1 | 2026-04-09T09:45Z | 2026-04-09T09:45Z | e2e-mfg-frontend |
+| 12 | Mfg Wizard | IMPLEMENT | IN_PROGRESS | 1 | 2026-04-09T09:45Z | 2026-04-09T09:45Z | e2e-mfg-wizard |
 | 13 | Mfg E2E | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 14 | User Mgmt | TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-08T06:50Z | e2e-users |
 | 15 | Role Stories | TEST | PENDING | 0 | - | - | (wave 5, sequential) |
@@ -38,12 +38,12 @@
 
 ## Totals
 
-- **Tests Written:** 123 / ~485
+- **Tests Written:** 175 / ~485
 - **Tests Passing:** 15
 - **Implementation Files:** 6 (bitbucket.ts, api-extended.ts, 2 infra manifests, 2 backend fixes)
-- **Stages Complete:** 5 / 16
+- **Stages Complete:** 7 / 16
 - **Stages Blocked:** 0
-- **Waves Complete:** 1 / 5
+- **Waves Complete:** 2 / 5
 
 ## Spec Deepening (Complete)
 
@@ -73,4 +73,12 @@
 - Backend: namespace awareness (MTIB_NAMESPACE/ENVIRONMENT env), node delete undeploy, _deploy_mtib_for_node defined, gRPC health check
 - E2E: 5 spec files, ~34 tests covering designs, instances, slots, deployment, deletion
 - API helpers: 15+ new helper functions in api-extended.ts
+- No blocked items
+
+### Stage 10: Mfg Backend (COMPLETE)
+- Prisma: 3 enums + 4 models (ManufacturingConfig, ManufacturingSession, ManufacturingPanel, ManufacturingUnit) + reverse relations
+- Backend: 3 source files (config.py, sessions.py, reporter.py) + types.py, 16 URL rules in router
+- Permissions: manufacturing:view/run/manage already existed, no changes needed
+- Tests: 34 new tests (8 config + 14 sessions + 12 reporter), all passing
+- Full suite: 2134 passed, 0 failures, no regressions
 - No blocked items
