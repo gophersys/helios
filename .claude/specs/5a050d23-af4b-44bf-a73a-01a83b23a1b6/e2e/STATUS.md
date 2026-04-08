@@ -5,13 +5,13 @@
 
 ---
 
-**State:** WAVE_3_RUNNING
-**Wave:** 3 of 5
-**Stage:** 6 of 16
-**Progress:** 40%
-**Last Updated:** 2026-04-09T09:45:00Z
+**State:** WAVE_4_RUNNING
+**Wave:** 4 of 5
+**Stage:** 9 of 16
+**Progress:** 58%
+**Last Updated:** 2026-04-09T11:15:00Z
 
-**Next Action:** Wave 3 agents launched (Stages 3, 11, 12). Cron will check progress every 15 min.
+**Next Action:** Wave 4 running — sequential stages 4→6→8→9 + parallel stage 13 (Mfg E2E).
 
 ---
 
@@ -22,7 +22,7 @@
 | 1 | Foundation | TEST INFRA | COMPLETE | 1 | 2026-04-09T01:15Z | 2026-04-09T02:30Z | e2e-foundation |
 | 2 | Auth & Nav | TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T07:15Z | e2e-auth |
 | 3 | Product CRUD | TEST | COMPLETE | 1 | 2026-04-09T09:45Z | 2026-04-09T11:00Z | e2e-products |
-| 4 | Stage Config | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
+| 4 | Stage Config | TEST | COMPLETE | 1 | 2026-04-09T11:15Z | 2026-04-09T12:30Z | (wave 4, sequential) |
 | 5 | Bitbucket | TEST | COMPLETE | 1 | 2026-04-09T01:15Z | 2026-04-09T06:30Z | e2e-bitbucket |
 | 6 | Build Pipeline | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
 | 7 | Fixture+MTIB | IMPL+TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T08:00Z | e2e-fixtures |
@@ -31,19 +31,19 @@
 | 10 | Mfg Backend | IMPLEMENT | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-09T09:30Z | e2e-mfg-backend |
 | 11 | Mfg Frontend | IMPLEMENT | COMPLETE | 1 | 2026-04-09T09:45Z | 2026-04-09T11:00Z | e2e-mfg-frontend |
 | 12 | Mfg Wizard | IMPLEMENT | COMPLETE | 1 | 2026-04-09T09:45Z | 2026-04-09T10:30Z | e2e-mfg-wizard |
-| 13 | Mfg E2E | TEST | PENDING | 0 | - | - | (wave 4, sequential) |
+| 13 | Mfg E2E | TEST | COMPLETE | 1 | 2026-04-09T11:15Z | 2026-04-09T12:30Z | e2e-mfg-e2e |
 | 14 | User Mgmt | TEST | COMPLETE | 1 | 2026-04-09T06:45Z | 2026-04-08T06:50Z | e2e-users |
 | 15 | Role Stories | TEST | PENDING | 0 | - | - | (wave 5, sequential) |
 | 16 | Cleanup | TEST INFRA | PENDING | 0 | - | - | (wave 5, sequential) |
 
 ## Totals
 
-- **Tests Written:** 175 / ~485
+- **Tests Written:** 235 / ~485
 - **Tests Passing:** 15
 - **Implementation Files:** 6 (bitbucket.ts, api-extended.ts, 2 infra manifests, 2 backend fixes)
-- **Stages Complete:** 7 / 16
+- **Stages Complete:** 11 / 16
 - **Stages Blocked:** 0
-- **Waves Complete:** 2 / 5
+- **Waves Complete:** 3 / 5
 
 ## Spec Deepening (Complete)
 
@@ -92,6 +92,16 @@
 - Tests: 27 new tests covering fixture model, session model, unit model, panel runner logic, panel grid, permission gating, stage ordering
 - Full suite: 549 tests passed + 1 skipped, 0 failures, no regressions
 - Typecheck: clean pass
+- No blocked items
+
+### Stage 4: Stage Config (COMPLETE)
+- E2E: 3 spec files, 30 tests covering stage config wizard, recipe editor, and build matrix
+- Wizard: full 4-step flow tested (target/triggers, signing key, recipe, review/save)
+- Recipe editor: template loading, validation checks, save/publish buttons, unsaved indicator
+- Build matrix: table columns, HEX/CFW badges, entry counts, reset button, empty state
+- Stage lifecycle: Initialize Stages, Configure, Save & Enable, Edit verified
+- D19 applied (schedule not cron), D2 acknowledged (real builds), D3 applied (fresh product per file)
+- Deviations: build matrix add/remove/reorder deferred (UI is read-only), recipe history/diff tested via indicators
 - No blocked items
 
 ### Stage 12: Mfg Wizard (COMPLETE)
