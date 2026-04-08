@@ -29,13 +29,15 @@ class TestInitKubernetesClient:
     @patch("src.services.kubernetes.client.k8s_client")
     @patch("src.services.kubernetes.client.k8s_config")
     def test_fallback_to_kubeconfig(self, mock_config, mock_client):
+        from kubernetes import config as real_config
         from src.services.kubernetes.client import init_kubernetes_client
         import src.services.kubernetes.client as client_mod
 
         original = client_mod.appKubernetesClient
         try:
             client_mod.appKubernetesClient = None
-            mock_config.load_incluster_config.side_effect = mock_config.ConfigException()
+            mock_config.ConfigException = real_config.ConfigException
+            mock_config.load_incluster_config.side_effect = real_config.ConfigException("not in cluster")
             mock_api_client = MagicMock()
             mock_client.ApiClient.return_value = mock_api_client
 
@@ -48,14 +50,16 @@ class TestInitKubernetesClient:
     @patch("src.services.kubernetes.client.k8s_client")
     @patch("src.services.kubernetes.client.k8s_config")
     def test_no_config_returns_none(self, mock_config, mock_client):
+        from kubernetes import config as real_config
         from src.services.kubernetes.client import init_kubernetes_client
         import src.services.kubernetes.client as client_mod
 
         original = client_mod.appKubernetesClient
         try:
             client_mod.appKubernetesClient = None
-            mock_config.load_incluster_config.side_effect = mock_config.ConfigException()
-            mock_config.load_kube_config.side_effect = mock_config.ConfigException()
+            mock_config.ConfigException = real_config.ConfigException
+            mock_config.load_incluster_config.side_effect = real_config.ConfigException("not in cluster")
+            mock_config.load_kube_config.side_effect = real_config.ConfigException("no kubeconfig")
 
             result = init_kubernetes_client()
             assert result is None
