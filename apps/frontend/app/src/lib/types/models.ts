@@ -722,6 +722,8 @@ export interface AssetSet {
   source: 'BUILD_SERVICE' | 'MANUAL_UPLOAD' | 'EXTERNAL_CI';
   status: 'PENDING' | 'COMPLETE' | 'VALIDATED' | 'FAILED';
   buildRunId: string | null;
+  stageConfigId: string | null;
+  stageConfig?: { id: string; type: string; stage: number; name: string } | null;
   commitSha: string | null;
   branch: string | null;
   notes: string | null;

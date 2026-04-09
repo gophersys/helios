@@ -173,7 +173,7 @@
       {:else if activeTab === 'stages'}
         <ProductStagesTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'assets'}
-        <ProductAssetsTab productId={product.id} {canManage} />
+        <ProductAssetsTab {product} {canManage} />
       {:else if activeTab === 'manufacturing'}
         <ProductManufacturingTab {product} {canManage} {onRefresh} />
       {/if}
