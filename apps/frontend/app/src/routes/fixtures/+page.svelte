@@ -1,79 +1,82 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { Plus, Check, Wrench, Ruler } from 'lucide-svelte';
+  import { Plus, Wrench, Search, Loader2, Wifi, WifiOff, AlertTriangle, Lock, Settings as SettingsIcon } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
-  import { PageHeader, ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog, Select, FormCard, Tabs } from '$lib/components/ui';
-  import FixtureCard from '$lib/components/fixtures/fixture-card.svelte';
+  import { PageHeader, ErrorAlert, LoadingState, Select } from '$lib/components/ui';
+  import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import FixtureDetail from '$lib/components/fixtures/fixture-detail.svelte';
-  import FixtureDesigns from '$lib/components/fixtures/fixture-designs.svelte';
   import type { Fixture, Product, Board, FixtureDesign } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
-  import type { Tab } from '$lib/components/ui/types';
 
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('fixtures:manage'));
 
-  // Tab state
-  const tabs: Tab[] = [
-    { id: 'fixtures', label: 'Fixtures', icon: Wrench },
-    { id: 'designs', label: 'Designs', icon: Ruler },
-  ];
-  let activeTab = $state('fixtures');
-
+  // Data
   let fixtures = $state<Fixture[]>([]);
   let products = $state<Product[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
-  // Board revisions for the selected product
-  let boards = $state<Board[]>([]);
-  // Available designs for the selected board revision
-  let availableDesigns = $state<FixtureDesign[]>([]);
+  // Filters
+  let filterProduct = $state('');
+  let filterType = $state('');
+  let filterStatus = $state('');
+  let searchQuery = $state('');
 
-  // Form state
-  let showForm = $state(false);
-  let editingId = $state<string | null>(null);
+  // Detail
+  let selectedFixture = $state<Fixture | null>(null);
+
+  // Create form
+  let showCreate = $state(false);
+  let boards = $state<Board[]>([]);
+  let availableDesigns = $state<FixtureDesign[]>([]);
   let formName = $state('');
   let formProductId = $state('');
   let formBoardRevisionId = $state('');
   let formDesignId = $state('');
-  let formType = $state('MANUFACTURING');
+  let formType = $state('VALIDATION');
   let formDescription = $state('');
-  let formSlotCount = $state(1);
   let submitting = $state(false);
 
-  // Delete confirmation
-  let deleteTarget = $state<{ id: string; name: string } | null>(null);
-
-  // Detail state
-  let selectedFixture = $state<Fixture | null>(null);
-
-  // Board revisions derived from fetched boards
   const boardRevisions = $derived.by(() => {
-    const revisions: { id: string; label: string }[] = [];
+    const revs: { id: string; label: string }[] = [];
     for (const board of boards) {
       for (const rev of board.revisions ?? []) {
-        revisions.push({
-          id: rev.id,
-          label: `${board.name} ${rev.version}${rev.ckBoardsName ? ` (${rev.ckBoardsName})` : ''}`
-        });
+        revs.push({ id: rev.id, label: `${rev.version} (${rev.ckBoardsName || board.name})` });
       }
     }
-    return revisions;
+    return revs;
   });
 
-  // Design options derived from available designs
   const designOptions = $derived(
     availableDesigns.map(d => ({ value: d.id, label: `${d.name} (${d.revision})` }))
   );
 
+  const filtered = $derived(
+    fixtures.filter(f => {
+      if (filterProduct && f.productId !== filterProduct) return false;
+      if (filterType && f.type !== filterType) return false;
+      if (filterStatus) {
+        const slots = f.slots || [];
+        const assigned = slots.filter(s => s.nodeId).length;
+        if (filterStatus === 'AVAILABLE' && (assigned === 0 || slots.length === 0)) return false;
+        if (filterStatus === 'UNASSIGNED' && assigned > 0) return false;
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!f.name.toLowerCase().includes(q) && !(f.productName || '').toLowerCase().includes(q)) return false;
+      }
+      return true;
+    })
+  );
+
   async function fetchFixtures() {
     try {
-      const res = await apiFetch<ApiResponse<{ data: Fixture[] }>>('/v2/fixtures');
+      const res = await apiFetch<ApiResponse<{ data: Fixture[] }>>('/v2/fixtures?limit=200');
       const payload = res.data;
-      fixtures = Array.isArray(payload) ? payload : (payload as { data: Fixture[] }).data || [];
+      fixtures = Array.isArray(payload) ? payload : (payload as any)?.data || [];
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load fixtures';
     } finally {
@@ -85,68 +88,29 @@
     try {
       const res = await apiFetch<ApiResponse<{ data: Product[] }>>('/v2/products');
       const payload = res.data;
-      products = Array.isArray(payload) ? payload : (payload as { data: Product[] }).data || [];
-    } catch {
-      // Non-critical
-    }
+      products = Array.isArray(payload) ? payload : (payload as any)?.data || [];
+    } catch { /* non-critical */ }
   }
 
-  async function fetchBoardsForProduct(productId: string) {
-    if (!productId) {
-      boards = [];
-      return;
-    }
+  async function fetchBoardsForProduct(pid: string) {
+    if (!pid) { boards = []; return; }
     try {
-      const res = await apiFetch<ApiResponse<Product>>(`/v2/products/${productId}`);
+      const res = await apiFetch<ApiResponse<Product>>(`/v2/products/${pid}`);
       boards = res.data.boards ?? [];
-    } catch {
-      boards = [];
-    }
+    } catch { boards = []; }
   }
 
-  async function fetchDesignsForRevision(boardRevisionId: string) {
-    if (!boardRevisionId) {
-      availableDesigns = [];
-      return;
-    }
+  async function fetchDesignsForRevision(revId: string) {
+    if (!revId) { availableDesigns = []; return; }
     try {
-      const res = await apiFetch<ApiResponse<{ data: FixtureDesign[] }>>(`/v2/fixtures/designs?boardRevisionId=${boardRevisionId}`);
+      const res = await apiFetch<ApiResponse<{ data: FixtureDesign[] }>>(`/v2/fixtures/designs?boardRevisionId=${revId}`);
       const payload = res.data;
-      availableDesigns = Array.isArray(payload) ? payload : (payload as { data: FixtureDesign[] }).data || [];
-    } catch {
-      availableDesigns = [];
-    }
+      availableDesigns = Array.isArray(payload) ? payload : (payload as any)?.data || [];
+    } catch { availableDesigns = []; }
   }
 
-  // Fetch boards when product changes in the form
-  $effect(() => {
-    if (formProductId) {
-      fetchBoardsForProduct(formProductId);
-    } else {
-      boards = [];
-    }
-  });
-
-  // Reset board revision if it's no longer valid after boards change
-  $effect(() => {
-    if (formBoardRevisionId && boardRevisions.length > 0) {
-      const stillValid = boardRevisions.some(r => r.id === formBoardRevisionId);
-      if (!stillValid) {
-        formBoardRevisionId = '';
-        formDesignId = '';
-      }
-    }
-  });
-
-  // Fetch designs when board revision changes
-  $effect(() => {
-    if (formBoardRevisionId) {
-      fetchDesignsForRevision(formBoardRevisionId);
-    } else {
-      availableDesigns = [];
-      formDesignId = '';
-    }
-  });
+  $effect(() => { if (formProductId) fetchBoardsForProduct(formProductId); else boards = []; });
+  $effect(() => { if (formBoardRevisionId) fetchDesignsForRevision(formBoardRevisionId); else { availableDesigns = []; formDesignId = ''; } });
 
   async function fetchDetail(id: string) {
     try {
@@ -157,88 +121,55 @@
     }
   }
 
+  async function handleCreate(e: Event) {
+    e.preventDefault();
+    if (!formDesignId) { error = 'Fixture design is required'; return; }
+    submitting = true;
+    error = null;
+    try {
+      await api.post('/v2/fixtures', {
+        name: formName,
+        productId: formProductId,
+        boardRevisionId: formBoardRevisionId || null,
+        designId: formDesignId,
+        type: formType,
+        description: formDescription || null,
+      });
+      showCreate = false;
+      formName = ''; formProductId = ''; formBoardRevisionId = ''; formDesignId = ''; formDescription = '';
+      await fetchFixtures();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to create fixture';
+    } finally {
+      submitting = false;
+    }
+  }
+
+  function slotSummary(f: Fixture): string {
+    const slots = f.slots || [];
+    const assigned = slots.filter(s => s.nodeId).length;
+    return `${assigned}/${slots.length}`;
+  }
+
+  function healthIcon(f: Fixture) {
+    const slots = f.slots || [];
+    if (slots.length === 0) return { icon: WifiOff, color: 'text-text-tertiary' };
+    const assigned = slots.filter(s => s.nodeId);
+    if (assigned.length === 0) return { icon: WifiOff, color: 'text-text-tertiary' };
+    const online = assigned.filter(s => s.node?.status === 'ONLINE').length;
+    if (online === assigned.length) return { icon: Wifi, color: 'text-success' };
+    if (online > 0) return { icon: AlertTriangle, color: 'text-warning' };
+    return { icon: WifiOff, color: 'text-error' };
+  }
+
   onMount(() => {
-    if (!auth.hasPermission('fixtures:view')) {
+    if (!auth.hasPermission('fixtures:view') && !auth.hasPermission('manufacturing:view')) {
       goto('/');
       return;
     }
     fetchFixtures();
     fetchProducts();
   });
-
-  function resetForm() {
-    formName = '';
-    formProductId = '';
-    formBoardRevisionId = '';
-    formDesignId = '';
-    formType = 'MANUFACTURING';
-    formDescription = '';
-    formSlotCount = 1;
-    editingId = null;
-    showForm = false;
-  }
-
-  function startEdit(f: Fixture) {
-    formName = f.name;
-    formProductId = f.productId;
-    formBoardRevisionId = f.boardRevisionId ?? '';
-    formDesignId = f.designId ?? '';
-    formType = f.type;
-    formDescription = f.description || '';
-    formSlotCount = f.slotCount ?? f.slots?.length ?? 1;
-    editingId = f.id;
-    showForm = true;
-    selectedFixture = null;
-  }
-
-  async function handleSubmit(e: Event) {
-    e.preventDefault();
-    error = null;
-    submitting = true;
-
-    const body: Record<string, unknown> = {
-      name: formName,
-      productId: formProductId,
-      boardRevisionId: formBoardRevisionId || null,
-      designId: formDesignId || null,
-      type: formType,
-      description: formDescription || null,
-    };
-
-    if (!editingId) {
-      body.slotCount = formSlotCount;
-    }
-
-    try {
-      if (editingId) {
-        await api.put(`/v2/fixtures/${editingId}`, body);
-      } else {
-        await api.post('/v2/fixtures', body);
-      }
-      resetForm();
-      fetchFixtures();
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to save fixture';
-    } finally {
-      submitting = false;
-    }
-  }
-
-  function promptDelete(id: string) {
-    const target = fixtures.find((f) => f.id === id);
-    deleteTarget = { id, name: target?.name || '' };
-  }
-
-  async function handleDelete(id: string) {
-    error = null;
-    try {
-      await api.delete(`/v2/fixtures/${id}`);
-      if (selectedFixture?.id === id) selectedFixture = null;
-      fetchFixtures();
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to delete fixture';
-    }
-  }
 </script>
 
 <svelte:head>
@@ -246,154 +177,139 @@
 </svelte:head>
 
 <div class="animate-fade-in">
-  <div class="mb-6">
-    <PageHeader
-      title="Fixtures"
-      description="Manage test fixtures, slot assignments, and fixture designs."
-    >
-      {#snippet actions()}
-        {#if canManage && !showForm && !selectedFixture && activeTab === 'fixtures'}
-          <button
-            onclick={() => { resetForm(); showForm = true; }}
-            class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-          >
-            <Plus size={16} />
-            Create Fixture
+  <PageHeader title="Fixtures" description="Physical test stations and MTIB assignments.">
+    {#snippet actions()}
+      {#if canManage}
+        <button
+          onclick={() => showCreate = !showCreate}
+          class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+        >
+          {#if showCreate}Cancel{:else}<Plus size={16} /> New Fixture{/if}
+        </button>
+      {/if}
+    {/snippet}
+  </PageHeader>
+
+  <ErrorAlert message={error} />
+
+  <!-- Create form -->
+  {#if showCreate}
+    <form onsubmit={handleCreate} class="mb-6 card card-sm space-y-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <label class="block">
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Name</span>
+          <input type="text" required bind:value={formName} placeholder="Alpha B0 Bench 1" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary" />
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Product</span>
+          <Select bind:value={formProductId} placeholder="Select product" options={products.map(p => ({ value: p.id, label: p.name }))} />
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Board Revision</span>
+          <Select bind:value={formBoardRevisionId} placeholder="Select revision" options={boardRevisions.map(r => ({ value: r.id, label: r.label }))} />
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Fixture Design</span>
+          <Select bind:value={formDesignId} placeholder="Select design (required)" options={designOptions} />
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-2xs font-medium text-text-tertiary">Type</span>
+          <Select bind:value={formType} options={[{ value: 'VALIDATION', label: 'Validation' }, { value: 'MANUFACTURING', label: 'Manufacturing' }]} />
+        </label>
+        <div class="flex items-end">
+          <button type="submit" disabled={submitting || !formDesignId} class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50">
+            {submitting ? 'Creating...' : 'Create'}
           </button>
-        {/if}
-      {/snippet}
-    </PageHeader>
+        </div>
+      </div>
+    </form>
+  {/if}
+
+  <!-- Filters -->
+  <div class="mb-4 flex flex-wrap items-center gap-3">
+    <div class="relative flex-1 min-w-[200px] max-w-sm">
+      <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+      <input
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Search fixtures..."
+        class="w-full rounded-lg border border-border bg-surface-0 pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+      />
+    </div>
+    <Select bind:value={filterProduct} placeholder="All Products" options={[{ value: '', label: 'All Products' }, ...products.map(p => ({ value: p.id, label: p.name }))]} class="w-40" />
+    <Select bind:value={filterType} placeholder="All Types" options={[{ value: '', label: 'All Types' }, { value: 'VALIDATION', label: 'Validation' }, { value: 'MANUFACTURING', label: 'Manufacturing' }]} class="w-40" />
   </div>
 
-  {#if !selectedFixture}
-    <div class="mb-6">
-      <Tabs {tabs} bind:activeTab size="sm" />
+  <!-- Fixture list -->
+  {#if loading}
+    <LoadingState message="Loading fixtures..." />
+  {:else if filtered.length === 0}
+    <div class="rounded-xl border border-dashed border-border bg-surface-1 p-12 text-center">
+      <Wrench size={32} class="mx-auto mb-3 text-text-tertiary opacity-30" />
+      <p class="text-sm text-text-secondary">
+        {fixtures.length === 0 ? 'No fixtures registered' : 'No fixtures match your filters'}
+      </p>
+    </div>
+  {:else}
+    <div class="rounded-lg border border-border overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-border bg-surface-0/50">
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Name</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Product</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Type</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Design</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Slots</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Health</th>
+            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Revision</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-border-subtle">
+          {#each filtered as fixture}
+            {@const health = healthIcon(fixture)}
+            <tr
+              class="hover:bg-surface-0/50 cursor-pointer transition-colors"
+              onclick={() => fetchDetail(fixture.id)}
+            >
+              <td class="px-4 py-2.5">
+                <span class="font-medium text-text-primary">{fixture.name}</span>
+              </td>
+              <td class="px-4 py-2.5 text-text-secondary">{fixture.productName || '—'}</td>
+              <td class="px-4 py-2.5">
+                <StatusBadge status={fixture.type} />
+              </td>
+              <td class="px-4 py-2.5 text-2xs text-text-tertiary">
+                {fixture.design?.name || '—'}
+              </td>
+              <td class="px-4 py-2.5">
+                <span class="font-mono text-text-secondary">{slotSummary(fixture)}</span>
+                <span class="text-2xs text-text-tertiary ml-1">assigned</span>
+              </td>
+              <td class="px-4 py-2.5">
+                <svelte:component this={health.icon} size={14} class={health.color} />
+              </td>
+              <td class="px-4 py-2.5 text-2xs text-text-tertiary">
+                {fixture.boardRevision?.version || '—'}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     </div>
   {/if}
 
-  {#if loading && activeTab === 'fixtures'}
-    <LoadingState message="Loading fixtures..." />
-  {:else if selectedFixture}
-    <FixtureDetail
-      fixture={selectedFixture}
-      {canManage}
-      onBack={() => { selectedFixture = null; fetchFixtures(); }}
-      onRefresh={() => fetchDetail(selectedFixture!.id)}
-    />
-  {:else if activeTab === 'fixtures'}
-    <ErrorAlert message={error} />
-
-    {#if showForm && canManage}
-      <FormCard title={editingId ? 'Edit fixture' : 'New fixture'} onClose={resetForm}>
-        <form onsubmit={handleSubmit}>
-          <div class="mb-3 grid grid-cols-2 gap-3">
-            <label>
-              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Name</span>
-              <input
-                type="text"
-                required
-                bind:value={formName}
-                placeholder="e.g. MFG-Fixture-01"
-                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-              />
-            </label>
-            <Select
-              bind:value={formProductId}
-              label="Product"
-              placeholder="Select product..."
-              options={products.map(p => ({ value: p.id, label: p.name }))}
-              required
-            />
-            <Select
-              bind:value={formBoardRevisionId}
-              label="Board Revision"
-              placeholder={formProductId ? 'Select board revision...' : 'Select product first'}
-              options={boardRevisions.map(r => ({ value: r.id, label: r.label }))}
-              disabled={!formProductId}
-            />
-            <Select
-              bind:value={formDesignId}
-              label="Fixture Design"
-              placeholder={formBoardRevisionId ? 'Select design...' : 'Select board revision first'}
-              options={designOptions}
-              disabled={!formBoardRevisionId}
-            />
-            <Select
-              bind:value={formType}
-              label="Type"
-              options={[
-                { value: 'MANUFACTURING', label: 'Manufacturing' },
-                { value: 'VALIDATION', label: 'Validation' },
-              ]}
-            />
-            <label>
-              <span class="mb-1 block text-2xs font-medium text-text-tertiary">Description</span>
-              <input
-                type="text"
-                bind:value={formDescription}
-                placeholder="Optional description"
-                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-              />
-            </label>
-            {#if !editingId}
-              <label>
-                <span class="mb-1 block text-2xs font-medium text-text-tertiary">Initial Slots</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="32"
-                  bind:value={formSlotCount}
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
-                />
-              </label>
-            {/if}
-          </div>
-          <div class="flex gap-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-            >
-              <Check size={16} />
-              {submitting ? 'Saving...' : editingId ? 'Save changes' : 'Create'}
-            </button>
-            <button
-              type="button"
-              onclick={resetForm}
-              class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </FormCard>
-    {/if}
-
-    <!-- Grid -->
-    {#if fixtures.length === 0}
-      <EmptyState message="No fixtures yet" />
-    {:else}
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {#each fixtures as f (f.id)}
-          <FixtureCard
-            fixture={f}
-            {canManage}
-            onEdit={startEdit}
-            onDelete={promptDelete}
-            onSelect={(fixture) => fetchDetail(fixture.id)}
-          />
-        {/each}
+  <!-- Detail panel -->
+  {#if selectedFixture}
+    <div class="fixed inset-0 z-50 flex">
+      <button onclick={() => selectedFixture = null} class="absolute inset-0 bg-black/30"></button>
+      <div class="relative ml-auto w-full max-w-2xl bg-surface-1 border-l border-border overflow-y-auto p-6">
+        <button onclick={() => selectedFixture = null} class="absolute top-4 right-4 text-text-tertiary hover:text-text-primary">✕</button>
+        <FixtureDetail
+          fixture={selectedFixture}
+          {canManage}
+          onRefresh={() => { fetchDetail(selectedFixture!.id); fetchFixtures(); }}
+        />
       </div>
-    {/if}
-
-    <ConfirmDeleteDialog
-      open={!!deleteTarget}
-      entityType="fixture"
-      entityName={deleteTarget?.name || ''}
-      onConfirm={() => { handleDelete(deleteTarget!.id); deleteTarget = null; }}
-      onCancel={() => (deleteTarget = null)}
-    />
-  {:else if activeTab === 'designs'}
-    <FixtureDesigns {canManage} />
+    </div>
   {/if}
 </div>
