@@ -122,6 +122,11 @@ enum TestPackageStatus {
   RELEASED // Immutable — permanent version for production validation
 }
 
+enum TestPackageType {
+  VALIDATION
+  MANUFACTURING
+}
+
 enum BuildRunStatus {
   PENDING // Waiting for builds to start
   BUILDING // Builds in progress
@@ -156,11 +161,6 @@ enum FirmwareSetStatus {
   active
   deprecated
   recalled
-}
-
-enum StageType {
-  VALIDATION
-  MANUFACTURING
 }
 
 enum RecipeStatus {
@@ -230,8 +230,9 @@ model TestPackage {
   id               String            @id @default(cuid())
   productId        String
   version          String /// "1.2.0" (release) or "dev-abc12345" (development)
+  type             TestPackageType   @default(VALIDATION) /// VALIDATION or MANUFACTURING
   status           TestPackageStatus @default(DEVELOPMENT)
-  storageKey       String /// MinIO path: test-packages/{slug}/{version}/package.tar.gz
+  storageKey       String /// MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz
   frameworkVersion String /// corekinect version tests were validated against
   manifestHash     String? /// SHA-256 of concord.test.yaml for change detection
   testCount        Int               @default(0) /// Number of tests collected
@@ -241,12 +242,15 @@ model TestPackage {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdBy User?     @relation(fields: [createdById], references: [id])
-  sessions  Session[]
+  product               Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdBy             User?                  @relation(fields: [createdById], references: [id])
+  sessions              Session[]
+  manufacturingSessions ManufacturingSession[] @relation("ManufacturingTestPackage")
+  fixtureDesigns        FixtureDesign[]
 
-  @@unique([productId, version])
+  @@unique([productId, version, type])
   @@index([productId, status])
+  @@index([productId, type, status])
   @@index([createdById])
   @@map("test_packages")
 }
@@ -401,17 +405,16 @@ model FirmwareBuild {
 //
 // =============================================================================
 
-/// Configuration for a validation or manufacturing stage within a product.
+/// Configuration for a single validation stage within a product.
 /// Thin config: which revision, which branch, which signing key.
 /// Test config (directories, markers, timeouts) lives in the test repo itself.
 /// Build recipes are convention-driven via StageBuildDef (stage_builds.py).
 model ProductStageConfig {
-  id        String    @id @default(cuid())
+  id        String  @id @default(cuid())
   productId String
-  type      StageType @default(VALIDATION) /// VALIDATION or MANUFACTURING
-  stage     Int /// Order within type: 1-5 for validation, 1 for manufacturing
-  name      String /// Display name: "Smoke", "Driver", ..., "Manufacturing"
-  enabled   Boolean   @default(false)
+  stage     Int /// 1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA
+  name      String /// Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"
+  enabled   Boolean @default(false) /// Disabled by default
 
   // Target — which hardware revision to build and test against
   boardRevisionId String? /// FK to BoardRevision (e.g., Alpha B0)
@@ -438,11 +441,9 @@ model ProductStageConfig {
   buildRuns          BuildRun[]
   queueEntries       ValidationQueueEntry[]
   buildMatrixEntries StageBuildMatrix[]
-  assetSets          AssetSet[]
 
-  @@unique([productId, type, stage, boardRevisionId])
+  @@unique([productId, stage, boardRevisionId])
   @@index([productId])
-  @@index([productId, type])
   @@map("product_stage_configs")
 }
 
@@ -558,10 +559,10 @@ model BuildRun {
   @@index([status])
   @@index([commitSha])
   @@index([stage])
-  @@map("build_runs")
+  @@map("pipeline_runs")
 }
 
-/// A single firmware build job within a build run.
+/// A single firmware build job within a pipeline.
 model BuildJob {
   id            String         @id @default(cuid())
   productId     String /// FK to Product (required)
@@ -761,23 +762,28 @@ model Device {
 ///
 /// Individual Fixture records can override specific fields via profileOverrides.
 model FixtureDesign {
-  id              String   @id @default(cuid())
-  name            String   @unique /// "alpha-fixture-v1.2"
+  id              String    @id @default(cuid())
+  name            String    @unique /// "alpha-val-fixture-v1.2"
   boardRevisionId String /// FK — which board revision this design targets
+  type            StageType @default(VALIDATION) /// VALIDATION or MANUFACTURING
   revision        String /// "1.2" — fixture hardware revision (NOT board revision)
   capabilities    String[] /// ["button", "peltier", "charger_relay"]
-  profileTemplate Json /// Default fixture profile JSON (passed to test runner, not interpreted by Concord)
+  slotDefinitions Json? /// Slot hardware layout from fixture.yaml [{index, label, jlink_app_serial, ...}]
+  profileTemplate Json /// Default fixture profile JSON (passed to test runner)
+  testPackageId   String? /// Which test package upload created/updated this design
   schematicUrl    String? /// Link to schematic PDF/CAD files
   bomUrl          String? /// Link to BOM spreadsheet
   assemblyGuide   String? /// Link to assembly instructions
-  notes           String? /// Build notes, known issues, changelog
+  notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id])
+  testPackage   TestPackage?  @relation(fields: [testPackageId], references: [id], onDelete: SetNull)
   fixtures      Fixture[]
 
   @@index([boardRevisionId])
+  @@index([boardRevisionId, type])
   @@map("fixture_designs")
 }
 
@@ -1300,7 +1306,6 @@ model AssetSet {
   source          AssetSetSource /// How the assets entered the system
   buildRunId      String?        @unique /// 1:1 with BuildRun (if from build service)
   externalBuildId String? /// External CI build ID (TeamCity, Jenkins)
-  stageConfigId   String? /// FK to ProductStageConfig (links assets to a specific stage)
   commitSha       String?
   branch          String?
   recipeVersionId String?
@@ -1312,18 +1317,16 @@ model AssetSet {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  product       Product              @relation(fields: [productId], references: [id])
-  boardRevision BoardRevision?       @relation(fields: [boardRevisionId], references: [id])
-  buildRun      BuildRun?            @relation(fields: [buildRunId], references: [id])
-  stageConfig   ProductStageConfig?  @relation(fields: [stageConfigId], references: [id])
-  recipeVersion RecipeVersion?       @relation(fields: [recipeVersionId], references: [id])
-  createdBy     User?                @relation(fields: [createdById], references: [id])
+  product       Product        @relation(fields: [productId], references: [id])
+  boardRevision BoardRevision? @relation(fields: [boardRevisionId], references: [id])
+  buildRun      BuildRun?      @relation(fields: [buildRunId], references: [id])
+  recipeVersion RecipeVersion? @relation(fields: [recipeVersionId], references: [id])
+  createdBy     User?          @relation(fields: [createdById], references: [id])
   assets        Asset[]
   sessions      Session[]
 
   @@index([productId, stage, status])
   @@index([productId, version])
-  @@index([stageConfigId, status])
   @@map("asset_sets")
 }
 
@@ -1405,28 +1408,31 @@ model ManufacturingConfig {
 /// An active or completed manufacturing session on a fixture.
 /// Tracks operator, fixture lock, and aggregate panel/unit counts.
 model ManufacturingSession {
-  id          String                     @id @default(cuid())
-  productId   String
-  fixtureId   String
-  status      ManufacturingSessionStatus @default(ACTIVE)
-  operatorId  String
-  panelCount  Int                        @default(0)
-  passedCount Int                        @default(0)
-  failedCount Int                        @default(0)
-  config      Json?
-  startedAt   DateTime                   @default(now())
-  endedAt     DateTime?
-  createdAt   DateTime                   @default(now())
-  updatedAt   DateTime                   @updatedAt
+  id            String                     @id @default(cuid())
+  productId     String
+  fixtureId     String
+  status        ManufacturingSessionStatus @default(ACTIVE)
+  operatorId    String
+  testPackageId String?
+  panelCount    Int                        @default(0)
+  passedCount   Int                        @default(0)
+  failedCount   Int                        @default(0)
+  config        Json?
+  startedAt     DateTime                   @default(now())
+  endedAt       DateTime?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
 
-  product  Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
-  fixture  Fixture              @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
-  operator User                 @relation("ManufacturingOperator", fields: [operatorId], references: [id], onDelete: Restrict)
-  panels   ManufacturingPanel[]
+  product     Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  fixture     Fixture              @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
+  operator    User                 @relation("ManufacturingOperator", fields: [operatorId], references: [id], onDelete: Restrict)
+  testPackage TestPackage?         @relation("ManufacturingTestPackage", fields: [testPackageId], references: [id], onDelete: SetNull)
+  panels      ManufacturingPanel[]
 
   @@index([productId, status])
   @@index([fixtureId])
   @@index([operatorId])
+  @@index([testPackageId])
   @@map("manufacturing_sessions")
 }
 
