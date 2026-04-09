@@ -339,13 +339,40 @@ def create_fixture():
     if station_id:
         create_data["stationId"] = station_id
     design_id = getattr(data, "designId", None)
+    design = None
     if design_id:
+        design = db.fixturedesign.find_unique(where={"id": design_id})
+        if not design:
+            return not_found("Fixture design not found")
         create_data["designId"] = design_id
+        # Derive type and boardRevisionId from design if not explicitly set
+        if not create_data.get("boardRevisionId") and design.boardRevisionId:
+            create_data["boardRevisionId"] = design.boardRevisionId
+        if hasattr(design, "type") and design.type:
+            create_data["type"] = design.type
+
     if data.metadata is not None:
         create_data["metadata"] = Json(data.metadata)
 
-    # Create initial slots if provided
-    if data.slots:
+    # Auto-create slots from design's slotDefinitions, or from manual slots
+    slot_defs = None
+    if design and hasattr(design, "slotDefinitions") and design.slotDefinitions:
+        slot_defs = design.slotDefinitions if isinstance(design.slotDefinitions, list) else []
+    if slot_defs:
+        create_data["slots"] = {
+            "create": [
+                {
+                    "slotIndex": s.get("index", i),
+                    "label": s.get("label"),
+                    "jlinkAppSerial": s.get("jlink_app_serial"),
+                    "jlinkCommsSerial": s.get("jlink_comms_serial"),
+                    "uartAppPath": s.get("uart_app_path"),
+                    "uartCommsPath": s.get("uart_comms_path"),
+                }
+                for i, s in enumerate(slot_defs)
+            ]
+        }
+    elif data.slots:
         create_data["slots"] = {
             "create": [
                 {

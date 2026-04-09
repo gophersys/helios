@@ -27,4 +27,4 @@ Build results appear in the builds list immediately. From there:
 
 - **Logs** show the full compilation output — useful for diagnosing toolchain or overlay errors
 - **Artifacts** are downloadable hex and CFW files, ready for validation or J-Link flashing
-- **Validation** can be triggered directly against a successful build, pushing the firmware into the five-stage pipeline
+- **Validation** can be triggered directly against a successful build, pushing the firmware into the five-stage build run

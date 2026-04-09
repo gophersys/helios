@@ -1,15 +1,13 @@
-"""Alpha B0 manufacturing seed — fixture designs, fixtures, and stage configs.
+"""Alpha B0 manufacturing seed — fixture designs, fixtures, and stage config.
 
 Manufacturing fixtures have 4-6 MTIBs per fixture (multi-DUT parallel testing).
-3 manufacturing stages: Electrical, Flash, POST.
+Single manufacturing stage with type=MANUFACTURING.
 """
 
 from database import Json
 
 
 # ── Fixture profile template ─────────────────────────────────
-# Manufacturing profile is similar to validation but optimized for throughput.
-# All DUT positions share the same hardware config.
 
 ALPHA_B0_MFG_PROFILE = {
     "station_id": None,
@@ -35,19 +33,12 @@ ALPHA_B0_MFG_PROFILE = {
     "ppg_simulator": None,
 }
 
-# ── Manufacturing stages ─────────────────────────────────────
-# Manufacturing uses different stages than validation.
-# Each maps to a test suite in apps/manufacturing/alpha/.
-
-MFG_STAGES = [
-    {"stage": 1, "name": "Electrical", "enabled": True, "triggerTypes": ["manual"]},
-    {"stage": 2, "name": "Flash", "enabled": True, "triggerTypes": ["manual"]},
-    {"stage": 3, "name": "POST", "enabled": True, "triggerTypes": ["manual"]},
+MFG_SLOT_DEFS = [
+    {"index": 0, "label": "Slot 1"},
+    {"index": 1, "label": "Slot 2"},
+    {"index": 2, "label": "Slot 3"},
+    {"index": 3, "label": "Slot 4"},
 ]
-
-# ── Fixture instances ────────────────────────────────────────
-# Manufacturing fixtures have multiple slots (one MTIB per DUT position).
-# Initially no nodes assigned — operators assign them in the UI.
 
 MFG_FIXTURES = [
     {"stationId": "mfg-fixture-01", "name": "Alpha MFG Fixture 1", "slotCount": 4},
@@ -55,7 +46,7 @@ MFG_FIXTURES = [
 
 
 def seed_manufacturing(db, product, b0_rev):
-    """Seed manufacturing fixture design, fixtures, and stage configs for Alpha B0."""
+    """Seed manufacturing fixture design, fixtures, and stage config for Alpha B0."""
     print("\n=== Alpha B0: Manufacturing ===")
 
     # ── Fixture design ──
@@ -65,14 +56,18 @@ def seed_manufacturing(db, product, b0_rev):
             "create": {
                 "name": "alpha-mfg-fixture-v1.0",
                 "boardRevisionId": b0_rev.id,
+                "type": "MANUFACTURING",
                 "revision": "1.0",
                 "capabilities": ["power", "button", "jlink"],
+                "slotDefinitions": Json(MFG_SLOT_DEFS),
                 "profileTemplate": Json(ALPHA_B0_MFG_PROFILE),
                 "notes": "Alpha B0 manufacturing fixture. 4-slot parallel testing panel.",
             },
             "update": {
+                "type": "MANUFACTURING",
                 "profileTemplate": Json(ALPHA_B0_MFG_PROFILE),
                 "capabilities": ["power", "button", "jlink"],
+                "slotDefinitions": Json(MFG_SLOT_DEFS),
             },
         },
     )
@@ -99,7 +94,6 @@ def seed_manufacturing(db, product, b0_rev):
             },
         )
 
-        # Create empty slots (nodes assigned later by operators)
         for i in range(fx["slotCount"]):
             db.fixtureslot.upsert(
                 where={"fixtureId_slotIndex": {"fixtureId": fixture.id, "slotIndex": i}},
@@ -114,30 +108,30 @@ def seed_manufacturing(db, product, b0_rev):
             )
         print(f"  ✓ Fixture: {fx['name']} ({fx['slotCount']} slots)")
 
-    # ── Stage configs ──
-    # Manufacturing stages are product-level, not per-revision
-    # (same tests run regardless of board rev)
-    for sd in MFG_STAGES:
-        db.productstageconfig.upsert(
-            where={"productId_stage_boardRevisionId": {
+    # ── Manufacturing stage config (single stage, type=MANUFACTURING) ──
+    # Use the new StageType-aware unique constraint
+    db.productstageconfig.upsert(
+        where={"productId_type_stage_boardRevisionId": {
+            "productId": product.id,
+            "type": "MANUFACTURING",
+            "stage": 1,
+            "boardRevisionId": b0_rev.id,
+        }},
+        data={
+            "create": {
                 "productId": product.id,
-                "stage": sd["stage"] + 100,  # Offset to avoid collision with validation stages
                 "boardRevisionId": b0_rev.id,
-            }},
-            data={
-                "create": {
-                    "productId": product.id,
-                    "boardRevisionId": b0_rev.id,
-                    "stage": sd["stage"] + 100,  # 101=Electrical, 102=Flash, 103=POST
-                    "name": sd["name"],
-                    "enabled": sd["enabled"],
-                    "triggerTypes": sd["triggerTypes"],
-                },
-                "update": {
-                    "name": sd["name"],
-                    "enabled": sd["enabled"],
-                    "triggerTypes": sd["triggerTypes"],
-                },
+                "type": "MANUFACTURING",
+                "stage": 1,
+                "name": "Manufacturing",
+                "enabled": True,
+                "triggerTypes": ["manual"],
             },
-        )
-    print(f"  ✓ {len(MFG_STAGES)} manufacturing stages")
+            "update": {
+                "name": "Manufacturing",
+                "enabled": True,
+                "triggerTypes": ["manual"],
+            },
+        },
+    )
+    print("  ✓ Manufacturing stage config")

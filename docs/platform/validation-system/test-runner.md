@@ -196,12 +196,12 @@ class PreflightChecker:
         if self.config.stage != "gate":
             return True, "Not required for this stage"
 
-        pipeline_id = os.environ.get("PIPELINE_ID")
-        if not pipeline_id:
+        build_run_id = os.environ.get("PIPELINE_ID")
+        if not build_run_id:
             return False, "PIPELINE_ID not set"
 
         # TODO: Verify pipeline has successful builds
-        return True, f"Pipeline {pipeline_id[:8]}..."
+        return True, f"Pipeline {build_run_id[:8]}..."
 
     def _check_fixture(self) -> tuple[bool, str]:
         """Verify fixture profile exists and is valid."""
@@ -913,7 +913,7 @@ The manufacturing pattern is solid but validation needs three additions:
 
 Manufacturing runs **multiple devices in parallel** on multiple MTIB nodes from a single test runner pod. The operator dispatches to runners, each runner runs steps across N nodes via ThreadPoolExecutor.
 
-Validation runs **one device per K8s Job**. The pipeline controller creates a Job for each (product, stage, MTIB-node) tuple. The Job pod connects to exactly one MTIB node. No multi-node parallelism inside the pod — parallelism comes from multiple Jobs running simultaneously on different nodes.
+Validation runs **one device per K8s Job**. The build system controller creates a Job for each (product, stage, MTIB-node) tuple. The Job pod connects to exactly one MTIB node. No multi-node parallelism inside the pod — parallelism comes from multiple Jobs running simultaneously on different nodes.
 
 This simplifies the validation test runner significantly: no `usr_data[node]` lookup, no ThreadPoolExecutor fan-out, no node removal on failure. The TestContext owns one MTIB connection, one CloudClient, one fixture profile.
 
@@ -1535,7 +1535,7 @@ The fixture profile JSON needs to reach the test pod. Options:
 3. **Environment variable**: Injected as JSON string. Works for small profiles.
 4. **MinIO artifact**: Downloaded at startup. Overkill for config.
 
-**Recommendation**: Option 2 (Concord DB). The fixture profile is a property of the MTIB node, already modeled in Prisma (`Node` model). The pipeline controller queries the profile when creating the K8s Job and injects it as a mounted JSON file. This keeps profiles centralized and editable via the Concord UI.
+**Recommendation**: Option 2 (Concord DB). The fixture profile is a property of the MTIB node, already modeled in Prisma (`Node` model). The build system controller queries the profile when creating the K8s Job and injects it as a mounted JSON file. This keeps profiles centralized and editable via the Concord UI.
 
 ### 11.6 UartDemuxer: Prefix-Based or Stream-Based?
 

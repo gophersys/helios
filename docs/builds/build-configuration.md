@@ -24,7 +24,7 @@ Register recipes in Concord through the product's firmware settings. The build s
 
 ## Stage Configs
 
-Stages control which firmware gets built and tested at each step of the validation pipeline. Configure them in **Products > Settings > Stages**:
+Stages control which firmware gets built and tested at each step of the validation flow. Configure them in **Products > Settings > Stages**:
 
 | Stage | Firmware Built | Purpose |
 |-------|---------------|---------|
@@ -36,7 +36,7 @@ Stages control which firmware gets built and tested at each step of the validati
 
 ## CI Pipeline
 
-The automated pipeline runs on every qualifying commit:
+The automated build runs on every qualifying commit:
 
 1. **Git poller** detects new commits on watched branches
 2. **Build service** picks up the job and compiles against the board target

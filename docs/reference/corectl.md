@@ -3,7 +3,7 @@ min_role: DEVELOPER
 ---
 # corectl CLI
 
-Command-line interface for Concord. Useful for scripting, CI pipelines, and quick lookups without opening the UI.
+Command-line interface for Concord. Useful for scripting, CI builds, and quick lookups without opening the UI.
 
 ## Installation
 

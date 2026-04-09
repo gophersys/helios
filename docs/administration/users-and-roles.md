@@ -60,7 +60,7 @@ curl -X POST https://concord.local/v2/products/<product-id>/access \
 
 ## API Keys
 
-API keys let CI pipelines and scripts authenticate without OAuth. They are scoped to a specific purpose and expire after 24 hours by default.
+API keys let CI builds and scripts authenticate without OAuth. They are scoped to a specific purpose and expire after 24 hours by default.
 
 ```bash
 curl -X POST https://concord.local/v2/api-keys \

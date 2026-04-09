@@ -43,11 +43,11 @@ ALPHA_B0_VAL_PROFILE = {
 # ── Validation stages ────────────────────────────────────────
 
 VALIDATION_STAGES = [
-    {"stage": 1, "name": "Smoke", "enabled": False, "triggerTypes": ["pr_push", "manual"]},
-    {"stage": 2, "name": "Driver", "enabled": False, "triggerTypes": ["manual"]},
-    {"stage": 3, "name": "Integration", "enabled": False, "triggerTypes": ["manual"]},
-    {"stage": 4, "name": "Regression", "enabled": False, "triggerTypes": ["schedule", "manual"]},
-    {"stage": 5, "name": "FUOTA", "enabled": True, "watchBranch": "concord-main", "triggerTypes": ["pr_push", "pr_merge", "manual"]},
+    {"type": "VALIDATION", "stage": 1, "name": "Smoke", "enabled": False, "triggerTypes": ["pr_push", "manual"]},
+    {"type": "VALIDATION", "stage": 2, "name": "Driver", "enabled": False, "triggerTypes": ["manual"]},
+    {"type": "VALIDATION", "stage": 3, "name": "Integration", "enabled": False, "triggerTypes": ["manual"]},
+    {"type": "VALIDATION", "stage": 4, "name": "Regression", "enabled": False, "triggerTypes": ["schedule", "manual"]},
+    {"type": "VALIDATION", "stage": 5, "name": "FUOTA", "enabled": True, "watchBranch": "concord-main", "triggerTypes": ["pr_push", "pr_merge", "manual"]},
 ]
 
 # ── Fixture instances ────────────────────────────────────────
@@ -74,14 +74,18 @@ def seed_validation(db, product, b0_rev):
             "create": {
                 "name": "alpha-val-fixture-v1.2",
                 "boardRevisionId": b0_rev.id,
+                "type": "VALIDATION",
                 "revision": "1.2",
                 "capabilities": ["power", "button", "peltier", "charger_relay"],
+                "slotDefinitions": Json([{"index": 0, "label": "DUT"}]),
                 "profileTemplate": Json(ALPHA_B0_VAL_PROFILE),
                 "notes": "REV 1.2 MTIB carrier for Alpha B0 validation. Single-DUT bench.",
             },
             "update": {
+                "type": "VALIDATION",
                 "profileTemplate": Json(ALPHA_B0_VAL_PROFILE),
                 "capabilities": ["power", "button", "peltier", "charger_relay"],
+                "slotDefinitions": Json([{"index": 0, "label": "DUT"}]),
             },
         },
     )
@@ -130,11 +134,11 @@ def seed_validation(db, product, b0_rev):
         print(f"  ✓ Fixture: {fx['name']} ({len(fx['slots'])} slots)")
 
     # ── Stage configs + build matrix ──
-    # Clear existing (idempotent re-seed)
-    existing = db.productstageconfig.find_many(where={"productId": product.id})
+    # Clear existing validation configs (idempotent re-seed, preserves manufacturing)
+    existing = db.productstageconfig.find_many(where={"productId": product.id, "type": "VALIDATION"})
     for ec in existing:
         db.stagebuildmatrix.delete_many(where={"stageConfigId": ec.id})
-    db.productstageconfig.delete_many(where={"productId": product.id})
+        db.productstageconfig.delete(where={"id": ec.id})
 
     try:
         from corekinect.stages import Stage, get_stage_build_defs

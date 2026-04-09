@@ -3,7 +3,7 @@ min_role: ADMIN
 ---
 # API Keys
 
-API keys give scripts, CI pipelines, and CLI tools authenticated access to Concord without going through OAuth. Each key is tied to the user who created it and inherits that user's permission set.
+API keys give scripts, CI builds, and CLI tools authenticated access to Concord without going through OAuth. Each key is tied to the user who created it and inherits that user's permission set.
 
 ## Creating a Key
 
@@ -35,7 +35,7 @@ Click **Revoke** (or **Delete**) next to any key in the list. The key stops work
 Revoke keys when:
 
 - The secret was exposed (leaked in logs, committed to a repo)
-- The CI pipeline or script no longer needs access
+- The CI build or script no longer needs access
 - An employee with API keys leaves the team
 
 ## Multiple Keys

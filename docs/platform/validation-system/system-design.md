@@ -139,7 +139,7 @@ annotations:
 
 ### What PostgreSQL Stores (Historical Only)
 
-PostgreSQL is populated **asynchronously by the pipeline controller** for:
+PostgreSQL is populated **asynchronously by the build system controller** for:
 - Historical pipeline records (for querying past runs)
 - Test results with structured data (for dashboard charts, trends)
 - Audit logs (who triggered what, when)
@@ -152,7 +152,7 @@ The HTTP API reads **live state from K8s** and **historical data from PostgreSQL
 1. **HTTP API is truly stateless** - can be restarted/upgraded without losing pipeline state
 2. **K8s Job controller handles retries and completions** natively
 3. **kubectl** can be used to inspect/debug pipelines directly
-4. **No state sync issues** between K8s and PostgreSQL for active pipelines
+4. **No state sync issues** between K8s and PostgreSQL for active build runs
 5. **Pipeline controller crash recovery** - just re-reads current K8s state on startup
 
 ---
@@ -186,7 +186,7 @@ POST /v2/validation/pipelines/trigger
 
 GET /v2/validation/pipelines
   Query: status, product, repo, page, limit
-  Source: K8s API for active pipelines, PostgreSQL for completed/historical
+  Source: K8s API for active build runs, PostgreSQL for completed/historical
   Returns: Paginated pipeline list with stage statuses
 
 GET /v2/validation/pipelines/{id}
@@ -202,7 +202,7 @@ POST /v2/validation/pipelines/{id}/retry
   K8s handles scheduling
 ```
 
-**The API is stateless** - it creates K8s Jobs with the right labels and reads K8s state via the K8s API. It does NOT manage pipeline state in PostgreSQL. The pipeline controller asynchronously syncs completed results to PostgreSQL for historical querying.
+**The API is stateless** - it creates K8s Jobs with the right labels and reads K8s state via the K8s API. It does NOT manage pipeline state in PostgreSQL. The build system controller asynchronously syncs completed results to PostgreSQL for historical querying.
 
 ### 2. Pipeline Controller (K8s Job Watcher)
 
@@ -214,7 +214,7 @@ pipeline-controller pod (Deployment, 1 replica)
   │   └── Filter: labels matching corekinect.com/pipeline-id
   │
   ├── On Job completion (succeeded):
-  │   ├── Read K8s: list all Jobs for this pipeline-id + stage
+  │   ├── Read K8s: list all Jobs for this build run-id + stage
   │   ├── Derive stage status: all succeeded? any active? any failed?
   │   ├── If stage complete + all passed:
   │   │   ├── Create K8s Jobs for next stage (with proper labels)
@@ -224,7 +224,7 @@ pipeline-controller pod (Deployment, 1 replica)
   │   └── If not complete → no action (wait for more events)
   │
   ├── On Job failure:
-  │   ├── Delete remaining pending Jobs for this pipeline (kubectl delete)
+  │   ├── Delete remaining pending Jobs for this build run (kubectl delete)
   │   ├── Release MTIB node annotations
   │   ├── Report Bitbucket commit status (pipeline = FAILURE)
   │   └── Async: write failure details to PostgreSQL
@@ -254,7 +254,7 @@ A long-running pod that handles firmware compilation. Uses the same container im
 build-service pod (Deployment, 1 replica per container image)
   ├── Container: from pipeline config (e.g., ncs-fw-dev:2.4.2)
   │   Each firmware project may use a different container image.
-  │   The build service runs the image specified in the pipeline config.
+  │   The build service runs the image specified in the build system config.
   │
   ├── Runs on: agent nodes (nodeSelector: role=agent)
   │
@@ -278,7 +278,7 @@ build-service pod (Deployment, 1 replica per container image)
   │   5. Return artifact paths
   │
   ├── Build flow (dependent/cross-repo build):
-  │   When a DRIVER repo changes, the pipeline needs to build FIRMWARE repo
+  │   When a DRIVER repo changes, the build system needs to build FIRMWARE repo
   │   tests with the new driver version. The build service handles this:
   │   1. git clone FIRMWARE repo (e.g., alpha_fw) at its HEAD or specified commit
   │   2. Apply submodule overrides: point the driver submodule to the triggered commit
@@ -289,7 +289,7 @@ build-service pod (Deployment, 1 replica per container image)
   │   4. Execute the named build (e.g., "test_native" for stub-based app tests)
   │   5. Upload artifacts to MinIO
   │   This is how Stage 1 app-level stub tests work:
-  │   - Driver repo push triggers pipeline
+  │   - Driver repo push triggers build run
   │   - Build service builds alpha_fw/tests/app/ with new driver version
   │   - Stage 1 Job runs those tests on native_sim
   │
@@ -337,7 +337,7 @@ builds:
 
   # Twister test firmware for hardware testing
   # NOTE: Firmware repos CAN list boards because they know their own board.
-  # Driver repos do NOT — the pipeline provides ${BOARD} from SubmoduleMapping.
+  # Driver repos do NOT — the build system provides ${BOARD} from SubmoduleMapping.
   test_device:
     boards: [alpha_b0/nrf52840]
     steps:
@@ -376,7 +376,7 @@ builds:
       - twister-out/board_features.json
 ```
 
-**Why no `boards:` field in the driver's build manifest**: The driver repo does NOT know which products use it. That mapping lives in `SubmoduleMapping` (PostgreSQL). When the pipeline triggers, the HTTP API looks up SubmoduleMapping and issues separate `BuildRequest` calls for each product/board/chip combination. The build manifest just defines *how* to build — the pipeline decides *for what*.
+**Why no `boards:` field in the driver's build manifest**: The driver repo does NOT know which products use it. That mapping lives in `SubmoduleMapping` (PostgreSQL). When the build system triggers, the HTTP API looks up SubmoduleMapping and issues separate `BuildRequest` calls for each product/board/chip combination. The build manifest just defines *how* to build — the build system decides *for what*.
 
 ```yaml
 # Example: A repo with a custom/ugly build process
@@ -400,9 +400,9 @@ builds:
 
 **Why this works**:
 - **Repo-specific build logic stays in the repo**: If alpha_fw has a `build_all.sh` that does dual-MCU orchestration, that script is called from the manifest. The build service doesn't need to know about dual-MCU builds.
-- **New repos are self-onboarding**: Add a `.concord/build.yaml`, configure the webhook, and the pipeline works.
+- **New repos are self-onboarding**: Add a `.concord/build.yaml`, configure the webhook, and the build system works.
 - **Build commands can be ugly**: The manifest is just a list of shell commands. Whatever your build process needs, it can do.
-- **`${BOARD}` and `${CHIP}` variable expansion**: For per-board builds, the build service substitutes `${BOARD}` and `${CHIP}` from the `BuildRequest` parameters. For driver repos, these come from SubmoduleMapping (the pipeline decides). For firmware repos, `${BOARD}` comes from the manifest's `boards` list (the firmware repo knows its own board).
+- **`${BOARD}` and `${CHIP}` variable expansion**: For per-board builds, the build service substitutes `${BOARD}` and `${CHIP}` from the `BuildRequest` parameters. For driver repos, these come from SubmoduleMapping (the build system decides). For firmware repos, `${BOARD}` comes from the manifest's `boards` list (the firmware repo knows its own board).
 - **Fallback to DB config**: If a repo doesn't have `.concord/build.yaml` (e.g., during onboarding), the build config from `ValidationPipelineConfig` in PostgreSQL is used. This lets admins configure builds via the API/UI.
 
 **Key optimization**: ccache PVC keeps compilation cache warm. First build is slow (5-15 min), subsequent builds with cache are fast (30s-2min for incremental changes).
@@ -444,11 +444,11 @@ The HTTP API sends build requests to the build service via gRPC:
 1. HTTP API receives webhook → resolves affected products and builds needed
 2. For each build: calls BuildService.Build(BuildRequest) → gets build_id
 3. Stores build_ids in a K8s ConfigMap:
-   Name: pipeline-builds-{pipeline_id}
+   Name: pipeline-builds-{build_run_id}
    Data: { "builds": [{ "build_id": "...", "build_name": "...", "status": "QUEUED" }] }
-4. Returns pipeline_id + build_ids to the webhook caller
+4. Returns build_run_id + build_ids to the webhook caller
 
-The pipeline controller picks up from here:
+The build system controller picks up from here:
 1. Watches ConfigMaps with label pipeline-id={id}
 2. Polls BuildService.GetBuildStatus(build_id) every 10s for each pending build
    (polling, not streaming, because builds are infrequent and short)
@@ -463,7 +463,7 @@ is sufficient — builds take 1-15 minutes, a 10s check interval is negligible.
 #### Pipeline Controller High Availability
 
 ```
-The pipeline controller is a single-replica Deployment. HA is achieved through
+The build system controller is a single-replica Deployment. HA is achieved through
 crash recovery, not multi-replica consensus:
 
 - Single replica: avoids split-brain issues with K8s watchers.
@@ -472,7 +472,7 @@ crash recovery, not multi-replica consensus:
   (Jobs, Node annotations, ConfigMaps). No state is lost.
 - Startup sequence:
   1. List all nodes with corekinect.com/current-job annotation → rebuild MTIB pool state
-  2. List all Jobs with corekinect.com/pipeline-id label → rebuild pipeline states
+  2. List all Jobs with corekinect.com/pipeline-id label → rebuild system states
   3. Cross-reference: clear stale annotations (node annotated but no matching Job)
   4. List ConfigMaps with pipeline-builds label → check for pending builds
   5. Start K8s Watch from current resourceVersion (no missed events)
@@ -681,7 +681,7 @@ env:
   # Fixture control
   - FIXTURE_PROFILE       # JSON key in the Node model's fixtureProfile field.
                           # Maps abstract fixture actions (charger.connect, button.press)
-                          # to physical MTIB pin assignments. Injected by the pipeline
+                          # to physical MTIB pin assignments. Injected by the build system
                           # controller from the Node record at Job creation time.
 
 flow:
@@ -1131,7 +1131,7 @@ metadata:
 
 Test pods run on agent nodes and connect to MTIB over the network. The challenge: matching test jobs to available MTIB nodes that have the right hardware attached — and with two fixture types (dev-kit and product-board), a simple per-product queue is no longer sufficient.
 
-**Design principle**: The pipeline controller does NOT pre-assign MTIBs to specific jobs. Instead, it maintains a **single global work queue** with capability-based matching. Each job declares `requires` labels (derived from the pipeline target's board name). Each MTIB node has `capabilities` labels (from the Node model in Concord). When an MTIB becomes free, the controller scans the queue for the first job whose `requires` labels are all satisfied by the node's capabilities. This is the same model as GitHub Actions runner labels — jobs find compatible runners, not the other way around.
+**Design principle**: The build system controller does NOT pre-assign MTIBs to specific jobs. Instead, it maintains a **single global work queue** with capability-based matching. Each job declares `requires` labels (derived from the build system target's board name). Each MTIB node has `capabilities` labels (from the Node model in Concord). When an MTIB becomes free, the controller scans the queue for the first job whose `requires` labels are all satisfied by the node's capabilities. This is the same model as GitHub Actions runner labels — jobs find compatible runners, not the other way around.
 
 **Why capability matching, not per-product queues**:
 - **Handles two fixture types naturally**: Dev-kit jobs require `{ fixture_type: devkit, chip: lsm6dso, bus: spi }`. Product jobs require `{ fixture_type: product, product: alpha }`. A single queue with capability matching handles both without separate queue management per fixture type.
@@ -1206,7 +1206,7 @@ flowchart TD
     assign --> release
 ```
 
-**Pipeline serialization**: A single pipeline's hardware stages run on ONE MTIB at a time per target. Stage 2 (driver HW) completes, then Stage 3 (integration) goes to back of queue. If 3 compatible MTIBs are free and 3 pipelines are queued, all 3 run concurrently. If 1 compatible MTIB and 3 pipelines, they run sequentially in FIFO order.
+**Pipeline serialization**: A single build run's hardware stages run on ONE MTIB at a time per target. Stage 2 (driver HW) completes, then Stage 3 (integration) goes to back of queue. If 3 compatible MTIBs are free and 3 pipelines are queued, all 3 run concurrently. If 1 compatible MTIB and 3 pipelines, they run sequentially in FIFO order.
 
 **Crash recovery**: On startup, controller:
 1. Lists all K8s nodes with `corekinect.com/current-job` annotations → these are busy
@@ -1214,7 +1214,7 @@ flowchart TD
 3. Lists all completed pipelines that have pending stages → these need re-queueing
 4. Rebuilds the work queue from this state
 
-**Queue persistence**: The queue itself doesn't need persistence because it can be reconstructed from K8s state. Pending items = pipelines whose current stage hasn't had Jobs created yet. The pipeline's existence (as K8s Jobs with labels) IS the queue state.
+**Queue persistence**: The queue itself doesn't need persistence because it can be reconstructed from K8s state. Pending items = pipelines whose current stage hasn't had Jobs created yet. The build system's existence (as K8s Jobs with labels) IS the queue state.
 
 #### Queue Priority and Starvation Prevention
 
@@ -1244,7 +1244,7 @@ Pipeline controller monitors K8s Job age against expected duration:
 ```
 
 **Queue depth monitoring**:
-- The pipeline controller exposes queue depth per fixture type and per capability set as metrics (for Grafana/Prometheus). Example: `queue_depth{fixture_type="devkit", chip="lsm6dso"}`, `queue_depth{fixture_type="product", product="alpha"}`.
+- The build system controller exposes queue depth per fixture type and per capability set as metrics (for Grafana/Prometheus). Example: `queue_depth{fixture_type="devkit", chip="lsm6dso"}`, `queue_depth{fixture_type="product", product="alpha"}`.
 - If queue depth for any capability group > configurable threshold (default: 5), a warning is logged. This indicates either insufficient MTIB nodes of that type or too-frequent triggers.
 
 #### Pipeline Concurrency & Supersede Policy
@@ -1257,8 +1257,8 @@ concurrency:
   supersede: true | false | "none"     # What happens when groups collide
 
 SUPERSEDE RULES:
-1. The HTTP API checks for active pipelines with the same concurrency group.
-   (Same commit is handled by deduplication — returns existing pipeline_id.)
+1. The HTTP API checks for active build runs with the same concurrency group.
+   (Same commit is handled by deduplication — returns existing build_run_id.)
    Default group is "${{ repo }}/${{ branch }}" — per-branch deduplication.
 
 2. supersede: "none" (default for repos without concurrency: block)
@@ -1266,13 +1266,13 @@ SUPERSEDE RULES:
    - WHY this is the safe default:
      - Hardware tests may be mid-execution. Cancelling a running test wastes the
        MTIB time already spent and may leave hardware in an unknown state.
-     - The FIFO queue naturally handles this: the newer pipeline's Stage 2+ Jobs
-       queue behind the older pipeline's Jobs.
+     - The FIFO queue naturally handles this: the newer build run's Stage 2+ Jobs
+       queue behind the older build run's Jobs.
      - Auto-cancellation adds complexity for minimal benefit when MTIB throughput
        is the bottleneck anyway.
 
 3. supersede: true (cancel_pending — recommended for active feature branches)
-   - Cancel any PENDING (not yet Running) Jobs from the older pipeline
+   - Cancel any PENDING (not yet Running) Jobs from the older build run
    - Let any RUNNING Jobs finish (don't interrupt hardware)
    - The older pipeline ends as CANCELLED
    - This is the "GitHub Actions concurrency cancel-in-progress" equivalent,
@@ -1285,7 +1285,7 @@ SUPERSEDE RULES:
 
 5. UI/API provides:
    - POST /v2/validation/pipelines/{id}/cancel — manual cancel at any time
-   - Pipeline list shows all active pipelines per repo, making it visible
+   - Pipeline list shows all active build runs per repo, making it visible
      when multiple pipelines are queued for the same branch
 ```
 
@@ -1296,7 +1296,7 @@ Per-commit pipelines run a fast Stage 4 subset (tests tagged `"commit"`). Long-r
 ```
 How repo-driven scheduling works:
 
-1. Schedule Reconciler (runs in the pipeline-controller)
+1. Schedule Reconciler (runs in the build system-controller)
    - On startup and periodically (every 5 min), scans all connected repos
    - Reads on.schedule entries from each repo's effective config
      (pipeline.yaml + DB override merge)
@@ -1335,8 +1335,8 @@ How repo-driven scheduling works:
      endurance/FUOTA/environmental extremes execute.
    - regression: Commit-level + intermediate tests, activeDeadlineSeconds = 7200
      (2 hours), catches regressions from the day's merged commits.
-   - Deduplication: if a pipeline for the same (repo, commit) is already active,
-     the trigger API returns the existing pipeline_id (no duplicate run).
+   - Deduplication: if a build run for the same (repo, commit) is already active,
+     the trigger API returns the existing build_run_id (no duplicate run).
 
 5. Release Validation (manual, not scheduled):
    - Triggered via Concord UI or API with run_type: "release"
@@ -1350,7 +1350,7 @@ Why schedules live in the repo:
   - The team that owns the code decides how often it gets validated.
   - Adding a schedule is a code-reviewed change, not a Slack request to infra.
   - Removing a driver from a product? Remove the schedule in the same PR.
-  - New product onboarding? Add the schedule alongside the pipeline.yaml.
+  - New product onboarding? Add the schedule alongside the build system.yaml.
   - DB override still works: infra can pause schedules during maintenance
     by setting on.schedule: [] in the DB override.
 ```
@@ -1376,7 +1376,7 @@ concord/                                    # bucket
 │
 ├── validation/
 │   ├── pipelines/                          # per-pipeline artifacts
-│   │   └── {pipeline_id}/
+│   │   └── {build_run_id}/
 │   │       ├── manifest.json               # pipeline config, stages, status
 │   │       └── stages/
 │   │           ├── software/               # Stage 1 results
@@ -1435,7 +1435,7 @@ concord/                                    # bucket
 
 ```
 Pipeline artifacts:
-  - validation/pipelines/{pipeline_id}/  → retained for 90 days after pipeline completion
+  - validation/pipelines/{build_run_id}/  → retained for 90 days after pipeline completion
   - After 90 days: deleted by a K8s CronJob that queries PostgreSQL for completed
     pipelines older than retention window and removes their MinIO prefix
   - Exception: pipelines marked as "pinned" via API are retained indefinitely
@@ -1468,7 +1468,7 @@ Bucket: validation_metrics (retention: 365 days)
 
 Measurement: test_power
   Tags:
-    pipeline_id     string    "pl-abc123"
+    build_run_id     string    "pl-abc123"
     job_id          string    "job-xyz789"
     product         string    "alpha"
     board           string    "alpha_b0"
@@ -1488,7 +1488,7 @@ Measurement: test_power
 
 Measurement: pipeline_metrics
   Tags:
-    pipeline_id     string
+    build_run_id     string
     product         string
     stage           string    "software" | "driver_hw" | "integration" | "validation"
   Fields:
@@ -1530,7 +1530,7 @@ They share:
 - **MTIB V2 client** (both talk gRPC to the same MTIB server software)
 
 They do NOT share:
-- Test definitions (manufacturing tests ≠ validation pipeline stages)
+- Test definitions (manufacturing tests ≠ validation flow stages)
 - Result models (device pass/fail ≠ pipeline pass/fail)
 - Trigger mechanisms (operator action ≠ git webhook)
 - Lifecycle state machines
@@ -1619,7 +1619,7 @@ model ValidationPipelineConfig {
 //   }
 // ]
 // The testTags map determines which validation_spec.yaml groups are included
-// for each run_type. The pipeline controller reads the run_type from the trigger
+// for each run_type. The build system controller reads the run_type from the trigger
 // request and passes it as RUN_TYPE env var to the Stage 4 Job. The validation
 // runner filters groups whose tags intersect with testTags[run_type].
 //
@@ -1683,7 +1683,7 @@ model ValJobRecord {
     pipeline        ValPipelineRecord @relation(fields: [pipelineRecordId], references: [id], onDelete: Cascade)
 
     @@index([k8sJobName])
-    @@index([pipelineRecordId, stage])        // fast lookup: "all jobs for this pipeline in this stage"
+    @@index([pipelineRecordId, stage])        // fast lookup: "all jobs for this build run in this stage"
     @@index([product, stage, status])         // fast lookup: "all active driver_hw jobs for alpha"
     @@index([status, startedAt])              // for dashboard: "recent failures"
     @@map("val_job_records")
@@ -1729,7 +1729,7 @@ model Node {
     connectedProduct  String?    // which product hardware is connected
     connectedBoard    String?    // which board variant
     capabilities      Json?      // Capability labels for job matching (like GitHub Actions runner labels).
-                                 // The pipeline controller matches jobs to nodes where every key-value
+                                 // The build system controller matches jobs to nodes where every key-value
                                  // in the job's `requires` is present in the node's capabilities.
                                  //
                                  // Dev-kit fixture example:
@@ -1769,7 +1769,7 @@ model Node {
                                  //   "nfc_reader":  { "type": "nfc",              "interface": "i2c", "bus": 1 }
                                  // }
                                  // Each product/fixture has a different profile because the physical
-                                 // wiring differs. The pipeline controller injects this as FIXTURE_PROFILE
+                                 // wiring differs. The build system controller injects this as FIXTURE_PROFILE
                                  // env var when creating Stage 4 Jobs.
 
     // Note: Live MTIB assignment state (which job is using this node)
@@ -1779,7 +1779,7 @@ model Node {
 
 #### Node Capability Registration
 
-Capabilities are the labels that the pipeline controller uses to match jobs to MTIB nodes. They answer: "what kind of hardware is this node wired to?" Here's how they get set:
+Capabilities are the labels that the build system controller uses to match jobs to MTIB nodes. They answer: "what kind of hardware is this node wired to?" Here's how they get set:
 
 1. **Physical setup**: An admin physically wires the MTIB node to either a dev-kit (bare MCU + single sensor) or a product board.
 
@@ -1979,7 +1979,7 @@ PUT    /v2/nodes/{id}
 2. ADD BUILD MANIFEST
    - Create .concord/build.yaml in the repo
    - Define build steps: test_native (interface tests, native_sim) and test_device (HW tests)
-   - NOTE: test_device does NOT list boards — the pipeline provides ${BOARD} and ${CHIP}
+   - NOTE: test_device does NOT list boards — the build system provides ${BOARD} and ${CHIP}
 
 3. ADD STUB DRIVERS (optional but recommended)
    - For each chip in the group, add stubs/ directory with stub implementation
@@ -2028,7 +2028,7 @@ HTTP API: POST /v2/validation/pipelines/trigger  [STATELESS]
     ├── Resolve pipeline config: fetch .concord/pipeline.yaml from repo,
     │   merge with DB overrides (see "Concord as a Platform" section)
     ├── Deduplicate: check if pipeline for same (repo, commit, branch) exists
-    │   └── If exists and still active → return existing pipeline_id (idempotent)
+    │   └── If exists and still active → return existing build_run_id (idempotent)
     ├── Look up targets: from .concord/pipeline.yaml targets: block or SubmoduleMapping in PostgreSQL
     ├── Generate pipeline-id (UUID)
     ├── Check branch filter: does ValidationPipelineConfig.branches include this branch?
@@ -2045,7 +2045,7 @@ HTTP API: POST /v2/validation/pipelines/trigger  [STATELESS]
     ├── Store build_ids in pipeline metadata (K8s ConfigMap or annotation)
     ├── Log audit to PostgreSQL (fire-and-forget)
     ├── Report to Bitbucket: commit status = PENDING
-    └── Return 201 { pipeline_id, build_ids[] }
+    └── Return 201 { build_run_id, build_ids[] }
         (client can query GET /pipelines/{id} which reads from K8s API)
 
     ▼ (async, event-driven)
@@ -2202,13 +2202,13 @@ This tells Twister/CMake where to find CoreKinect board definitions (`current/bo
 **Key patterns**:
 - `drivers/{chip}/` — fresh, custom driver implementations. These are NOT wrappers around or forks of the existing upstream Zephyr drivers (which are stale and don't fit our architecture). Each driver uses a CoreKinect-specific compatible string (e.g., `"ck,lsm6dso"` not `"st,lsm6dso"`) and has its own DT binding in `dts/bindings/`.
 - `tests/interface/` — sensor API contract tests, run on native_sim only (via stubs). Product-agnostic.
-- `tests/{chip}/` — chip-specific ztest firmware, runs on real hardware. Product-agnostic — the test exercises the driver, not the product. The pipeline decides which boards to compile for. Includes `test_spec.yaml` with acceptance criteria from the **datasheet**, not from product specs.
+- `tests/{chip}/` — chip-specific ztest firmware, runs on real hardware. Product-agnostic — the test exercises the driver, not the product. The build system decides which boards to compile for. Includes `test_spec.yaml` with acceptance criteria from the **datasheet**, not from product specs.
 - `stubs/` — pre-configurable stub implementations for app-level testing (used by firmware repos)
 - `test_spec.yaml` — read by the concord test runner framework to evaluate power/timing acceptance criteria alongside ztest pass/fail
 - `west.yml` — standalone workspace manifest, allows building tests without being inside a firmware repo
 - `dts/bindings/` — sensor DT bindings owned by this repo, discoverable via `zephyr/module.yml`
 
-**Critical design principle — no product knowledge in driver repos**: The driver repo does NOT contain product board overlays, product-specific `platform_allow` lists, or hardcoded board names. The driver repo tests the *driver*. The pipeline configuration (`SubmoduleMapping`) knows which products use which drivers, and the build service passes the target board as a parameter. This means adding a new product that uses an existing driver requires ZERO changes in the driver repo — only a new SubmoduleMapping entry and the board definition in `ck_boards`.
+**Critical design principle — no product knowledge in driver repos**: The driver repo does NOT contain product board overlays, product-specific `platform_allow` lists, or hardcoded board names. The driver repo tests the *driver*. The build system configuration (`SubmoduleMapping`) knows which products use which drivers, and the build service passes the target board as a parameter. This means adding a new product that uses an existing driver requires ZERO changes in the driver repo — only a new SubmoduleMapping entry and the board definition in `ck_boards`.
 
 ### How `${BOARD}` Resolves to Hardware Configuration (ck_boards)
 
@@ -2496,7 +2496,7 @@ concord/                                    # monorepo
 │       │   │   ├── config_resolver.py     # merges .concord/pipeline.yaml + DB overrides
 │       │   │   ├── trigger_evaluator.py   # evaluates on.push paths/branches, filters no-op triggers
 │       │   │   ├── schedule_reconciler.py # reconciles on.schedule entries → K8s CronJobs per repo
-│       │   │   └── notification_dispatcher.py  # delivers pipeline status via Slack/email per notifications: block
+│       │   │   └── notification_dispatcher.py  # delivers build status via Slack/email per notifications: block
 │       │   └── Dockerfile
 │       │
 │       └── build-service/                 # long-running build Deployment
@@ -2508,7 +2508,7 @@ concord/                                    # monorepo
 1. A test firmware hex (pre-built by the build service)
 2. A test_spec.yaml (acceptance criteria + coverage conditions, from the driver repo)
 3. A board_features.json (DTS features extracted at build time)
-4. An MTIB endpoint (assigned by the pipeline controller)
+4. An MTIB endpoint (assigned by the build system controller)
 
 It doesn't know or care whether it's testing LSM6DSO, PAH8151, or any future driver. The firmware exercises the driver and prints ztest markers. The runner parses markers, measures power, evaluates acceptance criteria and coverage conditions, and uploads artifacts.
 
@@ -2691,7 +2691,7 @@ message BuildRequest {
     string commit = 2;             // git SHA
     string build_name = 3;         // key from .concord/build.yaml (e.g., "firmware", "test_native", "test_device")
     string board = 4;              // for per-board builds: substituted as ${BOARD} in manifest steps
-    string pipeline_id = 5;        // for tracking
+    string build_run_id = 5;        // for tracking
     map<string, string> submodule_overrides = 6;  // cross-repo: {"accel_drv": "abc123"}
                                                    // build service overrides submodule to this commit
     int32 timeout_seconds = 7;     // per-build timeout (default: 900 = 15 min)
@@ -2763,7 +2763,7 @@ DutPowerDisable() ────────────────────�
 - Error handling and timeout logic lives in the test runner, not in MTIB firmware
 - The MTIB server stays simple: it serves hardware access primitives, not test orchestration logic
 
-> The `mtib_twister_run` RPC defined in the proto can remain as a convenience for ad-hoc developer debugging (flash + run + get output in one call), but it is NOT used by the validation pipeline.
+> The `mtib_twister_run` RPC defined in the proto can remain as a convenience for ad-hoc developer debugging (flash + run + get output in one call), but it is NOT used by the validation flow.
 
 #### UART Log Noise and ztest Parsing Robustness
 
@@ -2908,7 +2908,7 @@ Body: { repo, branch, commit, changes[] }
 3. DEDUPLICATION
    - Check: is there an active pipeline with the same (repo, commit)?
      Query K8s Jobs with labels: repo={repo}, commit={commit}, status != completed
-   - If yes → return 200 { pipeline_id: existing_id, deduplicated: true }
+   - If yes → return 200 { build_run_id: existing_id, deduplicated: true }
    - This is idempotent: Bitbucket may retry webhooks on timeout
 
 4. BRANCH FILTER
@@ -2954,8 +2954,8 @@ Each repo can define its pipeline configuration as a version-controlled manifest
 version: 1
 
 # ─── Triggers ───────────────────────────────────────────────────────
-# Analogous to GitHub Actions `on:`. Defines WHEN this pipeline runs.
-# The pipeline controller evaluates these rules on every incoming event.
+# Analogous to GitHub Actions `on:`. Defines WHEN this build runs.
+# The build system controller evaluates these rules on every incoming event.
 
 on:
   push:
@@ -2992,7 +2992,7 @@ concurrency:
                                           #   "none" → run in parallel (no deduplication)
 
 # ─── Stages ─────────────────────────────────────────────────────────
-# Defines WHAT the pipeline does. Stages execute in order; each gates the next.
+# Defines WHAT the build system does. Stages execute in order; each gates the next.
 
 stages:
   - name: software
@@ -3038,7 +3038,7 @@ stages:
       release: 259200
 
 # ─── Notifications ──────────────────────────────────────────────────
-# Where to send pipeline status updates. Concord delivers these via
+# Where to send build status updates. Concord delivers these via
 # platform integrations (Slack webhook, email relay).
 
 notifications:
@@ -3051,7 +3051,7 @@ notifications:
   #   slack: "#accelerometer-ci"
 
 # ─── Artifacts ──────────────────────────────────────────────────────
-# Artifact retention and pinning policy for this repo's pipeline runs.
+# Artifact retention and pinning policy for this repo's build runs.
 
 artifacts:
   retention_days: 90                      # Days to keep pipeline artifacts (default: 90)
@@ -3059,7 +3059,7 @@ artifacts:
 
 # ─── Targets ───────────────────────────────────────────────────────
 # Defines which boards this repo's drivers are tested on and in what mode.
-# Each target becomes a separate Stage 2 job in the pipeline fan-out.
+# Each target becomes a separate Stage 2 job in the build system fan-out.
 # The controller derives `requires` labels from each target using a
 # board→capabilities registry in Concord (populated from ck_boards metadata).
 #
@@ -3150,7 +3150,7 @@ artifacts:
 ### Config Precedence: Repo-First, DB Override
 
 ```
-When a pipeline triggers for repo R:
+When a build run triggers for repo R:
 
 1. Fetch .concord/pipeline.yaml from repo R (at the triggered commit)
    → This is the BASE config.
@@ -3207,7 +3207,7 @@ The Concord dashboard provides a "Connect Repository" flow:
    d. Optionally creates a ValidationPipelineConfig DB record
       (only if the user set any overrides in the UI)
 6. USER: Adds webhook URL + secret to Bitbucket repo settings
-7. DONE: Next push to a matching branch triggers the pipeline.
+7. DONE: Next push to a matching branch triggers the build system.
 
 The reverse also works:
   - Projects → select existing project → Settings
@@ -3224,7 +3224,7 @@ Stage 3 integration tests live in firmware repos, not in the Concord monorepo. T
 ```
 Discovery flow:
 
-1. Build service builds firmware repo (alpha_fw) for a pipeline.
+1. Build service builds firmware repo (alpha_fw) for a build run.
    The .concord/build.yaml includes .concord/tests/ in the artifact bundle.
    The build service produces FOUR firmware binaries (see arch-stage4 Section 3.3):
      artifacts:
@@ -3236,7 +3236,7 @@ Discovery flow:
        - .concord/integration_spec.yaml
 
 2. Build artifacts are uploaded to MinIO:
-   validation/pipelines/{pipeline_id}/stages/build/{job_id}/
+   validation/pipelines/{build_run_id}/stages/build/{job_id}/
      ├── merged_nrf52840.hex
      ├── merged_nrf9151.hex
      ├── integration_spec.yaml
@@ -3332,12 +3332,12 @@ The validation team manages the full Stage 4 lifecycle.
 2. MinIO storage structure setup
 3. Pipeline trigger API endpoint
 4. Pipeline controller (K8s Job watcher)
-5. Basic Concord UI for pipeline status
+5. Basic Concord UI for build status
 
 ### Phase 2: Build Infrastructure
 6. Build Service gRPC protocol
 7. Build Service pod (ncs-fw-dev container + ccache)
-8. Build → MinIO artifact pipeline
+8. Build → MinIO artifact build run
 
 ### Phase 3: App-Level Testing (Stage 1)
 9. LSM6DSO stub driver for native_sim app testing
@@ -3381,7 +3381,7 @@ This phase transforms Concord from an infra-managed system into a self-service p
 35. Schedule reconciler: read `on.schedule` entries, create/update/delete K8s CronJobs per repo
 36. Concurrency engine: evaluate `concurrency.group` and `supersede` policy on pipeline creation
 37. Notification dispatcher: read `notifications:` block, deliver via Slack webhook / email relay
-38. Per-stage `retry` and `timeout` evaluation in the pipeline controller
+38. Per-stage `retry` and `timeout` evaluation in the build system controller
 39. "Connect Repository" UI flow in Concord dashboard (self-service onboarding)
 40. Migrate existing `ValidationPipelineConfig` entries → `.concord/pipeline.yaml` in each repo
 41. Update SubmoduleMapping creation to accept targets from pipeline.yaml
@@ -3418,6 +3418,6 @@ Items marked ✅ have been addressed in this document. Remaining items need reso
 - **TestContext contract stability**: Define versioning/compatibility policy for the implicit SDK contract (ctx.flash_firmware, etc.). Needs design during Phase 7B.
 - **Resource limits**: How much CPU/memory for build pods, test pods. Needs profiling during Phase 1.
 - **Log aggregation**: Integrate pipeline logs with Loki/Grafana. Test runner pods already write to stdout → Loki picks them up automatically in the current cluster setup.
-- **Flaky test quarantine**: Mechanism to temporarily disable tests that fail intermittently without blocking the pipeline. Needs design.
-- **Test result diffing**: Compare test results between two pipeline runs (e.g., main vs feature branch). Useful for PR reviews.
+- **Flaky test quarantine**: Mechanism to temporarily disable tests that fail intermittently without blocking the build system. Needs design.
+- **Test result diffing**: Compare test results between two build runs (e.g., main vs feature branch). Useful for PR reviews.
 - **Build service horizontal scaling**: When to add more build workers or replicas. Monitor queue depth and build wait times.

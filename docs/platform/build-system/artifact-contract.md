@@ -14,7 +14,7 @@ min_role: DEVELOPER
     App IDs, version format (`major.minor.build`), release track flags, and CFW
     structure all follow the **Device Firmware Versioning SS V1.0** specification
     (Confluence). This document defines how Concord *implements* that spec in its
-    build and validation pipeline.
+    build and validation flow.
 
 ---
 
@@ -306,7 +306,7 @@ from corekinect.test.artifact_resolver import ArtifactResolver
 
 # Initialize with pipeline context
 resolver = ArtifactResolver(
-    pipeline_id="build-42",
+    build_run_id="build-42",
     api_url="https://concord.local/v2",
     api_key="ck_run_..."
 )

@@ -17,7 +17,7 @@ The key classes:
 - **CloudClient** -- CoreCloud REST wrapper (device registration, FUOTA, telemetry)
 - **UartDemuxer** -- parses multiplexed UART streams across APP and COMMS targets
 - **PowerProfiler** -- INA219 measurements with threshold assertions
-- **StageAssets** -- resolves firmware artifacts from the build pipeline
+- **StageAssets** -- resolves firmware artifacts from the build system
 - **Reporter** -- pushes test results back to Concord
 
 ## Package Structure

@@ -63,4 +63,4 @@ A successful build produces [artifacts](artifacts.md) -- hex files, CFW files, a
 
 A failed build still has a log. Read it from the bottom up: the last error is usually the linker or compiler failure. Common causes: missing Kconfig symbol, board overlay typo, SDK version mismatch.
 
-For how to trigger builds, see [Triggering Builds](triggering-builds.md). For build pipeline internals, see [CI Integration](ci-integration.md).
+For how to trigger builds, see [Triggering Builds](triggering-builds.md). For build system internals, see [CI Integration](ci-integration.md).

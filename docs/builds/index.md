@@ -3,7 +3,7 @@ min_role: DEVELOPER
 ---
 # Builds
 
-The build system compiles firmware source into hex files (for J-Link flashing) and CFW files (for FUOTA). Push to a watched branch, and the pipeline handles the rest — compile, cache, store artifacts in MinIO.
+The build system compiles firmware source into hex files (for J-Link flashing) and CFW files (for FUOTA). Push to a watched branch, and the build system handles the rest — compile, cache, store artifacts in MinIO.
 
 Builds run through four steps: the [git poller](ci-integration.md) detects a commit, the build service picks up the job, the toolchain compiles against your board target, and the resulting artifacts are stored and recorded in the Concord API with full metadata (commit hash, branch, version, artifact manifest).
 

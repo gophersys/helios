@@ -7,7 +7,7 @@ min_role: DEVELOPER
 > (`libs/python/corekinect/core_cloud/`). This document captures the current state
 > of the library, identifies v0.9 deadweight that can be removed, proposes a
 > v1.0-only target structure, catalogs missing capabilities needed for the
-> validation pipeline (FUOTA management, sessions, Ground Mode Config V2), and
+> validation flow (FUOTA management, sessions, Ground Mode Config V2), and
 > lists open questions for the CoreCloud backend team.
 >
 > **This is a documentation-only analysis. No code changes are proposed here.**
@@ -141,7 +141,7 @@ PostgreSQL-based v1.0.
 
 ### 2.2 Why v0.9 Is Deadweight for Validation
 
-1. **Validation uses `VAL_1_0` exclusively.** The validation pipeline targets the
+1. **Validation uses `VAL_1_0` exclusively.** The validation flow targets the
    v1.0 CoreCloud instance. There is no v0.9 validation environment.
 2. **No new development on v0.9.** No new message types, FUOTA tables, or REST
    endpoints will be added to the MySQL backend.
@@ -163,9 +163,9 @@ deleting them:
   module-level comment)
 - Do not add new message types to v0.9
 - Do not extend the v0.9 `MsgBase` with new query methods
-- New validation pipeline code imports exclusively from `msg_def_v1_0`
+- New validation flow code imports exclusively from `msg_def_v1_0`
 - The `DEV_0_9` namespace remains in `.env.example` for backward compatibility
-  but is not used by the validation pipeline
+  but is not used by the validation flow
 
 ---
 
@@ -391,7 +391,7 @@ for ground configuration.
 
 ### 4.4 New Message Types Needed
 
-The validation pipeline exercises device behaviors that produce message types
+The validation flow exercises device behaviors that produce message types
 not yet wrapped in `msg_def_v1_0.py`:
 
 | Message | UID | Need | Priority |
@@ -449,7 +449,7 @@ C# server's business logic:
 |------|--------|------------|
 | No server-side validation | Invalid plan structures could break the Singleton FUOTA evaluator | Validate locally before insert; test on isolated VAL_1_0 instance |
 | No audit trail | Server normally logs plan changes to history tables | Manually insert history records, or accept no audit for validation |
-| Race conditions | Server and validation pipeline could modify settings concurrently | VAL_1_0 is dedicated to automation; no concurrent human/server modifications expected |
+| Race conditions | Server and validation flow could modify settings concurrently | VAL_1_0 is dedicated to automation; no concurrent human/server modifications expected |
 | Schema drift | DB ORM may diverge from server expectations | Pin ORM to known-good schema version; re-validate after CoreCloud upgrades |
 
 ### 5.3 Migration Path
@@ -747,7 +747,7 @@ def wait_for_fuota_completion(session, device_id, app_id, timeout_s=600):
 | # | Question | Impact | Priority |
 |---|----------|--------|----------|
 | 1 | Is SSH tunneling required for DB access from K8s pods, or is direct PostgreSQL connectivity available? | Determines whether `VAL_1_0_SSH_*` env vars are needed | Medium |
-| 2 | What service account credentials will the validation pipeline use? | Must be provisioned and stored as K8s secrets | Medium |
+| 2 | What service account credentials will the validation flow use? | Must be provisioned and stored as K8s secrets | Medium |
 | 3 | Does the validation CoreCloud instance support concurrent device connections? | Affects parallel testing throughput | Low |
 
 ---

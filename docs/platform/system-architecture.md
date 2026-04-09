@@ -237,7 +237,7 @@ apps/backend/http-api/src/api/v2/nodes/nodes.py
    - Show boards, revisions, firmware builds
    - Show available test benches for this product
    - Show validation designs (synced from catalog)
-   - Link to CI pipelines
+   - Link to CI builds
 
 2. **Test bench management**
    - List benches by product
@@ -264,7 +264,7 @@ After parallel work completes, verify end-to-end flows:
    - Create product → create bench → run POST tests → device registered
 
 2. **Validation flow**
-   - Trigger CI pipeline → builds complete → validation run triggered → tests execute
+   - Trigger CI build → builds complete → validation run triggered → tests execute
 
 3. **Build flow**
    - Webhook received → product resolved → builds queued → artifacts uploaded
