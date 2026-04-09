@@ -168,3 +168,69 @@ class ProductAssets:
                 self._loader(Stage.MANUFACTURING)
             )
         return self._manufacturing_cache
+
+    @classmethod
+    def from_stage_configs(
+        cls,
+        product_id: str,
+        api_url: str,
+        api_key: str,
+    ) -> "ProductAssets":
+        """Create ProductAssets that resolve from AssetSets via stage configs.
+
+        Fetches all stage configs for the product, then for each stage,
+        resolves the latest COMPLETE AssetSet. Modem firmware is resolved
+        from the board revision (shared across all stages).
+
+            assets = ProductAssets.from_stage_configs("prod-123", api_url, api_key)
+            assets.validation.fuota.hex("app")
+            assets.manufacturing.hex("app")
+        """
+        import requests as _requests
+        from corekinect.test.asset_set_resolver import AssetSetResolver
+
+        # Fetch all stage configs for this product
+        resp = _requests.get(
+            f"{api_url.rstrip('/')}/v2/products/{product_id}/stages",
+            headers={"Authorization": f"ApiKey {api_key}"},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise ConfigError(f"Failed to fetch stage configs: {resp.status_code}")
+
+        configs = resp.json().get("data", [])
+        config_map: dict[str, dict] = {}
+        for cfg in configs:
+            stage_type = cfg.get("type", "VALIDATION")
+            stage_num = cfg.get("stage", 0)
+            name = cfg.get("name", "")
+            key = f"{stage_type}:{stage_num}"
+            config_map[key] = cfg
+
+        # Map Stage enum to config keys
+        stage_to_key = {
+            Stage.SMOKE: "VALIDATION:1",
+            Stage.DRIVER: "VALIDATION:2",
+            Stage.INTEGRATION: "VALIDATION:3",
+            Stage.REGRESSION: "VALIDATION:4",
+            Stage.FUOTA: "VALIDATION:5",
+            Stage.MANUFACTURING: "MANUFACTURING:1",
+        }
+
+        def loader(stage: Stage) -> "StageAssets":
+            from corekinect.test.stage_assets import StageAssets
+
+            key = stage_to_key.get(stage)
+            cfg = config_map.get(key) if key else None
+            if not cfg:
+                raise ConfigError(f"No stage config for {stage.value}")
+
+            config_id = cfg["id"]
+            resolver = AssetSetResolver.from_stage_config(config_id, api_url, api_key)
+            return StageAssets(
+                resolver=resolver,
+                stage=stage.value,
+                strict=False,
+            )
+
+        return cls(loader)

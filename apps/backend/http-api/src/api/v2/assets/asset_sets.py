@@ -168,13 +168,19 @@ def create_asset_set(product_id: str):
         "source": req.source,
         "stage": req.stage,
         "boardRevisionId": req.boardRevisionId,
+        "stageConfigId": req.stageConfigId,
         "commitSha": req.commitSha,
         "branch": req.branch,
         "recipeVersionId": req.recipeVersionId,
         "notes": req.notes,
     }
 
-    # Try to get user from auth context
+    # Derive boardRevisionId from stageConfig if not provided
+    if req.stageConfigId and not req.boardRevisionId:
+        sc = db.productstageconfig.find_unique(where={"id": req.stageConfigId})
+        if sc and sc.boardRevisionId:
+            create_data["boardRevisionId"] = sc.boardRevisionId
+
     user = getattr(g, "current_user", None)
     if user and isinstance(user, dict):
         create_data["createdById"] = user.get("userId")
@@ -204,10 +210,16 @@ def create_external_asset_set(product_id: str):
         "externalBuildId": req.externalBuildId,
         "stage": req.stage,
         "boardRevisionId": req.boardRevisionId,
+        "stageConfigId": req.stageConfigId,
         "commitSha": req.commitSha,
         "branch": req.branch,
         "notes": req.notes,
     }
+
+    if req.stageConfigId and not req.boardRevisionId:
+        sc = db.productstageconfig.find_unique(where={"id": req.stageConfigId})
+        if sc and sc.boardRevisionId:
+            create_data["boardRevisionId"] = sc.boardRevisionId
 
     user = getattr(g, "current_user", None)
     if user and isinstance(user, dict):
