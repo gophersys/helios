@@ -40,17 +40,37 @@
     stageConfigs.filter(c => c.boardRevisionId === revision.id)
   );
 
-  // Group asset sets by stage config
-  function assetsForConfig(configId: string): AssetSet[] {
+  // Group asset sets by stage config — includes backward compat for pre-fix build assets
+  function assetsForConfig(config: ProductStageConfig): AssetSet[] {
     return assetSets
-      .filter(a => a.stageConfigId === configId)
+      .filter(a =>
+        a.stageConfigId === config.id ||
+        // Backward compat: build-service assets without stageConfigId but matching stage number
+        (a.source === 'BUILD_SERVICE' && !a.stageConfigId && a.stage === config.stage)
+      )
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
-  // Ungrouped asset sets (from builds or legacy, no stageConfigId)
+  // Ungrouped: no stageConfigId AND not matched by backward compat
+  const groupedConfigIds = $derived(new Set(revConfigs.map(c => c.id)));
   const ungroupedAssets = $derived(
-    assetSets.filter(a => !a.stageConfigId)
+    assetSets.filter(a => {
+      if (a.stageConfigId && groupedConfigIds.has(a.stageConfigId)) return false;
+      if (a.source === 'BUILD_SERVICE' && !a.stageConfigId) {
+        return !revConfigs.some(c => c.stage === a.stage);
+      }
+      return !a.stageConfigId;
+    })
   );
+
+  function sourceLabel(source: string): string {
+    switch (source) {
+      case 'BUILD_SERVICE': return 'Concord Build';
+      case 'MANUAL_UPLOAD': return 'Manual';
+      case 'EXTERNAL_CI': return 'External CI';
+      default: return source;
+    }
+  }
 
   async function loadAssets() {
     loading = true;
@@ -187,8 +207,9 @@
   {/if}
 
   {#each revConfigs as config}
-    {@const stageAssets = assetsForConfig(config.id)}
+    {@const stageAssets = assetsForConfig(config)}
     {@const latest = stageAssets[0]}
+    {@const completeness = (latest as any)?.completeness}
     {@const typeLabel = stageName(config.type as StageType, config.stage)}
 
     <div class="rounded-lg border border-border overflow-hidden">
@@ -201,8 +222,16 @@
         <span class="text-sm font-semibold text-text-primary">{typeLabel}</span>
         {#if latest}
           <span class="text-2xs text-text-tertiary">v{latest.version} · {latest.variant}</span>
-          <StatusBadge status={latest.status} />
-          <StatusBadge status={latest.source} />
+          <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium
+            {latest.source === 'BUILD_SERVICE' ? 'bg-accent-muted text-accent' : latest.source === 'EXTERNAL_CI' ? 'bg-blue-500/10 text-blue-400' : 'bg-surface-2 text-text-secondary'}">
+            {sourceLabel(latest.source)}
+          </span>
+          {#if completeness}
+            <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium
+              {completeness.complete ? 'bg-success-muted text-success' : 'bg-warning-muted text-warning'}">
+              {completeness.present}/{completeness.required} labels
+            </span>
+          {/if}
           <span class="text-2xs text-text-tertiary">{latest.assets?.length ?? 0} files</span>
         {:else}
           <span class="text-2xs text-text-tertiary">No assets</span>

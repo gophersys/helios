@@ -23,7 +23,7 @@ _ASSET_SET_INCLUDE = {
     "product": True,
     "boardRevision": True,
     "buildRun": True,
-    "stageConfig": True,
+    "stageConfig": {"include": {"buildMatrixEntries": True}},
     "createdBy": True,
     "assets": True,
 }
@@ -96,6 +96,20 @@ def _serialize_asset_set(asset_set) -> dict:
         data["assets"] = [_serialize_asset(a) for a in asset_set.assets]
     else:
         data["assets"] = []
+
+    # Completeness check against build matrix
+    sc = getattr(asset_set, "stageConfig", None)
+    matrix = getattr(sc, "buildMatrixEntries", None) if sc else None
+    if matrix:
+        required = {e.label for e in matrix}
+        present = {a.label for a in (asset_set.assets or [])}
+        data["completeness"] = {
+            "required": len(required),
+            "present": len(required & present),
+            "missing": sorted(required - present),
+            "complete": required <= present,
+        }
+
     return data
 
 
@@ -245,21 +259,47 @@ def get_asset_set(asset_set_id: str):
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def complete_asset_set(asset_set_id: str):
-    """POST /asset-sets/<id>/complete — mark asset set as complete."""
+    """POST /asset-sets/<id>/complete — mark asset set as complete.
+
+    If the asset set is linked to a stage config, validates that uploaded
+    assets cover the required build matrix labels. Returns warnings for
+    missing labels but does not block completion.
+    """
     db = get_db_client()
-    asset_set = db.assetset.find_unique(where={"id": asset_set_id})
+    asset_set = db.assetset.find_unique(
+        where={"id": asset_set_id},
+        include={"assets": True},
+    )
     if not asset_set:
         return not_found("Asset set not found")
     if asset_set.status != "PENDING":
         return bad_request(f"Asset set is already {asset_set.status}")
+
+    # Validate against build matrix if stageConfigId is set
+    warnings = []
+    if asset_set.stageConfigId:
+        stage_config = db.productstageconfig.find_unique(
+            where={"id": asset_set.stageConfigId},
+            include={"buildMatrixEntries": True},
+        )
+        if stage_config and stage_config.buildMatrixEntries:
+            required = {e.label for e in stage_config.buildMatrixEntries}
+            present = {a.label for a in (asset_set.assets or [])}
+            missing = required - present
+            if missing:
+                warnings.append(f"Missing labels: {', '.join(sorted(missing))}")
 
     updated = db.assetset.update(
         where={"id": asset_set_id},
         data={"status": "COMPLETE"},
         include=_ASSET_SET_INCLUDE,
     )
-    log_audit("assetSet.complete", "AssetSet", asset_set_id, {"status": "COMPLETE"})
-    return jsonify(ApiResponse.ok(_serialize_asset_set(updated)).to_dict()), 200
+    log_audit("assetSet.complete", "AssetSet", asset_set_id, {"status": "COMPLETE", "warnings": warnings})
+
+    result = _serialize_asset_set(updated)
+    if warnings:
+        result["warnings"] = warnings
+    return jsonify(ApiResponse.ok(result).to_dict()), 200
 
 
 @require_permissions(Permissions.BUILDS_MANAGE)

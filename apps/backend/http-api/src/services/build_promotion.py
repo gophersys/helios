@@ -243,6 +243,7 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
         "stage": getattr(build_run, "stage", None),
         "source": "BUILD_SERVICE",
         "buildRunId": build_run.id,
+        "stageConfigId": build_run.stageConfigId,
         "commitSha": build_run.commitSha,
         "branch": build_run.branch,
         "recipeVersionId": getattr(build_run, "recipeVersionId", None),
