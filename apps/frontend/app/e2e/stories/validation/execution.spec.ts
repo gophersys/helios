@@ -75,7 +75,7 @@ test.describe('Validation Execution: Session Lifecycle', () => {
     const node = await createNode({
       name: `Val Exec Node ${suffix}`,
       hostname: `val-exec-node-${suffix}`,
-      type: 'MTIB',
+      type: 'VALIDATION',
       ipAddress: '10.4.45.99',
     });
     nodeId = node.id;

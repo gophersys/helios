@@ -4,8 +4,9 @@ import logging
 import math
 from datetime import datetime, timezone
 
-from flask import jsonify, request
+from flask import g, jsonify, request
 
+from database import Json
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, conflict, not_found
@@ -146,8 +147,6 @@ def list_manufacturing_fixtures():
 
 @require_permissions(Permissions.MANUFACTURING_RUN)
 def create_manufacturing_session():
-    from flask import g
-
     db = get_db_client()
     data, error = SessionCreateRequest.from_json(request.get_json())
     if error:
@@ -162,13 +161,15 @@ def create_manufacturing_session():
 
     operator_id = g.current_user["sub"]
 
+    create_data: dict = {
+        "productId": data.productId,
+        "fixtureId": data.fixtureId,
+        "operatorId": operator_id,
+    }
+    if data.config is not None:
+        create_data["config"] = Json(data.config)
     session = db.manufacturingsession.create(
-        data={
-            "productId": data.productId,
-            "fixtureId": data.fixtureId,
-            "operatorId": operator_id,
-            "config": data.config,
-        },
+        data=create_data,
         include={"product": True, "fixture": True, "operator": True, "panels": True},
     )
 
@@ -275,6 +276,30 @@ def add_manufacturing_panel(session_id: str):
             "qrCode": data.qrCode,
             "unitCount": data.unitCount,
         },
+        include={"units": True},
+    )
+
+    # Auto-create units for each fixture slot (up to unitCount)
+    fixture = db.fixture.find_unique(
+        where={"id": session.fixtureId},
+        include={"slots": True},
+    )
+    slots = fixture.slots if fixture and hasattr(fixture, "slots") else []
+    for i in range(data.unitCount):
+        slot = slots[i] if i < len(slots) else None
+        db.manufacturingunit.create(
+            data={
+                "panelId": panel.id,
+                "slotIndex": i,
+                "slotId": slot.id if slot else f"slot-{i}",
+                "stages": Json([]),
+            },
+        )
+
+    # Re-fetch panel with units
+    panel = db.manufacturingpanel.find_unique(
+        where={"id": panel.id},
+        include={"units": True},
     )
 
     db.manufacturingsession.update(

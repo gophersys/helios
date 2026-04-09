@@ -29,7 +29,9 @@ async function apiPost<T = unknown>(path: string, data: unknown): Promise<T> {
     },
     body: JSON.stringify(data),
   });
-  const body = await res.json();
+  const text = await res.text();
+  let body: any;
+  try { body = JSON.parse(text); } catch { throw new Error(`POST ${path} failed (${res.status}): ${text.slice(0, 200)}`); }
   if (!res.ok) throw new Error(`POST ${path} failed (${res.status}): ${JSON.stringify(body)}`);
   return body.data;
 }
@@ -38,7 +40,9 @@ async function apiGet<T = unknown>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     headers: { Authorization: `ApiKey ${API_KEY}` },
   });
-  const body = await res.json();
+  const text = await res.text();
+  let body: any;
+  try { body = JSON.parse(text); } catch { throw new Error(`GET ${path} failed (${res.status}): ${text.slice(0, 200)}`); }
   if (!res.ok) throw new Error(`GET ${path} failed (${res.status}): ${JSON.stringify(body)}`);
   return body.data;
 }
@@ -99,26 +103,27 @@ test.describe('Manufacturing Results: End Session & Verification', () => {
       await apiPost(`/v2/manufacturing/sessions/${sessionId}/report/stage-result`, {
         unitId,
         stageName: 'electrical',
-        passed: true,
+        status: 'PASSED',
         durationMs: 1000,
       });
     }
 
     await apiPost(`/v2/manufacturing/sessions/${sessionId}/report/unit-result`, {
       unitId: unit0.id,
-      passed: true,
+      status: 'PASSED',
       serialNumber: 'SN-RES-001',
       durationMs: 5000,
     });
     await apiPost(`/v2/manufacturing/sessions/${sessionId}/report/unit-result`, {
       unitId: unit1.id,
-      passed: false,
+      status: 'FAILED',
       serialNumber: 'SN-RES-002',
       errorMessage: 'Flash verification failed',
       durationMs: 5000,
     });
     await apiPost(`/v2/manufacturing/sessions/${sessionId}/report/panel-complete`, {
       panelId: panel.id,
+      status: 'PASSED',
       passedUnits: 1,
       failedUnits: 1,
       durationMs: 6000,

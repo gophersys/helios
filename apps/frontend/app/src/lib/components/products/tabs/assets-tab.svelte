@@ -5,7 +5,7 @@
   } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TimeDisplay from '$lib/components/ui/time-display.svelte';
-  import FirmwareTab from '../firmware-tab.svelte';
+
   import { apiFetch } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import type { AssetSet } from '$lib/types/models';
@@ -199,9 +199,4 @@
       {/each}
     </div>
   {/if}
-</div>
-
-<!-- Existing firmware sets -->
-<div class="border-t border-border pt-6">
-  <FirmwareTab {productId} {canManage} />
 </div>

@@ -279,10 +279,16 @@ export async function declinePR(
   repo: string,
   prId: number,
 ): Promise<void> {
-  await bbFetchJson(
-    `/repositories/${WORKSPACE}/${repo}/pullrequests/${prId}/decline`,
-    { method: 'POST' },
-  );
+  try {
+    await bbFetchJson(
+      `/repositories/${WORKSPACE}/${repo}/pullrequests/${prId}/decline`,
+      { method: 'POST' },
+    );
+  } catch (err: any) {
+    // Ignore "already closed" — the PR was closed by another process or prior cleanup
+    if (err.message?.includes('already closed')) return;
+    throw err;
+  }
 }
 
 /**

@@ -58,6 +58,14 @@ test.describe('Login flows', () => {
   });
 
   test('expired/invalid token redirects to login page', async ({ page }) => {
+    // When AUTH_ENABLED=false (dev mode), the backend accepts any token
+    // and returns a valid user, so the frontend won't redirect.
+    // This test only applies when auth is enabled.
+    const res = await page.request.get('http://localhost:9001/v2/auth/me');
+    const body = await res.json();
+    const authDisabled = body?.data?.email === 'admin@concord.local';
+    test.skip(authDisabled, 'Auth is disabled — backend accepts all tokens');
+
     // Set an invalid token before navigating
     await page.addInitScript(() => {
       localStorage.setItem('concord-token', 'invalid.token.value');

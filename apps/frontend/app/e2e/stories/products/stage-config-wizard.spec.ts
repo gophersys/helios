@@ -65,7 +65,7 @@ test.describe('Stage Config Wizard', () => {
 
   // ── Navigation to Validation tab ──────────────────────────
 
-  test('Validation tab shows Initialize Stages button for fresh product', async ({ page }) => {
+  test('Validation tab shows Enable Validation button for fresh product', async ({ page }) => {
     await loginAsRole(page, 'admin');
     await page.goto(`/products/${productId}`);
     await page.waitForLoadState('networkidle');
@@ -75,11 +75,11 @@ test.describe('Stage Config Wizard', () => {
     await page.waitForTimeout(500);
 
     // Fresh product shows "No validation stages configured" with Initialize button
-    const initBtn = page.getByRole('button', { name: /initialize/i });
+    const initBtn = page.getByRole('button', { name: /enable validation/i });
     await expect(initBtn).toBeVisible({ timeout: 10_000 });
   });
 
-  test('Initialize Stages creates all 5 stage entries', async ({ page }) => {
+  test('Enable Validation creates all 5 stage entries', async ({ page }) => {
     await loginAsRole(page, 'admin');
     await page.goto(`/products/${productId}`);
     await page.waitForLoadState('networkidle');
@@ -88,7 +88,7 @@ test.describe('Stage Config Wizard', () => {
     await page.waitForTimeout(500);
 
     // Click Initialize
-    await page.getByRole('button', { name: /initialize/i }).click();
+    await page.getByRole('button', { name: /enable validation/i }).click();
     await page.waitForTimeout(2_000);
 
     // All 5 stage names should appear
@@ -169,10 +169,10 @@ test.describe('Stage Config Wizard', () => {
     // All trigger type labels visible
     await expect(page.getByText('Triggers').first()).toBeVisible({ timeout: 5_000 });
     await expect(page.getByText('Pull Request')).toBeVisible();
-    await expect(page.getByText('Merge')).toBeVisible();
+    await expect(page.getByText('Merge', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Auto (after previous)')).toBeVisible();
-    await expect(page.getByText('Schedule')).toBeVisible();
-    await expect(page.getByText('Manual')).toBeVisible();
+    await expect(page.getByText('Schedule', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Manual', { exact: true }).first()).toBeVisible();
   });
 
   test('Step 1: selecting Schedule trigger shows cron expression input', async ({ page }) => {
@@ -187,7 +187,7 @@ test.describe('Stage Config Wizard', () => {
     await page.waitForTimeout(500);
 
     // Click the Schedule trigger
-    await page.getByText('Schedule').click();
+    await page.getByText('Schedule', { exact: true }).first().click();
     await page.waitForTimeout(300);
 
     // Cron expression input should appear
@@ -213,7 +213,7 @@ test.describe('Stage Config Wizard', () => {
     await page.waitForTimeout(500);
 
     // Step 2 header visible
-    await expect(page.getByText('Signing Key')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('Signing Key').first()).toBeVisible({ timeout: 5_000 });
   });
 
   test('Step 2: no signing keys shows warning message', async ({ page }) => {
@@ -361,10 +361,10 @@ test.describe('Stage Config Wizard', () => {
     await expect(page.getByText('Review Configuration')).toBeVisible({ timeout: 5_000 });
 
     // Review fields visible
-    await expect(page.getByText('Watch Branch')).toBeVisible();
-    await expect(page.getByText('Triggers')).toBeVisible();
-    await expect(page.getByText('Signing Key')).toBeVisible();
-    await expect(page.getByText('Build Recipe')).toBeVisible();
+    await expect(page.getByText('Watch Branch').first()).toBeVisible();
+    await expect(page.getByText('Triggers').first()).toBeVisible();
+    await expect(page.getByText('Signing Key').first()).toBeVisible();
+    await expect(page.getByText('Build Recipe').first()).toBeVisible();
   });
 
   test('Step 4: Save & Enable Stage button saves and closes wizard', async ({ page }) => {

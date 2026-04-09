@@ -39,18 +39,24 @@ from typing import Dict, List, Optional
 # =============================================================================
 
 
+class StageType(str, Enum):
+    """Top-level stage type."""
+    VALIDATION = "VALIDATION"
+    MANUFACTURING = "MANUFACTURING"
+
+
 class Stage(str, Enum):
-    """Validation stage identifiers.
+    """Stage identifiers. Used as directory names in test packages."""
 
-    Used as the pipeline's matrix_mode and as directory names in product
-    test packages.
-    """
+    # Validation stages (order 1-5)
+    SMOKE = "smoke"
+    DRIVER = "driver"
+    INTEGRATION = "integration"
+    REGRESSION = "regression"
+    FUOTA = "fuota"
 
-    SMOKE = "smoke"              # Stage 1: Software tests, no hardware
-    DRIVER = "driver"            # Stage 2: Driver HW tests, dev kits
-    INTEGRATION = "integration"  # Stage 3: Subsystem integration, product board
-    REGRESSION = "regression"    # Stage 4: Comprehensive black-box validation
-    FUOTA = "fuota"              # Stage 5: OTA firmware update, blocks merge
+    # Manufacturing (order 1)
+    MANUFACTURING = "manufacturing"
 
 
 STAGE_NUMBERS: Dict[Stage, int] = {
@@ -59,6 +65,16 @@ STAGE_NUMBERS: Dict[Stage, int] = {
     Stage.INTEGRATION: 3,
     Stage.REGRESSION: 4,
     Stage.FUOTA: 5,
+    Stage.MANUFACTURING: 1,
+}
+
+STAGE_TYPES: Dict[Stage, StageType] = {
+    Stage.SMOKE: StageType.VALIDATION,
+    Stage.DRIVER: StageType.VALIDATION,
+    Stage.INTEGRATION: StageType.VALIDATION,
+    Stage.REGRESSION: StageType.VALIDATION,
+    Stage.FUOTA: StageType.VALIDATION,
+    Stage.MANUFACTURING: StageType.MANUFACTURING,
 }
 
 STAGE_NAMES: Dict[int, str] = {

@@ -2,11 +2,11 @@ import logging
 import math
 from typing import Any
 
-from flask import jsonify, request
+from flask import g, jsonify, request
 from database import Json
 
 from src.lib.audit import log_audit
-from src.lib.decorators import require_permissions
+from src.lib.decorators import require_auth, require_permissions
 from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
@@ -20,82 +20,174 @@ logger = logging.getLogger(__name__)
 # ── Dashboard ─────────────────────────────────────────────────
 
 
-@require_permissions(Permissions.FIXTURES_VIEW)
+@require_auth
 def dashboard_overview():
-    """Get fixture dashboard with health summaries for all fixtures."""
+    """Dashboard overview — stats and fixtures filtered by role and product access.
+
+    Returns per-section counts (products, builds, validation, manufacturing,
+    fixtures) plus the fixture health grid, scoped to the caller's permissions
+    and product access.
+    """
+    from src.lib.decorators import _get_permissions_for_set
+
     db = get_db_client()
+    user = g.current_user or {}
+    user_id = user.get("sub")
 
-    fixtures = db.fixture.find_many(
-        order={"name": "asc"},
-        include={
-            "product": True,
-            "slots": {"include": {"node": True}},
-        },
-    )
+    # Resolve permissions
+    role = g.effective_role if hasattr(g, "effective_role") else user.get("role", "OPERATOR")
+    is_admin = role in ("ADMIN", "MAINTAINER")
 
-    results = []
-    for f in fixtures:
-        slots = f.slots or []
-        slot_count = len(slots)
-        assigned_slots = [s for s in slots if s.nodeId is not None]
-        assigned_count = len(assigned_slots)
+    perm_set_id = user.get("permissionSetId")
+    perms = _get_permissions_for_set(perm_set_id) if perm_set_id else []
+    perms = perms or []
+    if is_admin:
+        perms = ["products:view", "builds:view", "validation:view",
+                 "manufacturing:view", "fixtures:view"]
 
-        nodes_online = 0
-        nodes_offline = 0
-        nodes_error = 0
-        for s in assigned_slots:
-            if hasattr(s, "node") and s.node:
-                status = s.node.status
-                if status == "ONLINE":
-                    nodes_online += 1
-                elif status == "ERROR":
-                    nodes_error += 1
-                else:
-                    nodes_offline += 1
+    # Resolve product access
+    product_where: dict = {}
+    if not is_admin and user_id:
+        access_rows = db.productaccess.find_many(where={"userId": user_id})
+        product_ids = [row.productId for row in access_rows]
+        product_where = {"id": {"in": product_ids}}
 
-        # Derive health
-        if slot_count == 0:
-            health = "EMPTY"
-        elif assigned_count == 0:
-            health = "UNASSIGNED"
-        elif nodes_error > 0:
-            health = "ERROR"
-        elif nodes_offline > 0:
-            health = "DEGRADED"
-        elif nodes_online == assigned_count:
-            health = "HEALTHY"
-        else:
-            health = "UNKNOWN"
+    # ── Pipeline stats (each section gated by permission) ──
 
-        # Deployment info
-        deployments = f.deployments if hasattr(f, "deployments") and f.deployments else []
-        has_active = False
-        active_status = None
-        if deployments:
-            latest = deployments[0]
-            if latest.status in ("RUNNING", "PENDING"):
-                has_active = True
-                active_status = latest.status
+    stats: dict = {}
 
-        results.append({
-            "id": f.id,
-            "name": f.name,
-            "type": f.type,
-            "active": f.active,
-            "productName": f.product.name if hasattr(f, "product") and f.product else None,
-            "productId": f.productId,
-            "slotCount": slot_count,
-            "assignedCount": assigned_count,
-            "nodesOnline": nodes_online,
-            "nodesOffline": nodes_offline,
-            "nodesError": nodes_error,
-            "health": health,
-            "hasActiveDeployment": has_active,
-            "activeDeploymentStatus": active_status,
-            "updatedAt": f.updatedAt.isoformat(),
-        })
+    if "products:view" in perms:
+        products = db.product.find_many(where=product_where)
+        stats["products"] = {
+            "total": len(products),
+            "active": sum(1 for p in products if p.active),
+        }
 
-    return jsonify(ApiResponse.ok(results).to_dict()), 200
+    if "builds:view" in perms:
+        build_where: dict = {}
+        if product_where:
+            build_where["productId"] = product_where.get("id", {})
+        total_builds = db.buildrun.count(where=build_where)
+        active_builds = db.buildrun.count(where={**build_where, "status": {"in": ["PENDING", "BUILDING", "VALIDATING"]}})
+        failed_recent = db.buildrun.count(where={**build_where, "status": "FAILED"})
+        stats["builds"] = {
+            "total": total_builds,
+            "active": active_builds,
+            "failed": failed_recent,
+        }
+
+    if "validation:view" in perms:
+        sess_where: dict = {"type": "VALIDATION"}
+        if product_where:
+            sess_where["productId"] = product_where.get("id", {})
+        total_runs = db.session.count(where=sess_where)
+        active_runs = db.session.count(where={**sess_where, "status": "ACTIVE"})
+        passed_runs = db.session.count(where={**sess_where, "status": "PASSED"})
+        queue_depth = db.validationqueueentry.count(where={"status": {"in": ["QUEUED", "ASSIGNED"]}})
+        stats["validation"] = {
+            "total": total_runs,
+            "active": active_runs,
+            "passed": passed_runs,
+            "passRate": round(passed_runs / total_runs * 100) if total_runs > 0 else None,
+            "queueDepth": queue_depth,
+        }
+
+    if "manufacturing:view" in perms:
+        mfg_where: dict = {}
+        if product_where:
+            mfg_where["productId"] = product_where.get("id", {})
+        total_sessions = db.manufacturingsession.count(where=mfg_where)
+        active_sessions = db.manufacturingsession.count(where={**mfg_where, "status": "ACTIVE"})
+        stats["manufacturing"] = {
+            "total": total_sessions,
+            "active": active_sessions,
+        }
+
+    # ── Fixtures (same role + product filtering as before) ──
+
+    fixture_results = []
+    can_see_fixtures = "fixtures:view" in perms or "manufacturing:view" in perms or "validation:view" in perms
+
+    if can_see_fixtures:
+        fixture_where: dict = {}
+        if not is_admin and "fixtures:view" not in perms:
+            allowed_types = set()
+            if "manufacturing:view" in perms:
+                allowed_types.add("MANUFACTURING")
+            if "validation:view" in perms:
+                allowed_types.add("VALIDATION")
+            if allowed_types:
+                fixture_where["type"] = {"in": list(allowed_types)}
+
+        if product_where:
+            fixture_where["productId"] = product_where.get("id", {})
+
+        fixtures = db.fixture.find_many(
+            where=fixture_where,
+            order={"name": "asc"},
+            include={
+                "product": True,
+                "slots": {"include": {"node": True}},
+            },
+        )
+
+        for f in fixtures:
+            slots = f.slots or []
+            slot_count = len(slots)
+            assigned_slots = [s for s in slots if s.nodeId is not None]
+            assigned_count = len(assigned_slots)
+
+            nodes_online = nodes_offline = nodes_error = 0
+            for s in assigned_slots:
+                if hasattr(s, "node") and s.node:
+                    status = s.node.status
+                    if status == "ONLINE":
+                        nodes_online += 1
+                    elif status == "ERROR":
+                        nodes_error += 1
+                    else:
+                        nodes_offline += 1
+
+            if slot_count == 0:
+                health = "EMPTY"
+            elif assigned_count == 0:
+                health = "UNASSIGNED"
+            elif nodes_error > 0:
+                health = "ERROR"
+            elif nodes_offline > 0:
+                health = "DEGRADED"
+            elif nodes_online == assigned_count:
+                health = "HEALTHY"
+            else:
+                health = "UNKNOWN"
+
+            fixture_results.append({
+                "id": f.id,
+                "name": f.name,
+                "type": f.type,
+                "active": f.active,
+                "productName": f.product.name if hasattr(f, "product") and f.product else None,
+                "productId": f.productId,
+                "slotCount": slot_count,
+                "assignedCount": assigned_count,
+                "nodesOnline": nodes_online,
+                "nodesOffline": nodes_offline,
+                "nodesError": nodes_error,
+                "health": health,
+                "updatedAt": f.updatedAt.isoformat(),
+            })
+
+    if "fixtures:view" in perms or is_admin:
+        stats["fixtures"] = {
+            "total": len(fixture_results),
+            "online": sum(1 for f in fixture_results if f["health"] == "HEALTHY"),
+            "degraded": sum(1 for f in fixture_results if f["health"] in ("DEGRADED", "ERROR")),
+        }
+
+    return jsonify(ApiResponse.ok({
+        "stats": stats,
+        "fixtures": fixture_results,
+    }).to_dict()), 200
 
 
 # ── Serializers ────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import {
   deleteFixture,
   createProductViaAPI,
 } from '../../helpers/api-extended';
+import { apiGet } from '../../helpers/api';
 
 /**
  * Fixture Design CRUD tests.
@@ -22,8 +23,37 @@ test.describe('Fixture Designs: CRUD', () => {
   const designName = `Alpha E2E v1.2 ${uniqueSuffix}`;
   let designId: string;
 
-  // Use a known seeded board revision (Alpha B0)
-  const BOARD_REVISION_ID = 'cmnqaxivu000otjnrfiu2x0l0';
+  // Fetched dynamically from the seeded Alpha product's B0 revision
+  let BOARD_REVISION_ID: string;
+
+  test.beforeAll(async () => {
+    // Fetch the seeded Alpha product's B0 revision ID
+    const API_URL = process.env.E2E_API_URL || 'http://localhost:9001';
+    const API_KEY = 'ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG';
+
+    // First get the product list to find Alpha's ID
+    const listRes = await fetch(`${API_URL}/v2/products`, {
+      headers: { Authorization: `ApiKey ${API_KEY}` },
+    });
+    const listBody = await listRes.json();
+    const products = listBody?.data?.data ?? listBody?.data ?? [];
+    const alphaList = (Array.isArray(products) ? products : []).find((p: any) => p.slug === 'alpha');
+    if (!alphaList) throw new Error('Seeded Alpha product not found');
+
+    // Fetch product detail to get boards with revisions
+    const detailRes = await fetch(`${API_URL}/v2/products/${alphaList.id}`, {
+      headers: { Authorization: `ApiKey ${API_KEY}` },
+    });
+    const detailBody = await detailRes.json();
+    const alpha = detailBody?.data;
+    if (!alpha) throw new Error('Alpha product detail not found');
+
+    const b0 = alpha.boards
+      ?.flatMap((b: any) => b.revisions ?? [])
+      ?.find((r: any) => r.version === 'B0');
+    if (!b0) throw new Error('Alpha B0 revision not found');
+    BOARD_REVISION_ID = b0.id;
+  });
 
   test.afterAll(async () => {
     // Cleanup: delete design if it was created

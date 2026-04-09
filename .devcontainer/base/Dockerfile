@@ -122,7 +122,7 @@ ENV PYTHONPATH="/workspaces/concord/libs:/workspaces/concord/libs/python/"
 
 # Install Python packages
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip3 install grpcio-tools==1.75.0 prisma==0.15.0
+    pip3 install grpcio-tools==1.75.0 prisma==0.15.0 zensical minio
 
 # ----------------------------------------------------
 #                                             Protobuf
@@ -203,7 +203,7 @@ RUN apt-get update -y && apt-get install -y vault && \
 #                                    Security Tooling
 # ----------------------------------------------------
 # Trivy — container image vulnerability scanner (used by .ci/stages/image-scan.sh)
-ARG TRIVY_VERSION=0.62.1
+ARG TRIVY_VERSION=0.69.3
 RUN case "${TARGETPLATFORM}" in \
     "linux/amd64") \
     curl -sfL https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz \

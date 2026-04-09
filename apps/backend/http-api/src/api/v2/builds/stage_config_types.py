@@ -7,13 +7,14 @@ Test config lives in the test repo. Build recipes are convention-driven.
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
-VALID_STAGES = {1, 2, 3, 4, 5}
+VALID_TYPES = {"VALIDATION", "MANUFACTURING"}
+VALID_VALIDATION_STAGES = {1, 2, 3, 4, 5}
+VALID_MANUFACTURING_STAGES = {1}
+VALID_STAGES = VALID_VALIDATION_STAGES | VALID_MANUFACTURING_STAGES
+
 STAGE_NAMES = {
-    1: "Smoke",
-    2: "Driver",
-    3: "Integration",
-    4: "Regression",
-    5: "FUOTA",
+    "VALIDATION": {1: "Smoke", 2: "Driver", 3: "Integration", 4: "Regression", 5: "FUOTA"},
+    "MANUFACTURING": {1: "Manufacturing"},
 }
 
 
@@ -24,32 +25,36 @@ VALID_TRIGGER_TYPES = {"pr_push", "pr_merge", "auto", "schedule", "manual"}
 class StageConfigCreateRequest:
     """Request body for creating a product stage configuration."""
 
+    type: str  # VALIDATION or MANUFACTURING
     stage: int
     name: str
     enabled: bool = False
     boardRevisionId: Optional[str] = None
     watchBranch: Optional[str] = None
-    triggerTypes: Optional[list] = None  # ["pr_push", "manual"]
+    triggerTypes: Optional[list] = None
     signingKeyId: Optional[str] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["StageConfigCreateRequest"], Optional[str]]:
-        """Parse and validate JSON into a StageConfigCreateRequest."""
         if not data:
             return None, "Request body must contain JSON data"
 
+        stage_type = (data.get("type") or "VALIDATION").strip().upper()
+        if stage_type not in VALID_TYPES:
+            return None, f"type must be one of: {', '.join(sorted(VALID_TYPES))}"
+
+        valid_stages = VALID_MANUFACTURING_STAGES if stage_type == "MANUFACTURING" else VALID_VALIDATION_STAGES
         stage = data.get("stage")
         if stage is None:
-            return None, "Stage is required"
-        if not isinstance(stage, int) or stage not in VALID_STAGES:
-            return None, "Stage must be an integer between 1 and 5"
+            return None, "stage is required"
+        if not isinstance(stage, int) or stage not in valid_stages:
+            return None, f"stage must be one of: {sorted(valid_stages)} for type {stage_type}"
 
         name = (data.get("name") or "").strip()
         if not name:
-            return None, "Name is required"
-        expected_name = STAGE_NAMES.get(stage)
-        if name != expected_name:
-            return None, f"Name must be '{expected_name}' for stage {stage}"
+            # Auto-name from stage type + number
+            type_names = STAGE_NAMES.get(stage_type, {})
+            name = type_names.get(stage, f"Stage {stage}")
 
         trigger_types = data.get("triggerTypes", ["manual"])
         if isinstance(trigger_types, str):
@@ -63,6 +68,7 @@ class StageConfigCreateRequest:
             trigger_types = ["manual"]
 
         return cls(
+            type=stage_type,
             stage=stage,
             name=name,
             enabled=data.get("enabled", False),

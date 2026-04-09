@@ -325,10 +325,12 @@ from .assets.asset_sets import (
     create_asset_set,
     create_external_asset_set,
     get_asset_set,
+    get_latest_asset_set,
     complete_asset_set,
     delete_asset_set,
 )
 from .assets.assets import upload_asset
+from .assets.zip_upload import upload_asset_set_zip
 
 # PR pipeline + summary endpoints
 from .builds.pr_builds import list_pr_pipelines, get_build_summary
@@ -483,8 +485,10 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/asset-sets",                                        endpoint="list_asset_sets",          view_func=list_asset_sets,           methods=["GET"])
     v2.add_url_rule("/products/<product_id>/asset-sets",                                        endpoint="create_asset_set",         view_func=create_asset_set,          methods=["POST"])
     v2.add_url_rule("/products/<product_id>/asset-sets/external",                               endpoint="create_external_asset_set", view_func=create_external_asset_set, methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/asset-sets/upload-zip",                             endpoint="upload_asset_set_zip",     view_func=upload_asset_set_zip,      methods=["POST"])
 
     # Asset Sets (top-level — not nested under product)
+    v2.add_url_rule("/asset-sets/latest",                                                       endpoint="get_latest_asset_set",     view_func=get_latest_asset_set,      methods=["GET"])
     v2.add_url_rule("/asset-sets/<asset_set_id>",                                               endpoint="get_asset_set",            view_func=get_asset_set,             methods=["GET"])
     v2.add_url_rule("/asset-sets/<asset_set_id>",                                               endpoint="delete_asset_set",         view_func=delete_asset_set,          methods=["DELETE"])
     v2.add_url_rule("/asset-sets/<asset_set_id>/assets",                                        endpoint="upload_asset",             view_func=upload_asset,              methods=["POST"])

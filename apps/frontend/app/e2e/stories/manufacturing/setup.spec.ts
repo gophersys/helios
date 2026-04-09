@@ -72,7 +72,7 @@ test.describe('Manufacturing Setup: Config Wizard', () => {
     // Create a board family
     const board = await apiPost<{ id: string }>(`/v2/products/${productId}/boards`, {
       name: `Alpha Board ${suffix}`,
-      chipset: 'nRF52840',
+      ckBoardsFamily: `nrf52840-mfg-${suffix}`,
     });
 
     // Create a board revision
@@ -80,6 +80,8 @@ test.describe('Manufacturing Setup: Config Wizard', () => {
       `/v2/products/${productId}/boards/${board.id}/revisions`,
       {
         version: 'B0',
+        ckBoardsName: `alpha_b0_mfg_${suffix}`,
+        socs: ['nrf52840'],
         status: 'ACTIVE',
       },
     );

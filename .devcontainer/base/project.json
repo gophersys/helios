@@ -10,7 +10,7 @@
       "options": {
         "context": ".devcontainer/base",
         "file": ".devcontainer/base/Dockerfile",
-        "platforms": [],
+        "platforms": ["linux/amd64"],
         "load": true,
         "push": false,
         "tags": ["containers.ad.corekinect.com/concord-devcontainer-base:latest"]

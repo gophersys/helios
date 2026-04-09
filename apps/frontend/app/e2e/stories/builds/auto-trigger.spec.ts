@@ -48,19 +48,18 @@ test.describe('Build Auto-Trigger', () => {
     await cleanupE2EPRs(REPO);
     await cleanupE2EBranches(REPO);
 
-    // Create a product configured for auto-trigger on concord-main
-    const product = await createProductViaAPI({
-      name: `E2E Auto-Trigger ${timestamp}`,
-      slug: `e2e-trigger-${timestamp}`,
-      description: 'Product for build auto-trigger E2E tests',
+    // Use the seeded Alpha product — it already has fwRepoSlug=alpha_fw
+    // and stage configs with pr_push triggers that the poller watches.
+    const API_URL = process.env.E2E_API_URL || 'http://localhost:9001';
+    const API_KEY = 'ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG';
+    const res = await fetch(`${API_URL}/v2/products`, {
+      headers: { Authorization: `ApiKey ${API_KEY}` },
     });
-    productId = product.id;
-
-    // Configure Stage 1 with auto trigger on concord-main
-    await configureStage(productId, 1, {
-      watchBranch: 'concord-main',
-      triggerTypes: ['pr'],
-    });
+    const body = await res.json();
+    const products = body?.data?.data ?? [];
+    const alpha = products.find((p: any) => p.slug === 'alpha');
+    if (!alpha) throw new Error('Seeded Alpha product not found — run prisma seed first');
+    productId = alpha.id;
   });
 
   test.afterAll(async () => {
@@ -106,10 +105,10 @@ test.describe('Build Auto-Trigger', () => {
 
   // ── Git-poller detection ────────────────────────────────
 
-  test('git-poller detects PR and creates a BuildRun within 120s', async ({ page }) => {
-    test.setTimeout(180_000);
+  test('git-poller detects PR and creates a BuildRun within 180s', async ({ page }) => {
+    test.setTimeout(240_000);
 
-    const run = await waitForGitPollerDetection(page, productId, BRANCH, 120_000);
+    const run = await waitForGitPollerDetection(page, productId, BRANCH, 180_000);
     expect(run).toBeTruthy();
     expect(run.id).toBeTruthy();
     detectedRunId = run.id;

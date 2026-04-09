@@ -434,3 +434,43 @@ class BaseAsset(_PrismaModel):
         return actions.AssetActions[_PrismaModelT](client or get_client(), cls)
 
 
+class BaseManufacturingConfig(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['ManufacturingConfig']] = 'ManufacturingConfig'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.ManufacturingConfigActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.ManufacturingConfigActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseManufacturingSession(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['ManufacturingSession']] = 'ManufacturingSession'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.ManufacturingSessionActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.ManufacturingSessionActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseManufacturingPanel(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['ManufacturingPanel']] = 'ManufacturingPanel'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.ManufacturingPanelActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.ManufacturingPanelActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseManufacturingUnit(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['ManufacturingUnit']] = 'ManufacturingUnit'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.ManufacturingUnitActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.ManufacturingUnitActions[_PrismaModelT](client or get_client(), cls)
+
+

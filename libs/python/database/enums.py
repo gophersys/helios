@@ -161,6 +161,10 @@ class FirmwareSetStatus(StrEnum):
     deprecated = 'deprecated'
     recalled = 'recalled'
 
+class StageType(StrEnum):
+    VALIDATION = 'VALIDATION'
+    MANUFACTURING = 'MANUFACTURING'
+
 class RecipeStatus(StrEnum):
     draft = 'draft'
     published = 'published'
@@ -170,4 +174,21 @@ class AccessLevel(StrEnum):
     operate = 'operate'
     develop = 'develop'
     admin = 'admin'
+
+class ManufacturingSessionStatus(StrEnum):
+    ACTIVE = 'ACTIVE'
+    COMPLETED = 'COMPLETED'
+    CANCELLED = 'CANCELLED'
+
+class PanelStatus(StrEnum):
+    RUNNING = 'RUNNING'
+    PASSED = 'PASSED'
+    FAILED = 'FAILED'
+    CANCELLED = 'CANCELLED'
+
+class UnitStatus(StrEnum):
+    RUNNING = 'RUNNING'
+    PASSED = 'PASSED'
+    FAILED = 'FAILED'
+    ERROR = 'ERROR'
 

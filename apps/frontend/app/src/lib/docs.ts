@@ -38,11 +38,26 @@ const DOCS_MAP: Record<string, string> = {
 /**
  * Get the docs URL for a given app route path.
  * Returns the most specific match, or the docs root.
+ * In dev mode, appends ?token= so the docs site can authenticate the user.
  */
 export function getDocsUrl(appPath: string): string {
   const base = getDocsBase();
   const match = Object.entries(DOCS_MAP).find(([key]) => appPath.startsWith(key));
-  return match ? `${base}${match[1]}` : `${base}/`;
+  let url = match ? `${base}${match[1]}` : `${base}/`;
+
+  // In dev, pass the JWT so docs can enforce role filtering without cookies
+  const env = PUBLIC_APP_ENVIRONMENT || 'development';
+  if (env === 'development' || env === 'local') {
+    if (browser) {
+      const token = localStorage.getItem('concord-token');
+      if (token) {
+        const sep = url.includes('?') ? '&' : '?';
+        url += `${sep}token=${encodeURIComponent(token)}`;
+      }
+    }
+  }
+
+  return url;
 }
 
 /**

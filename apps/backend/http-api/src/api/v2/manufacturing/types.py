@@ -66,19 +66,20 @@ class ManufacturingConfigUpdateRequest:
         return req, None
 
     def to_update_data(self) -> dict:
+        from database import Json
         d = {}
         if self._has_enabled:
             d["enabled"] = self.enabled
         if self.stages is not None:
-            d["stages"] = self.stages
+            d["stages"] = Json(self.stages)
         if self.firmwareSource is not None:
             d["firmwareSource"] = self.firmwareSource
         if self.firmwareSetId is not None:
             d["firmwareSetId"] = self.firmwareSetId
         if self.personalizationConfig is not None:
-            d["personalizationConfig"] = self.personalizationConfig
+            d["personalizationConfig"] = Json(self.personalizationConfig)
         if self.passCriteria is not None:
-            d["passCriteria"] = self.passCriteria
+            d["passCriteria"] = Json(self.passCriteria)
         return d
 
 

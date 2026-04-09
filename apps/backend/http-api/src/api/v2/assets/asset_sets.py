@@ -23,6 +23,7 @@ _ASSET_SET_INCLUDE = {
     "product": True,
     "boardRevision": True,
     "buildRun": True,
+    "stageConfig": True,
     "createdBy": True,
     "assets": True,
 }
@@ -77,6 +78,16 @@ def _serialize_asset_set(asset_set) -> dict:
         }
     else:
         data["boardRevision"] = None
+    if hasattr(asset_set, "stageConfig") and asset_set.stageConfig:
+        data["stageConfig"] = {
+            "id": asset_set.stageConfig.id,
+            "type": asset_set.stageConfig.type,
+            "stage": asset_set.stageConfig.stage,
+            "name": asset_set.stageConfig.name,
+        }
+    else:
+        data["stageConfig"] = None
+    data["stageConfigId"] = getattr(asset_set, "stageConfigId", None)
     if hasattr(asset_set, "createdBy") and asset_set.createdBy:
         data["createdBy"] = {"id": asset_set.createdBy.id, "name": asset_set.createdBy.name}
     else:
@@ -112,6 +123,12 @@ def list_asset_sets(product_id: str):
     source = request.args.get("source")
     if source:
         where["source"] = source.upper()
+    board_revision_id = request.args.get("boardRevisionId")
+    if board_revision_id:
+        where["boardRevisionId"] = board_revision_id
+    stage_config_id = request.args.get("stageConfigId")
+    if stage_config_id:
+        where["stageConfigId"] = stage_config_id
 
     total = db.assetset.count(where=where)
     asset_sets = db.assetset.find_many(
@@ -249,3 +266,27 @@ def delete_asset_set(asset_set_id: str):
     db.assetset.delete(where={"id": asset_set_id})
     log_audit("assetSet.delete", "AssetSet", asset_set_id, {"version": asset_set.version})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
+
+
+@require_permissions(Permissions.BUILDS_VIEW)
+def get_latest_asset_set():
+    """GET /asset-sets/latest?stageConfigId=X&status=COMPLETE — latest asset set for a stage config."""
+    db = get_db_client()
+
+    stage_config_id = request.args.get("stageConfigId")
+    if not stage_config_id:
+        return bad_request("stageConfigId is required")
+
+    where: dict = {"stageConfigId": stage_config_id}
+    status = request.args.get("status", "COMPLETE").upper()
+    where["status"] = status
+
+    asset_set = db.assetset.find_first(
+        where=where,
+        order={"createdAt": "desc"},
+        include=_ASSET_SET_INCLUDE,
+    )
+    if not asset_set:
+        return not_found("No asset set found for this stage config")
+
+    return jsonify(ApiResponse.ok(_serialize_asset_set(asset_set)).to_dict()), 200

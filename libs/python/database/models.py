@@ -106,6 +106,8 @@ class Product(bases.BaseProduct):
     recipeVersions: Optional[List['models.RecipeVersion']] = None
     productAccess: Optional[List['models.ProductAccess']] = None
     assetSets: Optional[List['models.AssetSet']] = None
+    manufacturingConfigs: Optional[List['models.ManufacturingConfig']] = None
+    manufacturingSessions: Optional[List['models.ManufacturingSession']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -738,6 +740,7 @@ class BoardRevision(bases.BaseBoardRevision):
     assetSets: Optional[List['models.AssetSet']] = None
     fixtureDesigns: Optional[List['models.FixtureDesign']] = None
     fixtures: Optional[List['models.Fixture']] = None
+    manufacturingConfigs: Optional[List['models.ManufacturingConfig']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -1211,7 +1214,7 @@ class FirmwareBuild(bases.BaseFirmwareBuild):
 
 
 class ProductStageConfig(bases.BaseProductStageConfig):
-    """Configuration for a single validation stage within a product.
+    """Configuration for a validation or manufacturing stage within a product.
     Thin config: which revision, which branch, which signing key.
     Test config (directories, markers, timeouts) lives in the test repo itself.
     Build recipes are convention-driven via StageBuildDef (stage_builds.py).
@@ -1219,18 +1222,19 @@ class ProductStageConfig(bases.BaseProductStageConfig):
 
     id: _str
     productId: _str
+    type: 'enums.StageType'
+    """VALIDATION or MANUFACTURING
+    """
+
     stage: _int
-    """1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA
+    """Order within type: 1-5 for validation, 1 for manufacturing
     """
 
     name: _str
-    """Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"
+    """Display name: "Smoke", "Driver", ..., "Manufacturing"
     """
 
     enabled: _bool
-    """Disabled by default
-    """
-
     boardRevisionId: Optional[_str] = None
     """FK to BoardRevision (e.g., Alpha B0)
     """
@@ -1257,6 +1261,7 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     buildRuns: Optional[List['models.BuildRun']] = None
     queueEntries: Optional[List['models.ValidationQueueEntry']] = None
     buildMatrixEntries: Optional[List['models.StageBuildMatrix']] = None
+    assetSets: Optional[List['models.AssetSet']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -1778,7 +1783,7 @@ class BuildRun(bases.BaseBuildRun):
 
 
 class BuildJob(bases.BaseBuildJob):
-    """A single firmware build job within a pipeline.
+    """A single firmware build job within a build run.
     """
 
     id: _str
@@ -2686,6 +2691,7 @@ class Fixture(bases.BaseFixture):
     slots: Optional[List['models.FixtureSlot']] = None
     sessions: Optional[List['models.Session']] = None
     queueEntries: Optional[List['models.ValidationQueueEntry']] = None
+    manufacturingSessions: Optional[List['models.ManufacturingSession']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -4096,6 +4102,7 @@ class User(bases.BaseUser):
     secrets: Optional[List['models.Secret']] = None
     recipeVersions: Optional[List['models.RecipeVersion']] = None
     assetSets: Optional[List['models.AssetSet']] = None
+    manufacturingSessions: Optional[List['models.ManufacturingSession']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -5518,6 +5525,10 @@ class AssetSet(bases.BaseAssetSet):
     """External CI build ID (TeamCity, Jenkins)
     """
 
+    stageConfigId: Optional[_str] = None
+    """FK to ProductStageConfig (links assets to a specific stage)
+    """
+
     commitSha: Optional[_str] = None
     branch: Optional[_str] = None
     recipeVersionId: Optional[_str] = None
@@ -5529,6 +5540,7 @@ class AssetSet(bases.BaseAssetSet):
     product: Optional['models.Product'] = None
     boardRevision: Optional['models.BoardRevision'] = None
     buildRun: Optional['models.BuildRun'] = None
+    stageConfig: Optional['models.ProductStageConfig'] = None
     recipeVersion: Optional['models.RecipeVersion'] = None
     createdBy: Optional['models.User'] = None
     assets: Optional[List['models.Asset']] = None
@@ -5825,6 +5837,584 @@ class Asset(bases.BaseAsset):
         _created_partial_types.add(name)
 
 
+class ManufacturingConfig(bases.BaseManufacturingConfig):
+    """Manufacturing configuration for a product + board revision combination.
+    Defines which stages to run, firmware source, and pass criteria.
+    """
+
+    id: _str
+    productId: _str
+    boardRevisionId: _str
+    enabled: _bool
+    stages: 'fields.Json'
+    """[{name: "Electrical", enabled: true, config: {...}}, ...]
+    """
+
+    firmwareSource: _str
+    firmwareSetId: Optional[_str] = None
+    personalizationConfig: Optional['fields.Json'] = None
+    passCriteria: Optional['fields.Json'] = None
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    product: Optional['models.Product'] = None
+    boardRevision: Optional['models.BoardRevision'] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.ManufacturingConfigKeys']] = None,
+        exclude: Optional[Iterable['types.ManufacturingConfigKeys']] = None,
+        required: Optional[Iterable['types.ManufacturingConfigKeys']] = None,
+        optional: Optional[Iterable['types.ManufacturingConfigKeys']] = None,
+        relations: Optional[Mapping['types.ManufacturingConfigRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.ManufacturingConfigKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _ManufacturingConfig_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _ManufacturingConfig_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _ManufacturingConfig_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _ManufacturingConfig_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _ManufacturingConfig_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _ManufacturingConfig_relational_fields:
+                        raise errors.UnknownRelationalFieldError('ManufacturingConfig', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid ManufacturingConfig / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'ManufacturingConfig',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class ManufacturingSession(bases.BaseManufacturingSession):
+    """An active or completed manufacturing session on a fixture.
+    Tracks operator, fixture lock, and aggregate panel/unit counts.
+    """
+
+    id: _str
+    productId: _str
+    fixtureId: _str
+    status: 'enums.ManufacturingSessionStatus'
+    operatorId: _str
+    panelCount: _int
+    passedCount: _int
+    failedCount: _int
+    config: Optional['fields.Json'] = None
+    startedAt: datetime.datetime
+    endedAt: Optional[datetime.datetime] = None
+    createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    product: Optional['models.Product'] = None
+    fixture: Optional['models.Fixture'] = None
+    operator: Optional['models.User'] = None
+    panels: Optional[List['models.ManufacturingPanel']] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.ManufacturingSessionKeys']] = None,
+        exclude: Optional[Iterable['types.ManufacturingSessionKeys']] = None,
+        required: Optional[Iterable['types.ManufacturingSessionKeys']] = None,
+        optional: Optional[Iterable['types.ManufacturingSessionKeys']] = None,
+        relations: Optional[Mapping['types.ManufacturingSessionRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.ManufacturingSessionKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _ManufacturingSession_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _ManufacturingSession_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _ManufacturingSession_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _ManufacturingSession_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _ManufacturingSession_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _ManufacturingSession_relational_fields:
+                        raise errors.UnknownRelationalFieldError('ManufacturingSession', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid ManufacturingSession / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'ManufacturingSession',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class ManufacturingPanel(bases.BaseManufacturingPanel):
+    """A panel scanned during a manufacturing session. Each panel contains
+    multiple units (DUTs) that go through manufacturing test stages.
+    """
+
+    id: _str
+    sessionId: _str
+    panelIndex: _int
+    qrCode: _str
+    status: 'enums.PanelStatus'
+    unitCount: _int
+    passedUnits: _int
+    failedUnits: _int
+    startedAt: datetime.datetime
+    completedAt: Optional[datetime.datetime] = None
+    durationMs: Optional[_int] = None
+    createdAt: datetime.datetime
+    session: Optional['models.ManufacturingSession'] = None
+    units: Optional[List['models.ManufacturingUnit']] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.ManufacturingPanelKeys']] = None,
+        exclude: Optional[Iterable['types.ManufacturingPanelKeys']] = None,
+        required: Optional[Iterable['types.ManufacturingPanelKeys']] = None,
+        optional: Optional[Iterable['types.ManufacturingPanelKeys']] = None,
+        relations: Optional[Mapping['types.ManufacturingPanelRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.ManufacturingPanelKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _ManufacturingPanel_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _ManufacturingPanel_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _ManufacturingPanel_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _ManufacturingPanel_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _ManufacturingPanel_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _ManufacturingPanel_relational_fields:
+                        raise errors.UnknownRelationalFieldError('ManufacturingPanel', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid ManufacturingPanel / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'ManufacturingPanel',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class ManufacturingUnit(bases.BaseManufacturingUnit):
+    """A single DUT (device under test) within a manufacturing panel.
+    Stages are stored as a JSON array, appended by stage-result callbacks.
+    """
+
+    id: _str
+    panelId: _str
+    slotIndex: _int
+    slotId: _str
+    serialNumber: Optional[_str] = None
+    status: 'enums.UnitStatus'
+    stages: 'fields.Json'
+    """[{name, status, durationMs, measurements?, errorMessage?}, ...]
+    """
+
+    errorMessage: Optional[_str] = None
+    startedAt: datetime.datetime
+    completedAt: Optional[datetime.datetime] = None
+    durationMs: Optional[_int] = None
+    panel: Optional['models.ManufacturingPanel'] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.ManufacturingUnitKeys']] = None,
+        exclude: Optional[Iterable['types.ManufacturingUnitKeys']] = None,
+        required: Optional[Iterable['types.ManufacturingUnitKeys']] = None,
+        optional: Optional[Iterable['types.ManufacturingUnitKeys']] = None,
+        relations: Optional[Mapping['types.ManufacturingUnitRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.ManufacturingUnitKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _ManufacturingUnit_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _ManufacturingUnit_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _ManufacturingUnit_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _ManufacturingUnit_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _ManufacturingUnit_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _ManufacturingUnit_relational_fields:
+                        raise errors.UnknownRelationalFieldError('ManufacturingUnit', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid ManufacturingUnit / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'ManufacturingUnit',
+            }
+        )
+        _created_partial_types.add(name)
+
+
 
 _Product_relational_fields: Set[str] = {
         'boards',
@@ -5839,6 +6429,8 @@ _Product_relational_fields: Set[str] = {
         'recipeVersions',
         'productAccess',
         'assetSets',
+        'manufacturingConfigs',
+        'manufacturingSessions',
     }
 _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
     [
@@ -6031,6 +6623,22 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.AssetSet\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('manufacturingConfigs', {
+            'name': 'manufacturingConfigs',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ManufacturingConfig\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('manufacturingSessions', {
+            'name': 'manufacturingSessions',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ManufacturingSession\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -6345,6 +6953,7 @@ _BoardRevision_relational_fields: Set[str] = {
         'assetSets',
         'fixtureDesigns',
         'fixtures',
+        'manufacturingConfigs',
     }
 _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = OrderedDict(
     [
@@ -6505,6 +7114,14 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.Fixture\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('manufacturingConfigs', {
+            'name': 'manufacturingConfigs',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ManufacturingConfig\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -6826,6 +7443,7 @@ _ProductStageConfig_relational_fields: Set[str] = {
         'buildRuns',
         'queueEntries',
         'buildMatrixEntries',
+        'assetSets',
     }
 _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelField] = OrderedDict(
     [
@@ -6845,13 +7463,21 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_relational': False,
             'documentation': None,
         }),
+        ('type', {
+            'name': 'type',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.StageType',
+            'is_relational': False,
+            'documentation': '''VALIDATION or MANUFACTURING''',
+        }),
         ('stage', {
             'name': 'stage',
             'is_list': False,
             'optional': False,
             'type': '_int',
             'is_relational': False,
-            'documentation': '''1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA''',
+            'documentation': '''Order within type: 1-5 for validation, 1 for manufacturing''',
         }),
         ('name', {
             'name': 'name',
@@ -6859,7 +7485,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"''',
+            'documentation': '''Display name: "Smoke", "Driver", ..., "Manufacturing"''',
         }),
         ('enabled', {
             'name': 'enabled',
@@ -6867,7 +7493,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_bool',
             'is_relational': False,
-            'documentation': '''Disabled by default''',
+            'documentation': None,
         }),
         ('boardRevisionId', {
             'name': 'boardRevisionId',
@@ -6978,6 +7604,14 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.StageBuildMatrix\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('assetSets', {
+            'name': 'assetSets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.AssetSet\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -8342,6 +8976,7 @@ _Fixture_relational_fields: Set[str] = {
         'slots',
         'sessions',
         'queueEntries',
+        'manufacturingSessions',
     }
 _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
     [
@@ -8526,6 +9161,14 @@ _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.ValidationQueueEntry\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('manufacturingSessions', {
+            'name': 'manufacturingSessions',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ManufacturingSession\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -9497,6 +10140,7 @@ _User_relational_fields: Set[str] = {
         'secrets',
         'recipeVersions',
         'assetSets',
+        'manufacturingSessions',
     }
 _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
     [
@@ -9657,6 +10301,14 @@ _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.AssetSet\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('manufacturingSessions', {
+            'name': 'manufacturingSessions',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ManufacturingSession\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -10438,6 +11090,7 @@ _AssetSet_relational_fields: Set[str] = {
         'product',
         'boardRevision',
         'buildRun',
+        'stageConfig',
         'recipeVersion',
         'createdBy',
         'assets',
@@ -10516,6 +11169,14 @@ _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
             'type': '_str',
             'is_relational': False,
             'documentation': '''External CI build ID (TeamCity, Jenkins)''',
+        }),
+        ('stageConfigId', {
+            'name': 'stageConfigId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''FK to ProductStageConfig (links assets to a specific stage)''',
         }),
         ('commitSha', {
             'name': 'commitSha',
@@ -10602,6 +11263,14 @@ _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
             'is_list': False,
             'optional': True,
             'type': 'models.BuildRun',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('stageConfig', {
+            'name': 'stageConfig',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.ProductStageConfig',
             'is_relational': True,
             'documentation': None,
         }),
@@ -10768,6 +11437,491 @@ _Asset_fields: Dict['types.AssetKeys', PartialModelField] = OrderedDict(
     ],
 )
 
+_ManufacturingConfig_relational_fields: Set[str] = {
+        'product',
+        'boardRevision',
+    }
+_ManufacturingConfig_fields: Dict['types.ManufacturingConfigKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('productId', {
+            'name': 'productId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('boardRevisionId', {
+            'name': 'boardRevisionId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('enabled', {
+            'name': 'enabled',
+            'is_list': False,
+            'optional': False,
+            'type': '_bool',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('stages', {
+            'name': 'stages',
+            'is_list': False,
+            'optional': False,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': '''[{name: "Electrical", enabled: true, config: {...}}, ...]''',
+        }),
+        ('firmwareSource', {
+            'name': 'firmwareSource',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('firmwareSetId', {
+            'name': 'firmwareSetId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('personalizationConfig', {
+            'name': 'personalizationConfig',
+            'is_list': False,
+            'optional': True,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('passCriteria', {
+            'name': 'passCriteria',
+            'is_list': False,
+            'optional': True,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('updatedAt', {
+            'name': 'updatedAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('product', {
+            'name': 'product',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.Product',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('boardRevision', {
+            'name': 'boardRevision',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BoardRevision',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_ManufacturingSession_relational_fields: Set[str] = {
+        'product',
+        'fixture',
+        'operator',
+        'panels',
+    }
+_ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('productId', {
+            'name': 'productId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('fixtureId', {
+            'name': 'fixtureId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('status', {
+            'name': 'status',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.ManufacturingSessionStatus',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('operatorId', {
+            'name': 'operatorId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('panelCount', {
+            'name': 'panelCount',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('passedCount', {
+            'name': 'passedCount',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('failedCount', {
+            'name': 'failedCount',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('config', {
+            'name': 'config',
+            'is_list': False,
+            'optional': True,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('startedAt', {
+            'name': 'startedAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('endedAt', {
+            'name': 'endedAt',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('updatedAt', {
+            'name': 'updatedAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('product', {
+            'name': 'product',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.Product',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('fixture', {
+            'name': 'fixture',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.Fixture',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('operator', {
+            'name': 'operator',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('panels', {
+            'name': 'panels',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ManufacturingPanel\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_ManufacturingPanel_relational_fields: Set[str] = {
+        'session',
+        'units',
+    }
+_ManufacturingPanel_fields: Dict['types.ManufacturingPanelKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('sessionId', {
+            'name': 'sessionId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('panelIndex', {
+            'name': 'panelIndex',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('qrCode', {
+            'name': 'qrCode',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('status', {
+            'name': 'status',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.PanelStatus',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('unitCount', {
+            'name': 'unitCount',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('passedUnits', {
+            'name': 'passedUnits',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('failedUnits', {
+            'name': 'failedUnits',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('startedAt', {
+            'name': 'startedAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('completedAt', {
+            'name': 'completedAt',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('durationMs', {
+            'name': 'durationMs',
+            'is_list': False,
+            'optional': True,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('session', {
+            'name': 'session',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.ManufacturingSession',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('units', {
+            'name': 'units',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ManufacturingUnit\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_ManufacturingUnit_relational_fields: Set[str] = {
+        'panel',
+    }
+_ManufacturingUnit_fields: Dict['types.ManufacturingUnitKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('panelId', {
+            'name': 'panelId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('slotIndex', {
+            'name': 'slotIndex',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('slotId', {
+            'name': 'slotId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('serialNumber', {
+            'name': 'serialNumber',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('status', {
+            'name': 'status',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.UnitStatus',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('stages', {
+            'name': 'stages',
+            'is_list': False,
+            'optional': False,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': '''[{name, status, durationMs, measurements?, errorMessage?}, ...]''',
+        }),
+        ('errorMessage', {
+            'name': 'errorMessage',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('startedAt', {
+            'name': 'startedAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('completedAt', {
+            'name': 'completedAt',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('durationMs', {
+            'name': 'durationMs',
+            'is_list': False,
+            'optional': True,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('panel', {
+            'name': 'panel',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.ManufacturingPanel',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
 
 
 # we have to import ourselves as relation types are namespaced to models
@@ -10811,3 +11965,7 @@ model_rebuild(RecipeTemplate)
 model_rebuild(StageBuildMatrix)
 model_rebuild(AssetSet)
 model_rebuild(Asset)
+model_rebuild(ManufacturingConfig)
+model_rebuild(ManufacturingSession)
+model_rebuild(ManufacturingPanel)
+model_rebuild(ManufacturingUnit)

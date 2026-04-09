@@ -106,7 +106,7 @@ test.describe('Product Creation Wizard', () => {
     await selectBranchWithBoards(page);
 
     // Click the wizard's Next button
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
 
     // Step 2: "Select product family" heading
     await expect(page.getByText('Select product family')).toBeVisible({ timeout: 15_000 });
@@ -120,7 +120,7 @@ test.describe('Product Creation Wizard', () => {
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
     await selectBranchWithBoards(page);
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await expect(page.getByText('Select product family')).toBeVisible({ timeout: 15_000 });
 
     // Wait for scanning to finish and board cards to appear
@@ -138,13 +138,13 @@ test.describe('Product Creation Wizard', () => {
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
     await selectBranchWithBoards(page);
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
 
     // Wait for boards and select alpha
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
 
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
 
     // Step 3: "Configure product" heading
     await expect(page.getByText('Configure product')).toBeVisible({ timeout: 15_000 });
@@ -159,17 +159,20 @@ test.describe('Product Creation Wizard', () => {
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
     await selectBranchWithBoards(page);
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await expect(page.getByText('Configure product')).toBeVisible({ timeout: 15_000 });
+
+    // Wait for board detail to load and render revision config inputs
+    await page.waitForSelector('input[type="number"][min="0"]', { timeout: 15_000 });
 
     // Should show revision section(s) with SoC info (nrf52840, nrf9151)
     // Targets appear as role labels (app, comms)
     await expect(page.getByText(/app/i).first()).toBeVisible();
     // AppID input fields should be present
-    const appIdInputs = page.locator('input[type="number"][placeholder*="109"], input[type="number"][min="0"]');
+    const appIdInputs = page.locator('input[type="number"][min="0"]');
     const count = await appIdInputs.count();
     expect(count).toBeGreaterThan(0);
   });
@@ -183,11 +186,14 @@ test.describe('Product Creation Wizard', () => {
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
     await selectBranchWithBoards(page);
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await expect(page.getByText('Configure product')).toBeVisible({ timeout: 15_000 });
+
+    // Wait for board detail to load (async) — AppID inputs appear after load
+    await page.waitForSelector('input[type="number"][min="0"]', { timeout: 15_000 });
 
     // Find the app target section and set AppID = 109
     const appSection = page.locator('div').filter({ hasText: /^app/ }).locator('input[type="number"]').first();
@@ -216,10 +222,10 @@ test.describe('Product Creation Wizard', () => {
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
     await selectBranchWithBoards(page);
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await expect(page.getByText('Configure product')).toBeVisible({ timeout: 15_000 });
 
     // The firmware repo slug fields should be auto-populated (alpha_fw, alpha_mfg_fw)
@@ -238,10 +244,10 @@ test.describe('Product Creation Wizard', () => {
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
     await selectBranchWithBoards(page);
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await expect(page.getByText('Configure product')).toBeVisible({ timeout: 15_000 });
 
     // Wait for the async repo check to complete — green check icon (lucide Check with text-success class)
@@ -261,10 +267,10 @@ test.describe('Product Creation Wizard', () => {
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
     await selectBranchWithBoards(page);
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await expect(page.getByText('Configure product')).toBeVisible({ timeout: 15_000 });
 
     // Clear the fw repo slug and type an invalid one
@@ -288,10 +294,10 @@ test.describe('Product Creation Wizard', () => {
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
     await selectBranchWithBoards(page);
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await expect(page.getByText('Configure product')).toBeVisible({ timeout: 15_000 });
 
     // Set a unique product name to avoid conflicts
@@ -304,7 +310,7 @@ test.describe('Product Creation Wizard', () => {
     await allInputs.first().fill(uniqueName);
 
     // Click Next to go to step 4 (review)
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
 
     // Step 4: "Confirm and create" heading
     await expect(page.getByText('Confirm and create')).toBeVisible({ timeout: 10_000 });
@@ -323,10 +329,10 @@ test.describe('Product Creation Wizard', () => {
     await page.getByRole('button', { name: /new product/i }).click();
     await page.waitForSelector('#branch-select', { timeout: 15_000 });
     await selectBranchWithBoards(page);
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await page.waitForSelector('button:has-text("alpha")', { timeout: 20_000 });
     await page.locator('button').filter({ hasText: /alpha/i }).first().click();
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await expect(page.getByText('Configure product')).toBeVisible({ timeout: 15_000 });
 
     // Set unique product name
@@ -336,7 +342,7 @@ test.describe('Product Creation Wizard', () => {
     await allInputs.first().fill(uniqueName);
 
     // Go to review
-    await page.getByRole('button', { name: /next/i }).click();
+    await page.getByRole('button', { name: /next/i }).first().click();
     await expect(page.getByText('Confirm and create')).toBeVisible({ timeout: 10_000 });
 
     // Click "Create Product"

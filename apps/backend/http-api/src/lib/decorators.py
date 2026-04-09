@@ -54,7 +54,7 @@ def require_auth(f):
     def decorated(*args, **kwargs):
         """Authenticate via JWT or API key, injecting current_user into g."""
         if not env_config.AUTH_ENABLED:
-            # If a Bearer token is present, decode it (dev login flow).
+            # If a Bearer token or API key is present, decode it.
             # Otherwise fall back to the default admin identity.
             auth_header = request.headers.get("Authorization", "")
             if auth_header.startswith("Bearer "):
@@ -64,13 +64,47 @@ def require_auth(f):
                     g.current_user = payload
                     return f(*args, **kwargs)
 
-            g.current_user = {
-                "sub": "00000000-0000-0000-0000-000000000000",
-                "email": "admin@concord.local",
-                "name": "Admin (auth disabled)",
-                "role": "ADMIN",
-                "permissionSetId": None,
-            }
+            if auth_header.startswith("ApiKey "):
+                raw_key = auth_header.split(" ", 1)[1]
+                key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+                db = get_db_client()
+                api_key = db.apikey.find_unique(
+                    where={"keyHash": key_hash},
+                    include={"user": {"include": {"permissionSet": True}}},
+                )
+                if api_key and api_key.user.active:
+                    db.apikey.update(
+                        where={"id": api_key.id},
+                        data={"lastUsedAt": datetime.now(timezone.utc)},
+                    )
+                    g.current_user = {
+                        "sub": api_key.user.id,
+                        "email": api_key.user.email,
+                        "name": api_key.user.name,
+                        "role": getattr(api_key.user, "role", "DEVELOPER"),
+                        "permissionSetId": getattr(api_key.user, "permissionSetId", None),
+                    }
+                    return f(*args, **kwargs)
+
+            # Fall back to the dev admin user from the database
+            db = get_db_client()
+            dev_admin = db.user.find_unique(where={"email": "admin@concord.local"})
+            if dev_admin:
+                g.current_user = {
+                    "sub": dev_admin.id,
+                    "email": dev_admin.email,
+                    "name": dev_admin.name,
+                    "role": getattr(dev_admin, "role", "ADMIN"),
+                    "permissionSetId": getattr(dev_admin, "permissionSetId", None),
+                }
+            else:
+                g.current_user = {
+                    "sub": "00000000-0000-0000-0000-000000000000",
+                    "email": "admin@concord.local",
+                    "name": "Admin (auth disabled)",
+                    "role": "ADMIN",
+                    "permissionSetId": None,
+                }
             return f(*args, **kwargs)
 
         auth_header = request.headers.get("Authorization")

@@ -110,7 +110,7 @@
     <!-- Stats row -->
     <div class="flex gap-4 text-2xs text-text-tertiary border-t border-border-subtle pt-2">
       <div>
-        <strong class="text-text-secondary">{product.firmwareSetCount ?? 0}</strong> firmware sets
+        <strong class="text-text-secondary">{product.assetSetCount ?? 0}</strong> asset sets
       </div>
       <div>
         <strong class="text-text-secondary">{revisions.length}</strong> revision{revisions.length !== 1 ? 's' : ''}

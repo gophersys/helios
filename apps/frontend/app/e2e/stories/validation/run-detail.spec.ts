@@ -68,7 +68,7 @@ test.describe('Validation Run Detail: Page Layout & Interactions', () => {
     const node = await createNode({
       name: `Val Detail Node ${suffix}`,
       hostname: `val-det-node-${suffix}`,
-      type: 'MTIB',
+      type: 'VALIDATION',
       ipAddress: '10.4.45.96',
     });
     nodeId = node.id;

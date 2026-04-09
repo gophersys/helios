@@ -190,6 +190,8 @@ export interface ProductConfig {
   name: string;
   slug?: string;
   description?: string;
+  fwRepoSlug?: string;
+  mfgFwRepoSlug?: string;
 }
 
 export interface Product {
@@ -204,18 +206,39 @@ export async function createProductViaAPI(config: ProductConfig): Promise<Produc
 }
 
 export interface StageConfig {
+  type?: string;
   watchBranch?: string;
   triggerTypes?: string[];
   recipe?: string;
   boardRevisionId?: string;
+  name?: string;
 }
+
+const VALIDATION_STAGE_NAMES: Record<number, string> = {
+  1: 'Smoke',
+  2: 'Driver',
+  3: 'Integration',
+  4: 'Regression',
+  5: 'FUOTA',
+};
 
 export async function configureStage(
   productId: string,
   stage: number,
   config: StageConfig,
 ): Promise<void> {
-  await concordPut(`/v2/products/${productId}/stages/${stage}`, config);
+  const stageType = config.type || 'VALIDATION';
+  // Try PUT (update existing config) first, fall back to POST (create new)
+  try {
+    await concordPut(`/v2/products/${productId}/stages/${stage}`, config);
+  } catch (err: any) {
+    if (err.message?.includes('404')) {
+      const name = config.name || VALIDATION_STAGE_NAMES[stage] || `Stage ${stage}`;
+      await concordPost(`/v2/products/${productId}/stages`, { type: stageType, stage, name, ...config });
+    } else {
+      throw err;
+    }
+  }
 }
 
 // ── Fixtures ─────────────────────────────────────────────────

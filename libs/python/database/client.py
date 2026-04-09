@@ -130,6 +130,10 @@ class Prisma(SyncBasePrisma):
     stagebuildmatrix: 'actions.StageBuildMatrixActions[models.StageBuildMatrix]'
     assetset: 'actions.AssetSetActions[models.AssetSet]'
     asset: 'actions.AssetActions[models.Asset]'
+    manufacturingconfig: 'actions.ManufacturingConfigActions[models.ManufacturingConfig]'
+    manufacturingsession: 'actions.ManufacturingSessionActions[models.ManufacturingSession]'
+    manufacturingpanel: 'actions.ManufacturingPanelActions[models.ManufacturingPanel]'
+    manufacturingunit: 'actions.ManufacturingUnitActions[models.ManufacturingUnit]'
 
     __slots__ = (
         'product',
@@ -168,6 +172,10 @@ class Prisma(SyncBasePrisma):
         'stagebuildmatrix',
         'assetset',
         'asset',
+        'manufacturingconfig',
+        'manufacturingsession',
+        'manufacturingpanel',
+        'manufacturingunit',
     )
 
     def __init__(
@@ -234,6 +242,10 @@ class Prisma(SyncBasePrisma):
         self.stagebuildmatrix = actions.StageBuildMatrixActions[models.StageBuildMatrix](self, models.StageBuildMatrix)
         self.assetset = actions.AssetSetActions[models.AssetSet](self, models.AssetSet)
         self.asset = actions.AssetActions[models.Asset](self, models.Asset)
+        self.manufacturingconfig = actions.ManufacturingConfigActions[models.ManufacturingConfig](self, models.ManufacturingConfig)
+        self.manufacturingsession = actions.ManufacturingSessionActions[models.ManufacturingSession](self, models.ManufacturingSession)
+        self.manufacturingpanel = actions.ManufacturingPanelActions[models.ManufacturingPanel](self, models.ManufacturingPanel)
+        self.manufacturingunit = actions.ManufacturingUnitActions[models.ManufacturingUnit](self, models.ManufacturingUnit)
 
         if auto_register:
             register(self)
@@ -420,6 +432,10 @@ class Batch:
     stagebuildmatrix: 'StageBuildMatrixBatchActions'
     assetset: 'AssetSetBatchActions'
     asset: 'AssetBatchActions'
+    manufacturingconfig: 'ManufacturingConfigBatchActions'
+    manufacturingsession: 'ManufacturingSessionBatchActions'
+    manufacturingpanel: 'ManufacturingPanelBatchActions'
+    manufacturingunit: 'ManufacturingUnitBatchActions'
 
     def __init__(self, client: Prisma) -> None:
         self.__client = client
@@ -461,6 +477,10 @@ class Batch:
         self.stagebuildmatrix = StageBuildMatrixBatchActions(self)
         self.assetset = AssetSetBatchActions(self)
         self.asset = AssetBatchActions(self)
+        self.manufacturingconfig = ManufacturingConfigBatchActions(self)
+        self.manufacturingsession = ManufacturingSessionBatchActions(self)
+        self.manufacturingpanel = ManufacturingPanelBatchActions(self)
+        self.manufacturingunit = ManufacturingUnitBatchActions(self)
 
     def _add(self, **kwargs: Any) -> None:
         builder = QueryBuilder(
@@ -4503,6 +4523,450 @@ class AssetBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.Asset,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class ManufacturingConfigBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.ManufacturingConfigCreateInput,
+        include: Optional[types.ManufacturingConfigInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.ManufacturingConfig,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.ManufacturingConfigCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.ManufacturingConfig,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.ManufacturingConfigWhereUniqueInput,
+        include: Optional[types.ManufacturingConfigInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.ManufacturingConfig,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.ManufacturingConfigUpdateInput,
+        where: types.ManufacturingConfigWhereUniqueInput,
+        include: Optional[types.ManufacturingConfigInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.ManufacturingConfig,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.ManufacturingConfigWhereUniqueInput,
+        data: types.ManufacturingConfigUpsertInput,
+        include: Optional[types.ManufacturingConfigInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.ManufacturingConfig,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.ManufacturingConfigUpdateManyMutationInput,
+        where: types.ManufacturingConfigWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.ManufacturingConfig,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.ManufacturingConfigWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.ManufacturingConfig,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class ManufacturingSessionBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.ManufacturingSessionCreateInput,
+        include: Optional[types.ManufacturingSessionInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.ManufacturingSession,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.ManufacturingSessionCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.ManufacturingSession,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.ManufacturingSessionWhereUniqueInput,
+        include: Optional[types.ManufacturingSessionInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.ManufacturingSession,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.ManufacturingSessionUpdateInput,
+        where: types.ManufacturingSessionWhereUniqueInput,
+        include: Optional[types.ManufacturingSessionInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.ManufacturingSession,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.ManufacturingSessionWhereUniqueInput,
+        data: types.ManufacturingSessionUpsertInput,
+        include: Optional[types.ManufacturingSessionInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.ManufacturingSession,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.ManufacturingSessionUpdateManyMutationInput,
+        where: types.ManufacturingSessionWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.ManufacturingSession,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.ManufacturingSessionWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.ManufacturingSession,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class ManufacturingPanelBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.ManufacturingPanelCreateInput,
+        include: Optional[types.ManufacturingPanelInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.ManufacturingPanel,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.ManufacturingPanelCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.ManufacturingPanel,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.ManufacturingPanelWhereUniqueInput,
+        include: Optional[types.ManufacturingPanelInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.ManufacturingPanel,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.ManufacturingPanelUpdateInput,
+        where: types.ManufacturingPanelWhereUniqueInput,
+        include: Optional[types.ManufacturingPanelInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.ManufacturingPanel,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.ManufacturingPanelWhereUniqueInput,
+        data: types.ManufacturingPanelUpsertInput,
+        include: Optional[types.ManufacturingPanelInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.ManufacturingPanel,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.ManufacturingPanelUpdateManyMutationInput,
+        where: types.ManufacturingPanelWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.ManufacturingPanel,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.ManufacturingPanelWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.ManufacturingPanel,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class ManufacturingUnitBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.ManufacturingUnitCreateInput,
+        include: Optional[types.ManufacturingUnitInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.ManufacturingUnit,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.ManufacturingUnitCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.ManufacturingUnit,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.ManufacturingUnitWhereUniqueInput,
+        include: Optional[types.ManufacturingUnitInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.ManufacturingUnit,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.ManufacturingUnitUpdateInput,
+        where: types.ManufacturingUnitWhereUniqueInput,
+        include: Optional[types.ManufacturingUnitInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.ManufacturingUnit,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.ManufacturingUnitWhereUniqueInput,
+        data: types.ManufacturingUnitUpsertInput,
+        include: Optional[types.ManufacturingUnitInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.ManufacturingUnit,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.ManufacturingUnitUpdateManyMutationInput,
+        where: types.ManufacturingUnitWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.ManufacturingUnit,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.ManufacturingUnitWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.ManufacturingUnit,
             arguments={'where': where},
             root_selection=['count'],
         )

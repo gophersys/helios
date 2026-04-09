@@ -62,6 +62,6 @@ test.describe('Sidebar Navigation', () => {
   });
 
   test('user info shown at bottom', async ({ page }) => {
-    await expect(page.getByText('Dev Admin')).toBeVisible();
+    await expect(page.getByText('Admin User')).toBeVisible();
   });
 });

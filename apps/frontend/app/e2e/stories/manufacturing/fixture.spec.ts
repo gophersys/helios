@@ -83,10 +83,27 @@ test.describe('Manufacturing Fixture Setup', () => {
   });
 
   test('create MANUFACTURING fixture design for Alpha B0', async () => {
+    // Fetch Alpha B0 revision ID dynamically
+    const listRes = await fetch(`${API_URL}/v2/products`, {
+      headers: { Authorization: `ApiKey ${API_KEY}` },
+    });
+    const listBody = await listRes.json();
+    const products = listBody?.data?.data ?? [];
+    const alpha = products.find((p: any) => p.slug === 'alpha');
+    expect(alpha).toBeTruthy();
+    const detailRes = await fetch(`${API_URL}/v2/products/${alpha.id}`, {
+      headers: { Authorization: `ApiKey ${API_KEY}` },
+    });
+    const detailBody = await detailRes.json();
+    const b0 = detailBody?.data?.boards
+      ?.flatMap((b: any) => b.revisions ?? [])
+      ?.find((r: any) => r.version === 'B0');
+    expect(b0).toBeTruthy();
+
     const design = await createFixtureDesign({
       name: `MFG Design ${suffix}`,
       description: 'E2E manufacturing fixture design',
-      boardRevisionId: 'cmnqaxivu000otjnrfiu2x0l0', // Alpha B0
+      boardRevisionId: b0.id,
       revision: '1.0',
     });
 

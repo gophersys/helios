@@ -165,6 +165,10 @@ class GitPoller:
                     repo_slug=repo_slug,
                     target_branch=branch,
                 )
+                # None means rate-limited or transient error — skip this cycle
+                # to avoid falsely marking tracked PRs as closed
+                if open_prs is None:
+                    continue
                 for target in branch_targets:
                     self._check_prs(
                         target,

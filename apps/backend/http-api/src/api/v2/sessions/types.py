@@ -98,9 +98,9 @@ class ReportStartRequest:
     """pytest session started — set Session ACTIVE, record start time."""
 
     @classmethod
-    def from_json(cls, data: dict) -> Tuple[Optional["ReportStartRequest"], Optional[str]]:
+    def from_json(cls, data) -> Tuple[Optional["ReportStartRequest"], Optional[str]]:
         """Parse and validate JSON into a ReportStartRequest."""
-        if not data:
+        if data is None:
             return None, "Request body must contain JSON data"
         return cls(), None
 

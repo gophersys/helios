@@ -17,9 +17,10 @@ def download_storage_file():
     if not key:
         return bad_request("key parameter is required")
 
-    # Security: only allow firmware/ prefix
-    if not key.startswith("firmware/"):
-        return bad_request("Access denied: only firmware/ paths allowed")
+    # Security: only allow known storage prefixes
+    allowed_prefixes = ("firmware/", "asset-sets/", "test-packages/")
+    if not any(key.startswith(p) for p in allowed_prefixes):
+        return bad_request("Access denied: path not in allowed prefixes")
 
     # Reject path traversal
     if ".." in key:

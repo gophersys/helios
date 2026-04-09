@@ -2,8 +2,9 @@ import { apiFetch } from '$lib/api';
 import type { ApiResponse } from '$lib/types';
 import type { ProductStageConfig } from '$lib/types/stages';
 
-export async function listStageConfigs(productId: string): Promise<ProductStageConfig[]> {
-  const res = await apiFetch<ApiResponse<ProductStageConfig[]>>(`/v2/products/${productId}/stages`);
+export async function listStageConfigs(productId: string, type?: string): Promise<ProductStageConfig[]> {
+  const query = type ? `?type=${type}` : '';
+  const res = await apiFetch<ApiResponse<ProductStageConfig[]>>(`/v2/products/${productId}/stages${query}`);
   return res.data;
 }
 

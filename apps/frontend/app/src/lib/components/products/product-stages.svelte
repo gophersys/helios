@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { ProductStageConfig, Secret } from '$lib/types/stages';
-  import { STAGE_NAMES, STAGE_DESCRIPTIONS } from '$lib/types/stages';
+  import type { ProductStageConfig, Secret, StageType } from '$lib/types/stages';
+  import { stageName, stageDescription } from '$lib/types/stages';
   import type { BoardRevision } from '$lib/types/models';
-  import { listStageConfigs, initializeStages, updateStageConfig } from '$lib/services/stages';
+  import { listStageConfigs, initializeStages, createStageConfig, updateStageConfig } from '$lib/services/stages';
   import { apiFetch } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import StageConfigWizard from './stage-config-wizard.svelte';
@@ -19,10 +19,26 @@
     productName?: string;
     revisions?: BoardRevision[];
     fwRepoSlug?: string;
+    stageType?: StageType;
+    emptyLabel?: string;
+    enableLabel?: string;
     onRefresh?: () => void;
   }
 
-  let { productId, productName = '', revisions = [], fwRepoSlug = '', onRefresh }: Props = $props();
+  let {
+    productId,
+    productName = '',
+    revisions = [],
+    fwRepoSlug = '',
+    stageType = 'VALIDATION' as StageType,
+    emptyLabel = 'Validation not configured',
+    enableLabel = 'Enable Validation',
+    onRefresh,
+  }: Props = $props();
+
+  const stageNumbers = $derived(
+    stageType === 'MANUFACTURING' ? [1] : [1, 2, 3, 4, 5]
+  );
 
   let configs = $state<ProductStageConfig[]>([]);
   let secrets = $state<Secret[]>([]);
@@ -46,7 +62,8 @@
     loading = true;
     error = null;
     try {
-      configs = await listStageConfigs(productId);
+      const all = await listStageConfigs(productId, stageType);
+      configs = all;
       onRefresh?.();
     } catch (e: unknown) {
       error = e instanceof Error ? e.message : 'Failed to load stage configs';
@@ -68,9 +85,15 @@
     initializing = true;
     error = null;
     try {
-      configs = await initializeStages(productId);
+      if (stageType === 'MANUFACTURING') {
+        const cfg = await createStageConfig(productId, { type: 'MANUFACTURING', stage: 1, name: 'Manufacturing' });
+        configs = [cfg];
+      } else {
+        configs = await initializeStages(productId);
+      }
+      onRefresh?.();
     } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Failed to initialize stages';
+      error = e instanceof Error ? e.message : 'Failed to enable';
     } finally {
       initializing = false;
     }
@@ -119,18 +142,17 @@
     </div>
   {:else if configs.length === 0}
     <div class="text-center py-8">
-      <p class="text-sm text-text-secondary mb-2">No validation stages configured for {productName}.</p>
-      <p class="text-2xs text-text-tertiary mb-4">Initialize the 5 standard stages, then configure them per hardware revision.</p>
+      <p class="text-sm text-text-secondary mb-4">{emptyLabel}</p>
       <button class="btn btn-sm btn-primary" disabled={initializing} onclick={handleInitialize}>
-        {initializing ? 'Initializing...' : 'Initialize Stages'}
+        {initializing ? 'Enabling...' : enableLabel}
       </button>
     </div>
   {:else}
     <!-- Stage list — grouped by stage number, showing per-revision configs -->
-    {#each [1, 2, 3, 4, 5] as stageNum}
+    {#each stageNumbers as stageNum}
       {@const stageConfigs = getConfigsForStage(stageNum)}
-      {@const name = STAGE_NAMES[stageNum] || `Stage ${stageNum}`}
-      {@const desc = STAGE_DESCRIPTIONS[stageNum] || ''}
+      {@const name = stageName(stageType, stageNum)}
+      {@const desc = stageDescription(stageType, stageNum)}
       {@const hasAnyEnabled = stageConfigs.some((c) => c.enabled)}
 
       <div class="rounded-lg border border-border overflow-hidden">

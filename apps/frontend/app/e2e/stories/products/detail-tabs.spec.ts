@@ -34,7 +34,7 @@ test.describe('Product Detail Tabs', () => {
     // Product name appears as heading
     await expect(page.getByText(productName).first()).toBeVisible({ timeout: 10_000 });
     // Description text visible
-    await expect(page.getByText('Product created for detail tab E2E tests')).toBeVisible();
+    await expect(page.getByText('Product created for detail tab E2E tests').first()).toBeVisible();
   });
 
   test('Overview tab shows product metadata (name, active status)', async ({ page }) => {

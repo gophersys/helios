@@ -7690,11 +7690,11 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         # find the first 10 ProductStageConfig records
         productstageconfigs = ProductStageConfig.prisma().find_many(take=10)
 
-        # find the first 5 ProductStageConfig records ordered by the stage field
+        # find the first 5 ProductStageConfig records ordered by the type field
         productstageconfigs = ProductStageConfig.prisma().find_many(
             take=5,
             order={
-                'stage': 'desc',
+                'type': 'desc',
             },
         )
         ```
@@ -7755,11 +7755,11 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the second ProductStageConfig record ordered by the name field
+        # find the second ProductStageConfig record ordered by the stage field
         productstageconfig = ProductStageConfig.prisma().find_first(
             skip=1,
             order={
-                'name': 'desc',
+                'stage': 'desc',
             },
         )
         ```
@@ -7823,11 +7823,11 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the second ProductStageConfig record ordered by the enabled field
+        # find the second ProductStageConfig record ordered by the name field
         productstageconfig = ProductStageConfig.prisma().find_first_or_raise(
             skip=1,
             order={
-                'enabled': 'desc',
+                'name': 'desc',
             },
         )
         ```
@@ -7997,7 +7997,7 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         # update all ProductStageConfig records
         total = ProductStageConfig.prisma().update_many(
             data={
-                'boardRevisionId': 'fchheijjc'
+                'enabled': True
             },
             where={}
         )
@@ -8061,7 +8061,7 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         results = ProductStageConfig.prisma().count(
             select={
                 '_all': True,
-                'watchBranch': True,
+                'boardRevisionId': True,
             },
         )
         ```
@@ -8128,7 +8128,7 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         results = ProductStageConfig.prisma().count(
             select={
                 '_all': True,
-                'triggerTypes': True,
+                'watchBranch': True,
             },
         )
         ```
@@ -8268,10 +8268,10 @@ class ProductStageConfigActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group ProductStageConfig records by signingKeyId values
+        # group ProductStageConfig records by triggerTypes values
         # and count how many records are in each group
         results = ProductStageConfig.prisma().group_by(
-            ['signingKeyId'],
+            ['triggerTypes'],
             count=True,
         )
         ```
@@ -37201,6 +37201,4148 @@ class AssetActions(Generic[_PrismaModelT]):
         # and count how many records are in each group
         results = Asset.prisma().group_by(
             ['sizeBytes'],
+            count=True,
+        )
+        ```
+        """
+        if order is None:
+            if take is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
+
+            if skip is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
+
+        root_selection: List[str] = [*by]
+        if avg is not None:
+            root_selection.append(_select_fields('_avg', avg))
+
+        if min is not None:
+            root_selection.append(_select_fields('_min', min))
+
+        if sum is not None:
+            root_selection.append(_select_fields('_sum', sum))
+
+        if max is not None:
+            root_selection.append(_select_fields('_max', max))
+
+        if count is not None:
+            if count is True:
+                root_selection.append('_count { _all }')
+            elif isinstance(count, dict):
+                root_selection.append(_select_fields('_count', count))
+
+        resp = self._client._execute(
+            method='group_by',
+            model=self._model,
+            arguments={
+                'by': by,
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'having': having,
+                'orderBy': order,
+            },
+            root_selection=root_selection,
+        )
+        return resp['data']['result']  # type: ignore[no-any-return]
+
+
+class ManufacturingConfigActions(Generic[_PrismaModelT]):
+    __slots__ = (
+        '_client',
+        '_model',
+    )
+
+    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
+        self._client = client
+        self._model = model
+
+    def query_raw(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> List[_PrismaModelT]:
+        """Execute a raw SQL query
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        List[prisma.models.ManufacturingConfig]
+            The records returned by the SQL query
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        users = ManufacturingConfig.prisma().query_raw(
+            'SELECT * FROM ManufacturingConfig WHERE id = $1',
+            'fdbjgidii',
+        )
+        ```
+        """
+        return self._client.query_raw(query, *args, model=self._model)
+
+    def query_first(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> Optional[_PrismaModelT]:
+        """Execute a raw SQL query, returning the first result
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        prisma.models.ManufacturingConfig
+            The first record returned by the SQL query
+        None
+            The raw SQL query did not return any records
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        user = ManufacturingConfig.prisma().query_first(
+            'SELECT * FROM ManufacturingConfig WHERE productId = $1',
+            'ijecdcbd',
+        )
+        ```
+        """
+        return self._client.query_first(query, *args, model=self._model)
+
+    def create(
+        self,
+        data: types.ManufacturingConfigCreateInput,
+        include: Optional[types.ManufacturingConfigInclude] = None
+    ) -> _PrismaModelT:
+        """Create a new ManufacturingConfig record.
+
+        Parameters
+        ----------
+        data
+            ManufacturingConfig record data
+        include
+            Specifies which relations should be loaded on the returned ManufacturingConfig model
+
+        Returns
+        -------
+        prisma.models.ManufacturingConfig
+            The created ManufacturingConfig record
+
+        Raises
+        ------
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # create a ManufacturingConfig record from just the required fields
+        manufacturingconfig = ManufacturingConfig.prisma().create(
+            data={
+                # data to create a ManufacturingConfig record
+                'productId': 'iehbhajhi',
+                'boardRevisionId': 'bdebcaajeh',
+                'stages': Json({'jaheadhga': True}),
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='create',
+            model=self._model,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def create_many(
+        self,
+        data: List[types.ManufacturingConfigCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> int:
+        """Create multiple ManufacturingConfig records at once.
+
+        This function is *not* available when using SQLite.
+
+        Parameters
+        ----------
+        data
+            List of ManufacturingConfig record data
+        skip_duplicates
+            Boolean flag for ignoring unique constraint errors
+
+        Returns
+        -------
+        int
+            The total number of records created
+
+        Raises
+        ------
+        prisma.errors.UnsupportedDatabaseError
+            Attempting to query when using SQLite
+        prisma.errors.UniqueViolationError
+            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        total = ManufacturingConfig.prisma().create_many(
+            data=[
+                {
+                    # data to create a ManufacturingConfig record
+                    'productId': 'bgeafdahjd',
+                    'boardRevisionId': 'bbbbfhhec',
+                    'stages': Json({'bcbhjjgedb': True}),
+                },
+                {
+                    # data to create a ManufacturingConfig record
+                    'productId': 'iibhjieci',
+                    'boardRevisionId': 'gajaacb',
+                    'stages': Json({'bbjiffahhi': True}),
+                },
+            ],
+            skip_duplicates=True,
+        )
+        ```
+        """
+        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
+
+        resp = self._client._execute(
+            method='create_many',
+            model=self._model,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    def delete(
+        self,
+        where: types.ManufacturingConfigWhereUniqueInput,
+        include: Optional[types.ManufacturingConfigInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Delete a single ManufacturingConfig record.
+
+        Parameters
+        ----------
+        where
+            ManufacturingConfig filter to select the record to be deleted, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingConfig model
+
+        Returns
+        -------
+        prisma.models.ManufacturingConfig
+            The deleted ManufacturingConfig record
+        None
+            Could not find a record to delete
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingconfig = ManufacturingConfig.prisma().delete(
+            where={
+                'id': 'caibbdfhih',
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='delete',
+                model=self._model,
+                arguments={
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_unique(
+        self,
+        where: types.ManufacturingConfigWhereUniqueInput,
+        include: Optional[types.ManufacturingConfigInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Find a unique ManufacturingConfig record.
+
+        Parameters
+        ----------
+        where
+            ManufacturingConfig filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingConfig model
+
+        Returns
+        -------
+        prisma.models.ManufacturingConfig
+            The found ManufacturingConfig record
+        None
+            No record matching the given input could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingconfig = ManufacturingConfig.prisma().find_unique(
+            where={
+                'id': 'bjbbffdiaa',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+        return model_parse(self._model, result)
+
+    def find_unique_or_raise(
+        self,
+        where: types.ManufacturingConfigWhereUniqueInput,
+        include: Optional[types.ManufacturingConfigInclude] = None
+    ) -> _PrismaModelT:
+        """Find a unique ManufacturingConfig record. Raises `RecordNotFoundError` if no record is found.
+
+        Parameters
+        ----------
+        where
+            ManufacturingConfig filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingConfig model
+
+        Returns
+        -------
+        prisma.models.ManufacturingConfig
+            The found ManufacturingConfig record
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingconfig = ManufacturingConfig.prisma().find_unique_or_raise(
+            where={
+                'id': 'bhjgeigibh',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique_or_raise',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_many(
+        self,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingConfigWhereInput] = None,
+        cursor: Optional[types.ManufacturingConfigWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingConfigInclude] = None,
+        order: Optional[Union[types.ManufacturingConfigOrderByInput, List[types.ManufacturingConfigOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingConfigScalarFieldKeys]] = None,
+    ) -> List[_PrismaModelT]:
+        """Find multiple ManufacturingConfig records.
+
+        An empty list is returned if no records could be found.
+
+        Parameters
+        ----------
+        take
+            Limit the maximum number of ManufacturingConfig records returned
+        skip
+            Ignore the first N results
+        where
+            ManufacturingConfig filter to select records
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingConfig model
+        order
+            Order the returned ManufacturingConfig records by any field
+        distinct
+            Filter ManufacturingConfig records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        List[prisma.models.ManufacturingConfig]
+            The list of all ManufacturingConfig records that could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the first 10 ManufacturingConfig records
+        manufacturingconfigs = ManufacturingConfig.prisma().find_many(take=10)
+
+        # find the first 5 ManufacturingConfig records ordered by the boardRevisionId field
+        manufacturingconfigs = ManufacturingConfig.prisma().find_many(
+            take=5,
+            order={
+                'boardRevisionId': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_many',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return [model_parse(self._model, r) for r in resp['data']['result']]
+
+    def find_first(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingConfigWhereInput] = None,
+        cursor: Optional[types.ManufacturingConfigWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingConfigInclude] = None,
+        order: Optional[Union[types.ManufacturingConfigOrderByInput, List[types.ManufacturingConfigOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingConfigScalarFieldKeys]] = None,
+    ) -> Optional[_PrismaModelT]:
+        """Find a single ManufacturingConfig record.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            ManufacturingConfig filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingConfig model
+        order
+            Order the returned ManufacturingConfig records by any field
+        distinct
+            Filter ManufacturingConfig records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.ManufacturingConfig
+            The first ManufacturingConfig record found, matching the given arguments
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second ManufacturingConfig record ordered by the enabled field
+        manufacturingconfig = ManufacturingConfig.prisma().find_first(
+            skip=1,
+            order={
+                'enabled': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+
+        return model_parse(self._model, result)
+
+    def find_first_or_raise(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingConfigWhereInput] = None,
+        cursor: Optional[types.ManufacturingConfigWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingConfigInclude] = None,
+        order: Optional[Union[types.ManufacturingConfigOrderByInput, List[types.ManufacturingConfigOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingConfigScalarFieldKeys]] = None,
+    ) -> _PrismaModelT:
+        """Find a single ManufacturingConfig record. Raises `RecordNotFoundError` if no record was found.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            ManufacturingConfig filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingConfig model
+        order
+            Order the returned ManufacturingConfig records by any field
+        distinct
+            Filter ManufacturingConfig records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.ManufacturingConfig
+            The first ManufacturingConfig record found, matching the given arguments
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second ManufacturingConfig record ordered by the stages field
+        manufacturingconfig = ManufacturingConfig.prisma().find_first_or_raise(
+            skip=1,
+            order={
+                'stages': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first_or_raise',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update(
+        self,
+        data: types.ManufacturingConfigUpdateInput,
+        where: types.ManufacturingConfigWhereUniqueInput,
+        include: Optional[types.ManufacturingConfigInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Update a single ManufacturingConfig record.
+
+        Parameters
+        ----------
+        data
+            ManufacturingConfig record data specifying what to update
+        where
+            ManufacturingConfig filter to select the unique record to create / update
+        include
+            Specifies which relations should be loaded on the returned ManufacturingConfig model
+
+        Returns
+        -------
+        prisma.models.ManufacturingConfig
+            The updated ManufacturingConfig record
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        manufacturingconfig = ManufacturingConfig.prisma().update(
+            where={
+                'id': 'bgeadjjaeg',
+            },
+            data={
+                # data to update the ManufacturingConfig record to
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='update',
+                model=self._model,
+                arguments={
+                    'data': data,
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def upsert(
+        self,
+        where: types.ManufacturingConfigWhereUniqueInput,
+        data: types.ManufacturingConfigUpsertInput,
+        include: Optional[types.ManufacturingConfigInclude] = None,
+    ) -> _PrismaModelT:
+        """Updates an existing record or create a new one
+
+        Parameters
+        ----------
+        where
+            ManufacturingConfig filter to select the unique record to create / update
+        data
+            Data specifying what fields to set on create and update
+        include
+            Specifies which relations should be loaded on the returned ManufacturingConfig model
+
+        Returns
+        -------
+        prisma.models.ManufacturingConfig
+            The created or updated ManufacturingConfig record
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingconfig = ManufacturingConfig.prisma().upsert(
+            where={
+                'id': 'cahigchjhf',
+            },
+            data={
+                'create': {
+                    'id': 'cahigchjhf',
+                    'productId': 'iibhjieci',
+                    'boardRevisionId': 'gajaacb',
+                    'stages': Json({'bbjiffahhi': True}),
+                },
+                'update': {
+                    'productId': 'iibhjieci',
+                    'boardRevisionId': 'gajaacb',
+                    'stages': Json({'bbjiffahhi': True}),
+                },
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='upsert',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update_many(
+        self,
+        data: types.ManufacturingConfigUpdateManyMutationInput,
+        where: types.ManufacturingConfigWhereInput,
+    ) -> int:
+        """Update multiple ManufacturingConfig records
+
+        Parameters
+        ----------
+        data
+            ManufacturingConfig data to update the selected ManufacturingConfig records to
+        where
+            Filter to select the ManufacturingConfig records to update
+
+        Returns
+        -------
+        int
+            The total number of ManufacturingConfig records that were updated
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # update all ManufacturingConfig records
+        total = ManufacturingConfig.prisma().update_many(
+            data={
+                'firmwareSource': 'bgciaegcga'
+            },
+            where={}
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='update_many',
+            model=self._model,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    @overload
+    def count(
+        self,
+        select: None = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingConfigWhereInput] = None,
+        cursor: Optional[types.ManufacturingConfigWhereUniqueInput] = None,
+    ) -> int:
+        """Count the number of ManufacturingConfig records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the ManufacturingConfig fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            ManufacturingConfig filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.ManufacturingConfigCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = ManufacturingConfig.prisma().count()
+
+        # results: prisma.types.ManufacturingConfigCountAggregateOutput
+        results = ManufacturingConfig.prisma().count(
+            select={
+                '_all': True,
+                'firmwareSetId': True,
+            },
+        )
+        ```
+        """
+
+
+    @overload
+    def count(
+        self,
+        select: types.ManufacturingConfigCountAggregateInput,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingConfigWhereInput] = None,
+        cursor: Optional[types.ManufacturingConfigWhereUniqueInput] = None,
+    ) -> types.ManufacturingConfigCountAggregateOutput:
+        ...
+
+    def count(
+        self,
+        select: Optional[types.ManufacturingConfigCountAggregateInput] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingConfigWhereInput] = None,
+        cursor: Optional[types.ManufacturingConfigWhereUniqueInput] = None,
+    ) -> Union[int, types.ManufacturingConfigCountAggregateOutput]:
+        """Count the number of ManufacturingConfig records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the ManufacturingConfig fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            ManufacturingConfig filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.ManufacturingConfigCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = ManufacturingConfig.prisma().count()
+
+        # results: prisma.types.ManufacturingConfigCountAggregateOutput
+        results = ManufacturingConfig.prisma().count(
+            select={
+                '_all': True,
+                'personalizationConfig': True,
+            },
+        )
+        ```
+        """
+
+        # TODO: this selection building should be moved to the QueryBuilder
+        #
+        # note the distinction between checking for `not select` here and `select is None`
+        # later is to handle the case that the given select dictionary is empty, this
+        # is a limitation of our types.
+        if not select:
+            root_selection = ['_count { _all }']
+        else:
+
+            root_selection = [
+                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
+            ]
+
+        resp = self._client._execute(
+            method='count',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'cursor': cursor,
+            },
+            root_selection=root_selection,
+        )
+
+        if select is None:
+            return cast(int, resp['data']['result']['_count']['_all'])
+        else:
+            return cast(types.ManufacturingConfigCountAggregateOutput, resp['data']['result']['_count'])
+
+    def delete_many(
+        self,
+        where: Optional[types.ManufacturingConfigWhereInput] = None
+    ) -> int:
+        """Delete multiple ManufacturingConfig records.
+
+        Parameters
+        ----------
+        where
+            Optional ManufacturingConfig filter to find the records to be deleted
+
+        Returns
+        -------
+        int
+            The total number of ManufacturingConfig records that were deleted
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # delete all ManufacturingConfig records
+        total = ManufacturingConfig.prisma().delete_many()
+        ```
+        """
+        resp = self._client._execute(
+            method='delete_many',
+            model=self._model,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    # TODO: make this easier to work with safely, currently output fields are typed as
+    #       not required, we should refactor the return type
+    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
+    # TODO: statically type that the order argument is required when take or skip are present
+    def group_by(
+        self,
+        by: List['types.ManufacturingConfigScalarFieldKeys'],
+        *,
+        where: Optional['types.ManufacturingConfigWhereInput'] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        avg: Optional['types.ManufacturingConfigAvgAggregateInput'] = None,
+        sum: Optional['types.ManufacturingConfigSumAggregateInput'] = None,
+        min: Optional['types.ManufacturingConfigMinAggregateInput'] = None,
+        max: Optional['types.ManufacturingConfigMaxAggregateInput'] = None,
+        having: Optional['types.ManufacturingConfigScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.ManufacturingConfigCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.ManufacturingConfigScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.ManufacturingConfigScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.ManufacturingConfigGroupByOutput']:
+        """Group ManufacturingConfig records by one or more field values and perform aggregations
+        each group such as finding the average.
+
+        Parameters
+        ----------
+        by
+            List of scalar ManufacturingConfig fields to group records by
+        where
+            ManufacturingConfig filter to select records
+        take
+            Limit the maximum number of ManufacturingConfig records returned
+        skip
+            Ignore the first N records
+        avg
+            Adds the average of all values of the specified fields to the `_avg` field
+            in the returned data.
+        sum
+            Adds the sum of all values of the specified fields to the `_sum` field
+            in the returned data.
+        min
+            Adds the smallest available value for the specified fields to the `_min` field
+            in the returned data.
+        max
+            Adds the largest available value for the specified fields to the `_max` field
+            in the returned data.
+        count
+            Adds a count of non-fields to the `_count` field in the returned data.
+        having
+            Allows you to filter groups by an aggregate value - for example only return
+            groups having an average age less than 50.
+        order
+            Lets you order the returned list by any property that is also present in `by`.
+            Only **one** field is allowed at a time.
+
+        Returns
+        -------
+        List[prisma.types.ManufacturingConfigGroupByOutput]
+            A list of dictionaries representing the ManufacturingConfig record,
+            this will also have additional fields present if aggregation arguments
+            are used (see the above parameters)
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # group ManufacturingConfig records by passCriteria values
+        # and count how many records are in each group
+        results = ManufacturingConfig.prisma().group_by(
+            ['passCriteria'],
+            count=True,
+        )
+        ```
+        """
+        if order is None:
+            if take is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
+
+            if skip is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
+
+        root_selection: List[str] = [*by]
+        if avg is not None:
+            root_selection.append(_select_fields('_avg', avg))
+
+        if min is not None:
+            root_selection.append(_select_fields('_min', min))
+
+        if sum is not None:
+            root_selection.append(_select_fields('_sum', sum))
+
+        if max is not None:
+            root_selection.append(_select_fields('_max', max))
+
+        if count is not None:
+            if count is True:
+                root_selection.append('_count { _all }')
+            elif isinstance(count, dict):
+                root_selection.append(_select_fields('_count', count))
+
+        resp = self._client._execute(
+            method='group_by',
+            model=self._model,
+            arguments={
+                'by': by,
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'having': having,
+                'orderBy': order,
+            },
+            root_selection=root_selection,
+        )
+        return resp['data']['result']  # type: ignore[no-any-return]
+
+
+class ManufacturingSessionActions(Generic[_PrismaModelT]):
+    __slots__ = (
+        '_client',
+        '_model',
+    )
+
+    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
+        self._client = client
+        self._model = model
+
+    def query_raw(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> List[_PrismaModelT]:
+        """Execute a raw SQL query
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        List[prisma.models.ManufacturingSession]
+            The records returned by the SQL query
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        users = ManufacturingSession.prisma().query_raw(
+            'SELECT * FROM ManufacturingSession WHERE id = $1',
+            'bihcfdeejd',
+        )
+        ```
+        """
+        return self._client.query_raw(query, *args, model=self._model)
+
+    def query_first(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> Optional[_PrismaModelT]:
+        """Execute a raw SQL query, returning the first result
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        prisma.models.ManufacturingSession
+            The first record returned by the SQL query
+        None
+            The raw SQL query did not return any records
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        user = ManufacturingSession.prisma().query_first(
+            'SELECT * FROM ManufacturingSession WHERE productId = $1',
+            'bhcjhejiec',
+        )
+        ```
+        """
+        return self._client.query_first(query, *args, model=self._model)
+
+    def create(
+        self,
+        data: types.ManufacturingSessionCreateInput,
+        include: Optional[types.ManufacturingSessionInclude] = None
+    ) -> _PrismaModelT:
+        """Create a new ManufacturingSession record.
+
+        Parameters
+        ----------
+        data
+            ManufacturingSession record data
+        include
+            Specifies which relations should be loaded on the returned ManufacturingSession model
+
+        Returns
+        -------
+        prisma.models.ManufacturingSession
+            The created ManufacturingSession record
+
+        Raises
+        ------
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # create a ManufacturingSession record from just the required fields
+        manufacturingsession = ManufacturingSession.prisma().create(
+            data={
+                # data to create a ManufacturingSession record
+                'productId': 'bicdhjiibj',
+                'fixtureId': 'hhdgjfcge',
+                'operatorId': 'cdjigibcb',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='create',
+            model=self._model,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def create_many(
+        self,
+        data: List[types.ManufacturingSessionCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> int:
+        """Create multiple ManufacturingSession records at once.
+
+        This function is *not* available when using SQLite.
+
+        Parameters
+        ----------
+        data
+            List of ManufacturingSession record data
+        skip_duplicates
+            Boolean flag for ignoring unique constraint errors
+
+        Returns
+        -------
+        int
+            The total number of records created
+
+        Raises
+        ------
+        prisma.errors.UnsupportedDatabaseError
+            Attempting to query when using SQLite
+        prisma.errors.UniqueViolationError
+            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        total = ManufacturingSession.prisma().create_many(
+            data=[
+                {
+                    # data to create a ManufacturingSession record
+                    'productId': 'dicgfhbic',
+                    'fixtureId': 'fjcijccih',
+                    'operatorId': 'bbjbfibaae',
+                },
+                {
+                    # data to create a ManufacturingSession record
+                    'productId': 'bffhjeiicb',
+                    'fixtureId': 'iajgghcec',
+                    'operatorId': 'baahheihgd',
+                },
+            ],
+            skip_duplicates=True,
+        )
+        ```
+        """
+        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
+
+        resp = self._client._execute(
+            method='create_many',
+            model=self._model,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    def delete(
+        self,
+        where: types.ManufacturingSessionWhereUniqueInput,
+        include: Optional[types.ManufacturingSessionInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Delete a single ManufacturingSession record.
+
+        Parameters
+        ----------
+        where
+            ManufacturingSession filter to select the record to be deleted, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingSession model
+
+        Returns
+        -------
+        prisma.models.ManufacturingSession
+            The deleted ManufacturingSession record
+        None
+            Could not find a record to delete
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingsession = ManufacturingSession.prisma().delete(
+            where={
+                'id': 'jhffbicge',
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='delete',
+                model=self._model,
+                arguments={
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_unique(
+        self,
+        where: types.ManufacturingSessionWhereUniqueInput,
+        include: Optional[types.ManufacturingSessionInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Find a unique ManufacturingSession record.
+
+        Parameters
+        ----------
+        where
+            ManufacturingSession filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingSession model
+
+        Returns
+        -------
+        prisma.models.ManufacturingSession
+            The found ManufacturingSession record
+        None
+            No record matching the given input could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingsession = ManufacturingSession.prisma().find_unique(
+            where={
+                'id': 'bejbfdgeab',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+        return model_parse(self._model, result)
+
+    def find_unique_or_raise(
+        self,
+        where: types.ManufacturingSessionWhereUniqueInput,
+        include: Optional[types.ManufacturingSessionInclude] = None
+    ) -> _PrismaModelT:
+        """Find a unique ManufacturingSession record. Raises `RecordNotFoundError` if no record is found.
+
+        Parameters
+        ----------
+        where
+            ManufacturingSession filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingSession model
+
+        Returns
+        -------
+        prisma.models.ManufacturingSession
+            The found ManufacturingSession record
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingsession = ManufacturingSession.prisma().find_unique_or_raise(
+            where={
+                'id': 'bfadaefeje',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique_or_raise',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_many(
+        self,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingSessionWhereInput] = None,
+        cursor: Optional[types.ManufacturingSessionWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingSessionInclude] = None,
+        order: Optional[Union[types.ManufacturingSessionOrderByInput, List[types.ManufacturingSessionOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingSessionScalarFieldKeys]] = None,
+    ) -> List[_PrismaModelT]:
+        """Find multiple ManufacturingSession records.
+
+        An empty list is returned if no records could be found.
+
+        Parameters
+        ----------
+        take
+            Limit the maximum number of ManufacturingSession records returned
+        skip
+            Ignore the first N results
+        where
+            ManufacturingSession filter to select records
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingSession model
+        order
+            Order the returned ManufacturingSession records by any field
+        distinct
+            Filter ManufacturingSession records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        List[prisma.models.ManufacturingSession]
+            The list of all ManufacturingSession records that could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the first 10 ManufacturingSession records
+        manufacturingsessions = ManufacturingSession.prisma().find_many(take=10)
+
+        # find the first 5 ManufacturingSession records ordered by the fixtureId field
+        manufacturingsessions = ManufacturingSession.prisma().find_many(
+            take=5,
+            order={
+                'fixtureId': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_many',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return [model_parse(self._model, r) for r in resp['data']['result']]
+
+    def find_first(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingSessionWhereInput] = None,
+        cursor: Optional[types.ManufacturingSessionWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingSessionInclude] = None,
+        order: Optional[Union[types.ManufacturingSessionOrderByInput, List[types.ManufacturingSessionOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingSessionScalarFieldKeys]] = None,
+    ) -> Optional[_PrismaModelT]:
+        """Find a single ManufacturingSession record.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            ManufacturingSession filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingSession model
+        order
+            Order the returned ManufacturingSession records by any field
+        distinct
+            Filter ManufacturingSession records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.ManufacturingSession
+            The first ManufacturingSession record found, matching the given arguments
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second ManufacturingSession record ordered by the status field
+        manufacturingsession = ManufacturingSession.prisma().find_first(
+            skip=1,
+            order={
+                'status': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+
+        return model_parse(self._model, result)
+
+    def find_first_or_raise(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingSessionWhereInput] = None,
+        cursor: Optional[types.ManufacturingSessionWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingSessionInclude] = None,
+        order: Optional[Union[types.ManufacturingSessionOrderByInput, List[types.ManufacturingSessionOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingSessionScalarFieldKeys]] = None,
+    ) -> _PrismaModelT:
+        """Find a single ManufacturingSession record. Raises `RecordNotFoundError` if no record was found.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            ManufacturingSession filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingSession model
+        order
+            Order the returned ManufacturingSession records by any field
+        distinct
+            Filter ManufacturingSession records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.ManufacturingSession
+            The first ManufacturingSession record found, matching the given arguments
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second ManufacturingSession record ordered by the operatorId field
+        manufacturingsession = ManufacturingSession.prisma().find_first_or_raise(
+            skip=1,
+            order={
+                'operatorId': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first_or_raise',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update(
+        self,
+        data: types.ManufacturingSessionUpdateInput,
+        where: types.ManufacturingSessionWhereUniqueInput,
+        include: Optional[types.ManufacturingSessionInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Update a single ManufacturingSession record.
+
+        Parameters
+        ----------
+        data
+            ManufacturingSession record data specifying what to update
+        where
+            ManufacturingSession filter to select the unique record to create / update
+        include
+            Specifies which relations should be loaded on the returned ManufacturingSession model
+
+        Returns
+        -------
+        prisma.models.ManufacturingSession
+            The updated ManufacturingSession record
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        manufacturingsession = ManufacturingSession.prisma().update(
+            where={
+                'id': 'bceheeaff',
+            },
+            data={
+                # data to update the ManufacturingSession record to
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='update',
+                model=self._model,
+                arguments={
+                    'data': data,
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def upsert(
+        self,
+        where: types.ManufacturingSessionWhereUniqueInput,
+        data: types.ManufacturingSessionUpsertInput,
+        include: Optional[types.ManufacturingSessionInclude] = None,
+    ) -> _PrismaModelT:
+        """Updates an existing record or create a new one
+
+        Parameters
+        ----------
+        where
+            ManufacturingSession filter to select the unique record to create / update
+        data
+            Data specifying what fields to set on create and update
+        include
+            Specifies which relations should be loaded on the returned ManufacturingSession model
+
+        Returns
+        -------
+        prisma.models.ManufacturingSession
+            The created or updated ManufacturingSession record
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingsession = ManufacturingSession.prisma().upsert(
+            where={
+                'id': 'eadgifiga',
+            },
+            data={
+                'create': {
+                    'id': 'eadgifiga',
+                    'productId': 'bffhjeiicb',
+                    'fixtureId': 'iajgghcec',
+                    'operatorId': 'baahheihgd',
+                },
+                'update': {
+                    'productId': 'bffhjeiicb',
+                    'fixtureId': 'iajgghcec',
+                    'operatorId': 'baahheihgd',
+                },
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='upsert',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update_many(
+        self,
+        data: types.ManufacturingSessionUpdateManyMutationInput,
+        where: types.ManufacturingSessionWhereInput,
+    ) -> int:
+        """Update multiple ManufacturingSession records
+
+        Parameters
+        ----------
+        data
+            ManufacturingSession data to update the selected ManufacturingSession records to
+        where
+            Filter to select the ManufacturingSession records to update
+
+        Returns
+        -------
+        int
+            The total number of ManufacturingSession records that were updated
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # update all ManufacturingSession records
+        total = ManufacturingSession.prisma().update_many(
+            data={
+                'panelCount': 1713452621
+            },
+            where={}
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='update_many',
+            model=self._model,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    @overload
+    def count(
+        self,
+        select: None = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingSessionWhereInput] = None,
+        cursor: Optional[types.ManufacturingSessionWhereUniqueInput] = None,
+    ) -> int:
+        """Count the number of ManufacturingSession records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the ManufacturingSession fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            ManufacturingSession filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.ManufacturingSessionCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = ManufacturingSession.prisma().count()
+
+        # results: prisma.types.ManufacturingSessionCountAggregateOutput
+        results = ManufacturingSession.prisma().count(
+            select={
+                '_all': True,
+                'passedCount': True,
+            },
+        )
+        ```
+        """
+
+
+    @overload
+    def count(
+        self,
+        select: types.ManufacturingSessionCountAggregateInput,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingSessionWhereInput] = None,
+        cursor: Optional[types.ManufacturingSessionWhereUniqueInput] = None,
+    ) -> types.ManufacturingSessionCountAggregateOutput:
+        ...
+
+    def count(
+        self,
+        select: Optional[types.ManufacturingSessionCountAggregateInput] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingSessionWhereInput] = None,
+        cursor: Optional[types.ManufacturingSessionWhereUniqueInput] = None,
+    ) -> Union[int, types.ManufacturingSessionCountAggregateOutput]:
+        """Count the number of ManufacturingSession records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the ManufacturingSession fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            ManufacturingSession filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.ManufacturingSessionCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = ManufacturingSession.prisma().count()
+
+        # results: prisma.types.ManufacturingSessionCountAggregateOutput
+        results = ManufacturingSession.prisma().count(
+            select={
+                '_all': True,
+                'failedCount': True,
+            },
+        )
+        ```
+        """
+
+        # TODO: this selection building should be moved to the QueryBuilder
+        #
+        # note the distinction between checking for `not select` here and `select is None`
+        # later is to handle the case that the given select dictionary is empty, this
+        # is a limitation of our types.
+        if not select:
+            root_selection = ['_count { _all }']
+        else:
+
+            root_selection = [
+                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
+            ]
+
+        resp = self._client._execute(
+            method='count',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'cursor': cursor,
+            },
+            root_selection=root_selection,
+        )
+
+        if select is None:
+            return cast(int, resp['data']['result']['_count']['_all'])
+        else:
+            return cast(types.ManufacturingSessionCountAggregateOutput, resp['data']['result']['_count'])
+
+    def delete_many(
+        self,
+        where: Optional[types.ManufacturingSessionWhereInput] = None
+    ) -> int:
+        """Delete multiple ManufacturingSession records.
+
+        Parameters
+        ----------
+        where
+            Optional ManufacturingSession filter to find the records to be deleted
+
+        Returns
+        -------
+        int
+            The total number of ManufacturingSession records that were deleted
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # delete all ManufacturingSession records
+        total = ManufacturingSession.prisma().delete_many()
+        ```
+        """
+        resp = self._client._execute(
+            method='delete_many',
+            model=self._model,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    # TODO: make this easier to work with safely, currently output fields are typed as
+    #       not required, we should refactor the return type
+    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
+    # TODO: statically type that the order argument is required when take or skip are present
+    def group_by(
+        self,
+        by: List['types.ManufacturingSessionScalarFieldKeys'],
+        *,
+        where: Optional['types.ManufacturingSessionWhereInput'] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        avg: Optional['types.ManufacturingSessionAvgAggregateInput'] = None,
+        sum: Optional['types.ManufacturingSessionSumAggregateInput'] = None,
+        min: Optional['types.ManufacturingSessionMinAggregateInput'] = None,
+        max: Optional['types.ManufacturingSessionMaxAggregateInput'] = None,
+        having: Optional['types.ManufacturingSessionScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.ManufacturingSessionCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.ManufacturingSessionScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.ManufacturingSessionScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.ManufacturingSessionGroupByOutput']:
+        """Group ManufacturingSession records by one or more field values and perform aggregations
+        each group such as finding the average.
+
+        Parameters
+        ----------
+        by
+            List of scalar ManufacturingSession fields to group records by
+        where
+            ManufacturingSession filter to select records
+        take
+            Limit the maximum number of ManufacturingSession records returned
+        skip
+            Ignore the first N records
+        avg
+            Adds the average of all values of the specified fields to the `_avg` field
+            in the returned data.
+        sum
+            Adds the sum of all values of the specified fields to the `_sum` field
+            in the returned data.
+        min
+            Adds the smallest available value for the specified fields to the `_min` field
+            in the returned data.
+        max
+            Adds the largest available value for the specified fields to the `_max` field
+            in the returned data.
+        count
+            Adds a count of non-fields to the `_count` field in the returned data.
+        having
+            Allows you to filter groups by an aggregate value - for example only return
+            groups having an average age less than 50.
+        order
+            Lets you order the returned list by any property that is also present in `by`.
+            Only **one** field is allowed at a time.
+
+        Returns
+        -------
+        List[prisma.types.ManufacturingSessionGroupByOutput]
+            A list of dictionaries representing the ManufacturingSession record,
+            this will also have additional fields present if aggregation arguments
+            are used (see the above parameters)
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # group ManufacturingSession records by config values
+        # and count how many records are in each group
+        results = ManufacturingSession.prisma().group_by(
+            ['config'],
+            count=True,
+        )
+        ```
+        """
+        if order is None:
+            if take is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
+
+            if skip is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
+
+        root_selection: List[str] = [*by]
+        if avg is not None:
+            root_selection.append(_select_fields('_avg', avg))
+
+        if min is not None:
+            root_selection.append(_select_fields('_min', min))
+
+        if sum is not None:
+            root_selection.append(_select_fields('_sum', sum))
+
+        if max is not None:
+            root_selection.append(_select_fields('_max', max))
+
+        if count is not None:
+            if count is True:
+                root_selection.append('_count { _all }')
+            elif isinstance(count, dict):
+                root_selection.append(_select_fields('_count', count))
+
+        resp = self._client._execute(
+            method='group_by',
+            model=self._model,
+            arguments={
+                'by': by,
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'having': having,
+                'orderBy': order,
+            },
+            root_selection=root_selection,
+        )
+        return resp['data']['result']  # type: ignore[no-any-return]
+
+
+class ManufacturingPanelActions(Generic[_PrismaModelT]):
+    __slots__ = (
+        '_client',
+        '_model',
+    )
+
+    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
+        self._client = client
+        self._model = model
+
+    def query_raw(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> List[_PrismaModelT]:
+        """Execute a raw SQL query
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        List[prisma.models.ManufacturingPanel]
+            The records returned by the SQL query
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        users = ManufacturingPanel.prisma().query_raw(
+            'SELECT * FROM ManufacturingPanel WHERE id = $1',
+            'gfidfjffe',
+        )
+        ```
+        """
+        return self._client.query_raw(query, *args, model=self._model)
+
+    def query_first(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> Optional[_PrismaModelT]:
+        """Execute a raw SQL query, returning the first result
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        prisma.models.ManufacturingPanel
+            The first record returned by the SQL query
+        None
+            The raw SQL query did not return any records
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        user = ManufacturingPanel.prisma().query_first(
+            'SELECT * FROM ManufacturingPanel WHERE sessionId = $1',
+            'bhfjeijfff',
+        )
+        ```
+        """
+        return self._client.query_first(query, *args, model=self._model)
+
+    def create(
+        self,
+        data: types.ManufacturingPanelCreateInput,
+        include: Optional[types.ManufacturingPanelInclude] = None
+    ) -> _PrismaModelT:
+        """Create a new ManufacturingPanel record.
+
+        Parameters
+        ----------
+        data
+            ManufacturingPanel record data
+        include
+            Specifies which relations should be loaded on the returned ManufacturingPanel model
+
+        Returns
+        -------
+        prisma.models.ManufacturingPanel
+            The created ManufacturingPanel record
+
+        Raises
+        ------
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # create a ManufacturingPanel record from just the required fields
+        manufacturingpanel = ManufacturingPanel.prisma().create(
+            data={
+                # data to create a ManufacturingPanel record
+                'sessionId': 'bbeadjibga',
+                'panelIndex': 1951918665,
+                'qrCode': 'chdbaagcc',
+                'unitCount': 51189871,
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='create',
+            model=self._model,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def create_many(
+        self,
+        data: List[types.ManufacturingPanelCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> int:
+        """Create multiple ManufacturingPanel records at once.
+
+        This function is *not* available when using SQLite.
+
+        Parameters
+        ----------
+        data
+            List of ManufacturingPanel record data
+        skip_duplicates
+            Boolean flag for ignoring unique constraint errors
+
+        Returns
+        -------
+        int
+            The total number of records created
+
+        Raises
+        ------
+        prisma.errors.UnsupportedDatabaseError
+            Attempting to query when using SQLite
+        prisma.errors.UniqueViolationError
+            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        total = ManufacturingPanel.prisma().create_many(
+            data=[
+                {
+                    # data to create a ManufacturingPanel record
+                    'sessionId': 'bfjbgjjidg',
+                    'panelIndex': 153870853,
+                    'qrCode': 'bfddhdffbe',
+                    'unitCount': 1308413067,
+                },
+                {
+                    # data to create a ManufacturingPanel record
+                    'sessionId': 'jgebebebg',
+                    'panelIndex': 697145729,
+                    'qrCode': 'bdfgbjccje',
+                    'unitCount': 1927915111,
+                },
+            ],
+            skip_duplicates=True,
+        )
+        ```
+        """
+        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
+
+        resp = self._client._execute(
+            method='create_many',
+            model=self._model,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    def delete(
+        self,
+        where: types.ManufacturingPanelWhereUniqueInput,
+        include: Optional[types.ManufacturingPanelInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Delete a single ManufacturingPanel record.
+
+        Parameters
+        ----------
+        where
+            ManufacturingPanel filter to select the record to be deleted, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingPanel model
+
+        Returns
+        -------
+        prisma.models.ManufacturingPanel
+            The deleted ManufacturingPanel record
+        None
+            Could not find a record to delete
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingpanel = ManufacturingPanel.prisma().delete(
+            where={
+                'id': 'cachfbejaa',
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='delete',
+                model=self._model,
+                arguments={
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_unique(
+        self,
+        where: types.ManufacturingPanelWhereUniqueInput,
+        include: Optional[types.ManufacturingPanelInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Find a unique ManufacturingPanel record.
+
+        Parameters
+        ----------
+        where
+            ManufacturingPanel filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingPanel model
+
+        Returns
+        -------
+        prisma.models.ManufacturingPanel
+            The found ManufacturingPanel record
+        None
+            No record matching the given input could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingpanel = ManufacturingPanel.prisma().find_unique(
+            where={
+                'id': 'bfjddjgebd',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+        return model_parse(self._model, result)
+
+    def find_unique_or_raise(
+        self,
+        where: types.ManufacturingPanelWhereUniqueInput,
+        include: Optional[types.ManufacturingPanelInclude] = None
+    ) -> _PrismaModelT:
+        """Find a unique ManufacturingPanel record. Raises `RecordNotFoundError` if no record is found.
+
+        Parameters
+        ----------
+        where
+            ManufacturingPanel filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingPanel model
+
+        Returns
+        -------
+        prisma.models.ManufacturingPanel
+            The found ManufacturingPanel record
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingpanel = ManufacturingPanel.prisma().find_unique_or_raise(
+            where={
+                'id': 'babifceddi',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique_or_raise',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_many(
+        self,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingPanelWhereInput] = None,
+        cursor: Optional[types.ManufacturingPanelWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingPanelInclude] = None,
+        order: Optional[Union[types.ManufacturingPanelOrderByInput, List[types.ManufacturingPanelOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingPanelScalarFieldKeys]] = None,
+    ) -> List[_PrismaModelT]:
+        """Find multiple ManufacturingPanel records.
+
+        An empty list is returned if no records could be found.
+
+        Parameters
+        ----------
+        take
+            Limit the maximum number of ManufacturingPanel records returned
+        skip
+            Ignore the first N results
+        where
+            ManufacturingPanel filter to select records
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingPanel model
+        order
+            Order the returned ManufacturingPanel records by any field
+        distinct
+            Filter ManufacturingPanel records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        List[prisma.models.ManufacturingPanel]
+            The list of all ManufacturingPanel records that could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the first 10 ManufacturingPanel records
+        manufacturingpanels = ManufacturingPanel.prisma().find_many(take=10)
+
+        # find the first 5 ManufacturingPanel records ordered by the panelIndex field
+        manufacturingpanels = ManufacturingPanel.prisma().find_many(
+            take=5,
+            order={
+                'panelIndex': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_many',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return [model_parse(self._model, r) for r in resp['data']['result']]
+
+    def find_first(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingPanelWhereInput] = None,
+        cursor: Optional[types.ManufacturingPanelWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingPanelInclude] = None,
+        order: Optional[Union[types.ManufacturingPanelOrderByInput, List[types.ManufacturingPanelOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingPanelScalarFieldKeys]] = None,
+    ) -> Optional[_PrismaModelT]:
+        """Find a single ManufacturingPanel record.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            ManufacturingPanel filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingPanel model
+        order
+            Order the returned ManufacturingPanel records by any field
+        distinct
+            Filter ManufacturingPanel records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.ManufacturingPanel
+            The first ManufacturingPanel record found, matching the given arguments
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second ManufacturingPanel record ordered by the qrCode field
+        manufacturingpanel = ManufacturingPanel.prisma().find_first(
+            skip=1,
+            order={
+                'qrCode': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+
+        return model_parse(self._model, result)
+
+    def find_first_or_raise(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingPanelWhereInput] = None,
+        cursor: Optional[types.ManufacturingPanelWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingPanelInclude] = None,
+        order: Optional[Union[types.ManufacturingPanelOrderByInput, List[types.ManufacturingPanelOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingPanelScalarFieldKeys]] = None,
+    ) -> _PrismaModelT:
+        """Find a single ManufacturingPanel record. Raises `RecordNotFoundError` if no record was found.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            ManufacturingPanel filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingPanel model
+        order
+            Order the returned ManufacturingPanel records by any field
+        distinct
+            Filter ManufacturingPanel records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.ManufacturingPanel
+            The first ManufacturingPanel record found, matching the given arguments
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second ManufacturingPanel record ordered by the status field
+        manufacturingpanel = ManufacturingPanel.prisma().find_first_or_raise(
+            skip=1,
+            order={
+                'status': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first_or_raise',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update(
+        self,
+        data: types.ManufacturingPanelUpdateInput,
+        where: types.ManufacturingPanelWhereUniqueInput,
+        include: Optional[types.ManufacturingPanelInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Update a single ManufacturingPanel record.
+
+        Parameters
+        ----------
+        data
+            ManufacturingPanel record data specifying what to update
+        where
+            ManufacturingPanel filter to select the unique record to create / update
+        include
+            Specifies which relations should be loaded on the returned ManufacturingPanel model
+
+        Returns
+        -------
+        prisma.models.ManufacturingPanel
+            The updated ManufacturingPanel record
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        manufacturingpanel = ManufacturingPanel.prisma().update(
+            where={
+                'id': 'bgfgjbjah',
+            },
+            data={
+                # data to update the ManufacturingPanel record to
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='update',
+                model=self._model,
+                arguments={
+                    'data': data,
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def upsert(
+        self,
+        where: types.ManufacturingPanelWhereUniqueInput,
+        data: types.ManufacturingPanelUpsertInput,
+        include: Optional[types.ManufacturingPanelInclude] = None,
+    ) -> _PrismaModelT:
+        """Updates an existing record or create a new one
+
+        Parameters
+        ----------
+        where
+            ManufacturingPanel filter to select the unique record to create / update
+        data
+            Data specifying what fields to set on create and update
+        include
+            Specifies which relations should be loaded on the returned ManufacturingPanel model
+
+        Returns
+        -------
+        prisma.models.ManufacturingPanel
+            The created or updated ManufacturingPanel record
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingpanel = ManufacturingPanel.prisma().upsert(
+            where={
+                'id': 'bfaifigiia',
+            },
+            data={
+                'create': {
+                    'id': 'bfaifigiia',
+                    'sessionId': 'jgebebebg',
+                    'panelIndex': 697145729,
+                    'qrCode': 'bdfgbjccje',
+                    'unitCount': 1927915111,
+                },
+                'update': {
+                    'sessionId': 'jgebebebg',
+                    'panelIndex': 697145729,
+                    'qrCode': 'bdfgbjccje',
+                    'unitCount': 1927915111,
+                },
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='upsert',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update_many(
+        self,
+        data: types.ManufacturingPanelUpdateManyMutationInput,
+        where: types.ManufacturingPanelWhereInput,
+    ) -> int:
+        """Update multiple ManufacturingPanel records
+
+        Parameters
+        ----------
+        data
+            ManufacturingPanel data to update the selected ManufacturingPanel records to
+        where
+            Filter to select the ManufacturingPanel records to update
+
+        Returns
+        -------
+        int
+            The total number of ManufacturingPanel records that were updated
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # update all ManufacturingPanel records
+        total = ManufacturingPanel.prisma().update_many(
+            data={
+                'unitCount': 1416820665
+            },
+            where={}
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='update_many',
+            model=self._model,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    @overload
+    def count(
+        self,
+        select: None = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingPanelWhereInput] = None,
+        cursor: Optional[types.ManufacturingPanelWhereUniqueInput] = None,
+    ) -> int:
+        """Count the number of ManufacturingPanel records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the ManufacturingPanel fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            ManufacturingPanel filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.ManufacturingPanelCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = ManufacturingPanel.prisma().count()
+
+        # results: prisma.types.ManufacturingPanelCountAggregateOutput
+        results = ManufacturingPanel.prisma().count(
+            select={
+                '_all': True,
+                'passedUnits': True,
+            },
+        )
+        ```
+        """
+
+
+    @overload
+    def count(
+        self,
+        select: types.ManufacturingPanelCountAggregateInput,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingPanelWhereInput] = None,
+        cursor: Optional[types.ManufacturingPanelWhereUniqueInput] = None,
+    ) -> types.ManufacturingPanelCountAggregateOutput:
+        ...
+
+    def count(
+        self,
+        select: Optional[types.ManufacturingPanelCountAggregateInput] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingPanelWhereInput] = None,
+        cursor: Optional[types.ManufacturingPanelWhereUniqueInput] = None,
+    ) -> Union[int, types.ManufacturingPanelCountAggregateOutput]:
+        """Count the number of ManufacturingPanel records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the ManufacturingPanel fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            ManufacturingPanel filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.ManufacturingPanelCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = ManufacturingPanel.prisma().count()
+
+        # results: prisma.types.ManufacturingPanelCountAggregateOutput
+        results = ManufacturingPanel.prisma().count(
+            select={
+                '_all': True,
+                'failedUnits': True,
+            },
+        )
+        ```
+        """
+
+        # TODO: this selection building should be moved to the QueryBuilder
+        #
+        # note the distinction between checking for `not select` here and `select is None`
+        # later is to handle the case that the given select dictionary is empty, this
+        # is a limitation of our types.
+        if not select:
+            root_selection = ['_count { _all }']
+        else:
+
+            root_selection = [
+                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
+            ]
+
+        resp = self._client._execute(
+            method='count',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'cursor': cursor,
+            },
+            root_selection=root_selection,
+        )
+
+        if select is None:
+            return cast(int, resp['data']['result']['_count']['_all'])
+        else:
+            return cast(types.ManufacturingPanelCountAggregateOutput, resp['data']['result']['_count'])
+
+    def delete_many(
+        self,
+        where: Optional[types.ManufacturingPanelWhereInput] = None
+    ) -> int:
+        """Delete multiple ManufacturingPanel records.
+
+        Parameters
+        ----------
+        where
+            Optional ManufacturingPanel filter to find the records to be deleted
+
+        Returns
+        -------
+        int
+            The total number of ManufacturingPanel records that were deleted
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # delete all ManufacturingPanel records
+        total = ManufacturingPanel.prisma().delete_many()
+        ```
+        """
+        resp = self._client._execute(
+            method='delete_many',
+            model=self._model,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    # TODO: make this easier to work with safely, currently output fields are typed as
+    #       not required, we should refactor the return type
+    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
+    # TODO: statically type that the order argument is required when take or skip are present
+    def group_by(
+        self,
+        by: List['types.ManufacturingPanelScalarFieldKeys'],
+        *,
+        where: Optional['types.ManufacturingPanelWhereInput'] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        avg: Optional['types.ManufacturingPanelAvgAggregateInput'] = None,
+        sum: Optional['types.ManufacturingPanelSumAggregateInput'] = None,
+        min: Optional['types.ManufacturingPanelMinAggregateInput'] = None,
+        max: Optional['types.ManufacturingPanelMaxAggregateInput'] = None,
+        having: Optional['types.ManufacturingPanelScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.ManufacturingPanelCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.ManufacturingPanelScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.ManufacturingPanelScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.ManufacturingPanelGroupByOutput']:
+        """Group ManufacturingPanel records by one or more field values and perform aggregations
+        each group such as finding the average.
+
+        Parameters
+        ----------
+        by
+            List of scalar ManufacturingPanel fields to group records by
+        where
+            ManufacturingPanel filter to select records
+        take
+            Limit the maximum number of ManufacturingPanel records returned
+        skip
+            Ignore the first N records
+        avg
+            Adds the average of all values of the specified fields to the `_avg` field
+            in the returned data.
+        sum
+            Adds the sum of all values of the specified fields to the `_sum` field
+            in the returned data.
+        min
+            Adds the smallest available value for the specified fields to the `_min` field
+            in the returned data.
+        max
+            Adds the largest available value for the specified fields to the `_max` field
+            in the returned data.
+        count
+            Adds a count of non-fields to the `_count` field in the returned data.
+        having
+            Allows you to filter groups by an aggregate value - for example only return
+            groups having an average age less than 50.
+        order
+            Lets you order the returned list by any property that is also present in `by`.
+            Only **one** field is allowed at a time.
+
+        Returns
+        -------
+        List[prisma.types.ManufacturingPanelGroupByOutput]
+            A list of dictionaries representing the ManufacturingPanel record,
+            this will also have additional fields present if aggregation arguments
+            are used (see the above parameters)
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # group ManufacturingPanel records by startedAt values
+        # and count how many records are in each group
+        results = ManufacturingPanel.prisma().group_by(
+            ['startedAt'],
+            count=True,
+        )
+        ```
+        """
+        if order is None:
+            if take is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
+
+            if skip is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
+
+        root_selection: List[str] = [*by]
+        if avg is not None:
+            root_selection.append(_select_fields('_avg', avg))
+
+        if min is not None:
+            root_selection.append(_select_fields('_min', min))
+
+        if sum is not None:
+            root_selection.append(_select_fields('_sum', sum))
+
+        if max is not None:
+            root_selection.append(_select_fields('_max', max))
+
+        if count is not None:
+            if count is True:
+                root_selection.append('_count { _all }')
+            elif isinstance(count, dict):
+                root_selection.append(_select_fields('_count', count))
+
+        resp = self._client._execute(
+            method='group_by',
+            model=self._model,
+            arguments={
+                'by': by,
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'having': having,
+                'orderBy': order,
+            },
+            root_selection=root_selection,
+        )
+        return resp['data']['result']  # type: ignore[no-any-return]
+
+
+class ManufacturingUnitActions(Generic[_PrismaModelT]):
+    __slots__ = (
+        '_client',
+        '_model',
+    )
+
+    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
+        self._client = client
+        self._model = model
+
+    def query_raw(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> List[_PrismaModelT]:
+        """Execute a raw SQL query
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        List[prisma.models.ManufacturingUnit]
+            The records returned by the SQL query
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        users = ManufacturingUnit.prisma().query_raw(
+            'SELECT * FROM ManufacturingUnit WHERE id = $1',
+            'cedfddicc',
+        )
+        ```
+        """
+        return self._client.query_raw(query, *args, model=self._model)
+
+    def query_first(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> Optional[_PrismaModelT]:
+        """Execute a raw SQL query, returning the first result
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        prisma.models.ManufacturingUnit
+            The first record returned by the SQL query
+        None
+            The raw SQL query did not return any records
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        user = ManufacturingUnit.prisma().query_first(
+            'SELECT * FROM ManufacturingUnit WHERE panelId = $1',
+            'dfeaijicd',
+        )
+        ```
+        """
+        return self._client.query_first(query, *args, model=self._model)
+
+    def create(
+        self,
+        data: types.ManufacturingUnitCreateInput,
+        include: Optional[types.ManufacturingUnitInclude] = None
+    ) -> _PrismaModelT:
+        """Create a new ManufacturingUnit record.
+
+        Parameters
+        ----------
+        data
+            ManufacturingUnit record data
+        include
+            Specifies which relations should be loaded on the returned ManufacturingUnit model
+
+        Returns
+        -------
+        prisma.models.ManufacturingUnit
+            The created ManufacturingUnit record
+
+        Raises
+        ------
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # create a ManufacturingUnit record from just the required fields
+        manufacturingunit = ManufacturingUnit.prisma().create(
+            data={
+                # data to create a ManufacturingUnit record
+                'panelId': 'baggcibdii',
+                'slotIndex': 1195529845,
+                'slotId': 'fffaabdfe',
+                'stages': Json({'beeeiacbhb': True}),
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='create',
+            model=self._model,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def create_many(
+        self,
+        data: List[types.ManufacturingUnitCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> int:
+        """Create multiple ManufacturingUnit records at once.
+
+        This function is *not* available when using SQLite.
+
+        Parameters
+        ----------
+        data
+            List of ManufacturingUnit record data
+        skip_duplicates
+            Boolean flag for ignoring unique constraint errors
+
+        Returns
+        -------
+        int
+            The total number of records created
+
+        Raises
+        ------
+        prisma.errors.UnsupportedDatabaseError
+            Attempting to query when using SQLite
+        prisma.errors.UniqueViolationError
+            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        total = ManufacturingUnit.prisma().create_many(
+            data=[
+                {
+                    # data to create a ManufacturingUnit record
+                    'panelId': 'caaffegbdg',
+                    'slotIndex': 1198449905,
+                    'slotId': 'caachcajic',
+                    'stages': Json({'beigacgfid': True}),
+                },
+                {
+                    # data to create a ManufacturingUnit record
+                    'panelId': 'bgehjgiidg',
+                    'slotIndex': 66838317,
+                    'slotId': 'caehgabhgc',
+                    'stages': Json({'bdcdghgbeh': True}),
+                },
+            ],
+            skip_duplicates=True,
+        )
+        ```
+        """
+        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
+
+        resp = self._client._execute(
+            method='create_many',
+            model=self._model,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    def delete(
+        self,
+        where: types.ManufacturingUnitWhereUniqueInput,
+        include: Optional[types.ManufacturingUnitInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Delete a single ManufacturingUnit record.
+
+        Parameters
+        ----------
+        where
+            ManufacturingUnit filter to select the record to be deleted, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingUnit model
+
+        Returns
+        -------
+        prisma.models.ManufacturingUnit
+            The deleted ManufacturingUnit record
+        None
+            Could not find a record to delete
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingunit = ManufacturingUnit.prisma().delete(
+            where={
+                'id': 'bhgbabhfca',
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='delete',
+                model=self._model,
+                arguments={
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_unique(
+        self,
+        where: types.ManufacturingUnitWhereUniqueInput,
+        include: Optional[types.ManufacturingUnitInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Find a unique ManufacturingUnit record.
+
+        Parameters
+        ----------
+        where
+            ManufacturingUnit filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingUnit model
+
+        Returns
+        -------
+        prisma.models.ManufacturingUnit
+            The found ManufacturingUnit record
+        None
+            No record matching the given input could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingunit = ManufacturingUnit.prisma().find_unique(
+            where={
+                'id': 'fbichfdgj',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+        return model_parse(self._model, result)
+
+    def find_unique_or_raise(
+        self,
+        where: types.ManufacturingUnitWhereUniqueInput,
+        include: Optional[types.ManufacturingUnitInclude] = None
+    ) -> _PrismaModelT:
+        """Find a unique ManufacturingUnit record. Raises `RecordNotFoundError` if no record is found.
+
+        Parameters
+        ----------
+        where
+            ManufacturingUnit filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned ManufacturingUnit model
+
+        Returns
+        -------
+        prisma.models.ManufacturingUnit
+            The found ManufacturingUnit record
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingunit = ManufacturingUnit.prisma().find_unique_or_raise(
+            where={
+                'id': 'cjdihjfa',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_unique_or_raise',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def find_many(
+        self,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingUnitWhereInput] = None,
+        cursor: Optional[types.ManufacturingUnitWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingUnitInclude] = None,
+        order: Optional[Union[types.ManufacturingUnitOrderByInput, List[types.ManufacturingUnitOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingUnitScalarFieldKeys]] = None,
+    ) -> List[_PrismaModelT]:
+        """Find multiple ManufacturingUnit records.
+
+        An empty list is returned if no records could be found.
+
+        Parameters
+        ----------
+        take
+            Limit the maximum number of ManufacturingUnit records returned
+        skip
+            Ignore the first N results
+        where
+            ManufacturingUnit filter to select records
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingUnit model
+        order
+            Order the returned ManufacturingUnit records by any field
+        distinct
+            Filter ManufacturingUnit records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        List[prisma.models.ManufacturingUnit]
+            The list of all ManufacturingUnit records that could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the first 10 ManufacturingUnit records
+        manufacturingunits = ManufacturingUnit.prisma().find_many(take=10)
+
+        # find the first 5 ManufacturingUnit records ordered by the slotIndex field
+        manufacturingunits = ManufacturingUnit.prisma().find_many(
+            take=5,
+            order={
+                'slotIndex': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_many',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return [model_parse(self._model, r) for r in resp['data']['result']]
+
+    def find_first(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingUnitWhereInput] = None,
+        cursor: Optional[types.ManufacturingUnitWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingUnitInclude] = None,
+        order: Optional[Union[types.ManufacturingUnitOrderByInput, List[types.ManufacturingUnitOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingUnitScalarFieldKeys]] = None,
+    ) -> Optional[_PrismaModelT]:
+        """Find a single ManufacturingUnit record.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            ManufacturingUnit filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingUnit model
+        order
+            Order the returned ManufacturingUnit records by any field
+        distinct
+            Filter ManufacturingUnit records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.ManufacturingUnit
+            The first ManufacturingUnit record found, matching the given arguments
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second ManufacturingUnit record ordered by the slotId field
+        manufacturingunit = ManufacturingUnit.prisma().find_first(
+            skip=1,
+            order={
+                'slotId': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+
+        return model_parse(self._model, result)
+
+    def find_first_or_raise(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingUnitWhereInput] = None,
+        cursor: Optional[types.ManufacturingUnitWhereUniqueInput] = None,
+        include: Optional[types.ManufacturingUnitInclude] = None,
+        order: Optional[Union[types.ManufacturingUnitOrderByInput, List[types.ManufacturingUnitOrderByInput]]] = None,
+        distinct: Optional[List[types.ManufacturingUnitScalarFieldKeys]] = None,
+    ) -> _PrismaModelT:
+        """Find a single ManufacturingUnit record. Raises `RecordNotFoundError` if no record was found.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            ManufacturingUnit filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned ManufacturingUnit model
+        order
+            Order the returned ManufacturingUnit records by any field
+        distinct
+            Filter ManufacturingUnit records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.ManufacturingUnit
+            The first ManufacturingUnit record found, matching the given arguments
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second ManufacturingUnit record ordered by the serialNumber field
+        manufacturingunit = ManufacturingUnit.prisma().find_first_or_raise(
+            skip=1,
+            order={
+                'serialNumber': 'desc',
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='find_first_or_raise',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update(
+        self,
+        data: types.ManufacturingUnitUpdateInput,
+        where: types.ManufacturingUnitWhereUniqueInput,
+        include: Optional[types.ManufacturingUnitInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Update a single ManufacturingUnit record.
+
+        Parameters
+        ----------
+        data
+            ManufacturingUnit record data specifying what to update
+        where
+            ManufacturingUnit filter to select the unique record to create / update
+        include
+            Specifies which relations should be loaded on the returned ManufacturingUnit model
+
+        Returns
+        -------
+        prisma.models.ManufacturingUnit
+            The updated ManufacturingUnit record
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        manufacturingunit = ManufacturingUnit.prisma().update(
+            where={
+                'id': 'eiacbdfid',
+            },
+            data={
+                # data to update the ManufacturingUnit record to
+            },
+        )
+        ```
+        """
+        try:
+            resp = self._client._execute(
+                method='update',
+                model=self._model,
+                arguments={
+                    'data': data,
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    def upsert(
+        self,
+        where: types.ManufacturingUnitWhereUniqueInput,
+        data: types.ManufacturingUnitUpsertInput,
+        include: Optional[types.ManufacturingUnitInclude] = None,
+    ) -> _PrismaModelT:
+        """Updates an existing record or create a new one
+
+        Parameters
+        ----------
+        where
+            ManufacturingUnit filter to select the unique record to create / update
+        data
+            Data specifying what fields to set on create and update
+        include
+            Specifies which relations should be loaded on the returned ManufacturingUnit model
+
+        Returns
+        -------
+        prisma.models.ManufacturingUnit
+            The created or updated ManufacturingUnit record
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        manufacturingunit = ManufacturingUnit.prisma().upsert(
+            where={
+                'id': 'biggibejea',
+            },
+            data={
+                'create': {
+                    'id': 'biggibejea',
+                    'panelId': 'bgehjgiidg',
+                    'slotIndex': 66838317,
+                    'slotId': 'caehgabhgc',
+                    'stages': Json({'bdcdghgbeh': True}),
+                },
+                'update': {
+                    'panelId': 'bgehjgiidg',
+                    'slotIndex': 66838317,
+                    'slotId': 'caehgabhgc',
+                    'stages': Json({'bdcdghgbeh': True}),
+                },
+            },
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='upsert',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    def update_many(
+        self,
+        data: types.ManufacturingUnitUpdateManyMutationInput,
+        where: types.ManufacturingUnitWhereInput,
+    ) -> int:
+        """Update multiple ManufacturingUnit records
+
+        Parameters
+        ----------
+        data
+            ManufacturingUnit data to update the selected ManufacturingUnit records to
+        where
+            Filter to select the ManufacturingUnit records to update
+
+        Returns
+        -------
+        int
+            The total number of ManufacturingUnit records that were updated
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # update all ManufacturingUnit records
+        total = ManufacturingUnit.prisma().update_many(
+            data={
+                'status': enums.UnitStatus.RUNNING
+            },
+            where={}
+        )
+        ```
+        """
+        resp = self._client._execute(
+            method='update_many',
+            model=self._model,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    @overload
+    def count(
+        self,
+        select: None = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingUnitWhereInput] = None,
+        cursor: Optional[types.ManufacturingUnitWhereUniqueInput] = None,
+    ) -> int:
+        """Count the number of ManufacturingUnit records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the ManufacturingUnit fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            ManufacturingUnit filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.ManufacturingUnitCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = ManufacturingUnit.prisma().count()
+
+        # results: prisma.types.ManufacturingUnitCountAggregateOutput
+        results = ManufacturingUnit.prisma().count(
+            select={
+                '_all': True,
+                'stages': True,
+            },
+        )
+        ```
+        """
+
+
+    @overload
+    def count(
+        self,
+        select: types.ManufacturingUnitCountAggregateInput,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingUnitWhereInput] = None,
+        cursor: Optional[types.ManufacturingUnitWhereUniqueInput] = None,
+    ) -> types.ManufacturingUnitCountAggregateOutput:
+        ...
+
+    def count(
+        self,
+        select: Optional[types.ManufacturingUnitCountAggregateInput] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.ManufacturingUnitWhereInput] = None,
+        cursor: Optional[types.ManufacturingUnitWhereUniqueInput] = None,
+    ) -> Union[int, types.ManufacturingUnitCountAggregateOutput]:
+        """Count the number of ManufacturingUnit records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the ManufacturingUnit fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            ManufacturingUnit filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.ManufacturingUnitCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = ManufacturingUnit.prisma().count()
+
+        # results: prisma.types.ManufacturingUnitCountAggregateOutput
+        results = ManufacturingUnit.prisma().count(
+            select={
+                '_all': True,
+                'errorMessage': True,
+            },
+        )
+        ```
+        """
+
+        # TODO: this selection building should be moved to the QueryBuilder
+        #
+        # note the distinction between checking for `not select` here and `select is None`
+        # later is to handle the case that the given select dictionary is empty, this
+        # is a limitation of our types.
+        if not select:
+            root_selection = ['_count { _all }']
+        else:
+
+            root_selection = [
+                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
+            ]
+
+        resp = self._client._execute(
+            method='count',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'cursor': cursor,
+            },
+            root_selection=root_selection,
+        )
+
+        if select is None:
+            return cast(int, resp['data']['result']['_count']['_all'])
+        else:
+            return cast(types.ManufacturingUnitCountAggregateOutput, resp['data']['result']['_count'])
+
+    def delete_many(
+        self,
+        where: Optional[types.ManufacturingUnitWhereInput] = None
+    ) -> int:
+        """Delete multiple ManufacturingUnit records.
+
+        Parameters
+        ----------
+        where
+            Optional ManufacturingUnit filter to find the records to be deleted
+
+        Returns
+        -------
+        int
+            The total number of ManufacturingUnit records that were deleted
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # delete all ManufacturingUnit records
+        total = ManufacturingUnit.prisma().delete_many()
+        ```
+        """
+        resp = self._client._execute(
+            method='delete_many',
+            model=self._model,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    # TODO: make this easier to work with safely, currently output fields are typed as
+    #       not required, we should refactor the return type
+    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
+    # TODO: statically type that the order argument is required when take or skip are present
+    def group_by(
+        self,
+        by: List['types.ManufacturingUnitScalarFieldKeys'],
+        *,
+        where: Optional['types.ManufacturingUnitWhereInput'] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        avg: Optional['types.ManufacturingUnitAvgAggregateInput'] = None,
+        sum: Optional['types.ManufacturingUnitSumAggregateInput'] = None,
+        min: Optional['types.ManufacturingUnitMinAggregateInput'] = None,
+        max: Optional['types.ManufacturingUnitMaxAggregateInput'] = None,
+        having: Optional['types.ManufacturingUnitScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.ManufacturingUnitCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.ManufacturingUnitScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.ManufacturingUnitScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.ManufacturingUnitGroupByOutput']:
+        """Group ManufacturingUnit records by one or more field values and perform aggregations
+        each group such as finding the average.
+
+        Parameters
+        ----------
+        by
+            List of scalar ManufacturingUnit fields to group records by
+        where
+            ManufacturingUnit filter to select records
+        take
+            Limit the maximum number of ManufacturingUnit records returned
+        skip
+            Ignore the first N records
+        avg
+            Adds the average of all values of the specified fields to the `_avg` field
+            in the returned data.
+        sum
+            Adds the sum of all values of the specified fields to the `_sum` field
+            in the returned data.
+        min
+            Adds the smallest available value for the specified fields to the `_min` field
+            in the returned data.
+        max
+            Adds the largest available value for the specified fields to the `_max` field
+            in the returned data.
+        count
+            Adds a count of non-fields to the `_count` field in the returned data.
+        having
+            Allows you to filter groups by an aggregate value - for example only return
+            groups having an average age less than 50.
+        order
+            Lets you order the returned list by any property that is also present in `by`.
+            Only **one** field is allowed at a time.
+
+        Returns
+        -------
+        List[prisma.types.ManufacturingUnitGroupByOutput]
+            A list of dictionaries representing the ManufacturingUnit record,
+            this will also have additional fields present if aggregation arguments
+            are used (see the above parameters)
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # group ManufacturingUnit records by startedAt values
+        # and count how many records are in each group
+        results = ManufacturingUnit.prisma().group_by(
+            ['startedAt'],
             count=True,
         )
         ```

@@ -9,6 +9,7 @@ access.
 """
 
 import logging
+import time
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -39,6 +40,10 @@ _BITBUCKET_API_BASE = "https://api.bitbucket.org/2.0"
 class PRWatcher:
     """Fetch open pull requests from Bitbucket Cloud."""
 
+    # Shared backoff state — when rate-limited, skip API calls until cooldown expires
+    _rate_limit_until: float = 0.0
+    _backoff_seconds: float = 30.0
+
     def __init__(
         self,
         workspace: str,
@@ -52,11 +57,20 @@ class PRWatcher:
 
     def get_open_prs(
         self, repo_slug: str, target_branch: str
-    ) -> list[PRInfo]:
+    ) -> Optional[list[PRInfo]]:
         """Return all open PRs targeting *target_branch* in *repo_slug*.
 
-        Follows pagination automatically.  Returns an empty list on any error.
+        Returns None when rate-limited or on transient errors — callers
+        should preserve their previous state rather than treating None as
+        "no PRs exist".  Returns an empty list only when the API confirms
+        there are genuinely no matching PRs.
         """
+        # If we're in a backoff window, skip the API call entirely
+        if time.monotonic() < PRWatcher._rate_limit_until:
+            remaining = PRWatcher._rate_limit_until - time.monotonic()
+            log.debug("PRWatcher: rate-limit backoff active for %s (%.0fs remaining)", repo_slug, remaining)
+            return None
+
         url = (
             f"{_BITBUCKET_API_BASE}/repositories"
             f"/{self._workspace}/{repo_slug}/pullrequests"
@@ -70,7 +84,7 @@ class PRWatcher:
                 resp = session.get(url, auth=self._auth, timeout=30)
             except requests.RequestException as exc:
                 log.error("PRWatcher: request error for %s: %s", repo_slug, exc)
-                break
+                return None
 
             if resp.status_code == 401:
                 log.error(
@@ -78,7 +92,17 @@ class PRWatcher:
                     "and BITBUCKET_API_TOKEN",
                     repo_slug,
                 )
-                break
+                return None
+            if resp.status_code == 429:
+                # Exponential backoff: 30s → 60s → 120s, capped at 300s
+                PRWatcher._backoff_seconds = min(PRWatcher._backoff_seconds * 2, 300)
+                PRWatcher._rate_limit_until = time.monotonic() + PRWatcher._backoff_seconds
+                log.warning(
+                    "PRWatcher: rate-limited for %s — backing off %.0fs",
+                    repo_slug,
+                    PRWatcher._backoff_seconds,
+                )
+                return None
             if resp.status_code >= 400:
                 log.error(
                     "PRWatcher: Bitbucket API %d for %s: %s",
@@ -86,13 +110,16 @@ class PRWatcher:
                     repo_slug,
                     resp.text[:200],
                 )
-                break
+                return None
+
+            # Successful response — reset backoff
+            PRWatcher._backoff_seconds = 30.0
 
             try:
                 data = resp.json()
             except Exception as exc:
                 log.error("PRWatcher: failed to parse JSON for %s: %s", repo_slug, exc)
-                break
+                return None
 
             for pr in data.get("values", []):
                 info = _parse_pr(pr)

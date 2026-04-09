@@ -42,6 +42,10 @@ PRISMA_MODELS: set[str] = {
     'StageBuildMatrix',
     'AssetSet',
     'Asset',
+    'ManufacturingConfig',
+    'ManufacturingSession',
+    'ManufacturingPanel',
+    'ManufacturingUnit',
 }
 
 RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
@@ -58,6 +62,8 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'recipeVersions': 'RecipeVersion',
         'productAccess': 'ProductAccess',
         'assetSets': 'AssetSet',
+        'manufacturingConfigs': 'ManufacturingConfig',
+        'manufacturingSessions': 'ManufacturingSession',
     },
     'TestPackage': {
         'product': 'Product',
@@ -80,6 +86,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'assetSets': 'AssetSet',
         'fixtureDesigns': 'FixtureDesign',
         'fixtures': 'Fixture',
+        'manufacturingConfigs': 'ManufacturingConfig',
     },
     'FirmwareSet': {
         'product': 'Product',
@@ -150,6 +157,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'slots': 'FixtureSlot',
         'sessions': 'Session',
         'queueEntries': 'ValidationQueueEntry',
+        'manufacturingSessions': 'ManufacturingSession',
     },
     'FixtureSlot': {
         'fixture': 'Fixture',
@@ -196,6 +204,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'secrets': 'Secret',
         'recipeVersions': 'RecipeVersion',
         'assetSets': 'AssetSet',
+        'manufacturingSessions': 'ManufacturingSession',
     },
     'ProductAccess': {
         'user': 'User',
@@ -240,6 +249,23 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     },
     'Asset': {
         'assetSet': 'AssetSet',
+    },
+    'ManufacturingConfig': {
+        'product': 'Product',
+        'boardRevision': 'BoardRevision',
+    },
+    'ManufacturingSession': {
+        'product': 'Product',
+        'fixture': 'Fixture',
+        'operator': 'User',
+        'panels': 'ManufacturingPanel',
+    },
+    'ManufacturingPanel': {
+        'session': 'ManufacturingSession',
+        'units': 'ManufacturingUnit',
+    },
+    'ManufacturingUnit': {
+        'panel': 'ManufacturingPanel',
     },
 }
 

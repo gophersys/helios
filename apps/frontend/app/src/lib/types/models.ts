@@ -134,11 +134,10 @@ export interface Product {
   buildConfig: BuildConfig | null;
   targets: ProductTarget[];
   boardCount?: number;
-  firmwareSetCount?: number;
+  assetSetCount?: number;
   sessionCount?: number;
   testCount?: number;
   boards?: Board[];
-  firmwareSets?: FirmwareSet[];
   createdAt: string;
   updatedAt: string;
 }
@@ -849,6 +848,40 @@ export interface Fixture {
   updatedAt: string;
 }
 
+// ── Manufacturing config types ─────────────────────────────
+
+export interface ManufacturingStageConfig {
+  name: string;
+  enabled: boolean;
+}
+
+export interface ManufacturingPersonalizationConfig {
+  coreOpsUrl: string;
+  deviceType: number;
+  deviceVariant: number;
+  defaultCarrier: string;
+}
+
+export interface ManufacturingPassCriteria {
+  allStagesMustPass: boolean;
+  maxRetriesPerUnit: number;
+}
+
+export interface ManufacturingConfig {
+  id: string;
+  productId: string;
+  boardRevisionId: string | null;
+  enabled: boolean;
+  stages: ManufacturingStageConfig[];
+  firmwareSource: string;
+  firmwareSetId: string | null;
+  personalizationConfig: ManufacturingPersonalizationConfig | null;
+  passCriteria: ManufacturingPassCriteria | null;
+  boardRevision?: { id: string; version: string } | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
 // ── Dashboard types ────────────────────────────────────────
 
 export interface DashboardFixture {
@@ -864,9 +897,20 @@ export interface DashboardFixture {
   nodesOffline: number;
   nodesError: number;
   health: 'HEALTHY' | 'DEGRADED' | 'ERROR' | 'UNASSIGNED' | 'EMPTY' | 'UNKNOWN';
-  hasActiveDeployment: boolean;
-  activeDeploymentStatus: string | null;
   updatedAt: string;
+}
+
+export interface DashboardStats {
+  products?: { total: number; active: number };
+  builds?: { total: number; active: number; failed: number };
+  validation?: { total: number; active: number; passed: number; passRate: number | null; queueDepth: number };
+  manufacturing?: { total: number; active: number };
+  fixtures?: { total: number; online: number; degraded: number };
+}
+
+export interface DashboardData {
+  stats: DashboardStats;
+  fixtures: DashboardFixture[];
 }
 
 // ── MTIB Observability types ────────────────────────────────

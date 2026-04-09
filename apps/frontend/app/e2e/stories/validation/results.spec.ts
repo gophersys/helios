@@ -75,7 +75,7 @@ test.describe('Validation Results: Completed Session Verification', () => {
     const node = await createNode({
       name: `Val Results Node ${suffix}`,
       hostname: `val-res-node-${suffix}`,
-      type: 'MTIB',
+      type: 'VALIDATION',
       ipAddress: '10.4.45.97',
     });
     nodeId = node.id;

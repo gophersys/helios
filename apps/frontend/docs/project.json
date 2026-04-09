@@ -21,7 +21,7 @@
       }
     },
     "serve": {
-      "command": "PYTHONPATH=libs/python:libs:libs/protocols mkdocs serve -a 0.0.0.0:4000",
+      "command": "python3 hooks/generate_role_manifest.py && PYTHONPATH=libs/python:libs:libs/protocols zensical serve -a 0.0.0.0:4000",
       "options": {
         "cwd": "{workspaceRoot}"
       }
@@ -37,7 +37,7 @@
       },
       "configurations": {
         "development": {
-          "command": "zensical build"
+          "command": "zensical build && python3 hooks/generate_role_manifest.py"
         },
         "staging": {
           "command": "nx run docs:containerize -c staging"

@@ -28,9 +28,11 @@ from .errors import (
 # ── Stages ──
 from .stages import (
     Stage,
+    StageType,
     StageBuildDef,
     STAGE_NAMES,
     STAGE_NUMBERS,
+    STAGE_TYPES,
     get_build_def,
     get_labels_with_cfw,
     get_labels_with_hex,

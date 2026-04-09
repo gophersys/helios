@@ -1,15 +1,14 @@
-"""Product stage configuration endpoints — CRUD for validation stage configs.
+"""Product stage configuration endpoints — CRUD for validation + manufacturing stage configs.
 
-Thin config: which revision, which branch, which signing key.
-Test config lives in the test repo. Build recipes are convention-driven.
+Stage 0 = manufacturing. Stages 1-5 = validation.
 """
 
 import logging
-from flask import jsonify, request
+from flask import g, jsonify, request
 
 from src.lib.audit import log_audit
-from src.lib.decorators import require_permissions
-from src.lib.errors import bad_request, conflict, not_found
+from src.lib.decorators import require_auth, require_permissions, _get_permissions_for_set
+from src.lib.errors import bad_request, conflict, forbidden, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
@@ -18,12 +17,29 @@ from .stage_config_types import StageConfigCreateRequest, StageConfigUpdateReque
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_STAGES = [
-    {"stage": 1, "name": "Smoke"},
-    {"stage": 2, "name": "Driver"},
-    {"stage": 3, "name": "Integration"},
-    {"stage": 4, "name": "Regression"},
-    {"stage": 5, "name": "FUOTA"},
+def _check_stage_permission(stage_type: str):
+    """Check if the current user can manage the given stage type. Returns error response or None."""
+    user = getattr(g, "current_user", None)
+    if not user:
+        return forbidden("Forbidden")
+    role = getattr(g, "effective_role", user.get("role", "OPERATOR"))
+    if role in ("ADMIN", "MAINTAINER"):
+        return None
+    perm_set_id = user.get("permissionSetId")
+    perms = _get_permissions_for_set(perm_set_id) if perm_set_id else []
+    perms = perms or []
+    required = Permissions.MANUFACTURING_MANAGE if stage_type == "MANUFACTURING" else Permissions.BUILDS_MANAGE
+    if required not in perms:
+        return forbidden("Forbidden")
+    return None
+
+
+DEFAULT_VALIDATION_STAGES = [
+    {"type": "VALIDATION", "stage": 1, "name": "Smoke"},
+    {"type": "VALIDATION", "stage": 2, "name": "Driver"},
+    {"type": "VALIDATION", "stage": 3, "name": "Integration"},
+    {"type": "VALIDATION", "stage": 4, "name": "Regression"},
+    {"type": "VALIDATION", "stage": 5, "name": "FUOTA"},
 ]
 
 _INCLUDE = {"boardRevision": True, "signingKey": True, "buildMatrixEntries": True}
@@ -34,6 +50,7 @@ def _serialize_stage_config(cfg) -> dict:
     data = {
         "id": cfg.id,
         "productId": cfg.productId,
+        "type": cfg.type,
         "stage": cfg.stage,
         "name": cfg.name,
         "enabled": cfg.enabled,
@@ -68,16 +85,20 @@ def _serialize_stage_config(cfg) -> dict:
     return data
 
 
-@require_permissions(Permissions.BUILDS_VIEW)
+@require_auth
 def list_stage_configs(product_id: str):
-    """List all stage configs for a product."""
+    """List stage configs for a product. Filter with ?type=VALIDATION or ?type=MANUFACTURING."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
+    where: dict = {"productId": product_id}
+    type_filter = request.args.get("type", "").strip().upper()
+    if type_filter in ("VALIDATION", "MANUFACTURING"):
+        where["type"] = type_filter
     configs = db.productstageconfig.find_many(
-        where={"productId": product_id},
-        order={"stage": "asc"},
+        where=where,
+        order=[{"type": "asc"}, {"stage": "asc"}],
         include=_INCLUDE,
     )
     return jsonify(ApiResponse.ok([_serialize_stage_config(c) for c in configs]).to_dict()), 200
@@ -103,9 +124,9 @@ def get_stage_config(product_id: str, stage: str):
     return jsonify(ApiResponse.ok(_serialize_stage_config(config)).to_dict()), 200
 
 
-@require_permissions(Permissions.BUILDS_MANAGE)
+@require_auth
 def create_stage_config(product_id: str):
-    """Create a new stage config for a product."""
+    """Create a new stage config for a product. Stage 0 = manufacturing."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
@@ -113,11 +134,14 @@ def create_stage_config(product_id: str):
     req, err = StageConfigCreateRequest.from_json(request.get_json())
     if err or req is None:
         return bad_request(err)
+    perm_err = _check_stage_permission(req.type)
+    if perm_err:
+        return perm_err
     existing = db.productstageconfig.find_first(
-        where={"productId": product_id, "stage": req.stage, "boardRevisionId": req.boardRevisionId}
+        where={"productId": product_id, "type": req.type, "stage": req.stage, "boardRevisionId": req.boardRevisionId}
     )
     if existing:
-        return conflict(f"Stage {req.stage} already exists for this product and revision")
+        return conflict(f"{req.type} stage {req.stage} already exists for this product and revision")
     # Block creating enabled stages for deprecated/EOL revisions
     if req.enabled and req.boardRevisionId:
         rev = db.boardrevision.find_unique(where={"id": req.boardRevisionId})
@@ -126,6 +150,7 @@ def create_stage_config(product_id: str):
     config = db.productstageconfig.create(
         data={
             "productId": product_id,
+            "type": req.type,
             "stage": req.stage,
             "name": req.name,
             "enabled": req.enabled,
@@ -246,11 +271,13 @@ def initialize_stages(product_id: str):
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
-    existing = db.productstageconfig.find_many(where={"productId": product_id})
+    existing = db.productstageconfig.find_many(
+        where={"productId": product_id, "type": "VALIDATION"},
+    )
     if existing:
-        return conflict("Product already has stage configurations. Delete them first to reinitialize.")
+        return conflict("Validation stages already configured. Delete them first to reinitialize.")
     created = []
-    for stage_def in DEFAULT_STAGES:
+    for stage_def in DEFAULT_VALIDATION_STAGES:
         config = db.productstageconfig.create(
             data={"productId": product_id, "enabled": False, **stage_def},
             include=_INCLUDE,

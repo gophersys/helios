@@ -80,13 +80,14 @@ def seed_product(db) -> dict:
             "create": {
                 "boardId": board.id, "version": "A0", "ckBoardsName": "alpha_a0",
                 "socs": ["nrf9160", "nrf52840"],
+                "deviceType": 2, "deviceVariant": 1,
                 "notes": "Alpha A0 — initial board (nRF9160 + nRF52840)",
                 "status": "ACTIVE",
             },
-            "update": {"ckBoardsName": "alpha_a0", "socs": ["nrf9160", "nrf52840"], "status": "ACTIVE"},
+            "update": {"ckBoardsName": "alpha_a0", "socs": ["nrf9160", "nrf52840"], "deviceType": 2, "deviceVariant": 1, "status": "ACTIVE"},
         },
     )
-    for t in [{"role": "comms", "soc": "nRF9160", "appId": 106}, {"role": "app", "soc": "nRF52840", "appId": 109}]:
+    for t in [{"role": "comms", "soc": "nRF9160", "appId": 102}, {"role": "app", "soc": "nRF52840", "appId": 103}]:
         db.producttarget.upsert(
             where={"boardRevisionId_role": {"boardRevisionId": a0_rev.id, "role": t["role"]}},
             data={"create": {"boardRevisionId": a0_rev.id, **t}, "update": {"soc": t["soc"], "appId": t["appId"]}},

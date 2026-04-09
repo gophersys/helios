@@ -95,7 +95,7 @@ services:
     environment:
       CONCORD_API_URL: http://http-api:9001
       CONCORD_API_KEY: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG
-      POLL_INTERVAL: "5"
+      POLL_INTERVAL: "30"
       PRODUCT_CACHE_TTL: "60"
       SERVICE_PORT: "9003"
       ENVIRONMENT: development

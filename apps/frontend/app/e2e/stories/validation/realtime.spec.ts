@@ -70,7 +70,7 @@ test.describe('Validation Real-time: WebSocket DOM Updates', () => {
     const node = await createNode({
       name: `Val RT Node ${suffix}`,
       hostname: `val-rt-node-${suffix}`,
-      type: 'MTIB',
+      type: 'VALIDATION',
       ipAddress: '10.4.45.98',
     });
     nodeId = node.id;

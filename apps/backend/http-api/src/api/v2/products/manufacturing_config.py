@@ -3,6 +3,7 @@
 import logging
 
 from flask import jsonify, request
+from database import Json
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
@@ -77,17 +78,22 @@ def create_manufacturing_config(product_id: str):
     if existing:
         return conflict("Manufacturing config already exists for this product and board revision")
 
+    create_data: dict = {
+        "productId": product_id,
+        "boardRevisionId": data.boardRevisionId,
+        "enabled": data.enabled,
+        "stages": Json(data.stages) if data.stages else Json([]),
+        "firmwareSource": data.firmwareSource,
+    }
+    if data.firmwareSetId:
+        create_data["firmwareSetId"] = data.firmwareSetId
+    if data.personalizationConfig:
+        create_data["personalizationConfig"] = Json(data.personalizationConfig)
+    if data.passCriteria:
+        create_data["passCriteria"] = Json(data.passCriteria)
+
     cfg = db.manufacturingconfig.create(
-        data={
-            "productId": product_id,
-            "boardRevisionId": data.boardRevisionId,
-            "enabled": data.enabled,
-            "stages": data.stages,
-            "firmwareSource": data.firmwareSource,
-            "firmwareSetId": data.firmwareSetId,
-            "personalizationConfig": data.personalizationConfig,
-            "passCriteria": data.passCriteria,
-        },
+        data=create_data,
         include={"boardRevision": True},
     )
 

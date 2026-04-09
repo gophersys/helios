@@ -3,24 +3,23 @@ min_role: DEVELOPER
 ---
 # Firmware Repositories
 
-Concord's git poller watches your firmware repo for commits. When new code lands on a watched branch, a build kicks off automatically — no manual trigger needed.
+Link Bitbucket repos to a product. The git poller watches them for commits and PRs.
 
-## Linking a Repo
+## Setup
 
-Open the product detail page, go to the repository settings, and enter the Bitbucket repo URL. Pick the branch to watch (`main`, `develop`, or a `release/*` pattern). Once saved, the poller starts monitoring immediately.
+Product detail → repository settings. Enter the repo slug, select the watch branch. Polling starts immediately.
 
-## What Happens on Push
+Two repos per product:
 
-A commit hits a watched branch. The git poller picks it up within its polling interval, fires a build request to the build service, and the resulting hex and CFW files get stored in MinIO. The full chain — detect, build, store — runs without intervention.
+- **Production firmware** — main application
+- **Manufacturing firmware** — POST and factory test code
 
-If CI is disabled for the product, the poller still tracks commits but skips the automatic build trigger. You can still build manually from the UI or API.
+## Trigger behavior
 
-## Repo Structure
+Commit on a watched branch → poller detects → build run triggers. No manual step.
 
-The build system expects a standard Zephyr project layout:
+Polling can be disabled per product. Commits are still tracked, but builds don't auto-trigger. Manual builds work via UI or API.
 
-- Board overlay files matching your product's board revisions
-- A `prj.conf` per build variant
-- Build recipes under `recipes/` (see [Build Configuration](../builds/build-configuration.md))
+## Expected repo structure
 
-Without these, the build will fail at the toolchain step with a missing board or config error.
+Standard Zephyr layout — board overlays matching your revisions, `prj.conf` per variant. Missing definitions fail at the toolchain step.
