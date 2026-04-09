@@ -72,14 +72,14 @@ class StageAccessor:
             return self._assets.by_label("MFG_BASE")
         except Exception:
             pass
-        labels = self._assets.available_labels()
+        labels = self._assets.labels
         if not labels:
             raise ConfigError("No builds available for this stage")
         return self._assets.by_label(labels[0])
 
     def _default_cfw_build(self):
         """Find the default CFW-producing build."""
-        labels = self._assets.available_labels()
+        labels = self._assets.labels
         for label in labels:
             try:
                 b = self._assets.by_label(label)
