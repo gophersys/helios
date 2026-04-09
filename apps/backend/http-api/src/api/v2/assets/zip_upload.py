@@ -56,9 +56,6 @@ def upload_asset_set_zip(product_id: str):
         return bad_request("stageConfigId is required")
 
     version = (request.form.get("version") or "").strip()
-    if not version:
-        return bad_request("version is required")
-
     variant = (request.form.get("variant") or "debug").strip()
     commit_sha = (request.form.get("commitSha") or "").strip() or None
     branch = (request.form.get("branch") or "").strip() or None
@@ -96,6 +93,26 @@ def upload_asset_set_zip(product_id: str):
         return bad_request(
             f"Zip validation failed: {'; '.join(validation.errors)}"
         )
+
+    # Auto-extract version from build.json manifest if not provided
+    if not version or version == "auto":
+        zip_bytes.seek(0)
+        zf_peek = zipfile.ZipFile(zip_bytes, "r")
+        for name in zf_peek.namelist():
+            if name.endswith("build.json"):
+                try:
+                    import json
+                    manifest = json.loads(zf_peek.read(name))
+                    version = manifest.get("version", "unknown")
+                    variant = manifest.get("variant", variant)
+                    commit_sha = commit_sha or manifest.get("commitSha")
+                    branch = branch or manifest.get("branch")
+                    break
+                except Exception:
+                    pass
+        zf_peek.close()
+        if not version or version == "auto":
+            version = "unknown"
 
     # Create AssetSet
     user_id = g.current_user.get("sub") if g.current_user else None

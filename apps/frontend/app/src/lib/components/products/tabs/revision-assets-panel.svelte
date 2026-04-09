@@ -27,15 +27,13 @@
   let expandedId = $state<string | null>(null);
 
   // Upload state
-  let uploadingStageConfigId = $state<string | null>(null);
-  let uploadVersion = $state('');
-  let uploadVariant = $state('debug');
   let uploadError = $state<string | null>(null);
-  let uploading = $state(false);
+  let uploadingConfigId = $state<string | null>(null);
 
   // Modem upload state
   let modemVersion = $state('');
   let modemUploading = $state(false);
+  let showModemUpload = $state(false);
 
   // Stage configs for this revision
   const revConfigs = $derived(
@@ -74,28 +72,22 @@
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    if (!uploadVersion.trim()) {
-      uploadError = 'Version is required';
-      return;
-    }
 
-    uploading = true;
+    uploadingConfigId = stageConfigId;
     uploadError = null;
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('stageConfigId', stageConfigId);
-      formData.append('version', uploadVersion.trim());
-      formData.append('variant', uploadVariant);
+      formData.append('version', 'auto');
+      formData.append('variant', 'debug');
 
       await apiUpload(`/v2/products/${productId}/asset-sets/upload-zip`, formData);
-      uploadingStageConfigId = null;
-      uploadVersion = '';
       await loadAssets();
     } catch (e) {
       uploadError = e instanceof Error ? e.message : 'Upload failed';
     } finally {
-      uploading = false;
+      uploadingConfigId = null;
       input.value = '';
     }
   }
@@ -148,45 +140,42 @@
       {/if}
     </div>
     <div class="px-4 py-3 border-t border-border-subtle">
-      {#if revision.hasModemFirmware && revision.modemVersion}
-        <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3">
+        {#if revision.hasModemFirmware && revision.modemVersion}
           <Cpu size={14} class="text-text-tertiary" />
           <span class="text-sm text-text-primary">v{revision.modemVersion}</span>
-          <span class="text-2xs text-text-tertiary">Uploaded</span>
-          {#if canManage}
-            <div class="ml-auto flex items-center gap-2">
-              <input
-                type="text"
-                bind:value={modemVersion}
-                placeholder="New version"
-                class="w-24 rounded border border-border bg-surface-0 px-2 py-1 text-2xs text-text-primary"
-              />
-              <label class="flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-muted px-2.5 py-1 text-2xs font-medium text-accent hover:bg-accent/15 cursor-pointer transition-colors">
-                <Upload size={12} /> Replace
-                <input type="file" accept=".zip" class="hidden" onchange={handleModemUpload} disabled={modemUploading || !modemVersion.trim()} />
-              </label>
-            </div>
-          {/if}
-        </div>
-      {:else}
-        <div class="flex items-center gap-3">
+        {:else}
           <span class="text-2xs text-text-tertiary">No modem firmware uploaded</span>
-          {#if canManage}
-            <div class="ml-auto flex items-center gap-2">
-              <input
-                type="text"
-                bind:value={modemVersion}
-                placeholder="Version"
-                class="w-24 rounded border border-border bg-surface-0 px-2 py-1 text-2xs text-text-primary"
-              />
-              <label class="flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-muted px-2.5 py-1 text-2xs font-medium text-accent hover:bg-accent/15 cursor-pointer transition-colors">
-                <Upload size={12} /> Upload .zip
-                <input type="file" accept=".zip" class="hidden" onchange={handleModemUpload} disabled={modemUploading || !modemVersion.trim()} />
-              </label>
-            </div>
-          {/if}
-        </div>
-      {/if}
+        {/if}
+
+        {#if canManage}
+          <div class="ml-auto">
+            {#if showModemUpload}
+              <div class="flex items-center gap-2">
+                <input
+                  type="text"
+                  bind:value={modemVersion}
+                  placeholder="Version (e.g. 2.0.2)"
+                  class="w-36 rounded border border-border bg-surface-0 px-2 py-1 text-2xs text-text-primary"
+                />
+                <label class="flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-2xs font-medium text-white hover:bg-accent-hover cursor-pointer transition-colors {!modemVersion.trim() ? 'opacity-50 pointer-events-none' : ''}">
+                  {#if modemUploading}<Loader2 size={12} class="animate-spin" />{:else}<Upload size={12} />{/if}
+                  Select .zip
+                  <input type="file" accept=".zip" class="hidden" onchange={handleModemUpload} disabled={modemUploading || !modemVersion.trim()} />
+                </label>
+                <button onclick={() => { showModemUpload = false; modemVersion = ''; }} class="text-2xs text-text-tertiary hover:text-text-secondary">Cancel</button>
+              </div>
+            {:else}
+              <button
+                onclick={() => showModemUpload = true}
+                class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-2.5 py-1 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors"
+              >
+                <Upload size={12} /> {revision.hasModemFirmware ? 'Replace' : 'Upload'}
+              </button>
+            {/if}
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
 
@@ -221,39 +210,16 @@
 
         {#if canManage}
           <div class="ml-auto">
-            {#if uploadingStageConfigId === config.id}
-              <div class="flex items-center gap-2">
-                <input
-                  type="text"
-                  bind:value={uploadVersion}
-                  placeholder="Version"
-                  class="w-20 rounded border border-border bg-surface-0 px-2 py-1 text-2xs text-text-primary"
-                />
-                <select bind:value={uploadVariant} class="rounded border border-border bg-surface-0 px-2 py-1 text-2xs text-text-primary">
-                  <option value="debug">debug</option>
-                  <option value="release">release</option>
-                  <option value="mfg">mfg</option>
-                </select>
-                <label class="flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-2xs font-medium text-white hover:bg-accent-hover cursor-pointer transition-colors">
-                  {#if uploading}<Loader2 size={12} class="animate-spin" />{:else}<Upload size={12} />{/if}
-                  .zip
-                  <input type="file" accept=".zip" class="hidden" onchange={(e) => handleZipUpload(config.id, e)} disabled={uploading} />
-                </label>
-                <button onclick={() => { uploadingStageConfigId = null; uploadError = null; }} class="text-2xs text-text-tertiary hover:text-text-secondary">Cancel</button>
-              </div>
-            {:else}
-              <button
-                onclick={() => { uploadingStageConfigId = config.id; uploadVersion = ''; uploadError = null; }}
-                class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-2.5 py-1 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors"
-              >
-                <Upload size={12} /> Upload
-              </button>
-            {/if}
+            <label class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-2.5 py-1 text-2xs font-medium text-accent hover:bg-accent/15 cursor-pointer transition-colors {uploadingConfigId === config.id ? 'opacity-50 pointer-events-none' : ''}">
+              {#if uploadingConfigId === config.id}<Loader2 size={12} class="animate-spin" />{:else}<Upload size={12} />{/if}
+              Upload .zip
+              <input type="file" accept=".zip" class="hidden" onchange={(e) => handleZipUpload(config.id, e)} disabled={uploadingConfigId === config.id} />
+            </label>
           </div>
         {/if}
       </div>
 
-      {#if uploadError && uploadingStageConfigId === config.id}
+      {#if uploadError && uploadingConfigId === config.id}
         <div class="px-4 py-2 border-t border-error/20 bg-error-muted text-2xs text-error">{uploadError}</div>
       {/if}
 
