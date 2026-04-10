@@ -10,8 +10,12 @@ ARG BUILD_HOST=unknown
 
 # Orchestrator dependencies: git (clone repos), docker CLI (spawn builder
 # containers), openssh-client (SSH auth for Bitbucket)
+# Internal CA certificates (office network)
+COPY deploy/ca-certs/*.crt /usr/local/share/ca-certificates/
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git openssh-client ca-certificates curl gnupg && \
+    update-ca-certificates && \
     install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list && \
@@ -39,5 +43,12 @@ ENV APP_VERSION=${APP_VERSION} \
     PYTHONPATH=/app/src:/app/libs/python:/app/libs/protocols:/app/libs
 
 EXPOSE 9002
+
+# Security: run as non-root user
+# Note: the appuser needs access to the Docker socket (mounted at runtime) for spawning
+# builder containers. The docker group GID is set at runtime via K8s securityContext.
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser && \
+    chown -R appuser:appgroup /app
+USER appuser
 
 CMD ["python3", "-u", "-m", "src.main"]

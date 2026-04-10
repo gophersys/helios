@@ -21,8 +21,13 @@ RUN apt-get update && \
     python3 \
     python3-pip \
     openssl \
+    ca-certificates \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Internal CA certificates (office network)
+COPY deploy/ca-certs/*.crt /usr/local/share/ca-certificates/
+RUN update-ca-certificates
 
 # ----------------------------------------------------
 #                                             Node, Nx
@@ -50,7 +55,7 @@ COPY ./nx.json nx.json
 COPY ./package.json package.json
 
 # Install Prisma Python client generator
-RUN pip3 install prisma==0.15.0
+RUN pip3 install --no-cache-dir prisma==0.15.0
 
 # Generate Prisma clients (both Go and Python)
 # Keep working directory as /concord to maintain relative path context
@@ -92,17 +97,21 @@ RUN apt-get update && \
     openssl \
     git \
     openssh-client \
+    ca-certificates \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Internal CA certificates (office network)
+COPY deploy/ca-certs/*.crt /usr/local/share/ca-certificates/
+RUN update-ca-certificates
 
 # ----------------------------------------------------
 #                                       Dependencies
 # ----------------------------------------------------
 WORKDIR /app
 COPY ./apps/backend/http-api/setup.py setup.py
-RUN pip3 install -e . && \
-    pip3 install prisma==0.15.0 && \
-    pip3 cache purge
+RUN pip3 install --no-cache-dir -e . && \
+    pip3 install --no-cache-dir prisma==0.15.0
 
 # ----------------------------------------------------
 #                                       App + Libraries
@@ -155,5 +164,11 @@ COPY ./apps/backend/http-api/src src
 COPY ./apps/firmware/products/alpha/scripts /app/firmware/products/alpha/scripts
 
 EXPOSE 9001
+
+# Security: run as non-root user
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+# The app needs write access to /prisma for migrations (init container) and /app for runtime
+RUN chown -R appuser:appgroup /app /prisma
+USER appuser
 
 CMD ["python3", "-u", "src/main.py"]

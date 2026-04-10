@@ -15,8 +15,12 @@ ENV APP_VERSION=${APP_VERSION} \
     BUILD_HOST=${BUILD_HOST}
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git openssh-client && \
+    apt-get install -y --no-install-recommends git openssh-client ca-certificates && \
     rm -rf /var/lib/apt/lists/*
+
+# Internal CA certificates (office network)
+COPY deploy/ca-certs/*.crt /usr/local/share/ca-certificates/
+RUN update-ca-certificates
 
 WORKDIR /app
 COPY apps/backend/git-poller/requirements.txt .
@@ -27,4 +31,10 @@ COPY apps/backend/git-poller/src/ src/
 
 ENV PYTHONPATH="/app/src:/app/libs/python:/app/libs/protocols:/app/libs"
 EXPOSE 9003
+
+# Security: run as non-root user
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser && \
+    chown -R appuser:appgroup /app
+USER appuser
+
 CMD ["python3", "-u", "-m", "main"]
