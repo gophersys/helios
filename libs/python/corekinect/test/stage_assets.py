@@ -208,7 +208,10 @@ class StageAssets:
     # ── Convenience shortcuts ──
 
     def mfg(self) -> BuildAsset:
-        """Shortcut for MFG_BASE — manufacturing firmware."""
+        """Shortcut for MFG_BASE — legacy manufacturing firmware (single label).
+
+        Prefer mfg_app_debug() / mfg_comms_debug() for the new multi-label matrix.
+        """
         return self.by_label("MFG_BASE")
 
     def mfg_bump(self) -> BuildAsset:
@@ -223,22 +226,60 @@ class StageAssets:
         """Shortcut for APP_RELEASE — release application firmware."""
         return self.by_label("APP_RELEASE")
 
+    # ── Manufacturing multi-label shortcuts ──────────────────────────
+
+    def mfg_app_debug(self) -> BuildAsset:
+        """MFG_APP_DEBUG — nRF52840 app processor, debug variant."""
+        return self.by_label("MFG_APP_DEBUG")
+
+    def mfg_app_release(self) -> BuildAsset:
+        """MFG_APP_RELEASE — nRF52840 app processor, release variant."""
+        return self.by_label("MFG_APP_RELEASE")
+
+    def mfg_comms_debug(self) -> BuildAsset:
+        """MFG_COMMS_DEBUG — nRF9151 comms processor, debug variant."""
+        return self.by_label("MFG_COMMS_DEBUG")
+
+    def mfg_comms_release(self) -> BuildAsset:
+        """MFG_COMMS_RELEASE — nRF9151 comms processor, release variant."""
+        return self.by_label("MFG_COMMS_RELEASE")
+
+    def mfg_firmware(self, variant: str = "debug") -> tuple:
+        """Get both app and comms firmware for a given variant.
+
+        Returns (app_hex_path, comms_hex_path) tuple.
+
+        Usage:
+            app_fw, comms_fw = mfg_assets.mfg_firmware("debug")
+            app_fw, comms_fw = mfg_assets.mfg_firmware("release")
+        """
+        if variant == "release":
+            return self.mfg_app_release().hex("app"), self.mfg_comms_release().hex("comms")
+        return self.mfg_app_debug().hex("app"), self.mfg_comms_debug().hex("comms")
+
     def modem_zip(self) -> Optional[str]:
         """Modem firmware local path.
 
-        Tries the MFG_BASE build manifest first, then falls back to
-        pipeline trigger data.
+        Resolution order:
+        1. AssetSet.modemFirmware (new model — preferred)
+        2. Build manifest modem firmware (legacy — from build pipeline)
+        3. Deprecated: trigger data modem firmware
 
         Returns:
             Local path to modem firmware zip, or None if unavailable.
         """
-        # Try manifest-embedded modem firmware
+        # 1. Try from AssetSet modem firmware reference (new path)
+        modem_path = self._resolver.get_modem_from_asset_set()
+        if modem_path:
+            return modem_path
+
+        # 2. Try from build manifest (legacy)
         if "MFG_BASE" in self._assets:
             path = self._resolver.get_modem_firmware("MFG_BASE")
             if path:
                 return path
 
-        # Fall back to trigger data
+        # 3. Deprecated fallback
         return self._resolver.get_modem_firmware_from_trigger()
 
     # ── Validation ──

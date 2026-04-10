@@ -1,9 +1,15 @@
 """Firmware Flash Test — pytest implementation with sub-step reporting.
 
-Migrated from apps/manufacturing/alpha/src/tests/fw_flash/step_1.py through step_3.py.
+Flashes firmware onto both microcontrollers (nRF52840 app, nRF9151 comms)
+via the MTIB V1 server, then sets AP protect on both.
 
-Flashes manufacturing firmware onto both microcontrollers (nRF52840 app,
-nRF9151 comms) via the MTIB V1 server, then sets AP protect on both.
+Uses the manufacturing build matrix labels:
+    MFG_APP_DEBUG / MFG_APP_RELEASE   — nRF52840 application processor
+    MFG_COMMS_DEBUG / MFG_COMMS_RELEASE — nRF9151 communications processor
+    MODEM_FW                          — modem firmware (selected separately)
+
+The firmware variant (debug/release) is parametrized — both variants are
+tested if available. The build matrix defines which labels exist.
 
 Run locally:
     cd apps/manufacturing/alpha
@@ -22,28 +28,39 @@ log = logging.getLogger("manufacturing.fw_flash")
 
 @pytest.mark.fw_flash
 @pytest.mark.sequential
-def test_fw_flash(slot, config, report, mfg_assets):
-    """Flash manufacturing firmware and set AP protect.
+@pytest.mark.parametrize("firmware_variant", ["debug", "release"])
+def test_fw_flash(slot, config, report, mfg_assets, firmware_variant):
+    """Flash firmware and set AP protect.
 
     Three sub-steps:
     1. Flash nRF52840 app processor (with recover + retry)
     2. Flash nRF9151 comms processor (with recover + retry)
     3. Set AP protect on both processors
 
-    Firmware is resolved from the build pipeline (via mfg_assets) when
-    PIPELINE_ID is set. Falls back to config-based filenames otherwise.
+    Firmware is resolved from the asset set (via mfg_assets) using the
+    build matrix labels. Falls back to config-based filenames if no
+    asset set is available (local development).
     """
     mtib = slot.mtib
 
-    # Resolve firmware from build pipeline (preferred) or config fallback
+    # Resolve firmware from asset set (preferred) or config fallback
     if mfg_assets:
-        mfg = mfg_assets.mfg()
-        nrf52840_fw = mfg.hex("app")
-        nrf9151_fw = mfg.hex("comms")
-        log.info("Firmware resolved from pipeline: app=%s, comms=%s", nrf52840_fw, nrf9151_fw)
+        try:
+            nrf52840_fw, nrf9151_fw = mfg_assets.mfg_firmware(firmware_variant)
+            log.info(
+                "Firmware resolved from asset set (%s): app=%s, comms=%s",
+                firmware_variant, nrf52840_fw, nrf9151_fw,
+            )
+        except KeyError as e:
+            pytest.skip(f"Firmware variant '{firmware_variant}' not in asset set: {e}")
     else:
-        nrf52840_fw = config.get("fw_flash_nrf52840_app_fw_name", "alpha_app_mfg_1.hex")
-        nrf9151_fw = config.get("fw_flash_nrf9151_app_fw_name", "alpha_comm_mfg_1.hex")
+        # Config fallback for local development without asset sets
+        if firmware_variant == "release":
+            nrf52840_fw = config.get("fw_flash_nrf52840_release_fw", "alpha_release_nrf52840.hex")
+            nrf9151_fw = config.get("fw_flash_nrf9151_release_fw", "alpha_release_nrf9151.hex")
+        else:
+            nrf52840_fw = config.get("fw_flash_nrf52840_debug_fw", "alpha_debug_nrf52840.hex")
+            nrf9151_fw = config.get("fw_flash_nrf9151_debug_fw", "alpha_debug_nrf9151.hex")
     step2_recover = config.get("fw_flash_step2_recover", True)
 
     # ── Step 1: Flash nRF52840 app firmware ─────────────────────────────
