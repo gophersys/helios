@@ -364,7 +364,7 @@ model ModemFirmware {
   notes           String?
   createdById     String?
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime? @updatedAt
 
   boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Cascade)
   createdBy     User?         @relation("ModemFirmwareUploader", fields: [createdById], references: [id], onDelete: SetNull)
