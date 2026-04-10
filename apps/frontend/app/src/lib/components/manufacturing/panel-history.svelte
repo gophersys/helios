@@ -3,9 +3,9 @@
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import UnitCard from './unit-card.svelte';
   import { formatDuration } from '$lib/utils/formatting';
-  import type { ManufacturingPanel } from '$lib/types/models';
+  import type { TestRun } from '$lib/types/models';
 
-  let { panels }: { panels: ManufacturingPanel[] } = $props();
+  let { panels }: { panels: TestRun[] } = $props();
 
   let expandedPanels = $state<Set<string>>(new Set());
 
@@ -19,10 +19,10 @@
     expandedPanels = next;
   }
 
-  function getPanelDuration(panel: ManufacturingPanel): string | null {
+  function getPanelDuration(panel: TestRun): string | null {
     if (!panel.startedAt) return null;
     const start = new Date(panel.startedAt).getTime();
-    const end = panel.finishedAt ? new Date(panel.finishedAt).getTime() : Date.now();
+    const end = panel.completedAt ? new Date(panel.completedAt).getTime() : Date.now();
     return formatDuration(end - start);
   }
 </script>
@@ -31,9 +31,10 @@
   <p class="text-sm text-text-tertiary py-4 text-center">No completed panels yet.</p>
 {:else}
   <div class="space-y-2">
-    {#each panels as panel (panel.id)}
+    {#each panels as panel, idx (panel.id)}
       {@const expanded = expandedPanels.has(panel.id)}
       {@const panelDuration = getPanelDuration(panel)}
+      {@const targets = panel.targets || []}
       <div class="rounded-lg border border-border bg-surface-0 overflow-hidden">
         <!-- Panel header (accordion trigger) -->
         <button
@@ -49,19 +50,19 @@
           </div>
 
           <span class="text-xs font-medium text-text-primary">
-            Panel {panel.panelIndex + 1}
+            Panel {idx + 1}
           </span>
-          <span class="text-2xs font-mono text-text-secondary">{panel.qrCode}</span>
+          <span class="text-2xs font-mono text-text-secondary">{panel.panelIdentifier || panel.id.slice(0, 8)}</span>
 
           <div class="flex items-center gap-2 ml-auto">
             <span class="flex items-center gap-1 text-2xs">
               <CheckCircle2 size={11} class="text-success" />
-              <span class="font-medium text-text-primary">{panel.passCount}</span>
+              <span class="font-medium text-text-primary">{panel.passedCount}</span>
             </span>
-            {#if panel.failCount > 0}
+            {#if panel.failedCount > 0}
               <span class="flex items-center gap-1 text-2xs text-error">
                 <XCircle size={11} />
-                <span class="font-medium">{panel.failCount}</span>
+                <span class="font-medium">{panel.failedCount}</span>
               </span>
             {/if}
             {#if panelDuration}
@@ -75,8 +76,8 @@
         {#if expanded}
           <div class="border-t border-border-subtle px-4 py-3">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {#each panel.units as unit (unit.id)}
-                <UnitCard {unit} />
+              {#each targets as target (target.id)}
+                <UnitCard unit={target} />
               {/each}
             </div>
           </div>

@@ -13,14 +13,14 @@
     subscribeManufacturingRun,
     disconnectRunSocket,
   } from '$lib/services/websocket';
-  import type { ManufacturingSessionDetail, TestRun, RunTarget, TestExecution } from '$lib/types/models';
+  import type { ManufacturingSession, TestRun, RunTarget, TestExecution } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
   const canRun = $derived(auth.hasPermission('manufacturing:run'));
   const sessionId = $derived($page.params.id);
 
-  let session = $state<ManufacturingSessionDetail | null>(null);
+  let session = $state<ManufacturingSession | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let unsubscribeRun: (() => void) | null = null;
@@ -38,7 +38,7 @@
   async function fetchSession() {
     error = null;
     try {
-      const res = await apiFetch<ApiResponse<ManufacturingSessionDetail>>(
+      const res = await apiFetch<ApiResponse<ManufacturingSession>>(
         `/v2/manufacturing/sessions/${sessionId}`
       );
       session = res.data;
@@ -183,7 +183,7 @@
   async function handleRunPanel(qrCode: string) {
     error = null;
     try {
-      const res = await api.post(`/v2/manufacturing/sessions/${sessionId}/runs`, { qrCode });
+      await api.post(`/v2/manufacturing/sessions/${sessionId}/runs`, { qrCode });
       await fetchSession();
       // Subscribe to the newly created run
       const newRun = (session?.runs || []).find(

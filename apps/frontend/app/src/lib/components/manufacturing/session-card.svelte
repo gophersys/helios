@@ -7,10 +7,16 @@
 
   let { session }: { session: ManufacturingSession } = $props();
 
+  // Aggregate counts from runs when available
+  const runs = $derived(session.runs || []);
+  const runCount = $derived(runs.length);
+  const passCount = $derived(runs.reduce((sum, r) => sum + (r.passedCount || 0), 0));
+  const failCount = $derived(runs.reduce((sum, r) => sum + (r.failedCount || 0), 0));
+
   const duration = $derived.by(() => {
     if (!session.startedAt) return null;
     const start = new Date(session.startedAt).getTime();
-    const end = session.finishedAt ? new Date(session.finishedAt).getTime() : Date.now();
+    const end = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
     return formatDuration(end - start);
   });
 </script>
@@ -30,9 +36,9 @@
           {session.fixture.name}
         </span>
       {/if}
-      {#if session.operator?.name || session.operatorName}
+      {#if session.operator?.name}
         <span class="text-2xs text-text-tertiary">
-          {session.operator?.name || session.operatorName}
+          {session.operator.name}
         </span>
       {/if}
     </div>
@@ -42,16 +48,16 @@
 
       <span class="flex items-center gap-1">
         <CheckCircle2 size={11} class="text-success" />
-        <span class="text-text-primary font-medium">{session.passCount}</span>
+        <span class="text-text-primary font-medium">{passCount}</span>
       </span>
-      {#if session.failCount > 0}
+      {#if failCount > 0}
         <span class="flex items-center gap-1 text-error">
           <XCircle size={11} />
-          <span class="font-medium">{session.failCount}</span>
+          <span class="font-medium">{failCount}</span>
         </span>
       {/if}
       <span class="text-text-tertiary">
-        {session.panelCount} {session.panelCount === 1 ? 'panel' : 'panels'}
+        {runCount} {runCount === 1 ? 'panel' : 'panels'}
       </span>
     </div>
   </div>

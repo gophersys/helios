@@ -1,6 +1,6 @@
 <script lang="ts">
   import { QrCode, Play, Square } from 'lucide-svelte';
-  import type { ManufacturingSessionDetail } from '$lib/types/models';
+  import type { ManufacturingSession } from '$lib/types/models';
 
   let {
     session,
@@ -8,7 +8,7 @@
     onRunPanel,
     onEndSession,
   }: {
-    session: ManufacturingSessionDetail;
+    session: ManufacturingSession;
     canRun?: boolean;
     onRunPanel?: (qrCode: string) => void;
     onEndSession?: () => void;
@@ -18,7 +18,9 @@
   let submitting = $state(false);
   let showEndConfirm = $state(false);
 
-  const panelRunning = $derived(session.activePanel?.status === 'RUNNING');
+  const panelRunning = $derived(
+    (session.runs || []).some((r) => r.status === 'ACTIVE')
+  );
   const sessionActive = $derived(session.status === 'ACTIVE');
   const canSubmit = $derived(
     canRun && sessionActive && !panelRunning && !submitting && qrInput.trim().length > 0

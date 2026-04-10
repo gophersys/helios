@@ -2,14 +2,14 @@
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import UnitStageProgress from './unit-stage-progress.svelte';
   import { formatDuration } from '$lib/utils/formatting';
-  import type { ManufacturingUnit } from '$lib/types/models';
+  import type { RunTarget } from '$lib/types/models';
 
-  let { unit }: { unit: ManufacturingUnit } = $props();
+  let { unit }: { unit: RunTarget } = $props();
 
   const duration = $derived.by(() => {
     if (!unit.startedAt) return null;
     const start = new Date(unit.startedAt).getTime();
-    const end = unit.finishedAt ? new Date(unit.finishedAt).getTime() : Date.now();
+    const end = unit.completedAt ? new Date(unit.completedAt).getTime() : Date.now();
     return formatDuration(end - start);
   });
 </script>
@@ -22,7 +22,7 @@
   <div class="flex items-center justify-between mb-2">
     <div class="flex items-center gap-2">
       <span class="text-xs font-semibold text-text-primary">
-        {unit.slotLabel || `Slot ${unit.slotIndex + 1}`}
+        Slot {unit.slotIndex + 1}
       </span>
       {#if unit.serialNumber}
         <span class="text-2xs font-mono text-text-tertiary">{unit.serialNumber}</span>
@@ -31,8 +31,8 @@
     <StatusBadge status={unit.status} />
   </div>
 
-  <!-- Stage progress -->
-  <UnitStageProgress stages={unit.stages} />
+  <!-- Execution progress -->
+  <UnitStageProgress executions={unit.executions || []} />
 
   <!-- Footer: duration + error -->
   <div class="mt-2 flex items-center justify-between">
