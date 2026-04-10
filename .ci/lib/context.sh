@@ -13,6 +13,8 @@ if [[ "$CI" == "true" ]]; then
     CI_PROVIDER="github"
   elif [[ -n "${TEAMCITY_VERSION:-}" ]]; then
     CI_PROVIDER="teamcity"
+  elif [[ -n "${KUBERNETES_SERVICE_HOST:-}" ]]; then
+    CI_PROVIDER="kubernetes"
   else
     CI_PROVIDER="unknown"
   fi

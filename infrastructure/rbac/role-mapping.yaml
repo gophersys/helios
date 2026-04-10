@@ -29,9 +29,9 @@ roles:
     k8sGroup: concord-maintainers
     scope: namespace
     description: >
-      Full namespace access in staging, production, validation, and dev.
+      Full namespace access in staging, production, validation, and devops.
       Cannot modify cluster-level resources or RBAC.
-    namespaces: [staging, production, validation, dev]
+    namespaces: [staging, production, validation, devops]
     capabilities:
       - Full CRUD on workloads (deployments, statefulsets, jobs)
       - Full CRUD on services, configmaps, secrets
@@ -45,11 +45,11 @@ roles:
     k8sGroup: concord-developers
     scope: namespace
     description: >
-      Full access in dev namespace. Read-only in production and validation.
       Full access in staging for development workflow.
-    namespaces: [staging, dev, production, validation]
+      Read-only in production, validation, and devops.
+    namespaces: [staging, production, validation, devops]
     capabilities:
-      - Full CRUD in staging and dev namespaces
+      - Full CRUD in staging namespace
       - Read-only in production and validation
       - View pods, logs, services, configmaps
       - No exec in production

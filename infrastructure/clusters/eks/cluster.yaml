@@ -77,6 +77,19 @@ workloadTypes:
       max: 4
       spotEnabled: true
 
+  devops:
+    description: CI/CD job execution (nightly E2E, devcontainer-based pipelines)
+    requirements:
+      cpu: 8
+      memory: 16Gi
+      docker: DinD sidecar
+    instanceType: c6i.2xlarge
+    nodeGroup: concord-devops
+    scaling:
+      min: 0
+      max: 2
+      spotEnabled: true
+
   worker:
     description: Ephemeral job execution
     requirements:
@@ -119,6 +132,9 @@ nodes:
     - name: concord-build-group
       ip: 0.0.0.0
       workloads: [build]
+    - name: concord-devops-group
+      ip: 0.0.0.0
+      workloads: [devops]
     - name: concord-worker-group
       ip: 0.0.0.0
       workloads: [worker]
@@ -127,3 +143,4 @@ nodes:
 namespaces:
   - staging
   - production
+  - devops

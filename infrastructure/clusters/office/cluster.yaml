@@ -100,6 +100,19 @@ workloadTypes:
       Horizontal scaling lever for build throughput. Add more build
       nodes to parallelize firmware builds, container builds, etc.
 
+  devops:
+    description: CI/CD job execution (nightly E2E, test sweeps, devcontainer-based pipelines)
+    requirements:
+      cpu: 8
+      memory: 16Gi
+      docker: DinD sidecar (full docker-compose stack)
+      network: Outbound internet (git clone, npm install) + cluster-internal (MinIO upload)
+    services:
+      - ci-nightly (CronJob)
+    notes: >
+      Runs the full development environment inside a DinD sidecar for
+      isolated E2E testing. Nodes should have no conflicting port usage.
+
   worker:
     description: Ephemeral job execution (validation runs, manufacturing jobs)
     requirements:
@@ -177,7 +190,7 @@ nodes:
       ip: 10.4.45.30
       cpu: 8
       memory: 16Gi
-      workloads: [build]
+      workloads: [devops]
 
     - name: wanda
       ip: 10.4.45.32
@@ -218,4 +231,4 @@ namespaces:
   - staging
   - production
   - validation
-  - dev
+  - devops

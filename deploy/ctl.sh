@@ -119,6 +119,12 @@ cmd_build() {
   local targets=("$@")
   [[ ${#targets[@]} -eq 0 ]] && targets=("api" "frontend" "git-poller" "build-service" "docs")
 
+  # In CI, stream docker build output instead of suppressing it
+  local build_redirect="/dev/null"
+  if [[ "${CI:-false}" == "true" ]]; then
+    build_redirect="/dev/stdout"
+  fi
+
   local version
   version=$(get_version)
 
@@ -146,7 +152,7 @@ cmd_build() {
           --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/backend/http-api/deploy/Dockerfile \
           --tag "${REGISTRY_API}:${env}" \
-          --load . > /dev/null 2>&1
+          --load . > "${build_redirect}" 2>&1
         timer_end "API build"
         ;;
       frontend|fe|app|ui)
@@ -158,7 +164,7 @@ cmd_build() {
           --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/frontend/app/deploy/Dockerfile \
           --tag "${REGISTRY_FRONTEND}:${env}" \
-          --load . > /dev/null 2>&1
+          --load . > "${build_redirect}" 2>&1
         timer_end "Frontend build"
         ;;
       git-poller|poller)
@@ -169,7 +175,7 @@ cmd_build() {
           --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/backend/git-poller/deploy/Dockerfile \
           --tag "${REGISTRY_GIT_POLLER}:${env}" \
-          --load . > /dev/null 2>&1
+          --load . > "${build_redirect}" 2>&1
         timer_end "Git-poller build"
         ;;
       runner|test-runner)
@@ -181,7 +187,7 @@ cmd_build() {
           --file deploy/runner/Dockerfile \
           --tag "${REGISTRY_TEST_RUNNER}:${env}" \
           --tag "${REGISTRY_TEST_RUNNER}:${env}-${GIT_COMMIT}" \
-          --load . > /dev/null 2>&1
+          --load . > "${build_redirect}" 2>&1
         timer_end "Test runner build"
         ;;
       build-service)
@@ -192,7 +198,7 @@ cmd_build() {
           --build-arg BUILD_TIME --build-arg BUILD_HOST \
           --file apps/backend/build-service/deploy/Dockerfile \
           --tag "${REGISTRY_BUILD_SERVICE}:${env}" \
-          --load . > /dev/null 2>&1
+          --load . > "${build_redirect}" 2>&1
         timer_end "Build-service build"
         ;;
       docs)
@@ -200,7 +206,7 @@ cmd_build() {
         docker buildx build \
           --file apps/frontend/docs/deploy/Dockerfile \
           --tag "${REGISTRY_DOCS}:${env}" \
-          --load . > /dev/null 2>&1
+          --load . > "${build_redirect}" 2>&1
         timer_end "Docs build"
         ;;
       *)

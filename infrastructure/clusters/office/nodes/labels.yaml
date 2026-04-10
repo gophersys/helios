@@ -8,7 +8,7 @@
 # The primary workload is the first item in the workloads list.
 # Multi-role nodes get multiple workload-<type>=true labels.
 #
-# Workload types: platform, data, build, worker, edge
+# Workload types: platform, data, build, devops, worker, edge
 
 nodes:
   # ── Control plane (3x HA) ────────────────────────────────────
@@ -31,10 +31,11 @@ nodes:
   - name: concordagent03
     workloads: [data, worker]
 
-  # ── Builders ─────────────────────────────────────────────────
+  # ── DevOps (CI/CD) ────────────────────────────────────────────
   - name: concordproxy
-    workloads: [build]
+    workloads: [devops]
 
+  # ── Builders ─────────────────────────────────────────────────
   - name: wanda
     workloads: [build]
 

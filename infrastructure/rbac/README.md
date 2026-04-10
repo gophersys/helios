@@ -7,8 +7,8 @@ The Concord platform defines 4 user roles in the application layer (Prisma schem
 | Platform Role | K8s ClusterRole | K8s Group | Scope |
 |---|---|---|---|
 | **ADMIN** | `concord-super-admin` | `concord-admins` | Cluster-wide — full access |
-| **MAINTAINER** | `concord-namespace-admin` | `concord-maintainers` | Namespace — full CRUD in staging/production/validation/dev |
-| **DEVELOPER** | `concord-namespace-readonly` | `concord-developers` | Namespace — full access in staging/dev, read-only in production |
+| **MAINTAINER** | `concord-namespace-admin` | `concord-maintainers` | Namespace — full CRUD in staging/production/validation/devops |
+| **DEVELOPER** | `concord-namespace-readonly` | `concord-developers` | Namespace — full access in staging, read-only in production/devops |
 | **OPERATOR** | `concord-namespace-readonly` | `concord-operators` | Namespace — read-only in staging only |
 
 ## Service Accounts

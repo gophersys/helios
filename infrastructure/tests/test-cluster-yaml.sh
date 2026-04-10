@@ -93,8 +93,8 @@ for cluster in "${clusters[@]}"; do
     done
   done
 
-  # ── Workload types — all 5 must be defined ───────────────────
-  REQUIRED_WORKLOADS="platform data build worker edge"
+  # ── Workload types — all 6 must be defined ───────────────────
+  REQUIRED_WORKLOADS="platform data build devops worker edge"
   for wtype in ${REQUIRED_WORKLOADS}; do
     desc=$(yq_read ".workloadTypes.${wtype}.description" "${yaml}")
     if [[ -z "${desc}" ]]; then
@@ -113,7 +113,7 @@ for cluster in "${clusters[@]}"; do
       if [[ "${wl_count}" -eq 0 ]]; then
         fail "${cluster}: node '${node_name}' has no workloads assigned"
       else
-        # Validate each workload is one of the 5 types
+        # Validate each workload is one of the 6 types
         for ((j=0; j<wl_count; j++)); do
           wl=$(yq_read ".nodes.${group}[${i}].workloads[${j}]" "${yaml}")
           if ! echo "${REQUIRED_WORKLOADS}" | grep -qw "${wl}"; then

@@ -158,6 +158,24 @@ else
 fi
 echo ""
 
+# ── Secret 5: ci-minio-upload (devops namespace only) ──────────
+# Used by: CI CronJobs to upload test results to cluster MinIO.
+log "ci-minio-upload"
+MINIO_ROOT_USER="${MINIO_ROOT_USER:-}"
+MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-}"
+if [[ -z "${MINIO_ROOT_USER}" ]] || [[ -z "${MINIO_ROOT_PASSWORD}" ]]; then
+  info "  MINIO_ROOT_USER/PASSWORD not set — skipping (optional)"
+else
+  for ns in "${NAMESPACES[@]}"; do
+    if [[ "${ns}" == "devops" ]]; then
+      apply_secret "${ns}" generic ci-minio-upload \
+        --from-literal=MINIO_ACCESS_KEY="${MINIO_ROOT_USER}" \
+        --from-literal=MINIO_SECRET_KEY="${MINIO_ROOT_PASSWORD}"
+    fi
+  done
+fi
+echo ""
+
 # ── Summary ─────────────────────────────────────────────────────
 echo "=== secrets: ${PASS} applied, ${FAIL} failed ==="
 if [[ ${FAIL} -gt 0 ]]; then
