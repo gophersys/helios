@@ -36,15 +36,14 @@ def test_all_roles_can_login(api):
         assert body["token"]
 
 
-def test_each_role_can_read_products(api):
-    """All roles can view the product list."""
-    emails = [
+def test_roles_with_products_view_can_read_products(api):
+    """Roles with products:view can list products; operator cannot."""
+    can_view = [
         "admin@concord.dev",
         "maintainer@concord.dev",
         "developer@concord.dev",
-        "operator@concord.dev",
     ]
-    for email in emails:
+    for email in can_view:
         login = api.post("/v2/auth/dev-login", json={"email": email})
         token = login.json()["data"]["token"]
 
@@ -54,6 +53,19 @@ def test_each_role_can_read_products(api):
             timeout=10,
         )
         assert resp.status_code == 200, f"{email} couldn't read products: {resp.status_code}"
+
+
+def test_operator_cannot_read_products(api):
+    """Operator role lacks products:view — should get 403."""
+    login = api.post("/v2/auth/dev-login", json={"email": "operator@concord.dev"})
+    token = login.json()["data"]["token"]
+
+    resp = requests.get(
+        f"{api.base_url}/v2/products",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=10,
+    )
+    assert resp.status_code == 403
 
 
 def test_invalid_login_rejected(api):
