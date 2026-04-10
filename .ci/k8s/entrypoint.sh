@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
 # entrypoint.sh — Nightly CI runner for K8s CronJob.
-# Called after the CronJob inline bootstrap has already:
-#   1. Waited for the DinD sidecar
-#   2. Cloned the repo to /workspace/concord
 #
-# This script runs from the repo root. It uses ONLY Nx commands
-# against the development environment.
+# Replicates the developer workflow:
+#   1. devcontainer start (CA certs, yarn install)
+#   2. nx start platform  (build images, compose up, DB setup)
+#   3. nx run platform:test:e2e
+#   4. nx stop platform
 #
-# Expected env vars (from ConfigMap + Secret):
-#   MINIO_ENDPOINT   — http://concord-minio.staging.svc:9000
-#   MINIO_BUCKET     — ci
-#   MINIO_ACCESS_KEY — MinIO access key (from ci-minio-upload secret)
-#   MINIO_SECRET_KEY — MinIO secret key (from ci-minio-upload secret)
-#   BRANCH           — main
+# The ONLY non-Nx operation is MinIO result upload at the end.
 set -euo pipefail
 
 # ── Logging ─────────────────────────────────────────────────────
@@ -23,7 +18,6 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 log()  { echo -e "${GREEN}[ci]${NC} $*"; }
-info() { echo -e "${CYAN}[ci]${NC} $*"; }
 err()  { echo -e "${RED}[ci]${NC} $*" >&2; }
 
 STARTED_AT=$(date -u +%s)
@@ -34,51 +28,26 @@ RUN_DATE=$(date -u +%Y-%m-%d)
 log "Nightly CI — ${BRANCH:-main} @ ${COMMIT} — ${RUN_DATE}"
 
 cleanup() {
-  log "Cleaning up..."
+  log "Stopping platform..."
   npx nx stop platform 2>/dev/null || true
 
-  local ended_at=$(date -u +%s)
-  local duration=$(( ended_at - STARTED_AT ))
-  local minutes=$(( duration / 60 ))
-  local seconds=$(( duration % 60 ))
-
+  local duration=$(( $(date -u +%s) - STARTED_AT ))
   echo ""
   if [[ ${EXIT_CODE} -eq 0 ]]; then
-    log "${BOLD}${GREEN}PASSED${NC} in ${minutes}m${seconds}s"
+    log "${BOLD}${GREEN}PASSED${NC} in $(( duration / 60 ))m$(( duration % 60 ))s"
   else
-    err "${BOLD}${RED}FAILED${NC} in ${minutes}m${seconds}s (exit ${EXIT_CODE})"
+    err "${BOLD}${RED}FAILED${NC} in $(( duration / 60 ))m$(( duration % 60 ))s (exit ${EXIT_CODE})"
   fi
 }
 trap cleanup EXIT
 
-# ── Step 1: Install dependencies ──────────────────────────────
-log "Installing dependencies..."
-yarn install --immutable
-npx prisma generate
+# ── Step 1: Devcontainer setup (same as developer onboarding) ──
+log "Running devcontainer start..."
+bash .devcontainer/ctl.sh start
 
-# Install app + test dependencies via setup.py extras
-log "Installing Python dependencies..."
-PIP_BREAK=""; pip3 install --break-system-packages --help >/dev/null 2>&1 && PIP_BREAK="--break-system-packages"
-pip3 install --no-cache-dir ${PIP_BREAK} -e "apps/backend/http-api[test]"
-
-# Ensure mc (MinIO client) is available
-if ! command -v mc &>/dev/null; then
-  log "Installing MinIO client..."
-  curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc 2>/dev/null && \
-    chmod +x /usr/local/bin/mc || info "mc install failed — result upload will be skipped"
-fi
-
-# ── Step 2: Start development environment ──────────────────────
-log "Starting development platform..."
+# ── Step 2: Start development platform ─────────────────────────
+log "Starting platform..."
 npx nx start platform --output-style=stream --verbose
-
-log "Waiting for platform ready..."
-npx nx run platform:ready --output-style=stream --verbose
-
-# ── Debug: verify API is serving routes ────────────────────────
-log "Verifying API routes..."
-curl -s http://localhost:9001/v2/auth/dev-login -X POST -H "Content-Type: application/json" -d '{"email":"admin@concord.dev"}' -w "\nHTTP: %{http_code}\n" 2>&1 || true
-docker compose -f deploy/development/docker-compose.yaml logs http-api 2>&1 | tail -20 || true
 
 # ── Step 3: Run E2E tests ──────────────────────────────────────
 log "Running E2E tests..."
@@ -94,24 +63,14 @@ else
 fi
 
 # ── Step 4: Upload results to MinIO ────────────────────────────
-if [[ -n "${MINIO_ACCESS_KEY:-}" ]] && [[ -n "${MINIO_SECRET_KEY:-}" ]]; then
+if [[ -n "${MINIO_ACCESS_KEY:-}" ]] && [[ -n "${MINIO_SECRET_KEY:-}" ]] && command -v mc &>/dev/null; then
   log "Uploading results to MinIO..."
-  mc alias set cluster "${MINIO_ENDPOINT}" "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}" --quiet
-
   RESULTS_PATH="${MINIO_BUCKET}/nightly/${RUN_DATE}-${COMMIT}"
 
-  # Ensure bucket exists
+  mc alias set cluster "${MINIO_ENDPOINT}" "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}" --quiet
   mc mb -p "cluster/${MINIO_BUCKET}" 2>/dev/null || true
+  mc cp /tmp/e2e-output.log "cluster/${RESULTS_PATH}/output.log" --quiet 2>/dev/null || true
 
-  # Upload test output
-  mc cp /tmp/e2e-output.log "cluster/${RESULTS_PATH}/output.log" --quiet
-
-  # Upload JUnit XML if pytest generated it
-  if ls test-results/*.xml 1>/dev/null 2>&1; then
-    mc cp --recursive test-results/ "cluster/${RESULTS_PATH}/junit/" --quiet
-  fi
-
-  # Write summary metadata
   cat > /tmp/summary.json <<EOF
 {
   "date": "${RUN_DATE}",
@@ -122,11 +81,8 @@ if [[ -n "${MINIO_ACCESS_KEY:-}" ]] && [[ -n "${MINIO_SECRET_KEY:-}" ]]; then
   "duration_s": $(( $(date -u +%s) - STARTED_AT ))
 }
 EOF
-  mc cp /tmp/summary.json "cluster/${RESULTS_PATH}/summary.json" --quiet
-
+  mc cp /tmp/summary.json "cluster/${RESULTS_PATH}/summary.json" --quiet 2>/dev/null || true
   log "Results uploaded to ${RESULTS_PATH}/"
-else
-  info "MINIO_ACCESS_KEY not set — skipping result upload"
 fi
 
 exit ${EXIT_CODE}
