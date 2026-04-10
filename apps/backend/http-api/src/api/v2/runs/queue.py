@@ -49,16 +49,26 @@ def _serialize_queue_entry(entry) -> dict:
     }
     if hasattr(entry, "buildRun") and entry.buildRun is not None:
         p = entry.buildRun
+        product_name = None
+        if hasattr(p, "product") and p.product and hasattr(p.product, "name"):
+            product_name = p.product.name
+        elif hasattr(p, "product") and isinstance(p.product, str):
+            product_name = p.product
         data["buildRun"] = {
             "id": p.id,
             "name": p.name,
-            "product": p.product,
+            "product": product_name,
             "branch": p.branch,
             "status": p.status,
         }
     if hasattr(entry, "fixture") and entry.fixture is not None:
         f = entry.fixture
-        data["fixture"] = {"id": f.id, "name": f.name, "status": f.status}
+        data["fixture"] = {
+            "id": f.id,
+            "name": f.name,
+            "stationId": getattr(f, "stationId", None),
+            "status": f.status,
+        }
     if hasattr(entry, "testRun") and entry.testRun is not None:
         r = entry.testRun
         data["testRun"] = {"id": r.id, "name": r.name, "status": r.status}
@@ -217,7 +227,7 @@ def list_queue():
             {"requestedAt": "asc"},
         ],
         include={
-            "buildRun": True,
+            "buildRun": {"include": {"product": True}},
             "fixture": True,
             "testRun": True,
         },
@@ -242,7 +252,7 @@ def get_queue_entry(entry_id: str):
     entry = db.validationqueueentry.find_unique(
         where={"id": entry_id},
         include={
-            "buildRun": True,
+            "buildRun": {"include": {"product": True}},
             "fixture": True,
             "testRun": True,
         },

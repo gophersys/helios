@@ -9,10 +9,11 @@ export interface ValidationQueueEntry {
   stage: number;
   priority: number;
   status: QueueEntryStatus;
-  benchId: string | null;
+  fixtureId: string | null;
   testRunId: string | null;
   reason: string | null;
   errorMessage: string | null;
+  jobName: string | null;
   requestedAt: string;
   assignedAt: string | null;
   startedAt: string | null;
@@ -23,15 +24,14 @@ export interface ValidationQueueEntry {
   buildRun?: {
     id: string;
     name: string | null;
-    product: string;
+    product: string | null;
     branch: string;
     status: string;
-    stage: number | null;
   };
-  bench?: {
+  fixture?: {
     id: string;
     name: string;
-    stationId: string;
+    stationId: string | null;
     status: string;
   };
   stageConfig?: {
@@ -41,7 +41,7 @@ export interface ValidationQueueEntry {
   };
   testRun?: {
     id: string;
-    type: 'VALIDATION' | 'MANUFACTURING';
+    name: string;
     status: string;
   };
 }

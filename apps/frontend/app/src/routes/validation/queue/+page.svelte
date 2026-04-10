@@ -68,13 +68,13 @@
       const pipelineName = entry.buildRun?.name?.toLowerCase() ?? '';
       const product = entry.buildRun?.product?.toLowerCase() ?? '';
       const branch = entry.buildRun?.branch?.toLowerCase() ?? '';
-      const benchName = entry.bench?.name?.toLowerCase() ?? '';
+      const fixtureName = entry.fixture?.name?.toLowerCase() ?? '';
       const reason = entry.reason?.toLowerCase() ?? '';
       return (
         pipelineName.includes(q) ||
         product.includes(q) ||
         branch.includes(q) ||
-        benchName.includes(q) ||
+        fixtureName.includes(q) ||
         reason.includes(q) ||
         entry.id.toLowerCase().includes(q)
       );
@@ -352,11 +352,13 @@
                   {/if}
                 </td>
 
-                <!-- Bench -->
+                <!-- Fixture -->
                 <td class="px-4 py-3">
-                  {#if entry.bench}
-                    <span class="text-sm text-text-primary">{entry.bench.name}</span>
-                    <div class="text-2xs text-text-tertiary">{entry.bench.stationId}</div>
+                  {#if entry.fixture}
+                    <span class="text-sm text-text-primary">{entry.fixture.name}</span>
+                    {#if entry.fixture.stationId}
+                      <div class="text-2xs text-text-tertiary">{entry.fixture.stationId}</div>
+                    {/if}
                   {:else}
                     <span class="text-sm text-text-tertiary">---</span>
                   {/if}
