@@ -793,6 +793,7 @@ export interface AssetFile {
   role: string;
   processor: string | null;
   artifactType: string;
+  storageKey: string | null;
   filename: string;
   sizeBytes: number;
   checksum: string;

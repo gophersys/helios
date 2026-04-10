@@ -169,15 +169,15 @@
     <!-- ═══ TAB CONTENT ═══ -->
     <div class="mt-5">
       {#if activeTab === 'overview'}
-        <ProductOverviewTab {product} {canManage} {onRefresh} />
+        <ProductOverviewTab {product} {canManage} />
       {:else if activeTab === 'hardware'}
         <ProductHardwareTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'stages'}
         <ProductStagesTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'assets'}
-        <ProductAssetsTab {product} {canManage} />
+        <ProductAssetsTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'fixtures'}
-        <ProductFixturesTab {product} {canManage} />
+        <ProductFixturesTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'manufacturing'}
         <ProductManufacturingTab {product} {canManage} {onRefresh} />
       {/if}

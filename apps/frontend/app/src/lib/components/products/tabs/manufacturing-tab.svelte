@@ -48,7 +48,7 @@
   </div>
 
   {#if selectedRevision}
-    <TestPackageList productId={product.id} packageType="MANUFACTURING" boardRevisionId={selectedRevision.id} />
+    <TestPackageList productId={product.id} packageType="MANUFACTURING" boardRevisionId={selectedRevision.id} {onRefresh} />
     <ProductStages
       productId={product.id}
       productName={product.name}
@@ -58,6 +58,7 @@
       boardRevisionId={selectedRevision.id}
       emptyLabel="Manufacturing not configured"
       enableLabel="Enable Manufacturing"
+      {canManage}
       {onRefresh}
     />
   {/if}

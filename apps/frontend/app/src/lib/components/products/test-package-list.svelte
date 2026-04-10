@@ -12,9 +12,10 @@
     productId: string;
     packageType: 'VALIDATION' | 'MANUFACTURING';
     boardRevisionId?: string;
+    onRefresh?: () => void;
   }
 
-  let { productId, packageType, boardRevisionId = undefined }: Props = $props();
+  let { productId, packageType, boardRevisionId = undefined, onRefresh }: Props = $props();
 
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('products:manage'));
@@ -56,6 +57,7 @@
       );
       successMessage = `Released as v${res.data.releasedVersion}`;
       await fetchPackages();
+      onRefresh?.();
       setTimeout(() => { successMessage = null; }, 4000);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to release package';
@@ -70,6 +72,7 @@
       await api.delete(`/v2/products/${productId}/test-packages/${id}`);
       deletingId = null;
       await fetchPackages();
+      onRefresh?.();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to delete package';
       deletingId = null;

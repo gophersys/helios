@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch } from '$lib/api';
   import ProductDetail from '$lib/components/products/product-detail.svelte';
@@ -30,12 +30,26 @@
     }
   }
 
+  // Re-fetch when productId changes (route param reactivity)
+  $effect(() => {
+    if (productId) fetchProduct();
+  });
+
+  // Light polling for external changes (other users, CLI, build completions)
+  let pollInterval: ReturnType<typeof setInterval> | null = null;
+
   onMount(() => {
     if (!auth.hasPermission('products:view')) {
       goto('/');
       return;
     }
-    fetchProduct();
+    pollInterval = setInterval(() => {
+      if (!document.hidden) fetchProduct();
+    }, 30000);
+  });
+
+  onDestroy(() => {
+    if (pollInterval) clearInterval(pollInterval);
   });
 </script>
 

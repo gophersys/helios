@@ -1,46 +1,71 @@
 <script lang="ts">
-  import { AlertTriangle, X } from 'lucide-svelte';
+  import { AlertTriangle, Loader2, X } from 'lucide-svelte';
 
   let {
     open,
-    entityType,
-    entityName,
+    entityType = '',
+    entityName = '',
+    resourceType = '',
+    resourceName = '',
     onConfirm,
-    onCancel
+    onCancel,
+    loading = false,
   }: {
     open: boolean;
-    entityType: string;
-    entityName: string;
-    onConfirm: () => void;
+    /** @deprecated Use resourceType instead */
+    entityType?: string;
+    /** @deprecated Use resourceName instead */
+    entityName?: string;
+    resourceType?: string;
+    resourceName?: string;
+    onConfirm: () => void | Promise<void>;
     onCancel: () => void;
+    loading?: boolean;
   } = $props();
 
-  let confirmText = $state('');
+  // Support both old (entityType/entityName) and new (resourceType/resourceName) prop names
+  const type = $derived(resourceType || entityType);
+  const name = $derived(resourceName || entityName);
 
-  const canConfirm = $derived(confirmText === entityName);
+  let confirmText = $state('');
+  let inputEl = $state<HTMLInputElement | null>(null);
+
+  const isMatch = $derived(confirmText === name);
 
   $effect(() => {
     if (!open) confirmText = '';
   });
 
+  // Auto-focus input when dialog opens
+  $effect(() => {
+    if (open && inputEl) {
+      inputEl.focus();
+    }
+  });
+
   function handleConfirm(): void {
-    if (canConfirm) {
+    if (isMatch && !loading) {
       onConfirm();
-      confirmText = '';
     }
   }
 
   function handleCancel(): void {
-    confirmText = '';
-    onCancel();
+    if (!loading) {
+      confirmText = '';
+      onCancel();
+    }
   }
 
   function handleKeydown(e: KeyboardEvent): void {
     if (e.key === 'Escape') {
       handleCancel();
-    } else if (e.key === 'Enter' && canConfirm) {
+    } else if (e.key === 'Enter' && isMatch) {
       handleConfirm();
     }
+  }
+
+  function handleOverlayClick(): void {
+    handleCancel();
   }
 </script>
 
@@ -48,7 +73,7 @@
   <!-- Overlay -->
   <div
     class="fixed inset-0 z-modal-backdrop bg-overlay animate-overlay-in"
-    onclick={handleCancel}
+    onclick={handleOverlayClick}
     onkeydown={handleKeydown}
     role="presentation"
     tabindex="-1"
@@ -62,18 +87,20 @@
       aria-modal="true"
       aria-labelledby="delete-dialog-title"
     >
+      <!-- Header -->
       <div class="flex items-center justify-between border-b border-border px-5 py-4">
         <div class="flex items-center gap-3">
           <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-error-muted">
             <AlertTriangle size={20} class="text-error" strokeWidth={1.75} />
           </div>
           <h2 id="delete-dialog-title" class="text-sm font-semibold text-text-primary">
-            Delete {entityType}
+            Delete {type}
           </h2>
         </div>
         <button
           onclick={handleCancel}
-          class="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-2 hover:text-text-primary"
+          disabled={loading}
+          class="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-2 hover:text-text-primary disabled:opacity-50"
           title="Cancel"
           aria-label="Cancel deletion"
         >
@@ -81,40 +108,51 @@
         </button>
       </div>
 
+      <!-- Body -->
       <div class="p-5">
         <p class="mb-4 text-sm text-text-secondary">
-          This action cannot be undone. This will permanently delete the {entityType}
-          <strong class="text-text-primary">{entityName}</strong> and all associated data.
+          This action cannot be undone. This will permanently delete the {type}
+          <strong class="font-mono font-semibold text-text-primary">{name}</strong>
+          and all associated data.
         </p>
 
         <label for="confirm-delete-input" class="mb-1 block text-2xs font-medium text-text-tertiary">
-          Type <span class="font-mono text-text-primary">{entityName}</span> to confirm
+          Type <span class="font-mono text-text-primary">{name}</span> to confirm
         </label>
         <!-- svelte-ignore a11y_autofocus -->
         <input
           id="confirm-delete-input"
           type="text"
+          bind:this={inputEl}
           bind:value={confirmText}
           onkeydown={handleKeydown}
-          placeholder={entityName}
-          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          placeholder={name}
+          disabled={loading}
+          class="w-full rounded-lg border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none disabled:opacity-50 {confirmText.length > 0 && !isMatch ? 'border-error focus:border-error' : 'border-border focus:border-accent'}"
           autofocus
         />
       </div>
 
+      <!-- Footer -->
       <div class="flex justify-end gap-2 border-t border-border px-5 py-4">
         <button
           onclick={handleCancel}
-          class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2"
+          disabled={loading}
+          class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           onclick={handleConfirm}
-          disabled={!canConfirm}
-          class="rounded-lg bg-error px-4 py-2 text-sm font-medium text-white hover:bg-error-hover disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!isMatch || loading}
+          class="flex items-center gap-1.5 rounded-lg bg-error px-4 py-2 text-sm font-medium text-white hover:bg-error-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Delete
+          {#if loading}
+            <Loader2 size={14} class="animate-spin" />
+            Deleting...
+          {:else}
+            Delete
+          {/if}
         </button>
       </div>
     </div>

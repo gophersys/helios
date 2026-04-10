@@ -3,15 +3,16 @@
   import type { ProductStageConfig, Secret, StageType } from '$lib/types/stages';
   import { stageName, stageDescription } from '$lib/types/stages';
   import type { BoardRevision } from '$lib/types/models';
-  import { listStageConfigs, initializeStages, createStageConfig, updateStageConfig } from '$lib/services/stages';
+  import { listStageConfigs, initializeStages, createStageConfig, updateStageConfig, deleteStageConfig } from '$lib/services/stages';
   import { apiFetch } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import StageConfigWizard from './stage-config-wizard.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
   import {
     Loader2, Settings, CircuitBoard, GitBranch, Zap, Clock, Hand,
-    GitPullRequest, GitMerge, Plus,
+    GitPullRequest, GitMerge, Plus, Trash2,
   } from 'lucide-svelte';
 
   interface Props {
@@ -23,6 +24,7 @@
     stageType?: StageType;
     emptyLabel?: string;
     enableLabel?: string;
+    canManage?: boolean;
     onRefresh?: () => void;
   }
 
@@ -35,6 +37,7 @@
     stageType = 'VALIDATION' as StageType,
     emptyLabel = 'Validation not configured',
     enableLabel = 'Enable Validation',
+    canManage = false,
     onRefresh,
   }: Props = $props();
 
@@ -54,6 +57,9 @@
   let wizardConfig = $state<ProductStageConfig | undefined>(undefined);
   let wizardRevision = $state<BoardRevision | null>(null);
 
+  // Delete state
+  let deleteTarget = $state<{ stage: number; name: string } | null>(null);
+
   const activeRevisions = $derived(
     revisions
       .filter((r) => r.status === 'ACTIVE')
@@ -70,7 +76,6 @@
     try {
       const all = await listStageConfigs(productId, stageType);
       configs = all;
-      onRefresh?.();
     } catch (e: unknown) {
       error = e instanceof Error ? e.message : 'Failed to load stage configs';
     } finally {
@@ -136,6 +141,17 @@
     if (!revId) return '—';
     const rev = revisions.find((r) => r.id === revId);
     return rev ? rev.version : '—';
+  }
+
+  async function handleDeleteConfig(stageNum: number) {
+    error = null;
+    try {
+      await deleteStageConfig(productId, stageNum);
+      await loadConfigs();
+      onRefresh?.();
+    } catch (e: unknown) {
+      error = e instanceof Error ? e.message : 'Failed to delete stage config';
+    }
   }
 </script>
 
@@ -215,6 +231,15 @@
                 >
                   <Settings size={12} /> Edit
                 </button>
+                {#if canManage}
+                  <button
+                    onclick={() => deleteTarget = { stage: cfg.stage, name: `${stageName(stageType, cfg.stage)} — ${rev.version}` }}
+                    class="flex items-center justify-center rounded-lg p-1.5 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
+                    title="Delete stage config"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                {/if}
               {:else}
                 <!-- Not configured for this revision -->
                 <div class="flex-1">
@@ -246,4 +271,12 @@
   {secrets}
   onClose={() => (wizardOpen = false)}
   onSaved={loadConfigs}
+/>
+
+<ConfirmDeleteDialog
+  open={!!deleteTarget}
+  entityType="stage config"
+  entityName={deleteTarget?.name || ''}
+  onConfirm={() => { handleDeleteConfig(deleteTarget!.stage); deleteTarget = null; }}
+  onCancel={() => (deleteTarget = null)}
 />

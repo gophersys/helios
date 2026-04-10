@@ -57,13 +57,14 @@
   </div>
 
   {#if selectedRevision}
-    <TestPackageList productId={product.id} packageType="VALIDATION" boardRevisionId={selectedRevision.id} />
+    <TestPackageList productId={product.id} packageType="VALIDATION" boardRevisionId={selectedRevision.id} {onRefresh} />
     <ProductStages
       productId={product.id}
       productName={product.name}
       {revisions}
       boardRevisionId={selectedRevision.id}
       fwRepoSlug={product.fwRepoSlug ?? ''}
+      {canManage}
       {onRefresh}
     />
   {/if}

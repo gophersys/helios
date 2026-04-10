@@ -2,11 +2,12 @@
   import { onMount } from 'svelte';
   import {
     Package, ChevronDown, ChevronRight, Upload, Download,
-    FileCode, Loader2, Radio, Cpu,
+    FileCode, Loader2, Radio, Cpu, Trash2,
   } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TimeDisplay from '$lib/components/ui/time-display.svelte';
-  import { apiFetch, apiUpload } from '$lib/api';
+  import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
+  import { api, apiFetch, apiUpload, apiDownload } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import type { BoardRevision, AssetSet, AssetFile } from '$lib/types/models';
   import type { ProductStageConfig, StageType } from '$lib/types/stages';
@@ -17,9 +18,10 @@
     revision: BoardRevision;
     stageConfigs: ProductStageConfig[];
     canManage: boolean;
+    onRefresh?: () => void;
   }
 
-  let { productId, revision, stageConfigs, canManage }: Props = $props();
+  let { productId, revision, stageConfigs, canManage, onRefresh }: Props = $props();
 
   let assetSets = $state<AssetSet[]>([]);
   let loading = $state(true);
@@ -34,6 +36,9 @@
   let modemVersion = $state('');
   let modemUploading = $state(false);
   let showModemUpload = $state(false);
+
+  // Delete state
+  let deleteTarget = $state<{ id: string; name: string } | null>(null);
 
   // Stage configs for this revision
   const revConfigs = $derived(
@@ -104,6 +109,7 @@
 
       await apiUpload(`/v2/products/${productId}/asset-sets/upload-zip`, formData);
       await loadAssets();
+      onRefresh?.();
     } catch (e) {
       uploadError = e instanceof Error ? e.message : 'Upload failed';
     } finally {
@@ -129,8 +135,7 @@
         formData
       );
       modemVersion = '';
-      // Trigger parent refresh to update revision data
-      window.dispatchEvent(new CustomEvent('concord:refresh'));
+      onRefresh?.();
     } catch (e) {
       error = e instanceof Error ? e.message : 'Modem upload failed';
     } finally {
@@ -143,6 +148,26 @@
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / 1048576).toFixed(1)} MB`;
+  }
+
+  async function handleDeleteAssetSet(id: string) {
+    error = null;
+    try {
+      await api.delete(`/v2/asset-sets/${id}`);
+      await loadAssets();
+      onRefresh?.();
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to delete asset set';
+    }
+  }
+
+  async function handleDownloadFile(file: AssetFile) {
+    if (!file.storageKey) return;
+    try {
+      await apiDownload(`/v2/storage/download?key=${encodeURIComponent(file.storageKey)}`, file.filename);
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Download failed';
+    }
   }
 
   onMount(() => { loadAssets(); });
@@ -257,25 +282,36 @@
         <div class="divide-y divide-border-subtle">
           {#each stageAssets as asset}
             <div>
-              <button
-                onclick={() => expandedId = expandedId === asset.id ? null : asset.id}
-                class="w-full flex items-center gap-3 px-4 py-2 hover:bg-surface-0/50 transition-colors text-left"
-              >
-                {#if expandedId === asset.id}
-                  <ChevronDown size={12} class="text-text-tertiary" />
-                {:else}
-                  <ChevronRight size={12} class="text-text-tertiary" />
+              <div class="flex items-center">
+                <button
+                  onclick={() => expandedId = expandedId === asset.id ? null : asset.id}
+                  class="flex-1 flex items-center gap-3 px-4 py-2 hover:bg-surface-0/50 transition-colors text-left"
+                >
+                  {#if expandedId === asset.id}
+                    <ChevronDown size={12} class="text-text-tertiary" />
+                  {:else}
+                    <ChevronRight size={12} class="text-text-tertiary" />
+                  {/if}
+                  <span class="font-mono text-2xs font-medium text-text-primary">v{asset.version}</span>
+                  <span class="text-2xs text-text-tertiary">{asset.variant}</span>
+                  <StatusBadge status={asset.source} />
+                  {#if asset.commitSha}
+                    <span class="font-mono text-2xs text-text-tertiary">{asset.commitSha.slice(0, 7)}</span>
+                  {/if}
+                  <div class="flex-1"></div>
+                  <span class="text-2xs text-text-tertiary">{asset.assets?.length ?? 0} files</span>
+                  <TimeDisplay datetime={asset.createdAt} />
+                </button>
+                {#if canManage}
+                  <button
+                    onclick={() => deleteTarget = { id: asset.id, name: `${asset.version} (${asset.variant})` }}
+                    class="flex items-center justify-center rounded-lg p-1.5 mr-2 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
+                    title="Delete asset set"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 {/if}
-                <span class="font-mono text-2xs font-medium text-text-primary">v{asset.version}</span>
-                <span class="text-2xs text-text-tertiary">{asset.variant}</span>
-                <StatusBadge status={asset.source} />
-                {#if asset.commitSha}
-                  <span class="font-mono text-2xs text-text-tertiary">{asset.commitSha.slice(0, 7)}</span>
-                {/if}
-                <div class="flex-1"></div>
-                <span class="text-2xs text-text-tertiary">{asset.assets?.length ?? 0} files</span>
-                <TimeDisplay datetime={asset.createdAt} />
-              </button>
+              </div>
 
               {#if expandedId === asset.id && asset.assets?.length}
                 <div class="border-t border-border-subtle bg-surface-0/30 px-4 py-2">
@@ -287,6 +323,7 @@
                         <th class="pb-1 text-left font-medium uppercase tracking-wider text-text-tertiary">Type</th>
                         <th class="pb-1 text-left font-medium uppercase tracking-wider text-text-tertiary">File</th>
                         <th class="pb-1 text-right font-medium uppercase tracking-wider text-text-tertiary">Size</th>
+                        <th class="pb-1 w-8"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -302,6 +339,17 @@
                           <td class="py-1"><span class="rounded-full bg-surface-2 px-1.5 py-0.5 text-text-secondary">{file.artifactType}</span></td>
                           <td class="py-1 font-mono text-text-tertiary truncate max-w-[180px]" title={file.filename}>{file.filename}</td>
                           <td class="py-1 text-right text-text-tertiary">{formatSize(file.sizeBytes)}</td>
+                          <td class="py-1 text-right">
+                            {#if file.storageKey}
+                              <button
+                                onclick={() => handleDownloadFile(file)}
+                                class="inline-flex items-center justify-center rounded p-0.5 text-text-tertiary hover:text-accent transition-colors"
+                                title="Download {file.filename}"
+                              >
+                                <Download size={10} />
+                              </button>
+                            {/if}
+                          </td>
                         </tr>
                       {/each}
                     </tbody>
@@ -347,3 +395,11 @@
     </div>
   {/if}
 </div>
+
+<ConfirmDeleteDialog
+  open={!!deleteTarget}
+  entityType="asset set"
+  entityName={deleteTarget?.name || ''}
+  onConfirm={() => { handleDeleteAssetSet(deleteTarget!.id); deleteTarget = null; }}
+  onCancel={() => (deleteTarget = null)}
+/>

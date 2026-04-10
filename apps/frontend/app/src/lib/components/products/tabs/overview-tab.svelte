@@ -13,13 +13,9 @@
   interface Props {
     product: Product;
     canManage: boolean;
-    onRefresh: () => void;
   }
 
-  let { product, onRefresh }: Props = $props();
-
-  // Refresh product data every time this tab mounts (user may have changed stages)
-  onMount(() => { onRefresh(); });
+  let { product }: Props = $props();
 
   const revisions = $derived(
     (product.boards || []).flatMap((b) => b.revisions || [])

@@ -1,22 +1,27 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Loader2, Wrench, Zap, CircuitBoard, FlaskConical, Factory } from 'lucide-svelte';
+  import { Loader2, Wrench, Zap, CircuitBoard, FlaskConical, Factory, Trash2 } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
-  import { apiFetch } from '$lib/api';
+  import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
+  import { api, apiFetch } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import type { Product, FixtureDesign } from '$lib/types/models';
 
   interface Props {
     product: Product;
     canManage: boolean;
+    onRefresh?: () => void;
   }
 
-  let { product }: Props = $props();
+  let { product, canManage, onRefresh }: Props = $props();
 
   let designs = $state<FixtureDesign[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let selectedRevId = $state<string | null>(null);
+
+  // Delete state
+  let deleteTarget = $state<{ id: string; name: string } | null>(null);
 
   const revisions = $derived(
     (product.boards || []).flatMap((b) => b.revisions || []).filter((r) => r.status === 'ACTIVE')
@@ -45,9 +50,24 @@
     }
   }
 
+  async function handleDeleteDesign(id: string) {
+    error = null;
+    try {
+      await api.delete(`/v2/fixtures/designs/${id}`);
+      await loadDesigns();
+      onRefresh?.();
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to delete fixture design';
+    }
+  }
+
+  // Re-fetch designs when product data changes (e.g., new revision added)
+  $effect(() => {
+    if (product?.id) loadDesigns();
+  });
+
   onMount(() => {
     if (revisions.length > 0 && !selectedRevId) selectedRevId = revisions[0].id;
-    loadDesigns();
   });
 </script>
 
@@ -101,6 +121,17 @@
                     <Wrench size={14} class="text-text-tertiary" />
                     <span class="text-sm font-semibold text-text-primary">{design.name}</span>
                     <span class="text-2xs text-text-tertiary">rev {design.revision}</span>
+                    {#if canManage}
+                      <div class="ml-auto">
+                        <button
+                          onclick={() => deleteTarget = { id: design.id, name: design.name }}
+                          class="flex items-center justify-center rounded-lg p-1.5 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
+                          title="Delete fixture design"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    {/if}
                   </div>
                   {#if design.capabilities?.length}
                     <div class="flex flex-wrap gap-1 mb-2">
@@ -140,6 +171,17 @@
                     <Wrench size={14} class="text-text-tertiary" />
                     <span class="text-sm font-semibold text-text-primary">{design.name}</span>
                     <span class="text-2xs text-text-tertiary">rev {design.revision}</span>
+                    {#if canManage}
+                      <div class="ml-auto">
+                        <button
+                          onclick={() => deleteTarget = { id: design.id, name: design.name }}
+                          class="flex items-center justify-center rounded-lg p-1.5 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
+                          title="Delete fixture design"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    {/if}
                   </div>
                   {#if design.capabilities?.length}
                     <div class="flex flex-wrap gap-1 mb-2">
@@ -167,3 +209,15 @@
     {/if}
   {/if}
 {/if}
+
+{#if error}
+  <div class="mt-4 rounded-lg border border-error/20 bg-error-muted px-4 py-2 text-2xs text-error">{error}</div>
+{/if}
+
+<ConfirmDeleteDialog
+  open={!!deleteTarget}
+  entityType="fixture design"
+  entityName={deleteTarget?.name || ''}
+  onConfirm={() => { handleDeleteDesign(deleteTarget!.id); deleteTarget = null; }}
+  onCancel={() => (deleteTarget = null)}
+/>

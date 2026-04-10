@@ -9,9 +9,10 @@
   interface Props {
     product: Product;
     canManage: boolean;
+    onRefresh: () => void;
   }
 
-  let { product, canManage }: Props = $props();
+  let { product, canManage, onRefresh }: Props = $props();
 
   let stageConfigs = $state<ProductStageConfig[]>([]);
   let loading = $state(true);
@@ -72,6 +73,7 @@
         revision={selectedRevision}
         {stageConfigs}
         {canManage}
+        {onRefresh}
       />
     {/key}
   {/if}
