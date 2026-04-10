@@ -2,11 +2,12 @@
   import { onMount } from 'svelte';
   import {
     Package, ChevronDown, ChevronRight, Upload, Download,
-    FileCode, Loader2, Radio, Cpu, Trash2, Search,
+    FileCode, Loader2, Radio, Cpu, Trash2, Search, X,
   } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TimeDisplay from '$lib/components/ui/time-display.svelte';
   import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
+  import AssetUploadWizard from '$lib/components/products/asset-upload-wizard.svelte';
   import { api, apiFetch, apiUpload, apiDownload } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import type { BoardRevision, AssetSet, AssetFile } from '$lib/types/models';
@@ -28,13 +29,14 @@
   let error = $state<string | null>(null);
   let expandedId = $state<string | null>(null);
 
-  // Search state
+  // Search & filter state
   let searchQuery = $state('');
+  let filterSource = $state<string | null>(null);
+  let filterStatus = $state<string | null>(null);
+  let filterStageConfigId = $state<string | null>(null);
 
-  // Upload state
-  let uploadError = $state<string | null>(null);
-  let uploadingConfigId = $state<string | null>(null);
-  let uploadingUngrouped = $state(false);
+  // Upload wizard state
+  let showUploadWizard = $state(false);
 
   // Modem upload state
   let modemVersion = $state('');
@@ -49,21 +51,69 @@
     stageConfigs.filter(c => c.boardRevisionId === revision.id)
   );
 
-  // Filter asset sets by search query
-  function matchesSearch(asset: AssetSet): boolean {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      (asset.version?.toLowerCase().includes(q)) ||
-      (asset.variant?.toLowerCase().includes(q)) ||
-      (asset.status?.toLowerCase().includes(q)) ||
-      (asset.commitSha?.toLowerCase().includes(q)) ||
-      (asset.branch?.toLowerCase().includes(q)) ||
-      false
-    );
+  // Filter asset sets by search query + smart filters (AND logic)
+  function matchesFilters(asset: AssetSet): boolean {
+    // Text search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const textMatch =
+        (asset.version?.toLowerCase().includes(q)) ||
+        (asset.variant?.toLowerCase().includes(q)) ||
+        (asset.status?.toLowerCase().includes(q)) ||
+        (asset.commitSha?.toLowerCase().includes(q)) ||
+        (asset.branch?.toLowerCase().includes(q)) ||
+        false;
+      if (!textMatch) return false;
+    }
+    // Source filter
+    if (filterSource && asset.source !== filterSource) return false;
+    // Status filter
+    if (filterStatus && asset.status !== filterStatus) return false;
+    // Stage filter
+    if (filterStageConfigId) {
+      const matchesStage = asset.stageConfigId === filterStageConfigId ||
+        (asset.source === 'BUILD_SERVICE' && !asset.stageConfigId &&
+          revConfigs.some(c => c.id === filterStageConfigId && c.stage === asset.stage));
+      if (!matchesStage) return false;
+    }
+    return true;
   }
 
-  const filteredAssetSets = $derived(assetSets.filter(matchesSearch));
+  const filteredAssetSets = $derived(assetSets.filter(matchesFilters));
+
+  // Derive available filter options from actual data
+  const availableSources = $derived(
+    [...new Set(assetSets.map(a => a.source))].sort()
+  );
+  const availableStatuses = $derived(
+    [...new Set(assetSets.map(a => a.status))].sort()
+  );
+  const availableStageConfigs = $derived(
+    revConfigs.filter(c => assetSets.some(a =>
+      a.stageConfigId === c.id ||
+      (a.source === 'BUILD_SERVICE' && !a.stageConfigId && a.stage === c.stage)
+    ))
+  );
+  const hasActiveFilters = $derived(
+    !!filterSource || !!filterStatus || !!filterStageConfigId || !!searchQuery.trim()
+  );
+
+  function toggleFilter(type: 'source' | 'status' | 'stage', value: string) {
+    if (type === 'source') {
+      filterSource = filterSource === value ? null : value;
+    } else if (type === 'status') {
+      filterStatus = filterStatus === value ? null : value;
+    } else if (type === 'stage') {
+      filterStageConfigId = filterStageConfigId === value ? null : value;
+    }
+  }
+
+  function clearFilters() {
+    filterSource = null;
+    filterStatus = null;
+    filterStageConfigId = null;
+    searchQuery = '';
+  }
 
   // Group asset sets by stage config — includes backward compat for pre-fix build assets
   function assetsForConfig(config: ProductStageConfig): AssetSet[] {
@@ -129,55 +179,6 @@
       error = e instanceof Error ? e.message : 'Failed to load assets';
     } finally {
       loading = false;
-    }
-  }
-
-  async function handleZipUpload(stageConfigId: string, e: Event) {
-    const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-
-    uploadingConfigId = stageConfigId;
-    uploadError = null;
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('stageConfigId', stageConfigId);
-      formData.append('version', 'auto');
-      formData.append('variant', 'debug');
-
-      await apiUpload(`/v2/products/${productId}/asset-sets/upload-zip`, formData);
-      await loadAssets();
-      onRefresh?.();
-    } catch (e) {
-      uploadError = e instanceof Error ? e.message : 'Upload failed';
-    } finally {
-      uploadingConfigId = null;
-      input.value = '';
-    }
-  }
-
-  async function handleUngroupedZipUpload(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-
-    uploadingUngrouped = true;
-    uploadError = null;
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('version', 'auto');
-      formData.append('variant', 'debug');
-
-      await apiUpload(`/v2/products/${productId}/asset-sets/upload-zip`, formData);
-      await loadAssets();
-      onRefresh?.();
-    } catch (e) {
-      uploadError = e instanceof Error ? e.message : 'Upload failed';
-    } finally {
-      uploadingUngrouped = false;
-      input.value = '';
     }
   }
 
@@ -287,30 +288,85 @@
     </div>
   </div>
 
-  <!-- Search and upload controls -->
+  <!-- Filter bar and upload controls -->
   {#if !loading}
-    <div class="flex items-center gap-3">
-      <div class="flex-1 relative">
-        <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-        <input
-          type="text"
-          bind:value={searchQuery}
-          placeholder="Search assets..."
-          class="w-full rounded-lg border border-border bg-surface-0 pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-        />
-      </div>
-      {#if canManage && revConfigs.length === 0}
-        <label class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-3 py-2 text-sm font-medium text-accent hover:bg-accent/15 cursor-pointer transition-colors shrink-0 {uploadingUngrouped ? 'opacity-50 pointer-events-none' : ''}">
-          {#if uploadingUngrouped}<Loader2 size={14} class="animate-spin" />{:else}<Upload size={14} />{/if}
-          Upload .zip
-          <input type="file" accept=".zip" class="hidden" onchange={handleUngroupedZipUpload} disabled={uploadingUngrouped} />
-        </label>
-      {/if}
-    </div>
+    <div class="space-y-2">
+      <div class="flex items-center gap-3">
+        <div class="flex-1 flex flex-wrap items-center gap-2">
+          <!-- Source filters -->
+          {#each availableSources as source}
+            <button
+              onclick={() => toggleFilter('source', source)}
+              class="text-2xs px-2 py-1 rounded-full border transition-colors
+                {filterSource === source
+                  ? 'bg-accent text-white border-accent'
+                  : 'border-border text-text-tertiary hover:text-text-secondary hover:border-border'}"
+            >
+              {sourceLabel(source)}
+            </button>
+          {/each}
 
-    {#if uploadError && uploadingUngrouped}
-      <div class="rounded-lg px-4 py-2 bg-error-muted text-2xs text-error">{uploadError}</div>
-    {/if}
+          <!-- Status filters -->
+          {#each availableStatuses as status}
+            <button
+              onclick={() => toggleFilter('status', status)}
+              class="text-2xs px-2 py-1 rounded-full border transition-colors
+                {filterStatus === status
+                  ? 'bg-accent text-white border-accent'
+                  : 'border-border text-text-tertiary hover:text-text-secondary hover:border-border'}"
+            >
+              {status}
+            </button>
+          {/each}
+
+          <!-- Stage filters -->
+          {#each availableStageConfigs as config}
+            <button
+              onclick={() => toggleFilter('stage', config.id)}
+              class="text-2xs px-2 py-1 rounded-full border transition-colors
+                {filterStageConfigId === config.id
+                  ? 'bg-accent text-white border-accent'
+                  : 'border-border text-text-tertiary hover:text-text-secondary hover:border-border'}"
+            >
+              {stageName(config.type as StageType, config.stage)}
+            </button>
+          {/each}
+
+          <!-- Text search -->
+          <div class="relative">
+            <Search size={12} class="absolute left-2 top-1/2 -translate-y-1/2 text-text-tertiary" />
+            <input
+              type="text"
+              bind:value={searchQuery}
+              placeholder="Search..."
+              class="text-2xs pl-6 pr-2 py-1 rounded-full border border-border bg-surface-0 w-32 text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            />
+          </div>
+
+          <!-- Clear filters -->
+          {#if hasActiveFilters}
+            <button
+              onclick={clearFilters}
+              class="flex items-center gap-1 text-2xs text-accent hover:underline"
+            >
+              <X size={10} />
+              Clear
+            </button>
+          {/if}
+        </div>
+
+        <!-- Upload button -->
+        {#if canManage}
+          <button
+            onclick={() => showUploadWizard = true}
+            class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-3 py-2 text-sm font-medium text-accent hover:bg-accent/15 transition-colors shrink-0"
+          >
+            <Upload size={14} />
+            Upload .zip
+          </button>
+        {/if}
+      </div>
+    </div>
   {/if}
 
   <!-- Stage assets — one section per stage config -->
@@ -344,20 +400,7 @@
           <span class="text-2xs text-text-tertiary">No assets</span>
         {/if}
 
-        {#if canManage}
-          <div class="ml-auto">
-            <label class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-2.5 py-1 text-2xs font-medium text-accent hover:bg-accent/15 cursor-pointer transition-colors {uploadingConfigId === config.id ? 'opacity-50 pointer-events-none' : ''}">
-              {#if uploadingConfigId === config.id}<Loader2 size={12} class="animate-spin" />{:else}<Upload size={12} />{/if}
-              Upload .zip
-              <input type="file" accept=".zip" class="hidden" onchange={(e) => handleZipUpload(config.id, e)} disabled={uploadingConfigId === config.id} />
-            </label>
-          </div>
-        {/if}
       </div>
-
-      {#if uploadError && uploadingConfigId === config.id}
-        <div class="px-4 py-2 border-t border-error/20 bg-error-muted text-2xs text-error">{uploadError}</div>
-      {/if}
 
       <!-- Asset set list -->
       {#if stageAssets.length > 0}
@@ -546,12 +589,14 @@
     </div>
   {/if}
 
-  <!-- Empty state: no assets at all or no search results -->
+  <!-- Empty state: no assets at all or no filter results -->
   {#if !loading && filteredAssetSets.length === 0}
     <div class="text-center py-6">
-      {#if searchQuery.trim() && assetSets.length > 0}
-        <p class="text-sm text-text-secondary">No assets match "{searchQuery}"</p>
-        <p class="text-2xs text-text-tertiary mt-1">Try a different search term.</p>
+      {#if hasActiveFilters && assetSets.length > 0}
+        <p class="text-sm text-text-secondary">No assets match the current filters</p>
+        <p class="text-2xs text-text-tertiary mt-1">
+          <button onclick={clearFilters} class="text-accent hover:underline">Clear filters</button> to see all assets.
+        </p>
       {:else}
         <p class="text-sm text-text-secondary">No firmware assets for this revision</p>
         <p class="text-2xs text-text-tertiary mt-1">Upload a firmware .zip or wait for the build pipeline to produce one.</p>
@@ -565,6 +610,16 @@
     </div>
   {/if}
 </div>
+
+{#if showUploadWizard}
+  <AssetUploadWizard
+    {productId}
+    revision={{ id: revision.id, version: revision.version, ckBoardsName: revision.ckBoardsName }}
+    stageConfigs={revConfigs}
+    onComplete={() => { showUploadWizard = false; loadAssets(); onRefresh?.(); }}
+    onCancel={() => showUploadWizard = false}
+  />
+{/if}
 
 <ConfirmDeleteDialog
   open={!!deleteTarget}
