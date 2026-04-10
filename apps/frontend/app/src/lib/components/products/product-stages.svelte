@@ -18,6 +18,7 @@
     productId: string;
     productName?: string;
     revisions?: BoardRevision[];
+    boardRevisionId?: string;
     fwRepoSlug?: string;
     stageType?: StageType;
     emptyLabel?: string;
@@ -29,6 +30,7 @@
     productId,
     productName = '',
     revisions = [],
+    boardRevisionId,
     fwRepoSlug = '',
     stageType = 'VALIDATION' as StageType,
     emptyLabel = 'Validation not configured',
@@ -52,7 +54,11 @@
   let wizardConfig = $state<ProductStageConfig | undefined>(undefined);
   let wizardRevision = $state<BoardRevision | null>(null);
 
-  const activeRevisions = $derived(revisions.filter((r) => r.status === 'ACTIVE'));
+  const activeRevisions = $derived(
+    revisions
+      .filter((r) => r.status === 'ACTIVE')
+      .filter((r) => !boardRevisionId || r.id === boardRevisionId)
+  );
 
   onMount(async () => {
     await Promise.all([loadConfigs(), loadSecrets()]);
@@ -99,9 +105,9 @@
     }
   }
 
-  /** Get all configs for a given stage number (could be multiple — one per revision) */
+  /** Get all configs for a given stage number, filtered by boardRevisionId when set */
   function getConfigsForStage(stageNum: number): ProductStageConfig[] {
-    return configs.filter((c) => c.stage === stageNum);
+    return configs.filter((c) => c.stage === stageNum && (!boardRevisionId || c.boardRevisionId === boardRevisionId));
   }
 
   /** Get a specific config for stage + revision */
