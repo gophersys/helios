@@ -71,9 +71,11 @@ def validate_zip(
     required_labels = {entry.label for entry in build_matrix_entries}
 
     # Scan zip for top-level directories (= labels)
+    # Normalize backslashes (Windows zips) to forward slashes
     found_labels: dict[str, list[str]] = {}
     for name in zf.namelist():
-        parts = name.split("/")
+        normalized = name.replace("\\", "/")
+        parts = normalized.split("/")
         if len(parts) < 2 or not parts[0]:
             continue
         label = parts[0]
