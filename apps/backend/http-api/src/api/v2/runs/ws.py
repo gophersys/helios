@@ -2,10 +2,13 @@
 
 Provides room-based subscription for test run events and log streaming.
 Clients subscribe to specific run IDs to receive real-time updates.
+Manufacturing runners authenticate via API key instead of JWT.
 """
+import hashlib
 import logging
+from datetime import datetime, timezone
 
-from flask import request
+from flask import request, session
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
 from src.lib.permissions import Permissions
@@ -38,6 +41,17 @@ def emit_to_run(event: str, data: dict, run_id: str):
         )
 
 
+def emit_to_mfg_session(event: str, data: dict, session_id: str):
+    """Emit an event to all clients subscribed to a manufacturing session."""
+    if _runs_socketio:
+        _runs_socketio.emit(
+            event,
+            data,
+            namespace="/runs",
+            to=f"mfg-session:{session_id}"
+        )
+
+
 def register_runs_ws_handlers(socketio: SocketIO):
     """Register Socket.IO event handlers for the /runs namespace.
 
@@ -50,9 +64,35 @@ def register_runs_ws_handlers(socketio: SocketIO):
 
     @socketio.on("connect", namespace="/runs")
     def handle_runs_connect(auth):
-        """Validate JWT token and permissions at connection time."""
-        if not auth or not auth.get("token"):
-            logger.warning("Runs WS connect rejected: no token")
+        """Validate JWT token or API key at connection time.
+
+        JWT auth: validates token and checks validation permissions.
+        API key auth: validates key hash, revocation, and expiry.
+        K8s manufacturing runners use API key auth with scoped keys.
+        """
+        if not auth:
+            logger.warning("Runs WS connect rejected: no auth")
+            return False
+
+        # --- API key auth path (K8s runners) ---
+        if auth.get("apiKey"):
+            raw_key = auth["apiKey"]
+            key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+            db = get_db_client()
+            api_key = db.apikey.find_unique(where={"keyHash": key_hash})
+            if not api_key or api_key.revoked:
+                logger.warning("Runs WS connect rejected: invalid or revoked API key")
+                return False
+            if api_key.expiresAt and api_key.expiresAt < datetime.now(timezone.utc):
+                logger.warning("Runs WS connect rejected: expired API key")
+                return False
+            session["auth_type"] = "api_key"
+            logger.debug("Runs WS client connected via API key: %s", request.sid)
+            return
+
+        # --- JWT auth path ---
+        if not auth.get("token"):
+            logger.warning("Runs WS connect rejected: no token or apiKey")
             return False
 
         token = auth["token"]
@@ -79,7 +119,8 @@ def register_runs_ws_handlers(socketio: SocketIO):
             logger.warning("Runs WS connect rejected: insufficient permissions")
             return False
 
-        logger.debug("Runs WS client connected: %s", request.sid)
+        session["auth_type"] = "jwt"
+        logger.debug("Runs WS client connected via JWT: %s", request.sid)
         # Connection accepted
 
     @socketio.on("subscribe_run", namespace="/runs")
@@ -135,6 +176,55 @@ def register_runs_ws_handlers(socketio: SocketIO):
         leave_room(room)
 
         logger.debug("Client %s unsubscribed from run %s", request.sid, run_id)
+
+    @socketio.on("subscribe_mfg_session", namespace="/runs")
+    def handle_subscribe_mfg_session(data):
+        """Subscribe to updates for a manufacturing session.
+
+        Expected data:
+            {
+                "sessionId": "cuid-session-id"
+            }
+
+        Emits:
+            - subscribed_mfg_session: {"sessionId": "..."}
+            - error: {"message": "..."}
+        """
+        session_id = data.get("sessionId")
+        if not session_id:
+            return
+
+        db = get_db_client()
+        mfg_session = db.manufacturingsession.find_unique(
+            where={"id": session_id}
+        )
+        if not mfg_session:
+            emit("error", {"message": f"Session {session_id} not found"})
+            return
+
+        join_room(f"mfg-session:{session_id}")
+        emit("subscribed_mfg_session", {"sessionId": session_id})
+        logger.info(
+            "Client %s subscribed to mfg session %s",
+            request.sid, session_id
+        )
+
+    @socketio.on("unsubscribe_mfg_session", namespace="/runs")
+    def handle_unsubscribe_mfg_session(data):
+        """Unsubscribe from a manufacturing session.
+
+        Expected data:
+            {
+                "sessionId": "cuid-session-id"
+            }
+        """
+        session_id = data.get("sessionId")
+        if session_id:
+            leave_room(f"mfg-session:{session_id}")
+            logger.debug(
+                "Client %s unsubscribed from mfg session %s",
+                request.sid, session_id
+            )
 
     @socketio.on("disconnect", namespace="/runs")
     def handle_runs_disconnect():

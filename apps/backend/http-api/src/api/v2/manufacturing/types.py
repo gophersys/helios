@@ -88,6 +88,7 @@ class SessionCreateRequest:
     productId: str
     fixtureId: str
     testPackageVersion: Optional[str] = None
+    assetSetId: Optional[str] = None
     config: Optional[dict] = None
 
     @classmethod
@@ -100,10 +101,12 @@ class SessionCreateRequest:
         fixture_id = (data.get("fixtureId") or "").strip()
         if not fixture_id:
             return None, "fixtureId is required"
+        asset_set_id = (data.get("assetSetId") or "").strip() or None
         return cls(
             productId=product_id,
             fixtureId=fixture_id,
             testPackageVersion=data.get("testPackageVersion"),
+            assetSetId=asset_set_id,
             config=data.get("config"),
         ), None
 

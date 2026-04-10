@@ -17,6 +17,18 @@
   const passCount = $derived(runs.reduce((sum, r) => sum + (r.passedCount || 0), 0));
   const failCount = $derived(runs.reduce((sum, r) => sum + (r.failedCount || 0), 0));
 
+  // Runner status display config
+  const RUNNER_STATUS_CONFIG: Record<string, { dotClass: string; label: string }> = {
+    DEPLOYING: { dotClass: 'bg-text-tertiary', label: 'Runner deploying...' },
+    READY: { dotClass: 'bg-success', label: 'Runner ready' },
+    RUNNING: { dotClass: 'bg-warning animate-pulse', label: 'Running tests...' },
+    ERROR: { dotClass: 'bg-error', label: 'Runner error' },
+  };
+
+  const runnerDisplay = $derived(
+    session.runnerStatus ? RUNNER_STATUS_CONFIG[session.runnerStatus] : null
+  );
+
   function updateElapsed() {
     if (!session.startedAt) {
       elapsed = '';
@@ -60,7 +72,7 @@
         <StatusBadge status={session.status} />
       </div>
 
-      <div class="flex items-center gap-4 text-xs text-text-secondary">
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-secondary">
         {#if session.fixture?.name}
           <span>Fixture: <span class="font-medium text-text-primary">{session.fixture.name}</span></span>
         {/if}
@@ -76,6 +88,21 @@
           <span>Elapsed: <span class="font-medium text-text-primary tabular-nums">{elapsed}</span></span>
         {/if}
       </div>
+
+      <!-- Firmware version + runner status row -->
+      {#if session.assetSet || runnerDisplay}
+        <div class="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-secondary">
+          {#if session.assetSet}
+            <span>Firmware: <span class="font-medium text-text-primary">v{session.assetSet.version} ({session.assetSet.variant})</span></span>
+          {/if}
+          {#if runnerDisplay}
+            <span class="flex items-center gap-1.5">
+              <span class="inline-block h-2 w-2 rounded-full {runnerDisplay.dotClass}"></span>
+              <span class="font-medium text-text-primary">{runnerDisplay.label}</span>
+            </span>
+          {/if}
+        </div>
+      {/if}
     </div>
 
     <div class="flex items-center gap-3 text-xs">

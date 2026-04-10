@@ -10,6 +10,7 @@ source of truth for fixture hardware configuration.
 """
 
 import hashlib
+import io
 import json
 import logging
 import math
@@ -17,7 +18,11 @@ import tarfile
 from io import BytesIO
 from typing import Any, List, Optional
 
-from flask import jsonify, request
+import yaml
+
+from datetime import datetime, timezone
+
+from flask import g, jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
@@ -48,8 +53,6 @@ def _extract_fixture_designs(file_data: bytes, product_id: str) -> int:
 
     Returns the number of designs created or updated.
     """
-    import yaml
-
     db = get_db_client()
     count = 0
 
@@ -157,9 +160,82 @@ def _extract_test_count(file_data: bytes) -> Optional[int]:
         return None
 
 
+def _extract_v2_metadata(db, test_package_id: str, file_bytes: bytes, schema_version: str):
+    """Extract structured stage/step metadata from the concord.yaml inside the archive.
+
+    For validation packages, creates TestPackageStage records from 'stages'.
+    For manufacturing packages, creates TestPackageStage records from 'steps'.
+    Idempotent — deletes existing records before re-creating.
+    """
+    try:
+        buf = io.BytesIO(file_bytes)
+        manifest_data = None
+
+        with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+            # Look for concord.yaml — try root-level first, then nested paths
+            for member in tar.getmembers():
+                if member.isfile() and member.name.split("/")[-1] == "concord.yaml":
+                    f = tar.extractfile(member)
+                    if f:
+                        manifest_data = yaml.safe_load(f.read())
+                        break
+
+        if not manifest_data or not isinstance(manifest_data, dict):
+            logger.debug("No concord.yaml found in archive for package %s", test_package_id)
+            return
+
+        # Delete existing stage records (idempotent for dev uploads)
+        db.testpackagestage.delete_many(where={"testPackageId": test_package_id})
+
+        # Validation packages: stages dict
+        for idx, (name, cfg) in enumerate(manifest_data.get("stages", {}).items()):
+            if not isinstance(cfg, dict):
+                continue
+            db.testpackagestage.create(data={
+                "testPackageId": test_package_id,
+                "name": name,
+                "stageIndex": idx,
+                "directory": cfg.get("directory"),
+                "timeoutS": cfg.get("timeout_s"),
+                "hardware": cfg.get("hardware", []),
+                "markers": cfg.get("markers", []),
+            })
+
+        # Manufacturing packages: steps list
+        for idx, step in enumerate(manifest_data.get("steps", [])):
+            if not isinstance(step, dict):
+                continue
+            db.testpackagestage.create(data={
+                "testPackageId": test_package_id,
+                "name": step["name"],
+                "stageIndex": idx,
+                "module": step.get("module"),
+                "timeoutS": step.get("timeout_s"),
+                "hardware": step.get("hardware", []),
+            })
+
+        logger.info("Extracted v2 metadata for package %s (schema %s)", test_package_id, schema_version)
+    except Exception as e:
+        logger.warning("Failed to extract v2 metadata for package %s: %s", test_package_id, e)
+
+
+def _serialize_package_stage(s) -> dict:
+    """Serialize a TestPackageStage DB record to an API response dict."""
+    return {
+        "id": s.id,
+        "name": s.name,
+        "stageIndex": s.stageIndex,
+        "directory": s.directory,
+        "module": s.module,
+        "timeoutS": s.timeoutS,
+        "hardware": s.hardware if s.hardware else [],
+        "markers": s.markers if s.markers else [],
+    }
+
+
 def _serialize_test_package(tp: Any) -> dict:
     """Serialize a TestPackage DB record to an API response dict."""
-    return {
+    data = {
         "id": tp.id,
         "productId": tp.productId,
         "version": tp.version,
@@ -168,14 +244,21 @@ def _serialize_test_package(tp: Any) -> dict:
         "frameworkVersion": tp.frameworkVersion,
         "testCount": tp.testCount,
         "stagesEnabled": tp.stagesEnabled,
+        "schemaVersion": tp.schemaVersion if hasattr(tp, "schemaVersion") else None,
         "message": getattr(tp, "message", None),
         "gitSha": getattr(tp, "gitSha", None),
         "gitDirty": getattr(tp, "gitDirty", None),
         "manifestHash": tp.manifestHash,
         "notes": tp.notes,
+        "releasedVersion": getattr(tp, "releasedVersion", None),
+        "releasedAt": tp.releasedAt.isoformat() if getattr(tp, "releasedAt", None) else None,
+        "releasedById": getattr(tp, "releasedById", None),
         "createdAt": tp.createdAt.isoformat() if tp.createdAt else None,
         "updatedAt": tp.updatedAt.isoformat() if tp.updatedAt else None,
     }
+    if hasattr(tp, "packageStages") and tp.packageStages:
+        data["packageStages"] = [_serialize_package_stage(s) for s in tp.packageStages]
+    return data
 
 
 def _resolve_product(product_id: str):
@@ -251,6 +334,12 @@ def _upload_test_package_impl(product_id: str):
     if status not in ("DEVELOPMENT", "RELEASED"):
         return bad_request("manifest.status must be DEVELOPMENT or RELEASED")
 
+    if status == "RELEASED":
+        return bad_request(
+            "Direct release uploads are no longer supported. "
+            "Upload as DEVELOPMENT and promote via the UI."
+        )
+
     package_type = (manifest.get("type") or "VALIDATION").strip().upper()
     if package_type not in ("VALIDATION", "MANUFACTURING"):
         return bad_request("manifest.type must be VALIDATION or MANUFACTURING")
@@ -263,21 +352,6 @@ def _upload_test_package_impl(product_id: str):
     notes = manifest.get("notes")
 
     db = get_db_client()
-
-    # For RELEASED packages, version must be unique per type
-    if status == "RELEASED":
-        existing = db.testpackage.find_first(
-            where={
-                "productId": product.id,
-                "version": version,
-                "type": package_type,
-                "status": "RELEASED",
-            }
-        )
-        if existing:
-            return conflict(
-                f"Released test package version '{version}' already exists for this product"
-            )
 
     # Read file and compute hash
     file_data = package_file.read()
@@ -321,6 +395,7 @@ def _upload_test_package_impl(product_id: str):
                     "frameworkVersion": framework_version,
                     "manifestHash": manifest_hash,
                     "testCount": test_count,
+                    "schemaVersion": manifest.get("schemaVersion"),
                     "message": upload_message,
                     "gitSha": git_sha,
                     "gitDirty": git_dirty,
@@ -344,6 +419,10 @@ def _upload_test_package_impl(product_id: str):
             extracted_count = _extract_test_count(file_data)
             if extracted_count and extracted_count != tp.testCount:
                 db.testpackage.update(where={"id": tp.id}, data={"testCount": extracted_count})
+            # Extract v2 metadata if schema version is 2.0+
+            schema_version = manifest.get("schemaVersion")
+            if schema_version:
+                _extract_v2_metadata(db, tp.id, file_data, schema_version)
             return jsonify(ApiResponse.ok(_serialize_test_package(tp)).to_dict()), 200
 
     # Create new record
@@ -358,6 +437,7 @@ def _upload_test_package_impl(product_id: str):
         "frameworkVersion": framework_version,
         "manifestHash": manifest_hash,
         "testCount": test_count,
+        "schemaVersion": manifest.get("schemaVersion"),
         "message": upload_message,
         "gitSha": git_sha,
         "gitDirty": git_dirty,
@@ -381,6 +461,10 @@ def _upload_test_package_impl(product_id: str):
         db.testpackage.update(where={"id": tp.id}, data={"testCount": extracted_count})
     if designs_count:
         logger.info("Extracted %d fixture design(s) from test package", designs_count)
+    # Extract v2 metadata if schema version is 2.0+
+    schema_version = manifest.get("schemaVersion")
+    if schema_version:
+        _extract_v2_metadata(db, tp.id, file_data, schema_version)
     return jsonify(ApiResponse.ok(_serialize_test_package(tp)).to_dict()), 201
 
 
@@ -418,6 +502,7 @@ def list_test_packages(product_id: str):
         skip=skip,
         take=limit,
         order={"createdAt": "desc"},
+        include={"packageStages": True},
     )
 
     return jsonify(ApiResponse.ok({
@@ -457,6 +542,7 @@ def get_latest_test_package(product_id: str):
             "status": "RELEASED",
         },
         order={"createdAt": "desc"},
+        include={"packageStages": True},
     )
     if not tp:
         # Fall back to latest dev package
@@ -466,6 +552,7 @@ def get_latest_test_package(product_id: str):
                 "type": package_type,
             },
             order={"createdAt": "desc"},
+            include={"packageStages": True},
         )
     if not tp:
         return not_found(f"No test package found for this product (type={package_type})")
@@ -513,3 +600,88 @@ def download_test_package(product_id: str, version: str):
         "filename": f"{product_slug}-{version}-test-package.tar.gz",
         "version": tp.version,
     }).to_dict()), 200
+
+
+# ── Release (promote DEVELOPMENT → RELEASED) ─────────────────
+
+
+def _bump_minor(version_str: str) -> str:
+    """Parse a semver string and bump the minor version: '1.2.0' → '1.3.0'."""
+    parts = version_str.split(".")
+    if len(parts) != 3:
+        raise ValueError(f"Invalid semver: {version_str}")
+    major, minor, _ = int(parts[0]), int(parts[1]), int(parts[2])
+    return f"{major}.{minor + 1}.0"
+
+
+@require_permissions(Permissions.VALIDATION_MANAGE)
+def release_test_package(product_id: str, package_id: str):
+    """POST /v2/products/<product_id>/test-packages/<package_id>/release
+
+    Promote a DEVELOPMENT test package to RELEASED with auto-versioning.
+    """
+    product, err = _resolve_product(product_id)
+    if err:
+        return err
+
+    db = get_db_client()
+
+    tp = db.testpackage.find_first(
+        where={"id": package_id, "productId": product.id},
+        include={"packageStages": True},
+    )
+    if not tp:
+        return not_found(f"Test package '{package_id}' not found")
+
+    if tp.status == "RELEASED":
+        return conflict("This test package has already been released")
+
+    # Auto-version: find the latest released package for this (product, type)
+    latest_released = db.testpackage.find_first(
+        where={
+            "productId": product.id,
+            "type": tp.type,
+            "status": "RELEASED",
+            "releasedVersion": {"not": None},
+        },
+        order={"releasedAt": "desc"},
+    )
+
+    if latest_released and latest_released.releasedVersion:
+        try:
+            released_version = _bump_minor(latest_released.releasedVersion)
+        except ValueError:
+            released_version = "1.0.0"
+    else:
+        released_version = "1.0.0"
+
+    # Optional notes from request body
+    body = request.get_json(silent=True) or {}
+    notes = body.get("notes")
+
+    now = datetime.now(timezone.utc)
+    user_id = g.current_user["sub"]
+
+    update_data: dict = {
+        "status": "RELEASED",
+        "releasedVersion": released_version,
+        "releasedAt": now,
+        "releasedById": user_id,
+    }
+    if notes is not None:
+        update_data["notes"] = notes
+
+    tp = db.testpackage.update(
+        where={"id": tp.id},
+        data=update_data,
+        include={"packageStages": True},
+    )
+
+    log_audit("testPackage.release", "TestPackage", tp.id, {
+        "productId": product.id,
+        "type": tp.type,
+        "releasedVersion": released_version,
+        "previousStatus": "DEVELOPMENT",
+    })
+
+    return jsonify(ApiResponse.ok(_serialize_test_package(tp)).to_dict()), 200

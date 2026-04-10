@@ -80,6 +80,7 @@ from .products.test_packages import (
     list_test_packages,
     get_latest_test_package,
     download_test_package,
+    release_test_package,
 )
 
 # System handlers
@@ -395,6 +396,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/test-packages",                                        endpoint="list_test_packages",       view_func=list_test_packages,        methods=["GET"])
     v2.add_url_rule("/products/<product_id>/test-packages/latest",                                 endpoint="get_latest_test_package",  view_func=get_latest_test_package,   methods=["GET"])
     v2.add_url_rule("/products/<product_id>/test-packages/<version>/download",                     endpoint="download_test_package",    view_func=download_test_package,     methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/test-packages/<package_id>/release",                  endpoint="release_test_package",     view_func=release_test_package,      methods=["POST"])
 
     # Products - Stage Configs (validation stage configuration per product)
     v2.add_url_rule("/products/<product_id>/stages",                                            endpoint="list_stage_configs",       view_func=list_stage_configs,    methods=["GET"])

@@ -7,7 +7,9 @@ Usage:
     corectl test run smoke [--timeout 30]
     corectl test run regression --marker health_check
     corectl test package
-    corectl test upload --env staging
+    corectl test upload
+    corectl test release <package-id>
+    corectl test release --version dev-abc12345
     corectl test migrate
 """
 
@@ -779,23 +781,16 @@ def package(path: str):
 
 
 @test.command()
-@click.option("--release", is_flag=True, help="Upload as immutable release (uses package.version from manifest)")
-@click.option("--version", "version_override", default=None, help="Explicit version override")
 @click.argument("path", default=".", required=False)
 @click.pass_context
-def upload(ctx, release: bool, version_override: Optional[str], path: str):
-    """Upload test package to Concord platform.
+def upload(ctx, path: str):
+    """Upload test package to Concord platform as a development version.
 
-    Development uploads (default):
-        Auto-generates version from git SHA. Mutable — overwrites previous.
-
-    Release uploads (--release):
-        Uses package.version from concord.yaml. Immutable — cannot overwrite.
+    Auto-generates version from git SHA. Mutable — overwrites previous.
+    Use 'corectl test release' to promote a dev package to released.
 
     Examples:
         corectl test upload                    # dev-abc12345
-        corectl test upload --release          # 1.2.0 (from manifest)
-        corectl test upload --version 1.3.0    # explicit override
     """
     import tarfile
     import hashlib
@@ -814,26 +809,16 @@ def upload(ctx, release: bool, version_override: Optional[str], path: str):
 
     slug = _get_slug(manifest, is_v2)
 
-    # Determine version
-    if version_override:
-        version = version_override
-    elif release:
-        version = _get_version(manifest, is_v2)
-        if not version or version == "dev":
-            field_name = "package.version" if is_v2 else "test_version"
-            click.echo(f"No {field_name} in manifest — set it or use --version", err=True)
-            raise SystemExit(1)
-    else:
-        # Development version from git SHA
-        try:
-            result = subprocess.run(
-                ["git", "rev-parse", "--short=8", "HEAD"],
-                capture_output=True, text=True, cwd=str(project_dir),
-            )
-            sha = result.stdout.strip() or "unknown"
-        except Exception:
-            sha = "unknown"
-        version = f"dev-{sha}"
+    # Development version from git SHA
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short=8", "HEAD"],
+            capture_output=True, text=True, cwd=str(project_dir),
+        )
+        sha = result.stdout.strip() or "unknown"
+    except Exception:
+        sha = "unknown"
+    version = f"dev-{sha}"
 
     # Collect git state for traceability
     git_sha = ""
@@ -860,7 +845,7 @@ def upload(ctx, release: bool, version_override: Optional[str], path: str):
         show_default=False,
     ).strip()
 
-    status = "RELEASED" if release else "DEVELOPMENT"
+    status = "DEVELOPMENT"
     package_type = _get_package_type(manifest, is_v2)
 
     click.echo(f"Uploading {slug}@{version} ({status}, {package_type})...")
@@ -935,16 +920,119 @@ def upload(ctx, release: bool, version_override: Optional[str], path: str):
         click.echo(f"  Type: {package_type}")
         click.echo(f"  Tests: {data.get('testCount', '?')}")
     elif resp.status_code == 409:
-        version_field = "package.version" if is_v2 else "test_version"
         click.echo(click.style(
-            f"Version {version} already exists and is RELEASED (immutable). "
-            f"Bump {version_field} in {manifest_path.name} or use a different version.",
+            f"Version {version} already exists. Re-run to generate a new dev version.",
             fg="red",
         ), err=True)
         raise SystemExit(1)
     else:
         click.echo(click.style(
             f"Upload failed: HTTP {resp.status_code} — {resp.text[:200]}",
+            fg="red",
+        ), err=True)
+        raise SystemExit(1)
+
+
+@test.command()
+@click.argument("package_id", required=False)
+@click.option("--version", "dev_version", default=None, help="Dev version to release (e.g., dev-abc12345)")
+@click.option("--type", "pkg_type", type=click.Choice(["validation", "manufacturing"]), default=None, help="Package type")
+@click.option("--path", "project_path", type=click.Path(exists=True), default=None, help="Project path (to read product slug)")
+@click.pass_context
+def release(ctx, package_id, dev_version, pkg_type, project_path):
+    """Promote a development test package to released.
+
+    The platform auto-assigns the next semver version.
+
+    Usage:
+      corectl test release <package-id>
+      corectl test release --version dev-abc12345
+    """
+    import requests
+
+    config = ctx.obj["config"]
+    token = require_auth(config)
+    api_url = get_api_url(config)
+    api = ConcordAPI(api_url, token, tls_verify=get_tls_verify(config))
+
+    # Resolve product slug from manifest
+    manifest_dir = Path(project_path) if project_path else Path(".")
+    manifest_dir = manifest_dir.resolve()
+    manifest_path, is_v2 = _find_manifest_path(manifest_dir)
+    manifest = _load_manifest_yaml(manifest_path)
+    slug = _get_slug(manifest, is_v2)
+
+    if package_id:
+        # Direct ID — use it
+        pass
+    elif dev_version:
+        # Find the package by dev version
+        query = f"/v2/products/{slug}/test-packages?status=DEVELOPMENT"
+        if pkg_type:
+            query += f"&type={pkg_type.upper()}"
+        resp = api.get(query)
+        if not resp.ok:
+            click.echo(f"Failed to list packages: HTTP {resp.status_code}", err=True)
+            raise SystemExit(1)
+
+        response_data = resp.json().get("data", {})
+        packages = response_data.get("data", []) if isinstance(response_data, dict) else response_data
+        match = [p for p in packages if p["version"] == dev_version]
+        if not match:
+            click.echo(f"No DEVELOPMENT package with version '{dev_version}' found for {slug}", err=True)
+            raise SystemExit(1)
+        package_id = match[0]["id"]
+    else:
+        # Interactive — show latest dev packages and prompt
+        resp = api.get(f"/v2/products/{slug}/test-packages?status=DEVELOPMENT")
+        if not resp.ok:
+            click.echo(f"Failed to list packages: HTTP {resp.status_code}", err=True)
+            raise SystemExit(1)
+
+        response_data = resp.json().get("data", {})
+        packages = response_data.get("data", []) if isinstance(response_data, dict) else response_data
+        dev_packages = [p for p in packages if p["status"] == "DEVELOPMENT"]
+        if not dev_packages:
+            click.echo(f"No DEVELOPMENT packages found for {slug}", err=True)
+            raise SystemExit(1)
+
+        click.echo(f"Development packages for {slug}:")
+        for i, pkg in enumerate(dev_packages, 1):
+            ver = pkg["version"].ljust(20)
+            pkg_t = pkg.get("type", "?").ljust(15)
+            date = str(pkg.get("createdAt", ""))[:10]
+            click.echo(f"  [{i}] {ver} {pkg_t} {date}")
+
+        choice = click.prompt("Select package to release", type=int)
+        if choice < 1 or choice > len(dev_packages):
+            click.echo("Invalid selection", err=True)
+            raise SystemExit(1)
+        package_id = dev_packages[choice - 1]["id"]
+
+    # Promote the package
+    resp = requests.post(
+        f"{api_url}/v2/products/{slug}/test-packages/{package_id}/release",
+        headers={"Authorization": f"ApiKey {token}"},
+        verify=False,
+    )
+
+    if resp.status_code in (200, 201):
+        data = resp.json().get("data", {})
+        released_version = data.get("releasedVersion", data.get("version", "?"))
+        click.echo(click.style(f"Released as version {released_version}", fg="green"))
+    elif resp.status_code == 404:
+        click.echo(click.style("Package not found", fg="red"), err=True)
+        raise SystemExit(1)
+    elif resp.status_code == 409:
+        click.echo(click.style("Package is already released", fg="red"), err=True)
+        raise SystemExit(1)
+    elif resp.status_code == 400:
+        detail = resp.json().get("message", resp.text[:200])
+        click.echo(click.style(f"Cannot release — {detail}", fg="red"), err=True)
+        raise SystemExit(1)
+    else:
+        click.echo(click.style(
+            f"Release failed: HTTP {resp.status_code} — {resp.text[:200]}",
             fg="red",
         ), err=True)
         raise SystemExit(1)

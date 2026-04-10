@@ -246,19 +246,25 @@ model TestPackage {
   gitSha           String? /// Git HEAD SHA at upload time (short, e.g., "abc12345")
   gitDirty         Boolean? /// True if working tree had uncommitted changes
   notes            String?
+  releasedVersion  String?   /// Auto-assigned semver on promotion (e.g. "1.0.0")
+  releasedAt       DateTime? /// When promoted to RELEASED
+  releasedById     String?   /// User who promoted
   createdById      String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
   product       Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdBy     User?            @relation(fields: [createdById], references: [id])
+  releasedBy    User?            @relation("TestPackageReleasedBy", fields: [releasedById], references: [id])
   testRuns      TestRun[]
   packageStages TestPackageStage[]
 
   @@unique([productId, version, type])
+  @@unique([productId, releasedVersion, type])
   @@index([productId, status])
   @@index([productId, type, status])
   @@index([createdById])
+  @@index([releasedById])
   @@map("test_packages")
 }
 
@@ -913,6 +919,7 @@ model User {
   assetSets             AssetSet[]
   manufacturingSessions ManufacturingSession[] @relation("ManufacturingOperator")
   testRuns              TestRun[]              @relation("TestRunOperator")
+  releasedTestPackages  TestPackage[]          @relation("TestPackageReleasedBy")
 
   @@map("users")
 }
@@ -1131,9 +1138,10 @@ model AssetSet {
   boardRevision   BoardRevision? @relation(fields: [boardRevisionId], references: [id])
   buildRun        BuildRun?      @relation(fields: [buildRunId], references: [id])
   recipeVersion   RecipeVersion? @relation(fields: [recipeVersionId], references: [id])
-  createdBy       User?          @relation(fields: [createdById], references: [id])
-  assets          Asset[]
-  testRuns        TestRun[]
+  createdBy              User?          @relation(fields: [createdById], references: [id])
+  assets                 Asset[]
+  testRuns               TestRun[]
+  manufacturingSessions  ManufacturingSession[]
 
   @@index([productId, stage, status])
   @@index([productId, version])
@@ -1218,14 +1226,24 @@ model ManufacturingSession {
   createdAt  DateTime                   @default(now())
   updatedAt  DateTime                   @updatedAt
 
+  // Runner lifecycle
+  runnerStatus         String?   /// DEPLOYING | READY | RUNNING | ERROR
+  runnerDeploymentName String?   /// K8s deployment name for cleanup
+  runnerLastHeartbeat  DateTime?
+
+  // Firmware
+  assetSetId           String?   /// Selected firmware AssetSet for this session
+
   product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
   fixture  Fixture  @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
   operator User     @relation("ManufacturingOperator", fields: [operatorId], references: [id], onDelete: Restrict)
+  assetSet AssetSet? @relation(fields: [assetSetId], references: [id], onDelete: SetNull)
   runs     TestRun[]
 
   @@index([productId, status])
   @@index([fixtureId])
   @@index([operatorId])
+  @@index([assetSetId])
   @@map("manufacturing_sessions")
 }
 

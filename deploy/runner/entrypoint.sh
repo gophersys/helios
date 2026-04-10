@@ -124,6 +124,16 @@ echo ""
 
 # ── Step 4: Run tests ─────────────────────────────────────────────────────
 
+# Persistent mode for manufacturing sessions
+if [ "${RUNNER_MODE:-}" = "persistent" ]; then
+    echo "[concord-runner] Starting persistent manufacturing runner..."
+    echo "[concord-runner] Session: ${CONCORD_SESSION_ID}"
+    exec python3 -m corekinect.test.mfg_runner \
+        --session-id "${CONCORD_SESSION_ID}" \
+        "$@"
+fi
+
+# One-shot mode (default)
 echo "Running ${STAGE} stage..."
 
 # Use run.py if it exists (TestRunner with preflight + reporting)

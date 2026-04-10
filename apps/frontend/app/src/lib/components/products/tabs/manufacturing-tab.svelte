@@ -1,6 +1,7 @@
 <script lang="ts">
   import ProductStages from '../product-stages.svelte';
   import TestAppStatusCard from '../test-app-status-card.svelte';
+  import TestPackageList from '../test-package-list.svelte';
   import type { Product } from '$lib/types/models';
 
   interface Props {
@@ -17,6 +18,7 @@
 </script>
 
 <TestAppStatusCard status={product.testAppStatus?.manufacturing ?? null} type="MANUFACTURING" />
+<TestPackageList productId={product.id} packageType="MANUFACTURING" />
 
 <ProductStages
   productId={product.id}

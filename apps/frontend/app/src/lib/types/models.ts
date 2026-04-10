@@ -136,6 +136,26 @@ export interface TestAppStatus {
   manufacturing: TestPackageSummary | null;
 }
 
+export interface TestPackage {
+  id: string;
+  productId: string;
+  version: string;
+  releasedVersion: string | null;
+  type: 'VALIDATION' | 'MANUFACTURING';
+  status: 'DEVELOPMENT' | 'RELEASED';
+  frameworkVersion: string;
+  testCount: number;
+  schemaVersion: string | null;
+  message: string | null;
+  gitSha: string | null;
+  gitDirty: boolean | null;
+  notes: string | null;
+  releasedAt: string | null;
+  releasedById: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -925,6 +945,10 @@ export interface ManufacturingSession {
   fixtureId: string;
   status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
   operatorId: string;
+  assetSetId?: string;
+  assetSet?: { id: string; version: string; variant: string; status: string };
+  runnerStatus?: string; // DEPLOYING | READY | RUNNING | ERROR
+  runnerLastHeartbeat?: string;
   config?: Record<string, any>;
   notes?: string;
   startedAt: string;

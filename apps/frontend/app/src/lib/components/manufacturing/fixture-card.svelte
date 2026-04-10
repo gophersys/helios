@@ -2,17 +2,18 @@
   import { goto } from '$app/navigation';
   import { Play } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import SessionStartDialog from '$lib/components/manufacturing/session-start-dialog.svelte';
   import type { ManufacturingFixture } from '$lib/types/models';
 
   let {
     fixture,
     canRun = false,
-    onStartSession,
   }: {
     fixture: ManufacturingFixture;
     canRun?: boolean;
-    onStartSession?: (fixtureId: string) => void;
   } = $props();
+
+  let showStartDialog = $state(false);
 </script>
 
 <div class="rounded-xl border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-2/50">
@@ -44,7 +45,7 @@
         </button>
       {:else if canRun && fixture.status === 'AVAILABLE'}
         <button
-          onclick={() => onStartSession?.(fixture.id)}
+          onclick={() => showStartDialog = true}
           class="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-2xs font-medium text-white hover:bg-accent-hover transition-colors"
         >
           <Play size={12} />
@@ -54,3 +55,14 @@
     </div>
   </div>
 </div>
+
+{#if showStartDialog}
+  <SessionStartDialog
+    productId={fixture.productId}
+    fixtureId={fixture.id}
+    fixtureName={fixture.name}
+    productName={fixture.productName || 'Unknown Product'}
+    onStart={(sessionId) => goto(`/manufacturing/session/${sessionId}`)}
+    onCancel={() => showStartDialog = false}
+  />
+{/if}

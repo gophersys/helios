@@ -12,7 +12,7 @@ Usage feels natural from a project directory:
 Resource-qualified (when outside a project or managing other resources):
 
     corectl test validate /path/to/project
-    corectl test upload /path/to/project --release
+    corectl test release <package-id>
     corectl auth login
     corectl auth status
 """
@@ -47,6 +47,7 @@ main.add_command(test.upload, "upload")
 main.add_command(test.versions, "versions")
 main.add_command(test.package, "package")
 main.add_command(test.init, "init")
+main.add_command(test.release, "release")
 
 
 if __name__ == "__main__":

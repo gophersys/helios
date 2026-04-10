@@ -148,6 +148,17 @@ def _serialize_session(s, include_runs=False) -> dict:
         "fixtureId": s.fixtureId,
         "status": s.status,
         "operatorId": s.operatorId,
+        "assetSetId": s.assetSetId if hasattr(s, "assetSetId") else None,
+        "assetSet": (
+            {
+                "id": s.assetSet.id,
+                "version": s.assetSet.version,
+                "variant": s.assetSet.variant,
+                "status": s.assetSet.status,
+            }
+            if hasattr(s, "assetSet") and s.assetSet
+            else None
+        ),
         "config": s.config,
         "notes": s.notes,
         "startedAt": s.startedAt.isoformat() if s.startedAt else None,
@@ -306,11 +317,42 @@ def create_manufacturing_session():
 
     operator_id = g.current_user["sub"]
 
+    # ── Resolve firmware AssetSet ──
+    asset_set_id = (body.get("assetSetId") or "").strip() or None
+    if asset_set_id:
+        # Explicit selection — validate it
+        asset_set = db.assetset.find_unique(where={"id": asset_set_id})
+        if not asset_set:
+            return not_found("AssetSet not found")
+        if asset_set.productId != product_id:
+            return bad_request("AssetSet does not belong to this product")
+        if asset_set.status not in ("COMPLETE", "VALIDATED"):
+            return bad_request(
+                f"AssetSet status must be COMPLETE or VALIDATED (current: {asset_set.status})"
+            )
+    else:
+        # Auto-resolve from ManufacturingConfig
+        mfg_config = db.manufacturingconfig.find_first(
+            where={"productId": product_id}
+        )
+        if mfg_config:
+            if mfg_config.firmwareSetId:
+                asset_set_id = mfg_config.firmwareSetId
+            elif mfg_config.firmwareSource == "latest_build":
+                latest = db.assetset.find_first(
+                    where={"productId": product_id, "status": "COMPLETE"},
+                    order={"createdAt": "desc"},
+                )
+                if latest:
+                    asset_set_id = latest.id
+
     create_data: dict = {
         "productId": product_id,
         "fixtureId": fixture_id,
         "operatorId": operator_id,
     }
+    if asset_set_id:
+        create_data["assetSetId"] = asset_set_id
     if body.get("config") is not None:
         create_data["config"] = Json(body["config"])
     if body.get("notes"):
@@ -318,7 +360,13 @@ def create_manufacturing_session():
 
     session = db.manufacturingsession.create(
         data=create_data,
-        include={"product": True, "fixture": True, "operator": True, "runs": True},
+        include={
+            "product": True,
+            "fixture": True,
+            "operator": True,
+            "assetSet": True,
+            "runs": True,
+        },
     )
 
     # Lock the fixture
@@ -368,6 +416,7 @@ def list_manufacturing_sessions():
             "product": True,
             "fixture": True,
             "operator": True,
+            "assetSet": True,
             "runs": True,
         },
         skip=skip,
@@ -402,6 +451,7 @@ def get_manufacturing_session(session_id: str):
             "product": True,
             "fixture": True,
             "operator": True,
+            "assetSet": True,
             "runs": {
                 "include": {
                     "testPackage": True,
@@ -483,6 +533,8 @@ def add_manufacturing_run(session_id: str):
         "status": "PENDING",
         "targetCount": target_count,
     }
+    if session.assetSetId:
+        run_data["assetSetId"] = session.assetSetId
     if tp:
         run_data["testPackageId"] = tp.id
         logger.info("Manufacturing run using test package %s (v%s)", tp.id, tp.version)
@@ -541,7 +593,13 @@ def end_manufacturing_session(session_id: str):
     updated = db.manufacturingsession.update(
         where={"id": session_id},
         data={"status": "COMPLETED", "endedAt": now},
-        include={"product": True, "fixture": True, "operator": True, "runs": True},
+        include={
+            "product": True,
+            "fixture": True,
+            "operator": True,
+            "assetSet": True,
+            "runs": True,
+        },
     )
 
     # Unlock the fixture
@@ -574,6 +632,7 @@ def get_manufacturing_results(session_id: str):
             "product": True,
             "fixture": True,
             "operator": True,
+            "assetSet": True,
             "runs": {
                 "include": {
                     "testPackage": True,

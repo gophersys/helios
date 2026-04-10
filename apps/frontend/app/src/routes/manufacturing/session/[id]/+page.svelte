@@ -11,6 +11,7 @@
   import PanelHistory from '$lib/components/manufacturing/panel-history.svelte';
   import {
     subscribeManufacturingRun,
+    getRunSocket,
     disconnectRunSocket,
   } from '$lib/services/websocket';
   import type { ManufacturingSession, TestRun, RunTarget, TestExecution } from '$lib/types/models';
@@ -24,6 +25,7 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let unsubscribeRun: (() => void) | null = null;
+  let unsubscribeRunnerStatus: (() => void) | null = null;
 
   // The active or most recent pending run (current panel being tested)
   const activeRun = $derived(
@@ -180,6 +182,28 @@
     }
   }
 
+  function subscribeToRunnerStatus() {
+    if (unsubscribeRunnerStatus) {
+      unsubscribeRunnerStatus();
+      unsubscribeRunnerStatus = null;
+    }
+
+    const socket = getRunSocket();
+    if (!socket) return;
+
+    const handler = (data: { sessionId: string; runnerStatus: string; timestamp?: string }) => {
+      if (data.sessionId === sessionId && session) {
+        session = { ...session, runnerStatus: data.runnerStatus, runnerLastHeartbeat: data.timestamp };
+      }
+    };
+
+    socket.on('manufacturing_runner_status', handler);
+
+    unsubscribeRunnerStatus = () => {
+      socket.off('manufacturing_runner_status', handler);
+    };
+  }
+
   async function handleRunPanel(qrCode: string) {
     error = null;
     try {
@@ -215,12 +239,14 @@
     fetchSession().then(() => {
       if (session?.status === 'ACTIVE') {
         setupWebSocket();
+        subscribeToRunnerStatus();
       }
     });
   });
 
   onDestroy(() => {
     if (unsubscribeRun) unsubscribeRun();
+    if (unsubscribeRunnerStatus) unsubscribeRunnerStatus();
     disconnectRunSocket();
   });
 </script>

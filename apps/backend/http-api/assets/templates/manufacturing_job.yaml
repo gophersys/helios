@@ -74,6 +74,9 @@ spec:
           value: "{{FIXTURE_ID}}"
         - name: FIXTURE_CONFIG_PATH
           value: "{{FIXTURE_CONFIG_PATH}}"
+        # ── Firmware AssetSet ──
+        - name: ASSET_SET_ID
+          value: "{{ASSET_SET_ID}}"
         # ── CoreOps (device personalization) ──
         - name: COREOPS_SERVER_URL
           value: "https://coreops.office.corekinect.cloud:2013"
