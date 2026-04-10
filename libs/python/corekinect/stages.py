@@ -116,6 +116,7 @@ class StageBuildDef:
     label: str
     fw_type: str
     variant: str
+    processor: str = ""
     config_log: bool = True
     produces_hex: bool = True
     produces_cfw: bool = False
@@ -123,213 +124,165 @@ class StageBuildDef:
     is_version_bump: bool = False
     base_label: Optional[str] = None
     description: str = ""
+    filename_pattern: str = ""
 
 
 # =============================================================================
-# FUOTA stage — full OTA update cycle test (8 builds)
+# FUOTA stage — full OTA update cycle test (7 builds)
 #
-# Tests the complete FUOTA lifecycle:
-#   1. Flash MFG firmware via J-Link (MFG_BASE)
-#   2. MFG-to-MFG FUOTA (MFG_BASE → MFG_BUMP)
-#   3. MFG-to-App FUOTA with UART (MFG_BASE → FUT_VERBOSE_A)
-#   4. App-to-App FUOTA with UART (FUT_VERBOSE_A → FUT_VERBOSE_B)
-#   5. MFG-to-App FUOTA without UART (MFG_BASE → FUT_QUIET_A)
-#   6. App-to-App FUOTA without UART (FUT_QUIET_A → FUT_QUIET_B)
-#
-# "Verbose" = CONFIG_LOG=y (UART boot logs visible for version verification)
-# "Quiet" = CONFIG_LOG=n (no UART, verification via current or cloud only)
+# Tests the complete FUOTA lifecycle across both processors:
+#   1. Flash app debug A, FUOTA to app debug B (verbose, UART verification)
+#   2. Flash app release A, FUOTA to app release B (quiet, cloud verification)
+#   3. Flash comms debug A, FUOTA to comms debug B
 #
 # ALL builds use BM track (Bench + Manufacturing). The D-flag is NEVER
 # set because CoreCloud strips it, causing version mismatch. See module
 # docstring for details.
-#
-# Version bump builds (B variants, MFG_BUMP) start BLOCKED. When their
-# base build completes, the build worker bumps the build number and
-# compiles a second variant for the A→B FUOTA transition test.
 # =============================================================================
 
 _FUOTA_BUILDS: List[StageBuildDef] = [
-    # ── Manufacturing firmware ──
     StageBuildDef(
-        label="MFG_BASE",
-        fw_type="mfg", variant="mfg", config_log=True,
+        label="FUT_APP_BASE_A", fw_type="app", variant="debug", processor="nrf52840",
         produces_hex=True, produces_cfw=True, git_ref="pr",
-        description="Manufacturing firmware — J-Link flash + MFG-to-MFG FUOTA source",
+        description="From version — verbose logging",
     ),
     StageBuildDef(
-        label="MFG_BUMP",
-        fw_type="mfg", variant="mfg", config_log=True,
+        label="FUT_APP_BASE_B", fw_type="app", variant="debug", processor="nrf52840",
         produces_hex=True, produces_cfw=True, git_ref="pr",
-        is_version_bump=True, base_label="MFG_BASE",
-        description="Version-bumped MFG — MFG-to-MFG FUOTA target",
+        description="To version — verbose logging",
     ),
-
-    # ── Verbose firmware (CONFIG_LOG=y, UART visible) ──
     StageBuildDef(
-        label="FUT_VERBOSE_A",
-        fw_type="app", variant="debug", config_log=True,
+        label="FUT_APP_QUIET_A", fw_type="app", variant="release", processor="nrf52840",
+        produces_hex=True, produces_cfw=True, config_log=False, git_ref="pr",
+        description="From version — no logging",
+    ),
+    StageBuildDef(
+        label="FUT_APP_QUIET_B", fw_type="app", variant="release", processor="nrf52840",
+        produces_hex=True, produces_cfw=True, config_log=False, git_ref="pr",
+        description="To version — no logging",
+    ),
+    StageBuildDef(
+        label="FUT_COMMS_BASE_A", fw_type="comms", variant="debug", processor="nrf9151",
         produces_hex=True, produces_cfw=True, git_ref="pr",
-        description="Verbose app firmware A — FUOTA source, UART verification",
+        description="Comms from version",
     ),
     StageBuildDef(
-        label="FUT_VERBOSE_B",
-        fw_type="app", variant="debug", config_log=True,
+        label="FUT_COMMS_BASE_B", fw_type="comms", variant="debug", processor="nrf9151",
         produces_hex=True, produces_cfw=True, git_ref="pr",
-        is_version_bump=True, base_label="FUT_VERBOSE_A",
-        description="Verbose app firmware B — FUOTA target (A→B), UART verification",
-    ),
-
-    # ── Quiet firmware (CONFIG_LOG=n, no UART) ──
-    StageBuildDef(
-        label="FUT_QUIET_A",
-        fw_type="app", variant="release", config_log=False,
-        produces_hex=True, produces_cfw=True, git_ref="pr",
-        description="Quiet app firmware A — FUOTA source, cloud-only verification",
+        description="Comms to version",
     ),
     StageBuildDef(
-        label="FUT_QUIET_B",
-        fw_type="app", variant="release", config_log=False,
-        produces_hex=True, produces_cfw=True, git_ref="pr",
-        is_version_bump=True, base_label="FUT_QUIET_A",
-        description="Quiet app firmware B — FUOTA target (A→B), cloud-only verification",
-    ),
-
-    # ── Mainline regression builds (hex only, no FUOTA) ──
-    StageBuildDef(
-        label="MAIN_BASELINE",
-        fw_type="app", variant="debug", config_log=True,
-        produces_hex=True, produces_cfw=False, git_ref="main",
-        description="Mainline debug build — regression baseline (boot check only)",
-    ),
-    StageBuildDef(
-        label="MAIN_MERGED",
-        fw_type="app", variant="debug", config_log=True,
-        produces_hex=True, produces_cfw=False, git_ref="merge",
-        description="Post-merge build — verify merged code compiles and boots",
+        label="MODEM_FW", fw_type="modem", variant="release", processor="nrf9151",
+        produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
+        description="Modem firmware (selected separately)",
     ),
 ]
 
 
 # =============================================================================
-# SMOKE stage — quick sanity check (2 builds)
+# SMOKE stage — quick sanity check (3 builds)
 # =============================================================================
 
 _SMOKE_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="MFG_BASE",
-        fw_type="mfg", variant="mfg", config_log=True,
-        produces_hex=True, produces_cfw=False, git_ref="pr",
-        description="Manufacturing firmware for basic boot + connectivity check",
+        label="SMOKE_APP_DEBUG", fw_type="app", variant="debug", processor="nrf52840",
+        produces_hex=True, git_ref="pr", description="App processor — debug",
     ),
     StageBuildDef(
-        label="APP_DEBUG",
-        fw_type="app", variant="debug", config_log=True,
-        produces_hex=True, produces_cfw=False, git_ref="pr",
-        description="Debug application firmware for smoke tests",
+        label="SMOKE_COMMS_DEBUG", fw_type="comms", variant="debug", processor="nrf9151",
+        produces_hex=True, git_ref="pr", description="Comms processor — debug",
+    ),
+    StageBuildDef(
+        label="MODEM_FW", fw_type="modem", variant="release", processor="nrf9151",
+        produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
+        description="Modem firmware (selected separately)",
     ),
 ]
 
 
 # =============================================================================
-# DRIVER stage — hardware validation (3 builds)
+# DRIVER stage — hardware validation (5 builds)
 # =============================================================================
 
 _DRIVER_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="MFG_BASE",
-        fw_type="mfg", variant="mfg", config_log=True,
-        produces_hex=True, produces_cfw=False, git_ref="pr",
-        description="Manufacturing firmware for hardware driver tests",
+        label="DRIVER_APP_DEBUG", fw_type="app", variant="debug", processor="nrf52840",
+        produces_hex=True, git_ref="pr",
     ),
     StageBuildDef(
-        label="APP_DEBUG",
-        fw_type="app", variant="debug", config_log=True,
-        produces_hex=True, produces_cfw=False, git_ref="pr",
-        description="Debug firmware for driver-level hardware validation",
+        label="DRIVER_APP_RELEASE", fw_type="app", variant="release", processor="nrf52840",
+        produces_hex=True, config_log=False, git_ref="pr",
     ),
     StageBuildDef(
-        label="APP_RELEASE",
-        fw_type="app", variant="release", config_log=False,
-        produces_hex=True, produces_cfw=False, git_ref="pr",
-        description="Release firmware — production-like behavior validation",
+        label="DRIVER_COMMS_DEBUG", fw_type="comms", variant="debug", processor="nrf9151",
+        produces_hex=True, git_ref="pr",
+    ),
+    StageBuildDef(
+        label="DRIVER_COMMS_RELEASE", fw_type="comms", variant="release", processor="nrf9151",
+        produces_hex=True, config_log=False, git_ref="pr",
+    ),
+    StageBuildDef(
+        label="MODEM_FW", fw_type="modem", variant="release", processor="nrf9151",
+        produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
+        description="Modem firmware (selected separately)",
     ),
 ]
 
 
 # =============================================================================
-# INTEGRATION stage — end-to-end with cloud (4 builds)
+# INTEGRATION stage — end-to-end with cloud (5 builds)
 # =============================================================================
 
 _INTEGRATION_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="MFG_BASE",
-        fw_type="mfg", variant="mfg", config_log=True,
-        produces_hex=True, produces_cfw=False, git_ref="pr",
-        description="Manufacturing firmware for integration boot + personalization",
+        label="INT_APP_DEBUG", fw_type="app", variant="debug", processor="nrf52840",
+        produces_hex=True, git_ref="pr",
     ),
     StageBuildDef(
-        label="APP_DEBUG",
-        fw_type="app", variant="debug", config_log=True,
-        produces_hex=True, produces_cfw=False, git_ref="pr",
-        description="Debug firmware for harness-instrumented integration tests",
+        label="INT_APP_RELEASE", fw_type="app", variant="release", processor="nrf52840",
+        produces_hex=True, config_log=False, git_ref="pr",
     ),
     StageBuildDef(
-        label="APP_RELEASE",
-        fw_type="app", variant="release", config_log=False,
-        produces_hex=True, produces_cfw=False, git_ref="pr",
-        description="Release firmware for production-path integration validation",
+        label="INT_COMMS_DEBUG", fw_type="comms", variant="debug", processor="nrf9151",
+        produces_hex=True, git_ref="pr",
     ),
     StageBuildDef(
-        label="MAIN_BASE",
-        fw_type="app", variant="debug", config_log=True,
-        produces_hex=True, produces_cfw=False, git_ref="main",
-        description="Mainline debug build — regression baseline for integration",
+        label="INT_COMMS_RELEASE", fw_type="comms", variant="release", processor="nrf9151",
+        produces_hex=True, config_log=False, git_ref="pr",
+    ),
+    StageBuildDef(
+        label="MODEM_FW", fw_type="modem", variant="release", processor="nrf9151",
+        produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
+        description="Modem firmware (selected separately)",
     ),
 ]
 
 
 # =============================================================================
-# REGRESSION stage — full regression suite (6 builds)
+# REGRESSION stage — full regression suite (5 builds)
 # =============================================================================
 
 _REGRESSION_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="MFG_BASE",
-        fw_type="mfg", variant="mfg", config_log=True,
+        label="REG_APP_DEBUG", fw_type="app", variant="debug", processor="nrf52840",
         produces_hex=True, produces_cfw=True, git_ref="main",
-        description="Manufacturing firmware for regression full-cycle validation",
     ),
     StageBuildDef(
-        label="MFG_BUMP",
-        fw_type="mfg", variant="mfg", config_log=True,
+        label="REG_APP_RELEASE", fw_type="app", variant="release", processor="nrf52840",
+        produces_hex=True, produces_cfw=True, config_log=False, git_ref="main",
+    ),
+    StageBuildDef(
+        label="REG_COMMS_DEBUG", fw_type="comms", variant="debug", processor="nrf9151",
         produces_hex=True, produces_cfw=True, git_ref="main",
-        is_version_bump=True, base_label="MFG_BASE",
-        description="Version-bumped MFG for regression FUOTA",
     ),
     StageBuildDef(
-        label="APP_DEBUG",
-        fw_type="app", variant="debug", config_log=True,
-        produces_hex=True, produces_cfw=False, git_ref="main",
-        description="Debug firmware for regression comprehensive validation",
+        label="REG_COMMS_RELEASE", fw_type="comms", variant="release", processor="nrf9151",
+        produces_hex=True, produces_cfw=True, config_log=False, git_ref="main",
     ),
     StageBuildDef(
-        label="APP_RELEASE",
-        fw_type="app", variant="release", config_log=False,
-        produces_hex=True, produces_cfw=False, git_ref="main",
-        description="Release firmware for regression power + behavior validation",
-    ),
-    StageBuildDef(
-        label="FUOTA_VERBOSE_A",
-        fw_type="app", variant="debug", config_log=True,
-        produces_hex=True, produces_cfw=True, git_ref="main",
-        description="Verbose firmware A — regression FUOTA source",
-    ),
-    StageBuildDef(
-        label="FUOTA_VERBOSE_B",
-        fw_type="app", variant="debug", config_log=True,
-        produces_hex=True, produces_cfw=True, git_ref="main",
-        is_version_bump=True, base_label="FUOTA_VERBOSE_A",
-        description="Verbose firmware B — regression FUOTA target",
+        label="MODEM_FW", fw_type="modem", variant="release", processor="nrf9151",
+        produces_hex=False, produces_cfw=False, config_log=False, git_ref="main",
+        description="Modem firmware (selected separately)",
     ),
 ]
 
@@ -346,31 +299,31 @@ _REGRESSION_BUILDS: List[StageBuildDef] = [
 _MANUFACTURING_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
         label="MFG_APP_DEBUG",
-        fw_type="app", variant="debug", config_log=True,
+        fw_type="app", variant="debug", processor="nrf52840", config_log=True,
         produces_hex=True, produces_cfw=False, git_ref="main",
         description="Application processor firmware — debug variant (nRF52840)",
     ),
     StageBuildDef(
         label="MFG_APP_RELEASE",
-        fw_type="app", variant="release", config_log=False,
+        fw_type="app", variant="release", processor="nrf52840", config_log=False,
         produces_hex=True, produces_cfw=False, git_ref="main",
         description="Application processor firmware — release variant (nRF52840)",
     ),
     StageBuildDef(
         label="MFG_COMMS_DEBUG",
-        fw_type="comms", variant="debug", config_log=True,
+        fw_type="comms", variant="debug", processor="nrf9151", config_log=True,
         produces_hex=True, produces_cfw=False, git_ref="main",
         description="Communications processor firmware — debug variant (nRF9151)",
     ),
     StageBuildDef(
         label="MFG_COMMS_RELEASE",
-        fw_type="comms", variant="release", config_log=False,
+        fw_type="comms", variant="release", processor="nrf9151", config_log=False,
         produces_hex=True, produces_cfw=False, git_ref="main",
         description="Communications processor firmware — release variant (nRF9151)",
     ),
     StageBuildDef(
         label="MODEM_FW",
-        fw_type="modem", variant="release", config_log=False,
+        fw_type="modem", variant="release", processor="nrf9151", config_log=False,
         produces_hex=False, produces_cfw=False, git_ref="main",
         description="Modem firmware package (.zip) for nRF91 series",
     ),

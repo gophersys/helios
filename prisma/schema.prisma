@@ -1123,7 +1123,9 @@ model StageBuildMatrix {
   gitRef        String  @default("pr") /// "pr", "main", "merge"
   isVersionBump Boolean @default(false)
   baseLabel     String? /// Required when isVersionBump=true
-  description   String?
+  description     String?
+  processor       String?  /// Target processor SoC: "nrf52840", "nrf9151"
+  filenamePattern String?  /// Expected filename pattern: "*_debug_nrf52840.hex"
 
   stageConfig ProductStageConfig @relation(fields: [stageConfigId], references: [id], onDelete: Cascade)
 

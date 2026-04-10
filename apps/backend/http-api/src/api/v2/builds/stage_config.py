@@ -187,7 +187,24 @@ def _auto_populate_build_matrix(db, config_id: str, stage_type: str, stage_num: 
         if not stage_enum:
             return
         defs = get_stage_build_defs(stage_enum)
+
+        # Build processor lookup from ProductTarget records for this board revision
+        processor_lookup = {}
+        config = db.productstageconfig.find_unique(where={"id": config_id})
+        if config and config.boardRevisionId:
+            targets = db.producttarget.find_many(
+                where={"boardRevisionId": config.boardRevisionId}
+            )
+            for t in targets:
+                processor_lookup[t.role] = t.soc  # "app" → "nrf52840", "comms" → "nrf9151"
+
         for build_def in defs:
+            # Resolve processor: map fw_type to target role, fall back to build_def default
+            role = build_def.fw_type
+            if role == "modem":
+                role = "comms"  # modem uses same processor as comms
+            processor = processor_lookup.get(role, build_def.processor) or None
+
             db.stagebuildmatrix.create(data={
                 "stageConfigId": config_id,
                 "label": build_def.label,
@@ -199,6 +216,8 @@ def _auto_populate_build_matrix(db, config_id: str, stage_type: str, stage_num: 
                 "gitRef": build_def.git_ref,
                 "isVersionBump": build_def.is_version_bump,
                 "baseLabel": build_def.base_label,
+                "processor": processor,
+                "filenamePattern": build_def.filename_pattern or None,
             })
     except Exception:
         pass  # Non-critical — user can reset manually via UI
@@ -354,6 +373,8 @@ def _serialize_build_matrix_entry(entry) -> dict:
         "isVersionBump": entry.isVersionBump,
         "baseLabel": entry.baseLabel,
         "description": entry.description,
+        "processor": entry.processor,
+        "filenamePattern": entry.filenamePattern,
     }
 
 
@@ -421,6 +442,8 @@ def update_stage_build_matrix(product_id: str, stage: str):
             "isVersionBump": entry.get("isVersionBump", False),
             "baseLabel": entry.get("baseLabel"),
             "description": entry.get("description"),
+            "processor": entry.get("processor"),
+            "filenamePattern": entry.get("filenamePattern"),
         })
         created.append(_serialize_build_matrix_entry(row))
 
@@ -454,10 +477,24 @@ def reset_stage_build_matrix(product_id: str, stage: str):
 
     build_defs = get_stage_build_defs(stage_enum)
 
+    # Build processor lookup from ProductTarget records for this board revision
+    processor_lookup = {}
+    if config.boardRevisionId:
+        targets = db.producttarget.find_many(
+            where={"boardRevisionId": config.boardRevisionId}
+        )
+        for t in targets:
+            processor_lookup[t.role] = t.soc
+
     # Replace existing entries
     db.stagebuildmatrix.delete_many(where={"stageConfigId": config.id})
     created = []
     for i, bd in enumerate(build_defs):
+        role = bd.fw_type
+        if role == "modem":
+            role = "comms"
+        processor = processor_lookup.get(role, bd.processor) or None
+
         row = db.stagebuildmatrix.create(data={
             "stageConfigId": config.id,
             "sortOrder": i,
@@ -471,6 +508,8 @@ def reset_stage_build_matrix(product_id: str, stage: str):
             "isVersionBump": bd.is_version_bump,
             "baseLabel": bd.base_label,
             "description": bd.description,
+            "processor": processor,
+            "filenamePattern": bd.filename_pattern or None,
         })
         created.append(_serialize_build_matrix_entry(row))
 
