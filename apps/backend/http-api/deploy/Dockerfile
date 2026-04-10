@@ -34,7 +34,7 @@ COPY ./nx.json nx.json
 COPY ./package.json package.json
 
 # Install Prisma Python client generator
-RUN pip3 install --no-cache-dir prisma==0.15.0
+RUN pip3 install --no-cache-dir --break-system-packages prisma==0.15.0
 
 # Generate Prisma clients (both Go and Python)
 # Keep working directory as /concord to maintain relative path context
