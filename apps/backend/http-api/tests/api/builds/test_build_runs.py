@@ -195,7 +195,7 @@ class TestListPipelines:
         pipe = _pipeline_obj(
             id="pipe-builds",
             builds=[
-                _build_summary(id="b1", status="SUCCESS", matrixLabel="MFG_BASE", matrixIndex=0),
+                _build_summary(id="b1", status="SUCCESS", matrixLabel="MFG_APP_DEBUG", matrixIndex=0),
                 _build_summary(id="b2", status="QUEUED", matrixLabel="FUT_DEBUG_A", matrixIndex=2),
             ],
         )

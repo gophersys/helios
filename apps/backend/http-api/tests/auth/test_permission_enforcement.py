@@ -286,25 +286,25 @@ class TestValidationRunsPermissions:
     """Tests for /v2/sessions routes — requires validation:view / validation:run."""
 
     def test_list_runs_unauthenticated(self, client):
-        response = client.get("/v2/sessions")
+        response = client.get("/v2/runs")
         _assert_401(response)
 
     def test_list_runs_wrong_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "products:view",
         )
-        response = client.get("/v2/sessions", headers=auth_headers)
+        response = client.get("/v2/runs", headers=auth_headers)
         _assert_403(response)
 
     def test_list_runs_correct_permission(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:view",
         )
-        response = client.get("/v2/sessions", headers=auth_headers)
+        response = client.get("/v2/runs", headers=auth_headers)
         _assert_not_denied(response)
 
     def test_create_run_unauthenticated(self, client):
-        response = client.post("/v2/sessions", data=json.dumps({}),
+        response = client.post("/v2/runs", data=json.dumps({}),
                                content_type="application/json")
         _assert_401(response)
 
@@ -313,8 +313,8 @@ class TestValidationRunsPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:view",
         )
-        response = client.post("/v2/sessions",
-                               data=json.dumps({"productId": "p", "nodeId": "n"}),
+        response = client.post("/v2/runs",
+                               data=json.dumps({"type": "VALIDATION", "productId": "p"}),
                                headers=auth_headers)
         _assert_403(response)
 
@@ -322,8 +322,8 @@ class TestValidationRunsPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:run",
         )
-        response = client.post("/v2/sessions",
-                               data=json.dumps({"productId": "p", "nodeId": "n"}),
+        response = client.post("/v2/runs",
+                               data=json.dumps({"type": "VALIDATION", "productId": "p"}),
                                headers=auth_headers)
         _assert_not_denied(response)
 
@@ -986,7 +986,7 @@ class TestNoPermissionSet:
         _assert_403(response)
 
     def test_no_perm_set_validation(self, client, no_perm_headers, mock_db):
-        response = client.get("/v2/sessions", headers=no_perm_headers)
+        response = client.get("/v2/runs", headers=no_perm_headers)
         _assert_403(response)
 
     def test_no_perm_set_fixtures(self, client, no_perm_headers, mock_db):
@@ -1024,7 +1024,7 @@ class TestPermissionSetNotFound:
 
     def test_missing_perm_set_validation(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = None
-        response = client.get("/v2/sessions", headers=auth_headers)
+        response = client.get("/v2/runs", headers=auth_headers)
         _assert_403(response)
 
 
@@ -1046,7 +1046,7 @@ class TestPermissionIsolation:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "builds:view", "builds:trigger", "builds:manage",
         )
-        response = client.get("/v2/sessions", headers=auth_headers)
+        response = client.get("/v2/runs", headers=auth_headers)
         _assert_403(response)
 
     def test_validation_perm_cannot_access_system(self, client, auth_headers, mock_db):
@@ -1109,10 +1109,11 @@ class TestPermissionIsolation:
                         headers=auth_headers)
         _assert_403(r)
 
-        # POST /v2/sessions (needs validation:run)
-        r = client.post("/v2/sessions",
-                        data=json.dumps({"productId": "p", "nodeId": "n"}),
-                        headers=auth_headers)
+        # POST /v2/runs (needs validation:run)
+        r = client.post("/v2/runs",
+                        data=json.dumps({"type": "VALIDATION", "productId": "p"}),
+                        headers=auth_headers,
+                        content_type="application/json")
         _assert_403(r)
 
         # POST /v2/fixtures (needs fixtures:manage)
@@ -1145,7 +1146,7 @@ class TestEmptyPermissions:
 
     def test_empty_perms_validation(self, client, auth_headers, mock_db):
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set()
-        response = client.get("/v2/sessions", headers=auth_headers)
+        response = client.get("/v2/runs", headers=auth_headers)
         _assert_403(response)
 
     def test_empty_perms_fixtures(self, client, auth_headers, mock_db):

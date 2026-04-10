@@ -36,11 +36,11 @@ def _asset_obj(**overrides):
     defaults = dict(
         id="asset-1",
         assetSetId="as-1",
-        label="MFG_BASE",
+        label="MFG_APP_DEBUG",
         role="app",
         processor="nrf52840",
         artifactType="plaintextHex",
-        storageKey="asset-sets/as-1/MFG_BASE/app_nrf52840.hex",
+        storageKey="asset-sets/as-1/MFG_APP_DEBUG/app_nrf52840.hex",
         filename="app_nrf52840.hex",
         sizeBytes=102400,
         checksum="abc123",
@@ -77,7 +77,7 @@ class TestUploadAsset:
                 "/v2/asset-sets/as-1/assets",
                 data={
                     "file": (io.BytesIO(b"\xff\xfe" + b"\x00" * 200), "app_nrf52840.hex"),
-                    "label": "MFG_BASE",
+                    "label": "MFG_APP_DEBUG",
                     "role": "app",
                     "artifactType": "plaintextHex",
                     "processor": "nrf52840",
@@ -87,7 +87,7 @@ class TestUploadAsset:
 
         assert resp.status_code == 201
         body = resp.get_json()
-        assert body["data"]["label"] == "MFG_BASE"
+        assert body["data"]["label"] == "MFG_APP_DEBUG"
         assert body["data"]["role"] == "app"
         assert body["data"]["artifactType"] == "plaintextHex"
 
@@ -104,7 +104,7 @@ class TestUploadAsset:
                 "/v2/asset-sets/as-1/assets",
                 data={
                     "file": (io.BytesIO(b"\x00" * 100), "108.0.8.3-BM.cfw"),
-                    "label": "MFG_BASE",
+                    "label": "MFG_APP_DEBUG",
                     "role": "comms",
                     "artifactType": "encryptedCfw",
                 },
@@ -152,7 +152,7 @@ class TestUploadAsset:
         resp = authed_client.post(
             "/v2/asset-sets/as-1/assets",
             data={
-                "label": "MFG_BASE",
+                "label": "MFG_APP_DEBUG",
                 "role": "app",
                 "artifactType": "plaintextHex",
             },
@@ -183,7 +183,7 @@ class TestUploadAsset:
             "/v2/asset-sets/as-1/assets",
             data={
                 "file": (io.BytesIO(b"\x00" * 10), "test.hex"),
-                "label": "MFG_BASE",
+                "label": "MFG_APP_DEBUG",
                 "artifactType": "plaintextHex",
             },
             content_type="multipart/form-data",
@@ -198,7 +198,7 @@ class TestUploadAsset:
             "/v2/asset-sets/as-1/assets",
             data={
                 "file": (io.BytesIO(b"\x00" * 10), "test.hex"),
-                "label": "MFG_BASE",
+                "label": "MFG_APP_DEBUG",
                 "role": "app",
                 "artifactType": "binaryBlob",
             },

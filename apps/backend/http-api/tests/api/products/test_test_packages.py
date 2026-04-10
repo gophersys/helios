@@ -34,17 +34,27 @@ def _test_package_obj(**overrides):
     defaults = {
         "id": "tp-001",
         "productId": "prod-alpha",
+        "boardRevisionId": None,
         "version": "1.0.0",
+        "type": "VALIDATION",
         "status": "RELEASED",
         "storageKey": "test-packages/alpha-b0/1.0.0/package.tar.gz",
         "frameworkVersion": "0.3.0",
+        "schemaVersion": None,
+        "message": None,
+        "gitSha": None,
+        "gitDirty": None,
         "manifestHash": "abc123",
         "testCount": 15,
         "stagesEnabled": {"smoke": True, "fuota": True},
         "notes": "Initial release",
+        "releasedVersion": None,
+        "releasedAt": None,
+        "releasedById": None,
         "createdById": None,
         "createdAt": _now(),
         "updatedAt": _now(),
+        "packageStages": None,
     }
     defaults.update(overrides)
     return make_obj(**defaults)
@@ -95,12 +105,10 @@ class TestUploadTestPackage:
     """Tests for POST /v2/products/<slug>/test-packages."""
 
     def test_upload_success_released(self, authed_client, mock_db):
-        """Upload a released test package creates a new record."""
+        """Direct RELEASED uploads are no longer supported — returns 400."""
         product = _product_obj()
-        tp = _test_package_obj()
         mock_db.product.find_first.return_value = product
-        mock_db.testpackage.find_first.return_value = None
-        mock_db.testpackage.create.return_value = tp
+        mock_db.product.find_unique.return_value = product
 
         data = {
             "package": (io.BytesIO(_tar_gz_data()), "package.tar.gz"),
@@ -111,17 +119,15 @@ class TestUploadTestPackage:
             data=data,
             content_type="multipart/form-data",
         )
-        assert resp.status_code == 201
+        assert resp.status_code == 400
         body = resp.get_json()
-        assert body["data"]["id"] == "tp-001"
-        assert body["data"]["version"] == "1.0.0"
-        assert body["data"]["status"] == "RELEASED"
-        mock_db.testpackage.create.assert_called_once()
+        assert "no longer supported" in body["errors"][0]["message"].lower()
 
     def test_upload_success_development(self, authed_client, mock_db):
         """Upload a development package creates a new record when none exists."""
         product = _product_obj()
         tp = _test_package_obj(status="DEVELOPMENT", version="dev-abc123")
+        mock_db.product.find_unique.return_value = product
         mock_db.product.find_first.return_value = product
         mock_db.testpackage.find_first.return_value = None
         mock_db.testpackage.create.return_value = tp
@@ -145,6 +151,7 @@ class TestUploadTestPackage:
         existing = _test_package_obj(status="DEVELOPMENT", version="dev-abc123")
         updated = _test_package_obj(status="DEVELOPMENT", version="dev-abc123", id="tp-001")
 
+        mock_db.product.find_unique.return_value = product
         mock_db.product.find_first.return_value = product
         # For DEVELOPMENT status, only one find_first on testpackage (existing dev check)
         mock_db.testpackage.find_first.return_value = existing
@@ -162,12 +169,11 @@ class TestUploadTestPackage:
         assert resp.status_code == 200
         mock_db.testpackage.update.assert_called_once()
 
-    def test_upload_released_version_conflict(self, authed_client, mock_db):
-        """Upload a released package with existing version returns 409."""
+    def test_upload_released_version_rejected(self, authed_client, mock_db):
+        """Upload a released package is always rejected (must upload as dev, then promote)."""
         product = _product_obj()
-        existing = _test_package_obj()
+        mock_db.product.find_unique.return_value = product
         mock_db.product.find_first.return_value = product
-        mock_db.testpackage.find_first.return_value = existing
 
         data = {
             "package": (io.BytesIO(_tar_gz_data()), "package.tar.gz"),
@@ -178,7 +184,7 @@ class TestUploadTestPackage:
             data=data,
             content_type="multipart/form-data",
         )
-        assert resp.status_code == 409
+        assert resp.status_code == 400
 
     def test_upload_product_not_found(self, authed_client, mock_db):
         """Upload to a non-existent product slug returns 404."""
@@ -328,6 +334,7 @@ class TestListTestPackages:
             _test_package_obj(id="tp-001", version="1.0.0"),
             _test_package_obj(id="tp-002", version="0.9.0"),
         ]
+        mock_db.product.find_unique.return_value = product
         mock_db.product.find_first.return_value = product
         mock_db.testpackage.count.return_value = 2
         mock_db.testpackage.find_many.return_value = packages
@@ -341,6 +348,7 @@ class TestListTestPackages:
     def test_list_with_status_filter(self, authed_client, mock_db):
         """List test packages filters by status query param."""
         product = _product_obj()
+        mock_db.product.find_unique.return_value = product
         mock_db.product.find_first.return_value = product
         mock_db.testpackage.count.return_value = 1
         mock_db.testpackage.find_many.return_value = [
@@ -385,6 +393,7 @@ class TestGetLatestTestPackage:
         """Get latest released package returns the most recent one."""
         product = _product_obj()
         tp = _test_package_obj(version="2.0.0")
+        mock_db.product.find_unique.return_value = product
         mock_db.product.find_first.return_value = product
         mock_db.testpackage.find_first.return_value = tp
 
@@ -460,6 +469,7 @@ class TestSerialization:
         """Serialized test package contains all expected fields."""
         product = _product_obj()
         tp = _test_package_obj()
+        mock_db.product.find_unique.return_value = product
         mock_db.product.find_first.return_value = product
         mock_db.testpackage.find_first.return_value = tp
 
@@ -468,8 +478,8 @@ class TestSerialization:
         data = body["data"]
 
         expected_fields = [
-            "id", "productId", "version", "status",
-            "frameworkVersion", "testCount", "stagesEnabled",
+            "id", "productId", "boardRevisionId", "version", "type", "status",
+            "frameworkVersion", "testCount", "stagesEnabled", "schemaVersion",
             "manifestHash", "notes", "createdAt", "updatedAt",
         ]
         for field in expected_fields:
@@ -479,6 +489,7 @@ class TestSerialization:
         """Serialized dates are ISO 8601 format."""
         product = _product_obj()
         tp = _test_package_obj()
+        mock_db.product.find_unique.return_value = product
         mock_db.product.find_first.return_value = product
         mock_db.testpackage.find_first.return_value = tp
 

@@ -496,13 +496,13 @@ class TestReportTargetResult:
                 "/v2/runs/run-1/report/target-result",
                 data=json.dumps({
                     "slotIndex": 0,
-                    "status": "COMPLETED",
+                    "status": "PASSED",
                 }),
             )
 
         assert resp.status_code == 200
         body = resp.get_json()
-        assert body["data"]["status"] == "COMPLETED"
+        assert body["data"]["status"] == "PASSED"
         mock_db.runtarget.update.assert_called_once()
 
     def test_missing_slot_index_returns_400(self, authed_client, mock_db):
@@ -525,7 +525,7 @@ class TestReportTargetResult:
 
         resp = authed_client.post(
             "/v2/runs/run-1/report/target-result",
-            data=json.dumps({"slotIndex": 5, "status": "COMPLETED"}),
+            data=json.dumps({"slotIndex": 5, "status": "PASSED"}),
         )
         assert resp.status_code == 404
 

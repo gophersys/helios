@@ -32,6 +32,7 @@ _SIGNING_KEY_INLINE_SHAPE = {
 _STAGE_CONFIG_SHAPE = {
     "id": str,
     "productId": str,
+    "type": str,
     "stage": int,
     "name": str,
     "enabled": bool,
@@ -54,6 +55,7 @@ def _make_stage_config(**kwargs):
     defaults = dict(
         id="stage-1",
         productId="prod-1",
+        type="VALIDATION",
         stage=1,
         name="Smoke",
         enabled=True,

@@ -206,7 +206,7 @@ class TestTriggerStageBuild:
 
         from corekinect.stages import StageBuildDef, Stage
         with patch("src.services.build_trigger.get_stage_build_defs", return_value=[
-            StageBuildDef(label="MFG_BASE", fw_type="mfg", variant="release")
+            StageBuildDef(label="MFG_APP_DEBUG", fw_type="app", variant="debug")
         ]):
             result = trigger_stage_build("prod-1", "sc-1")
 

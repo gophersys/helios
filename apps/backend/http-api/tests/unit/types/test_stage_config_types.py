@@ -4,15 +4,16 @@ from api.v2.builds.stage_config_types import StageConfigCreateRequest, StageConf
 
 class TestStageConfigCreateRequest:
     def test_valid_create(self):
-        req, err = StageConfigCreateRequest.from_json({"stage": 1, "name": "Smoke"})
+        req, err = StageConfigCreateRequest.from_json({"type": "VALIDATION", "stage": 1, "name": "Smoke"})
         assert err is None
+        assert req.type == "VALIDATION"
         assert req.stage == 1
         assert req.name == "Smoke"
         assert req.enabled is False  # disabled by default
 
     def test_full_create(self):
         req, err = StageConfigCreateRequest.from_json({
-            "stage": 5, "name": "FUOTA", "enabled": True,
+            "type": "VALIDATION", "stage": 5, "name": "FUOTA", "enabled": True,
             "boardRevisionId": "rev-1",
             "watchBranch": "develop",
             "signingKeyId": "key-1",
@@ -24,27 +25,41 @@ class TestStageConfigCreateRequest:
         assert req.signingKeyId == "key-1"
 
     def test_optional_fields_default(self):
-        req, err = StageConfigCreateRequest.from_json({"stage": 2, "name": "Driver"})
+        req, err = StageConfigCreateRequest.from_json({"type": "VALIDATION", "stage": 2, "name": "Driver"})
         assert err is None
         assert req.boardRevisionId is None
         assert req.watchBranch is None
         assert req.signingKeyId is None
 
     def test_missing_stage(self):
-        _, err = StageConfigCreateRequest.from_json({"name": "Smoke"})
-        assert "Stage" in err
+        _, err = StageConfigCreateRequest.from_json({"type": "VALIDATION", "name": "Smoke"})
+        assert "stage" in err.lower()
 
     def test_invalid_stage(self):
-        _, err = StageConfigCreateRequest.from_json({"stage": 99, "name": "Bad"})
+        _, err = StageConfigCreateRequest.from_json({"type": "VALIDATION", "stage": 99, "name": "Bad"})
         assert err is not None
 
     def test_wrong_name(self):
-        _, err = StageConfigCreateRequest.from_json({"stage": 1, "name": "FUOTA"})
-        assert "Smoke" in err
+        """Name is no longer validated against stage — auto-derives if empty, accepts any if provided."""
+        req, err = StageConfigCreateRequest.from_json({"type": "VALIDATION", "stage": 1, "name": "FUOTA"})
+        # Name is accepted as-is (no longer enforces stage-to-name mapping)
+        assert err is None
+        assert req.name == "FUOTA"
 
     def test_empty_body(self):
         _, err = StageConfigCreateRequest.from_json({})
         assert err is not None
+
+    def test_manufacturing_type(self):
+        req, err = StageConfigCreateRequest.from_json({"type": "MANUFACTURING", "stage": 1})
+        assert err is None
+        assert req.type == "MANUFACTURING"
+        assert req.name == "Manufacturing"  # auto-derived
+
+    def test_type_defaults_to_validation(self):
+        req, err = StageConfigCreateRequest.from_json({"stage": 1, "name": "Smoke"})
+        assert err is None
+        assert req.type == "VALIDATION"
 
 
 class TestStageConfigUpdateRequest:

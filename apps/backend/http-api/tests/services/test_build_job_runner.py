@@ -28,7 +28,7 @@ class TestCreateBuildK8sJob:
                 "repoUrl": "git@bitbucket.org:ck/alpha_fw.git",
                 "builderImage": "registry.io/alpha-builder:latest",
             },
-            matrixLabel="APP_RELEASE",
+            matrixLabel="SMOKE_APP_DEBUG",
             branch="main",
             board="alpha_b0",
             variant="release",

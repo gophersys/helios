@@ -86,34 +86,41 @@ def test_asset_set_create_invalid_source():
     assert "Invalid source" in err
 
 
-def test_asset_set_create_invalid_stage_too_low():
+def test_asset_set_create_stage_zero_accepted():
+    """Stage 0 (manufacturing) is now valid — no bounds checking in types."""
     from src.api.v2.assets.types import AssetSetCreateRequest
 
     data = {"version": "1.0.0", "stage": 0}
     req, err = AssetSetCreateRequest.from_json(data)
 
-    assert req is None
-    assert err == "Stage must be an integer between 1 and 5"
+    assert err is None
+    assert req is not None
+    assert req.stage == 0
 
 
-def test_asset_set_create_invalid_stage_too_high():
+def test_asset_set_create_stage_high_accepted():
+    """Stage values are passed through without bounds checking."""
     from src.api.v2.assets.types import AssetSetCreateRequest
 
     data = {"version": "1.0.0", "stage": 6}
     req, err = AssetSetCreateRequest.from_json(data)
 
-    assert req is None
-    assert err == "Stage must be an integer between 1 and 5"
+    assert err is None
+    assert req is not None
+    assert req.stage == 6
 
 
-def test_asset_set_create_stage_not_int():
+def test_asset_set_create_stage_string_passthrough():
+    """Non-integer stage values are passed through (validation is upstream)."""
     from src.api.v2.assets.types import AssetSetCreateRequest
 
     data = {"version": "1.0.0", "stage": "three"}
     req, err = AssetSetCreateRequest.from_json(data)
 
-    assert req is None
-    assert err == "Stage must be an integer between 1 and 5"
+    # The from_json just passes through the stage value without validation
+    assert err is None
+    assert req is not None
+    assert req.stage == "three"
 
 
 def test_asset_set_create_source_case_insensitive():
@@ -192,14 +199,16 @@ def test_external_asset_set_create_empty_body():
     assert err == "Request body must contain JSON data"
 
 
-def test_external_asset_set_create_invalid_stage():
+def test_external_asset_set_create_stage_zero_accepted():
+    """Stage 0 (manufacturing) is now valid — no bounds checking in types."""
     from src.api.v2.assets.types import ExternalAssetSetCreateRequest
 
     data = {"version": "1.0.0", "externalBuildId": "ext-1", "stage": 0}
     req, err = ExternalAssetSetCreateRequest.from_json(data)
 
-    assert req is None
-    assert err == "Stage must be an integer between 1 and 5"
+    assert err is None
+    assert req is not None
+    assert req.stage == 0
 
 
 def test_external_asset_set_create_minimal():

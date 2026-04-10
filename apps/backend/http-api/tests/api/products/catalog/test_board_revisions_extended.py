@@ -165,7 +165,8 @@ class TestModemFirmware:
             id="mfw-1", boardRevisionId="rev-1", version="1.0.0",
             filename="modem.zip", storageKey="firmware/modem/rev-1/1.0.0/modem.zip",
             sizeBytes=26, checksum="abc123", notes=None,
-            createdById=None, createdAt="2026-01-01T00:00:00Z",
+            createdById=None,
+            createdAt=datetime(2026, 1, 1, tzinfo=timezone.utc),
         )
 
         with patch("api.v2.products.board_revisions.log_audit"):
@@ -221,61 +222,71 @@ class TestModemFirmware:
 
         assert response.status_code == 404
 
-    def test_download_modem_firmware_no_firmware_returns_404(self, authed_client, mock_db):
-        """GET returns 404 when no modem firmware is configured."""
+    def test_list_modem_firmware_empty(self, authed_client, mock_db):
+        """GET returns empty list when no modem firmware exists."""
         mock_db.board.find_first.return_value = _board()
-        mock_db.boardrevision.find_first.return_value = _revision(modemStorageKey=None)
-
-        response = authed_client.get(
-            "/v2/products/prod-1/boards/board-1/revisions/rev-1/modem-firmware"
-        )
-
-        assert response.status_code == 404
-
-    def test_download_modem_firmware_success(self, authed_client, mock_db):
-        """GET returns file content with attachment disposition."""
-        mock_db.board.find_first.return_value = _board()
-        mock_db.boardrevision.find_first.return_value = _revision(
-            modemStorageKey="firmware/modem/rev-1/1.0/modem.zip"
-        )
-        fake_response = MagicMock()
-        fake_response.read.return_value = b"modem firmware bytes"
-        fake_response.close = MagicMock()
-        fake_response.release_conn = MagicMock()
-        self.mock_storage.get_object.return_value = fake_response
+        mock_db.boardrevision.find_first.return_value = _revision()
+        mock_db.modemfirmware.find_many.return_value = []
 
         response = authed_client.get(
             "/v2/products/prod-1/boards/board-1/revisions/rev-1/modem-firmware"
         )
 
         assert response.status_code == 200
-        assert "attachment" in response.headers.get("Content-Disposition", "")
+        body = json.loads(response.data)
+        assert body["data"] == []
+
+    def test_list_modem_firmware_success(self, authed_client, mock_db):
+        """GET returns list of modem firmware records."""
+        mock_db.board.find_first.return_value = _board()
+        mock_db.boardrevision.find_first.return_value = _revision()
+        mock_db.modemfirmware.find_many.return_value = [
+            make_obj(
+                id="mfw-1", boardRevisionId="rev-1", version="1.0.0",
+                filename="modem.zip", storageKey="firmware/modem/rev-1/1.0/modem.zip",
+                sizeBytes=100, checksum="abc", notes=None, createdById=None,
+                createdAt=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            ),
+        ]
+
+        response = authed_client.get(
+            "/v2/products/prod-1/boards/board-1/revisions/rev-1/modem-firmware"
+        )
+
+        assert response.status_code == 200
+        body = json.loads(response.data)
+        assert len(body["data"]) == 1
+        assert body["data"][0]["version"] == "1.0.0"
 
     def test_delete_modem_firmware_success(self, authed_client, mock_db):
-        """DELETE removes modem firmware key from board revision."""
+        """DELETE removes a specific modem firmware record."""
         mock_db.board.find_first.return_value = _board()
-        mock_db.boardrevision.find_first.return_value = _revision(
-            modemStorageKey="firmware/modem/rev-1/1.0/modem.zip",
-            modemVersion="1.0",
+        mock_db.boardrevision.find_first.return_value = _revision()
+        mock_db.modemfirmware.find_first.return_value = make_obj(
+            id="mfw-1", boardRevisionId="rev-1", version="1.0.0",
+            filename="modem.zip", storageKey="firmware/modem/rev-1/1.0/modem.zip",
+            sizeBytes=100, checksum="abc", notes=None, createdById=None,
+            createdAt=datetime(2026, 1, 1, tzinfo=timezone.utc),
         )
+        mock_db.assetset.count.return_value = 0
 
         with patch("api.v2.products.board_revisions.log_audit"):
             response = authed_client.delete(
-                "/v2/products/prod-1/boards/board-1/revisions/rev-1/modem-firmware"
+                "/v2/products/prod-1/boards/board-1/revisions/rev-1/modem-firmware/mfw-1"
             )
 
         assert response.status_code == 200
         body = json.loads(response.data)
         assert body["data"]["deleted"] is True
-        mock_db.boardrevision.update.assert_called_once()
 
-    def test_delete_modem_firmware_none_configured_returns_404(self, authed_client, mock_db):
-        """DELETE returns 404 when no modem firmware is configured."""
+    def test_delete_modem_firmware_not_found_returns_404(self, authed_client, mock_db):
+        """DELETE returns 404 when firmware record does not exist."""
         mock_db.board.find_first.return_value = _board()
-        mock_db.boardrevision.find_first.return_value = _revision(modemStorageKey=None)
+        mock_db.boardrevision.find_first.return_value = _revision()
+        mock_db.modemfirmware.find_first.return_value = None
 
         response = authed_client.delete(
-            "/v2/products/prod-1/boards/board-1/revisions/rev-1/modem-firmware"
+            "/v2/products/prod-1/boards/board-1/revisions/rev-1/modem-firmware/nonexistent"
         )
 
         assert response.status_code == 404
