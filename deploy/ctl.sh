@@ -619,7 +619,12 @@ cmd_dev_update() {
 
 cmd_dev_stop() {
   log "${BOLD}Stopping development platform${NC}"
-  $COMPOSE down 2>&1 | grep -v "^$"
+  if [[ "${CI:-false}" == "true" ]]; then
+    # In CI: remove volumes too — clean slate, no leaks
+    $COMPOSE down -v --remove-orphans 2>&1 | grep -v "^$"
+  else
+    $COMPOSE down 2>&1 | grep -v "^$"
+  fi
   log "Platform stopped."
 }
 
