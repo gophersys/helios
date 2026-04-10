@@ -52,8 +52,16 @@ def test_full_recipe_lifecycle(api):
     }, timeout=10)
     assert save.status_code in (200, 201)
 
-    # Publish it
-    pub = session.post(f"{base}/v2/products/{pid}/recipe/publish", timeout=10)
+    # Publish it (requires stage number)
+    # Get the first board revision for this product
+    detail = session.get(f"{base}/v2/products/{pid}", timeout=10).json()["data"]
+    revisions = detail.get("boardRevisions", [])
+    board_rev_id = revisions[0]["id"] if revisions else None
+
+    pub = session.post(f"{base}/v2/products/{pid}/recipe/publish", json={
+        "stage": 1,
+        "boardRevisionId": board_rev_id,
+    }, timeout=10)
     assert pub.status_code == 200, f"Publish failed: {pub.status_code} {pub.text[:300]}"
 
     # Fetch the current recipe

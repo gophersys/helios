@@ -105,6 +105,13 @@ trap cleanup EXIT
 log "Running devcontainer start..."
 bash .devcontainer/ctl.sh start
 
+# Export SSH key for docker-compose services (git-poller needs it as base64 env var)
+if [[ -f /root/.ssh/id_rsa ]]; then
+  export BITBUCKET_SSH_KEY
+  BITBUCKET_SSH_KEY=$(base64 -w0 /root/.ssh/id_rsa)
+  log "SSH key exported for docker-compose services"
+fi
+
 # ── Step 2: Start development platform ─────────────────────────
 log "Starting platform..."
 npx nx start platform --output-style=stream --verbose
