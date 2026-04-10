@@ -35,12 +35,15 @@
     fileCount: number;
     parsedVersion: string | null;
     versionSource: string | null;
+    modemLabelsRequired: string[];
+    availableModemFirmwares: { id: string; version: string; filename: string; sizeBytes: number }[];
   } | null>(null);
   let uploading = $state(false);
   let uploadError = $state<string | null>(null);
   let uploadSuccess = $state(false);
   let uploadNotes = $state('');
   let uploadVersion = $state('');
+  let selectedModemFirmwareId = $state<string | null>(null);
 
   // ── Derived ────────────────────────────────────────────────
   const validationConfigs = $derived(
@@ -53,6 +56,16 @@
 
   const selectedConfig = $derived(
     stageConfigs.find(c => c.id === selectedConfigId) ?? null
+  );
+
+  const needsModemFirmware = $derived(
+    (validationResult?.modemLabelsRequired?.length ?? 0) > 0
+  );
+  const hasModemFirmwareOptions = $derived(
+    (validationResult?.availableModemFirmwares?.length ?? 0) > 0
+  );
+  const modemReady = $derived(
+    !needsModemFirmware || !!selectedModemFirmwareId
   );
 
   const stepIndex = $derived(
@@ -133,6 +146,9 @@
       if (uploadNotes.trim()) {
         formData.append('notes', uploadNotes.trim());
       }
+      if (selectedModemFirmwareId) {
+        formData.append('modemFirmwareId', selectedModemFirmwareId);
+      }
 
       await apiUpload(`/v2/products/${productId}/asset-sets/upload-zip`, formData);
       uploadSuccess = true;
@@ -151,6 +167,7 @@
       validationResult = null;
       uploadVersion = '';
       uploadNotes = '';
+      selectedModemFirmwareId = null;
       currentStep = 'stage';
     }
   }
@@ -470,8 +487,34 @@
                 ></textarea>
               </div>
 
-              <!-- Upload button (only when valid + version filled) -->
-              {#if validationResult.valid && uploadVersion.trim()}
+              <!-- Modem firmware selection -->
+              {#if needsModemFirmware}
+                <div>
+                  <label for="modem-firmware-select" class="block text-2xs font-medium text-text-secondary mb-1">
+                    Modem Firmware
+                  </label>
+                  {#if hasModemFirmwareOptions}
+                    <select
+                      id="modem-firmware-select"
+                      bind:value={selectedModemFirmwareId}
+                      class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+                    >
+                      <option value={null}>Select modem firmware...</option>
+                      {#each validationResult.availableModemFirmwares as fw}
+                        <option value={fw.id}>v{fw.version} -- {fw.filename}</option>
+                      {/each}
+                    </select>
+                  {:else}
+                    <div class="rounded-lg bg-warning-muted px-3 py-2">
+                      <p class="text-2xs text-warning">No modem firmware uploaded for this revision.</p>
+                      <p class="text-2xs text-warning/70 mt-0.5">Upload modem firmware in the Assets tab first.</p>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+
+              <!-- Upload button (only when valid + version filled + modem selected if needed) -->
+              {#if validationResult.valid && uploadVersion.trim() && modemReady}
                 <button
                   onclick={handleUpload}
                   disabled={uploading}

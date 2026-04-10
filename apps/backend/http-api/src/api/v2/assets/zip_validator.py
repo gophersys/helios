@@ -41,16 +41,19 @@ class ZipValidationResult:
 def validate_zip(
     zip_file: IO[bytes],
     build_matrix_entries: list,
+    skip_labels: set[str] | None = None,
 ) -> ZipValidationResult:
     """Validate a zip file's contents against a stage's build matrix.
 
     Args:
         zip_file: File-like object containing the zip.
         build_matrix_entries: List of StageBuildMatrix records from the DB.
+        skip_labels: Labels to exclude from the required check (e.g., modem labels).
 
     Returns:
         ZipValidationResult with valid flag, errors, and warnings.
     """
+    skip_labels = skip_labels or set()
     result = ZipValidationResult(valid=True)
 
     try:
@@ -67,8 +70,8 @@ def validate_zip(
             result.errors.append(f"Unsafe path in zip: {name}")
             return result
 
-    # Build expected labels from matrix
-    required_labels = {entry.label for entry in build_matrix_entries}
+    # Build expected labels from matrix (excluding skipped labels)
+    required_labels = {entry.label for entry in build_matrix_entries if entry.label not in skip_labels}
 
     # Scan zip for top-level directories (= labels)
     # Normalize backslashes (Windows zips) to forward slashes

@@ -1,8 +1,9 @@
+import hashlib
 import logging
 from io import BytesIO
 from typing import Any, Dict
 
-from flask import Response, jsonify, request
+from flask import Response, g, jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
@@ -45,6 +46,8 @@ def _serialize_revision(r) -> dict:
         result["targets"] = [_serialize_target(t) for t in r.targets]
     else:
         result["targets"] = []
+    if hasattr(r, "modemFirmwares") and r.modemFirmwares is not None:
+        result["modemFirmwares"] = [_serialize_modem_firmware(fw) for fw in r.modemFirmwares]
     return result
 
 
@@ -356,11 +359,50 @@ def _validate_revision_access(db, product_id: str, board_id: str, revision_id: s
     return revision, None
 
 
+def _serialize_modem_firmware(fw) -> dict:
+    """Serialize a ModemFirmware record to an API response dict."""
+    return {
+        "id": fw.id,
+        "boardRevisionId": fw.boardRevisionId,
+        "version": fw.version,
+        "filename": fw.filename,
+        "storageKey": fw.storageKey,
+        "sizeBytes": fw.sizeBytes,
+        "checksum": fw.checksum,
+        "notes": fw.notes,
+        "createdById": fw.createdById,
+        "createdAt": fw.createdAt.isoformat() if fw.createdAt else None,
+    }
+
+
+@require_permissions(Permissions.PRODUCTS_VIEW)
+def list_modem_firmwares(product_id: str, board_id: str, revision_id: str):
+    """GET /v2/products/<pid>/boards/<bid>/revisions/<rid>/modem-firmware
+
+    List all modem firmware versions for a board revision, newest first.
+    """
+    db = get_db_client()
+    revision, err = _validate_revision_access(db, product_id, board_id, revision_id)
+    if err:
+        return err
+
+    firmwares = db.modemfirmware.find_many(
+        where={"boardRevisionId": revision_id},
+        order={"createdAt": "desc"},
+    )
+
+    return jsonify(ApiResponse.ok(
+        [_serialize_modem_firmware(fw) for fw in firmwares]
+    ).to_dict()), 200
+
+
 @require_permissions(Permissions.PRODUCTS_MANAGE)
 def upload_modem_firmware(product_id: str, board_id: str, revision_id: str):
     """POST /v2/products/<pid>/boards/<bid>/revisions/<rid>/modem-firmware
 
-    Upload modem firmware for a board revision. Accepts multipart file + version field.
+    Upload modem firmware for a board revision. Creates a new ModemFirmware
+    record -- does not overwrite existing versions.
+    Accepts multipart file + version field.
     """
     db = get_db_client()
     revision, err = _validate_revision_access(db, product_id, board_id, revision_id)
@@ -378,10 +420,21 @@ def upload_modem_firmware(product_id: str, board_id: str, revision_id: str):
     if not version:
         return bad_request("Modem firmware version is required (form field 'version')")
 
+    notes = request.form.get("notes", "").strip() or None
+
+    # Check uniqueness
+    existing = db.modemfirmware.find_first(
+        where={"boardRevisionId": revision_id, "version": version}
+    )
+    if existing:
+        return conflict(f"Modem firmware version '{version}' already exists for this revision")
+
     try:
         content = file.read()
         if len(content) == 0:
             return bad_request("Uploaded file is empty")
+
+        checksum = hashlib.sha256(content).hexdigest()
 
         # Store in MinIO
         key = storage_key("firmware/modem", f"{revision_id}/{version}/{file.filename}")
@@ -396,15 +449,23 @@ def upload_modem_firmware(product_id: str, board_id: str, revision_id: str):
             content_type="application/octet-stream",
         )
 
-        # Remove old modem firmware if replacing
-        old_key = getattr(revision, "modemStorageKey", None)
-        if old_key and old_key != key:
-            try:
-                client.remove_object(bucket, old_key)
-            except Exception:
-                pass
+        # Create ModemFirmware record
+        user_id = g.current_user.get("sub") if hasattr(g, "current_user") and g.current_user else None
+        create_data: Dict[str, Any] = {
+            "boardRevisionId": revision_id,
+            "version": version,
+            "filename": file.filename,
+            "storageKey": key,
+            "sizeBytes": len(content),
+            "checksum": checksum,
+            "notes": notes,
+        }
+        if user_id:
+            create_data["createdById"] = user_id
 
-        # Update board revision
+        fw = db.modemfirmware.create(data=create_data)
+
+        # Update BoardRevision legacy fields for backward compat
         db.boardrevision.update(
             where={"id": revision_id},
             data={
@@ -413,97 +474,68 @@ def upload_modem_firmware(product_id: str, board_id: str, revision_id: str):
             },
         )
 
-        log_audit("boardRevision.uploadModemFirmware", "BoardRevision", revision_id, {
-            "version": version, "filename": file.filename, "sizeBytes": len(content),
+        log_audit("modemFirmware.upload", "ModemFirmware", fw.id, {
+            "revisionId": revision_id, "version": version,
+            "filename": file.filename, "sizeBytes": len(content),
         })
 
-        return jsonify(ApiResponse.ok({
-            "modemVersion": version,
-            "filename": file.filename,
-            "sizeBytes": len(content),
-        }).to_dict()), 200
+        return jsonify(ApiResponse.ok(_serialize_modem_firmware(fw)).to_dict()), 201
 
     except Exception as e:
         logger.error("Failed to upload modem firmware for revision %s: %s", revision_id, e)
         return internal_error("Failed to upload modem firmware")
 
 
-@require_permissions(Permissions.PRODUCTS_VIEW)
-def download_modem_firmware(product_id: str, board_id: str, revision_id: str):
-    """GET /v2/products/<pid>/boards/<bid>/revisions/<rid>/modem-firmware
+@require_permissions(Permissions.PRODUCTS_MANAGE)
+def delete_modem_firmware(product_id: str, board_id: str, revision_id: str, fw_id: str):
+    """DELETE /v2/products/<pid>/boards/<bid>/revisions/<rid>/modem-firmware/<fwId>
 
-    Download the modem firmware file for a board revision.
+    Delete a specific modem firmware version. Blocks if referenced by any AssetSet.
     """
     db = get_db_client()
     revision, err = _validate_revision_access(db, product_id, board_id, revision_id)
     if err:
         return err
 
-    modem_key = getattr(revision, "modemStorageKey", None)
-    if not modem_key:
-        return not_found("No modem firmware configured for this board revision")
+    fw = db.modemfirmware.find_first(
+        where={"id": fw_id, "boardRevisionId": revision_id},
+    )
+    if not fw:
+        return not_found("Modem firmware not found")
 
-    try:
-        client = get_storage_client()
-        bucket = get_bucket_name()
-        response = client.get_object(bucket, modem_key)
-        content = response.read()
-        response.close()
-        response.release_conn()
-
-        filename = modem_key.rsplit("/", 1)[-1] if "/" in modem_key else "modem_firmware.zip"
-
-        return Response(
-            content,
-            mimetype="application/octet-stream",
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
-                "Content-Length": str(len(content)),
-            },
+    # Block deletion if referenced by any asset set
+    referencing = db.assetset.count(where={"modemFirmwareId": fw_id})
+    if referencing > 0:
+        return conflict(
+            f"Cannot delete modem firmware v{fw.version}: referenced by {referencing} asset set(s)"
         )
 
-    except Exception as e:
-        logger.error("Failed to download modem firmware for revision %s: %s", revision_id, e)
-        return internal_error("Failed to download modem firmware")
-
-
-@require_permissions(Permissions.PRODUCTS_MANAGE)
-def delete_modem_firmware(product_id: str, board_id: str, revision_id: str):
-    """DELETE /v2/products/<pid>/boards/<bid>/revisions/<rid>/modem-firmware
-
-    Remove modem firmware from a board revision.
-    """
-    db = get_db_client()
-    revision, err = _validate_revision_access(db, product_id, board_id, revision_id)
-    if err:
-        return err
-
-    modem_key = getattr(revision, "modemStorageKey", None)
-    if not modem_key:
-        return not_found("No modem firmware configured for this board revision")
-
+    # Remove from MinIO
     try:
         client = get_storage_client()
         bucket = get_bucket_name()
-        try:
-            client.remove_object(bucket, modem_key)
-        except Exception:
-            pass
+        client.remove_object(bucket, fw.storageKey)
+    except Exception:
+        pass
 
+    db.modemfirmware.delete(where={"id": fw_id})
+
+    # If this was the latest, update legacy fields to next most recent or clear
+    if getattr(revision, "modemStorageKey", None) == fw.storageKey:
+        next_fw = db.modemfirmware.find_first(
+            where={"boardRevisionId": revision_id},
+            order={"createdAt": "desc"},
+        )
         db.boardrevision.update(
             where={"id": revision_id},
             data={
-                "modemVersion": None,
-                "modemStorageKey": None,
+                "modemVersion": next_fw.version if next_fw else None,
+                "modemStorageKey": next_fw.storageKey if next_fw else None,
             },
         )
 
-        log_audit("boardRevision.deleteModemFirmware", "BoardRevision", revision_id, {
-            "previousVersion": getattr(revision, "modemVersion", None),
-        })
+    log_audit("modemFirmware.delete", "ModemFirmware", fw_id, {
+        "revisionId": revision_id, "version": fw.version,
+    })
 
-        return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
-
-    except Exception as e:
-        logger.error("Failed to delete modem firmware for revision %s: %s", revision_id, e)
-        return internal_error("Failed to delete modem firmware")
+    return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200

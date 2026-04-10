@@ -61,7 +61,7 @@ from .products.board_revisions import (
     delete_board_revision,
     delete_modem_firmware,
     delete_target,
-    download_modem_firmware,
+    list_modem_firmwares,
     update_board_revision,
     update_target,
     upload_modem_firmware,
@@ -375,9 +375,9 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>",            view_func=delete_board_revision,  methods=["DELETE"])
 
     # Products - Revision Modem Firmware
-    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/modem-firmware",  view_func=upload_modem_firmware,    methods=["POST"])
-    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/modem-firmware",  view_func=download_modem_firmware,  methods=["GET"])
-    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/modem-firmware",  view_func=delete_modem_firmware,    methods=["DELETE"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/modem-firmware",          view_func=list_modem_firmwares,   methods=["GET"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/modem-firmware",          view_func=upload_modem_firmware,  methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/modem-firmware/<fw_id>",  view_func=delete_modem_firmware,  methods=["DELETE"])
 
     # Products - Revision Targets
     v2.add_url_rule("/products/<product_id>/boards/<board_id>/revisions/<revision_id>/targets",              view_func=create_target,  methods=["POST"])

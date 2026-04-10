@@ -10,7 +10,7 @@
   import AssetUploadWizard from '$lib/components/products/asset-upload-wizard.svelte';
   import { api, apiFetch, apiUpload, apiDownload } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
-  import type { BoardRevision, AssetSet, AssetFile } from '$lib/types/models';
+  import type { BoardRevision, AssetSet, AssetFile, ModemFirmware } from '$lib/types/models';
   import type { ProductStageConfig, StageType } from '$lib/types/stages';
   import { stageName } from '$lib/types/stages';
 
@@ -38,13 +38,16 @@
   // Upload wizard state
   let showUploadWizard = $state(false);
 
-  // Modem upload state
+  // Modem firmware state
+  let modemFirmwares = $state<ModemFirmware[]>([]);
   let modemVersion = $state('');
   let modemUploading = $state(false);
   let showModemUpload = $state(false);
+  let modemLoading = $state(false);
 
   // Delete state
   let deleteTarget = $state<{ id: string; name: string } | null>(null);
+  let modemDeleteTarget = $state<{ id: string; version: string } | null>(null);
 
   // Stage configs for this revision
   const revConfigs = $derived(
@@ -182,6 +185,20 @@
     }
   }
 
+  async function loadModemFirmwares() {
+    modemLoading = true;
+    try {
+      const res = await apiFetch<ApiResponse<ModemFirmware[]>>(
+        `/v2/products/${productId}/boards/${revision.boardId}/revisions/${revision.id}/modem-firmware`
+      );
+      modemFirmwares = Array.isArray(res.data) ? res.data : [];
+    } catch {
+      modemFirmwares = [];
+    } finally {
+      modemLoading = false;
+    }
+  }
+
   async function handleModemUpload(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -199,12 +216,27 @@
         formData
       );
       modemVersion = '';
+      showModemUpload = false;
+      await loadModemFirmwares();
       onRefresh?.();
     } catch (e) {
       error = e instanceof Error ? e.message : 'Modem upload failed';
     } finally {
       modemUploading = false;
       input.value = '';
+    }
+  }
+
+  async function handleDeleteModemFirmware(fwId: string) {
+    error = null;
+    try {
+      await api.delete(
+        `/v2/products/${productId}/boards/${revision.boardId}/revisions/${revision.id}/modem-firmware/${fwId}`
+      );
+      await loadModemFirmwares();
+      onRefresh?.();
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to delete modem firmware';
     }
   }
 
@@ -234,7 +266,7 @@
     }
   }
 
-  onMount(() => { loadAssets(); });
+  onMount(() => { loadAssets(); loadModemFirmwares(); });
 </script>
 
 <div class="space-y-6">
@@ -243,49 +275,66 @@
     <div class="flex items-center gap-3 px-4 py-3 bg-surface-0/50">
       <Radio size={16} class="text-text-tertiary" />
       <span class="text-sm font-semibold text-text-primary">Modem Firmware</span>
-      {#if revision.modemVersion}
-        <span class="text-2xs text-text-tertiary">v{revision.modemVersion}</span>
-        <StatusBadge status="ACTIVE" />
+      <span class="text-2xs text-text-tertiary">{modemFirmwares.length} version{modemFirmwares.length === 1 ? '' : 's'}</span>
+      {#if canManage}
+        <div class="ml-auto">
+          {#if showModemUpload}
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                bind:value={modemVersion}
+                placeholder="Version (e.g. 2.0.2)"
+                class="w-36 rounded border border-border bg-surface-0 px-2 py-1 text-2xs text-text-primary"
+              />
+              <label class="flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-2xs font-medium text-white hover:bg-accent-hover cursor-pointer transition-colors {!modemVersion.trim() ? 'opacity-50 pointer-events-none' : ''}">
+                {#if modemUploading}<Loader2 size={12} class="animate-spin" />{:else}<Upload size={12} />{/if}
+                Select .zip
+                <input type="file" accept=".zip" class="hidden" onchange={handleModemUpload} disabled={modemUploading || !modemVersion.trim()} />
+              </label>
+              <button onclick={() => { showModemUpload = false; modemVersion = ''; }} class="text-2xs text-text-tertiary hover:text-text-secondary">Cancel</button>
+            </div>
+          {:else}
+            <button
+              onclick={() => showModemUpload = true}
+              class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-2.5 py-1 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors"
+            >
+              <Upload size={12} /> Add version
+            </button>
+          {/if}
+        </div>
       {/if}
     </div>
-    <div class="px-4 py-3 border-t border-border-subtle">
-      <div class="flex items-center gap-3">
-        {#if revision.hasModemFirmware && revision.modemVersion}
-          <Cpu size={14} class="text-text-tertiary" />
-          <span class="text-sm text-text-primary">v{revision.modemVersion}</span>
-        {:else}
-          <span class="text-2xs text-text-tertiary">No modem firmware uploaded</span>
-        {/if}
-
-        {#if canManage}
-          <div class="ml-auto">
-            {#if showModemUpload}
-              <div class="flex items-center gap-2">
-                <input
-                  type="text"
-                  bind:value={modemVersion}
-                  placeholder="Version (e.g. 2.0.2)"
-                  class="w-36 rounded border border-border bg-surface-0 px-2 py-1 text-2xs text-text-primary"
-                />
-                <label class="flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-2xs font-medium text-white hover:bg-accent-hover cursor-pointer transition-colors {!modemVersion.trim() ? 'opacity-50 pointer-events-none' : ''}">
-                  {#if modemUploading}<Loader2 size={12} class="animate-spin" />{:else}<Upload size={12} />{/if}
-                  Select .zip
-                  <input type="file" accept=".zip" class="hidden" onchange={handleModemUpload} disabled={modemUploading || !modemVersion.trim()} />
-                </label>
-                <button onclick={() => { showModemUpload = false; modemVersion = ''; }} class="text-2xs text-text-tertiary hover:text-text-secondary">Cancel</button>
-              </div>
-            {:else}
+    {#if modemLoading}
+      <div class="flex items-center gap-2 justify-center py-4 text-2xs text-text-tertiary border-t border-border-subtle">
+        <Loader2 size={12} class="animate-spin" /> Loading...
+      </div>
+    {:else if modemFirmwares.length > 0}
+      <div class="divide-y divide-border-subtle">
+        {#each modemFirmwares as fw}
+          <div class="flex items-center gap-3 px-4 py-2.5">
+            <Cpu size={14} class="text-text-tertiary shrink-0" />
+            <span class="font-mono text-2xs font-semibold text-text-primary">v{fw.version}</span>
+            <span class="text-2xs text-text-tertiary truncate max-w-[180px]" title={fw.filename}>{fw.filename}</span>
+            <span class="text-2xs text-text-tertiary">{formatSize(fw.sizeBytes)}</span>
+            <div class="flex-1"></div>
+            <TimeDisplay datetime={fw.createdAt} />
+            {#if canManage}
               <button
-                onclick={() => showModemUpload = true}
-                class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-2.5 py-1 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors"
+                onclick={() => modemDeleteTarget = { id: fw.id, version: fw.version }}
+                class="flex items-center justify-center rounded-lg p-1.5 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
+                title="Delete v{fw.version}"
               >
-                <Upload size={12} /> {revision.hasModemFirmware ? 'Replace' : 'Upload'}
+                <Trash2 size={12} />
               </button>
             {/if}
           </div>
-        {/if}
+        {/each}
       </div>
-    </div>
+    {:else}
+      <div class="px-4 py-3 border-t border-border-subtle">
+        <span class="text-2xs text-text-tertiary">No modem firmware uploaded</span>
+      </div>
+    {/if}
   </div>
 
   <!-- Filter bar and upload controls -->
@@ -627,4 +676,12 @@
   entityName={deleteTarget?.name || ''}
   onConfirm={() => { handleDeleteAssetSet(deleteTarget!.id); deleteTarget = null; }}
   onCancel={() => (deleteTarget = null)}
+/>
+
+<ConfirmDeleteDialog
+  open={!!modemDeleteTarget}
+  entityType="modem firmware"
+  entityName={modemDeleteTarget ? `v${modemDeleteTarget.version}` : ''}
+  onConfirm={() => { handleDeleteModemFirmware(modemDeleteTarget!.id); modemDeleteTarget = null; }}
+  onCancel={() => (modemDeleteTarget = null)}
 />

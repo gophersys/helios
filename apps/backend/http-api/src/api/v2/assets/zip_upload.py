@@ -115,7 +115,13 @@ def validate_asset_zip(product_id: str):
             "Stage has no build matrix entries. Configure the build matrix before uploading assets."
         )
 
-    validation = validate_zip(zip_bytes, matrix_entries)
+    # Identify modem labels (fwType == "modem") -- these are handled separately
+    modem_labels = {
+        entry.label for entry in matrix_entries
+        if getattr(entry, "fwType", None) == "modem"
+    }
+
+    validation = validate_zip(zip_bytes, matrix_entries, skip_labels=modem_labels)
 
     # Attempt version parsing
     parsed_version = None
@@ -127,6 +133,24 @@ def validate_asset_zip(product_id: str):
     except zipfile.BadZipFile:
         pass
 
+    # Fetch available modem firmwares if modem labels are required
+    available_modem_firmwares = []
+    modem_labels_required = sorted(modem_labels) if modem_labels else []
+    if modem_labels and stage_config.boardRevisionId:
+        modem_fws = db.modemfirmware.find_many(
+            where={"boardRevisionId": stage_config.boardRevisionId},
+            order={"createdAt": "desc"},
+        )
+        available_modem_firmwares = [
+            {
+                "id": fw.id,
+                "version": fw.version,
+                "filename": fw.filename,
+                "sizeBytes": fw.sizeBytes,
+            }
+            for fw in modem_fws
+        ]
+
     return jsonify(ApiResponse.ok({
         "valid": validation.valid,
         "errors": validation.errors,
@@ -135,6 +159,8 @@ def validate_asset_zip(product_id: str):
         "fileCount": validation.file_count,
         "parsedVersion": parsed_version,
         "versionSource": version_source,
+        "modemLabelsRequired": modem_labels_required,
+        "availableModemFirmwares": available_modem_firmwares,
     }).to_dict()), 200
 
 
@@ -168,6 +194,7 @@ def upload_asset_set_zip(product_id: str):
     commit_sha = (request.form.get("commitSha") or "").strip() or None
     branch = (request.form.get("branch") or "").strip() or None
     notes = (request.form.get("notes") or "").strip() or None
+    modem_firmware_id = (request.form.get("modemFirmwareId") or "").strip() or None
 
     # Validate stage config exists and belongs to this product
     stage_config = db.productstageconfig.find_unique(
@@ -196,11 +223,24 @@ def upload_asset_set_zip(product_id: str):
             "Stage has no build matrix entries. Configure the build matrix before uploading assets."
         )
 
-    validation = validate_zip(zip_bytes, matrix_entries)
+    # Skip modem labels from zip validation -- modem firmware is attached separately
+    modem_labels = {
+        entry.label for entry in matrix_entries
+        if getattr(entry, "fwType", None) == "modem"
+    }
+
+    validation = validate_zip(zip_bytes, matrix_entries, skip_labels=modem_labels)
     if not validation.valid:
         return bad_request(
             f"Zip validation failed: {'; '.join(validation.errors)}"
         )
+
+    # Validate modem firmware reference if provided
+    modem_fw = None
+    if modem_firmware_id:
+        modem_fw = db.modemfirmware.find_first(where={"id": modem_firmware_id})
+        if not modem_fw:
+            return bad_request("Selected modem firmware not found")
 
     # Auto-extract version from build.json manifest if not provided
     if not version or version == "auto":
@@ -244,6 +284,8 @@ def upload_asset_set_zip(product_id: str):
         create_data["notes"] = notes
     if user_id:
         create_data["createdBy"] = {"connect": {"id": user_id}}
+    if modem_firmware_id:
+        create_data["modemFirmware"] = {"connect": {"id": modem_firmware_id}}
 
     asset_set = db.assetset.create(data=create_data)
 
@@ -307,6 +349,24 @@ def upload_asset_set_zip(product_id: str):
         assets_created.append(asset)
 
     zf.close()
+
+    # Create a virtual Asset record for the modem firmware if selected
+    if modem_fw and modem_labels:
+        modem_label = sorted(modem_labels)[0]
+        asset = db.asset.create(
+            data={
+                "assetSetId": asset_set.id,
+                "label": modem_label,
+                "role": "modem",
+                "processor": None,
+                "artifactType": "other",
+                "storageKey": modem_fw.storageKey,
+                "filename": modem_fw.filename,
+                "sizeBytes": modem_fw.sizeBytes,
+                "checksum": modem_fw.checksum or "",
+            }
+        )
+        assets_created.append(asset)
 
     # Mark complete
     asset_set = db.assetset.update(

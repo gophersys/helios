@@ -43,6 +43,19 @@ export interface AvailablePermission {
 
 // ── Catalog types ────────────────────────────────────────────
 
+export interface ModemFirmware {
+  id: string;
+  boardRevisionId: string;
+  version: string;
+  filename: string;
+  storageKey: string;
+  sizeBytes: number;
+  checksum: string | null;
+  notes: string | null;
+  createdById: string | null;
+  createdAt: string;
+}
+
 export interface BoardRevision {
   id: string;
   boardId: string;
@@ -56,6 +69,7 @@ export interface BoardRevision {
   status: string;
   notes: string | null;
   targets?: ProductTarget[];
+  modemFirmwares?: ModemFirmware[];
   createdAt: string;
   updatedAt: string;
 }
