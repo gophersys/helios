@@ -10,4 +10,4 @@ data:
   REPO_URL: "git@bitbucket.org:corekinect/concord.git"
   BRANCH: "main"
   MINIO_ENDPOINT: "http://concord-minio.staging.svc:9000"
-  MINIO_BUCKET: "ci"
+  MINIO_BUCKET: "devops"
