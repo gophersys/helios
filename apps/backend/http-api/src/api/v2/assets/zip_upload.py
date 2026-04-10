@@ -149,7 +149,9 @@ def upload_asset_set_zip(product_id: str):
         if zip_entry.is_dir():
             continue
 
-        parts = zip_entry.filename.split("/")
+        # Normalize backslashes (Windows zips) to forward slashes
+        normalized_name = zip_entry.filename.replace("\\", "/")
+        parts = normalized_name.split("/")
         if len(parts) < 2:
             continue
 
