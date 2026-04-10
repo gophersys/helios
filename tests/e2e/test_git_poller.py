@@ -27,7 +27,7 @@ def test_poller_attempts_repo_load(platform):
             return
         time.sleep(5)
     pytest.fail(
-        f"Git poller did not attempt repo discovery within 60s.\n"
+        f"Git poller did not attempt repo discovery within 90s.\n"
         f"stdout: {result.stdout[-500:]}\nstderr: {result.stderr[-500:]}"
     )
 

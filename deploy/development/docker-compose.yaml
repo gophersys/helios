@@ -100,6 +100,7 @@ services:
       SERVICE_PORT: "9003"
       ENVIRONMENT: development
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY:-}
+      SSH_KEY_PATH: /tmp/.ssh/id_rsa
       BITBUCKET_WORKSPACE: corekinect
       BITBUCKET_API_TOKEN: ${BITBUCKET_API_TOKEN:-}
       BITBUCKET_EMAIL: ${BITBUCKET_EMAIL:-mateo@corekinect.com}
