@@ -1,11 +1,22 @@
 """E2E: Git poller service discovers repos from the API."""
 
+import os
 import subprocess
 import time
 
 import pytest
 
-from tests.e2e.conftest import COMPOSE_FILE
+WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DEV_COMPOSE = os.path.join(WORKSPACE_ROOT, "deploy", "development", "docker-compose.yaml")
+TEST_COMPOSE = os.path.join(WORKSPACE_ROOT, "deploy", "development", "docker-compose.test.yaml")
+
+
+def _compose_cmd(platform):
+    """Return the docker compose base command for the active stack."""
+    cf = platform.get("compose_file")
+    if cf:
+        return ["docker", "compose", "-f", cf, "-p", "concord-test"]
+    return ["docker", "compose", "-f", DEV_COMPOSE, "-p", "development"]
 
 
 def test_poller_attempts_repo_load(platform):
@@ -14,15 +25,16 @@ def test_poller_attempts_repo_load(platform):
     It may find 0 repos (no SSH key in CI) or 1+ repos -- either way,
     the log line proves it connected to the API and ran its fetch loop.
     """
+    base = _compose_cmd(platform)
+    service = "git-poller" if not platform.get("compose_file") else "test-poller"
+
     deadline = time.time() + 60
     while time.time() < deadline:
         result = subprocess.run(
-            ["docker", "compose", "-f", COMPOSE_FILE, "-p", "concord-test",
-             "logs", "test-poller"],
+            [*base, "logs", service],
             capture_output=True, text=True, timeout=30,
         )
         combined = result.stdout + result.stderr
-        # The poller logs either "Loaded N repos from API" or "No repos loaded"
         if "Loaded" in combined or "No repos" in combined or "repos from API" in combined:
             return
         time.sleep(5)
@@ -31,9 +43,11 @@ def test_poller_attempts_repo_load(platform):
 
 def test_poller_health_endpoint(platform):
     """Git poller exposes a /health endpoint inside its container."""
+    base = _compose_cmd(platform)
+    service = "git-poller" if not platform.get("compose_file") else "test-poller"
+
     result = subprocess.run(
-        ["docker", "compose", "-f", COMPOSE_FILE, "-p", "concord-test",
-         "exec", "-T", "test-poller",
+        [*base, "exec", "-T", service,
          "python3", "-c",
          "import urllib.request; r = urllib.request.urlopen('http://localhost:9003/health'); print(r.read().decode())"],
         capture_output=True, text=True, timeout=30,
@@ -41,5 +55,4 @@ def test_poller_health_endpoint(platform):
     if result.returncode == 0:
         assert "healthy" in result.stdout
     else:
-        # Container might not have started yet or exec failed -- skip gracefully
-        pytest.skip(f"Could not exec into test-poller: {result.stderr[:200]}")
+        pytest.skip(f"Could not exec into {service}: {result.stderr[:200]}")
