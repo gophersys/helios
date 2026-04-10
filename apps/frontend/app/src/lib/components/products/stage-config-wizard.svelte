@@ -608,14 +608,27 @@
     return l.includes('west build') || l.includes('ninja') || l.includes('Compiling') || l.includes('Linking') || l.includes('Memory region') ? 'build' : 'normal';
   }
 
-  /** Format ANSI escape codes to HTML spans */
+  /** Escape HTML special characters to prevent XSS. */
+  function escapeHtml(str: string): string {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  /** Format ANSI escape codes to HTML spans (HTML-escapes text first). */
   function ansiToHtml(line: string): string {
-    return line
-      .replace(/\x1b\[36m/g, '<span style="color:#89dceb">')
-      .replace(/\x1b\[32m/g, '<span style="color:#a6e3a1">')
-      .replace(/\x1b\[31m/g, '<span style="color:#f38ba8">')
-      .replace(/\x1b\[33m/g, '<span style="color:#f9e2af">')
-      .replace(/\x1b\[0m/g, '</span>');
+    // Strip ANSI codes, escape the text, then re-apply known color spans
+    const stripped = line.replace(/\x1b\[[0-9;]*m/g, '\x00$&\x00');
+    const parts = stripped.split('\x00');
+    let result = '';
+    for (const part of parts) {
+      if (part === '\x1b[36m') result += '<span style="color:#89dceb">';
+      else if (part === '\x1b[32m') result += '<span style="color:#a6e3a1">';
+      else if (part === '\x1b[31m') result += '<span style="color:#f38ba8">';
+      else if (part === '\x1b[33m') result += '<span style="color:#f9e2af">';
+      else if (part === '\x1b[0m') result += '</span>';
+      else if (part.startsWith('\x1b[')) continue; // skip unknown ANSI codes
+      else result += escapeHtml(part);
+    }
+    return result;
   }
 
   // Processed log lines — filters git noise, adds section headers

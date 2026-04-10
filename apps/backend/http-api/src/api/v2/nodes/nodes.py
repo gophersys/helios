@@ -395,6 +395,7 @@ def _deploy_mtib_for_node(hostname: str, node_type: str) -> str | None:
     )
 
 
+@require_permissions(Permissions.DEVICES_MANAGE)
 def register_node(node_id: str):
     """Register a discovered K8s node as an MTIB with labels and taints."""
     if not K8S_AVAILABLE:

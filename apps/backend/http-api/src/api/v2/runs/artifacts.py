@@ -107,7 +107,7 @@ def download_artifact(run_id: str, name: str):
             data,
             content_type=content_type,
             headers={
-                "Content-Disposition": f'inline; filename="{name.split("/")[-1]}"',
+                "Content-Disposition": f'attachment; filename="{name.split("/")[-1]}"',
                 "Content-Length": str(len(data)),
             },
         )

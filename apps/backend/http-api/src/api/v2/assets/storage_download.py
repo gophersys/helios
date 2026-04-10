@@ -1,6 +1,7 @@
 """Generic MinIO storage download endpoint."""
 
 import logging
+import re
 from flask import request, Response
 from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, not_found
@@ -33,7 +34,8 @@ def download_storage_file():
         response.close()
         response.release_conn()
 
-        filename = key.split("/")[-1]
+        raw_filename = key.split("/")[-1]
+        filename = re.sub(r'[^a-zA-Z0-9._-]', '_', raw_filename)
         return Response(
             data,
             mimetype="application/octet-stream",
@@ -44,4 +46,4 @@ def download_storage_file():
         )
     except Exception as e:
         logger.error("Failed to download %s: %s", key, e)
-        return not_found(f"File not found: {key}")
+        return not_found("File not found")
