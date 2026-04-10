@@ -69,9 +69,11 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         data["stageConfigs"] = [
             {
                 "id": s.id,
+                "type": getattr(s, "type", "VALIDATION"),
                 "stage": s.stage,
                 "name": s.name,
                 "enabled": s.enabled,
+                "requiresBench": getattr(s, "requiresBench", False),
                 "triggerTypes": getattr(s, "triggerTypes", []) or [],
                 "watchBranch": getattr(s, "watchBranch", None),
                 "boardRevisionId": getattr(s, "boardRevisionId", None),
@@ -82,8 +84,9 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
                     "status": getattr(s.boardRevision, "status", None),
                 } if hasattr(s, "boardRevision") and s.boardRevision else None,
                 "signingKeyId": getattr(s, "signingKeyId", None),
+                "createdById": getattr(s, "createdById", None),
             }
-            for s in sorted(stages, key=lambda x: x.stage)
+            for s in sorted(stages, key=lambda x: (getattr(x, "type", "VALIDATION"), x.stage))
         ]
         data["enabledStageCount"] = sum(1 for s in stages if s.enabled)
     # Test app status (latest test package per type)

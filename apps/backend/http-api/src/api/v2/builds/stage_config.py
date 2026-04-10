@@ -116,8 +116,13 @@ def get_stage_config(product_id: str, stage: str):
         stage_num = int(stage)
     except ValueError:
         return bad_request("Stage must be a number")
+    where: dict = {"productId": product_id, "stage": stage_num}
+    # Allow filtering by type to disambiguate validation vs manufacturing stage numbers
+    stage_type = request.args.get("type", "").upper()
+    if stage_type in ("VALIDATION", "MANUFACTURING"):
+        where["type"] = stage_type
     config = db.productstageconfig.find_first(
-        where={"productId": product_id, "stage": stage_num},
+        where=where,
         include=_INCLUDE,
     )
     if not config:
