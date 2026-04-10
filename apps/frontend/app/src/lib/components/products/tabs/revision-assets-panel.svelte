@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import {
     Package, ChevronDown, ChevronRight, Upload, Download,
-    FileCode, Loader2, Radio, Cpu, Trash2,
+    FileCode, Loader2, Radio, Cpu, Trash2, Search,
   } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TimeDisplay from '$lib/components/ui/time-display.svelte';
@@ -28,9 +28,13 @@
   let error = $state<string | null>(null);
   let expandedId = $state<string | null>(null);
 
+  // Search state
+  let searchQuery = $state('');
+
   // Upload state
   let uploadError = $state<string | null>(null);
   let uploadingConfigId = $state<string | null>(null);
+  let uploadingUngrouped = $state(false);
 
   // Modem upload state
   let modemVersion = $state('');
@@ -45,9 +49,25 @@
     stageConfigs.filter(c => c.boardRevisionId === revision.id)
   );
 
+  // Filter asset sets by search query
+  function matchesSearch(asset: AssetSet): boolean {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (asset.version?.toLowerCase().includes(q)) ||
+      (asset.variant?.toLowerCase().includes(q)) ||
+      (asset.status?.toLowerCase().includes(q)) ||
+      (asset.commitSha?.toLowerCase().includes(q)) ||
+      (asset.branch?.toLowerCase().includes(q)) ||
+      false
+    );
+  }
+
+  const filteredAssetSets = $derived(assetSets.filter(matchesSearch));
+
   // Group asset sets by stage config — includes backward compat for pre-fix build assets
   function assetsForConfig(config: ProductStageConfig): AssetSet[] {
-    return assetSets
+    return filteredAssetSets
       .filter(a =>
         a.stageConfigId === config.id ||
         // Backward compat: build-service assets without stageConfigId but matching stage number
@@ -59,7 +79,7 @@
   // Ungrouped: no stageConfigId AND not matched by backward compat
   const groupedConfigIds = $derived(new Set(revConfigs.map(c => c.id)));
   const ungroupedAssets = $derived(
-    assetSets.filter(a => {
+    filteredAssetSets.filter(a => {
       if (a.stageConfigId && groupedConfigIds.has(a.stageConfigId)) return false;
       if (a.source === 'BUILD_SERVICE' && !a.stageConfigId) {
         return !revConfigs.some(c => c.stage === a.stage);
@@ -74,6 +94,25 @@
       case 'MANUAL_UPLOAD': return 'Manual';
       case 'EXTERNAL_CI': return 'External CI';
       default: return source;
+    }
+  }
+
+  function sourceBadgeClass(source: string): string {
+    switch (source) {
+      case 'BUILD_SERVICE': return 'bg-accent-muted text-accent';
+      case 'MANUAL_UPLOAD': return 'bg-warning-muted text-warning';
+      case 'EXTERNAL_CI': return 'bg-blue-500/10 text-blue-400';
+      default: return 'bg-surface-2 text-text-secondary';
+    }
+  }
+
+  function statusBadgeClass(status: string): string {
+    switch (status) {
+      case 'PENDING': return 'bg-warning-muted text-warning';
+      case 'COMPLETE': return 'bg-success-muted text-success';
+      case 'VALIDATED': return 'bg-blue-500/10 text-blue-400';
+      case 'FAILED': return 'bg-error-muted text-error';
+      default: return 'bg-surface-2 text-text-secondary';
     }
   }
 
@@ -114,6 +153,30 @@
       uploadError = e instanceof Error ? e.message : 'Upload failed';
     } finally {
       uploadingConfigId = null;
+      input.value = '';
+    }
+  }
+
+  async function handleUngroupedZipUpload(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    uploadingUngrouped = true;
+    uploadError = null;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('version', 'auto');
+      formData.append('variant', 'debug');
+
+      await apiUpload(`/v2/products/${productId}/asset-sets/upload-zip`, formData);
+      await loadAssets();
+      onRefresh?.();
+    } catch (e) {
+      uploadError = e instanceof Error ? e.message : 'Upload failed';
+    } finally {
+      uploadingUngrouped = false;
       input.value = '';
     }
   }
@@ -224,13 +287,33 @@
     </div>
   </div>
 
-  <!-- Stage assets — one section per stage config -->
-  {#if revConfigs.length === 0 && !loading}
-    <div class="text-center py-6 text-2xs text-text-tertiary">
-      No stages configured for this revision. Enable validation or manufacturing first.
+  <!-- Search and upload controls -->
+  {#if !loading}
+    <div class="flex items-center gap-3">
+      <div class="flex-1 relative">
+        <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+        <input
+          type="text"
+          bind:value={searchQuery}
+          placeholder="Search assets..."
+          class="w-full rounded-lg border border-border bg-surface-0 pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+        />
+      </div>
+      {#if canManage && revConfigs.length === 0}
+        <label class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-3 py-2 text-sm font-medium text-accent hover:bg-accent/15 cursor-pointer transition-colors shrink-0 {uploadingUngrouped ? 'opacity-50 pointer-events-none' : ''}">
+          {#if uploadingUngrouped}<Loader2 size={14} class="animate-spin" />{:else}<Upload size={14} />{/if}
+          Upload .zip
+          <input type="file" accept=".zip" class="hidden" onchange={handleUngroupedZipUpload} disabled={uploadingUngrouped} />
+        </label>
+      {/if}
     </div>
+
+    {#if uploadError && uploadingUngrouped}
+      <div class="rounded-lg px-4 py-2 bg-error-muted text-2xs text-error">{uploadError}</div>
+    {/if}
   {/if}
 
+  <!-- Stage assets — one section per stage config -->
   {#each revConfigs as config}
     {@const stageAssets = assetsForConfig(config)}
     {@const latest = stageAssets[0]}
@@ -247,8 +330,7 @@
         <span class="text-sm font-semibold text-text-primary">{typeLabel}</span>
         {#if latest}
           <span class="text-2xs text-text-tertiary">v{latest.version} · {latest.variant}</span>
-          <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium
-            {latest.source === 'BUILD_SERVICE' ? 'bg-accent-muted text-accent' : latest.source === 'EXTERNAL_CI' ? 'bg-blue-500/10 text-blue-400' : 'bg-surface-2 text-text-secondary'}">
+          <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {sourceBadgeClass(latest.source)}">
             {sourceLabel(latest.source)}
           </span>
           {#if completeness}
@@ -281,25 +363,29 @@
       {#if stageAssets.length > 0}
         <div class="divide-y divide-border-subtle">
           {#each stageAssets as asset}
+            {@const assetTitle = `v${asset.version}${asset.variant ? ` (${asset.variant})` : ''}`}
             <div>
               <div class="flex items-center">
                 <button
                   onclick={() => expandedId = expandedId === asset.id ? null : asset.id}
-                  class="flex-1 flex items-center gap-3 px-4 py-2 hover:bg-surface-0/50 transition-colors text-left"
+                  class="flex-1 flex items-center gap-3 px-4 py-2.5 hover:bg-surface-0/50 transition-colors text-left"
                 >
                   {#if expandedId === asset.id}
-                    <ChevronDown size={12} class="text-text-tertiary" />
+                    <ChevronDown size={12} class="text-text-tertiary shrink-0" />
                   {:else}
-                    <ChevronRight size={12} class="text-text-tertiary" />
+                    <ChevronRight size={12} class="text-text-tertiary shrink-0" />
                   {/if}
-                  <span class="font-mono text-2xs font-medium text-text-primary">v{asset.version}</span>
-                  <span class="text-2xs text-text-tertiary">{asset.variant}</span>
-                  <StatusBadge status={asset.source} />
+                  <span class="font-mono text-2xs font-semibold text-text-primary">{assetTitle}</span>
+                  <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {sourceBadgeClass(asset.source)}">{sourceLabel(asset.source)}</span>
+                  <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {statusBadgeClass(asset.status)}">{asset.status}</span>
                   {#if asset.commitSha}
                     <span class="font-mono text-2xs text-text-tertiary">{asset.commitSha.slice(0, 7)}</span>
                   {/if}
+                  {#if asset.branch}
+                    <span class="text-2xs text-text-tertiary truncate max-w-[120px]" title={asset.branch}>{asset.branch}</span>
+                  {/if}
                   <div class="flex-1"></div>
-                  <span class="text-2xs text-text-tertiary">{asset.assets?.length ?? 0} files</span>
+                  <span class="text-2xs text-text-tertiary shrink-0">{asset.assets?.length ?? 0} files</span>
                   <TimeDisplay datetime={asset.createdAt} />
                 </button>
                 {#if canManage}
@@ -363,29 +449,113 @@
     </div>
   {/each}
 
-  <!-- Ungrouped assets (from builds or legacy) -->
+  <!-- Ungrouped assets (from builds, legacy, or when no stages configured) -->
   {#if ungroupedAssets.length > 0}
     <div class="rounded-lg border border-border overflow-hidden">
-      <div class="flex items-center gap-3 px-4 py-3 bg-surface-0/50">
-        <Package size={16} class="text-text-tertiary" />
-        <span class="text-sm font-semibold text-text-primary">Other Assets</span>
-        <span class="text-2xs text-text-tertiary">{ungroupedAssets.length} set{ungroupedAssets.length === 1 ? '' : 's'}</span>
-      </div>
+      {#if revConfigs.length > 0}
+        <div class="flex items-center gap-3 px-4 py-3 bg-surface-0/50">
+          <Package size={16} class="text-text-tertiary" />
+          <span class="text-sm font-semibold text-text-primary">Other Assets</span>
+          <span class="text-2xs text-text-tertiary">{ungroupedAssets.length} set{ungroupedAssets.length === 1 ? '' : 's'}</span>
+        </div>
+      {/if}
       <div class="divide-y divide-border-subtle">
         {#each ungroupedAssets as asset}
-          <button
-            onclick={() => expandedId = expandedId === asset.id ? null : asset.id}
-            class="w-full flex items-center gap-3 px-4 py-2 hover:bg-surface-0/50 transition-colors text-left"
-          >
-            <span class="font-mono text-2xs font-medium text-text-primary">v{asset.version}</span>
-            <StatusBadge status={asset.source} />
-            <StatusBadge status={asset.status} />
-            <div class="flex-1"></div>
-            <span class="text-2xs text-text-tertiary">{asset.assets?.length ?? 0} files</span>
-            <TimeDisplay datetime={asset.createdAt} />
-          </button>
+          {@const assetTitle = `v${asset.version}${asset.variant ? ` (${asset.variant})` : ''}`}
+          <div>
+            <div class="flex items-center">
+              <button
+                onclick={() => expandedId = expandedId === asset.id ? null : asset.id}
+                class="flex-1 flex items-center gap-3 px-4 py-2.5 hover:bg-surface-0/50 transition-colors text-left"
+              >
+                {#if expandedId === asset.id}
+                  <ChevronDown size={12} class="text-text-tertiary shrink-0" />
+                {:else}
+                  <ChevronRight size={12} class="text-text-tertiary shrink-0" />
+                {/if}
+                <span class="font-mono text-2xs font-semibold text-text-primary">{assetTitle}</span>
+                <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {sourceBadgeClass(asset.source)}">{sourceLabel(asset.source)}</span>
+                <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {statusBadgeClass(asset.status)}">{asset.status}</span>
+                {#if asset.commitSha}
+                  <span class="font-mono text-2xs text-text-tertiary">{asset.commitSha.slice(0, 7)}</span>
+                {/if}
+                {#if asset.branch}
+                  <span class="text-2xs text-text-tertiary truncate max-w-[120px]" title={asset.branch}>{asset.branch}</span>
+                {/if}
+                <div class="flex-1"></div>
+                <span class="text-2xs text-text-tertiary shrink-0">{asset.assets?.length ?? 0} files</span>
+                <TimeDisplay datetime={asset.createdAt} />
+              </button>
+              {#if canManage}
+                <button
+                  onclick={() => deleteTarget = { id: asset.id, name: `${asset.version} (${asset.variant})` }}
+                  class="flex items-center justify-center rounded-lg p-1.5 mr-2 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
+                  title="Delete asset set"
+                >
+                  <Trash2 size={12} />
+                </button>
+              {/if}
+            </div>
+
+            {#if expandedId === asset.id && asset.assets?.length}
+              <div class="border-t border-border-subtle bg-surface-0/30 px-4 py-2">
+                <table class="w-full text-2xs">
+                  <thead>
+                    <tr class="border-b border-border-subtle">
+                      <th class="pb-1 text-left font-medium uppercase tracking-wider text-text-tertiary">Label</th>
+                      <th class="pb-1 text-left font-medium uppercase tracking-wider text-text-tertiary">Role</th>
+                      <th class="pb-1 text-left font-medium uppercase tracking-wider text-text-tertiary">Type</th>
+                      <th class="pb-1 text-left font-medium uppercase tracking-wider text-text-tertiary">File</th>
+                      <th class="pb-1 text-right font-medium uppercase tracking-wider text-text-tertiary">Size</th>
+                      <th class="pb-1 w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each asset.assets as file}
+                      <tr class="border-b border-border-subtle last:border-b-0">
+                        <td class="py-1">
+                          <div class="flex items-center gap-1">
+                            <FileCode size={10} class="text-text-tertiary" />
+                            <span class="font-medium text-text-primary">{file.label}</span>
+                          </div>
+                        </td>
+                        <td class="py-1 text-text-secondary">{file.role}{#if file.processor} <span class="text-text-tertiary">({file.processor})</span>{/if}</td>
+                        <td class="py-1"><span class="rounded-full bg-surface-2 px-1.5 py-0.5 text-text-secondary">{file.artifactType}</span></td>
+                        <td class="py-1 font-mono text-text-tertiary truncate max-w-[180px]" title={file.filename}>{file.filename}</td>
+                        <td class="py-1 text-right text-text-tertiary">{formatSize(file.sizeBytes)}</td>
+                        <td class="py-1 text-right">
+                          {#if file.storageKey}
+                            <button
+                              onclick={() => handleDownloadFile(file)}
+                              class="inline-flex items-center justify-center rounded p-0.5 text-text-tertiary hover:text-accent transition-colors"
+                              title="Download {file.filename}"
+                            >
+                              <Download size={10} />
+                            </button>
+                          {/if}
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {/if}
+          </div>
         {/each}
       </div>
+    </div>
+  {/if}
+
+  <!-- Empty state: no assets at all or no search results -->
+  {#if !loading && filteredAssetSets.length === 0}
+    <div class="text-center py-6">
+      {#if searchQuery.trim() && assetSets.length > 0}
+        <p class="text-sm text-text-secondary">No assets match "{searchQuery}"</p>
+        <p class="text-2xs text-text-tertiary mt-1">Try a different search term.</p>
+      {:else}
+        <p class="text-sm text-text-secondary">No firmware assets for this revision</p>
+        <p class="text-2xs text-text-tertiary mt-1">Upload a firmware .zip or wait for the build pipeline to produce one.</p>
+      {/if}
     </div>
   {/if}
 
