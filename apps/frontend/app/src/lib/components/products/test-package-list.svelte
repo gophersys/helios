@@ -25,6 +25,7 @@
   let expanded = $state(false);
   let releasing = $state<string | null>(null);
   let confirmId = $state<string | null>(null);
+  let deletingId = $state<string | null>(null);
   let successMessage = $state<string | null>(null);
 
   async function fetchPackages(): Promise<void> {
@@ -60,6 +61,18 @@
       error = err instanceof Error ? err.message : 'Failed to release package';
     } finally {
       releasing = null;
+    }
+  }
+
+  async function handleDelete(id: string): Promise<void> {
+    error = null;
+    try {
+      await api.delete(`/v2/products/${productId}/test-packages/${id}`);
+      deletingId = null;
+      await fetchPackages();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to delete package';
+      deletingId = null;
     }
   }
 
@@ -183,14 +196,39 @@
                               Cancel
                             </button>
                           </div>
+                        {:else if deletingId === pkg.id}
+                          <div class="flex items-center justify-end gap-1">
+                            <span class="text-2xs text-error">Delete?</span>
+                            <button
+                              onclick={() => handleDelete(pkg.id)}
+                              class="rounded bg-error px-2 py-1 text-2xs font-medium text-white hover:bg-error/80"
+                            >
+                              Yes
+                            </button>
+                            <button
+                              onclick={() => (deletingId = null)}
+                              class="rounded px-2 py-1 text-2xs font-medium text-text-secondary hover:bg-surface-2"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         {:else}
-                          <button
-                            onclick={() => (confirmId = pkg.id)}
-                            class="flex items-center gap-1 rounded bg-accent px-2 py-1 text-2xs font-medium text-white hover:bg-accent-hover"
-                          >
-                            <Rocket size={12} />
-                            Release
-                          </button>
+                          <div class="flex items-center justify-end gap-2">
+                            <button
+                              onclick={() => (confirmId = pkg.id)}
+                              class="flex items-center gap-1 rounded bg-accent px-2 py-1 text-2xs font-medium text-white hover:bg-accent-hover"
+                            >
+                              <Rocket size={12} />
+                              Release
+                            </button>
+                            <button
+                              onclick={() => (deletingId = pkg.id)}
+                              class="text-2xs text-text-tertiary hover:text-error transition-colors"
+                              title="Delete this development package"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         {/if}
                       {:else if pkg.releasedAt}
                         <span class="text-2xs text-text-tertiary">{formatTimeAgo(pkg.releasedAt)}</span>

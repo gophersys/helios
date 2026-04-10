@@ -622,6 +622,73 @@ def download_test_package(product_id: str, version: str):
     }).to_dict()), 200
 
 
+# ── Get Single ─────────────────────────────────────────────────
+
+
+@require_permissions(Permissions.VALIDATION_VIEW)
+def get_test_package(product_id: str, package_id: str):
+    """GET /v2/products/<product_id>/test-packages/<package_id> — get a single test package."""
+    product, err = _resolve_product(product_id)
+    if err:
+        return err
+
+    db = get_db_client()
+    tp = db.testpackage.find_first(
+        where={"id": package_id, "productId": product.id},
+        include={"packageStages": True},
+    )
+    if not tp:
+        return not_found(f"Test package '{package_id}' not found")
+
+    return jsonify(ApiResponse.ok(_serialize_test_package(tp)).to_dict()), 200
+
+
+# ── Delete ─────────────────────────────────────────────────────
+
+
+@require_permissions(Permissions.VALIDATION_MANAGE)
+def delete_test_package(product_id: str, package_id: str):
+    """DELETE /v2/products/<product_id>/test-packages/<package_id> — delete a test package."""
+    product, err = _resolve_product(product_id)
+    if err:
+        return err
+
+    db = get_db_client()
+    tp = db.testpackage.find_first(
+        where={"id": package_id, "productId": product.id},
+    )
+    if not tp:
+        return not_found(f"Test package '{package_id}' not found")
+
+    if tp.status == "RELEASED":
+        return conflict("Cannot delete released packages. They are immutable.")
+
+    # Block deletion if any test runs reference this package
+    run_count = db.testrun.count(where={"testPackageId": tp.id})
+    if run_count > 0:
+        return conflict(f"Cannot delete: package is referenced by {run_count} test run(s)")
+
+    # Delete from MinIO (best-effort — proceed with DB deletion even on failure)
+    try:
+        storage = get_storage_client()
+        bucket = get_bucket_name()
+        storage.remove_object(bucket, tp.storageKey)
+    except Exception as e:
+        logger.warning("Failed to delete MinIO object %s: %s", tp.storageKey, e)
+
+    # Delete related records and the package itself
+    db.testpackagestage.delete_many(where={"testPackageId": tp.id})
+    db.testpackage.delete(where={"id": tp.id})
+
+    log_audit("testPackage.delete", "TestPackage", tp.id, {
+        "productId": product.id,
+        "version": tp.version,
+        "type": tp.type,
+    })
+
+    return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
+
+
 # ── Release (promote DEVELOPMENT → RELEASED) ─────────────────
 
 
