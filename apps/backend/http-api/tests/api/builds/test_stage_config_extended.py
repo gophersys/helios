@@ -12,10 +12,10 @@ from tests.conftest import make_obj
 
 def _stage_obj(**overrides):
     defaults = dict(
-        id="sc-1", productId="prod-1", stage=1, name="Smoke",
+        id="sc-1", productId="prod-1", type="VALIDATION", stage=1, name="Smoke",
         enabled=False, boardRevisionId="rev-1", boardRevision=None,
         watchBranch=None, triggerTypes="manual", signingKeyId=None,
-        signingKey=None, buildMatrixEntries=[],
+        signingKey=None, buildMatrixEntries=[], requiresBench=False,
         createdAt="2026-01-01T00:00:00Z", updatedAt="2026-01-01T00:00:00Z",
     )
     defaults.update(overrides)
@@ -154,9 +154,12 @@ class TestCreateStageConfigGuards:
 
     def test_create_disabled_stage_for_deprecated_revision_succeeds(self, authed_client, mock_db):
         """Creating a disabled stage config for a deprecated revision is allowed."""
+        created = _stage_obj(stage=3, enabled=False)
         mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
         mock_db.productstageconfig.find_first.return_value = None
-        mock_db.productstageconfig.create.return_value = _stage_obj(stage=3, enabled=False)
+        mock_db.productstageconfig.create.return_value = created
+        mock_db.productstageconfig.find_unique.return_value = created
+        mock_db.producttarget.find_many.return_value = []
 
         resp = authed_client.post(
             "/v2/products/prod-1/stages",
@@ -179,7 +182,7 @@ class TestCreateStageConfigGuards:
 
         resp = authed_client.post(
             "/v2/products/prod-1/stages",
-            data=json.dumps({"stage": 1, "name": "Smoke"}),
+            data=json.dumps({"stage": 1, "name": "Smoke", "boardRevisionId": "rev-1"}),
             content_type="application/json",
         )
 
@@ -228,7 +231,7 @@ class TestBuildMatrix:
         mock_db.productstageconfig.find_first.return_value = _stage_obj()
         entry = make_obj(
             id="e1", stageConfigId="sc-1", sortOrder=0,
-            label="MFG_BASE", fwType="alpha_mfg_fw", variant="release",
+            label="MFG_APP_DEBUG", fwType="alpha_mfg_fw", variant="release",
             configLog=True, producesHex=True, producesCfw=False,
             gitRef="pr", isVersionBump=False, baseLabel=None, description=None,
             processor="nrf52840", filenamePattern=None,
@@ -240,7 +243,7 @@ class TestBuildMatrix:
         assert resp.status_code == 200
         body = json.loads(resp.data)
         assert len(body["data"]) == 1
-        assert body["data"][0]["label"] == "MFG_BASE"
+        assert body["data"][0]["label"] == "MFG_APP_DEBUG"
 
     def test_update_stage_build_matrix_success(self, authed_client, mock_db):
         """PUT /v2/products/<id>/stages/<stage>/build-matrix replaces entries."""
@@ -248,7 +251,7 @@ class TestBuildMatrix:
         mock_db.productstageconfig.find_first.return_value = _stage_obj()
         new_entry = make_obj(
             id="e-new", stageConfigId="sc-1", sortOrder=0,
-            label="APP_DEBUG", fwType="alpha_fw", variant="debug",
+            label="SMOKE_APP_DEBUG", fwType="alpha_fw", variant="debug",
             configLog=True, producesHex=True, producesCfw=False,
             gitRef="pr", isVersionBump=False, baseLabel=None, description=None,
             processor=None, filenamePattern=None,
@@ -259,14 +262,14 @@ class TestBuildMatrix:
             resp = authed_client.put(
                 "/v2/products/prod-1/stages/1/build-matrix",
                 data=json.dumps({"entries": [
-                    {"label": "APP_DEBUG", "fwType": "alpha_fw", "variant": "debug"}
+                    {"label": "SMOKE_APP_DEBUG", "fwType": "alpha_fw", "variant": "debug"}
                 ]}),
                 content_type="application/json",
             )
 
         assert resp.status_code == 200
         body = json.loads(resp.data)
-        assert body["data"][0]["label"] == "APP_DEBUG"
+        assert body["data"][0]["label"] == "SMOKE_APP_DEBUG"
         mock_db.stagebuildmatrix.delete_many.assert_called_once()
 
     def test_update_stage_build_matrix_duplicate_label_returns_400(self, authed_client, mock_db):

@@ -89,12 +89,11 @@ def test_delete_fixture(authed_client, mock_db):
     assert data["data"]["deleted"] is True
 
 
-def test_delete_fixture_with_deployments(authed_client, mock_db):
+def test_delete_fixture_with_sessions(authed_client, mock_db):
     mock_db.fixture.find_unique.return_value = make_obj(
         id="fix-active", name="Active", productId="prod-1", type="MANUFACTURING",
         description=None, active=True, metadata=None,
-        sessions=[],
-        deployments=[make_obj(id="dep-1")],
+        sessions=[make_obj(id="sess-1")],
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )

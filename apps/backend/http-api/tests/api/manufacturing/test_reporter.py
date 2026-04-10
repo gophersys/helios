@@ -204,7 +204,7 @@ class TestTargetResult:
             "/v2/runs/s10-run-1/report/target-result",
             data=json.dumps({
                 "slotIndex": 0,
-                "passed": True,
+                "status": "PASSED",
                 "durationMs": 12000,
             }),
         )
@@ -218,7 +218,7 @@ class TestTargetResult:
             "/v2/runs/s10-run-1/report/target-result",
             data=json.dumps({
                 "slotIndex": 99,
-                "passed": True,
+                "status": "PASSED",
             }),
         )
         assert resp.status_code == 404

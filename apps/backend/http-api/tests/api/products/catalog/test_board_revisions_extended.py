@@ -157,9 +157,16 @@ class TestModemFirmware:
                     yield
 
     def test_upload_modem_firmware_success(self, authed_client, mock_db):
-        """POST uploads modem firmware and updates boardRevision record."""
+        """POST uploads modem firmware and creates ModemFirmware record."""
         mock_db.board.find_first.return_value = _board()
         mock_db.boardrevision.find_first.return_value = _revision()
+        mock_db.modemfirmware.find_first.return_value = None  # no duplicate
+        mock_db.modemfirmware.create.return_value = make_obj(
+            id="mfw-1", boardRevisionId="rev-1", version="1.0.0",
+            filename="modem.zip", storageKey="firmware/modem/rev-1/1.0.0/modem.zip",
+            sizeBytes=26, checksum="abc123", notes=None,
+            createdById=None, createdAt="2026-01-01T00:00:00Z",
+        )
 
         with patch("api.v2.products.board_revisions.log_audit"):
             response = authed_client.post(
@@ -171,10 +178,10 @@ class TestModemFirmware:
                 content_type="multipart/form-data",
             )
 
-        assert response.status_code == 200
+        assert response.status_code == 201
         body = json.loads(response.data)
-        assert body["data"]["modemVersion"] == "1.0.0"
-        mock_db.boardrevision.update.assert_called_once()
+        assert body["data"]["version"] == "1.0.0"
+        mock_db.modemfirmware.create.assert_called_once()
 
     def test_upload_modem_firmware_no_file_returns_400(self, authed_client, mock_db):
         """POST without file field returns 400."""

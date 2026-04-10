@@ -557,8 +557,9 @@ class TestDashboardOverview:
         resp = authed_client.get("/v2/dashboard/overview")
         assert resp.status_code == 200
         body = resp.get_json()
-        assert len(body["data"]) == 1
-        item = body["data"][0]
+        fixtures = body["data"]["fixtures"]
+        assert len(fixtures) == 1
+        item = fixtures[0]
         assert item["slotCount"] == 1
         assert item["assignedCount"] == 1
         assert item["nodesOnline"] == 1
@@ -572,7 +573,7 @@ class TestDashboardOverview:
         resp = authed_client.get("/v2/dashboard/overview")
         assert resp.status_code == 200
         body = resp.get_json()
-        assert body["data"][0]["health"] == "EMPTY"
+        assert body["data"]["fixtures"][0]["health"] == "EMPTY"
 
     def test_dashboard_unassigned_health(self, authed_client, mock_db):
         """Dashboard reports UNASSIGNED when slots exist but no node is assigned."""
@@ -583,7 +584,7 @@ class TestDashboardOverview:
         resp = authed_client.get("/v2/dashboard/overview")
         assert resp.status_code == 200
         body = resp.get_json()
-        assert body["data"][0]["health"] == "UNASSIGNED"
+        assert body["data"]["fixtures"][0]["health"] == "UNASSIGNED"
 
     # TODO: test_dashboard_error_health_when_node_error
     # TODO: test_dashboard_degraded_health_when_some_nodes_offline

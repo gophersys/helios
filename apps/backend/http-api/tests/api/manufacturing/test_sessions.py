@@ -30,6 +30,7 @@ def _fixture(**overrides):
         id="s10-fix-1",
         name="s10-MFG Fixture 1",
         productId="s10-prod-1",
+        boardRevisionId="s10-rev-1",
         type="MANUFACTURING",
         status="AVAILABLE",
         lockedBy=None,
@@ -48,7 +49,10 @@ def _session(**overrides):
         fixtureId="s10-fix-1",
         status="ACTIVE",
         operatorId="test-user-id",
+        assetSetId=None,
+        assetSet=None,
         config=None,
+        notes=None,
         startedAt=_now(),
         endedAt=None,
         createdAt=_now(),
@@ -57,6 +61,9 @@ def _session(**overrides):
         fixture=_fixture(),
         operator=make_obj(id="test-user-id", name="Test User", email="test@example.com"),
         runs=[],
+        runCount=0,
+        passedCount=0,
+        failedCount=0,
     )
     defaults.update(overrides)
     return make_obj(**defaults)
@@ -66,17 +73,28 @@ def _run(**overrides):
     defaults = dict(
         id="s10-run-1",
         type="MANUFACTURING",
+        name="MFG Run 1",
         productId="s10-prod-1",
         fixtureId="s10-fix-1",
+        testPackageId=None,
         manufacturingSessionId="s10-sess-1",
         panelIdentifier="s10-QR-001",
+        assetSetId=None,
+        boardRevisionId=None,
         status="PENDING",
+        operatorId="test-user-id",
         targetCount=4,
+        completedCount=0,
         passedCount=0,
         failedCount=0,
+        durationMs=None,
+        config=None,
+        notes=None,
+        errorMessage=None,
         startedAt=_now(),
         completedAt=None,
         createdAt=_now(),
+        updatedAt=_now(),
         targets=[],
     )
     defaults.update(overrides)
@@ -293,8 +311,9 @@ class TestGetResults:
             targets=[
                 make_obj(
                     id="s10-target-1", runId="s10-run-1", slotIndex=0,
-                    slotId="slot-0", serialNumber="SN001", status="PASSED",
-                    executions=[],
+                    slotId="slot-0", serialNumber="SN001", deviceId=None,
+                    status="PASSED", metadata=None, errorMessage=None,
+                    durationMs=1000, executions=[],
                     startedAt=_now(), completedAt=_now(),
                 )
             ]

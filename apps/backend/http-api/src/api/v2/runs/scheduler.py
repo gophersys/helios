@@ -85,6 +85,7 @@ def _create_validation_run(
     stage: int,
     stage_name: str,
     test_package_id: Optional[str] = None,
+    asset_set_id: Optional[str] = None,
 ) -> Optional[str]:
     """Create a TestRun and RunTarget records for the queue entry.
 
@@ -122,6 +123,7 @@ def _create_validation_run(
         "fixtureId": fixture.id,
         "testPackageId": test_package_id,
         "buildRunId": build_run.id,
+        "assetSetId": asset_set_id,
         "status": "ACTIVE",
         "operatorId": system_user.id,
         "targetCount": len(slot_infos),
@@ -256,10 +258,22 @@ def _trigger_validation_job(
     except Exception as e:
         logger.warning("Failed to look up test package: %s", e)
 
+    # Look up AssetSet linked to this build run (created when build completes)
+    asset_set = db.assetset.find_first(
+        where={"buildRunId": build_run.id, "status": "READY"},
+    )
+    asset_set_id = asset_set.id if asset_set else None
+    if not asset_set_id:
+        logger.warning(
+            "No READY AssetSet found for build run %s — modem firmware won't resolve in K8s job",
+            build_run.id,
+        )
+
     # Create TestRun + RunTargets
     run_id = _create_validation_run(
         db, entry_id, build_run, fixture, stage, stage_name,
         test_package_id=test_package_id,
+        asset_set_id=asset_set_id,
     )
     if not run_id:
         logger.error(f"Failed to create validation run for queue entry {entry_id}")
@@ -319,6 +333,7 @@ def _trigger_validation_job(
             "SLOT_SNRS": slot_snrs,
             "SLOT_DEVICE_IDS": slot_device_ids,
             "CONCORD_SESSION_ID": run_id,
+            **({"ASSET_SET_ID": asset_set_id} if asset_set_id else {}),
         },
     )
 
