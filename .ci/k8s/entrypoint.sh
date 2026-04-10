@@ -56,6 +56,18 @@ log "Installing dependencies..."
 yarn install --immutable
 npx prisma generate
 
+# Install Python test dependencies
+log "Installing Python test dependencies..."
+pip3 install --no-cache-dir pytest pytest-timeout 2>/dev/null || \
+  pip3 install --no-cache-dir --break-system-packages pytest pytest-timeout
+
+# Ensure mc (MinIO client) is available
+if ! command -v mc &>/dev/null; then
+  log "Installing MinIO client..."
+  curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc 2>/dev/null && \
+    chmod +x /usr/local/bin/mc || info "mc install failed — result upload will be skipped"
+fi
+
 # ── Step 2: Start development environment ──────────────────────
 log "Starting development platform..."
 npx nx start platform --output-style=stream --verbose
