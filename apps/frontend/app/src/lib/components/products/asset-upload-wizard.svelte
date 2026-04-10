@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Loader2, Upload, ChevronLeft, Check, AlertCircle, FileArchive } from 'lucide-svelte';
+  import { X, Loader2, Upload, ChevronLeft, Check, AlertCircle, FileArchive, File as FileIcon } from 'lucide-svelte';
   import { apiUpload } from '$lib/api';
   import type { ProductStageConfig, StageType } from '$lib/types/stages';
   import { stageName } from '$lib/types/stages';
@@ -22,10 +22,32 @@
 
   // ── Wizard state ────────────────────────────────────────────
   type Step = 'stage' | 'upload' | 'complete';
+  type UploadMode = 'files' | 'zip';
   let currentStep = $state<Step>('stage');
+  let uploadMode = $state<UploadMode>('files');
 
   let selectedConfigId = $state<string | null>(null);
-  let selectedFile = $state<File | null>(null);
+
+  // ── Files mode state ────────────────────────────────────────
+  interface AnalyzedFile {
+    filename: string;
+    size: number;
+    file: File;
+    detectedType: string;
+    detectedProcessor: string | null;
+    detectedVariant: string | null;
+    suggestedLabel: string | null;
+    confidence: string | null;
+    matchReason: string | null;
+    assignedLabel: string;
+  }
+
+  let selectedFiles = $state<File[]>([]);
+  let analyzedFiles = $state<AnalyzedFile[]>([]);
+  let analyzing = $state(false);
+
+  // ── Zip mode state ──────────────────────────────────────────
+  let selectedZipFile = $state<File | null>(null);
   let validating = $state(false);
   let validationResult = $state<{
     valid: boolean;
@@ -38,12 +60,19 @@
     modemLabelsRequired: string[];
     availableModemFirmwares: { id: string; version: string; filename: string; sizeBytes: number }[];
   } | null>(null);
+
+  // ── Shared state ────────────────────────────────────────────
   let uploading = $state(false);
   let uploadError = $state<string | null>(null);
   let uploadSuccess = $state(false);
   let uploadNotes = $state('');
   let uploadVersion = $state('');
   let selectedModemFirmwareId = $state<string | null>(null);
+  let uploadSummary = $state<{ fileCount: number; labels: string[]; version: string } | null>(null);
+
+  // Analyze-files response modem data
+  let analyzeModemLabelsRequired = $state<string[]>([]);
+  let analyzeAvailableModemFirmwares = $state<{ id: string; version: string; filename: string; sizeBytes: number }[]>([]);
 
   // ── Derived ────────────────────────────────────────────────
   const validationConfigs = $derived(
@@ -58,15 +87,31 @@
     stageConfigs.find(c => c.id === selectedConfigId) ?? null
   );
 
-  const needsModemFirmware = $derived(
-    (validationResult?.modemLabelsRequired?.length ?? 0) > 0
+  // Files mode derived
+  const requiredLabels = $derived(
+    selectedConfig?.buildMatrix?.filter((e: any) => e.fwType !== 'modem').map((e: any) => e.label) ?? []
   );
-  const hasModemFirmwareOptions = $derived(
-    (validationResult?.availableModemFirmwares?.length ?? 0) > 0
+
+  const assignedLabels = $derived(
+    new Set(analyzedFiles.map(f => f.assignedLabel).filter(Boolean))
   );
-  const modemReady = $derived(
-    !needsModemFirmware || !!selectedModemFirmwareId
+
+  const unassignedLabels = $derived(
+    requiredLabels.filter((l: string) => !assignedLabels.has(l))
   );
+
+  const allLabelsAssigned = $derived(
+    requiredLabels.length > 0 && requiredLabels.every((l: string) => assignedLabels.has(l))
+  );
+
+  const filesNeedsModem = $derived(analyzeModemLabelsRequired.length > 0);
+  const filesHasModemOptions = $derived(analyzeAvailableModemFirmwares.length > 0);
+  const filesModemReady = $derived(!filesNeedsModem || !!selectedModemFirmwareId);
+
+  // Zip mode derived
+  const zipNeedsModem = $derived((validationResult?.modemLabelsRequired?.length ?? 0) > 0);
+  const zipHasModemOptions = $derived((validationResult?.availableModemFirmwares?.length ?? 0) > 0);
+  const zipModemReady = $derived(!zipNeedsModem || !!selectedModemFirmwareId);
 
   const stepIndex = $derived(
     currentStep === 'stage' ? 0
@@ -83,20 +128,156 @@
     currentStep = 'upload';
   }
 
-  function handleFileSelect(e: Event) {
+  // --- Files mode handlers ---
+
+  function handleFilesSelect(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const files = input.files;
+    if (files && files.length > 0) {
+      addFiles(Array.from(files));
+    }
+    // Reset input so re-selecting same files works
+    input.value = '';
+  }
+
+  function handleFilesDrop(e: DragEvent) {
+    e.preventDefault();
+    const dt = e.dataTransfer;
+    if (!dt?.files) return;
+
+    const valid = Array.from(dt.files).filter(f => {
+      const ext = f.name.split('.').pop()?.toLowerCase();
+      return ext === 'hex' || ext === 'cfw' || ext === 'json';
+    });
+
+    if (valid.length > 0) {
+      addFiles(valid);
+    }
+  }
+
+  function addFiles(files: File[]) {
+    selectedFiles = [...selectedFiles, ...files];
+    uploadError = null;
+    // Reset analysis when files change
+    analyzedFiles = [];
+  }
+
+  function removeFile(index: number) {
+    selectedFiles = selectedFiles.filter((_, i) => i !== index);
+    analyzedFiles = [];
+    uploadError = null;
+  }
+
+  async function handleAnalyze() {
+    if (selectedFiles.length === 0 || !selectedConfigId) return;
+    analyzing = true;
+    uploadError = null;
+    analyzedFiles = [];
+
+    try {
+      const formData = new FormData();
+      formData.append('stageConfigId', selectedConfigId);
+      for (const f of selectedFiles) {
+        formData.append('files', f);
+      }
+
+      const result = await apiUpload<{ data: {
+        files: {
+          filename: string;
+          size: number;
+          detectedType: string;
+          detectedProcessor: string | null;
+          detectedVariant: string | null;
+          suggestedLabel: string | null;
+          confidence: string | null;
+          matchReason: string | null;
+        }[];
+        unmatchedLabels: string[];
+        allMatched: boolean;
+        modemLabelsRequired: string[];
+        availableModemFirmwares: { id: string; version: string; filename: string; sizeBytes: number }[];
+      } }>(
+        `/v2/products/${productId}/asset-sets/analyze-files`,
+        formData
+      );
+
+      const data = result.data;
+      analyzeModemLabelsRequired = data.modemLabelsRequired;
+      analyzeAvailableModemFirmwares = data.availableModemFirmwares;
+
+      analyzedFiles = data.files.map((f, i) => ({
+        ...f,
+        file: selectedFiles[i],
+        assignedLabel: f.confidence === 'high' || f.confidence === 'medium'
+          ? f.suggestedLabel ?? ''
+          : '',
+      }));
+    } catch (e) {
+      uploadError = e instanceof Error ? e.message : 'Analysis failed';
+    } finally {
+      analyzing = false;
+    }
+  }
+
+  function setFileLabel(index: number, label: string) {
+    analyzedFiles = analyzedFiles.map((f, i) =>
+      i === index ? { ...f, assignedLabel: label } : f
+    );
+  }
+
+  async function handleFilesUpload() {
+    if (!selectedConfigId || !uploadVersion.trim() || !allLabelsAssigned || !filesModemReady) return;
+
+    uploading = true;
+    uploadError = null;
+
+    try {
+      const formData = new FormData();
+      formData.append('stageConfigId', selectedConfigId);
+      formData.append('version', uploadVersion.trim());
+      if (uploadNotes.trim()) {
+        formData.append('notes', uploadNotes.trim());
+      }
+      if (selectedModemFirmwareId) {
+        formData.append('modemFirmwareId', selectedModemFirmwareId);
+      }
+
+      for (const af of analyzedFiles) {
+        formData.append('files', af.file);
+        formData.append('labels', af.assignedLabel);
+      }
+
+      await apiUpload(`/v2/products/${productId}/asset-sets/upload-files`, formData);
+      uploadSummary = {
+        fileCount: analyzedFiles.length,
+        labels: analyzedFiles.map(f => f.assignedLabel),
+        version: uploadVersion.trim(),
+      };
+      uploadSuccess = true;
+      currentStep = 'complete';
+    } catch (e) {
+      uploadError = e instanceof Error ? e.message : 'Upload failed';
+    } finally {
+      uploading = false;
+    }
+  }
+
+  // --- Zip mode handlers ---
+
+  function handleZipSelect(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file) {
-      selectedFile = file;
+      selectedZipFile = file;
       uploadError = null;
     }
   }
 
-  function handleDrop(e: DragEvent) {
+  function handleZipDrop(e: DragEvent) {
     e.preventDefault();
     const file = e.dataTransfer?.files?.[0];
     if (file && file.name.endsWith('.zip')) {
-      selectedFile = file;
+      selectedZipFile = file;
       uploadError = null;
     }
   }
@@ -105,15 +286,15 @@
     e.preventDefault();
   }
 
-  async function handleValidate() {
-    if (!selectedFile || !selectedConfigId) return;
+  async function handleValidateZip() {
+    if (!selectedZipFile || !selectedConfigId) return;
     validating = true;
     validationResult = null;
     uploadError = null;
 
     try {
       const formData = new FormData();
-      formData.append('file', selectedFile);
+      formData.append('file', selectedZipFile);
       formData.append('stageConfigId', selectedConfigId);
 
       const result = await apiUpload<{ data: typeof validationResult }>(
@@ -131,15 +312,15 @@
     }
   }
 
-  async function handleUpload() {
-    if (!selectedFile || !selectedConfigId || !uploadVersion.trim()) return;
+  async function handleZipUpload() {
+    if (!selectedZipFile || !selectedConfigId || !uploadVersion.trim()) return;
 
     uploading = true;
     uploadError = null;
 
     try {
       const formData = new FormData();
-      formData.append('file', selectedFile);
+      formData.append('file', selectedZipFile);
       formData.append('stageConfigId', selectedConfigId);
       formData.append('version', uploadVersion.trim());
       formData.append('variant', 'debug');
@@ -151,6 +332,11 @@
       }
 
       await apiUpload(`/v2/products/${productId}/asset-sets/upload-zip`, formData);
+      uploadSummary = {
+        fileCount: validationResult?.fileCount ?? 0,
+        labels: validationResult?.labelsFound ?? [],
+        version: uploadVersion.trim(),
+      };
       uploadSuccess = true;
       currentStep = 'complete';
     } catch (e) {
@@ -160,16 +346,31 @@
     }
   }
 
+  // --- Navigation ---
+
   function goBack() {
     if (currentStep === 'upload') {
-      selectedFile = null;
-      uploadError = null;
-      validationResult = null;
-      uploadVersion = '';
-      uploadNotes = '';
-      selectedModemFirmwareId = null;
+      resetUploadState();
       currentStep = 'stage';
     }
+  }
+
+  function resetUploadState() {
+    selectedFiles = [];
+    analyzedFiles = [];
+    selectedZipFile = null;
+    uploadError = null;
+    validationResult = null;
+    uploadVersion = '';
+    uploadNotes = '';
+    selectedModemFirmwareId = null;
+    analyzeModemLabelsRequired = [];
+    analyzeAvailableModemFirmwares = [];
+  }
+
+  function switchMode(mode: UploadMode) {
+    uploadMode = mode;
+    resetUploadState();
   }
 
   function formatSize(bytes: number): string {
@@ -182,17 +383,28 @@
     return config.buildMatrix?.length ?? 0;
   }
 
+  function fileTypeLabel(type: string): string {
+    switch (type) {
+      case 'plaintextHex': return 'HEX';
+      case 'encryptedCfw': return 'CFW';
+      case 'manifest': return 'JSON';
+      default: return type;
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && !uploading && !validating) {
+    if (e.key === 'Escape' && !uploading && !validating && !analyzing) {
       onCancel();
     }
   }
+
+  const busy = $derived(uploading || validating || analyzing);
 </script>
 
 <!-- Overlay -->
 <div
   class="fixed inset-0 z-modal-backdrop bg-overlay animate-overlay-in"
-  onclick={() => { if (!uploading && !validating) onCancel(); }}
+  onclick={() => { if (!busy) onCancel(); }}
   onkeydown={handleKeydown}
   role="presentation"
   tabindex="-1"
@@ -201,13 +413,13 @@
 <!-- Dialog -->
 <div class="fixed inset-0 z-modal flex items-center justify-center p-4">
   <div
-    class="w-full max-w-lg animate-modal-in rounded-xl border border-border bg-surface-1 shadow-xl"
+    class="w-full max-w-2xl animate-modal-in rounded-xl border border-border bg-surface-1 shadow-xl max-h-[90vh] flex flex-col"
     role="dialog"
     aria-modal="true"
     aria-labelledby="upload-wizard-title"
   >
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-border px-5 py-4">
+    <div class="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
       <div class="flex items-center gap-3">
         <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-muted">
           <Upload size={20} class="text-accent" strokeWidth={1.75} />
@@ -222,8 +434,8 @@
         </div>
       </div>
       <button
-        onclick={() => { if (!uploading && !validating) onCancel(); }}
-        disabled={uploading || validating}
+        onclick={() => { if (!busy) onCancel(); }}
+        disabled={busy}
         class="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-2 hover:text-text-primary disabled:opacity-50"
         title="Cancel"
         aria-label="Cancel upload"
@@ -233,7 +445,7 @@
     </div>
 
     <!-- Step indicator -->
-    <div class="flex items-center gap-1 px-5 py-3 border-b border-border-subtle">
+    <div class="flex items-center gap-1 px-5 py-3 border-b border-border-subtle shrink-0">
       {#each steps as label, i}
         {@const active = i === stepIndex}
         {@const done = i < stepIndex}
@@ -257,7 +469,7 @@
     </div>
 
     <!-- Body -->
-    <div class="p-5 min-h-[200px]">
+    <div class="p-5 min-h-[200px] overflow-y-auto">
 
       <!-- No stages configured -->
       {#if !hasConfigs}
@@ -336,10 +548,10 @@
           {/if}
         </div>
 
-      <!-- Step 2: Upload & Validate -->
+      <!-- Step 2: Upload & Match -->
       {:else if currentStep === 'upload'}
         <div class="space-y-4">
-          <!-- Summary -->
+          <!-- Stage summary -->
           <div class="rounded-lg border border-border-subtle bg-surface-0/50 px-4 py-3">
             <div class="flex items-center gap-4 text-2xs">
               <div>
@@ -351,121 +563,184 @@
             </div>
           </div>
 
-          <!-- Expected contents from build matrix -->
-          {#if selectedConfig?.buildMatrix?.length && !validationResult}
-            <div>
-              <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected contents</h4>
-              <div class="grid grid-cols-2 gap-1">
-                {#each selectedConfig.buildMatrix.filter((e: any) => e.fwType !== 'modem') as entry}
-                  <div class="flex items-center gap-2 text-2xs text-text-secondary bg-surface-0 rounded px-2 py-1">
-                    <span class="font-mono font-medium">{entry.label}/</span>
-                    <span class="text-text-tertiary">
-                      {entry.producesHex ? '.hex' : ''}{entry.producesCfw ? ' .cfw' : ''}{!entry.producesHex && !entry.producesCfw ? 'any' : ''}
-                    </span>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/if}
-
-          <!-- Drop zone -->
-          <div
-            ondrop={handleDrop}
-            ondragover={handleDragOver}
-            class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 transition-colors
-              {selectedFile ? 'border-accent bg-accent-muted/30' : 'border-border hover:border-accent/50'}"
-          >
-            {#if selectedFile}
-              <FileArchive size={28} class="mb-2 text-accent" />
-              <p class="text-sm font-medium text-text-primary">{selectedFile.name}</p>
-              <p class="text-2xs text-text-tertiary mt-0.5">{formatSize(selectedFile.size)}</p>
-              <button
-                onclick={() => { selectedFile = null; validationResult = null; uploadVersion = ''; }}
-                class="mt-2 text-2xs text-accent hover:underline"
-              >
-                Remove
-              </button>
-            {:else}
-              <FileArchive size={28} class="mb-2 text-text-tertiary" />
-              <p class="text-sm text-text-secondary mb-1">Drop a .zip file here</p>
-              <p class="text-2xs text-text-tertiary mb-3">or</p>
-              <label class="cursor-pointer rounded-lg border border-accent/30 bg-accent-muted px-3 py-1.5 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors">
-                Browse files
-                <input type="file" accept=".zip" class="hidden" onchange={handleFileSelect} />
-              </label>
-            {/if}
+          <!-- Mode toggle -->
+          <div class="flex rounded-lg border border-border-subtle overflow-hidden">
+            <button
+              onclick={() => switchMode('files')}
+              class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-2xs font-medium transition-colors
+                {uploadMode === 'files'
+                  ? 'bg-accent text-white'
+                  : 'bg-surface-0 text-text-secondary hover:bg-surface-2'}"
+            >
+              <FileIcon size={12} />
+              Upload files
+            </button>
+            <button
+              onclick={() => switchMode('zip')}
+              class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-2xs font-medium transition-colors
+                {uploadMode === 'zip'
+                  ? 'bg-accent text-white'
+                  : 'bg-surface-0 text-text-secondary hover:bg-surface-2'}"
+            >
+              <FileArchive size={12} />
+              Upload zip
+            </button>
           </div>
 
-          <!-- Validate button (before validation) -->
-          {#if selectedFile && !validationResult}
-            <button
-              onclick={handleValidate}
-              disabled={validating}
-              class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {#if validating}
-                <Loader2 size={14} class="animate-spin" />
-                Validating...
-              {:else}
-                <Check size={14} />
-                Validate
-              {/if}
-            </button>
-          {/if}
+          <!-- ============ FILES MODE ============ -->
+          {#if uploadMode === 'files'}
 
-          <!-- Validation results -->
-          {#if validationResult}
-            <div class="space-y-3">
-              <!-- Labels checklist -->
+            <!-- Expected labels (before analysis) -->
+            {#if selectedConfig?.buildMatrix?.length && analyzedFiles.length === 0}
               <div>
-                <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Validation results</h4>
-                <div class="space-y-1">
-                  {#if selectedConfig?.buildMatrix}
-                    {#each selectedConfig.buildMatrix.filter((e: any) => e.fwType !== 'modem') as entry}
-                      <div class="flex items-center gap-2 text-sm">
-                        {#if validationResult.labelsFound.includes(entry.label)}
-                          <Check class="text-success shrink-0" size={16} strokeWidth={2.5} />
-                        {:else}
-                          <X class="text-error shrink-0" size={16} strokeWidth={2.5} />
-                        {/if}
-                        <span class="font-mono text-2xs text-text-secondary">{entry.label}/</span>
-                      </div>
-                    {/each}
-                  {/if}
-                  {#if validationResult.warnings.length > 0}
-                    {#each validationResult.warnings as warning}
-                      <div class="flex items-center gap-2 text-2xs text-warning">
-                        <AlertCircle size={14} class="shrink-0" />
-                        <span>{warning}</span>
-                      </div>
-                    {/each}
-                  {/if}
-                  {#if validationResult.errors.length > 0}
-                    {#each validationResult.errors as err}
-                      <div class="flex items-center gap-2 text-2xs text-error">
-                        <X size={14} class="shrink-0" />
-                        <span>{err}</span>
-                      </div>
-                    {/each}
-                  {/if}
-                  <p class="text-2xs text-text-tertiary mt-1">{validationResult.fileCount} file{validationResult.fileCount === 1 ? '' : 's'} found</p>
+                <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected contents</h4>
+                <div class="grid grid-cols-2 gap-1">
+                  {#each selectedConfig.buildMatrix.filter((e: any) => e.fwType !== 'modem') as entry}
+                    <div class="flex items-center gap-2 text-2xs text-text-secondary bg-surface-0 rounded px-2 py-1">
+                      <span class="font-mono font-medium">{entry.label}</span>
+                      <span class="text-text-tertiary">
+                        {entry.producesHex ? '.hex' : ''}{entry.producesCfw ? ' .cfw' : ''}{!entry.producesHex && !entry.producesCfw ? 'any' : ''}
+                      </span>
+                    </div>
+                  {/each}
                 </div>
+              </div>
+            {/if}
+
+            <!-- Drop zone for loose files -->
+            <div
+              ondrop={handleFilesDrop}
+              ondragover={handleDragOver}
+              class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-6 transition-colors
+                {selectedFiles.length > 0 ? 'border-accent/40 bg-accent-muted/20' : 'border-border hover:border-accent/50'}"
+            >
+              {#if selectedFiles.length === 0}
+                <FileIcon size={28} class="mb-2 text-text-tertiary" />
+                <p class="text-sm text-text-secondary mb-1">Drop .hex / .cfw files here</p>
+                <p class="text-2xs text-text-tertiary mb-3">or</p>
+                <label class="cursor-pointer rounded-lg border border-accent/30 bg-accent-muted px-3 py-1.5 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors">
+                  Browse files
+                  <input type="file" multiple accept=".hex,.cfw,.json" class="hidden" onchange={handleFilesSelect} />
+                </label>
+              {:else}
+                <!-- File list -->
+                <div class="w-full space-y-1">
+                  {#each selectedFiles as file, i}
+                    <div class="flex items-center gap-2 rounded bg-surface-0 px-3 py-1.5 text-2xs">
+                      <FileIcon size={12} class="text-text-tertiary shrink-0" />
+                      <span class="font-mono text-text-primary truncate flex-1">{file.name}</span>
+                      <span class="text-text-tertiary shrink-0">{formatSize(file.size)}</span>
+                      <button
+                        onclick={() => removeFile(i)}
+                        class="text-text-tertiary hover:text-error shrink-0"
+                        title="Remove"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+                <label class="mt-2 cursor-pointer text-2xs text-accent hover:underline">
+                  Add more files
+                  <input type="file" multiple accept=".hex,.cfw,.json" class="hidden" onchange={handleFilesSelect} />
+                </label>
+              {/if}
+            </div>
+
+            <!-- Analyze button -->
+            {#if selectedFiles.length > 0 && analyzedFiles.length === 0}
+              <button
+                onclick={handleAnalyze}
+                disabled={analyzing}
+                class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {#if analyzing}
+                  <Loader2 size={14} class="animate-spin" />
+                  Analyzing...
+                {:else}
+                  <Check size={14} />
+                  Analyze files
+                {/if}
+              </button>
+            {/if}
+
+            <!-- Mapping table (after analysis) -->
+            {#if analyzedFiles.length > 0}
+              <div>
+                <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">File mapping</h4>
+                <div class="rounded-lg border border-border overflow-hidden">
+                  <table class="w-full text-2xs">
+                    <thead>
+                      <tr class="bg-surface-2 text-text-tertiary">
+                        <th class="text-left px-3 py-2 font-medium">File</th>
+                        <th class="text-left px-3 py-2 font-medium w-16">Size</th>
+                        <th class="text-left px-3 py-2 font-medium w-12">Type</th>
+                        <th class="text-left px-3 py-2 font-medium w-44">Label</th>
+                        <th class="text-center px-3 py-2 font-medium w-8"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each analyzedFiles as file, i}
+                        <tr class="border-t border-border-subtle">
+                          <td class="px-3 py-2">
+                            <span class="font-mono text-text-primary">{file.filename}</span>
+                          </td>
+                          <td class="px-3 py-2 text-text-tertiary">{formatSize(file.size)}</td>
+                          <td class="px-3 py-2 text-text-tertiary">{fileTypeLabel(file.detectedType)}</td>
+                          <td class="px-3 py-2">
+                            {#if file.confidence === 'high'}
+                              <span class="inline-flex items-center gap-1 text-success font-medium">
+                                {file.assignedLabel}
+                              </span>
+                            {:else}
+                              <select
+                                value={file.assignedLabel}
+                                onchange={(e) => setFileLabel(i, (e.target as HTMLSelectElement).value)}
+                                class="w-full rounded border border-border bg-surface-0 px-2 py-1 text-2xs text-text-primary focus:border-accent focus:outline-none"
+                              >
+                                <option value="">Select label...</option>
+                                {#if file.suggestedLabel && file.confidence === 'medium'}
+                                  <option value={file.suggestedLabel}>{file.suggestedLabel} (suggested)</option>
+                                {/if}
+                                {#each requiredLabels.filter((l: string) => !assignedLabels.has(l) || l === file.assignedLabel) as label}
+                                  {#if label !== file.suggestedLabel || file.confidence !== 'medium'}
+                                    <option value={label}>{label}</option>
+                                  {/if}
+                                {/each}
+                              </select>
+                            {/if}
+                          </td>
+                          <td class="px-3 py-2 text-center">
+                            {#if file.assignedLabel && file.confidence === 'high'}
+                              <span class="text-success" title="Auto-matched">&#10003;</span>
+                            {:else if file.assignedLabel}
+                              <span class="text-warning" title={file.matchReason ?? 'Manually assigned'}>&#9888;</span>
+                            {:else}
+                              <span class="text-error" title="Needs assignment">&#10005;</span>
+                            {/if}
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Missing labels warning -->
+                {#if unassignedLabels.length > 0}
+                  <div class="mt-2 flex items-start gap-2 text-2xs text-warning">
+                    <AlertCircle size={14} class="shrink-0 mt-0.5" />
+                    <span>Missing: {unassignedLabels.join(', ')}</span>
+                  </div>
+                {/if}
               </div>
 
               <!-- Version -->
               <div>
-                {#if validationResult.parsedVersion}
-                  <p class="text-2xs text-success mb-1">
-                    Version detected: {validationResult.parsedVersion} (from {validationResult.versionSource})
-                  </p>
-                {:else}
-                  <p class="text-2xs text-warning mb-1">Version could not be auto-detected</p>
-                {/if}
-                <label for="upload-version" class="block text-2xs font-medium text-text-secondary mb-1">
+                <label for="files-version" class="block text-2xs font-medium text-text-secondary mb-1">
                   Version
                 </label>
                 <input
-                  id="upload-version"
+                  id="files-version"
                   type="text"
                   bind:value={uploadVersion}
                   placeholder="e.g., 0.5.2"
@@ -473,34 +748,20 @@
                 />
               </div>
 
-              <!-- Notes -->
-              <div>
-                <label for="upload-notes" class="block text-2xs font-medium text-text-secondary mb-1">
-                  Notes <span class="text-text-tertiary font-normal">(optional)</span>
-                </label>
-                <textarea
-                  id="upload-notes"
-                  bind:value={uploadNotes}
-                  placeholder="Notes about this firmware..."
-                  rows="2"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"
-                ></textarea>
-              </div>
-
               <!-- Modem firmware selection -->
-              {#if needsModemFirmware}
+              {#if filesNeedsModem}
                 <div>
-                  <label for="modem-firmware-select" class="block text-2xs font-medium text-text-secondary mb-1">
+                  <label for="files-modem-select" class="block text-2xs font-medium text-text-secondary mb-1">
                     Modem Firmware
                   </label>
-                  {#if hasModemFirmwareOptions}
+                  {#if filesHasModemOptions}
                     <select
-                      id="modem-firmware-select"
+                      id="files-modem-select"
                       bind:value={selectedModemFirmwareId}
                       class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
                     >
                       <option value={null}>Select modem firmware...</option>
-                      {#each validationResult.availableModemFirmwares as fw}
+                      {#each analyzeAvailableModemFirmwares as fw}
                         <option value={fw.id}>v{fw.version} -- {fw.filename}</option>
                       {/each}
                     </select>
@@ -513,31 +774,232 @@
                 </div>
               {/if}
 
-              <!-- Upload button (only when valid + version filled + modem selected if needed) -->
-              {#if validationResult.valid && uploadVersion.trim() && modemReady}
+              <!-- Notes -->
+              <div>
+                <label for="files-notes" class="block text-2xs font-medium text-text-secondary mb-1">
+                  Notes <span class="text-text-tertiary font-normal">(optional)</span>
+                </label>
+                <textarea
+                  id="files-notes"
+                  bind:value={uploadNotes}
+                  placeholder="Notes about this firmware..."
+                  rows="2"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"
+                ></textarea>
+              </div>
+
+              <!-- Upload button -->
+              <button
+                onclick={handleFilesUpload}
+                disabled={!allLabelsAssigned || !uploadVersion.trim() || !filesModemReady || uploading}
+                class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {#if uploading}
+                  <Loader2 size={14} class="animate-spin" />
+                  Uploading...
+                {:else}
+                  <Upload size={14} />
+                  Upload to Concord
+                {/if}
+              </button>
+            {/if}
+
+          <!-- ============ ZIP MODE ============ -->
+          {:else}
+
+            <!-- Expected contents from build matrix -->
+            {#if selectedConfig?.buildMatrix?.length && !validationResult}
+              <div>
+                <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected contents</h4>
+                <div class="grid grid-cols-2 gap-1">
+                  {#each selectedConfig.buildMatrix.filter((e: any) => e.fwType !== 'modem') as entry}
+                    <div class="flex items-center gap-2 text-2xs text-text-secondary bg-surface-0 rounded px-2 py-1">
+                      <span class="font-mono font-medium">{entry.label}/</span>
+                      <span class="text-text-tertiary">
+                        {entry.producesHex ? '.hex' : ''}{entry.producesCfw ? ' .cfw' : ''}{!entry.producesHex && !entry.producesCfw ? 'any' : ''}
+                      </span>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+
+            <!-- Drop zone (zip) -->
+            <div
+              ondrop={handleZipDrop}
+              ondragover={handleDragOver}
+              class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-8 transition-colors
+                {selectedZipFile ? 'border-accent bg-accent-muted/30' : 'border-border hover:border-accent/50'}"
+            >
+              {#if selectedZipFile}
+                <FileArchive size={28} class="mb-2 text-accent" />
+                <p class="text-sm font-medium text-text-primary">{selectedZipFile.name}</p>
+                <p class="text-2xs text-text-tertiary mt-0.5">{formatSize(selectedZipFile.size)}</p>
                 <button
-                  onclick={handleUpload}
-                  disabled={uploading}
-                  class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+                  onclick={() => { selectedZipFile = null; validationResult = null; uploadVersion = ''; }}
+                  class="mt-2 text-2xs text-accent hover:underline"
                 >
-                  {#if uploading}
-                    <Loader2 size={14} class="animate-spin" />
-                    Uploading...
-                  {:else}
-                    <Upload size={14} />
-                    Upload to Concord
-                  {/if}
+                  Remove
                 </button>
+              {:else}
+                <FileArchive size={28} class="mb-2 text-text-tertiary" />
+                <p class="text-sm text-text-secondary mb-1">Drop a .zip file here</p>
+                <p class="text-2xs text-text-tertiary mb-3">or</p>
+                <label class="cursor-pointer rounded-lg border border-accent/30 bg-accent-muted px-3 py-1.5 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors">
+                  Browse files
+                  <input type="file" accept=".zip" class="hidden" onchange={handleZipSelect} />
+                </label>
               {/if}
             </div>
+
+            <!-- Validate button (before validation) -->
+            {#if selectedZipFile && !validationResult}
+              <button
+                onclick={handleValidateZip}
+                disabled={validating}
+                class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {#if validating}
+                  <Loader2 size={14} class="animate-spin" />
+                  Validating...
+                {:else}
+                  <Check size={14} />
+                  Validate
+                {/if}
+              </button>
+            {/if}
+
+            <!-- Validation results -->
+            {#if validationResult}
+              <div class="space-y-3">
+                <!-- Labels checklist -->
+                <div>
+                  <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Validation results</h4>
+                  <div class="space-y-1">
+                    {#if selectedConfig?.buildMatrix}
+                      {#each selectedConfig.buildMatrix.filter((e: any) => e.fwType !== 'modem') as entry}
+                        <div class="flex items-center gap-2 text-sm">
+                          {#if validationResult.labelsFound.includes(entry.label)}
+                            <Check class="text-success shrink-0" size={16} strokeWidth={2.5} />
+                          {:else}
+                            <X class="text-error shrink-0" size={16} strokeWidth={2.5} />
+                          {/if}
+                          <span class="font-mono text-2xs text-text-secondary">{entry.label}/</span>
+                        </div>
+                      {/each}
+                    {/if}
+                    {#if validationResult.warnings.length > 0}
+                      {#each validationResult.warnings as warning}
+                        <div class="flex items-center gap-2 text-2xs text-warning">
+                          <AlertCircle size={14} class="shrink-0" />
+                          <span>{warning}</span>
+                        </div>
+                      {/each}
+                    {/if}
+                    {#if validationResult.errors.length > 0}
+                      {#each validationResult.errors as err}
+                        <div class="flex items-center gap-2 text-2xs text-error">
+                          <X size={14} class="shrink-0" />
+                          <span>{err}</span>
+                        </div>
+                      {/each}
+                    {/if}
+                    <p class="text-2xs text-text-tertiary mt-1">{validationResult.fileCount} file{validationResult.fileCount === 1 ? '' : 's'} found</p>
+                  </div>
+                </div>
+
+                <!-- Version -->
+                <div>
+                  {#if validationResult.parsedVersion}
+                    <p class="text-2xs text-success mb-1">
+                      Version detected: {validationResult.parsedVersion} (from {validationResult.versionSource})
+                    </p>
+                  {:else}
+                    <p class="text-2xs text-warning mb-1">Version could not be auto-detected</p>
+                  {/if}
+                  <label for="zip-version" class="block text-2xs font-medium text-text-secondary mb-1">
+                    Version
+                  </label>
+                  <input
+                    id="zip-version"
+                    type="text"
+                    bind:value={uploadVersion}
+                    placeholder="e.g., 0.5.2"
+                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                  />
+                </div>
+
+                <!-- Notes -->
+                <div>
+                  <label for="zip-notes" class="block text-2xs font-medium text-text-secondary mb-1">
+                    Notes <span class="text-text-tertiary font-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    id="zip-notes"
+                    bind:value={uploadNotes}
+                    placeholder="Notes about this firmware..."
+                    rows="2"
+                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"
+                  ></textarea>
+                </div>
+
+                <!-- Modem firmware selection -->
+                {#if zipNeedsModem}
+                  <div>
+                    <label for="zip-modem-select" class="block text-2xs font-medium text-text-secondary mb-1">
+                      Modem Firmware
+                    </label>
+                    {#if zipHasModemOptions}
+                      <select
+                        id="zip-modem-select"
+                        bind:value={selectedModemFirmwareId}
+                        class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+                      >
+                        <option value={null}>Select modem firmware...</option>
+                        {#each validationResult.availableModemFirmwares as fw}
+                          <option value={fw.id}>v{fw.version} -- {fw.filename}</option>
+                        {/each}
+                      </select>
+                    {:else}
+                      <div class="rounded-lg bg-warning-muted px-3 py-2">
+                        <p class="text-2xs text-warning">No modem firmware uploaded for this revision.</p>
+                        <p class="text-2xs text-warning/70 mt-0.5">Upload modem firmware in the Assets tab first.</p>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+
+                <!-- Upload button (only when valid + version filled + modem selected if needed) -->
+                {#if validationResult.valid && uploadVersion.trim() && zipModemReady}
+                  <button
+                    onclick={handleZipUpload}
+                    disabled={uploading}
+                    class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {#if uploading}
+                      <Loader2 size={14} class="animate-spin" />
+                      Uploading...
+                    {:else}
+                      <Upload size={14} />
+                      Upload to Concord
+                    {/if}
+                  </button>
+                {/if}
+              </div>
+            {/if}
           {/if}
 
+          <!-- Shared error display -->
           {#if uploadError}
             <div class="flex items-start gap-2 rounded-lg bg-error-muted px-4 py-3">
               <AlertCircle size={14} class="text-error mt-0.5 shrink-0" />
               <div>
                 <p class="text-sm text-error">{uploadError}</p>
-                <p class="text-2xs text-error/70 mt-0.5">Check that the zip contains the expected label directories and firmware files.</p>
+                {#if uploadMode === 'zip'}
+                  <p class="text-2xs text-error/70 mt-0.5">Check that the zip contains the expected label directories and firmware files.</p>
+                {:else}
+                  <p class="text-2xs text-error/70 mt-0.5">Check that the files match the expected build matrix labels.</p>
+                {/if}
               </div>
             </div>
           {/if}
@@ -554,22 +1016,28 @@
             Assets validated and stored for
             {selectedConfig ? stageName(selectedConfig.type as StageType, selectedConfig.stage) : ''}
           </p>
-          {#if selectedFile}
+          {#if uploadSummary}
             <p class="text-2xs text-text-tertiary">
-              {selectedFile.name} ({formatSize(selectedFile.size)})
+              {uploadSummary.fileCount} file{uploadSummary.fileCount === 1 ? '' : 's'}
+              &middot; v{uploadSummary.version}
             </p>
+            <div class="mt-2 flex flex-wrap gap-1 justify-center">
+              {#each uploadSummary.labels as label}
+                <span class="inline-block rounded bg-surface-2 px-2 py-0.5 text-2xs font-mono text-text-secondary">{label}</span>
+              {/each}
+            </div>
           {/if}
         </div>
       {/if}
     </div>
 
     <!-- Footer -->
-    <div class="flex items-center justify-between border-t border-border px-5 py-4">
+    <div class="flex items-center justify-between border-t border-border px-5 py-4 shrink-0">
       <div>
         {#if currentStep === 'upload'}
           <button
             onclick={goBack}
-            disabled={uploading || validating}
+            disabled={busy}
             class="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50"
           >
             <ChevronLeft size={14} />
@@ -590,8 +1058,8 @@
           </button>
         {:else}
           <button
-            onclick={() => { if (!uploading && !validating) onCancel(); }}
-            disabled={uploading || validating}
+            onclick={() => { if (!busy) onCancel(); }}
+            disabled={busy}
             class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50"
           >
             Cancel
