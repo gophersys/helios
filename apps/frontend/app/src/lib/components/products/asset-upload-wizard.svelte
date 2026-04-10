@@ -21,15 +21,15 @@
   let { productId, revision, stageConfigs, onComplete, onCancel }: Props = $props();
 
   // ── Wizard state ────────────────────────────────────────────
-  type Step = 'stage' | 'variant' | 'upload' | 'uploading';
+  type Step = 'stage' | 'upload' | 'complete';
   let currentStep = $state<Step>('stage');
 
   let selectedConfigId = $state<string | null>(null);
-  let selectedVariant = $state<'debug' | 'release' | 'mfg'>('debug');
   let selectedFile = $state<File | null>(null);
   let uploading = $state(false);
   let uploadError = $state<string | null>(null);
   let uploadSuccess = $state(false);
+  let uploadNotes = $state('');
 
   // ── Derived ────────────────────────────────────────────────
   const validationConfigs = $derived(
@@ -46,27 +46,16 @@
 
   const stepIndex = $derived(
     currentStep === 'stage' ? 0
-    : currentStep === 'variant' ? 1
-    : currentStep === 'upload' ? 2
-    : 3
+    : currentStep === 'upload' ? 1
+    : 2
   );
 
-  const steps = ['Stage', 'Variant', 'Upload', 'Complete'] as const;
+  const steps = ['Stage', 'Upload', 'Complete'] as const;
 
   // ── Handlers ───────────────────────────────────────────────
 
   function selectStage(configId: string) {
     selectedConfigId = configId;
-    const config = stageConfigs.find(c => c.id === configId);
-    if (config?.type === 'MANUFACTURING') {
-      selectedVariant = 'mfg';
-    } else {
-      selectedVariant = 'debug';
-    }
-    currentStep = 'variant';
-  }
-
-  function confirmVariant() {
     currentStep = 'upload';
   }
 
@@ -97,32 +86,32 @@
 
     uploading = true;
     uploadError = null;
-    currentStep = 'uploading';
 
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('stageConfigId', selectedConfigId);
       formData.append('version', 'auto');
-      formData.append('variant', selectedVariant);
+      formData.append('variant', 'debug');
+      if (uploadNotes.trim()) {
+        formData.append('notes', uploadNotes.trim());
+      }
 
       await apiUpload(`/v2/products/${productId}/asset-sets/upload-zip`, formData);
       uploadSuccess = true;
+      currentStep = 'complete';
     } catch (e) {
       uploadError = e instanceof Error ? e.message : 'Upload failed';
-      currentStep = 'upload';
     } finally {
       uploading = false;
     }
   }
 
   function goBack() {
-    if (currentStep === 'variant') {
-      currentStep = 'stage';
-    } else if (currentStep === 'upload') {
+    if (currentStep === 'upload') {
       selectedFile = null;
       uploadError = null;
-      currentStep = 'variant';
+      currentStep = 'stage';
     }
   }
 
@@ -290,42 +279,7 @@
           {/if}
         </div>
 
-      <!-- Step 2: Select Variant -->
-      {:else if currentStep === 'variant'}
-        <div class="space-y-3">
-          <p class="text-2xs text-text-tertiary mb-3">
-            Select the firmware variant for
-            <span class="font-medium text-text-secondary">
-              {selectedConfig ? stageName(selectedConfig.type as StageType, selectedConfig.stage) : ''}
-            </span>
-          </p>
-          {#each [
-            { value: 'debug', label: 'Debug', desc: 'Debug symbols enabled, verbose logging' },
-            { value: 'release', label: 'Release', desc: 'Optimized build, production-ready' },
-            { value: 'mfg', label: 'Manufacturing', desc: 'Manufacturing test firmware' },
-          ] as opt}
-            <button
-              onclick={() => { selectedVariant = opt.value as 'debug' | 'release' | 'mfg'; }}
-              class="w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors
-                {selectedVariant === opt.value
-                  ? 'border-accent bg-accent-muted'
-                  : 'border-border hover:border-accent/50 hover:bg-surface-0/50'}"
-            >
-              <div class="flex h-5 w-5 items-center justify-center rounded-full border-2 shrink-0
-                {selectedVariant === opt.value ? 'border-accent' : 'border-border'}">
-                {#if selectedVariant === opt.value}
-                  <div class="h-2.5 w-2.5 rounded-full bg-accent"></div>
-                {/if}
-              </div>
-              <div>
-                <span class="text-sm font-medium text-text-primary">{opt.label}</span>
-                <p class="text-2xs text-text-tertiary">{opt.desc}</p>
-              </div>
-            </button>
-          {/each}
-        </div>
-
-      <!-- Step 3: Upload -->
+      <!-- Step 2: Upload -->
       {:else if currentStep === 'upload'}
         <div class="space-y-4">
           <!-- Summary -->
@@ -338,15 +292,28 @@
                 </span>
               </div>
               <div>
-                <span class="text-text-tertiary">Variant:</span>
-                <span class="font-medium text-text-primary ml-1 capitalize">{selectedVariant}</span>
-              </div>
-              <div>
                 <span class="text-text-tertiary">Version:</span>
                 <span class="font-medium text-text-primary ml-1">Auto</span>
               </div>
             </div>
           </div>
+
+          <!-- Expected contents from build matrix -->
+          {#if selectedConfig?.buildMatrix?.length}
+            <div>
+              <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected contents</h4>
+              <div class="grid grid-cols-2 gap-1">
+                {#each selectedConfig.buildMatrix as entry}
+                  <div class="flex items-center gap-2 text-2xs text-text-secondary bg-surface-0 rounded px-2 py-1">
+                    <span class="font-mono font-medium">{entry.label}/</span>
+                    <span class="text-text-tertiary">
+                      {entry.producesHex ? '.hex' : ''}{entry.producesCfw ? ' .cfw' : ''}{!entry.producesHex && !entry.producesCfw ? 'any' : ''}
+                    </span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
 
           <!-- Drop zone -->
           <div
@@ -387,26 +354,38 @@
           {/if}
         </div>
 
-      <!-- Step 4: Uploading / Success -->
-      {:else if currentStep === 'uploading'}
+      <!-- Step 3: Complete -->
+      {:else if currentStep === 'complete'}
         <div class="flex flex-col items-center justify-center py-8">
-          {#if uploadSuccess}
-            <div class="flex h-12 w-12 items-center justify-center rounded-full bg-success-muted mb-4">
-              <Check size={24} class="text-success" strokeWidth={2.5} />
+          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-success-muted mb-4">
+            <Check size={24} class="text-success" strokeWidth={2.5} />
+          </div>
+          <p class="text-sm font-medium text-text-primary mb-1">Upload complete</p>
+          <p class="text-2xs text-text-tertiary mb-4">
+            Assets validated and stored for
+            {selectedConfig ? stageName(selectedConfig.type as StageType, selectedConfig.stage) : ''}
+          </p>
+
+          {#if selectedFile}
+            <div class="flex items-center gap-3 text-2xs text-text-tertiary mb-4">
+              <span>{selectedFile.name}</span>
+              <span class="text-border">|</span>
+              <span>{formatSize(selectedFile.size)}</span>
             </div>
-            <p class="text-sm font-medium text-text-primary mb-1">Upload complete</p>
-            <p class="text-2xs text-text-tertiary">
-              Assets validated and stored for
-              {selectedConfig ? stageName(selectedConfig.type as StageType, selectedConfig.stage) : ''}
-              ({selectedVariant})
-            </p>
-          {:else}
-            <Loader2 size={32} class="animate-spin text-accent mb-4" />
-            <p class="text-sm font-medium text-text-primary mb-1">Uploading and validating...</p>
-            <p class="text-2xs text-text-tertiary">
-              The server is checking firmware files against the build matrix.
-            </p>
           {/if}
+
+          <div class="w-full max-w-sm">
+            <label for="upload-notes" class="block text-2xs font-medium text-text-secondary mb-1">
+              Notes <span class="text-text-tertiary font-normal">(optional)</span>
+            </label>
+            <textarea
+              id="upload-notes"
+              bind:value={uploadNotes}
+              placeholder="Add notes about this firmware..."
+              rows="3"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"
+            ></textarea>
+          </div>
         </div>
       {/if}
     </div>
@@ -414,7 +393,7 @@
     <!-- Footer -->
     <div class="flex items-center justify-between border-t border-border px-5 py-4">
       <div>
-        {#if currentStep === 'variant' || currentStep === 'upload'}
+        {#if currentStep === 'upload'}
           <button
             onclick={goBack}
             disabled={uploading}
@@ -429,15 +408,13 @@
       </div>
 
       <div class="flex items-center gap-2">
-        {#if uploadSuccess}
+        {#if currentStep === 'complete'}
           <button
             onclick={onComplete}
             class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
           >
             Done
           </button>
-        {:else if currentStep === 'uploading'}
-          <!-- No actions while uploading -->
         {:else}
           <button
             onclick={() => { if (!uploading) onCancel(); }}
@@ -447,21 +424,19 @@
             Cancel
           </button>
 
-          {#if currentStep === 'variant'}
-            <button
-              onclick={confirmVariant}
-              class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-            >
-              Next
-            </button>
-          {:else if currentStep === 'upload'}
+          {#if currentStep === 'upload'}
             <button
               onclick={handleUpload}
               disabled={!selectedFile || uploading}
               class="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Upload size={14} />
-              Upload
+              {#if uploading}
+                <Loader2 size={14} class="animate-spin" />
+                Uploading...
+              {:else}
+                <Upload size={14} />
+                Upload
+              {/if}
             </button>
           {/if}
 
