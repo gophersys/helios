@@ -56,12 +56,14 @@ log "Installing dependencies..."
 yarn install --immutable
 npx prisma generate
 
-# Install Python test dependencies
-log "Installing Python test dependencies..."
+# Install Python test + app dependencies
+log "Installing Python dependencies..."
 pip3 install --no-cache-dir \
-  pytest pytest-timeout psycopg2-binary requests minio 2>/dev/null || \
+  pytest pytest-timeout psycopg2-binary requests minio \
+  -e apps/backend/http-api 2>/dev/null || \
 pip3 install --no-cache-dir --break-system-packages \
-  pytest pytest-timeout psycopg2-binary requests minio
+  pytest pytest-timeout psycopg2-binary requests minio \
+  -e apps/backend/http-api
 
 # Ensure mc (MinIO client) is available
 if ! command -v mc &>/dev/null; then

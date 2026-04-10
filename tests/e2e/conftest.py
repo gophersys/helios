@@ -11,12 +11,17 @@ import requests
 
 WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 COMPOSE_FILE = os.path.join(WORKSPACE_ROOT, "deploy", "development", "docker-compose.test.yaml")
-API_URL = "http://localhost:9010"
+
+# When running against the development stack (nx start platform), the API is on :9001.
+# When running with the test compose stack, it's on :9010.
+# If the development API is already up, use it directly and skip compose/seed setup.
+_DEV_API_URL = "http://localhost:9001"
+_TEST_API_URL = "http://localhost:9010"
 API_KEY = "ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG"
 
 # Prisma paths
 PRISMA_DIR = os.path.join(WORKSPACE_ROOT, "prisma")
-SEED_SCRIPT = os.path.join(PRISMA_DIR, "seed.py")
+SEED_MODULE = os.path.join(PRISMA_DIR, "seed", "main.py")
 
 
 def _compose(*args, timeout=180):
@@ -25,17 +30,16 @@ def _compose(*args, timeout=180):
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
 
-def _wait_for_api(deadline_seconds=90):
+def _wait_for_api(base_url=_TEST_API_URL, deadline_seconds=90):
     """Block until the API healthcheck returns 200."""
     deadline = time.time() + deadline_seconds
-    last_err = None
     while time.time() < deadline:
         try:
-            resp = requests.get(f"{API_URL}/v2/healthcheck", timeout=3)
+            resp = requests.get(f"{base_url}/v2/docs", timeout=3)
             if resp.status_code == 200:
                 return True
-        except Exception as e:
-            last_err = e
+        except Exception:
+            pass
         time.sleep(2)
     return False
 
@@ -67,11 +71,11 @@ def _seed_database():
     env["PYTHONPATH"] = ":".join(python_paths)
 
     result = subprocess.run(
-        [sys.executable, SEED_SCRIPT],
-        capture_output=True, text=True, env=env, cwd=WORKSPACE_ROOT, timeout=120,
+        [sys.executable, "-m", "seed.main"],
+        capture_output=True, text=True, env=env, cwd=PRISMA_DIR, timeout=120,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"seed.py failed:\n{result.stderr}\n{result.stdout}")
+        raise RuntimeError(f"seed failed:\n{result.stderr}\n{result.stdout}")
 
 
 def _teardown():
@@ -83,9 +87,32 @@ def _teardown():
 atexit.register(_teardown)
 
 
+def _dev_platform_running():
+    """Check if the development platform (nx start platform) is already up."""
+    try:
+        resp = requests.get(f"{_DEV_API_URL}/v2/docs", timeout=3)
+        return resp.status_code == 200
+    except Exception:
+        return False
+
+
 @pytest.fixture(scope="session")
 def platform():
-    """Start the full platform, seed the DB, wait for health, yield, tear down."""
+    """Start the full platform, seed the DB, wait for health, yield, tear down.
+
+    If the development platform is already running (e.g. via ``nx start platform``
+    in CI or local dev), reuse it directly and skip compose/seed setup.
+    """
+    # Fast path: reuse already-running development stack
+    if _dev_platform_running():
+        yield {
+            "api_url": _DEV_API_URL,
+            "api_key": API_KEY,
+            "compose_file": None,
+        }
+        return
+
+    # Slow path: spin up dedicated test compose stack
     # 1. Build images (noop if already built)
     build = _compose("build")
     if build.returncode != 0:
@@ -94,7 +121,7 @@ def platform():
     # 2. Start infra first so we can seed from the host
     _compose("up", "-d", "test-db", "test-minio")
 
-    # Wait for DB to be ready (use docker compose exec to check inside the container)
+    # Wait for DB to be ready
     db_deadline = time.time() + 30
     while time.time() < db_deadline:
         check = _compose(
@@ -129,7 +156,7 @@ def platform():
         )
 
     yield {
-        "api_url": API_URL,
+        "api_url": _TEST_API_URL,
         "api_key": API_KEY,
         "compose_file": COMPOSE_FILE,
     }
