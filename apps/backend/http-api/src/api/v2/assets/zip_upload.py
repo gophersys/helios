@@ -1,6 +1,7 @@
 """Zip-based asset set upload — validates and extracts firmware assets.
 
 POST /v2/products/{pid}/asset-sets/upload-zip
+POST /v2/products/{pid}/asset-sets/validate-zip
 
 Accepts a zip file structured by build matrix labels, validates contents
 against the stage's StageBuildMatrix, then creates an AssetSet with
@@ -9,7 +10,9 @@ individual Asset records for each file.
 
 import hashlib
 import io
+import json
 import logging
+import re
 import zipfile
 
 from flask import g, jsonify, request
@@ -28,6 +31,111 @@ from .zip_validator import validate_zip, classify_file
 logger = logging.getLogger(__name__)
 
 ASSET_SETS_PREFIX = "asset-sets"
+
+
+def _try_parse_version(zf: zipfile.ZipFile) -> tuple[str | None, str | None]:
+    """Try to extract firmware version from zip contents.
+
+    Returns (version, source) where source is "build.json", "filename", or None.
+    """
+    # 1. Try build.json in any label directory
+    for name in zf.namelist():
+        normalized = name.replace("\\", "/")
+        if normalized.endswith("/build.json") or normalized == "build.json":
+            try:
+                data = json.loads(zf.read(name))
+                version = data.get("version")
+                if version and version != "unknown":
+                    return version, "build.json"
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+    # 2. Try parsing from hex filenames
+    # Patterns: *_v1.2.3_*.hex, *_1.2.3.hex, *-1.2.3*.hex
+    version_pattern = re.compile(r"[_-]v?(\d+\.\d+\.\d+(?:\.\d+)?)[_.-]")
+    for name in zf.namelist():
+        normalized = name.replace("\\", "/")
+        filename = normalized.split("/")[-1]
+        if filename.endswith(".hex"):
+            match = version_pattern.search(filename)
+            if match:
+                return match.group(1), "filename"
+
+    return None, None
+
+
+@require_auth
+def validate_asset_zip(product_id: str):
+    """POST /products/<id>/asset-sets/validate-zip — validate without uploading.
+
+    Validates the zip structure against the build matrix and attempts
+    to parse the firmware version. Returns validation results + parsed
+    version for the UI to display before committing the upload.
+
+    Form fields:
+        file: zip archive (required)
+        stageConfigId: FK to ProductStageConfig (required)
+    """
+    db = get_db_client()
+
+    # Validate product
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+
+    # Parse form fields
+    stage_config_id = (request.form.get("stageConfigId") or "").strip()
+    if not stage_config_id:
+        return bad_request("stageConfigId is required")
+
+    # Validate stage config exists and belongs to this product
+    stage_config = db.productstageconfig.find_unique(
+        where={"id": stage_config_id},
+        include={"buildMatrixEntries": True},
+    )
+    if not stage_config:
+        return not_found("Stage config not found")
+    if stage_config.productId != product_id:
+        return bad_request("Stage config does not belong to this product")
+
+    # Validate zip file
+    if "file" not in request.files:
+        return bad_request("No file provided")
+    file = request.files["file"]
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        return bad_request("File must be a .zip archive")
+
+    # Read zip into memory
+    zip_bytes = io.BytesIO(file.read())
+
+    # Validate zip contents against build matrix
+    matrix_entries = stage_config.buildMatrixEntries or []
+    if not matrix_entries:
+        return bad_request(
+            "Stage has no build matrix entries. Configure the build matrix before uploading assets."
+        )
+
+    validation = validate_zip(zip_bytes, matrix_entries)
+
+    # Attempt version parsing
+    parsed_version = None
+    version_source = None
+    try:
+        zip_bytes.seek(0)
+        with zipfile.ZipFile(zip_bytes, "r") as zf:
+            parsed_version, version_source = _try_parse_version(zf)
+    except zipfile.BadZipFile:
+        pass
+
+    return jsonify(ApiResponse.ok({
+        "valid": validation.valid,
+        "errors": validation.errors,
+        "warnings": validation.warnings,
+        "labelsFound": validation.labels_found,
+        "fileCount": validation.file_count,
+        "parsedVersion": parsed_version,
+        "versionSource": version_source,
+    }).to_dict()), 200
 
 
 @require_auth

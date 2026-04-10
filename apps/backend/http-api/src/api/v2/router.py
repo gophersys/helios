@@ -261,7 +261,7 @@ from .assets.asset_sets import (
     delete_asset_set,
 )
 from .assets.assets import upload_asset
-from .assets.zip_upload import upload_asset_set_zip
+from .assets.zip_upload import validate_asset_zip, upload_asset_set_zip
 
 # PR pipeline + summary endpoints
 from .builds.pr_builds import list_pr_pipelines, get_build_summary
@@ -419,6 +419,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/asset-sets",                                        endpoint="list_asset_sets",          view_func=list_asset_sets,           methods=["GET"])
     v2.add_url_rule("/products/<product_id>/asset-sets",                                        endpoint="create_asset_set",         view_func=create_asset_set,          methods=["POST"])
     v2.add_url_rule("/products/<product_id>/asset-sets/external",                               endpoint="create_external_asset_set", view_func=create_external_asset_set, methods=["POST"])
+    v2.add_url_rule("/products/<product_id>/asset-sets/validate-zip",                           endpoint="validate_asset_zip",       view_func=validate_asset_zip,        methods=["POST"])
     v2.add_url_rule("/products/<product_id>/asset-sets/upload-zip",                             endpoint="upload_asset_set_zip",     view_func=upload_asset_set_zip,      methods=["POST"])
 
     # Asset Sets (top-level — not nested under product)

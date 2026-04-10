@@ -26,10 +26,21 @@
 
   let selectedConfigId = $state<string | null>(null);
   let selectedFile = $state<File | null>(null);
+  let validating = $state(false);
+  let validationResult = $state<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    labelsFound: string[];
+    fileCount: number;
+    parsedVersion: string | null;
+    versionSource: string | null;
+  } | null>(null);
   let uploading = $state(false);
   let uploadError = $state<string | null>(null);
   let uploadSuccess = $state(false);
   let uploadNotes = $state('');
+  let uploadVersion = $state('');
 
   // ── Derived ────────────────────────────────────────────────
   const validationConfigs = $derived(
@@ -81,8 +92,34 @@
     e.preventDefault();
   }
 
-  async function handleUpload() {
+  async function handleValidate() {
     if (!selectedFile || !selectedConfigId) return;
+    validating = true;
+    validationResult = null;
+    uploadError = null;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('stageConfigId', selectedConfigId);
+
+      const result = await apiUpload<{ data: typeof validationResult }>(
+        `/v2/products/${productId}/asset-sets/validate-zip`,
+        formData
+      );
+      validationResult = result.data;
+      if (validationResult?.parsedVersion) {
+        uploadVersion = validationResult.parsedVersion;
+      }
+    } catch (e) {
+      uploadError = e instanceof Error ? e.message : 'Validation failed';
+    } finally {
+      validating = false;
+    }
+  }
+
+  async function handleUpload() {
+    if (!selectedFile || !selectedConfigId || !uploadVersion.trim()) return;
 
     uploading = true;
     uploadError = null;
@@ -91,7 +128,7 @@
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('stageConfigId', selectedConfigId);
-      formData.append('version', 'auto');
+      formData.append('version', uploadVersion.trim());
       formData.append('variant', 'debug');
       if (uploadNotes.trim()) {
         formData.append('notes', uploadNotes.trim());
@@ -111,6 +148,9 @@
     if (currentStep === 'upload') {
       selectedFile = null;
       uploadError = null;
+      validationResult = null;
+      uploadVersion = '';
+      uploadNotes = '';
       currentStep = 'stage';
     }
   }
@@ -126,7 +166,7 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && !uploading) {
+    if (e.key === 'Escape' && !uploading && !validating) {
       onCancel();
     }
   }
@@ -135,7 +175,7 @@
 <!-- Overlay -->
 <div
   class="fixed inset-0 z-modal-backdrop bg-overlay animate-overlay-in"
-  onclick={() => { if (!uploading) onCancel(); }}
+  onclick={() => { if (!uploading && !validating) onCancel(); }}
   onkeydown={handleKeydown}
   role="presentation"
   tabindex="-1"
@@ -165,8 +205,8 @@
         </div>
       </div>
       <button
-        onclick={() => { if (!uploading) onCancel(); }}
-        disabled={uploading}
+        onclick={() => { if (!uploading && !validating) onCancel(); }}
+        disabled={uploading || validating}
         class="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-2 hover:text-text-primary disabled:opacity-50"
         title="Cancel"
         aria-label="Cancel upload"
@@ -279,7 +319,7 @@
           {/if}
         </div>
 
-      <!-- Step 2: Upload -->
+      <!-- Step 2: Upload & Validate -->
       {:else if currentStep === 'upload'}
         <div class="space-y-4">
           <!-- Summary -->
@@ -291,15 +331,11 @@
                   {selectedConfig ? stageName(selectedConfig.type as StageType, selectedConfig.stage) : ''}
                 </span>
               </div>
-              <div>
-                <span class="text-text-tertiary">Version:</span>
-                <span class="font-medium text-text-primary ml-1">Auto</span>
-              </div>
             </div>
           </div>
 
           <!-- Expected contents from build matrix -->
-          {#if selectedConfig?.buildMatrix?.length}
+          {#if selectedConfig?.buildMatrix?.length && !validationResult}
             <div>
               <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected contents</h4>
               <div class="grid grid-cols-2 gap-1">
@@ -327,7 +363,7 @@
               <p class="text-sm font-medium text-text-primary">{selectedFile.name}</p>
               <p class="text-2xs text-text-tertiary mt-0.5">{formatSize(selectedFile.size)}</p>
               <button
-                onclick={() => { selectedFile = null; }}
+                onclick={() => { selectedFile = null; validationResult = null; uploadVersion = ''; }}
                 class="mt-2 text-2xs text-accent hover:underline"
               >
                 Remove
@@ -342,6 +378,116 @@
               </label>
             {/if}
           </div>
+
+          <!-- Validate button (before validation) -->
+          {#if selectedFile && !validationResult}
+            <button
+              onclick={handleValidate}
+              disabled={validating}
+              class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {#if validating}
+                <Loader2 size={14} class="animate-spin" />
+                Validating...
+              {:else}
+                <Check size={14} />
+                Validate
+              {/if}
+            </button>
+          {/if}
+
+          <!-- Validation results -->
+          {#if validationResult}
+            <div class="space-y-3">
+              <!-- Labels checklist -->
+              <div>
+                <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Validation results</h4>
+                <div class="space-y-1">
+                  {#if selectedConfig?.buildMatrix}
+                    {#each selectedConfig.buildMatrix as entry}
+                      <div class="flex items-center gap-2 text-sm">
+                        {#if validationResult.labelsFound.includes(entry.label)}
+                          <Check class="text-success shrink-0" size={16} strokeWidth={2.5} />
+                        {:else}
+                          <X class="text-error shrink-0" size={16} strokeWidth={2.5} />
+                        {/if}
+                        <span class="font-mono text-2xs text-text-secondary">{entry.label}/</span>
+                      </div>
+                    {/each}
+                  {/if}
+                  {#if validationResult.warnings.length > 0}
+                    {#each validationResult.warnings as warning}
+                      <div class="flex items-center gap-2 text-2xs text-warning">
+                        <AlertCircle size={14} class="shrink-0" />
+                        <span>{warning}</span>
+                      </div>
+                    {/each}
+                  {/if}
+                  {#if validationResult.errors.length > 0}
+                    {#each validationResult.errors as err}
+                      <div class="flex items-center gap-2 text-2xs text-error">
+                        <X size={14} class="shrink-0" />
+                        <span>{err}</span>
+                      </div>
+                    {/each}
+                  {/if}
+                  <p class="text-2xs text-text-tertiary mt-1">{validationResult.fileCount} file{validationResult.fileCount === 1 ? '' : 's'} found</p>
+                </div>
+              </div>
+
+              <!-- Version -->
+              <div>
+                {#if validationResult.parsedVersion}
+                  <p class="text-2xs text-success mb-1">
+                    Version detected: {validationResult.parsedVersion} (from {validationResult.versionSource})
+                  </p>
+                {:else}
+                  <p class="text-2xs text-warning mb-1">Version could not be auto-detected</p>
+                {/if}
+                <label for="upload-version" class="block text-2xs font-medium text-text-secondary mb-1">
+                  Version
+                </label>
+                <input
+                  id="upload-version"
+                  type="text"
+                  bind:value={uploadVersion}
+                  placeholder="e.g., 0.5.2"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                />
+              </div>
+
+              <!-- Notes -->
+              <div>
+                <label for="upload-notes" class="block text-2xs font-medium text-text-secondary mb-1">
+                  Notes <span class="text-text-tertiary font-normal">(optional)</span>
+                </label>
+                <textarea
+                  id="upload-notes"
+                  bind:value={uploadNotes}
+                  placeholder="Notes about this firmware..."
+                  rows="2"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"
+                ></textarea>
+              </div>
+
+              <!-- Upload button (only when valid + version filled) -->
+              {#if validationResult.valid && uploadVersion.trim()}
+                <button
+                  onclick={handleUpload}
+                  disabled={uploading}
+                  class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {#if uploading}
+                    <Loader2 size={14} class="animate-spin" />
+                    Uploading...
+                  {:else}
+                    <Upload size={14} />
+                    Upload to Concord
+                  {/if}
+                </button>
+              {/if}
+            </div>
+          {/if}
 
           {#if uploadError}
             <div class="flex items-start gap-2 rounded-lg bg-error-muted px-4 py-3">
@@ -361,31 +507,15 @@
             <Check size={24} class="text-success" strokeWidth={2.5} />
           </div>
           <p class="text-sm font-medium text-text-primary mb-1">Upload complete</p>
-          <p class="text-2xs text-text-tertiary mb-4">
+          <p class="text-2xs text-text-tertiary mb-1">
             Assets validated and stored for
             {selectedConfig ? stageName(selectedConfig.type as StageType, selectedConfig.stage) : ''}
           </p>
-
           {#if selectedFile}
-            <div class="flex items-center gap-3 text-2xs text-text-tertiary mb-4">
-              <span>{selectedFile.name}</span>
-              <span class="text-border">|</span>
-              <span>{formatSize(selectedFile.size)}</span>
-            </div>
+            <p class="text-2xs text-text-tertiary">
+              {selectedFile.name} ({formatSize(selectedFile.size)})
+            </p>
           {/if}
-
-          <div class="w-full max-w-sm">
-            <label for="upload-notes" class="block text-2xs font-medium text-text-secondary mb-1">
-              Notes <span class="text-text-tertiary font-normal">(optional)</span>
-            </label>
-            <textarea
-              id="upload-notes"
-              bind:value={uploadNotes}
-              placeholder="Add notes about this firmware..."
-              rows="3"
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"
-            ></textarea>
-          </div>
         </div>
       {/if}
     </div>
@@ -396,7 +526,7 @@
         {#if currentStep === 'upload'}
           <button
             onclick={goBack}
-            disabled={uploading}
+            disabled={uploading || validating}
             class="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50"
           >
             <ChevronLeft size={14} />
@@ -417,28 +547,12 @@
           </button>
         {:else}
           <button
-            onclick={() => { if (!uploading) onCancel(); }}
-            disabled={uploading}
+            onclick={() => { if (!uploading && !validating) onCancel(); }}
+            disabled={uploading || validating}
             class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50"
           >
             Cancel
           </button>
-
-          {#if currentStep === 'upload'}
-            <button
-              onclick={handleUpload}
-              disabled={!selectedFile || uploading}
-              class="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {#if uploading}
-                <Loader2 size={14} class="animate-spin" />
-                Uploading...
-              {:else}
-                <Upload size={14} />
-                Upload
-              {/if}
-            </button>
-          {/if}
 
           {#if !hasConfigs}
             <button
