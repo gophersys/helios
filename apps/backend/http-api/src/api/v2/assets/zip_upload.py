@@ -2,10 +2,15 @@
 
 POST /v2/products/{pid}/asset-sets/upload-zip
 POST /v2/products/{pid}/asset-sets/validate-zip
+POST /v2/products/{pid}/asset-sets/analyze-files
+POST /v2/products/{pid}/asset-sets/upload-files
 
 Accepts a zip file structured by build matrix labels, validates contents
 against the stage's StageBuildMatrix, then creates an AssetSet with
 individual Asset records for each file.
+
+The analyze-files and upload-files endpoints support loose file uploads
+(no zip required), used by the UI wizard and TeamCity integrations.
 """
 
 import hashlib
@@ -19,7 +24,7 @@ from flask import g, jsonify, request
 from database import Json
 
 from src.lib.audit import log_audit
-from src.lib.decorators import require_auth
+from src.lib.decorators import require_auth, require_permissions
 from src.lib.errors import bad_request, forbidden, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
@@ -477,3 +482,408 @@ def _serialize_asset_set(asset_set) -> dict:
     else:
         data["assets"] = []
     return data
+
+
+# ---------------------------------------------------------------------------
+# Smart file analysis and upload (loose files, no zip required)
+# ---------------------------------------------------------------------------
+
+def _detect_processor(filename: str) -> str | None:
+    """Detect target processor from filename."""
+    lower = filename.lower()
+    if "nrf52840" in lower:
+        return "nrf52840"
+    if "nrf9151" in lower:
+        return "nrf9151"
+    if "nrf9160" in lower:
+        return "nrf9160"
+    return None
+
+
+def _detect_variant(filename: str) -> str | None:
+    """Detect firmware variant from filename."""
+    lower = filename.lower()
+    if "debug" in lower:
+        return "debug"
+    if "release" in lower:
+        return "release"
+    return None
+
+
+def _detect_file_type(filename: str) -> str:
+    """Detect artifact type from file extension."""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    return {
+        "hex": "plaintextHex",
+        "cfw": "encryptedCfw",
+        "json": "manifest",
+        "zip": "other",
+        "bin": "other",
+    }.get(ext, "unknown")
+
+
+def _match_file_to_label(filename, processor, variant, file_type, matrix_entries, skip_labels):
+    """Find the best matching matrix label for a file.
+
+    Returns (matrix_entry, confidence) where confidence is
+    "high", "medium", "low", or None.
+    """
+    best_match = None
+    best_score = 0
+
+    for entry in matrix_entries:
+        if entry.label in skip_labels:
+            continue
+
+        score = 0
+
+        # Check processor match (strongest signal)
+        if processor and getattr(entry, "processor", None) and processor == entry.processor:
+            score += 3
+
+        # Check variant match
+        if variant and entry.variant == variant:
+            score += 2
+
+        # Check file type match
+        if file_type == "plaintextHex" and entry.producesHex:
+            score += 1
+        elif file_type == "encryptedCfw" and entry.producesCfw:
+            score += 1
+
+        if score > best_score:
+            best_score = score
+            best_match = entry
+
+    if best_match is None:
+        return None, None
+
+    if best_score >= 5:
+        confidence = "high"
+    elif best_score >= 3:
+        confidence = "medium"
+    elif best_score >= 1:
+        confidence = "low"
+    else:
+        confidence = None
+
+    return best_match, confidence
+
+
+def _build_match_reason(processor, variant, file_type, label) -> str:
+    """Build a human-readable reason for a match."""
+    parts = []
+    if processor:
+        parts.append(f"Processor {processor}")
+    if variant:
+        parts.append(f"variant {variant}")
+    if file_type in ("plaintextHex", "encryptedCfw"):
+        ext = "hex" if file_type == "plaintextHex" else "cfw"
+        parts.append(f"{ext} file")
+    reason = " + ".join(parts)
+    return f"{reason} matches {label}" if reason else f"Matched to {label}"
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def analyze_asset_files(product_id: str):
+    """Analyze uploaded files and suggest matrix label matches.
+
+    Form fields:
+        stageConfigId: FK to ProductStageConfig (required)
+        files: multipart file uploads (required, multiple)
+    """
+    db = get_db_client()
+
+    # Validate product
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+
+    # Parse form fields
+    stage_config_id = (request.form.get("stageConfigId") or "").strip()
+    if not stage_config_id:
+        return bad_request("stageConfigId is required")
+
+    # Validate stage config
+    stage_config = db.productstageconfig.find_unique(
+        where={"id": stage_config_id},
+        include={"buildMatrixEntries": True},
+    )
+    if not stage_config:
+        return not_found("Stage config not found")
+    if stage_config.productId != product_id:
+        return bad_request("Stage config does not belong to this product")
+
+    matrix_entries = stage_config.buildMatrixEntries or []
+    if not matrix_entries:
+        return bad_request(
+            "Stage has no build matrix entries. Configure the build matrix before uploading assets."
+        )
+
+    # Identify modem labels
+    modem_labels = {
+        entry.label for entry in matrix_entries
+        if getattr(entry, "fwType", None) == "modem"
+    }
+    non_modem_entries = [e for e in matrix_entries if e.label not in modem_labels]
+
+    # Validate files
+    files = request.files.getlist("files")
+    if not files:
+        return bad_request("No files provided")
+
+    # Analyze each file
+    file_results = []
+    assigned_labels = set()
+
+    for f in files:
+        filename = f.filename or "unknown"
+        f.seek(0, 2)
+        size = f.tell()
+        f.seek(0)
+
+        processor = _detect_processor(filename)
+        variant = _detect_variant(filename)
+        file_type = _detect_file_type(filename)
+
+        match, confidence = _match_file_to_label(
+            filename, processor, variant, file_type,
+            non_modem_entries, assigned_labels,
+        )
+
+        suggested_label = match.label if match else None
+        match_reason = None
+        if match:
+            match_reason = _build_match_reason(processor, variant, file_type, match.label)
+            assigned_labels.add(match.label)
+
+        file_results.append({
+            "filename": filename,
+            "size": size,
+            "detectedType": file_type,
+            "detectedProcessor": processor,
+            "detectedVariant": variant,
+            "suggestedLabel": suggested_label,
+            "confidence": confidence,
+            "matchReason": match_reason,
+        })
+
+    # Determine unmatched labels
+    all_non_modem_labels = {e.label for e in non_modem_entries}
+    unmatched_labels = sorted(all_non_modem_labels - assigned_labels)
+
+    # Fetch available modem firmwares if needed
+    available_modem_firmwares = []
+    modem_labels_required = sorted(modem_labels) if modem_labels else []
+    if modem_labels and stage_config.boardRevisionId:
+        modem_fws = db.modemfirmware.find_many(
+            where={"boardRevisionId": stage_config.boardRevisionId},
+            order={"createdAt": "desc"},
+        )
+        available_modem_firmwares = [
+            {
+                "id": fw.id,
+                "version": fw.version,
+                "filename": fw.filename,
+                "sizeBytes": fw.sizeBytes,
+            }
+            for fw in modem_fws
+        ]
+
+    return jsonify(ApiResponse.ok({
+        "files": file_results,
+        "unmatchedLabels": unmatched_labels,
+        "allMatched": len(unmatched_labels) == 0,
+        "modemLabelsRequired": modem_labels_required,
+        "availableModemFirmwares": available_modem_firmwares,
+    }).to_dict()), 200
+
+
+@require_permissions(Permissions.BUILDS_MANAGE)
+def upload_asset_files(product_id: str):
+    """Upload loose files with explicit label assignments.
+
+    Form fields:
+        stageConfigId: FK to ProductStageConfig (required)
+        version: semver string (required)
+        modemFirmwareId: FK to ModemFirmware (optional)
+        notes: free text (optional)
+        files: multipart file uploads (required, multiple)
+        labels: string array matching files order (required, same length)
+    """
+    db = get_db_client()
+
+    # Validate product
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+
+    # Parse form fields
+    stage_config_id = (request.form.get("stageConfigId") or "").strip()
+    if not stage_config_id:
+        return bad_request("stageConfigId is required")
+
+    version = (request.form.get("version") or "").strip()
+    if not version:
+        return bad_request("version is required")
+
+    modem_firmware_id = (request.form.get("modemFirmwareId") or "").strip() or None
+    notes = (request.form.get("notes") or "").strip() or None
+
+    # Validate stage config
+    stage_config = db.productstageconfig.find_unique(
+        where={"id": stage_config_id},
+        include={"buildMatrixEntries": True, "boardRevision": True},
+    )
+    if not stage_config:
+        return not_found("Stage config not found")
+    if stage_config.productId != product_id:
+        return bad_request("Stage config does not belong to this product")
+
+    matrix_entries = stage_config.buildMatrixEntries or []
+    if not matrix_entries:
+        return bad_request(
+            "Stage has no build matrix entries. Configure the build matrix before uploading assets."
+        )
+
+    # Identify modem labels
+    modem_labels = {
+        entry.label for entry in matrix_entries
+        if getattr(entry, "fwType", None) == "modem"
+    }
+
+    # Parse files and labels
+    files = request.files.getlist("files")
+    labels = request.form.getlist("labels")
+
+    if not files:
+        return bad_request("No files provided")
+    if len(files) != len(labels):
+        return bad_request(
+            f"Number of files ({len(files)}) must match number of labels ({len(labels)})"
+        )
+
+    # Validate each label exists in the build matrix (excluding modem labels)
+    matrix_by_label = {entry.label: entry for entry in matrix_entries}
+    non_modem_labels = {e.label for e in matrix_entries if e.label not in modem_labels}
+
+    for label in labels:
+        label = label.strip()
+        if label not in non_modem_labels:
+            return bad_request(
+                f"Label '{label}' is not in the build matrix (or is a modem label)"
+            )
+
+    # Validate all required non-modem labels have a file
+    assigned_labels = {l.strip() for l in labels}
+    missing_labels = non_modem_labels - assigned_labels
+    if missing_labels:
+        return bad_request(
+            f"Missing files for required labels: {', '.join(sorted(missing_labels))}"
+        )
+
+    # Validate modem firmware if provided
+    modem_fw = None
+    if modem_firmware_id:
+        modem_fw = db.modemfirmware.find_first(where={"id": modem_firmware_id})
+        if not modem_fw:
+            return bad_request("Selected modem firmware not found")
+
+    # Create AssetSet
+    user_id = g.current_user.get("sub") if g.current_user else None
+    board_revision_id = stage_config.boardRevisionId
+
+    create_data: dict = {
+        "product": {"connect": {"id": product_id}},
+        "version": version,
+        "variant": "multi",
+        "stage": stage_config.stage,
+        "source": "MANUAL_UPLOAD",
+        "status": "PENDING",
+    }
+    if board_revision_id:
+        create_data["boardRevision"] = {"connect": {"id": board_revision_id}}
+    if notes:
+        create_data["notes"] = notes
+    if user_id:
+        create_data["createdBy"] = {"connect": {"id": user_id}}
+    if modem_firmware_id:
+        create_data["modemFirmware"] = {"connect": {"id": modem_firmware_id}}
+
+    asset_set = db.assetset.create(data=create_data)
+
+    # Upload each file
+    storage = get_storage_client()
+    bucket = get_bucket_name()
+    assets_created = []
+
+    for f, label in zip(files, labels):
+        label = label.strip()
+        filename = f.filename or "unknown"
+        content = f.read()
+        checksum = hashlib.sha256(content).hexdigest()
+
+        artifact_type = classify_file(filename)
+        entry = matrix_by_label.get(label)
+        role = _infer_role(filename, entry)
+
+        object_key = f"{ASSET_SETS_PREFIX}/{asset_set.id}/{label}/{filename}"
+        storage.put_object(
+            bucket,
+            object_key,
+            io.BytesIO(content),
+            length=len(content),
+        )
+
+        asset = db.asset.create(
+            data={
+                "assetSetId": asset_set.id,
+                "label": label,
+                "role": role,
+                "processor": _infer_processor(filename, role),
+                "artifactType": artifact_type,
+                "storageKey": object_key,
+                "filename": filename,
+                "sizeBytes": len(content),
+                "checksum": checksum,
+            }
+        )
+        assets_created.append(asset)
+
+    # Create virtual Asset for modem firmware if selected
+    if modem_fw and modem_labels:
+        modem_label = sorted(modem_labels)[0]
+        asset = db.asset.create(
+            data={
+                "assetSetId": asset_set.id,
+                "label": modem_label,
+                "role": "modem",
+                "processor": None,
+                "artifactType": "other",
+                "storageKey": modem_fw.storageKey,
+                "filename": modem_fw.filename,
+                "sizeBytes": modem_fw.sizeBytes,
+                "checksum": modem_fw.checksum or "",
+            }
+        )
+        assets_created.append(asset)
+
+    # Mark complete
+    asset_set = db.assetset.update(
+        where={"id": asset_set.id},
+        data={"status": "COMPLETE"},
+        include={
+            "assets": True,
+            "boardRevision": True,
+        },
+    )
+
+    log_audit("assetSet.uploadFiles", "AssetSet", asset_set.id, {
+        "productId": product_id,
+        "stageConfigId": stage_config_id,
+        "version": version,
+        "fileCount": len(assets_created),
+        "labels": list(assigned_labels),
+    })
+
+    return jsonify(ApiResponse.ok(_serialize_asset_set(asset_set)).to_dict()), 201

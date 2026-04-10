@@ -38,7 +38,7 @@ from .cfw import parse_cfw_header
 
 # ── Artifacts & Storage ──
 from .artifact_resolver import ArtifactResolver, BuildManifest, ManifestTarget
-from .stage_assets import STAGE_REQUIRED_LABELS, BuildAsset, StageAssets
+from .stage_assets import BuildAsset, StageAssets
 from .firmware import FirmwareAsset, FirmwareAssetManager, get_firmware_path_from_env
 from .artifact_writer import (
     POWER_FLAG_HAS_CH0,
@@ -107,7 +107,6 @@ __all__ = [
     "POWER_HEADER_SIZE",
     "POWER_MAGIC",
     "PowerSample",
-    "STAGE_REQUIRED_LABELS",
     "StageAssets",
     "get_firmware_path_from_env",
     # ── FUOTA & Cloud ──

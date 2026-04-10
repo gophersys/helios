@@ -231,6 +231,7 @@ class TestBuildMatrix:
             label="MFG_BASE", fwType="alpha_mfg_fw", variant="release",
             configLog=True, producesHex=True, producesCfw=False,
             gitRef="pr", isVersionBump=False, baseLabel=None, description=None,
+            processor="nrf52840", filenamePattern=None,
         )
         mock_db.stagebuildmatrix.find_many.return_value = [entry]
 
@@ -250,6 +251,7 @@ class TestBuildMatrix:
             label="APP_DEBUG", fwType="alpha_fw", variant="debug",
             configLog=True, producesHex=True, producesCfw=False,
             gitRef="pr", isVersionBump=False, baseLabel=None, description=None,
+            processor=None, filenamePattern=None,
         )
         mock_db.stagebuildmatrix.create.return_value = new_entry
 

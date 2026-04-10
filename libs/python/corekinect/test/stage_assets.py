@@ -4,15 +4,15 @@ Typed layer on ArtifactResolver so tests access build artifacts by
 label + role instead of ad-hoc string lookups.
 
     assets = StageAssets.from_pipeline("run-42", "fuota", api_url, api_key)
-    mfg = assets.mfg()
-    app_hex = mfg.hex("app")            # downloaded lazily from MinIO
-    cfws = assets.by_label("FUT_VERBOSE_B").cfws()
-    missing = assets.missing_labels()    # [] if all present
+    app_hex = assets.hex("app", "debug")           # downloads lazily from MinIO
+    app, comms = assets.hex_pair("debug")           # both processors at once
+    cfws = assets.by_label("FUT_APP_BASE_B").cfws() # escape hatch
+    missing = assets.missing_labels()               # [] if all present
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from corekinect.test.artifact_resolver import ArtifactResolver
@@ -22,13 +22,6 @@ from corekinect.stages import Stage, get_required_labels as _get_required_labels
 from corekinect.utils import Logger
 
 log = Logger(log_name="stage_assets")
-
-
-# Backward compat — derived from the shared source of truth.
-# Prefer importing get_required_labels() from corekinect.validation.stage_defs directly.
-STAGE_REQUIRED_LABELS: Dict[str, List[str]] = {
-    stage.value: _get_required_labels(stage) for stage in Stage
-}
 
 
 # =============================================================================
@@ -161,8 +154,8 @@ class StageAssets:
     """All firmware builds for a validation stage, with validation.
 
     Checks that all required build labels are present and their builds
-    succeeded. Access individual builds via by_label() or shortcuts
-    like mfg(), app_debug(), etc.
+    succeeded. Access builds via the clean API: hex(), cfw(), hex_pair(),
+    or the escape hatch by_label() for direct label access.
 
     Args:
         strict: If True, raises on missing or failed required labels.
@@ -178,7 +171,14 @@ class StageAssets:
     ):
         self._resolver = resolver
         self._stage = stage
-        self._required = required_labels or STAGE_REQUIRED_LABELS.get(stage, [])
+        # Derive required labels from the canonical stage definitions
+        if required_labels is not None:
+            self._required = required_labels
+        else:
+            try:
+                self._required = _get_required_labels(Stage(stage))
+            except (ValueError, KeyError):
+                self._required = []
         self._assets: Dict[str, BuildAsset] = {}
 
         # Index available builds by matrixLabel
@@ -205,57 +205,99 @@ class StageAssets:
             )
         return self._assets[label]
 
-    # ── Convenience shortcuts ──
+    # ── Clean API ──
 
-    def mfg(self) -> BuildAsset:
-        """Shortcut for MFG_BASE — legacy manufacturing firmware (single label).
+    @property
+    def stage_prefix(self) -> str:
+        """Auto-detect the stage prefix from available labels.
 
-        Prefer mfg_app_debug() / mfg_comms_debug() for the new multi-label matrix.
+        All labels in a stage share a prefix: SMOKE_, DRIVER_, INT_, REG_, FUT_, MFG_
+        Detects by finding the common prefix of all non-MODEM labels.
         """
-        return self.by_label("MFG_BASE")
+        non_modem = [k for k in self._assets.keys() if k != "MODEM_FW"]
+        if not non_modem:
+            return ""
+        for prefix in ("SMOKE", "DRIVER", "INT", "REG", "FUT", "MFG"):
+            if any(k.startswith(prefix + "_") for k in non_modem):
+                return prefix
+        return ""
 
-    def mfg_bump(self) -> BuildAsset:
-        """Shortcut for MFG_BUMP — version-bumped manufacturing firmware."""
-        return self.by_label("MFG_BUMP")
+    @property
+    def available_variants(self) -> List[str]:
+        """Which variants are available in this stage: ['debug', 'release']."""
+        variants: Set[str] = set()
+        for label in self._assets:
+            if label == "MODEM_FW":
+                continue
+            upper = label.upper()
+            if "DEBUG" in upper or "BASE" in upper:
+                variants.add("debug")
+            elif "RELEASE" in upper or "QUIET" in upper:
+                variants.add("release")
+        return sorted(variants)
 
-    def app_debug(self) -> BuildAsset:
-        """Shortcut for APP_DEBUG — debug application firmware."""
-        return self.by_label("APP_DEBUG")
+    def hex(self, role: str, variant: str = "debug", suffix: str = "") -> str:
+        """Get hex file path for a processor role and variant.
 
-    def app_release(self) -> BuildAsset:
-        """Shortcut for APP_RELEASE — release application firmware."""
-        return self.by_label("APP_RELEASE")
+        Resolves label: {PREFIX}_{ROLE}_{VARIANT}{_SUFFIX}
+        Then downloads the hex file.
 
-    # ── Manufacturing multi-label shortcuts ──────────────────────────
+        Args:
+            role: "app" or "comms"
+            variant: "debug" or "release"
+            suffix: optional suffix like "A" or "B" (for FUOTA transitions)
 
-    def mfg_app_debug(self) -> BuildAsset:
-        """MFG_APP_DEBUG — nRF52840 app processor, debug variant."""
-        return self.by_label("MFG_APP_DEBUG")
-
-    def mfg_app_release(self) -> BuildAsset:
-        """MFG_APP_RELEASE — nRF52840 app processor, release variant."""
-        return self.by_label("MFG_APP_RELEASE")
-
-    def mfg_comms_debug(self) -> BuildAsset:
-        """MFG_COMMS_DEBUG — nRF9151 comms processor, debug variant."""
-        return self.by_label("MFG_COMMS_DEBUG")
-
-    def mfg_comms_release(self) -> BuildAsset:
-        """MFG_COMMS_RELEASE — nRF9151 comms processor, release variant."""
-        return self.by_label("MFG_COMMS_RELEASE")
-
-    def mfg_firmware(self, variant: str = "debug") -> tuple:
-        """Get both app and comms firmware for a given variant.
-
-        Returns (app_hex_path, comms_hex_path) tuple.
-
-        Usage:
-            app_fw, comms_fw = mfg_assets.mfg_firmware("debug")
-            app_fw, comms_fw = mfg_assets.mfg_firmware("release")
+        Examples:
+            stage_assets.hex("app", "debug")      -> SMOKE_APP_DEBUG -> downloads hex
+            stage_assets.hex("comms", "release")   -> MFG_COMMS_RELEASE -> downloads hex
+            stage_assets.hex("app", "debug", "A")  -> FUT_APP_BASE_A -> downloads hex
         """
-        if variant == "release":
-            return self.mfg_app_release().hex("app"), self.mfg_comms_release().hex("comms")
-        return self.mfg_app_debug().hex("app"), self.mfg_comms_debug().hex("comms")
+        label = self._resolve_label(role, variant, suffix)
+        asset = self.by_label(label)
+        return asset.hex(role)
+
+    def cfw(self, role: str, variant: str = "debug", suffix: str = "") -> str:
+        """Get CFW file path for a processor role and variant.
+
+        Only available for stages that produce CFW (regression, FUOTA).
+        """
+        label = self._resolve_label(role, variant, suffix)
+        asset = self.by_label(label)
+        return asset.cfw(role)
+
+    def hex_pair(self, variant: str = "debug") -> Tuple[str, str]:
+        """Get (app_hex, comms_hex) for a variant.
+
+        Convenience for flash tests that need both processors.
+
+        Returns:
+            (app_hex_path, comms_hex_path)
+        """
+        return self.hex("app", variant), self.hex("comms", variant)
+
+    def _resolve_label(self, role: str, variant: str, suffix: str = "") -> str:
+        """Construct the matrix label from role + variant + optional suffix.
+
+        Pattern: {PREFIX}_{ROLE}_{VARIANT_KEY}{_SUFFIX}
+
+        For FUOTA: debug maps to BASE, release maps to QUIET
+        For others: debug maps to DEBUG, release maps to RELEASE
+        """
+        prefix = self.stage_prefix
+        role_upper = role.upper()  # APP, COMMS
+
+        if prefix == "FUT":
+            # FUOTA uses BASE (debug/verbose) and QUIET (release/no-logging)
+            variant_key = "BASE" if variant == "debug" else "QUIET"
+        else:
+            variant_key = variant.upper()  # DEBUG, RELEASE
+
+        if suffix:
+            label = f"{prefix}_{role_upper}_{variant_key}_{suffix}"
+        else:
+            label = f"{prefix}_{role_upper}_{variant_key}"
+
+        return label
 
     def modem_zip(self) -> Optional[str]:
         """Modem firmware local path.
@@ -273,9 +315,11 @@ class StageAssets:
         if modem_path:
             return modem_path
 
-        # 2. Try from build manifest (legacy)
-        if "MFG_BASE" in self._assets:
-            path = self._resolver.get_modem_firmware("MFG_BASE")
+        # 2. Try from build manifest (legacy) — use any available label
+        for label in sorted(self._assets.keys()):
+            if label == "MODEM_FW":
+                continue
+            path = self._resolver.get_modem_firmware(label)
             if path:
                 return path
 

@@ -46,7 +46,7 @@ def test_fw_flash(slot, config, report, mfg_assets, firmware_variant):
     # Resolve firmware from asset set (preferred) or config fallback
     if mfg_assets:
         try:
-            nrf52840_fw, nrf9151_fw = mfg_assets.mfg_firmware(firmware_variant)
+            nrf52840_fw, nrf9151_fw = mfg_assets.hex_pair(firmware_variant)
             log.info(
                 "Firmware resolved from asset set (%s): app=%s, comms=%s",
                 firmware_variant, nrf52840_fw, nrf9151_fw,
