@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Loader2 } from 'lucide-svelte';
+  import { Loader2, Package } from 'lucide-svelte';
   import RevisionAssetsPanel from './revision-assets-panel.svelte';
   import { listStageConfigs } from '$lib/services/stages';
   import type { Product, BoardRevision } from '$lib/types/models';
@@ -47,6 +47,7 @@
   </div>
 {:else if revisions.length === 0}
   <div class="text-center py-8">
+    <Package size={32} class="mx-auto text-text-tertiary mb-3 opacity-50" />
     <p class="text-sm text-text-secondary">No active board revisions.</p>
     <p class="text-2xs text-text-tertiary mt-1">Add a board revision in the Hardware tab first.</p>
   </div>

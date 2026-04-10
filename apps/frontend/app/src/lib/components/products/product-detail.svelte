@@ -169,7 +169,7 @@
     <!-- ═══ TAB CONTENT ═══ -->
     <div class="mt-5">
       {#if activeTab === 'overview'}
-        <ProductOverviewTab {product} {canManage} />
+        <ProductOverviewTab {product} {canManage} onSwitchTab={(tab) => (activeTab = tab as Tab)} />
       {:else if activeTab === 'hardware'}
         <ProductHardwareTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'stages'}

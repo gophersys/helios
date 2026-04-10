@@ -255,6 +255,12 @@
   onMount(() => { loadAssets(); loadModemFirmwares(); });
 </script>
 
+{#if error}
+  <div role="alert" class="mb-4 flex items-start gap-3 rounded-lg bg-error-muted px-4 py-3">
+    <span class="text-sm text-error">{error}</span>
+  </div>
+{/if}
+
 <div class="space-y-6">
   <!-- Modem Firmware -->
   <div class="rounded-lg border border-border overflow-hidden">
@@ -317,8 +323,10 @@
         {/each}
       </div>
     {:else}
-      <div class="px-4 py-3 border-t border-border-subtle">
-        <span class="text-2xs text-text-tertiary">No modem firmware uploaded</span>
+      <div class="px-4 py-4 border-t border-border-subtle text-center">
+        <Radio size={20} class="mx-auto text-text-tertiary mb-1.5 opacity-50" />
+        <p class="text-2xs text-text-tertiary">No modem firmware uploaded.</p>
+        <p class="text-2xs text-text-tertiary mt-0.5">Upload a modem firmware .zip to link it with asset sets.</p>
       </div>
     {/if}
   </div>
@@ -456,6 +464,11 @@
                   <span class="font-mono text-2xs font-semibold text-text-primary">{assetTitle}</span>
                   <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {sourceBadgeClass(asset.source)}">{sourceLabel(asset.source)}</span>
                   <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {statusBadgeClass(asset.status)}">{asset.status}</span>
+                  {#if asset.modemFirmware}
+                    <span class="flex items-center gap-1 rounded-full bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary" title="Modem firmware">
+                      <Radio size={9} /> v{asset.modemFirmware.version}
+                    </span>
+                  {/if}
                   {#if asset.commitSha}
                     <span class="font-mono text-2xs text-text-tertiary">{asset.commitSha.slice(0, 7)}</span>
                   {/if}
@@ -554,6 +567,11 @@
                 <span class="font-mono text-2xs font-semibold text-text-primary">{assetTitle}</span>
                 <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {sourceBadgeClass(asset.source)}">{sourceLabel(asset.source)}</span>
                 <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {statusBadgeClass(asset.status)}">{asset.status}</span>
+                {#if asset.modemFirmware}
+                  <span class="flex items-center gap-1 rounded-full bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary" title="Modem firmware">
+                    <Radio size={9} /> v{asset.modemFirmware.version}
+                  </span>
+                {/if}
                 {#if asset.commitSha}
                   <span class="font-mono text-2xs text-text-tertiary">{asset.commitSha.slice(0, 7)}</span>
                 {/if}
@@ -628,11 +646,13 @@
   {#if !loading && filteredAssetSets.length === 0}
     <div class="text-center py-6">
       {#if hasActiveFilters && assetSets.length > 0}
+        <Search size={24} class="mx-auto text-text-tertiary mb-2 opacity-50" />
         <p class="text-sm text-text-secondary">No assets match the current filters</p>
         <p class="text-2xs text-text-tertiary mt-1">
-          <button onclick={clearFilters} class="text-accent hover:underline">Clear filters</button> to see all assets.
+          <button onclick={clearFilters} class="text-accent hover:underline">Clear filters</button> to see all {assetSets.length} asset set{assetSets.length === 1 ? '' : 's'}.
         </p>
       {:else}
+        <Package size={24} class="mx-auto text-text-tertiary mb-2 opacity-50" />
         <p class="text-sm text-text-secondary">No firmware assets for this revision</p>
         <p class="text-2xs text-text-tertiary mt-1">Upload a firmware .zip or wait for the build pipeline to produce one.</p>
       {/if}

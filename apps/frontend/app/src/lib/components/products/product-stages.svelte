@@ -191,8 +191,14 @@
     </div>
   {:else if filteredConfigs.length === 0}
     <div class="text-center py-8">
-      <p class="text-sm text-text-secondary mb-4">{emptyLabel}</p>
-      <button class="btn btn-sm btn-primary" disabled={initializing} onclick={handleInitialize}>
+      <Settings size={32} class="mx-auto text-text-tertiary mb-3 opacity-50" />
+      <p class="text-sm text-text-secondary mb-2">{emptyLabel}</p>
+      <p class="text-2xs text-text-tertiary mb-4 max-w-sm mx-auto">
+        {stageType === 'MANUFACTURING'
+          ? 'Creates a manufacturing stage config for this revision. Define firmware sources and build matrix after initialization.'
+          : 'Creates stage configs (Smoke, Driver, Integration, Regression, FUOTA) for this revision. Configure watch branches and build matrices after initialization.'}
+      </p>
+      <button class="btn btn-primary" disabled={initializing} onclick={handleInitialize}>
         {initializing ? 'Enabling...' : enableLabel}
       </button>
     </div>
@@ -230,24 +236,26 @@
             {#if cfg && cfg.enabled}
               <!-- Enabled — show config summary + actions -->
               <div class="flex items-center gap-4">
-                <div class="flex-1 flex items-center gap-3 text-2xs text-text-tertiary">
+                <div class="flex-1 flex flex-wrap items-center gap-2 text-2xs text-text-tertiary">
                   {#if cfg.watchBranch}
                     <span class="flex items-center gap-1 font-mono bg-surface-0 rounded px-2 py-0.5">
                       <GitBranch size={10} /> {cfg.watchBranch}
                     </span>
                   {/if}
                   {#if cfg.triggerTypes?.length}
-                    <span class="flex items-center gap-1">
-                      {#each cfg.triggerTypes as t}
-                        {@const TIcon = triggerIcon(t)}
-                        <span class="flex items-center gap-1 bg-surface-0 rounded px-2 py-0.5">
-                          <TIcon size={10} /> {t.replace('_', ' ')}
-                        </span>
-                      {/each}
-                    </span>
+                    {#each cfg.triggerTypes as t}
+                      {@const TIcon = triggerIcon(t)}
+                      <span class="flex items-center gap-1 bg-surface-0 rounded px-2 py-0.5">
+                        <TIcon size={10} /> {t.replace('_', ' ')}
+                      </span>
+                    {/each}
                   {/if}
                   {#if cfg.buildMatrix?.length}
-                    <span class="bg-surface-0 rounded px-2 py-0.5">{cfg.buildMatrix.length} build{cfg.buildMatrix.length !== 1 ? 's' : ''}</span>
+                    <span class="flex items-center gap-1 bg-accent-muted text-accent rounded px-2 py-0.5 font-medium">
+                      {cfg.buildMatrix.length} label{cfg.buildMatrix.length !== 1 ? 's' : ''}
+                    </span>
+                  {:else}
+                    <span class="bg-warning-muted text-warning rounded px-2 py-0.5 font-medium">No build labels</span>
                   {/if}
                 </div>
                 <button

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { FlaskConical } from 'lucide-svelte';
   import ProductStages from '../product-stages.svelte';
   import TestAppStatusCard from '../test-app-status-card.svelte';
   import TestPackageList from '../test-package-list.svelte';
@@ -43,6 +44,7 @@
 
 {#if activeRevisions.length === 0}
   <div class="text-center py-8">
+    <FlaskConical size={32} class="mx-auto text-text-tertiary mb-3 opacity-50" />
     <p class="text-sm text-text-secondary">No active board revisions.</p>
     <p class="text-2xs text-text-tertiary mt-1">Add a board revision in the Hardware tab first.</p>
   </div>

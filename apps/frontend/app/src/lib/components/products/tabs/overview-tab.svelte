@@ -1,37 +1,51 @@
 <script lang="ts">
   import {
     CircuitBoard, FlaskConical, Factory, Hammer,
-    GitBranch, ExternalLink, Layers,
+    GitBranch, ExternalLink, Lock,
   } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TimeDisplay from '$lib/components/ui/time-display.svelte';
   import type { Product } from '$lib/types/models';
+  import type { ProductStageConfig } from '$lib/types/stages';
   import { STAGE_NAMES } from '$lib/types/stages';
+  import { formatTimeAgo } from '$lib/utils/formatting';
   import { api } from '$lib/api';
 
   interface Props {
     product: Product;
     canManage: boolean;
+    onSwitchTab?: (tab: string) => void;
   }
 
-  let { product }: Props = $props();
+  let { product, onSwitchTab }: Props = $props();
 
+  // ── Revisions ────────────────────────────────────────────
   const revisions = $derived(
     (product.boards || []).flatMap((b) => b.revisions || [])
   );
   const activeRevisions = $derived(revisions.filter((r) => r.status === 'ACTIVE'));
-  const stageConfigs = $derived((product as any).stageConfigs || []);
-  const valStages = $derived(stageConfigs.filter((s: any) => !s.type || s.type === 'VALIDATION'));
-  const mfgStages = $derived(stageConfigs.filter((s: any) => s.type === 'MANUFACTURING'));
+  const deprecatedRevisions = $derived(revisions.filter((r) => r.status === 'DEPRECATED' || r.status === 'EOL'));
+  const latestRevision = $derived(
+    activeRevisions.length > 0
+      ? activeRevisions.reduce((latest, r) =>
+          new Date(r.createdAt) > new Date(latest.createdAt) ? r : latest
+        )
+      : null
+  );
+
+  // ── Stage configs ────────────────────────────────────────
+  const stageConfigs = $derived((product as Product & { stageConfigs?: ProductStageConfig[] }).stageConfigs || []);
+  const valStages = $derived(stageConfigs.filter((s) => !s.type || s.type === 'VALIDATION'));
+  const mfgStages = $derived(stageConfigs.filter((s) => s.type === 'MANUFACTURING'));
 
   // Validation stage numbers (rows)
   const stageNumbers = $derived(
-    ([...new Set(valStages.map((s: any) => s.stage))] as number[]).sort((a, b) => a - b)
+    ([...new Set(valStages.map((s) => s.stage))] as number[]).sort((a, b) => a - b)
   );
 
   // Manufacturing stage numbers (rows)
   const mfgStageNumbers = $derived(
-    ([...new Set(mfgStages.map((s: any) => s.stage))] as number[]).sort((a, b) => a - b)
+    ([...new Set(mfgStages.map((s) => s.stage))] as number[]).sort((a, b) => a - b)
   );
 
   // All revisions are columns — active revisions without stages show dashes
@@ -39,7 +53,7 @@
 
   // Lookup: (stageNumber, revisionId) → config
   const stageMatrix = $derived(() => {
-    const map = new Map<string, any>();
+    const map = new Map<string, ProductStageConfig>();
     for (const cfg of valStages) {
       if (cfg.boardRevisionId) {
         map.set(`${cfg.stage}:${cfg.boardRevisionId}`, cfg);
@@ -48,13 +62,13 @@
     return map;
   });
 
-  function getStageCell(stage: number, revId: string): any | null {
+  function getStageCell(stage: number, revId: string): ProductStageConfig | null {
     return stageMatrix().get(`${stage}:${revId}`) ?? null;
   }
 
   // Manufacturing stage lookup
   const mfgStageMatrix = $derived(() => {
-    const map = new Map<string, any>();
+    const map = new Map<string, ProductStageConfig>();
     for (const cfg of mfgStages) {
       if (cfg.boardRevisionId) {
         map.set(`${cfg.stage}:${cfg.boardRevisionId}`, cfg);
@@ -63,16 +77,54 @@
     return map;
   });
 
-  function getMfgStageCell(stage: number, revId: string): any | null {
+  function getMfgStageCell(stage: number, revId: string): ProductStageConfig | null {
     return mfgStageMatrix().get(`${stage}:${revId}`) ?? null;
   }
 
-  let recentBuilds = $state<any[]>([]);
-  let recentRuns = $state<any[]>([]);
+  // ── Activity data ────────────────────────────────────────
+
+  interface BuildRecord {
+    id: string;
+    status: string;
+    matrixLabel?: string;
+    variant?: string;
+    versionString?: string;
+    branch?: string;
+    commitSha?: string;
+    createdAt?: string;
+  }
+
+  interface RunRecord {
+    id: string;
+    status: string;
+    name?: string;
+    stage?: number;
+    targetCount?: number;
+    duration?: number;
+    createdAt?: string;
+    completedAt?: string;
+  }
+
+  interface PaginatedResponse<T> {
+    data?: { data?: T[]; pagination?: { total?: number } };
+  }
+
+  let recentBuilds = $state<BuildRecord[]>([]);
+  let recentRuns = $state<RunRecord[]>([]);
   let totalBuilds = $state(0);
   let totalRuns = $state(0);
   let totalMfgSessions = $state(0);
   let loading = $state(true);
+
+  // ── Derived stats ────────────────────────────────────────
+  const lastBuild = $derived(recentBuilds.length > 0 ? recentBuilds[0] : null);
+  const activeRuns = $derived(recentRuns.filter((r) => r.status === 'RUNNING' || r.status === 'QUEUED'));
+  const completedRuns = $derived(recentRuns.filter((r) => r.status === 'PASSED' || r.status === 'FAILED'));
+  const passRate = $derived(() => {
+    if (completedRuns.length === 0) return null;
+    const passed = completedRuns.filter((r) => r.status === 'PASSED').length;
+    return Math.round((passed / completedRuns.length) * 100);
+  });
 
   async function fetchActivity() {
     loading = true;
@@ -83,17 +135,17 @@
         api.get(`/v2/runs?productId=${product.id}&limit=1&type=MANUFACTURING`),
       ]);
       if (buildsRes.status === 'fulfilled') {
-        const d = buildsRes.value as { data?: { data?: any[]; pagination?: { total?: number } } };
+        const d = buildsRes.value as PaginatedResponse<BuildRecord>;
         recentBuilds = d.data?.data || [];
         totalBuilds = d.data?.pagination?.total ?? 0;
       }
       if (runsRes.status === 'fulfilled') {
-        const d = runsRes.value as { data?: { data?: any[]; pagination?: { total?: number } } };
+        const d = runsRes.value as PaginatedResponse<RunRecord>;
         recentRuns = d.data?.data || [];
         totalRuns = d.data?.pagination?.total ?? 0;
       }
       if (mfgRes.status === 'fulfilled') {
-        const d = mfgRes.value as { data?: { pagination?: { total?: number } } };
+        const d = mfgRes.value as PaginatedResponse<RunRecord>;
         totalMfgSessions = d.data?.pagination?.total ?? 0;
       }
     } catch {
@@ -110,37 +162,88 @@
   // Repo URLs from product metadata
   const fwRepoUrl = $derived(product.fwRepoSlug ? `https://bitbucket.org/corekinect/${product.fwRepoSlug}` : null);
   const mfgRepoUrl = $derived(product.mfgFwRepoSlug ? `https://bitbucket.org/corekinect/${product.mfgFwRepoSlug}` : null);
+
+  // ── Helpers ──────────────────────────────────────────────
+
+  function truncateBranch(branch: string, max = 16): string {
+    return branch.length > max ? branch.slice(0, max - 1) + '\u2026' : branch;
+  }
+
+  function truncateSha(sha: string): string {
+    return sha.slice(0, 7);
+  }
+
+  function formatDuration(seconds: number): string {
+    if (seconds < 60) return `${seconds}s`;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+
+  function switchTab(tab: string): void {
+    if (onSwitchTab) onSwitchTab(tab);
+  }
 </script>
 
 <!-- Stat cards -->
 <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
+  <!-- Hardware -->
   <div class="rounded-lg border border-border bg-surface-0 p-3">
     <div class="flex items-center gap-2 text-text-tertiary mb-1">
       <CircuitBoard size={14} />
       <span class="text-2xs font-medium uppercase tracking-wider">Hardware</span>
     </div>
     <div class="text-xl font-semibold text-text-primary">{activeRevisions.length}</div>
-    <div class="text-2xs text-text-tertiary">{activeRevisions.length === 1 ? '1 active revision' : `${activeRevisions.length} active revisions`}</div>
+    <div class="text-2xs text-text-tertiary">
+      {activeRevisions.length === 1 ? '1 active' : `${activeRevisions.length} active`}{#if deprecatedRevisions.length > 0}<span class="text-text-tertiary"> · {deprecatedRevisions.length} deprecated</span>{/if}
+    </div>
+    {#if latestRevision}
+      <div class="text-2xs text-text-secondary mt-0.5">Latest: {latestRevision.version}</div>
+    {/if}
   </div>
 
+  <!-- Builds -->
   <a href="/builds?product={product.slug}" class="rounded-lg border border-border bg-surface-0 p-3 hover:border-accent hover:bg-surface-1 transition-colors cursor-pointer no-underline">
     <div class="flex items-center gap-2 text-text-tertiary mb-1">
       <Hammer size={14} />
       <span class="text-2xs font-medium uppercase tracking-wider">Builds</span>
     </div>
-    <div class="text-xl font-semibold text-text-primary">{loading ? '—' : totalBuilds}</div>
-    <div class="text-2xs text-text-tertiary">{totalBuilds === 0 ? 'no builds yet' : 'total builds'}</div>
+    <div class="text-xl font-semibold text-text-primary">{loading ? '\u2014' : totalBuilds}</div>
+    {#if !loading && lastBuild}
+      <div class="text-2xs text-text-tertiary flex items-center gap-1">
+        Last:
+        {#if lastBuild.createdAt}
+          <span>{formatTimeAgo(lastBuild.createdAt)}</span>
+        {/if}
+        <span class="inline-block w-1.5 h-1.5 rounded-full shrink-0
+          {lastBuild.status === 'SUCCESS' ? 'bg-success' :
+           lastBuild.status === 'FAILED' || lastBuild.status === 'BUILD_FAILED' ? 'bg-error' :
+           lastBuild.status === 'BUILDING' ? 'bg-accent' :
+           'bg-text-tertiary'}"></span>
+        <span class="uppercase">{lastBuild.status}</span>
+      </div>
+    {:else if !loading}
+      <div class="text-2xs text-text-tertiary">no builds yet</div>
+    {/if}
   </a>
 
+  <!-- Validation -->
   <a href="/validation?product={product.slug}" class="rounded-lg border border-border bg-surface-0 p-3 hover:border-accent hover:bg-surface-1 transition-colors cursor-pointer no-underline">
     <div class="flex items-center gap-2 text-text-tertiary mb-1">
       <FlaskConical size={14} />
       <span class="text-2xs font-medium uppercase tracking-wider">Validation</span>
     </div>
-    <div class="text-xl font-semibold text-text-primary">{loading ? '—' : totalRuns}</div>
-    <div class="text-2xs text-text-tertiary">{totalRuns === 0 ? 'no runs yet' : 'total runs'}</div>
+    <div class="text-xl font-semibold text-text-primary">{loading ? '\u2014' : totalRuns}</div>
+    {#if !loading && activeRuns.length > 0}
+      <div class="text-2xs text-accent">{activeRuns.length} active</div>
+    {:else if !loading && passRate() !== null}
+      <div class="text-2xs text-text-tertiary">{passRate()}% pass rate</div>
+    {:else if !loading}
+      <div class="text-2xs text-text-tertiary">{totalRuns === 0 ? 'no runs yet' : 'total runs'}</div>
+    {/if}
   </a>
 
+  <!-- Manufacturing -->
   <a href="/manufacturing?product={product.slug}" class="rounded-lg border border-border bg-surface-0 p-3 hover:border-accent hover:bg-surface-1 transition-colors cursor-pointer no-underline">
     <div class="flex items-center gap-2 text-text-tertiary mb-1">
       <Factory size={14} />
@@ -162,7 +265,7 @@
         <div class="text-2xs text-text-tertiary">no devices tested yet</div>
       {/if}
     {:else}
-      <div class="text-xl font-semibold text-text-primary">{loading ? '—' : totalMfgSessions}</div>
+      <div class="text-xl font-semibold text-text-primary">{loading ? '\u2014' : totalMfgSessions}</div>
       <div class="text-2xs text-text-tertiary">{totalMfgSessions === 0 ? 'no sessions yet' : 'total sessions'}</div>
     {/if}
   </a>
@@ -201,18 +304,26 @@
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-semibold text-text-primary">Validation Stages</h3>
       {#if valStages.length > 0}
-        {@const enabledCount = valStages.filter((s: any) => s.enabled).length}
-        <span class="text-2xs text-text-tertiary">{enabledCount} of {valStages.length} enabled</span>
+        <span class="text-2xs text-text-tertiary">{valStages.filter((s) => s.enabled).length} of {valStages.length} enabled</span>
       {/if}
     </div>
     {#if valStages.length === 0}
       <div class="rounded-lg border border-dashed border-border bg-surface-0 p-6 text-center">
         <FlaskConical size={24} class="mx-auto mb-2 text-text-tertiary opacity-30" />
         <p class="text-sm text-text-secondary">No validation stages configured</p>
-        <p class="text-2xs text-text-tertiary mt-1">Go to the Validation tab to set up test stages for this product.</p>
+        {#if onSwitchTab}
+          <button
+            onclick={() => switchTab('stages')}
+            class="mt-2 text-2xs font-medium text-accent hover:text-accent-hover transition-colors"
+          >
+            Go to Validation tab
+          </button>
+        {:else}
+          <p class="text-2xs text-text-tertiary mt-1">Go to the Validation tab to set up test stages for this product.</p>
+        {/if}
       </div>
     {:else}
-      <!-- Stage × revision matrix table with sticky stage column -->
+      <!-- Stage x revision matrix table with sticky stage column -->
       <div class="rounded-lg border border-border overflow-x-auto">
         <table class="w-full text-sm border-collapse">
           <thead>
@@ -233,20 +344,36 @@
                     <div class="w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold bg-accent text-white shrink-0">
                       {stageNum}
                     </div>
-                    <span class="font-medium text-text-primary whitespace-nowrap">{STAGE_NAMES[stageNum] || `Stage ${stageNum}`}</span>
+                    <span class="font-medium text-text-primary whitespace-nowrap">{STAGE_NAMES['VALIDATION']?.[stageNum] || `Stage ${stageNum}`}</span>
                   </div>
                 </td>
                 {#each matrixRevisions as rev}
                   {@const cell = getStageCell(stageNum, rev.id)}
                   <td class="text-center px-4 py-2.5">
                     {#if cell?.enabled && cell.triggerTypes?.length > 0}
-                      <div class="flex flex-wrap justify-center gap-0.5">
-                        {#each cell.triggerTypes as trigger}
-                          <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-accent-muted text-accent whitespace-nowrap">{trigger}</span>
-                        {/each}
+                      <div class="flex flex-col items-center gap-0.5">
+                        <div class="flex flex-wrap justify-center gap-0.5">
+                          {#each cell.triggerTypes as trigger}
+                            <span class="text-[9px] font-mono px-1 py-0.5 rounded whitespace-nowrap
+                              {trigger === 'AUTO' ? 'bg-success-muted text-success' : 'bg-accent-muted text-accent'}">{trigger}</span>
+                          {/each}
+                        </div>
+                        <div class="flex items-center gap-0.5">
+                          {#if cell.watchBranch}
+                            <span class="flex items-center gap-0.5 text-[9px] text-text-tertiary" title="Watch branch: {cell.watchBranch}">
+                              <GitBranch size={8} />
+                              <span class="font-mono">{truncateBranch(cell.watchBranch, 12)}</span>
+                            </span>
+                          {/if}
+                          {#if cell.signingKeyId}
+                            <span class="text-text-tertiary" title="Signing key: {cell.signingKey?.name || 'configured'}">
+                              <Lock size={8} />
+                            </span>
+                          {/if}
+                        </div>
                       </div>
                     {:else}
-                      <span class="text-text-tertiary opacity-30">—</span>
+                      <span class="text-text-tertiary opacity-30">&mdash;</span>
                     {/if}
                   </td>
                 {/each}
@@ -262,15 +389,23 @@
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-semibold text-text-primary">Manufacturing Stages</h3>
         {#if mfgStages.length > 0}
-          {@const enabledCount = mfgStages.filter((s: any) => s.enabled).length}
-          <span class="text-2xs text-text-tertiary">{enabledCount} of {mfgStages.length} enabled</span>
+          <span class="text-2xs text-text-tertiary">{mfgStages.filter((s) => s.enabled).length} of {mfgStages.length} enabled</span>
         {/if}
       </div>
       {#if mfgStages.length === 0}
         <div class="rounded-lg border border-dashed border-border bg-surface-0 p-6 text-center">
           <Factory size={24} class="mx-auto mb-2 text-text-tertiary opacity-30" />
           <p class="text-sm text-text-secondary">No manufacturing stages configured</p>
-          <p class="text-2xs text-text-tertiary mt-1">Go to the Manufacturing tab to set up stages for this product.</p>
+          {#if onSwitchTab}
+            <button
+              onclick={() => switchTab('manufacturing')}
+              class="mt-2 text-2xs font-medium text-accent hover:text-accent-hover transition-colors"
+            >
+              Go to Manufacturing tab
+            </button>
+          {:else}
+            <p class="text-2xs text-text-tertiary mt-1">Go to the Manufacturing tab to set up stages for this product.</p>
+          {/if}
         </div>
       {:else}
         <div class="rounded-lg border border-border overflow-x-auto">
@@ -287,7 +422,7 @@
             </thead>
             <tbody>
               {#each mfgStageNumbers as stageNum}
-                {@const stageName = mfgStages.find((s: any) => s.stage === stageNum)?.name}
+                {@const stageName = mfgStages.find((s) => s.stage === stageNum)?.name}
                 <tr class="border-t border-border-subtle">
                   <td class="sticky left-0 z-10 bg-surface-0 px-4 py-2.5 border-r border-border-subtle">
                     <div class="flex items-center gap-2">
@@ -301,13 +436,29 @@
                     {@const cell = getMfgStageCell(stageNum, rev.id)}
                     <td class="text-center px-4 py-2.5">
                       {#if cell?.enabled && cell.triggerTypes?.length > 0}
-                        <div class="flex flex-wrap justify-center gap-0.5">
-                          {#each cell.triggerTypes as trigger}
-                            <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-warning-muted text-warning whitespace-nowrap">{trigger}</span>
-                          {/each}
+                        <div class="flex flex-col items-center gap-0.5">
+                          <div class="flex flex-wrap justify-center gap-0.5">
+                            {#each cell.triggerTypes as trigger}
+                              <span class="text-[9px] font-mono px-1 py-0.5 rounded whitespace-nowrap
+                                {trigger === 'AUTO' ? 'bg-success-muted text-success' : 'bg-warning-muted text-warning'}">{trigger}</span>
+                            {/each}
+                          </div>
+                          <div class="flex items-center gap-0.5">
+                            {#if cell.watchBranch}
+                              <span class="flex items-center gap-0.5 text-[9px] text-text-tertiary" title="Watch branch: {cell.watchBranch}">
+                                <GitBranch size={8} />
+                                <span class="font-mono">{truncateBranch(cell.watchBranch, 12)}</span>
+                              </span>
+                            {/if}
+                            {#if cell.signingKeyId}
+                              <span class="text-text-tertiary" title="Signing key: {cell.signingKey?.name || 'configured'}">
+                                <Lock size={8} />
+                              </span>
+                            {/if}
+                          </div>
                         </div>
                       {:else}
-                        <span class="text-text-tertiary opacity-30">—</span>
+                        <span class="text-text-tertiary opacity-30">&mdash;</span>
                       {/if}
                     </td>
                   {/each}
@@ -340,8 +491,28 @@
           {#each recentBuilds as build}
             <div class="flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle last:border-b-0">
               <StatusBadge status={build.status} />
-              <span class="text-sm text-text-primary flex-1 truncate">{build.matrixLabel || build.variant}</span>
-              <span class="font-mono text-2xs text-text-tertiary">v{build.versionString}</span>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm text-text-primary truncate">{build.matrixLabel || build.variant}</div>
+                <div class="flex items-center gap-1.5 text-2xs text-text-tertiary">
+                  {#if build.branch}
+                    <span class="flex items-center gap-0.5">
+                      <GitBranch size={9} />
+                      <span class="font-mono">{truncateBranch(build.branch)}</span>
+                    </span>
+                  {/if}
+                  {#if build.commitSha}
+                    <span class="font-mono">{truncateSha(build.commitSha)}</span>
+                  {/if}
+                  {#if build.versionString}
+                    <span class="font-mono">v{build.versionString}</span>
+                  {/if}
+                </div>
+              </div>
+              {#if build.createdAt}
+                <span class="text-2xs text-text-tertiary whitespace-nowrap">
+                  <TimeDisplay datetime={build.createdAt} />
+                </span>
+              {/if}
             </div>
           {/each}
         </div>
@@ -359,16 +530,40 @@
         <div class="rounded-lg border border-dashed border-border bg-surface-0 p-6 text-center">
           <FlaskConical size={24} class="mx-auto mb-2 text-text-tertiary opacity-30" />
           <p class="text-sm text-text-secondary">No validation runs yet</p>
-          <p class="text-2xs text-text-tertiary mt-1">Runs appear here when validation is triggered from the pipeline or manually.</p>
+          {#if onSwitchTab}
+            <button
+              onclick={() => switchTab('stages')}
+              class="mt-2 text-2xs font-medium text-accent hover:text-accent-hover transition-colors"
+            >
+              Go to Validation tab
+            </button>
+          {:else}
+            <p class="text-2xs text-text-tertiary mt-1">Runs appear here when validation is triggered from the pipeline or manually.</p>
+          {/if}
         </div>
       {:else}
         <div class="rounded-lg border border-border overflow-hidden">
           {#each recentRuns as run}
             <div class="flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle last:border-b-0">
               <StatusBadge status={run.status} />
-              <span class="text-sm text-text-primary flex-1 truncate">{run.name}</span>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm text-text-primary truncate">{run.name}</div>
+                <div class="flex items-center gap-1.5 text-2xs text-text-tertiary">
+                  {#if run.stage}
+                    <span>Stage {run.stage}</span>
+                  {/if}
+                  {#if run.targetCount}
+                    <span>{run.targetCount} target{run.targetCount !== 1 ? 's' : ''}</span>
+                  {/if}
+                  {#if run.duration}
+                    <span>{formatDuration(run.duration)}</span>
+                  {/if}
+                </div>
+              </div>
               {#if run.createdAt}
-                <TimeDisplay datetime={run.createdAt} />
+                <span class="text-2xs text-text-tertiary whitespace-nowrap">
+                  <TimeDisplay datetime={run.createdAt} />
+                </span>
               {/if}
             </div>
           {/each}

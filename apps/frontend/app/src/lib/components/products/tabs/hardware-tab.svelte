@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Cpu, Pencil, Check, X, CircuitBoard, Plus, AlertTriangle, FlaskConical, RefreshCw, Loader2 } from 'lucide-svelte';
+  import { Cpu, Pencil, Check, X, CircuitBoard, Plus, AlertTriangle, FlaskConical, RefreshCw, Loader2, Radio, Layers } from 'lucide-svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import type { Product, BoardRevision, ProductTarget } from '$lib/types/models';
@@ -243,8 +243,10 @@
 
 <!-- Revision list -->
 {#if allRevisions.length === 0}
-  <div class="py-8 text-center text-sm text-text-tertiary">
-    No hardware revisions. Add one to get started.
+  <div class="py-8 text-center">
+    <CircuitBoard size={32} class="mx-auto text-text-tertiary mb-3 opacity-50" />
+    <p class="text-sm text-text-secondary">No hardware revisions</p>
+    <p class="text-2xs text-text-tertiary mt-1">Add a revision manually or sync from ck_boards to get started.</p>
   </div>
 {:else}
   <div class="space-y-3">
@@ -328,7 +330,10 @@
                     class="rounded-md bg-success-muted px-2.5 py-1 text-2xs font-medium text-success hover:bg-success/20 disabled:opacity-50 mr-1">
                     Reactivate
                   </button>
-                  <button onclick={() => changeStatus(rev, 'EOL')} disabled={changingStatusId === rev.id}
+                  <button onclick={() => {
+                    if (!confirm(`End-of-life ${rev.version}? This permanently marks the revision as unsupported. Builds and validation will no longer target it.`)) return;
+                    changeStatus(rev, 'EOL');
+                  }} disabled={changingStatusId === rev.id}
                     class="rounded-md bg-error-muted px-2.5 py-1 text-2xs font-medium text-error hover:bg-error/20 disabled:opacity-50">
                     EOL
                   </button>
@@ -341,36 +346,44 @@
             </div>
           </div>
 
-          <!-- Info row -->
-          <div class="flex items-center gap-4 text-2xs text-text-secondary mb-3">
-            <span>DeviceType <span class="font-mono text-text-primary">{rev.deviceType ?? '—'}</span></span>
-            <span>Variant <span class="font-mono text-text-primary">{rev.deviceVariant ?? '—'}</span></span>
-            {#if rev.socs?.length}
-              <span>SoCs: <span class="font-mono text-text-primary">{rev.socs.join(', ')}</span></span>
-            {/if}
-          </div>
-
-          <!-- Targets -->
+          <!-- Target chips -->
           {#if rev.targets && rev.targets.length > 0}
-            <div class="space-y-1.5">
+            <div class="flex flex-wrap items-center gap-1.5 mb-3">
               {#each sortedTargets(rev.targets) as target}
-                <div class="flex items-center gap-3 rounded border border-border-subtle bg-surface-1 px-3 py-2">
-                  <Cpu size={14} class="text-accent" />
-                  <span class="text-sm font-medium capitalize text-text-primary">{target.role}</span>
-                  <span class="font-mono text-2xs text-text-secondary">{target.soc}</span>
-                  <div class="flex-1"></div>
-                  <span class="font-mono text-2xs text-text-tertiary">AppID {target.appId}</span>
-                </div>
+                <span class="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-2xs">
+                  <Cpu size={10} class="text-accent" />
+                  <span class="font-medium capitalize text-text-primary">{target.role}</span>
+                  <span class="text-text-tertiary">:</span>
+                  <span class="font-mono text-text-secondary">{target.soc}</span>
+                  <span class="text-text-tertiary ml-0.5">#{target.appId}</span>
+                </span>
               {/each}
             </div>
           {/if}
 
-          <!-- Linked stages -->
-          {@const linkedStages = stagesUsingRevision(rev.id)}
-          {#if linkedStages.length > 0}
-            <div class="mt-3 flex items-center gap-2 text-2xs text-text-tertiary">
+          <!-- Info row -->
+          <div class="flex flex-wrap items-center gap-3 text-2xs text-text-secondary">
+            <span>DeviceType <span class="font-mono text-text-primary">{rev.deviceType ?? '—'}</span></span>
+            <span>Variant <span class="font-mono text-text-primary">{rev.deviceVariant ?? '—'}</span></span>
+            {#if rev.modemFirmwares?.length}
+              <span class="flex items-center gap-1">
+                <Radio size={10} class="text-text-tertiary" />
+                {rev.modemFirmwares.length} modem fw
+              </span>
+            {/if}
+            {#if stagesUsingRevision(rev.id).length > 0}
+              <span class="flex items-center gap-1">
+                <Layers size={10} class="text-text-tertiary" />
+                {stagesUsingRevision(rev.id).length} stage{stagesUsingRevision(rev.id).length === 1 ? '' : 's'}
+              </span>
+            {/if}
+          </div>
+
+          <!-- Linked stages detail -->
+          {#if stagesUsingRevision(rev.id).length > 0}
+            <div class="mt-2 flex items-center gap-2 text-2xs text-text-tertiary">
               <FlaskConical size={12} />
-              <span>Used by: {linkedStages.join(', ')}</span>
+              <span>Used by: {stagesUsingRevision(rev.id).join(', ')}</span>
             </div>
           {/if}
         {/if}
