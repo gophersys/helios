@@ -5,7 +5,13 @@ setup(
     version="1.0",
     packages=find_packages(),
     extras_require={
-        "test": ["pytest>=8.0", "pytest-cov>=6.0", "pytest-xdist>=3.0"],
+        "test": [
+            "pytest>=8.0",
+            "pytest-cov>=6.0",
+            "pytest-xdist>=3.0",
+            "pytest-timeout>=2.0",
+            "psycopg2-binary>=2.9",
+        ],
     },
     install_requires=[
         "grpcio==1.76.0",
