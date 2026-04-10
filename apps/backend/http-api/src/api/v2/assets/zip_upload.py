@@ -25,7 +25,7 @@ from database import Json
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
-from src.lib.errors import bad_request, forbidden, not_found
+from src.lib.errors import bad_request, conflict, forbidden, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
@@ -287,10 +287,26 @@ def upload_asset_set_zip(product_id: str):
         if not version or version == "auto":
             version = "unknown"
 
-    # Create AssetSet
+    # Check for duplicate version + variant + stage for this product/revision
     user_id = g.current_user.get("sub") if g.current_user else None
     board_revision_id = stage_config.boardRevisionId
 
+    dup_where: dict = {
+        "productId": product_id,
+        "version": version,
+        "variant": variant,
+        "stage": stage_config.stage,
+    }
+    if board_revision_id:
+        dup_where["boardRevisionId"] = board_revision_id
+    existing = db.assetset.find_first(where=dup_where)
+    if existing:
+        return conflict(
+            f"Asset set v{version} ({variant}) already exists for this stage and revision. "
+            f"Delete the existing one first, or use a different version."
+        )
+
+    # Create AssetSet
     create_data: dict = {
         "product": {"connect": {"id": product_id}},
         "version": version,
@@ -793,10 +809,26 @@ def upload_asset_files(product_id: str):
         if modem_fw.boardRevisionId != stage_config.boardRevisionId:
             return bad_request("Selected modem firmware belongs to a different board revision")
 
-    # Create AssetSet
+    # Check for duplicate version + variant + stage for this product/revision
     user_id = g.current_user.get("sub") if g.current_user else None
     board_revision_id = stage_config.boardRevisionId
 
+    dup_where: dict = {
+        "productId": product_id,
+        "version": version,
+        "variant": "multi",
+        "stage": stage_config.stage,
+    }
+    if board_revision_id:
+        dup_where["boardRevisionId"] = board_revision_id
+    existing = db.assetset.find_first(where=dup_where)
+    if existing:
+        return conflict(
+            f"Asset set v{version} already exists for this stage and revision. "
+            f"Delete the existing one first, or use a different version."
+        )
+
+    # Create AssetSet
     create_data: dict = {
         "product": {"connect": {"id": product_id}},
         "version": version,
