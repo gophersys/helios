@@ -46,6 +46,7 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
         "mfgRepoSshUrl": f"git@bitbucket.org:corekinect/{p.mfgFwRepoSlug}.git" if getattr(p, "mfgFwRepoSlug", None) else None,
         "buildConfig": p.buildConfig,
         "metadata": p.metadata,
+        "createdById": getattr(p, "createdById", None),
         "createdAt": p.createdAt.isoformat(),
         "updatedAt": p.updatedAt.isoformat(),
     }
@@ -162,6 +163,7 @@ def _serialize_board_summary(b: Any) -> dict:
         "vendor": getattr(b, "vendor", "corekinect"),
         "description": b.description,
         "active": b.active,
+        "createdById": getattr(b, "createdById", None),
         "createdAt": b.createdAt.isoformat(),
         "updatedAt": b.updatedAt.isoformat(),
     }
@@ -183,6 +185,7 @@ def _serialize_board_revision(r: Any) -> dict:
         "deviceVariant": getattr(r, "deviceVariant", None),
         "status": r.status,
         "notes": r.notes,
+        "createdById": getattr(r, "createdById", None),
         "createdAt": r.createdAt.isoformat(),
         "updatedAt": r.updatedAt.isoformat(),
     }
@@ -297,6 +300,10 @@ def create_product():
         create_data["buildConfig"] = Json(data.buildConfig)
     if data.metadata is not None:
         create_data["metadata"] = Json(data.metadata)
+
+    user = getattr(g, "current_user", None)
+    if user and isinstance(user, dict):
+        create_data["createdById"] = user.get("sub")
 
     # Inline board creation from wizard
     if data.board:

@@ -58,6 +58,7 @@ def _serialize_stage_config(cfg) -> dict:
         "watchBranch": cfg.watchBranch,
         "triggerTypes": getattr(cfg, "triggerTypes", "manual"),
         "signingKeyId": cfg.signingKeyId,
+        "createdById": getattr(cfg, "createdById", None),
         "createdAt": cfg.createdAt.isoformat() if hasattr(cfg.createdAt, 'isoformat') else cfg.createdAt,
         "updatedAt": cfg.updatedAt.isoformat() if hasattr(cfg.updatedAt, 'isoformat') else cfg.updatedAt,
     }
@@ -156,18 +157,23 @@ def create_stage_config(product_id: str):
     # Block creating enabled stages for deprecated/EOL revisions
     if req.enabled and revision.status in ("DEPRECATED", "EOL"):
         return bad_request(f"Cannot enable stage for {revision.status} revision {revision.version}")
+    stage_create_data = {
+        "productId": product_id,
+        "type": req.type,
+        "stage": req.stage,
+        "name": req.name,
+        "enabled": req.enabled,
+        "boardRevisionId": req.boardRevisionId,
+        "watchBranch": req.watchBranch,
+        "triggerTypes": req.triggerTypes,
+        "signingKeyId": req.signingKeyId,
+    }
+    user = getattr(g, "current_user", None)
+    if user and isinstance(user, dict):
+        stage_create_data["createdById"] = user.get("sub")
+
     config = db.productstageconfig.create(
-        data={
-            "productId": product_id,
-            "type": req.type,
-            "stage": req.stage,
-            "name": req.name,
-            "enabled": req.enabled,
-            "boardRevisionId": req.boardRevisionId,
-            "watchBranch": req.watchBranch,
-            "triggerTypes": req.triggerTypes,
-            "signingKeyId": req.signingKeyId,
-        },
+        data=stage_create_data,
         include=_INCLUDE,
     )
     # Auto-populate build matrix from defaults
@@ -358,9 +364,14 @@ def initialize_stages(product_id: str):
     )
     if existing:
         return conflict("Validation stages already configured for this revision. Delete them first to reinitialize.")
+    user = getattr(g, "current_user", None)
+    user_id = user.get("sub") if user and isinstance(user, dict) else None
+
     created = []
     for stage_def in DEFAULT_VALIDATION_STAGES:
         data = {"productId": product_id, "enabled": False, "boardRevisionId": board_revision_id, **stage_def}
+        if user_id:
+            data["createdById"] = user_id
         config = db.productstageconfig.create(data=data, include=_INCLUDE)
         _auto_populate_build_matrix(db, config.id, "VALIDATION", stage_def.get("stage", 1))
         config = db.productstageconfig.find_unique(where={"id": config.id}, include=_INCLUDE)

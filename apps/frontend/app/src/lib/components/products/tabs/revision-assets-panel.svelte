@@ -74,9 +74,8 @@
     if (filterStatus && asset.status !== filterStatus) return false;
     // Stage filter
     if (filterStageConfigId) {
-      const matchesStage = asset.stageConfigId === filterStageConfigId ||
-        (asset.source === 'BUILD_SERVICE' && !asset.stageConfigId &&
-          revConfigs.some(c => c.id === filterStageConfigId && c.stage === asset.stage));
+      const filterConfig = revConfigs.find(c => c.id === filterStageConfigId);
+      const matchesStage = filterConfig && asset.stage === filterConfig.stage;
       if (!matchesStage) return false;
     }
     return true;
@@ -92,10 +91,7 @@
     [...new Set(assetSets.map(a => a.status))].sort()
   );
   const availableStageConfigs = $derived(
-    revConfigs.filter(c => assetSets.some(a =>
-      a.stageConfigId === c.id ||
-      (a.source === 'BUILD_SERVICE' && !a.stageConfigId && a.stage === c.stage)
-    ))
+    revConfigs.filter(c => assetSets.some(a => a.stage === c.stage))
   );
   const hasActiveFilters = $derived(
     !!filterSource || !!filterStatus || !!filterStageConfigId || !!searchQuery.trim()

@@ -12,6 +12,7 @@ Data model: TestRun -> RunTarget -> TestExecution -> TestStep
 import io
 import logging
 from datetime import datetime, timezone
+from typing import Optional
 
 from database import Json
 from flask import jsonify, request
@@ -29,6 +30,26 @@ from src.services.storage.client import (
 )
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Status transition validation
+# ---------------------------------------------------------------------------
+
+_VALID_RUN_TRANSITIONS = {
+    "PENDING": {"ACTIVE", "CANCELLED"},
+    "ACTIVE": {"COMPLETED", "FAILED", "CANCELLED"},
+    "COMPLETED": set(),
+    "FAILED": set(),
+    "CANCELLED": set(),
+}
+
+
+def _validate_run_transition(current: str, target: str) -> Optional[str]:
+    """Return error message if transition is invalid, None if OK."""
+    allowed = _VALID_RUN_TRANSITIONS.get(current, set())
+    if target not in allowed:
+        return f"Cannot transition run from '{current}' to '{target}'"
+    return None
 
 # ---------------------------------------------------------------------------
 # SocketIO plumbing
@@ -225,8 +246,9 @@ def report_start(run_id: str):
     if err:
         return err
 
-    if run.status not in ("ACTIVE", "PENDING"):
-        return bad_request(f"Cannot start a run with status {run.status}")
+    err = _validate_run_transition(run.status, "ACTIVE")
+    if err:
+        return bad_request(err)
 
     db = get_db_client()
     now = datetime.now(timezone.utc)
@@ -662,14 +684,18 @@ def report_finish(run_id: str):
     if err:
         return err
 
-    if run.status not in ("ACTIVE", "PENDING"):
-        return bad_request(f"Cannot finish run in '{run.status}' status — must be ACTIVE or PENDING")
-
     now = datetime.now(timezone.utc)
     total = body.get("total", 0)
     passed = body.get("passed", 0)
     failed = body.get("failed", 0)
     errors = body.get("errors", 0)
+
+    # Determine final status and validate the transition
+    has_system_errors = errors > 0
+    final_status = "FAILED" if has_system_errors or failed > 0 else "COMPLETED"
+    err = _validate_run_transition(run.status, final_status)
+    if err:
+        return bad_request(err)
     # Accept both durationMs and durationS (corekinect sends seconds)
     duration_ms = body.get("durationMs")
     if duration_ms is None and body.get("durationS") is not None:
@@ -694,15 +720,11 @@ def report_finish(run_id: str):
             data={"status": "FAILED", "completedAt": now},
         )
 
-    # Determine final run status
-    has_system_errors = errors > 0
-    run_status = "FAILED" if has_system_errors or failed > 0 else "COMPLETED"
-
     run_update: dict = {
         "completedCount": total,
         "passedCount": passed,
         "failedCount": failed + errors,
-        "status": run_status,
+        "status": final_status,
         "completedAt": now,
     }
     if duration_ms is not None:
@@ -724,7 +746,7 @@ def report_finish(run_id: str):
 
     _emit("run_finish", {
         "runId": run_id,
-        "status": run_status,
+        "status": final_status,
         "total": total,
         "passed": passed,
         "failed": failed,
@@ -737,11 +759,11 @@ def report_finish(run_id: str):
 
     logger.info(
         "Run %s finished: %s (%d passed, %d failed, %d errors)",
-        run_id, run_status, passed, failed, errors,
+        run_id, final_status, passed, failed, errors,
     )
     return jsonify(ApiResponse.ok({
         "runId": run_id,
-        "status": run_status,
+        "status": final_status,
         "total": total,
         "passed": passed,
         "failed": failed,

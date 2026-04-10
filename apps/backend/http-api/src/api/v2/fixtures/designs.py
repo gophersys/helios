@@ -4,7 +4,7 @@ import logging
 import math
 from typing import Any, Dict
 
-from flask import jsonify, request
+from flask import g, jsonify, request
 from database import Json
 
 from src.lib.audit import log_audit
@@ -35,6 +35,7 @@ def _serialize_design(design) -> Dict[str, Any]:
         "bomUrl": getattr(design, "bomUrl", None),
         "assemblyGuide": getattr(design, "assemblyGuide", None),
         "notes": getattr(design, "notes", None),
+        "createdById": getattr(design, "createdById", None),
         "createdAt": design.createdAt.isoformat(),
         "updatedAt": design.updatedAt.isoformat(),
     }
@@ -153,18 +154,23 @@ def create_design():
 
     profile_template = data.get("profileTemplate") or {}
 
+    design_create_data = {
+        "name": name,
+        "boardRevisionId": board_revision_id,
+        "revision": revision,
+        "capabilities": capabilities,
+        "profileTemplate": Json(profile_template),
+        "schematicUrl": (data.get("schematicUrl") or "").strip() or None,
+        "bomUrl": (data.get("bomUrl") or "").strip() or None,
+        "assemblyGuide": (data.get("assemblyGuide") or "").strip() or None,
+        "notes": (data.get("notes") or "").strip() or None,
+    }
+    user = getattr(g, "current_user", None)
+    if user and isinstance(user, dict):
+        design_create_data["createdById"] = user.get("sub")
+
     design = db.fixturedesign.create(
-        data={
-            "name": name,
-            "boardRevisionId": board_revision_id,
-            "revision": revision,
-            "capabilities": capabilities,
-            "profileTemplate": Json(profile_template),
-            "schematicUrl": (data.get("schematicUrl") or "").strip() or None,
-            "bomUrl": (data.get("bomUrl") or "").strip() or None,
-            "assemblyGuide": (data.get("assemblyGuide") or "").strip() or None,
-            "notes": (data.get("notes") or "").strip() or None,
-        },
+        data=design_create_data,
         include=_DESIGN_INCLUDE,
     )
     log_audit("fixtureDesign.create", "FixtureDesign", design.id, {"name": name, "revision": revision})

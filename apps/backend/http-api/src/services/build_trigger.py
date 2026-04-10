@@ -258,6 +258,15 @@ def trigger_stage_build(
         },
     )
 
+    # Traceability: record who created this build run
+    try:
+        from flask import g
+        user = getattr(g, "current_user", None)
+        if user and isinstance(user, dict) and user.get("sub"):
+            db.buildrun.update(where={"id": build_run.id}, data={"createdById": user["sub"]})
+    except RuntimeError:
+        pass  # Outside Flask request context (e.g., git poller webhook)
+
     logger.info("Created BuildRun %s for %s stage %s (%d jobs)",
                 build_run.id, product.name, stage_config.name, len(build_defs))
 

@@ -774,6 +774,8 @@ export interface StageBuildMatrixEntry {
   label: string;
   fwType: string;
   variant: string;
+  processor: string | null;
+  filenamePattern: string | null;
   configLog: boolean;
   producesHex: boolean;
   producesCfw: boolean;
@@ -795,8 +797,10 @@ export interface AssetSet {
   source: 'BUILD_SERVICE' | 'MANUAL_UPLOAD' | 'EXTERNAL_CI';
   status: 'PENDING' | 'COMPLETE' | 'VALIDATED' | 'FAILED';
   buildRunId: string | null;
-  stageConfigId: string | null;
-  stageConfig?: { id: string; type: string; stage: number; name: string } | null;
+  externalBuildId: string | null;
+  recipeVersionId: string | null;
+  modemFirmwareId: string | null;
+  modemFirmware: { id: string; version: string; filename: string; storageKey: string; sizeBytes: number } | null;
   commitSha: string | null;
   branch: string | null;
   notes: string | null;

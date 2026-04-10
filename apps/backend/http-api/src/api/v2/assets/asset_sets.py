@@ -6,6 +6,8 @@ set to track which firmware they consumed.
 """
 
 import logging
+from typing import Optional
+
 from flask import g, jsonify, request
 
 from src.lib.audit import log_audit
@@ -18,6 +20,25 @@ from src.services.database.prisma import get_db_client
 from .types import AssetSetCreateRequest, ExternalAssetSetCreateRequest
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Status transition validation
+# ---------------------------------------------------------------------------
+
+_VALID_ASSET_SET_TRANSITIONS = {
+    "PENDING": {"COMPLETE", "FAILED"},
+    "COMPLETE": {"VALIDATED", "FAILED"},
+    "VALIDATED": set(),
+    "FAILED": set(),
+}
+
+
+def _validate_asset_set_transition(current: str, target: str) -> Optional[str]:
+    """Return error message if transition is invalid, None if OK."""
+    allowed = _VALID_ASSET_SET_TRANSITIONS.get(current, set())
+    if target not in allowed:
+        return f"Cannot transition asset set from '{current}' to '{target}'"
+    return None
 
 _ASSET_SET_INCLUDE = {
     "product": True,
@@ -280,8 +301,10 @@ def complete_asset_set(asset_set_id: str):
     )
     if not asset_set:
         return not_found("Asset set not found")
-    if asset_set.status != "PENDING":
-        return bad_request(f"Asset set is already {asset_set.status}")
+
+    err = _validate_asset_set_transition(asset_set.status, "COMPLETE")
+    if err:
+        return bad_request(err)
 
     # Validate against build matrix if stage is set
     warnings = []

@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict
 
-from flask import jsonify, request
+from flask import g, jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
@@ -25,6 +25,7 @@ def _serialize_board(b: Any) -> dict:
         "vendor": getattr(b, "vendor", "corekinect"),
         "description": b.description,
         "active": b.active,
+        "createdById": getattr(b, "createdById", None),
         "createdAt": b.createdAt.isoformat(),
         "updatedAt": b.updatedAt.isoformat(),
     }
@@ -80,6 +81,10 @@ def create_board(product_id: str):
         "description": data.description,
         "active": data.active,
     }
+
+    user = getattr(g, "current_user", None)
+    if user and isinstance(user, dict):
+        create_data["createdById"] = user.get("sub")
 
     # Create inline revisions if provided
     if data.revisions:

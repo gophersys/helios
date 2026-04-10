@@ -39,6 +39,7 @@ def _serialize_revision(r) -> dict:
         "hasModemFirmware": bool(getattr(r, "modemStorageKey", None)),
         "status": r.status,
         "notes": r.notes,
+        "createdById": getattr(r, "createdById", None),
         "createdAt": r.createdAt.isoformat(),
         "updatedAt": r.updatedAt.isoformat(),
     }
@@ -110,6 +111,10 @@ def create_board_revision(product_id: str, board_id: str):
         create_data["deviceType"] = data.deviceType
     if data.deviceVariant is not None:
         create_data["deviceVariant"] = data.deviceVariant
+
+    user = getattr(g, "current_user", None)
+    if user and isinstance(user, dict):
+        create_data["createdById"] = user.get("sub")
 
     revision = db.boardrevision.create(
         data=create_data,

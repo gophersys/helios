@@ -210,6 +210,7 @@ def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
         "active": f.active,
         "metadata": f.metadata,
         "lastHealthCheck": f.lastHealthCheck.isoformat() if hasattr(f, "lastHealthCheck") and f.lastHealthCheck else None,
+        "createdById": getattr(f, "createdById", None),
         "createdAt": f.createdAt.isoformat(),
         "updatedAt": f.updatedAt.isoformat(),
     }
@@ -353,6 +354,10 @@ def create_fixture():
 
     if data.metadata is not None:
         create_data["metadata"] = Json(data.metadata)
+
+    user = getattr(g, "current_user", None)
+    if user and isinstance(user, dict):
+        create_data["createdById"] = user.get("sub")
 
     # Auto-create slots from design's slotDefinitions, or from manual slots
     slot_defs = None

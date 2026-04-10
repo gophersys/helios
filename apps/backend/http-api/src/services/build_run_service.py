@@ -82,6 +82,7 @@ def serialize_build_run(p) -> Dict[str, Any]:
         "sourceBranch": getattr(p, "sourceBranch", None),
         "targetBranch": getattr(p, "targetBranch", None),
         "prUrl": getattr(p, "prUrl", None),
+        "createdById": getattr(p, "createdById", None),
         "startedAt": p.startedAt.isoformat() if p.startedAt else None,
         "finishedAt": p.finishedAt.isoformat() if p.finishedAt else None,
         "createdAt": p.createdAt.isoformat(),
@@ -140,6 +141,7 @@ def serialize_build_run_summary(p) -> Dict[str, Any]:
         "sourceBranch": getattr(p, "sourceBranch", None),
         "targetBranch": getattr(p, "targetBranch", None),
         "prUrl": getattr(p, "prUrl", None),
+        "createdById": getattr(p, "createdById", None),
         "startedAt": p.startedAt.isoformat() if p.startedAt else None,
         "finishedAt": p.finishedAt.isoformat() if p.finishedAt else None,
         "createdAt": p.createdAt.isoformat(),
@@ -359,6 +361,15 @@ def create_build_run_record(db, data, ctx: Dict[str, Any]):
     if stage_config:
         create_data["stageConfigId"] = stage_config.id
         create_data["stage"] = stage_config.stage
+
+    # Traceability: record who created this build run
+    try:
+        from flask import g
+        user = getattr(g, "current_user", None)
+        if user and isinstance(user, dict):
+            create_data["createdById"] = user.get("sub")
+    except RuntimeError:
+        pass  # Outside Flask request context (e.g., git poller)
 
     pipeline = db.buildrun.create(data=create_data)
     builds = create_build_jobs(db, pipeline, build_specs, data, product_record)
