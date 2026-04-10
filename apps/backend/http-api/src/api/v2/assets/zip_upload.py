@@ -118,21 +118,24 @@ def upload_asset_set_zip(product_id: str):
     user_id = g.current_user.get("sub") if g.current_user else None
     board_revision_id = stage_config.boardRevisionId
 
-    create_data = {
-        "productId": product_id,
-        "boardRevisionId": board_revision_id,
+    create_data: dict = {
+        "product": {"connect": {"id": product_id}},
         "version": version,
         "variant": variant,
         "stage": stage_config.stage,
         "source": "MANUAL_UPLOAD",
-        "stageConfigId": stage_config_id,
         "status": "PENDING",
-        "commitSha": commit_sha,
-        "branch": branch,
-        "notes": notes,
     }
+    if board_revision_id:
+        create_data["boardRevision"] = {"connect": {"id": board_revision_id}}
+    if commit_sha:
+        create_data["commitSha"] = commit_sha
+    if branch:
+        create_data["branch"] = branch
+    if notes:
+        create_data["notes"] = notes
     if user_id:
-        create_data["createdById"] = user_id
+        create_data["createdBy"] = {"connect": {"id": user_id}}
 
     asset_set = db.assetset.create(data=create_data)
 
