@@ -742,109 +742,64 @@ export function subscribeRunLogs(
 /** @deprecated Use subscribeRunLogs */
 export const subscribeValidationLogs = subscribeRunLogs;
 
-// ── Manufacturing Session Subscriptions ─────────────────────────────
-
-export interface ManufacturingUnitStartEvent {
-  panelId: string;
-  slotIndex: number;
-  slotLabel: string;
-  serialNumber: string | null;
-}
-
-export interface ManufacturingStageResultEvent {
-  panelId: string;
-  slotIndex: number;
-  stage: string;
-  status: string;
-  durationMs: number | null;
-  errorMessage: string | null;
-}
-
-export interface ManufacturingUnitResultEvent {
-  panelId: string;
-  slotIndex: number;
-  serialNumber: string | null;
-  status: string;
-  errorMessage: string | null;
-}
-
-export interface ManufacturingPanelCompleteEvent {
-  panelId: string;
-  passCount: number;
-  failCount: number;
-}
+// ── Manufacturing Run Subscriptions ─────────────────────────────
 
 /**
- * Subscribe to real-time manufacturing session events.
- * Uses the /runs namespace with manufacturing-specific events.
+ * Subscribe to real-time manufacturing run events.
+ * Delegates to subscribeRunWithLogs, mapping the shared run events
+ * (run_target_start, run_execution_result, run_target_result, run_finish)
+ * into manufacturing-oriented callbacks.
+ *
+ * Each manufacturing panel scan creates a TestRun. Subscribe to individual
+ * runs — not the session — because the backend reporter emits events on
+ * room `run:{runId}`.
  */
-export function subscribeManufacturingSession(
-  sessionId: string,
+export function subscribeManufacturingRun(
+  runId: string,
   callbacks: {
-    onUnitStart?: (data: ManufacturingUnitStartEvent) => void;
-    onStageResult?: (data: ManufacturingStageResultEvent) => void;
-    onUnitResult?: (data: ManufacturingUnitResultEvent) => void;
-    onPanelComplete?: (data: ManufacturingPanelCompleteEvent) => void;
+    onTargetStart?: (data: { runId: string; targetId: string; slotIndex: number; serialNumber?: string }) => void;
+    onExecutionResult?: (data: { runId: string; targetId: string; name: string; passed: boolean; durationMs?: number; errorMessage?: string }) => void;
+    onTargetResult?: (data: { runId: string; targetId: string; slotIndex: number; status: string; durationMs?: number }) => void;
+    onRunFinish?: (data: RunFinishEvent) => void;
+    onRunStart?: (data: { runId: string; status: string }) => void;
   },
   onError?: (message: string) => void
 ): () => void {
-  const socket = getRunSocket();
-  if (!socket) {
-    onError?.('Manufacturing WebSocket not available');
-    return () => {};
-  }
+  return subscribeRunWithLogs(runId, {
+    onTestStart: (data) => callbacks.onTargetStart?.({
+      runId: data.runId || runId,
+      targetId: data.targetId || '',
+      slotIndex: 0,
+      serialNumber: undefined,
+    }),
+    onTestResult: (data) => callbacks.onExecutionResult?.({
+      runId: data.runId || runId,
+      targetId: '',
+      name: data.name || data.testName || '',
+      passed: data.passed,
+      durationMs: data.durationMs ?? undefined,
+      errorMessage: data.errorMessage ?? undefined,
+    }),
+    onRunFinish: (data) => callbacks.onRunFinish?.(data),
+    onRunStart: (data) => callbacks.onRunStart?.(data),
+  }, onError);
+}
 
-  const unitStartHandler = (data: ManufacturingUnitStartEvent) => {
-    callbacks.onUnitStart?.(data);
-  };
-
-  const stageResultHandler = (data: ManufacturingStageResultEvent) => {
-    callbacks.onStageResult?.(data);
-  };
-
-  const unitResultHandler = (data: ManufacturingUnitResultEvent) => {
-    callbacks.onUnitResult?.(data);
-  };
-
-  const panelCompleteHandler = (data: ManufacturingPanelCompleteEvent) => {
-    callbacks.onPanelComplete?.(data);
-  };
-
-  const errorHandler = (data: { message: string }) => {
-    onError?.(data.message);
-  };
-
-  socket.on('mfg_unit_start', unitStartHandler);
-  socket.on('mfg_stage_result', stageResultHandler);
-  socket.on('mfg_unit_result', unitResultHandler);
-  socket.on('mfg_panel_complete', panelCompleteHandler);
-  socket.on('error', errorHandler);
-
-  const emitSubscribe = () => {
-    socket.emit('subscribe_run', { runId: sessionId });
-  };
-
-  const connectHandler = () => {
-    emitSubscribe();
-  };
-
-  if (socket.connected) {
-    emitSubscribe();
-  } else {
-    socket.on('connect', connectHandler);
-  }
-
-  return () => {
-    socket.off('mfg_unit_start', unitStartHandler);
-    socket.off('mfg_stage_result', stageResultHandler);
-    socket.off('mfg_unit_result', unitResultHandler);
-    socket.off('mfg_panel_complete', panelCompleteHandler);
-    socket.off('error', errorHandler);
-    socket.off('connect', connectHandler);
-    if (socket.connected) {
-      socket.emit('unsubscribe_run', { runId: sessionId });
-    }
-  };
+/**
+ * @deprecated Use subscribeManufacturingRun with individual run IDs.
+ * This wrapper exists for backward compatibility but cannot subscribe to
+ * session-level events — the backend emits events per run, not per session.
+ */
+export function subscribeManufacturingSession(
+  _sessionId: string,
+  _callbacks: Record<string, unknown>,
+  onError?: (message: string) => void
+): () => void {
+  console.warn(
+    'subscribeManufacturingSession is deprecated. Use subscribeManufacturingRun with individual run IDs.'
+  );
+  onError?.('subscribeManufacturingSession is deprecated — use subscribeManufacturingRun');
+  return () => {};
 }
 
 /**

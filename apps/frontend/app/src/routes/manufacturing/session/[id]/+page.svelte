@@ -10,10 +10,10 @@
   import PanelResultsGrid from '$lib/components/manufacturing/panel-results-grid.svelte';
   import PanelHistory from '$lib/components/manufacturing/panel-history.svelte';
   import {
-    subscribeManufacturingSession,
-    disconnectManufacturingSocket,
+    subscribeManufacturingRun,
+    disconnectRunSocket,
   } from '$lib/services/websocket';
-  import type { ManufacturingSessionDetail, ManufacturingPanel, ManufacturingUnit, ManufacturingStage } from '$lib/types/models';
+  import type { ManufacturingSessionDetail, TestRun, RunTarget, TestExecution } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
@@ -23,11 +23,16 @@
   let session = $state<ManufacturingSessionDetail | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let unsubscribe: (() => void) | null = null;
+  let unsubscribeRun: (() => void) | null = null;
 
-  // Completed runs (panels — not including active)
-  const completedPanels = $derived(
-    (session?.runs || []).filter((r: any) => r.status !== 'ACTIVE' && r.status !== 'PENDING')
+  // The active or most recent pending run (current panel being tested)
+  const activeRun = $derived(
+    (session?.runs || []).find((r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING')
+  );
+
+  // Completed runs (not including active/pending)
+  const completedRuns = $derived(
+    (session?.runs || []).filter((r: TestRun) => r.status !== 'ACTIVE' && r.status !== 'PENDING')
   );
 
   async function fetchSession() {
@@ -57,11 +62,136 @@
     }
   }
 
+  function subscribeToRun(runId: string) {
+    // Unsubscribe from any previous run
+    if (unsubscribeRun) {
+      unsubscribeRun();
+      unsubscribeRun = null;
+    }
+
+    unsubscribeRun = subscribeManufacturingRun(
+      runId,
+      {
+        onRunStart() {
+          // Update the run status to ACTIVE in local state
+          if (!session?.runs) return;
+          const run = session.runs.find((r: TestRun) => r.id === runId);
+          if (run) {
+            run.status = 'ACTIVE';
+            session = { ...session! };
+          }
+        },
+
+        onTargetStart(data) {
+          if (!session?.runs) return;
+          const run = session.runs.find((r: TestRun) => r.id === runId);
+          if (!run?.targets) return;
+
+          const target = run.targets.find((t: RunTarget) => t.id === data.targetId);
+          if (target) {
+            target.status = 'RUNNING';
+            target.serialNumber = data.serialNumber || target.serialNumber;
+            target.startedAt = new Date().toISOString();
+            session = { ...session! };
+          }
+        },
+
+        onExecutionResult(data) {
+          if (!session?.runs) return;
+          const run = session.runs.find((r: TestRun) => r.id === runId);
+          if (!run?.targets) return;
+
+          // Find the target that owns this execution (try explicit targetId first)
+          let target: RunTarget | undefined;
+          if (data.targetId) {
+            target = run.targets.find((t: RunTarget) => t.id === data.targetId);
+          }
+          // Fallback: find any running target
+          if (!target) {
+            target = run.targets.find((t: RunTarget) => t.status === 'RUNNING');
+          }
+          if (!target) return;
+
+          // Update or add execution record
+          if (!target.executions) target.executions = [];
+          const existingExec = target.executions.find((e: TestExecution) => e.name === data.name);
+          if (existingExec) {
+            existingExec.status = data.passed ? 'PASSED' : 'FAILED';
+            existingExec.durationMs = data.durationMs;
+            existingExec.errorMessage = data.errorMessage;
+          } else {
+            target.executions = [...target.executions, {
+              id: `ws-${Date.now()}`,
+              targetId: target.id,
+              executionIndex: target.executions.length,
+              name: data.name,
+              status: data.passed ? 'PASSED' : 'FAILED',
+              durationMs: data.durationMs,
+              errorMessage: data.errorMessage,
+              createdAt: new Date().toISOString(),
+            } as TestExecution];
+          }
+          session = { ...session! };
+        },
+
+        onTargetResult(data) {
+          if (!session?.runs) return;
+          const run = session.runs.find((r: TestRun) => r.id === runId);
+          if (!run?.targets) return;
+
+          const target = run.targets.find((t: RunTarget) => t.id === data.targetId);
+          if (target) {
+            target.status = data.status as RunTarget['status'];
+            target.completedAt = new Date().toISOString();
+            target.durationMs = data.durationMs;
+            session = { ...session! };
+          }
+        },
+
+        onRunFinish(data) {
+          if (!session?.runs) return;
+          const run = session.runs.find((r: TestRun) => r.id === runId);
+          if (run) {
+            run.status = data.status as TestRun['status'];
+            run.passedCount = data.passed;
+            run.failedCount = data.failed;
+            run.completedCount = data.total;
+            run.durationMs = data.durationMs ?? undefined;
+            session = { ...session! };
+          }
+          // Refresh full data from server to pick up accurate aggregates
+          fetchSession();
+        },
+      },
+      (errMsg) => {
+        console.error('Manufacturing run WebSocket error:', errMsg);
+      }
+    );
+  }
+
+  function setupWebSocket() {
+    if (!session?.runs) return;
+    // Find the latest active or pending run to subscribe to
+    const run = session.runs.find(
+      (r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING'
+    );
+    if (run) {
+      subscribeToRun(run.id);
+    }
+  }
+
   async function handleRunPanel(qrCode: string) {
     error = null;
     try {
-      await api.post(`/v2/manufacturing/sessions/${sessionId}/runs`, { qrCode });
+      const res = await api.post(`/v2/manufacturing/sessions/${sessionId}/runs`, { qrCode });
       await fetchSession();
+      // Subscribe to the newly created run
+      const newRun = (session?.runs || []).find(
+        (r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING'
+      );
+      if (newRun) {
+        subscribeToRun(newRun.id);
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to run panel';
     }
@@ -77,90 +207,6 @@
     }
   }
 
-  function setupWebSocket() {
-    if (!sessionId) return;
-
-    unsubscribe = subscribeManufacturingSession(
-      sessionId,
-      {
-        onUnitStart(data) {
-          if (!session?.activePanel) return;
-          // Add or update unit in the active panel
-          const panel = session.activePanel;
-          const existingIdx = panel.units.findIndex((u) => u.slotIndex === data.slotIndex);
-          const newUnit: ManufacturingUnit = {
-            id: `temp-${data.slotIndex}`,
-            panelId: data.panelId,
-            slotIndex: data.slotIndex,
-            slotLabel: data.slotLabel,
-            serialNumber: data.serialNumber,
-            status: 'RUNNING',
-            stages: [],
-            errorMessage: null,
-            startedAt: new Date().toISOString(),
-            finishedAt: null,
-          };
-          if (existingIdx >= 0) {
-            panel.units[existingIdx] = newUnit;
-          } else {
-            panel.units = [...panel.units, newUnit];
-          }
-          session = { ...session! };
-        },
-
-        onStageResult(data) {
-          if (!session?.activePanel) return;
-          const panel = session.activePanel;
-          const unit = panel.units.find((u) => u.slotIndex === data.slotIndex);
-          if (unit) {
-            const stageUpdate: ManufacturingStage = {
-              type: data.stage as ManufacturingStage['type'],
-              status: data.status as ManufacturingStage['status'],
-              durationMs: data.durationMs,
-              errorMessage: data.errorMessage,
-            };
-            const existingStageIdx = unit.stages.findIndex((s) => s.type === data.stage);
-            if (existingStageIdx >= 0) {
-              unit.stages[existingStageIdx] = stageUpdate;
-            } else {
-              unit.stages = [...unit.stages, stageUpdate];
-            }
-            session = { ...session! };
-          }
-        },
-
-        onUnitResult(data) {
-          if (!session?.activePanel) return;
-          const panel = session.activePanel;
-          const unit = panel.units.find((u) => u.slotIndex === data.slotIndex);
-          if (unit) {
-            unit.status = data.status as ManufacturingUnit['status'];
-            unit.serialNumber = data.serialNumber || unit.serialNumber;
-            unit.errorMessage = data.errorMessage;
-            unit.finishedAt = new Date().toISOString();
-            session = { ...session! };
-          }
-        },
-
-        onPanelComplete(data) {
-          if (!session) return;
-          // Update session counts
-          session = {
-            ...session,
-            passCount: session.passCount + data.passCount,
-            failCount: session.failCount + data.failCount,
-            panelCount: session.panelCount + 1,
-          };
-          // Refresh full data from the server
-          fetchSession();
-        },
-      },
-      (errMsg) => {
-        console.error('Manufacturing WebSocket error:', errMsg);
-      }
-    );
-  }
-
   onMount(() => {
     if (!auth.hasPermission('manufacturing:view')) {
       goto('/');
@@ -174,8 +220,8 @@
   });
 
   onDestroy(() => {
-    if (unsubscribe) unsubscribe();
-    disconnectManufacturingSocket();
+    if (unsubscribeRun) unsubscribeRun();
+    disconnectRunSocket();
   });
 </script>
 
@@ -201,26 +247,26 @@
       onEndSession={handleEndSession}
     />
 
-    <!-- Active Panel -->
-    {#if session.activePanel}
+    <!-- Active Run (current panel) -->
+    {#if activeRun}
       <div class="mb-6">
         <h2 class="text-sm font-semibold text-text-primary mb-3">Active Panel</h2>
-        <PanelResultsGrid panel={session.activePanel} />
+        <PanelResultsGrid panel={activeRun} />
       </div>
     {/if}
 
-    <!-- Panel History -->
-    {#if completedPanels.length > 0}
+    <!-- Run History (completed panels) -->
+    {#if completedRuns.length > 0}
       <div>
         <h2 class="text-sm font-semibold text-text-primary mb-3">
-          Panel History ({completedPanels.length})
+          Panel History ({completedRuns.length})
         </h2>
-        <PanelHistory panels={completedPanels} />
+        <PanelHistory panels={completedRuns} />
       </div>
     {/if}
 
-    <!-- Empty state when no panels at all -->
-    {#if !session.activePanel && completedPanels.length === 0}
+    <!-- Empty state when no runs at all -->
+    {#if !activeRun && completedRuns.length === 0}
       <div class="rounded-xl border border-border bg-surface-1 p-8 text-center">
         <p class="text-sm text-text-tertiary">
           {#if session.status === 'ACTIVE'}

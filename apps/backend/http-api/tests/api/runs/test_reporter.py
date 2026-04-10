@@ -772,3 +772,65 @@ class TestReportTelemetry:
             content_type="application/json",
         )
         assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/runs/<id>/report/target-start
+# ---------------------------------------------------------------------------
+
+class TestReportTargetStart:
+    """Tests for report_target_start -- transitions target to RUNNING."""
+
+    def test_target_start_success(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.find_unique.return_value = _make_target(status="PENDING")
+
+        with patch("api.v2.runs.reporter._emit"):
+            resp = authed_client.post(
+                "/v2/runs/run-1/report/target-start",
+                data=json.dumps({"slotIndex": 0}),
+            )
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["data"]["status"] == "RUNNING"
+        assert body["data"]["slotIndex"] == 0
+        mock_db.runtarget.update.assert_called_once()
+        update_data = mock_db.runtarget.update.call_args.kwargs["data"]
+        assert update_data["status"] == "RUNNING"
+        assert update_data["startedAt"] is not None
+
+    def test_target_start_missing_slot_index(self, authed_client, mock_db):
+        resp = authed_client.post(
+            "/v2/runs/run-1/report/target-start",
+            data=json.dumps({"serialNumber": "0964"}),
+        )
+        assert resp.status_code == 400
+
+    def test_target_start_target_not_found(self, authed_client, mock_db):
+        mock_db.runtarget.find_unique.return_value = None
+
+        resp = authed_client.post(
+            "/v2/runs/run-1/report/target-start",
+            data=json.dumps({"slotIndex": 5}),
+        )
+        assert resp.status_code == 404
+
+    def test_target_start_updates_serial_and_device(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = _make_run()
+        mock_db.runtarget.find_unique.return_value = _make_target()
+
+        with patch("api.v2.runs.reporter._emit"):
+            resp = authed_client.post(
+                "/v2/runs/run-1/report/target-start",
+                data=json.dumps({
+                    "slotIndex": 0,
+                    "serialNumber": "1234",
+                    "deviceId": "70B3D584C01E1FCC",
+                }),
+            )
+
+        assert resp.status_code == 200
+        update_data = mock_db.runtarget.update.call_args.kwargs["data"]
+        assert update_data["serialNumber"] == "1234"
+        assert update_data["deviceId"] == "70B3D584C01E1FCC"

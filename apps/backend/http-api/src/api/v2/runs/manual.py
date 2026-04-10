@@ -265,6 +265,8 @@ def create_kubernetes_job(
 
         # Set both CONCORD_RUN_ID and CONCORD_SESSION_ID for backward compat
         job_yaml = job_yaml.replace("{{CONCORD_RUN_ID}}", run_id or "")
+        job_yaml = job_yaml.replace("{{CONCORD_SESSION_ID}}", run_id or "")
+        job_yaml = job_yaml.replace("{{RUN_ID}}", run_id or "")
         job_yaml = job_yaml.replace("{{CONCORD_API_KEY}}", api_key or "")
         job_yaml = job_yaml.replace("{{CONCORD_API_URL}}", api_url or "https://10.4.45.11:443")
         # Host header for ingress routing when using IP address
@@ -345,21 +347,9 @@ def create_kubernetes_job(
                 env_list.append({"name": "MTIB_HOSTS", "value": mtib_hosts})
                 containers[0]["env"] = env_list
 
-        # Inject FIXTURE_ID alongside BENCH_ID for forward compat
-        if bench_id:
-            containers = job_spec["spec"]["template"]["spec"].get("containers", [])
-            if containers:
-                env_list = containers[0].get("env", [])
-                env_list.append({"name": "FIXTURE_ID", "value": bench_id})
-                containers[0]["env"] = env_list
-
-        # Inject CONCORD_SESSION_ID alongside CONCORD_RUN_ID for backward compat
-        if run_id:
-            containers = job_spec["spec"]["template"]["spec"].get("containers", [])
-            if containers:
-                env_list = containers[0].get("env", [])
-                env_list.append({"name": "CONCORD_SESSION_ID", "value": run_id})
-                containers[0]["env"] = env_list
+        # CONCORD_SESSION_ID and FIXTURE_ID are now set directly in the
+        # template (aliased to CONCORD_RUN_ID and BENCH_ID respectively),
+        # so no post-parse injection is needed.
 
         # Add required feature labels to node selector if specified
         if required_features:

@@ -43,7 +43,9 @@ spec:
         - name: CONCORD_API_URL
           value: "{{CONCORD_API_URL}}"
         - name: CONCORD_RUN_ID
-          value: "{{SESSION_ID}}"
+          value: "{{RUN_ID}}"
+        - name: CONCORD_SESSION_ID
+          value: "{{RUN_ID}}"
         - name: CONCORD_API_KEY
           value: "{{CONCORD_API_KEY}}"
         - name: CONCORD_API_HOST

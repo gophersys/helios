@@ -42,6 +42,8 @@ spec:
           value: "{{CONCORD_API_URL}}"
         - name: CONCORD_RUN_ID
           value: "{{CONCORD_RUN_ID}}"
+        - name: CONCORD_SESSION_ID
+          value: "{{CONCORD_RUN_ID}}"
         - name: CONCORD_API_KEY
           value: "{{CONCORD_API_KEY}}"
         - name: CONCORD_API_HOST
@@ -107,6 +109,8 @@ spec:
         - name: MTIB_ADDRESS
           value: "{{MTIB_ADDRESS}}"
         - name: BENCH_ID
+          value: "{{BENCH_ID}}"
+        - name: FIXTURE_ID
           value: "{{BENCH_ID}}"
         - name: PRODUCT_SLUG
           value: "{{PRODUCT_SLUG}}"
