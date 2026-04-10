@@ -58,10 +58,8 @@ npx prisma generate
 
 # Install Python test + app dependencies
 log "Installing Python dependencies..."
-pip3 install --no-cache-dir \
-  pytest pytest-timeout psycopg2-binary requests minio \
-  -e apps/backend/http-api 2>/dev/null || \
-pip3 install --no-cache-dir --break-system-packages \
+PIP_BREAK=""; pip3 install --break-system-packages --help >/dev/null 2>&1 && PIP_BREAK="--break-system-packages"
+pip3 install --no-cache-dir ${PIP_BREAK} \
   pytest pytest-timeout psycopg2-binary requests minio \
   -e apps/backend/http-api
 

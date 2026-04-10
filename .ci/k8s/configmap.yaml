@@ -8,6 +8,6 @@ metadata:
     app.kubernetes.io/component: ci
 data:
   REPO_URL: "git@bitbucket.org:corekinect/concord.git"
-  BRANCH: "main"
+  BRANCH: "feature/validation-demo"
   MINIO_ENDPOINT: "http://concord-minio.staging.svc:9000"
   MINIO_BUCKET: "devops"
