@@ -156,6 +156,41 @@
       }
     },
 
+    "sync-secrets": {
+      "executor": "nx:run-commands",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "staging": {
+          "commands": ["bash infrastructure/clusters/office/secrets/create-all.sh staging"]
+        },
+        "production": {
+          "commands": ["bash infrastructure/clusters/office/secrets/create-all.sh production"]
+        },
+        "devops": {
+          "commands": ["bash infrastructure/clusters/office/secrets/create-all.sh devops"]
+        }
+      }
+    },
+
+    "rollback": {
+      "executor": "nx:run-commands",
+      "options": { "cwd": "{workspaceRoot}" },
+      "configurations": {
+        "staging": {
+          "commands": [
+            "helm history concord -n staging --max 5",
+            "helm rollback concord -n staging"
+          ]
+        },
+        "production": {
+          "commands": [
+            "helm history concord -n production --max 5",
+            "helm rollback concord -n production"
+          ]
+        }
+      }
+    },
+
     "diff": {
       "executor": "nx:run-commands",
       "options": { "cwd": "{workspaceRoot}" },

@@ -8,7 +8,9 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{workspaceRoot}",
+        "parallel": false,
         "commands": [
+          "kubectl create configmap ci-entrypoint -n devops --from-file=entrypoint.sh=.ci/k8s/entrypoint.sh --dry-run=client -o yaml | kubectl apply -f -",
           "kubectl apply -f .ci/k8s/configmap.yaml",
           "kubectl apply -f .ci/k8s/nightly-cronjob.yaml"
         ]
@@ -21,6 +23,7 @@
         "cwd": "{workspaceRoot}",
         "commands": [
           "kubectl delete -f .ci/k8s/nightly-cronjob.yaml --ignore-not-found",
+          "kubectl delete configmap ci-entrypoint -n devops --ignore-not-found",
           "kubectl delete -f .ci/k8s/configmap.yaml --ignore-not-found"
         ]
       }
@@ -42,7 +45,10 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{workspaceRoot}",
+        "parallel": false,
         "commands": [
+          "kubectl create configmap ci-entrypoint -n devops --from-file=entrypoint.sh=.ci/k8s/entrypoint.sh --dry-run=client -o yaml | kubectl apply -f -",
+          "kubectl apply -f .ci/k8s/configmap.yaml",
           "kubectl create job -n devops --from=cronjob/concord-ci-nightly ci-manual-$(date +%s)"
         ]
       }
@@ -54,6 +60,16 @@
         "cwd": "{workspaceRoot}",
         "commands": [
           "kubectl logs -n devops -l app.kubernetes.io/component=ci -c ci-runner --tail=200 -f"
+        ]
+      }
+    },
+
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "commands": [
+          "bash .ci/run pr"
         ]
       }
     }

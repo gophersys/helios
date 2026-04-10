@@ -79,6 +79,51 @@
       }
     },
 
+    "kubeconfig": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office kubeconfig"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks kubeconfig"]
+        }
+      }
+    },
+
+    "kubeconfig-batch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office kubeconfig batch"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks kubeconfig batch"]
+        }
+      }
+    },
+
+    "kubeconfig-list": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office kubeconfig list"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks kubeconfig list"]
+        }
+      }
+    },
+
     "secrets": {
       "executor": "nx:run-commands",
       "options": {
