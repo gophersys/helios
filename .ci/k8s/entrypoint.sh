@@ -149,6 +149,9 @@ else
   exit 1  # triggers cleanup trap
 fi
 
+# Export env vars needed by docker-compose services
+export CONCORD_API_KEY="ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG"
+
 # Export SSH key for docker-compose services (git-poller needs it as base64 env var)
 if [[ -f /root/.ssh/id_rsa ]]; then
   export BITBUCKET_SSH_KEY

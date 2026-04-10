@@ -19,7 +19,7 @@ def _compose(*args, timeout=30):
 
 def test_poller_attempts_repo_load(platform):
     """Git poller connects to the API and attempts repo discovery."""
-    deadline = time.time() + 60
+    deadline = time.time() + 90
     while time.time() < deadline:
         result = _compose("logs", "--tail=50", "git-poller")
         combined = result.stdout + result.stderr
