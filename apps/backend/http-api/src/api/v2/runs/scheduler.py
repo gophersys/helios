@@ -115,26 +115,28 @@ def _create_validation_run(
     run_name = f"Queue {short_id} - Stage {stage_name}"
 
     # Create TestRun
-    run = db.testrun.create(
-        data={
-            "type": "VALIDATION",
-            "name": run_name,
-            "productId": product_obj.id,
+    run_data = {
+        "type": "VALIDATION",
+        "name": run_name,
+        "productId": product_obj.id,
+        "fixtureId": fixture.id,
+        "testPackageId": test_package_id,
+        "buildRunId": build_run.id,
+        "status": "ACTIVE",
+        "operatorId": system_user.id,
+        "targetCount": len(slot_infos),
+        "config": Json({
             "fixtureId": fixture.id,
-            "testPackageId": test_package_id,
-            "buildRunId": build_run.id,
-            "status": "ACTIVE",
-            "operatorId": system_user.id,
-            "targetCount": len(slot_infos),
-            "config": Json({
-                "fixtureId": fixture.id,
-                "stationId": getattr(fixture, "stationId", None),
-                "queueEntryId": entry_id,
-                "stage": stage,
-                "stageName": stage_name,
-            }),
-        },
-    )
+            "stationId": getattr(fixture, "stationId", None),
+            "queueEntryId": entry_id,
+            "stage": stage,
+            "stageName": stage_name,
+        }),
+    }
+    # Populate board revision from the fixture
+    if hasattr(fixture, "boardRevisionId") and fixture.boardRevisionId:
+        run_data["boardRevisionId"] = fixture.boardRevisionId
+    run = db.testrun.create(data=run_data)
 
     # Create one RunTarget per active slot
     for slot_info in slot_infos:
@@ -376,10 +378,10 @@ def schedule_queue() -> List[Dict[str, Any]]:
     if not queued:
         return assignments
 
-    # Get all available fixtures
+    # Get all available fixtures (include boardRevisionId for revision matching)
     available_fixtures = db.fixture.find_many(
         where={"status": "AVAILABLE", "active": True},
-        include={"product": True},
+        include={"product": True, "boardRevision": True},
     )
 
     if not available_fixtures:
@@ -394,15 +396,41 @@ def schedule_queue() -> List[Dict[str, Any]]:
 
         product = entry.buildRun.product
 
-        # Find a compatible fixture (matches product, not already assigned this round)
+        # Look up the test package for revision matching
+        test_package = None
+        if entry.buildRun and entry.buildRun.productId:
+            test_package = db.testpackage.find_first(
+                where={
+                    "productId": entry.buildRun.productId,
+                    "type": "VALIDATION",
+                    "status": "RELEASED",
+                },
+                order={"releasedAt": "desc"},
+            )
+            if not test_package:
+                test_package = db.testpackage.find_first(
+                    where={
+                        "productId": entry.buildRun.productId,
+                        "type": "VALIDATION",
+                    },
+                    order={"createdAt": "desc"},
+                )
+
+        # Find a compatible fixture (matches product + board revision, not already assigned)
         fixture = None
         for f in available_fixtures:
             if f.id in assigned_fixture_ids:
                 continue
             # Match by product slug via product relation
-            if hasattr(f, "product") and f.product and f.product.slug == product:
-                fixture = f
-                break
+            if not (hasattr(f, "product") and f.product and f.product.slug == product):
+                continue
+            # If test package specifies a board revision, ensure fixture matches
+            tp_revision_id = getattr(test_package, "boardRevisionId", None) if test_package else None
+            if tp_revision_id:
+                if f.boardRevisionId != tp_revision_id:
+                    continue  # Skip fixture with wrong revision
+            fixture = f
+            break
 
         if not fixture:
             continue

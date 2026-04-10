@@ -238,6 +238,7 @@ def _serialize_test_package(tp: Any) -> dict:
     data = {
         "id": tp.id,
         "productId": tp.productId,
+        "boardRevisionId": getattr(tp, "boardRevisionId", None),
         "version": tp.version,
         "type": tp.type,
         "status": tp.status,
@@ -353,6 +354,19 @@ def _upload_test_package_impl(product_id: str):
 
     db = get_db_client()
 
+    # Resolve board revision from manifest
+    board_name = manifest.get("product", {}).get("board") or manifest.get("product", {}).get("name")
+    board_revision_id = None
+    if board_name:
+        board_rev = db.boardrevision.find_first(
+            where={
+                "board": {"productId": product.id},
+                "OR": [{"ckBoardsName": board_name}, {"version": board_name}],
+            }
+        )
+        if board_rev:
+            board_revision_id = board_rev.id
+
     # Read file and compute hash
     file_data = package_file.read()
     size_bytes = len(file_data)
@@ -400,6 +414,7 @@ def _upload_test_package_impl(product_id: str):
                     "gitSha": git_sha,
                     "gitDirty": git_dirty,
                     "notes": notes,
+                    "boardRevisionId": board_revision_id,
                 }
             if stages_enabled:
                 update_data["stagesEnabled"] = Json(stages_enabled)
@@ -442,6 +457,7 @@ def _upload_test_package_impl(product_id: str):
         "gitSha": git_sha,
         "gitDirty": git_dirty,
         "notes": notes,
+        "boardRevisionId": board_revision_id,
     }
     if stages_enabled is not None:
         create_data["stagesEnabled"] = Json(stages_enabled)
@@ -491,6 +507,10 @@ def list_test_packages(product_id: str):
         type_filter = type_filter.strip().upper()
         if type_filter in ("VALIDATION", "MANUFACTURING"):
             where["type"] = type_filter
+
+    board_revision_id = request.args.get("boardRevisionId")
+    if board_revision_id:
+        where["boardRevisionId"] = board_revision_id
 
     page = max(1, request.args.get("page", 1, type=int))
     limit = min(max(1, request.args.get("limit", 50, type=int)), 100)

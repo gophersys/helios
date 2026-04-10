@@ -253,11 +253,14 @@ model TestPackage {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  product       Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdBy     User?            @relation(fields: [createdById], references: [id])
-  releasedBy    User?            @relation("TestPackageReleasedBy", fields: [releasedById], references: [id])
-  testRuns      TestRun[]
-  packageStages TestPackageStage[]
+  boardRevisionId String? /// Board revision this package targets (from manifest product.board)
+
+  product        Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  boardRevision  BoardRevision?   @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  createdBy      User?            @relation(fields: [createdById], references: [id])
+  releasedBy     User?            @relation("TestPackageReleasedBy", fields: [releasedById], references: [id])
+  testRuns       TestRun[]
+  packageStages  TestPackageStage[]
 
   @@unique([productId, version, type])
   @@unique([productId, releasedVersion, type])
@@ -265,6 +268,7 @@ model TestPackage {
   @@index([productId, type, status])
   @@index([createdById])
   @@index([releasedById])
+  @@index([boardRevisionId])
   @@map("test_packages")
 }
 
@@ -332,6 +336,8 @@ model BoardRevision {
   fixtureDesigns FixtureDesign[]
   fixtures       Fixture[]
   manufacturingConfigs ManufacturingConfig[]
+  testPackages   TestPackage[]
+  testRuns       TestRun[]            @relation("TestRunBoardRevision")
 
   @@unique([boardId, version])
   @@unique([ckBoardsName])
@@ -1291,13 +1297,16 @@ model TestRun {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  product     Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
-  fixture     Fixture                @relation(fields: [fixtureId], references: [id])
-  testPackage TestPackage?           @relation(fields: [testPackageId], references: [id], onDelete: SetNull)
-  buildRun    BuildRun?              @relation(fields: [buildRunId], references: [id], onDelete: SetNull)
-  session     ManufacturingSession?  @relation(fields: [manufacturingSessionId], references: [id], onDelete: Cascade)
-  assetSet    AssetSet?              @relation(fields: [assetSetId], references: [id], onDelete: SetNull)
-  operator    User                   @relation("TestRunOperator", fields: [operatorId], references: [id])
+  boardRevisionId String? /// Board revision (populated from fixture at creation time)
+
+  product        Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  fixture        Fixture                @relation(fields: [fixtureId], references: [id])
+  boardRevision  BoardRevision?         @relation("TestRunBoardRevision", fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  testPackage    TestPackage?           @relation(fields: [testPackageId], references: [id], onDelete: SetNull)
+  buildRun       BuildRun?              @relation(fields: [buildRunId], references: [id], onDelete: SetNull)
+  session        ManufacturingSession?  @relation(fields: [manufacturingSessionId], references: [id], onDelete: Cascade)
+  assetSet       AssetSet?              @relation(fields: [assetSetId], references: [id], onDelete: SetNull)
+  operator       User                   @relation("TestRunOperator", fields: [operatorId], references: [id])
 
   targets    RunTarget[]
   queueEntry ValidationQueueEntry?
@@ -1309,6 +1318,7 @@ model TestRun {
   @@index([manufacturingSessionId])
   @@index([operatorId])
   @@index([assetSetId])
+  @@index([boardRevisionId])
   @@map("test_runs")
 }
 

@@ -26,7 +26,6 @@
 </script>
 
 <TestAppStatusCard status={product.testAppStatus?.manufacturing ?? null} type="MANUFACTURING" />
-<TestPackageList productId={product.id} packageType="MANUFACTURING" />
 
 {#if revisions.length === 0}
   <div class="text-center py-8">
@@ -49,6 +48,7 @@
   </div>
 
   {#if selectedRevision}
+    <TestPackageList productId={product.id} packageType="MANUFACTURING" boardRevisionId={selectedRevision.id} />
     <ProductStages
       productId={product.id}
       productName={product.name}

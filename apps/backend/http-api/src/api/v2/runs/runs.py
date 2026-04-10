@@ -50,12 +50,15 @@ def create_run():
     user_id = g.current_user["sub"]
 
     try:
+        board_revision_id = getattr(fixture, "boardRevisionId", None)
+
         run = db.testrun.create(
             data={
                 "type": data.type,
                 "name": data.notes or f"Validation run",
                 "productId": data.product_id,
                 "fixtureId": data.fixture_id,
+                "boardRevisionId": board_revision_id,
                 "operatorId": user_id,
                 "status": "PENDING",
                 "targetCount": 1,
@@ -290,6 +293,7 @@ def rerun_run(run_id: str):
                 "name": f"Rerun of {original.name}" if original.name else "Rerun",
                 "productId": original.productId,
                 "fixtureId": original.fixtureId,
+                "boardRevisionId": getattr(original, "boardRevisionId", None),
                 "testPackageId": original.testPackageId,
                 "buildRunId": original.buildRunId,
                 "assetSetId": original.assetSetId,

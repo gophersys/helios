@@ -301,8 +301,11 @@ def create_manufacturing_session():
     if not fixture_id:
         return bad_request("fixtureId is required")
 
-    # Validate fixture
-    fixture = db.fixture.find_unique(where={"id": fixture_id})
+    # Validate fixture (include boardRevision for config resolution)
+    fixture = db.fixture.find_unique(
+        where={"id": fixture_id},
+        include={"boardRevision": True},
+    )
     if not fixture:
         return not_found("Fixture not found")
     if fixture.status != "AVAILABLE":
@@ -331,9 +334,12 @@ def create_manufacturing_session():
                 f"AssetSet status must be COMPLETE or VALIDATED (current: {asset_set.status})"
             )
     else:
-        # Auto-resolve from ManufacturingConfig
+        # Auto-resolve from ManufacturingConfig (match fixture's board revision)
+        config_where: dict = {"productId": product_id}
+        if fixture.boardRevisionId:
+            config_where["boardRevisionId"] = fixture.boardRevisionId
         mfg_config = db.manufacturingconfig.find_first(
-            where={"productId": product_id}
+            where=config_where
         )
         if mfg_config:
             if mfg_config.firmwareSetId:
@@ -533,6 +539,9 @@ def add_manufacturing_run(session_id: str):
         "status": "PENDING",
         "targetCount": target_count,
     }
+    # Populate board revision from the fixture
+    if hasattr(fixture, "boardRevisionId") and fixture.boardRevisionId:
+        run_data["boardRevisionId"] = fixture.boardRevisionId
     if session.assetSetId:
         run_data["assetSetId"] = session.assetSetId
     if tp:

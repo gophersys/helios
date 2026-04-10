@@ -11,9 +11,10 @@
   interface Props {
     productId: string;
     packageType: 'VALIDATION' | 'MANUFACTURING';
+    boardRevisionId?: string;
   }
 
-  let { productId, packageType }: Props = $props();
+  let { productId, packageType, boardRevisionId = undefined }: Props = $props();
 
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('products:manage'));
@@ -30,9 +31,11 @@
     loading = true;
     error = null;
     try {
-      const res = await api.get<ApiResponse<TestPackage[]>>(
-        `/v2/products/${productId}/test-packages?type=${packageType}&limit=20`
-      );
+      let url = `/v2/products/${productId}/test-packages?type=${packageType}&limit=20`;
+      if (boardRevisionId) {
+        url += `&boardRevisionId=${boardRevisionId}`;
+      }
+      const res = await api.get<ApiResponse<TestPackage[]>>(url);
       packages = res.data;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load test packages';
@@ -71,9 +74,10 @@
   }
 
   $effect(() => {
-    // Re-fetch when productId or packageType changes
+    // Re-fetch when productId, packageType, or boardRevisionId changes
     productId;
     packageType;
+    boardRevisionId;
     fetchPackages();
   });
 </script>
