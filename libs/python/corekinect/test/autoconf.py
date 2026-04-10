@@ -504,9 +504,9 @@ def stage_assets():
     When PIPELINE_ID is set (injected by K8s Job), provides typed
     access to firmware artifacts via StageAssets and BuildAsset:
 
-        hex_path = stage_assets.mfg().hex("app")
-        cfws = stage_assets.by_label("FUT_DEBUG_A").cfws()
-        version = stage_assets.by_label("MFG_BASE").version()
+        hex_path = stage_assets.hex("app", "debug")
+        app, comms = stage_assets.hex_pair("debug")
+        version = stage_assets.by_label("SMOKE_APP_DEBUG").version()
 
     Returns None if PIPELINE_ID is not set (manual run).
     """

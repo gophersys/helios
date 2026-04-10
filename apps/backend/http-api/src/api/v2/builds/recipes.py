@@ -209,8 +209,14 @@ def validate_recipe(product_id: str):
     Checks that the script:
     1. Sources concord-build.sh
     2. Calls concord_init
-    3. Calls concord_collect_hex for expected target roles
-    4. Calls concord_finalize
+    3. Has west build commands for each non-modem matrix processor
+    4. Calls concord_collect_hex for each non-modem matrix role
+    5. Has CFW generation commands for entries with produces_cfw
+    6. Calls concord_finalize
+
+    Body: {"content": "...", "stage": 5, "boardRevisionId": "..."}
+    If stage is provided, validates against the stage's build matrix entries.
+    Otherwise falls back to product target roles.
     """
     db = get_db_client()
     product = db.product.find_unique(
@@ -238,19 +244,93 @@ def validate_recipe(product_id: str):
     if "concord_finalize" not in content:
         errors.append("Recipe must call concord_finalize")
 
-    # Check that concord_collect_hex is called for each target role
-    expected_roles = set()
-    for board in (product.boards or []):
-        for rev in (board.revisions or []):
-            for target in (rev.targets or []):
-                expected_roles.add(target.role)
+    # Try to load build matrix entries for the stage
+    stage_num = (data or {}).get("stage")
+    stage_config_id = (data or {}).get("stageConfigId")
+    board_revision_id = (data or {}).get("boardRevisionId")
 
-    for role in expected_roles:
-        if f"concord_collect_hex {role}" not in content:
-            warnings.append(f"Recipe should call 'concord_collect_hex {role}' for target role '{role}'")
+    matrix_entries = []
+    if stage_config_id:
+        matrix_entries = db.stagebuildmatrix.find_many(
+            where={"stageConfigId": stage_config_id},
+            order={"sortOrder": "asc"},
+        )
+    elif stage_num and board_revision_id:
+        # Find the stage config for this product+stage+revision
+        stage_config = db.productstageconfig.find_first(
+            where={
+                "productId": product_id,
+                "stage": stage_num,
+                "boardRevisionId": board_revision_id,
+            },
+        )
+        if stage_config:
+            matrix_entries = db.stagebuildmatrix.find_many(
+                where={"stageConfigId": stage_config.id},
+                order={"sortOrder": "asc"},
+            )
 
-    if "west build" not in content:
-        warnings.append("Recipe doesn't contain 'west build' — is this a Zephyr project?")
+    if matrix_entries:
+        # Validate against the build matrix
+        non_modem = [e for e in matrix_entries if e.fwType != "modem"]
+        expected_processors = set()
+        expected_roles = set()
+
+        for entry in non_modem:
+            processor = getattr(entry, "processor", None) or ""
+            role = entry.fwType  # "app" or "comms"
+            if processor:
+                expected_processors.add(processor)
+            expected_roles.add(role)
+
+            # Check west build for this processor
+            if processor and f"west build" in content:
+                # Check if the recipe references this specific processor
+                if processor not in content:
+                    warnings.append(
+                        f"Matrix entry '{entry.label}' targets processor '{processor}' "
+                        f"but recipe does not reference it"
+                    )
+
+            # Check concord_collect_hex for this role
+            if f"concord_collect_hex {role}" not in content:
+                warnings.append(
+                    f"Matrix entry '{entry.label}' expects 'concord_collect_hex {role}' "
+                    f"for role '{role}'"
+                )
+
+            # Check CFW generation for entries that produce CFW
+            if entry.producesCfw:
+                if "concord_generate_cfw" not in content and "concord_cfw" not in content:
+                    warnings.append(
+                        f"Matrix entry '{entry.label}' has produces_cfw=true "
+                        f"but recipe has no CFW generation command (concord_generate_cfw / concord_cfw)"
+                    )
+
+        if "west build" not in content:
+            warnings.append("Recipe doesn't contain 'west build' — is this a Zephyr project?")
+
+        # Warn if recipe references processors not in the matrix
+        known_processors = {"nrf52840", "nrf9151", "nrf5340", "nrf9160", "nrf9161"}
+        for proc in known_processors:
+            if proc in content and proc not in expected_processors:
+                warnings.append(
+                    f"Recipe references processor '{proc}' which is not in the build matrix"
+                )
+    else:
+        # Fallback: validate against product target roles
+        expected_roles = set()
+        for board in (product.boards or []):
+            for rev in (board.revisions or []):
+                for target in (rev.targets or []):
+                    expected_roles.add(target.role)
+
+        for role in expected_roles:
+            if f"concord_collect_hex {role}" not in content:
+                warnings.append(f"Recipe should call 'concord_collect_hex {role}' for target role '{role}'")
+
+        if "west build" not in content:
+            warnings.append("Recipe doesn't contain 'west build' — is this a Zephyr project?")
 
     valid = len(errors) == 0
 

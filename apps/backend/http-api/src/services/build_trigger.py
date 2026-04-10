@@ -76,6 +76,7 @@ def _resolve_build_defs(db, stage_config_id: str, stage_enum):
                 label=e.label,
                 fw_type=e.fwType,
                 variant=e.variant,
+                processor=getattr(e, "processor", "") or "",
                 config_log=e.configLog,
                 produces_hex=e.producesHex,
                 produces_cfw=e.producesCfw,

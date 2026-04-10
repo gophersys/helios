@@ -43,7 +43,7 @@ class BuildAsset:
 
     @property
     def label(self) -> str:
-        """Build matrix label (e.g., 'MFG_BASE', 'FUT_VERBOSE_A')."""
+        """Build matrix label (e.g., 'SMOKE_APP_DEBUG', 'FUT_APP_BASE_A')."""
         return self._label
 
     def hex(self, target: str) -> str:

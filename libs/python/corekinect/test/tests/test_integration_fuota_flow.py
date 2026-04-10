@@ -17,7 +17,7 @@ from corekinect.errors import (
     TimeoutError as ValidationTimeoutError,
 )
 from corekinect.test.fuota_orchestrator import FuotaOrchestrator
-from corekinect.test.stage_assets import STAGE_REQUIRED_LABELS, StageAssets
+from corekinect.test.stage_assets import StageAssets
 from corekinect.test.cfw import parse_cfw_header
 
 from .stubs import StubArtifactResolver, StubFuotaClient
@@ -31,14 +31,13 @@ from .stubs import StubArtifactResolver, StubFuotaClient
 def _build_fuota_resolver() -> StubArtifactResolver:
     """Create a StubArtifactResolver with all FUOTA-required builds."""
     resolver = StubArtifactResolver()
-    resolver.add_build("MFG_BASE", version="0.5.0", variant="mfg", track="BM")
-    resolver.add_build("MFG_BUMP", version="0.5.1", variant="mfg", track="BM")
-    resolver.add_build("FUT_VERBOSE_A", version="0.5.0", variant="debug", track="BM")
-    resolver.add_build("FUT_VERBOSE_B", version="0.5.1", variant="debug", track="BM")
-    resolver.add_build("FUT_QUIET_A", version="0.5.0", variant="release", track="BM")
-    resolver.add_build("FUT_QUIET_B", version="0.5.1", variant="release", track="BM")
-    resolver.add_build("MAIN_BASELINE", version="0.5.0", variant="debug", track="BM")
-    resolver.add_build("MAIN_MERGED", version="0.5.0", variant="debug", track="BM")
+    resolver.add_build("FUT_APP_BASE_A", version="0.5.0", variant="debug", track="BM")
+    resolver.add_build("FUT_APP_BASE_B", version="0.5.1", variant="debug", track="BM")
+    resolver.add_build("FUT_APP_QUIET_A", version="0.5.0", variant="release", track="BM")
+    resolver.add_build("FUT_APP_QUIET_B", version="0.5.1", variant="release", track="BM")
+    resolver.add_build("FUT_COMMS_BASE_A", version="0.5.0", variant="debug", track="BM")
+    resolver.add_build("FUT_COMMS_BASE_B", version="0.5.1", variant="debug", track="BM")
+    resolver.add_build("MODEM_FW", version="1.3.6", variant="release", track="BM")
     return resolver
 
 
@@ -62,11 +61,11 @@ class TestFuotaTransitionFlow:
         assets = StageAssets(resolver, stage="fuota", strict=True)
 
         assert assets.missing_labels() == []
-        assert len(assets.labels) == 8
+        assert len(assets.labels) == 7
 
         # ── 2. Get source and target builds ──
-        source = assets.by_label("FUT_VERBOSE_A")
-        target = assets.by_label("FUT_VERBOSE_B")
+        source = assets.by_label("FUT_APP_BASE_A")
+        target = assets.by_label("FUT_APP_BASE_B")
 
         assert source.version() == "0.5.0"
         assert target.version() == "0.5.1"
@@ -142,14 +141,13 @@ class TestFuotaTransitionFlow:
 class TestStageAssetsToOrchestrator:
     """Test that StageAssets and FuotaOrchestrator integrate cleanly."""
 
-    def test_mfg_hex_files_exist_on_disk(self):
-        """MFG hex files should be real files on disk (not just paths)."""
+    def test_hex_files_exist_on_disk(self):
+        """Hex files should be real files on disk (not just paths)."""
         resolver = _build_fuota_resolver()
         assets = StageAssets(resolver, stage="fuota")
 
-        mfg = assets.mfg()
-        app_hex = mfg.hex("app")
-        comms_hex = mfg.hex("comms")
+        app_hex = assets.hex("app", "debug", "A")
+        comms_hex = assets.hex("comms", "debug", "A")
 
         from pathlib import Path
         assert Path(app_hex).exists()
@@ -163,7 +161,7 @@ class TestStageAssetsToOrchestrator:
         resolver = _build_fuota_resolver()
         assets = StageAssets(resolver, stage="fuota")
 
-        quiet_a = assets.by_label("FUT_QUIET_A")
+        quiet_a = assets.by_label("FUT_APP_QUIET_A")
         cfws = quiet_a.cfws()
 
         for cfw_path in cfws:
@@ -179,7 +177,7 @@ class TestStageAssetsToOrchestrator:
         resolver = _build_fuota_resolver()
         assets = StageAssets(resolver, stage="fuota")
 
-        target = assets.by_label("FUT_VERBOSE_B")
+        target = assets.by_label("FUT_APP_BASE_B")
 
         # Version string from manifest
         app_version_string = target.version_string("app")
@@ -199,37 +197,36 @@ class TestStageValidation:
     def test_missing_build_blocks_test_start(self):
         """If a required build is missing, StageAssets refuses to construct."""
         resolver = StubArtifactResolver()
-        # Only add 7 of 8 required FUOTA builds
-        resolver.add_build("MFG_BASE", version="0.5.0", variant="mfg", track="BM")
-        resolver.add_build("MFG_BUMP", version="0.5.1", variant="mfg", track="BM")
-        resolver.add_build("FUT_VERBOSE_A", version="0.5.0", variant="debug", track="BM")
-        resolver.add_build("FUT_VERBOSE_B", version="0.5.1", variant="debug", track="BM")
-        resolver.add_build("FUT_QUIET_A", version="0.5.0", variant="release", track="B")
-        resolver.add_build("FUT_QUIET_B", version="0.5.1", variant="release", track="B")
-        resolver.add_build("MAIN_BASELINE", version="0.5.0", variant="debug", track="BM")
-        # Missing: MAIN_MERGED
+        # Only add 6 of 7 required FUOTA builds
+        resolver.add_build("FUT_APP_BASE_A", version="0.5.0", variant="debug", track="BM")
+        resolver.add_build("FUT_APP_BASE_B", version="0.5.1", variant="debug", track="BM")
+        resolver.add_build("FUT_APP_QUIET_A", version="0.5.0", variant="release", track="B")
+        resolver.add_build("FUT_APP_QUIET_B", version="0.5.1", variant="release", track="B")
+        resolver.add_build("FUT_COMMS_BASE_A", version="0.5.0", variant="debug", track="BM")
+        # Missing: FUT_COMMS_BASE_B
 
-        with pytest.raises(ConfigError, match="MAIN_MERGED"):
+        with pytest.raises(ConfigError, match="FUT_COMMS_BASE_B"):
             StageAssets(resolver, stage="fuota", strict=True)
 
     def test_failed_build_blocks_test_start(self):
         """If a build failed, StageAssets.validate() catches it."""
         resolver = _build_fuota_resolver()
         # Corrupt one build
-        resolver._builds["FUT_VERBOSE_B"].status = "FAILED"
+        resolver._builds["FUT_APP_BASE_B"].status = "FAILED"
 
         with pytest.raises(ConfigError, match="failed builds"):
             StageAssets(resolver, stage="fuota", strict=True)
 
     def test_smoke_stage_needs_fewer_builds(self):
-        """Smoke stage only needs 2 builds — simpler pipeline."""
+        """Smoke stage only needs 3 builds — simpler pipeline."""
         resolver = StubArtifactResolver()
-        resolver.add_build("MFG_BASE", version="0.5.0", variant="mfg", track="BM")
-        resolver.add_build("APP_DEBUG", version="0.5.0", variant="debug", track="BM")
+        resolver.add_build("SMOKE_APP_DEBUG", version="0.5.0", variant="debug", track="BM")
+        resolver.add_build("SMOKE_COMMS_DEBUG", version="0.5.0", variant="debug", track="BM")
+        resolver.add_build("MODEM_FW", version="1.3.6", variant="release", track="BM")
 
         assets = StageAssets(resolver, stage="smoke", strict=True)
         assert assets.missing_labels() == []
-        assert len(assets.labels) == 2
+        assert len(assets.labels) == 3
 
     def test_cloud_checkin_timeout_is_catchable(self):
         """TimeoutError from orchestrator should be catchable as ValidationTimeoutError."""

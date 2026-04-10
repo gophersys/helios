@@ -250,11 +250,25 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
         "status": "COMPLETE",
     })
 
+    # Build a label→processor lookup from the build matrix (if available)
+    matrix_processor_map: Dict[str, str] = {}
+    if build_run.stageConfigId:
+        matrix_entries = db.stagebuildmatrix.find_many(
+            where={"stageConfigId": build_run.stageConfigId},
+        )
+        for entry in matrix_entries:
+            processor = getattr(entry, "processor", None)
+            if processor:
+                matrix_processor_map[entry.label] = processor
+
     # Create Asset records from each job's artifacts
     asset_count = 0
     for job in build_run.builds:
         if not job.artifacts:
             continue
+
+        job_label = getattr(job, "matrixLabel", None) or "UNKNOWN"
+
         for artifact in job.artifacts:
             # Parse appId from filename pattern: {appId}.{version}[-{track}].{ext}
             app_id = None
@@ -263,11 +277,16 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
                 if parts[0].isdigit():
                     app_id = int(parts[0])
 
+            # Resolve processor: prefer artifact metadata, then matrix entry
+            processor = artifact.processor
+            if not processor and job_label in matrix_processor_map:
+                processor = matrix_processor_map[job_label]
+
             db.asset.create(data={
                 "assetSetId": asset_set.id,
-                "label": getattr(job, "matrixLabel", None) or "UNKNOWN",
+                "label": job_label,
                 "role": artifact.role or "unknown",
-                "processor": artifact.processor,
+                "processor": processor,
                 "artifactType": artifact.artifactType or "unknown",
                 "storageKey": artifact.storageKey,
                 "filename": artifact.name,
@@ -279,15 +298,16 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
             })
             asset_count += 1
 
-    # Include modem firmware from board revision (if configured)
+    # Auto-link modem firmware
+    # Check board revision for inline modem firmware first
     if board_revision_id:
         board_rev = db.boardrevision.find_unique(where={"id": board_revision_id})
         if board_rev and getattr(board_rev, "modemStorageKey", None) and getattr(board_rev, "modemVersion", None):
             db.asset.create(data={
                 "assetSetId": asset_set.id,
-                "label": "MODEM",
+                "label": "MODEM_FW",
                 "role": "modem",
-                "processor": None,
+                "processor": "nrf9151",
                 "artifactType": "modemFirmware",
                 "storageKey": board_rev.modemStorageKey,
                 "filename": f"modem_{board_rev.modemVersion}.zip",
@@ -298,6 +318,22 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
             asset_count += 1
             logger.info("Included modem firmware v%s in AssetSet %s",
                         board_rev.modemVersion, asset_set.id)
+
+        # Auto-link ModemFirmware record if available
+        modem_fw = db.modemfirmware.find_first(
+            where={"boardRevisionId": board_revision_id},
+            order={"createdAt": "desc"},
+        ) if hasattr(db, "modemfirmware") else None
+        if modem_fw:
+            try:
+                db.assetset.update(
+                    where={"id": asset_set.id},
+                    data={"modemFirmwareId": modem_fw.id},
+                )
+                logger.info("Auto-linked ModemFirmware %s to AssetSet %s",
+                            modem_fw.id, asset_set.id)
+            except Exception:
+                logger.debug("modemFirmwareId field not available on AssetSet, skipping auto-link")
 
     logger.info("Created AssetSet %s from BuildRun %s (%d assets)",
                 asset_set.id, run_id, asset_count)
