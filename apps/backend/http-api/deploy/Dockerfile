@@ -1,23 +1,14 @@
 # Multi-stage build to reduce final image size
-FROM ubuntu:22.04 AS prisma-builder
-
-# ----------------------------------------------------
-#                                      Build Arguments
-# ----------------------------------------------------
-ARG NVM_VERSION=0.40.3
-ARG NODE_VERSION=22.19.0
-ARG NPM_VERSION=11.6.0
+FROM node:22-bookworm AS prisma-builder
 
 # ----------------------------------------------------
 #                                             System
 # ----------------------------------------------------
 WORKDIR /
 
-# Install minimal tools needed for Prisma generation
+# Install tools needed for Prisma generation
 RUN apt-get update && \
     apt-get install -y \
-    curl \
-    git \
     python3 \
     python3-pip \
     openssl \
@@ -29,20 +20,8 @@ RUN apt-get update && \
 COPY deploy/ca-certs/*.crt /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
-# ----------------------------------------------------
-#                                             Node, Nx
-# ----------------------------------------------------
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_VERSION}/install.sh | bash && \
-    export NVM_DIR="$HOME/.nvm" && \
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
-    nvm install v${NODE_VERSION} && \
-    npm install -g npm@${NPM_VERSION} && \
-    corepack enable && \
-    corepack prepare yarn@4.9.4 --activate
-
-# Set up Node.js and yarn environment
-ENV NVM_DIR=/root/.nvm
-ENV PATH=/root/.nvm/versions/node/v${NODE_VERSION}/bin:/root/.yarn/bin:$PATH
+# Enable corepack for yarn
+RUN corepack enable && corepack prepare yarn@4.9.4 --activate
 
 # ----------------------------------------------------
 #                                           ORM Client
@@ -60,9 +39,7 @@ RUN pip3 install --no-cache-dir prisma==0.15.0
 # Generate Prisma clients (both Go and Python)
 # Keep working directory as /concord to maintain relative path context
 WORKDIR /concord
-RUN export NVM_DIR="$HOME/.nvm" && \
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
-    cd prisma && \
+RUN cd prisma && \
     yarn && \
     yarn prisma generate
 
