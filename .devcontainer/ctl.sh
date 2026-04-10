@@ -177,6 +177,13 @@ start_container() {
 
     # Install dependencies
     yarn
+
+    # Install Python app + test dependencies (if setup.py exists)
+    if [ -f apps/backend/http-api/setup.py ]; then
+        log_info "Installing http-api Python dependencies..."
+        pip3 install --no-cache-dir -e "apps/backend/http-api[test]" 2>/dev/null || \
+            pip3 install --no-cache-dir --break-system-packages -e "apps/backend/http-api[test]" 2>/dev/null || true
+    fi
 }
 
 # Create action for the devcontainers

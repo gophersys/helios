@@ -2,12 +2,13 @@
 # entrypoint.sh — Nightly CI runner for K8s CronJob.
 #
 # Replicates the developer workflow:
-#   1. devcontainer start (CA certs, yarn install)
+#   1. devcontainer start (CA certs, yarn, pip install)
 #   2. nx start platform  (build images, compose up, DB setup)
 #   3. nx run platform:test:e2e
 #   4. nx stop platform
 #
-# The ONLY non-Nx operation is MinIO result upload at the end.
+# Resource tracking: snapshots Docker state before/after to ensure
+# clean teardown with no leaked containers, volumes, or networks.
 set -euo pipefail
 
 # ── Logging ─────────────────────────────────────────────────────
@@ -18,6 +19,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 log()  { echo -e "${GREEN}[ci]${NC} $*"; }
+info() { echo -e "${CYAN}[ci]${NC} $*"; }
 err()  { echo -e "${RED}[ci]${NC} $*" >&2; }
 
 STARTED_AT=$(date -u +%s)
@@ -27,9 +29,67 @@ RUN_DATE=$(date -u +%Y-%m-%d)
 
 log "Nightly CI — ${BRANCH:-main} @ ${COMMIT} — ${RUN_DATE}"
 
+# ── Resource snapshot (before) ──────────────────────────────────
+log "Capturing pre-run resource snapshot..."
+docker ps -q 2>/dev/null | sort > /tmp/ci-containers-before.txt || true
+docker volume ls -q 2>/dev/null | sort > /tmp/ci-volumes-before.txt || true
+docker network ls -q --filter type=custom 2>/dev/null | sort > /tmp/ci-networks-before.txt || true
+DISK_BEFORE=$(df / --output=used 2>/dev/null | tail -1 | tr -d ' ' || echo 0)
+
 cleanup() {
   log "Stopping platform..."
   npx nx stop platform 2>/dev/null || true
+
+  # ── Resource snapshot (after) + leak detection ──────────────
+  log "Checking for resource leaks..."
+  local leaked=0
+
+  # Containers
+  docker ps -q 2>/dev/null | sort > /tmp/ci-containers-after.txt || true
+  local new_containers
+  new_containers=$(comm -13 /tmp/ci-containers-before.txt /tmp/ci-containers-after.txt | wc -l)
+  if [[ ${new_containers} -gt 0 ]]; then
+    err "LEAK: ${new_containers} container(s) still running after cleanup"
+    docker ps --filter "id=$(comm -13 /tmp/ci-containers-before.txt /tmp/ci-containers-after.txt | head -5 | tr '\n' '|' | sed 's/|$//')" --format "  {{.Names}} ({{.Image}})" 2>/dev/null || true
+    # Force cleanup
+    comm -13 /tmp/ci-containers-before.txt /tmp/ci-containers-after.txt | xargs -r docker rm -f 2>/dev/null || true
+    leaked=1
+  fi
+
+  # Volumes
+  docker volume ls -q 2>/dev/null | sort > /tmp/ci-volumes-after.txt || true
+  local new_volumes
+  new_volumes=$(comm -13 /tmp/ci-volumes-before.txt /tmp/ci-volumes-after.txt | wc -l)
+  if [[ ${new_volumes} -gt 0 ]]; then
+    err "LEAK: ${new_volumes} volume(s) left behind"
+    comm -13 /tmp/ci-volumes-before.txt /tmp/ci-volumes-after.txt | head -5 | sed 's/^/  /'
+    # Force cleanup
+    comm -13 /tmp/ci-volumes-before.txt /tmp/ci-volumes-after.txt | xargs -r docker volume rm -f 2>/dev/null || true
+    leaked=1
+  fi
+
+  # Networks
+  docker network ls -q --filter type=custom 2>/dev/null | sort > /tmp/ci-networks-after.txt || true
+  local new_networks
+  new_networks=$(comm -13 /tmp/ci-networks-before.txt /tmp/ci-networks-after.txt | wc -l)
+  if [[ ${new_networks} -gt 0 ]]; then
+    err "LEAK: ${new_networks} network(s) left behind"
+    comm -13 /tmp/ci-networks-before.txt /tmp/ci-networks-after.txt | xargs -r docker network rm 2>/dev/null || true
+    leaked=1
+  fi
+
+  # Disk
+  local disk_after
+  disk_after=$(df / --output=used 2>/dev/null | tail -1 | tr -d ' ' || echo 0)
+  local disk_delta=$(( (disk_after - DISK_BEFORE) / 1024 ))
+  if [[ ${disk_delta} -gt 500 ]]; then
+    err "LEAK: ${disk_delta}MB disk not reclaimed — running docker system prune"
+    docker system prune -f --volumes 2>/dev/null || true
+  fi
+
+  if [[ ${leaked} -eq 0 ]]; then
+    log "Clean — no resource leaks detected"
+  fi
 
   local duration=$(( $(date -u +%s) - STARTED_AT ))
   echo ""

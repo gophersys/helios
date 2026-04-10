@@ -122,7 +122,8 @@ ENV PYTHONPATH="/workspaces/concord/libs:/workspaces/concord/libs/python/"
 
 # Install Python packages
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip3 install grpcio-tools==1.75.0 prisma==0.15.0 zensical minio
+    pip3 install grpcio-tools==1.75.0 prisma==0.15.0 zensical minio \
+    pytest pytest-timeout pytest-cov psycopg2-binary requests
 
 # ----------------------------------------------------
 #                                             Protobuf
