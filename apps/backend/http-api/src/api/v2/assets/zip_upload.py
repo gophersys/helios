@@ -207,7 +207,6 @@ def upload_asset_set_zip(product_id: str):
         include={
             "assets": True,
             "boardRevision": True,
-            "stageConfig": True,
         },
     )
 
@@ -258,7 +257,6 @@ def _serialize_asset_set(asset_set) -> dict:
         "variant": asset_set.variant,
         "stage": asset_set.stage,
         "source": asset_set.source,
-        "stageConfigId": asset_set.stageConfigId,
         "status": asset_set.status,
         "commitSha": asset_set.commitSha,
         "branch": asset_set.branch,
@@ -271,13 +269,6 @@ def _serialize_asset_set(asset_set) -> dict:
             "id": asset_set.boardRevision.id,
             "version": asset_set.boardRevision.version,
             "ckBoardsName": getattr(asset_set.boardRevision, "ckBoardsName", None),
-        }
-    if hasattr(asset_set, "stageConfig") and asset_set.stageConfig:
-        data["stageConfig"] = {
-            "id": asset_set.stageConfig.id,
-            "type": asset_set.stageConfig.type,
-            "stage": asset_set.stageConfig.stage,
-            "name": asset_set.stageConfig.name,
         }
     if hasattr(asset_set, "assets") and asset_set.assets:
         data["assets"] = [
