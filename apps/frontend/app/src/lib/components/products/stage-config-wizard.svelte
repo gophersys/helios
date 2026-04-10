@@ -37,7 +37,9 @@
   }: Props = $props();
 
   // ── Wizard state ───────────────────────────────────────
-  const stageName = $derived(STAGE_NAMES[stage] || `Stage ${stage}`);
+  // Determine stage type from config or default to VALIDATION
+  const stageType = $derived(config?.type || 'VALIDATION');
+  const displayStageName = $derived(STAGE_NAMES[stageType]?.[stage] || config?.name || `Stage ${stage}`);
   let currentStep = $state(1);
   let saving = $state(false);
   let error = $state<string | null>(null);
@@ -46,7 +48,7 @@
   let showDisableConfirm = $state(false);
   let disableConfirmText = $state('');
   let disabling = $state(false);
-  const disablePhrase = $derived(`disable ${stageName.toLowerCase()}`);
+  const disablePhrase = $derived(`disable ${displayStageName.toLowerCase()}`);
   const canDisable = $derived(disableConfirmText.toLowerCase() === disablePhrase);
 
   // Step 1
@@ -697,7 +699,7 @@
         content: recipe,
         stage,
         boardRevisionId: formRevisionId || undefined,
-        changeNote: `Published for Stage ${stage} ${stageName}`,
+        changeNote: `Published for Stage ${stage} ${displayStageName}`,
       });
       const data = (res as any).data ?? res;
       recipeSavedVersion = data?.version ?? null;
@@ -775,7 +777,7 @@
       if (config) {
         await updateStageConfig(productId, stage, data);
       } else {
-        await createStageConfig(productId, { stage, name: stageName, ...data });
+        await createStageConfig(productId, { stage, name: displayStageName, ...data });
       }
 
       // Save recipe draft if modified (does NOT create a new version)
@@ -812,7 +814,7 @@
       </div>
       <div class="flex-1 min-w-0">
         <h2 class="text-sm font-semibold text-text-primary">
-          {config ? 'Edit' : 'Configure'} Stage {stage}: {stageName}
+          {config ? 'Edit' : 'Configure'} {displayStageName}
         </h2>
         <p class="text-2xs text-text-tertiary truncate">{stageDesc}</p>
       </div>
@@ -1411,7 +1413,7 @@
           <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-error-muted">
             <AlertTriangle size={20} class="text-error" />
           </div>
-          <h2 class="text-sm font-semibold text-text-primary">Disable Stage {stage}: {stageName}</h2>
+          <h2 class="text-sm font-semibold text-text-primary">Disable Stage {stage}: {displayStageName}</h2>
         </div>
         <button onclick={() => { showDisableConfirm = false; }} class="flex h-8 w-8 items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-2 hover:text-text-primary">
           <X size={20} />
@@ -1419,7 +1421,7 @@
       </div>
       <div class="p-5">
         <p class="mb-4 text-sm text-text-secondary">
-          This will disable all builds and validation runs for <strong class="text-text-primary">{stageName}</strong>
+          This will disable all builds and validation runs for <strong class="text-text-primary">{displayStageName}</strong>
           {#if selectedRevision}
             on <strong class="text-text-primary">{selectedRevision.version}</strong>
           {/if}.

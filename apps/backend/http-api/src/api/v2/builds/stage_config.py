@@ -290,6 +290,31 @@ def initialize_stages(product_id: str):
     for stage_def in DEFAULT_VALIDATION_STAGES:
         data = {"productId": product_id, "enabled": False, "boardRevisionId": board_revision_id, **stage_def}
         config = db.productstageconfig.create(data=data, include=_INCLUDE)
+        # Auto-populate build matrix from Python defaults
+        try:
+            from corekinect.stages import Stage, get_stage_build_defs
+            stage_num = stage_def.get("stage", 1)
+            stage_enum_map = {1: Stage.SMOKE, 2: Stage.DRIVER, 3: Stage.INTEGRATION, 4: Stage.REGRESSION, 5: Stage.FUOTA}
+            stage_enum = stage_enum_map.get(stage_num)
+            if stage_enum:
+                defs = get_stage_build_defs(stage_enum)
+                for build_def in defs:
+                    db.stagebuildmatrix.create(data={
+                        "stageConfigId": config.id,
+                        "label": build_def.label,
+                        "fwType": build_def.fw_type,
+                        "variant": build_def.variant,
+                        "configLog": build_def.config_log,
+                        "producesHex": build_def.produces_hex,
+                        "producesCfw": build_def.produces_cfw,
+                        "gitRef": build_def.git_ref,
+                        "isVersionBump": build_def.is_version_bump,
+                        "baseLabel": build_def.base_label,
+                    })
+        except Exception:
+            pass  # Non-critical — user can reset manually
+        # Re-fetch with matrix included
+        config = db.productstageconfig.find_unique(where={"id": config.id}, include=_INCLUDE)
         created.append(_serialize_stage_config(config))
     log_audit("stageConfig.initialize", "ProductStageConfig", product_id, {"stages": len(created), "boardRevisionId": board_revision_id})
     return jsonify(ApiResponse.ok(created).to_dict()), 201
