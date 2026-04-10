@@ -137,6 +137,8 @@ def create_stage_config(product_id: str):
     perm_err = _check_stage_permission(req.type)
     if perm_err:
         return perm_err
+    if not req.boardRevisionId:
+        return bad_request("boardRevisionId is required — stage configs must be scoped to a hardware revision")
     existing = db.productstageconfig.find_first(
         where={"productId": product_id, "type": req.type, "stage": req.stage, "boardRevisionId": req.boardRevisionId}
     )
@@ -189,9 +191,9 @@ def _try_trigger_build(product_id: str, config_id: str, stage: str, result: dict
             result["buildTriggered"] = False
             result["buildError"] = "Failed to trigger build — check product repos and revision config"
     except Exception as e:
-        logger.error("Failed to trigger build for stage %s: %s", stage, e)
+        logger.exception("Failed to trigger build for stage %s: %s", stage, e)
         result["buildTriggered"] = False
-        result["buildError"] = str(e)
+        result["buildError"] = "Internal error occurred while triggering build"
 
 
 def _resolve_stage_config(db, product_id: str, stage: str):
@@ -266,24 +268,30 @@ def delete_stage_config(product_id: str, stage: str):
 
 @require_permissions(Permissions.BUILDS_MANAGE)
 def initialize_stages(product_id: str):
-    """Create all five default stage configs for a product."""
+    """Create all five default stage configs for a product (optionally scoped to a board revision)."""
     db = get_db_client()
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
+    body = request.get_json(silent=True) or {}
+    board_revision_id = body.get("boardRevisionId")
+    if not board_revision_id:
+        return bad_request("boardRevisionId is required — stage configs must be scoped to a hardware revision")
+    # Verify the board revision exists
+    board_rev = db.boardrevision.find_unique(where={"id": board_revision_id})
+    if not board_rev:
+        return not_found("Board revision not found")
     existing = db.productstageconfig.find_many(
-        where={"productId": product_id, "type": "VALIDATION"},
+        where={"productId": product_id, "type": "VALIDATION", "boardRevisionId": board_revision_id}
     )
     if existing:
-        return conflict("Validation stages already configured. Delete them first to reinitialize.")
+        return conflict("Validation stages already configured for this revision. Delete them first to reinitialize.")
     created = []
     for stage_def in DEFAULT_VALIDATION_STAGES:
-        config = db.productstageconfig.create(
-            data={"productId": product_id, "enabled": False, **stage_def},
-            include=_INCLUDE,
-        )
+        data = {"productId": product_id, "enabled": False, "boardRevisionId": board_revision_id, **stage_def}
+        config = db.productstageconfig.create(data=data, include=_INCLUDE)
         created.append(_serialize_stage_config(config))
-    log_audit("stageConfig.initialize", "ProductStageConfig", product_id, {"stages": len(created)})
+    log_audit("stageConfig.initialize", "ProductStageConfig", product_id, {"stages": len(created), "boardRevisionId": board_revision_id})
     return jsonify(ApiResponse.ok(created).to_dict()), 201
 
 

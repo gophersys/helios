@@ -60,6 +60,11 @@
   // Delete state
   let deleteTarget = $state<{ stage: number; name: string } | null>(null);
 
+  /** Configs filtered to the current board revision (used for empty-state check) */
+  const filteredConfigs = $derived(
+    boardRevisionId ? configs.filter((c) => c.boardRevisionId === boardRevisionId) : configs
+  );
+
   const activeRevisions = $derived(
     revisions
       .filter((r) => r.status === 'ACTIVE')
@@ -97,10 +102,10 @@
     error = null;
     try {
       if (stageType === 'MANUFACTURING') {
-        const cfg = await createStageConfig(productId, { type: 'MANUFACTURING', stage: 1, name: 'Manufacturing' });
+        const cfg = await createStageConfig(productId, { type: 'MANUFACTURING', stage: 1, name: 'Manufacturing', boardRevisionId });
         configs = [cfg];
       } else {
-        configs = await initializeStages(productId);
+        configs = await initializeStages(productId, boardRevisionId);
       }
       onRefresh?.();
     } catch (e: unknown) {
@@ -162,7 +167,7 @@
     <div class="flex items-center gap-2 py-8 text-sm text-text-tertiary justify-center">
       <Loader2 size={16} class="animate-spin" /> Loading stages...
     </div>
-  {:else if configs.length === 0}
+  {:else if filteredConfigs.length === 0}
     <div class="text-center py-8">
       <p class="text-sm text-text-secondary mb-4">{emptyLabel}</p>
       <button class="btn btn-sm btn-primary" disabled={initializing} onclick={handleInitialize}>

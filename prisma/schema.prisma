@@ -436,8 +436,8 @@ model ProductStageConfig {
   name      String /// Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"
   enabled   Boolean   @default(false) /// Disabled by default
 
-  // Target — which hardware revision to build and test against
-  boardRevisionId String? /// FK to BoardRevision (e.g., Alpha B0)
+  // Target — which hardware revision to build and test against (required)
+  boardRevisionId String /// FK to BoardRevision — every stage config is revision-scoped
 
   // Source — which branch to watch for changes
   watchBranch String? /// Git branch to poll for this stage (e.g., "main", "develop")
@@ -455,7 +455,7 @@ model ProductStageConfig {
   recipeVersionId String?
 
   product            Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
-  boardRevision      BoardRevision?         @relation(fields: [boardRevisionId], references: [id])
+  boardRevision      BoardRevision          @relation(fields: [boardRevisionId], references: [id])
   signingKey         Secret?                @relation(fields: [signingKeyId], references: [id])
   recipeVersion      RecipeVersion?         @relation("StageConfigRecipe", fields: [recipeVersionId], references: [id])
   buildRuns          BuildRun[]
