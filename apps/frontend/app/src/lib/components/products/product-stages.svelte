@@ -148,6 +148,28 @@
     return rev ? rev.version : '—';
   }
 
+  async function handleDisableConfig(cfg: ProductStageConfig) {
+    error = null;
+    try {
+      await updateStageConfig(productId, cfg.stage, { enabled: false });
+      await loadConfigs();
+      onRefresh?.();
+    } catch (e: unknown) {
+      error = e instanceof Error ? e.message : 'Failed to disable stage';
+    }
+  }
+
+  async function handleEnableConfig(cfg: ProductStageConfig) {
+    error = null;
+    try {
+      await updateStageConfig(productId, cfg.stage, { enabled: true });
+      await loadConfigs();
+      onRefresh?.();
+    } catch (e: unknown) {
+      error = e instanceof Error ? e.message : 'Failed to enable stage';
+    }
+  }
+
   async function handleDeleteConfig(stageNum: number) {
     error = null;
     try {
@@ -200,23 +222,17 @@
           </div>
         </div>
 
-        <!-- Per-revision configs -->
-        <div class="divide-y divide-border-subtle">
-          {#each activeRevisions as rev}
-            {@const cfg = getConfig(stageNum, rev.id)}
-            <div class="flex items-center gap-4 px-4 py-2.5 hover:bg-surface-2/30 transition-colors">
-              <!-- Revision badge -->
-              <div class="flex items-center gap-2 min-w-[120px]">
-                <CircuitBoard size={14} class="text-text-tertiary" />
-                <span class="text-sm font-medium text-text-primary">{rev.version}</span>
-                <span class="font-mono text-2xs text-text-tertiary">{rev.ckBoardsName}</span>
-              </div>
-
-              {#if cfg && cfg.enabled}
-                <!-- Enabled — show config summary -->
+        <!-- Stage config (single revision — subtabs handle revision selection) -->
+        {@const rev = activeRevisions[0]}
+        {#if rev}
+          {@const cfg = getConfig(stageNum, rev.id)}
+          <div class="px-4 py-3">
+            {#if cfg && cfg.enabled}
+              <!-- Enabled — show config summary + actions -->
+              <div class="flex items-center gap-4">
                 <div class="flex-1 flex items-center gap-3 text-2xs text-text-tertiary">
                   {#if cfg.watchBranch}
-                    <span class="flex items-center gap-1 font-mono">
+                    <span class="flex items-center gap-1 font-mono bg-surface-0 rounded px-2 py-0.5">
                       <GitBranch size={10} /> {cfg.watchBranch}
                     </span>
                   {/if}
@@ -224,12 +240,16 @@
                     <span class="flex items-center gap-1">
                       {#each cfg.triggerTypes as t}
                         {@const TIcon = triggerIcon(t)}
-                        <TIcon size={10} />
+                        <span class="flex items-center gap-1 bg-surface-0 rounded px-2 py-0.5">
+                          <TIcon size={10} /> {t.replace('_', ' ')}
+                        </span>
                       {/each}
                     </span>
                   {/if}
+                  {#if cfg.buildMatrix?.length}
+                    <span class="bg-surface-0 rounded px-2 py-0.5">{cfg.buildMatrix.length} build{cfg.buildMatrix.length !== 1 ? 's' : ''}</span>
+                  {/if}
                 </div>
-                <StatusBadge status="ACTIVE" />
                 <button
                   onclick={() => openWizard(stageNum, rev, cfg)}
                   class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs font-medium text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors"
@@ -238,15 +258,54 @@
                 </button>
                 {#if canManage}
                   <button
-                    onclick={() => deleteTarget = { stage: cfg.stage, name: `${stageName(stageType, cfg.stage)} — ${rev.version}` }}
+                    onclick={() => handleDisableConfig(cfg)}
+                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs font-medium text-text-tertiary hover:bg-warning-muted hover:text-warning transition-colors"
+                    title="Disable this stage"
+                  >
+                    Disable
+                  </button>
+                  <button
+                    onclick={() => deleteTarget = { stage: cfg.stage, name: `${stageName(stageType, cfg.stage)}` }}
                     class="flex items-center justify-center rounded-lg p-1.5 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
                     title="Delete stage config"
                   >
                     <Trash2 size={12} />
                   </button>
                 {/if}
-              {:else}
-                <!-- Not configured for this revision -->
+              </div>
+            {:else if cfg && !cfg.enabled}
+              <!-- Exists but disabled -->
+              <div class="flex items-center gap-4">
+                <div class="flex-1">
+                  <span class="text-2xs text-text-tertiary">Disabled</span>
+                </div>
+                {#if canManage}
+                  <button
+                    onclick={() => handleEnableConfig(cfg)}
+                    class="flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-muted px-3 py-1.5 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors"
+                  >
+                    Enable
+                  </button>
+                {/if}
+                <button
+                  onclick={() => openWizard(stageNum, rev, cfg)}
+                  class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs font-medium text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors"
+                >
+                  <Settings size={12} /> Edit
+                </button>
+                {#if canManage}
+                  <button
+                    onclick={() => deleteTarget = { stage: cfg.stage, name: `${stageName(stageType, cfg.stage)}` }}
+                    class="flex items-center justify-center rounded-lg p-1.5 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
+                    title="Delete stage config"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                {/if}
+              </div>
+            {:else}
+              <!-- Not configured -->
+              <div class="flex items-center gap-4">
                 <div class="flex-1">
                   <span class="text-2xs text-text-tertiary">Not configured</span>
                 </div>
@@ -256,10 +315,10 @@
                 >
                   <Plus size={12} /> Configure
                 </button>
-              {/if}
-            </div>
-          {/each}
-        </div>
+              </div>
+            {/if}
+          </div>
+        {/if}
       </div>
     {/each}
   {/if}
