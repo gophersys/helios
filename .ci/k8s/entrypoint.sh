@@ -118,10 +118,7 @@ npx nx start platform --output-style=stream --verbose
 
 # ── Step 3: Run E2E tests ──────────────────────────────────────
 log "Running E2E tests..."
-set +e
-npx nx run platform:test:e2e --output-style=stream --verbose 2>&1 | tee /tmp/e2e-output.log
-EXIT_CODE=${PIPESTATUS[0]}
-set -e
+npx nx run platform:test:e2e --output-style=stream --verbose 2>&1 | tee /tmp/e2e-output.log || EXIT_CODE=$?
 
 if [[ ${EXIT_CODE} -eq 0 ]]; then
   log "E2E tests passed"
