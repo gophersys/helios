@@ -25,8 +25,12 @@
   );
 </script>
 
-<TestAppStatusCard status={product.testAppStatus?.manufacturing ?? null} type="MANUFACTURING" />
-<TestPackageList productId={product.id} packageType="MANUFACTURING" {onRefresh} />
+<!-- Test App section -->
+<div class="rounded-xl border border-border bg-surface-1 p-5 mb-6">
+  <h3 class="text-sm font-semibold text-text-primary mb-3">Manufacturing Test App</h3>
+  <TestAppStatusCard status={product.testAppStatus?.manufacturing ?? null} type="MANUFACTURING" />
+  <TestPackageList productId={product.id} packageType="MANUFACTURING" {onRefresh} />
+</div>
 
 {#if revisions.length === 0}
   <div class="text-center py-8">
