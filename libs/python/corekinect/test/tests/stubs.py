@@ -82,6 +82,7 @@ class StubArtifactResolver:
         self._tmp_dir = tempfile.mkdtemp(prefix="stub_resolver_")
         self._events: List[Dict[str, Any]] = []
         self._modem_trigger_path: Optional[str] = None
+        self._modem_asset_set_path: Optional[str] = None
 
     @property
     def builds(self) -> Dict[str, Any]:
@@ -238,6 +239,11 @@ class StubArtifactResolver:
         """Return modem firmware from trigger data."""
         self._events.append({"action": "get_modem_firmware_from_trigger"})
         return self._modem_trigger_path
+
+    def get_modem_from_asset_set(self) -> Optional[str]:
+        """Return modem firmware from AssetSet reference."""
+        self._events.append({"action": "get_modem_from_asset_set"})
+        return self._modem_asset_set_path
 
     def cleanup(self) -> None:
         """Remove temp files."""
