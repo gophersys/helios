@@ -22,10 +22,10 @@ services:
       retries: 10
 
   test-minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     environment:
-      MINIO_ROOT_USER: concord
-      MINIO_ROOT_PASSWORD: concordstorage!
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-concord}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-concordstorage!}
     ports:
       - "8677:8677"
     command: server /data --address ":8677"
@@ -45,16 +45,16 @@ services:
       DATABASE_URL: postgresql://concord:concord-test@test-db:5432/concord
       DIRECT_DATABASE_URL: postgresql://concord:concord-test@test-db:5432/concord
       STORAGE_URL: http://test-minio:8677
-      STORAGE_ACCESS_KEY: concord
-      STORAGE_SECRET_ACCESS_KEY: concordstorage!
+      STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER:-concord}
+      STORAGE_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-concordstorage!}
       STORAGE_BUCKET_NAME: concord-e2e
-      JWT_SECRET_KEY: concord-e2e-test-jwt-secret
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-concord-e2e-test-jwt-secret}
       SERVER_PORT: "9001"
       LOG_LEVEL: "20"
       LOG_PATH: /tmp/logs
       ASSETS_FOLDER: assets
       CORS_ORIGINS: "*"
-      DELETE_ALL_KEY: e2e-delete-key
+      DELETE_ALL_KEY: ${DELETE_ALL_KEY:-e2e-delete-key}
       BITBUCKET_SSH_KEY: ${BITBUCKET_SSH_KEY:-}
       BITBUCKET_API_TOKEN: ${BITBUCKET_API_TOKEN:-}
       BITBUCKET_EMAIL: ${BITBUCKET_EMAIL:-test@concord.dev}
@@ -76,7 +76,7 @@ services:
     image: concord/git-poller:development
     environment:
       CONCORD_API_URL: http://test-api:9001
-      CONCORD_API_KEY: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG
+      CONCORD_API_KEY: ${CONCORD_API_KEY}
       POLL_INTERVAL: "30"
       SERVICE_PORT: "9003"
       ENVIRONMENT: development
@@ -91,7 +91,7 @@ services:
     image: concord/build-service:development
     environment:
       CONCORD_API_URL: http://test-api:9001
-      CONCORD_API_KEY: ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG
+      CONCORD_API_KEY: ${CONCORD_API_KEY}
       WORKER_ID: e2e-builder-1
       POLL_INTERVAL: "30"
       WORKSPACE_DIR: /tmp/builds

@@ -21,6 +21,9 @@ infrastructure:
   pypi:
     enabled: true
     storage: "2Gi"
+    auth:
+      enabled: true
+      # htpasswd content stored in concord-pypi-htpasswd Secret (secrets overlay)
 
 httpApi:
   replicas: 1

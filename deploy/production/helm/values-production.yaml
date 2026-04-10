@@ -21,6 +21,9 @@ infrastructure:
   pypi:
     enabled: true
     storage: "5Gi"
+    # Security: require htpasswd auth for package uploads
+    auth:
+      enabled: true
 
 httpApi:
   replicas: 1
@@ -50,11 +53,16 @@ docs:
 ingress:
   enabled: true
   host: concord.local
+  className: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  tls:
+    secretName: production-concord-tls
 
 config:
   SERVER_PORT: "9001"
+  AUTH_ENABLED: "true"  # Security: must always be enabled in production
   LOG_LEVEL: "2"
   LOG_PATH: "logs"
   ASSETS_FOLDER: "assets"

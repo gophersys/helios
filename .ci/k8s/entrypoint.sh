@@ -58,8 +58,10 @@ npx prisma generate
 
 # Install Python test dependencies
 log "Installing Python test dependencies..."
-pip3 install --no-cache-dir pytest pytest-timeout 2>/dev/null || \
-  pip3 install --no-cache-dir --break-system-packages pytest pytest-timeout
+pip3 install --no-cache-dir \
+  pytest pytest-timeout psycopg2-binary requests minio 2>/dev/null || \
+pip3 install --no-cache-dir --break-system-packages \
+  pytest pytest-timeout psycopg2-binary requests minio
 
 # Ensure mc (MinIO client) is available
 if ! command -v mc &>/dev/null; then

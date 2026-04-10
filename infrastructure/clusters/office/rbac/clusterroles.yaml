@@ -94,21 +94,31 @@ rules:
   - apiGroups: [""]
     resources: [nodes, namespaces]
     verbs: [get, list, watch]
+  # Read-only access to core resources (pods, services, configmaps, events, etc.)
   - apiGroups: [""]
-    resources: [pods, services, endpoints, configmaps, secrets, events, serviceaccounts]
+    resources: [pods, services, endpoints, configmaps, events, serviceaccounts]
     verbs: [get, list, watch]
+  # Secrets: read-only — the API reads K8s secrets for config but must not modify them
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list]
   - apiGroups: [""]
     resources: [pods/log]
     verbs: [get]
+  # HIGH PRIVILEGE: pods/exec allows running commands inside any pod in bound namespaces.
+  # Required by the platform's kubectl-exec feature (live pod shell from the UI).
   - apiGroups: [""]
     resources: [pods/exec]
     verbs: [create]
+  # HIGH PRIVILEGE: pod delete allows the platform to restart pods on demand.
+  # Required by the pod restart feature in the admin UI.
   - apiGroups: [""]
     resources: [pods]
     verbs: [delete]
   - apiGroups: ["apps"]
     resources: [deployments, replicasets, statefulsets, daemonsets]
-    verbs: [get, list, watch, patch]
+    verbs: [get, list, watch]
+  # Deployment scale: needed for the API to trigger horizontal scaling.
   - apiGroups: ["apps"]
     resources: [deployments/scale]
     verbs: [get, patch, update]
@@ -117,10 +127,11 @@ rules:
     verbs: [get, list, watch, delete, create]
   - apiGroups: ["networking.k8s.io"]
     resources: [ingresses]
-    verbs: [get, list, watch, patch]
+    verbs: [get, list, watch]
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources: [roles, clusterroles, rolebindings, clusterrolebindings]
     verbs: [get, list]
+  # ConfigMaps + services: allow patch for runtime config updates from the API
   - apiGroups: [""]
-    resources: [configmaps, secrets, services]
-    verbs: [patch, delete]
+    resources: [configmaps, services]
+    verbs: [patch]
