@@ -528,7 +528,11 @@ cmd_dev_start() {
   # Build service images (parallel via Nx)
   step "Building service images"
   timer_start
-  npx nx run-many -t build -p http-api git-poller build-service -c development 2>&1 | tail -5
+  if [[ "${CI:-false}" == "true" ]]; then
+    npx nx run-many -t build -p http-api git-poller build-service -c development --output-style=stream --verbose 2>&1
+  else
+    npx nx run-many -t build -p http-api git-poller build-service -c development 2>&1 | tail -5
+  fi
   timer_end "Image builds"
 
   # Start infrastructure first
