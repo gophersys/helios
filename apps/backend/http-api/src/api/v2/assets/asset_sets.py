@@ -23,7 +23,6 @@ _ASSET_SET_INCLUDE = {
     "product": True,
     "boardRevision": True,
     "buildRun": True,
-    "stageConfig": {"include": {"buildMatrixEntries": True}},
     "createdBy": True,
     "assets": True,
 }
@@ -78,16 +77,6 @@ def _serialize_asset_set(asset_set) -> dict:
         }
     else:
         data["boardRevision"] = None
-    if hasattr(asset_set, "stageConfig") and asset_set.stageConfig:
-        data["stageConfig"] = {
-            "id": asset_set.stageConfig.id,
-            "type": asset_set.stageConfig.type,
-            "stage": asset_set.stageConfig.stage,
-            "name": asset_set.stageConfig.name,
-        }
-    else:
-        data["stageConfig"] = None
-    data["stageConfigId"] = getattr(asset_set, "stageConfigId", None)
     if hasattr(asset_set, "createdBy") and asset_set.createdBy:
         data["createdBy"] = {"id": asset_set.createdBy.id, "name": asset_set.createdBy.name}
     else:
@@ -96,19 +85,6 @@ def _serialize_asset_set(asset_set) -> dict:
         data["assets"] = [_serialize_asset(a) for a in asset_set.assets]
     else:
         data["assets"] = []
-
-    # Completeness check against build matrix
-    sc = getattr(asset_set, "stageConfig", None)
-    matrix = getattr(sc, "buildMatrixEntries", None) if sc else None
-    if matrix:
-        required = {e.label for e in matrix}
-        present = {a.label for a in (asset_set.assets or [])}
-        data["completeness"] = {
-            "required": len(required),
-            "present": len(required & present),
-            "missing": sorted(required - present),
-            "complete": required <= present,
-        }
 
     return data
 
@@ -142,7 +118,10 @@ def list_asset_sets(product_id: str):
         where["boardRevisionId"] = board_revision_id
     stage_config_id = request.args.get("stageConfigId")
     if stage_config_id:
-        where["stageConfigId"] = stage_config_id
+        # stageConfigId is not a field on AssetSet — look up the stage number
+        sc = db.productstageconfig.find_unique(where={"id": stage_config_id})
+        if sc:
+            where["stage"] = sc.stage
 
     total = db.assetset.count(where=where)
     asset_sets = db.assetset.find_many(
@@ -175,19 +154,23 @@ def create_asset_set(product_id: str):
     if err or req is None:
         return bad_request(err)
 
-    create_data = {
-        "productId": product_id,
+    create_data: dict = {
+        "product": {"connect": {"id": product_id}},
         "version": req.version,
         "variant": req.variant,
         "source": req.source,
         "stage": req.stage,
-        "boardRevisionId": req.boardRevisionId,
-        "stageConfigId": req.stageConfigId,
-        "commitSha": req.commitSha,
-        "branch": req.branch,
-        "recipeVersionId": req.recipeVersionId,
-        "notes": req.notes,
     }
+    if req.boardRevisionId:
+        create_data["boardRevision"] = {"connect": {"id": req.boardRevisionId}}
+    if req.commitSha:
+        create_data["commitSha"] = req.commitSha
+    if req.branch:
+        create_data["branch"] = req.branch
+    if req.recipeVersionId:
+        create_data["recipeVersion"] = {"connect": {"id": req.recipeVersionId}}
+    if req.notes:
+        create_data["notes"] = req.notes
 
     # Derive boardRevisionId from stageConfig if not provided
     if req.stageConfigId and not req.boardRevisionId:
@@ -216,28 +199,31 @@ def create_external_asset_set(product_id: str):
     if err or req is None:
         return bad_request(err)
 
-    create_data = {
-        "productId": product_id,
+    create_data: dict = {
+        "product": {"connect": {"id": product_id}},
         "version": req.version,
         "variant": req.variant,
         "source": "EXTERNAL_CI",
         "externalBuildId": req.externalBuildId,
         "stage": req.stage,
-        "boardRevisionId": req.boardRevisionId,
-        "stageConfigId": req.stageConfigId,
-        "commitSha": req.commitSha,
-        "branch": req.branch,
-        "notes": req.notes,
     }
-
-    if req.stageConfigId and not req.boardRevisionId:
+    board_rev_id = req.boardRevisionId
+    if req.stageConfigId and not board_rev_id:
         sc = db.productstageconfig.find_unique(where={"id": req.stageConfigId})
         if sc and sc.boardRevisionId:
-            create_data["boardRevisionId"] = sc.boardRevisionId
+            board_rev_id = sc.boardRevisionId
+    if board_rev_id:
+        create_data["boardRevision"] = {"connect": {"id": board_rev_id}}
+    if req.commitSha:
+        create_data["commitSha"] = req.commitSha
+    if req.branch:
+        create_data["branch"] = req.branch
+    if req.notes:
+        create_data["notes"] = req.notes
 
     user = getattr(g, "current_user", None)
-    if user and isinstance(user, dict):
-        create_data["createdById"] = user.get("userId")
+    if user and isinstance(user, dict) and user.get("userId"):
+        create_data["createdBy"] = {"connect": {"id": user["userId"]}}
 
     asset_set = db.assetset.create(data=create_data, include=_ASSET_SET_INCLUDE)
     log_audit("assetSet.createExternal", "AssetSet", asset_set.id, {
@@ -275,11 +261,11 @@ def complete_asset_set(asset_set_id: str):
     if asset_set.status != "PENDING":
         return bad_request(f"Asset set is already {asset_set.status}")
 
-    # Validate against build matrix if stageConfigId is set
+    # Validate against build matrix if stage is set
     warnings = []
-    if asset_set.stageConfigId:
-        stage_config = db.productstageconfig.find_unique(
-            where={"id": asset_set.stageConfigId},
+    if asset_set.stage and asset_set.productId:
+        stage_config = db.productstageconfig.find_first(
+            where={"productId": asset_set.productId, "stage": asset_set.stage},
             include={"buildMatrixEntries": True},
         )
         if stage_config and stage_config.buildMatrixEntries:
@@ -326,10 +312,21 @@ def get_latest_asset_set():
     db = get_db_client()
 
     stage_config_id = request.args.get("stageConfigId")
-    if not stage_config_id:
-        return bad_request("stageConfigId is required")
+    product_id = request.args.get("productId")
+    stage = request.args.get("stage")
 
-    where: dict = {"stageConfigId": stage_config_id}
+    where: dict = {}
+    if stage_config_id:
+        # Look up stage number from config
+        sc = db.productstageconfig.find_unique(where={"id": stage_config_id})
+        if sc:
+            where["productId"] = sc.productId
+            where["stage"] = sc.stage
+    elif product_id and stage:
+        where["productId"] = product_id
+        where["stage"] = int(stage)
+    else:
+        return bad_request("stageConfigId or (productId + stage) is required")
     status = request.args.get("status", "COMPLETE").upper()
     where["status"] = status
 
