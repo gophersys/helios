@@ -463,7 +463,9 @@
                   {/if}
                   <span class="font-mono text-2xs font-semibold text-text-primary">{assetTitle}</span>
                   <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {sourceBadgeClass(asset.source)}">{sourceLabel(asset.source)}</span>
-                  <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {statusBadgeClass(asset.status)}">{asset.status}</span>
+                  {#if asset.source !== 'MANUAL' && asset.status !== 'COMPLETE'}
+                    <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {statusBadgeClass(asset.status)}">{asset.status}</span>
+                  {/if}
                   {#if asset.modemFirmware}
                     <span class="flex items-center gap-1 rounded-full bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary" title="Modem firmware">
                       <Radio size={9} /> v{asset.modemFirmware.version}
@@ -566,7 +568,9 @@
                 {/if}
                 <span class="font-mono text-2xs font-semibold text-text-primary">{assetTitle}</span>
                 <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {sourceBadgeClass(asset.source)}">{sourceLabel(asset.source)}</span>
-                <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {statusBadgeClass(asset.status)}">{asset.status}</span>
+                {#if asset.source !== 'MANUAL' && asset.status !== 'COMPLETE'}
+                  <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {statusBadgeClass(asset.status)}">{asset.status}</span>
+                {/if}
                 {#if asset.modemFirmware}
                   <span class="flex items-center gap-1 rounded-full bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary" title="Modem firmware">
                     <Radio size={9} /> v{asset.modemFirmware.version}
