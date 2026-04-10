@@ -112,6 +112,30 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
             "validation": _tp_summary(latest_val) if latest_val else None,
             "manufacturing": _tp_summary(latest_mfg) if latest_mfg else None,
         }
+    # Manufacturing stats — aggregate DUT counts
+    mfg_stats = {"activeSessions": 0, "totalDevices": 0, "passedDevices": 0, "failedDevices": 0}
+    try:
+        db = get_db_client()
+        mfg_stats["activeSessions"] = db.manufacturingsession.count(
+            where={"productId": p.id, "status": "ACTIVE"}
+        )
+        mfg_run_filter = {
+            "productId": p.id,
+            "type": "MANUFACTURING",
+            "status": {"in": ["COMPLETED", "FAILED"]},
+        }
+        mfg_stats["totalDevices"] = db.runtarget.count(
+            where={"run": mfg_run_filter}
+        )
+        mfg_stats["passedDevices"] = db.runtarget.count(
+            where={"status": "PASSED", "run": mfg_run_filter}
+        )
+        mfg_stats["failedDevices"] = db.runtarget.count(
+            where={"status": {"in": ["FAILED", "ERROR"]}, "run": mfg_run_filter}
+        )
+    except Exception:
+        pass  # Non-critical — don't break the product endpoint
+    data["manufacturingStats"] = mfg_stats
     # Revision summary (always included for card display)
     if hasattr(p, "boards") and p.boards:
         revisions = []

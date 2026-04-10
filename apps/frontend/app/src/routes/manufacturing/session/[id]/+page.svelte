@@ -121,6 +121,7 @@
             existingExec.status = data.passed ? 'PASSED' : 'FAILED';
             existingExec.durationMs = data.durationMs;
             existingExec.errorMessage = data.errorMessage;
+            existingExec.measurements = data.measurements ?? undefined;
           } else {
             target.executions = [...target.executions, {
               id: `ws-${Date.now()}`,
@@ -130,6 +131,7 @@
               status: data.passed ? 'PASSED' : 'FAILED',
               durationMs: data.durationMs,
               errorMessage: data.errorMessage,
+              measurements: data.measurements ?? undefined,
               createdAt: new Date().toISOString(),
             } as TestExecution];
           }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
+  import MeasurementsDisplay from '$lib/components/ui/measurements-display.svelte';
   import UnitStageProgress from './unit-stage-progress.svelte';
   import { formatDuration } from '$lib/utils/formatting';
   import type { RunTarget } from '$lib/types/models';
@@ -33,6 +34,13 @@
 
   <!-- Execution progress -->
   <UnitStageProgress executions={unit.executions || []} />
+
+  <!-- Execution measurements -->
+  {#each (unit.executions || []) as exec (exec.id)}
+    {#if exec.measurements && Object.keys(exec.measurements).length > 0}
+      <MeasurementsDisplay measurements={exec.measurements} />
+    {/if}
+  {/each}
 
   <!-- Footer: duration + error -->
   <div class="mt-2 flex items-center justify-between">

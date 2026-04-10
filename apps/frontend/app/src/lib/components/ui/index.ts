@@ -21,6 +21,7 @@ export { default as TriggerBadge } from './trigger-badge.svelte';
 export { default as StagePills } from './stage-pills.svelte';
 export { default as UserAvatar } from './user-avatar.svelte';
 export { default as TimeDisplay } from './time-display.svelte';
+export { default as MeasurementsDisplay } from './measurements-display.svelte';
 
 // UI component types
 export type { SelectOption, Tab } from './types';

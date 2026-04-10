@@ -16,6 +16,7 @@
   import { formatDuration } from '$lib/utils/formatting';
   import { parseAnsi } from '$lib/utils/ansi';
   import { highlightTraceback } from '$lib/utils/python-highlight';
+  import MeasurementsDisplay from '$lib/components/ui/measurements-display.svelte';
   import { getRunContext } from './run-context.svelte';
 
   const ctx = getRunContext();
@@ -234,13 +235,7 @@
                 <!-- Measurements -->
                 {#if test.measurements && Object.keys(test.measurements).length > 0}
                   <div class="px-4 py-2 border-b border-border/30">
-                    <div class="flex flex-wrap gap-2">
-                      {#each Object.entries(test.measurements) as [key, value]}
-                        <span class="inline-flex items-center gap-1 rounded bg-surface-2/50 px-2 py-1 text-2xs font-mono text-text-secondary">
-                          {key}: <span class="text-accent">{typeof value === 'number' ? value.toFixed(3) : value}</span>
-                        </span>
-                      {/each}
-                    </div>
+                    <MeasurementsDisplay measurements={test.measurements} />
                   </div>
                 {/if}
 

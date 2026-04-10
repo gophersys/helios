@@ -94,6 +94,7 @@ class StepReporter:
         self.reporter = reporter
         self.step_name = step_name
         self.step_index = reporter._next_step_index()
+        self.measurements = {}
 
     def __enter__(self):
         """  enter  ."""
@@ -109,19 +110,57 @@ class StepReporter:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """  exit  ."""
         passed = exc_type is None
-        self.reporter._fire_callback("step-result", {
+        payload = {
             "testName": self.reporter._current_test_name,
             "deviceSerial": self.reporter._current_device,
             "stepIndex": self.step_index,
             "passed": passed,
             "errorMessage": str(exc_val) if exc_val else None,
-        })
+        }
+        if self.measurements:
+            payload["measurements"] = self.measurements
+        self.reporter._fire_callback("step-result", payload)
         self.reporter._current_step_index = None
         return False  # Don't suppress exceptions
+
+    def record(self, key: str, value, unit: str = None):
+        """Record a measurement for this step.
+
+        Usage::
+
+            with report.step("Verify voltage") as step:
+                voltage = read_voltage()
+                step.record("voltage_3v3", voltage, unit="V")
+                step.record("current", current, unit="mA")
+                assert voltage > 3.0
+        """
+        entry = {"value": value}
+        if unit:
+            entry["unit"] = unit
+        self.measurements[key] = entry
+
+    def record_dict(self, data: dict):
+        """Record multiple measurements at once.
+
+        Usage::
+
+            with report.step("Electrical state") as step:
+                step.record_dict({
+                    "batt_sys_voltage": {"value": 3.7, "unit": "V"},
+                    "current_a": {"value": 0.015, "unit": "A"},
+                    "voltage_3v3": {"value": 3.31, "unit": "V"},
+                })
+                assert ...
+        """
+        self.measurements.update(data)
 
 
 class NoOpStepReporter:
     """No-op step context manager for offline mode."""
+
+    def __init__(self):
+        """  init  ."""
+        self.measurements = {}
 
     def __enter__(self):
         """  enter  ."""
@@ -131,9 +170,21 @@ class NoOpStepReporter:
         """  exit  ."""
         return False
 
+    def record(self, key: str, value, unit: str = None):
+        """No-op measurement recording."""
+        pass
+
+    def record_dict(self, data: dict):
+        """No-op batch measurement recording."""
+        pass
+
 
 class NoOpReporter:
     """No-op reporter for offline/local runs. Same interface as ConcordReporter."""
+
+    def __init__(self):
+        """  init  ."""
+        self.execution_measurements: Dict[str, Any] = {}
 
     def step(self, name: str) -> NoOpStepReporter:
         """Return a no-op step context manager."""
@@ -176,6 +227,11 @@ class ConcordReporter:
         # Sub-step tracking (reset per test)
         self._step_counter: int = 0
         self._current_step_index: Optional[int] = None
+
+        # Execution-level measurements — test code can attach custom data
+        # that gets merged into the execution-result payload alongside
+        # auto-extracted power measurements. Reset per test.
+        self.execution_measurements: Dict[str, Any] = {}
 
         # Live log streaming state
         self._current_test_name: Optional[str] = None
@@ -388,9 +444,10 @@ class ConcordReporter:
 
         self._test_starts[nodeid] = time.monotonic()
 
-        # Reset step counter for each new test
+        # Reset step counter and execution measurements for each new test
         self._step_counter = 0
         self._current_step_index = None
+        self.execution_measurements = {}
 
         # Extract module and test name from nodeid
         # e.g., "tests/stage4/test_boot.py::test_power_cycle" -> module=test_boot, name=test_power_cycle
@@ -488,7 +545,9 @@ class ConcordReporter:
         if log_output:
             log_output = log_output.strip()[:10000]  # Cap at 10KB
 
-        # Extract power measurements from test context if available
+        # Build measurements dict from auto-extracted power data and
+        # any custom measurements the test code attached via
+        # reporter.execution_measurements.
         measurements = None
         ctx = item.funcargs.get("ctx")
         if ctx and hasattr(ctx, "power") and hasattr(ctx.power, "last_measurement"):
@@ -500,6 +559,13 @@ class ConcordReporter:
                     "power_mw": getattr(meas, "power_mw", None),
                     "duration_s": getattr(meas, "duration_s", None),
                 }
+
+        # Merge custom execution measurements (test code writes these
+        # via reporter.execution_measurements dict)
+        if self.execution_measurements:
+            if measurements is None:
+                measurements = {}
+            measurements.update(self.execution_measurements)
 
         # Resolve module from nodeid (same logic as test-start)
         parts = item.nodeid.split("::")

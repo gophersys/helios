@@ -174,6 +174,12 @@ export interface Product {
   testCount?: number;
   testAppStatus?: TestAppStatus;
   boards?: Board[];
+  manufacturingStats?: {
+    activeSessions: number;
+    totalDevices: number;
+    passedDevices: number;
+    failedDevices: number;
+  };
   createdAt: string;
   updatedAt: string;
 }

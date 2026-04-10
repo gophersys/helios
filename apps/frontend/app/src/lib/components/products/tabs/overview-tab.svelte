@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import {
     CircuitBoard, FlaskConical, Factory, Hammer,
     GitBranch, ExternalLink, Layers,
@@ -22,11 +21,17 @@
   );
   const activeRevisions = $derived(revisions.filter((r) => r.status === 'ACTIVE'));
   const stageConfigs = $derived((product as any).stageConfigs || []);
-  const valStages = $derived(stageConfigs.filter((s: any) => s.stage <= 100));
+  const valStages = $derived(stageConfigs.filter((s: any) => !s.type || s.type === 'VALIDATION'));
+  const mfgStages = $derived(stageConfigs.filter((s: any) => s.type === 'MANUFACTURING'));
 
-  // Unique stage numbers (rows)
+  // Validation stage numbers (rows)
   const stageNumbers = $derived(
     ([...new Set(valStages.map((s: any) => s.stage))] as number[]).sort((a, b) => a - b)
+  );
+
+  // Manufacturing stage numbers (rows)
+  const mfgStageNumbers = $derived(
+    ([...new Set(mfgStages.map((s: any) => s.stage))] as number[]).sort((a, b) => a - b)
   );
 
   // All revisions are columns — active revisions without stages show dashes
@@ -47,6 +52,21 @@
     return stageMatrix().get(`${stage}:${revId}`) ?? null;
   }
 
+  // Manufacturing stage lookup
+  const mfgStageMatrix = $derived(() => {
+    const map = new Map<string, any>();
+    for (const cfg of mfgStages) {
+      if (cfg.boardRevisionId) {
+        map.set(`${cfg.stage}:${cfg.boardRevisionId}`, cfg);
+      }
+    }
+    return map;
+  });
+
+  function getMfgStageCell(stage: number, revId: string): any | null {
+    return mfgStageMatrix().get(`${stage}:${revId}`) ?? null;
+  }
+
   let recentBuilds = $state<any[]>([]);
   let recentRuns = $state<any[]>([]);
   let totalBuilds = $state(0);
@@ -54,7 +74,8 @@
   let totalMfgSessions = $state(0);
   let loading = $state(true);
 
-  onMount(async () => {
+  async function fetchActivity() {
+    loading = true;
     try {
       const [buildsRes, runsRes, mfgRes] = await Promise.allSettled([
         api.get(`/v2/builds?productId=${product.id}&limit=5`),
@@ -80,6 +101,10 @@
     } finally {
       loading = false;
     }
+  }
+
+  $effect(() => {
+    if (product?.id) fetchActivity();
   });
 
   // Repo URLs from product metadata
@@ -98,32 +123,49 @@
     <div class="text-2xs text-text-tertiary">{activeRevisions.length === 1 ? '1 active revision' : `${activeRevisions.length} active revisions`}</div>
   </div>
 
-  <div class="rounded-lg border border-border bg-surface-0 p-3">
+  <a href="/builds?product={product.slug}" class="rounded-lg border border-border bg-surface-0 p-3 hover:border-accent hover:bg-surface-1 transition-colors cursor-pointer no-underline">
     <div class="flex items-center gap-2 text-text-tertiary mb-1">
       <Hammer size={14} />
       <span class="text-2xs font-medium uppercase tracking-wider">Builds</span>
     </div>
     <div class="text-xl font-semibold text-text-primary">{loading ? '—' : totalBuilds}</div>
     <div class="text-2xs text-text-tertiary">{totalBuilds === 0 ? 'no builds yet' : 'total builds'}</div>
-  </div>
+  </a>
 
-  <div class="rounded-lg border border-border bg-surface-0 p-3">
+  <a href="/validation?product={product.slug}" class="rounded-lg border border-border bg-surface-0 p-3 hover:border-accent hover:bg-surface-1 transition-colors cursor-pointer no-underline">
     <div class="flex items-center gap-2 text-text-tertiary mb-1">
       <FlaskConical size={14} />
       <span class="text-2xs font-medium uppercase tracking-wider">Validation</span>
     </div>
     <div class="text-xl font-semibold text-text-primary">{loading ? '—' : totalRuns}</div>
     <div class="text-2xs text-text-tertiary">{totalRuns === 0 ? 'no runs yet' : 'total runs'}</div>
-  </div>
+  </a>
 
-  <div class="rounded-lg border border-border bg-surface-0 p-3">
+  <a href="/manufacturing?product={product.slug}" class="rounded-lg border border-border bg-surface-0 p-3 hover:border-accent hover:bg-surface-1 transition-colors cursor-pointer no-underline">
     <div class="flex items-center gap-2 text-text-tertiary mb-1">
       <Factory size={14} />
       <span class="text-2xs font-medium uppercase tracking-wider">Manufacturing</span>
     </div>
-    <div class="text-xl font-semibold text-text-primary">{loading ? '—' : totalMfgSessions}</div>
-    <div class="text-2xs text-text-tertiary">{totalMfgSessions === 0 ? 'no sessions yet' : 'total sessions'}</div>
-  </div>
+    {#if product.manufacturingStats}
+      {#if product.manufacturingStats.totalDevices > 0}
+        <div class="text-xl font-semibold text-text-primary">{product.manufacturingStats.totalDevices}</div>
+        <div class="text-2xs text-text-tertiary">
+          devices tested ·
+          <span class="text-success">{product.manufacturingStats.passedDevices} passed</span> ·
+          <span class="text-error">{product.manufacturingStats.failedDevices} failed</span>
+        </div>
+        {#if product.manufacturingStats.activeSessions > 0}
+          <div class="text-2xs text-accent mt-0.5">{product.manufacturingStats.activeSessions} active session{product.manufacturingStats.activeSessions !== 1 ? 's' : ''}</div>
+        {/if}
+      {:else}
+        <div class="text-xl font-semibold text-text-primary">0</div>
+        <div class="text-2xs text-text-tertiary">no devices tested yet</div>
+      {/if}
+    {:else}
+      <div class="text-xl font-semibold text-text-primary">{loading ? '—' : totalMfgSessions}</div>
+      <div class="text-2xs text-text-tertiary">{totalMfgSessions === 0 ? 'no sessions yet' : 'total sessions'}</div>
+    {/if}
+  </a>
 </div>
 
 <!-- Repos -->
@@ -214,6 +256,68 @@
         </table>
       </div>
     {/if}
+
+    <!-- Manufacturing stage matrix -->
+    <div class="mt-6">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-text-primary">Manufacturing Stages</h3>
+        {#if mfgStages.length > 0}
+          {@const enabledCount = mfgStages.filter((s: any) => s.enabled).length}
+          <span class="text-2xs text-text-tertiary">{enabledCount} of {mfgStages.length} enabled</span>
+        {/if}
+      </div>
+      {#if mfgStages.length === 0}
+        <div class="rounded-lg border border-dashed border-border bg-surface-0 p-6 text-center">
+          <Factory size={24} class="mx-auto mb-2 text-text-tertiary opacity-30" />
+          <p class="text-sm text-text-secondary">No manufacturing stages configured</p>
+          <p class="text-2xs text-text-tertiary mt-1">Go to the Manufacturing tab to set up stages for this product.</p>
+        </div>
+      {:else}
+        <div class="rounded-lg border border-border overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="bg-surface-2">
+                <th class="sticky left-0 z-10 bg-surface-2 text-left px-4 py-2 text-2xs font-semibold uppercase tracking-wider text-text-tertiary border-r border-border-subtle min-w-[140px]">Stage</th>
+                {#each matrixRevisions as rev}
+                  <th class="text-center px-4 py-2 min-w-[120px]">
+                    <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded {rev.status === 'ACTIVE' ? 'bg-accent-muted text-accent' : 'bg-surface-1 text-text-tertiary'}">{rev.version}</span>
+                  </th>
+                {/each}
+              </tr>
+            </thead>
+            <tbody>
+              {#each mfgStageNumbers as stageNum}
+                {@const stageName = mfgStages.find((s: any) => s.stage === stageNum)?.name}
+                <tr class="border-t border-border-subtle">
+                  <td class="sticky left-0 z-10 bg-surface-0 px-4 py-2.5 border-r border-border-subtle">
+                    <div class="flex items-center gap-2">
+                      <div class="w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold bg-warning text-white shrink-0">
+                        {stageNum}
+                      </div>
+                      <span class="font-medium text-text-primary whitespace-nowrap">{stageName || `Stage ${stageNum}`}</span>
+                    </div>
+                  </td>
+                  {#each matrixRevisions as rev}
+                    {@const cell = getMfgStageCell(stageNum, rev.id)}
+                    <td class="text-center px-4 py-2.5">
+                      {#if cell?.enabled && cell.triggerTypes?.length > 0}
+                        <div class="flex flex-wrap justify-center gap-0.5">
+                          {#each cell.triggerTypes as trigger}
+                            <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-warning-muted text-warning whitespace-nowrap">{trigger}</span>
+                          {/each}
+                        </div>
+                      {:else}
+                        <span class="text-text-tertiary opacity-30">—</span>
+                      {/if}
+                    </td>
+                  {/each}
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+    </div>
   </div>
 
   <!-- Right: Recent activity -->

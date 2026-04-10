@@ -758,7 +758,7 @@ export function subscribeManufacturingRun(
   runId: string,
   callbacks: {
     onTargetStart?: (data: { runId: string; targetId: string; slotIndex: number; serialNumber?: string }) => void;
-    onExecutionResult?: (data: { runId: string; targetId: string; name: string; passed: boolean; durationMs?: number; errorMessage?: string }) => void;
+    onExecutionResult?: (data: { runId: string; targetId: string; name: string; passed: boolean; durationMs?: number; errorMessage?: string; measurements?: Record<string, unknown> | null }) => void;
     onTargetResult?: (data: { runId: string; targetId: string; slotIndex: number; status: string; durationMs?: number }) => void;
     onRunFinish?: (data: RunFinishEvent) => void;
     onRunStart?: (data: { runId: string; status: string }) => void;
@@ -779,6 +779,7 @@ export function subscribeManufacturingRun(
       passed: data.passed,
       durationMs: data.durationMs ?? undefined,
       errorMessage: data.errorMessage ?? undefined,
+      measurements: data.measurements ?? undefined,
     }),
     onRunFinish: (data) => callbacks.onRunFinish?.(data),
     onRunStart: (data) => callbacks.onRunStart?.(data),
