@@ -121,24 +121,14 @@
   // Group asset sets by stage config — includes backward compat for pre-fix build assets
   function assetsForConfig(config: ProductStageConfig): AssetSet[] {
     return filteredAssetSets
-      .filter(a =>
-        a.stageConfigId === config.id ||
-        // Backward compat: build-service assets without stageConfigId but matching stage number
-        (a.source === 'BUILD_SERVICE' && !a.stageConfigId && a.stage === config.stage)
-      )
+      .filter(a => a.stage === config.stage)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
-  // Ungrouped: no stageConfigId AND not matched by backward compat
-  const groupedConfigIds = $derived(new Set(revConfigs.map(c => c.id)));
+  // Ungrouped: assets that don't match any configured stage
+  const configuredStages = $derived(new Set(revConfigs.map(c => c.stage)));
   const ungroupedAssets = $derived(
-    filteredAssetSets.filter(a => {
-      if (a.stageConfigId && groupedConfigIds.has(a.stageConfigId)) return false;
-      if (a.source === 'BUILD_SERVICE' && !a.stageConfigId) {
-        return !revConfigs.some(c => c.stage === a.stage);
-      }
-      return !a.stageConfigId;
-    })
+    filteredAssetSets.filter(a => a.stage == null || !configuredStages.has(a.stage))
   );
 
   function sourceLabel(source: string): string {

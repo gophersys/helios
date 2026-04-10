@@ -313,6 +313,10 @@ def upload_asset_set_zip(product_id: str):
         if not filename:
             continue
 
+        # Skip modem label folders — modem firmware is attached separately
+        if label in modem_labels:
+            continue
+
         artifact_type = classify_file(filename)
         entry = matrix_by_label.get(label)
 
