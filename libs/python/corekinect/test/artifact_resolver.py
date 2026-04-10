@@ -681,6 +681,65 @@ class ArtifactResolver:
 
         return None
 
+    def get_modem_from_asset_set(self) -> Optional[str]:
+        """Download modem firmware from the AssetSet's modemFirmware reference.
+
+        Calls GET /v2/asset-sets/{id} to get the modem firmware storageKey,
+        then downloads the file from MinIO via the storage download endpoint.
+
+        Requires ASSET_SET_ID env var. Returns None if not set or if the
+        asset set has no modem firmware reference.
+        """
+        asset_set_id = os.environ.get("ASSET_SET_ID")
+        if not asset_set_id:
+            return None
+
+        try:
+            url = f"{self._api_url}/v2/asset-sets/{asset_set_id}"
+            resp = self._session.get(url, timeout=10)
+            if resp.status_code != 200:
+                self._log.debug(
+                    "Asset set %s fetch failed: %s", asset_set_id, resp.status_code,
+                )
+                return None
+
+            data = resp.json()
+            if "data" in data:
+                data = data["data"]
+
+            modem_fw = data.get("modemFirmware")
+            if not modem_fw or not modem_fw.get("storageKey"):
+                return None
+
+            storage_key = modem_fw["storageKey"]
+            filename = modem_fw.get("filename", "modem_firmware.zip")
+
+            # Download via the storage download endpoint (same pattern as AssetSetResolver)
+            download_url = f"{self._api_url}/v2/storage/download"
+            resp = self._session.get(
+                download_url, params={"key": storage_key}, timeout=120, stream=True,
+            )
+            if resp.status_code != 200:
+                self._log.warning(
+                    "Failed to download modem firmware from %s: %s",
+                    storage_key, resp.status_code,
+                )
+                return None
+
+            temp_dir = tempfile.mkdtemp(prefix="resolver_modem_")
+            self._temp_dirs.append(temp_dir)
+            local_path = os.path.join(temp_dir, filename)
+
+            with open(local_path, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            self._log.info("Downloaded modem firmware: %s → %s", storage_key, local_path)
+            return local_path
+        except Exception as e:
+            self._log.warning("Failed to resolve modem firmware from asset set: %s", e)
+            return None
+
     def get_modem_firmware_from_trigger(self) -> Optional[str]:
         """Deprecated: modem firmware should be managed via BoardRevision and
         included in AssetSets automatically. Returns None.

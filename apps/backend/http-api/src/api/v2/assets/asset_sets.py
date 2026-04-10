@@ -25,6 +25,7 @@ _ASSET_SET_INCLUDE = {
     "buildRun": True,
     "createdBy": True,
     "assets": True,
+    "modemFirmware": True,
 }
 
 
@@ -61,6 +62,7 @@ def _serialize_asset_set(asset_set) -> dict:
         "commitSha": asset_set.commitSha,
         "branch": asset_set.branch,
         "recipeVersionId": asset_set.recipeVersionId,
+        "modemFirmwareId": getattr(asset_set, "modemFirmwareId", None),
         "status": asset_set.status,
         "notes": asset_set.notes,
         "createdById": asset_set.createdById,
@@ -85,6 +87,18 @@ def _serialize_asset_set(asset_set) -> dict:
         data["assets"] = [_serialize_asset(a) for a in asset_set.assets]
     else:
         data["assets"] = []
+
+    if hasattr(asset_set, "modemFirmware") and asset_set.modemFirmware:
+        mf = asset_set.modemFirmware
+        data["modemFirmware"] = {
+            "id": mf.id,
+            "version": mf.version,
+            "filename": mf.filename,
+            "storageKey": mf.storageKey,
+            "sizeBytes": mf.sizeBytes,
+        }
+    else:
+        data["modemFirmware"] = None
 
     return data
 
