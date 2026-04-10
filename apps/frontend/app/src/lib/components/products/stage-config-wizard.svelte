@@ -871,57 +871,19 @@
 
       {#if currentStep === 1}
         <div class="max-w-3xl space-y-6">
-          <!-- Target revision (locked or selectable) -->
-          <div>
-            <h3 class="text-sm font-semibold text-text-primary mb-1">Target Hardware Revision</h3>
-            {#if revisionLocked && selectedRevision}
-              <!-- Locked — show confirmed revision -->
-              <div class="flex items-center gap-3 rounded-lg border-2 border-accent bg-accent-muted p-4">
-                <CircuitBoard size={20} class="text-accent" />
-                <div class="flex-1">
-                  <div class="flex items-center gap-2">
-                    <span class="text-sm font-bold text-text-primary">{selectedRevision.version}</span>
-                    <StatusBadge status={selectedRevision.status} />
-                    <span class="font-mono text-2xs text-text-tertiary">{selectedRevision.ckBoardsName}</span>
-                  </div>
-                  {#if selectedRevision.targets?.length}
-                    <div class="mt-1 flex gap-2">
-                      {#each selectedRevision.targets as t}
-                        <span class="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">{t.role}: {t.soc}</span>
-                      {/each}
-                    </div>
-                  {/if}
-                </div>
-                <Check size={18} class="text-accent" />
-              </div>
-            {:else}
-              <!-- Selectable -->
-              <p class="text-2xs text-text-tertiary mb-3">
-                {selectableRevisions.length === 1 ? 'Auto-selected — only one active revision.' : 'Which board revision to build firmware for and test against.'}
-              </p>
-              <div class="grid gap-2 sm:grid-cols-2">
-                {#each selectableRevisions as rev}
-                  <button
-                    onclick={() => (formRevisionId = rev.id)}
-                    class="flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-all
-                      {formRevisionId === rev.id ? 'border-accent bg-accent-muted shadow-sm' : 'border-border bg-surface-0 hover:border-text-tertiary'}"
-                  >
-                    <CircuitBoard size={20} class={formRevisionId === rev.id ? 'text-accent' : 'text-text-tertiary'} />
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2">
-                        <span class="text-sm font-bold text-text-primary">{rev.version}</span>
-                        <StatusBadge status={rev.status} />
-                      </div>
-                      <div class="font-mono text-2xs text-text-tertiary">{rev.ckBoardsName}</div>
-                    </div>
-                    {#if formRevisionId === rev.id}
-                      <Check size={18} class="text-accent shrink-0" />
-                    {/if}
-                  </button>
+          <!-- Target revision (read-only — implied by the subtab) -->
+          {#if selectedRevision}
+            <div class="flex items-center gap-3 rounded-lg border border-border bg-surface-0 p-3">
+              <CircuitBoard size={16} class="text-accent" />
+              <span class="text-sm font-medium text-text-primary">{selectedRevision.version}</span>
+              <span class="font-mono text-2xs text-text-tertiary">{selectedRevision.ckBoardsName}</span>
+              {#if selectedRevision.targets?.length}
+                {#each selectedRevision.targets as t}
+                  <span class="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">{t.role}: {t.soc}</span>
                 {/each}
-              </div>
-            {/if}
-          </div>
+              {/if}
+            </div>
+          {/if}
 
           <!-- Watch branch — dropdown from repo -->
           <div>
