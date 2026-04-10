@@ -100,12 +100,24 @@ _db_setup() {
   # Prisma generate + push + seed (shared by dev start and dev update)
   local db_url="postgresql://concord:concord@localhost:5433/concord"
   cd prisma
-  yarn prisma generate 2>&1 | grep -E "^✔|Generated" || true
-  DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
-    yarn prisma db push --accept-data-loss --skip-generate 2>&1 | grep -E "^🚀|Your database" || true
-  DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
-    PYTHONPATH=../libs/python:../libs:../libs/protocols \
-    python3 -m seed.main 2>&1 | grep -E "^===|Product access:" | head -5 || true
+  if [[ "${CI:-false}" == "true" ]]; then
+    yarn prisma generate 2>&1
+    DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
+      yarn prisma db push --accept-data-loss --skip-generate 2>&1
+  else
+    yarn prisma generate 2>&1 | grep -E "^✔|Generated" || true
+    DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
+      yarn prisma db push --accept-data-loss --skip-generate 2>&1 | grep -E "^🚀|Your database" || true
+  fi
+  if [[ "${CI:-false}" == "true" ]]; then
+    DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
+      PYTHONPATH=../libs/python:../libs:../libs/protocols \
+      python3 -m seed.main 2>&1
+  else
+    DATABASE_URL="${db_url}" DIRECT_DATABASE_URL="${db_url}" \
+      PYTHONPATH=../libs/python:../libs:../libs/protocols \
+      python3 -m seed.main 2>&1 | grep -E "^===|Product access:" | head -5 || true
+  fi
   cd ..
 }
 

@@ -77,6 +77,11 @@ npx nx start platform --output-style=stream --verbose
 log "Waiting for platform ready..."
 npx nx run platform:ready --output-style=stream --verbose
 
+# ── Debug: verify API is serving routes ────────────────────────
+log "Verifying API routes..."
+curl -s http://localhost:9001/v2/auth/dev-login -X POST -H "Content-Type: application/json" -d '{"email":"admin@concord.dev"}' -w "\nHTTP: %{http_code}\n" 2>&1 || true
+docker compose -f deploy/development/docker-compose.yaml logs http-api 2>&1 | tail -20 || true
+
 # ── Step 3: Run E2E tests ──────────────────────────────────────
 log "Running E2E tests..."
 set +e
