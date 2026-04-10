@@ -74,18 +74,14 @@ def seed_validation(db, product, b0_rev):
             "create": {
                 "name": "alpha-val-fixture-v1.2",
                 "boardRevisionId": b0_rev.id,
-                "type": "VALIDATION",
                 "revision": "1.2",
                 "capabilities": ["power", "button", "peltier", "charger_relay"],
-                "slotDefinitions": Json([{"index": 0, "label": "DUT"}]),
                 "profileTemplate": Json(ALPHA_B0_VAL_PROFILE),
                 "notes": "REV 1.2 MTIB carrier for Alpha B0 validation. Single-DUT bench.",
             },
             "update": {
-                "type": "VALIDATION",
                 "profileTemplate": Json(ALPHA_B0_VAL_PROFILE),
                 "capabilities": ["power", "button", "peltier", "charger_relay"],
-                "slotDefinitions": Json([{"index": 0, "label": "DUT"}]),
             },
         },
     )

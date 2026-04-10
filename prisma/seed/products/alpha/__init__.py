@@ -75,7 +75,7 @@ def seed_product(db) -> dict:
 
     # A0 revision (legacy)
     a0_rev = db.boardrevision.upsert(
-        where={"boardId_version": {"boardId": board.id, "version": "A0"}},
+        where={"ckBoardsName": "alpha_a0"},
         data={
             "create": {
                 "boardId": board.id, "version": "A0", "ckBoardsName": "alpha_a0",
@@ -95,7 +95,7 @@ def seed_product(db) -> dict:
 
     # B0 revision (current production)
     b0_rev = db.boardrevision.upsert(
-        where={"boardId_version": {"boardId": board.id, "version": "B0"}},
+        where={"ckBoardsName": "alpha_b0"},
         data={
             "create": {
                 "boardId": board.id, "version": "B0", "ckBoardsName": "alpha_b0",

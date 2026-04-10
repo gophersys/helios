@@ -52,14 +52,16 @@ def test_full_recipe_lifecycle(api):
     }, timeout=10)
     assert save.status_code in (200, 201)
 
-    # Publish it (requires stage number)
-    # Get the first board revision for this product
+    # Publish it (requires stage number + B0 board revision)
     detail = session.get(f"{base}/v2/products/{pid}", timeout=10).json()["data"]
     revisions = detail.get("boardRevisions", [])
-    board_rev_id = revisions[0]["id"] if revisions else None
+    # Use B0 revision (has stage configs), fall back to first available
+    b0_rev = next((r for r in revisions if r.get("version") == "B0"), None)
+    board_rev_id = b0_rev["id"] if b0_rev else (revisions[0]["id"] if revisions else None)
 
+    # Stage 5 (FUOTA) is the only enabled stage in the seed
     pub = session.post(f"{base}/v2/products/{pid}/recipe/publish", json={
-        "stage": 1,
+        "stage": 5,
         "boardRevisionId": board_rev_id,
     }, timeout=10)
     assert pub.status_code == 200, f"Publish failed: {pub.status_code} {pub.text[:300]}"

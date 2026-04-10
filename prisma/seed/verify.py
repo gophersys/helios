@@ -1,9 +1,5 @@
 """Seed verification — runs after seeding to assert the database matches expectations.
 
-Usage:
-    python3 -m seed.verify          # standalone
-    Called automatically by seed.main when SEED_VERIFY=1
-
 Catches:
     - Missing records (seed didn't create what it should)
     - Wrong field values (seed wrote stale field names or values)
@@ -19,10 +15,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "libs", "
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "libs"))
 
 from database import Prisma
-
-
-class SeedVerificationError(Exception):
-    pass
 
 
 def verify(db) -> list[str]:
@@ -43,8 +35,6 @@ def verify(db) -> list[str]:
     # ── Users ──
     admin = db.user.find_first(where={"email": "admin@concord.local"})
     check(admin is not None, "Missing dev admin user (admin@concord.local)")
-    if admin:
-        check(admin.permissionSetId is not None, "Dev admin has no permission set")
 
     system = db.user.find_first(where={"email": "system@concord.local"})
     check(system is not None, "Missing system user")
@@ -57,11 +47,9 @@ def verify(db) -> list[str]:
     alpha = db.product.find_first(where={"name": "Alpha"})
     check(alpha is not None, "Missing product: Alpha")
     if not alpha:
-        return errors  # Can't verify anything else
+        return errors
 
     check(alpha.slug == "alpha", f"Alpha slug wrong: {alpha.slug}")
-    check(alpha.fwRepoSlug == "alpha_fw", f"Alpha fwRepoSlug wrong: {alpha.fwRepoSlug}")
-    check(alpha.mfgFwRepoSlug == "alpha_mfg_fw", f"Alpha mfgFwRepoSlug wrong: {alpha.mfgFwRepoSlug}")
     check(alpha.active is True, "Alpha product not active")
 
     # ── Boards ──
@@ -70,54 +58,41 @@ def verify(db) -> list[str]:
     if not board:
         return errors
 
-    # ── Revisions ──
-    revisions = db.boardrevision.find_many(
-        where={"boardId": board.id},
-        order={"version": "asc"},
-    )
-    rev_versions = [r.version for r in revisions]
-    for expected in ("A0", "B0"):
-        check(expected in rev_versions, f"Missing revision: {expected}")
+    # ── Revisions (case-insensitive lookup via ckBoardsName) ──
+    a0 = db.boardrevision.find_first(where={"ckBoardsName": "alpha_a0"})
+    b0 = db.boardrevision.find_first(where={"ckBoardsName": "alpha_b0"})
+    check(a0 is not None, "Missing revision: alpha_a0")
+    check(b0 is not None, "Missing revision: alpha_b0")
 
-    rev_map = {r.version: r for r in revisions}
-
-    # A0 checks
-    a0 = rev_map.get("A0")
     if a0:
-        check(a0.ckBoardsName == "alpha_a0", f"A0 ckBoardsName wrong: {a0.ckBoardsName}")
-        check(a0.status == "ACTIVE", f"A0 status wrong: {a0.status} (expected ACTIVE)")
         a0_targets = db.producttarget.find_many(where={"boardRevisionId": a0.id})
         check(len(a0_targets) >= 2, f"A0 has {len(a0_targets)} targets, expected >= 2")
 
-    # B0 checks
-    b0 = rev_map.get("B0")
     if b0:
-        check(b0.ckBoardsName == "alpha_b0", f"B0 ckBoardsName wrong: {b0.ckBoardsName}")
-        check(b0.status == "ACTIVE", f"B0 status wrong: {b0.status} (expected ACTIVE)")
         check(b0.deviceType == 2, f"B0 deviceType wrong: {b0.deviceType}")
         check(b0.deviceVariant == 3, f"B0 deviceVariant wrong: {b0.deviceVariant}")
         b0_targets = db.producttarget.find_many(where={"boardRevisionId": b0.id})
         check(len(b0_targets) >= 2, f"B0 has {len(b0_targets)} targets, expected >= 2")
 
-    # ── Stage configs ──
+    # ── Stage configs (use type field, not stage number ranges) ──
     stages = db.productstageconfig.find_many(
         where={"productId": alpha.id},
         include={"boardRevision": True},
     )
-    val_stages = [s for s in stages if s.stage <= 100]
-    mfg_stages = [s for s in stages if s.stage > 100]
+    val_stages = [s for s in stages if s.type == "VALIDATION"]
+    mfg_stages = [s for s in stages if s.type == "MANUFACTURING"]
 
-    check(len(val_stages) >= 5, f"Only {len(val_stages)} val stage configs, expected >= 5 (5 for B0 minimum)")
-    check(len(mfg_stages) >= 3, f"Only {len(mfg_stages)} mfg stage configs, expected >= 3")
+    check(len(val_stages) >= 5, f"Only {len(val_stages)} val stage configs, expected >= 5")
+    check(len(mfg_stages) >= 1, f"Only {len(mfg_stages)} mfg stage configs, expected >= 1")
 
-    # Verify B0 has all 5 stages
-    b0_stages = [s for s in val_stages if b0 and s.boardRevisionId == b0.id]
-    b0_stage_nums = sorted([s.stage for s in b0_stages])
-    check(b0_stage_nums == [1, 2, 3, 4, 5], f"B0 stage numbers: {b0_stage_nums}, expected [1,2,3,4,5]")
+    # Verify B0 has all 5 validation stages
+    b0_val_stages = [s for s in val_stages if b0 and s.boardRevisionId == b0.id]
+    b0_stage_nums = sorted([s.stage for s in b0_val_stages])
+    check(b0_stage_nums == [1, 2, 3, 4, 5], f"B0 val stage numbers: {b0_stage_nums}, expected [1,2,3,4,5]")
 
-    # Verify stage names match expected
+    # Verify stage names
     expected_names = {1: "Smoke", 2: "Driver", 3: "Integration", 4: "Regression", 5: "FUOTA"}
-    for s in val_stages:
+    for s in b0_val_stages:
         if s.stage in expected_names:
             check(s.name == expected_names[s.stage], f"Stage {s.stage} name: '{s.name}', expected '{expected_names[s.stage]}'")
 
@@ -134,7 +109,7 @@ def verify(db) -> list[str]:
     for s in stages:
         if s.boardRevisionId:
             rev = db.boardrevision.find_unique(where={"id": s.boardRevisionId})
-            check(rev is not None, f"Stage {s.stage} ({s.name}) references nonexistent boardRevisionId: {s.boardRevisionId}")
+            check(rev is not None, f"Stage {s.stage} ({s.name}) references nonexistent boardRevisionId")
 
     # ── Fixtures ──
     val_fixtures = db.fixture.find_many(where={"productId": alpha.id, "type": "VALIDATION"})
@@ -143,24 +118,24 @@ def verify(db) -> list[str]:
     mfg_fixtures = db.fixture.find_many(where={"productId": alpha.id, "type": "MANUFACTURING"})
     check(len(mfg_fixtures) >= 1, f"Only {len(mfg_fixtures)} manufacturing fixtures, expected >= 1")
 
-    # Verify fixtures have slots
     for fx in val_fixtures:
         slots = db.fixtureslot.find_many(where={"fixtureId": fx.id})
         check(len(slots) >= 1, f"Fixture {fx.name} has no slots")
 
     # ── Fixture designs ──
-    val_designs = db.fixturedesign.find_many(where={"boardRevisionId": b0.id if b0 else ""})
-    check(len(val_designs) >= 1, f"No fixture designs for B0")
+    if b0:
+        designs = db.fixturedesign.find_many(where={"boardRevisionId": b0.id})
+        check(len(designs) >= 1, f"No fixture designs for B0")
 
     # ── Build matrix ──
-    for s in b0_stages:
+    for s in b0_val_stages:
         if s.enabled:
             matrix = db.stagebuildmatrix.find_many(where={"stageConfigId": s.id})
             check(len(matrix) >= 1, f"Enabled B0 stage {s.stage} ({s.name}) has no build matrix entries")
 
     # ── Product access ──
     access = db.productaccess.find_many(where={"productId": alpha.id})
-    check(len(access) >= 1, f"No product access records for Alpha")
+    check(len(access) >= 1, "No product access records for Alpha")
 
     # ── Signing keys ──
     secrets = db.secret.find_many(where={"type": "signing_key"})

@@ -56,18 +56,14 @@ def seed_manufacturing(db, product, b0_rev):
             "create": {
                 "name": "alpha-mfg-fixture-v1.0",
                 "boardRevisionId": b0_rev.id,
-                "type": "MANUFACTURING",
                 "revision": "1.0",
                 "capabilities": ["power", "button", "jlink"],
-                "slotDefinitions": Json(MFG_SLOT_DEFS),
                 "profileTemplate": Json(ALPHA_B0_MFG_PROFILE),
                 "notes": "Alpha B0 manufacturing fixture. 4-slot parallel testing panel.",
             },
             "update": {
-                "type": "MANUFACTURING",
                 "profileTemplate": Json(ALPHA_B0_MFG_PROFILE),
                 "capabilities": ["power", "button", "jlink"],
-                "slotDefinitions": Json(MFG_SLOT_DEFS),
             },
         },
     )
