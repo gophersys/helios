@@ -42,11 +42,17 @@ def seed():
         alpha = seed_product(db)
 
         # ── 3. Product-specific validation + manufacturing ──
-        from seed.products.alpha.validation import seed_validation
-        seed_validation(db, alpha["product"], alpha["b0_rev"])
+        try:
+            from seed.products.alpha.validation import seed_validation
+            seed_validation(db, alpha["product"], alpha["b0_rev"])
+        except Exception as e:
+            print(f"\n⚠ Validation seed failed (non-fatal): {e}")
 
-        from seed.products.alpha.manufacturing import seed_manufacturing
-        seed_manufacturing(db, alpha["product"], alpha["b0_rev"])
+        try:
+            from seed.products.alpha.manufacturing import seed_manufacturing
+            seed_manufacturing(db, alpha["product"], alpha["b0_rev"])
+        except Exception as e:
+            print(f"\n⚠ Manufacturing seed failed (non-fatal): {e}")
 
         # ── 4. Users + product access (depends on products existing) ──
         from seed.platform import seed_users
