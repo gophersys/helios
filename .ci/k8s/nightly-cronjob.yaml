@@ -84,6 +84,12 @@ spec:
                     cat "$cert" >> /etc/ssl/certs/ca-certificates.crt 2>/dev/null || true
                   done
 
+                  # Authenticate with Docker Hub (avoids 100 pull/6hr anonymous limit)
+                  if [[ -n "${DOCKERHUB_USERNAME:-}" ]] && [[ -n "${DOCKERHUB_TOKEN:-}" ]]; then
+                    echo "[ci] Logging into Docker Hub..."
+                    echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin 2>&1
+                  fi
+
                   # Clone repo
                   echo "[ci] Cloning ${BRANCH:-main}..."
                   export GIT_SSH_COMMAND="ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no"
@@ -105,6 +111,18 @@ spec:
                   value: "unix:///var/run/docker.sock"
                 - name: HOME
                   value: "/root"
+                - name: DOCKERHUB_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: dockerhub-credentials
+                      key: username
+                      optional: true
+                - name: DOCKERHUB_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: dockerhub-credentials
+                      key: token
+                      optional: true
               volumeMounts:
                 - name: docker-socket
                   mountPath: /var/run
