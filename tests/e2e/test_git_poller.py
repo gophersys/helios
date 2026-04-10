@@ -24,7 +24,11 @@ def test_poller_attempts_repo_load(platform):
 
     It may find 0 repos (no SSH key in CI) or 1+ repos -- either way,
     the log line proves it connected to the API and ran its fetch loop.
+    Requires Bitbucket SSH access — skipped when running in CI.
     """
+    if os.environ.get("CI") == "true":
+        pytest.skip("git-poller needs Bitbucket SSH access (not available in CI)")
+
     base = _compose_cmd(platform)
     service = "git-poller" if not platform.get("compose_file") else "test-poller"
 
