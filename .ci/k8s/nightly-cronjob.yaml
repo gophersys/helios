@@ -38,7 +38,9 @@ spec:
             - name: docker-socket
               emptyDir: {}
             - name: dind-storage
-              emptyDir: {}
+              hostPath:
+                path: /var/lib/concord/ci/docker
+                type: DirectoryOrCreate
             - name: workspace
               emptyDir: {}
             - name: ssh-key
