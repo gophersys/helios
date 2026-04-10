@@ -96,13 +96,25 @@ def validate_zip(
         for label in sorted(missing_labels):
             result.errors.append(f"Missing required label directory: {label}")
 
+    # Check for unexpected labels — only allow labels that are in the required set
+    extra_labels = set(found_labels.keys()) - required_labels
+    if extra_labels:
+        # Check if any are skipped modem labels — reject those explicitly
+        modem_extras = extra_labels & skip_labels
+        other_extras = extra_labels - skip_labels
+        for label in sorted(modem_extras):
+            result.valid = False
+            result.errors.append(f"Zip contains '{label}/' — modem firmware should not be in the zip. Select it from the modem firmware dropdown instead.")
+        for label in sorted(other_extras):
+            result.valid = False
+            result.errors.append(f"Unexpected label directory: {label} (not in build matrix)")
+
     # Check artifact types per label
     matrix_by_label = {entry.label: entry for entry in build_matrix_entries}
     for label, files in found_labels.items():
         entry = matrix_by_label.get(label)
         if not entry:
-            result.warnings.append(f"Extra label directory: {label} (not in build matrix)")
-            continue
+            continue  # Already flagged as unexpected above
 
         exts = {f.rsplit(".", 1)[-1].lower() if "." in f else "" for f in files}
 

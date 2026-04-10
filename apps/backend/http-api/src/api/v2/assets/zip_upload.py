@@ -56,10 +56,28 @@ def _try_parse_version(zf: zipfile.ZipFile) -> tuple[str | None, str | None]:
     for name in zf.namelist():
         normalized = name.replace("\\", "/")
         filename = normalized.split("/")[-1]
-        if filename.endswith(".hex"):
+        if filename.endswith(".hex") or filename.endswith(".cfw"):
             match = version_pattern.search(filename)
             if match:
                 return match.group(1), "filename"
+
+    # 3. Try parsing version from hex file content (MCUboot image header)
+    # The MCUboot header contains a version at offset 0x20 in the binary.
+    # Intel HEX files encode this differently, but we can look for
+    # version strings embedded in the binary data.
+    for name in zf.namelist():
+        normalized = name.replace("\\", "/")
+        filename = normalized.split("/")[-1]
+        if filename.endswith(".hex"):
+            try:
+                content = zf.read(name).decode("ascii", errors="ignore")
+                # Look for version strings in the hex content
+                # Common patterns: "APP_VERSION 1.2.3", "FW_VERSION=1.2.3"
+                ver_match = re.search(r"(?:APP_VERSION|FW_VERSION|VERSION)[=: ]+(\d+\.\d+\.\d+(?:\.\d+)?)", content)
+                if ver_match:
+                    return ver_match.group(1), "hex_content"
+            except Exception:
+                pass
 
     return None, None
 

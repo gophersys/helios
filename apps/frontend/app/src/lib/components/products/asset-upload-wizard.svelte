@@ -356,7 +356,7 @@
             <div>
               <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Expected contents</h4>
               <div class="grid grid-cols-2 gap-1">
-                {#each selectedConfig.buildMatrix as entry}
+                {#each selectedConfig.buildMatrix.filter((e: any) => e.fwType !== 'modem') as entry}
                   <div class="flex items-center gap-2 text-2xs text-text-secondary bg-surface-0 rounded px-2 py-1">
                     <span class="font-mono font-medium">{entry.label}/</span>
                     <span class="text-text-tertiary">
@@ -421,7 +421,7 @@
                 <h4 class="text-2xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">Validation results</h4>
                 <div class="space-y-1">
                   {#if selectedConfig?.buildMatrix}
-                    {#each selectedConfig.buildMatrix as entry}
+                    {#each selectedConfig.buildMatrix.filter((e: any) => e.fwType !== 'modem') as entry}
                       <div class="flex items-center gap-2 text-sm">
                         {#if validationResult.labelsFound.includes(entry.label)}
                           <Check class="text-success shrink-0" size={16} strokeWidth={2.5} />
