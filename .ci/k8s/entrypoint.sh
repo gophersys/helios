@@ -137,12 +137,14 @@ log "═════════════════════════
 log "STEP 1: Devcontainer setup"
 log "═══════════════════════════════════════════════════"
 
-if bash .devcontainer/ctl.sh start; then
+bash .devcontainer/ctl.sh start
+SETUP_EXIT=$?
+if [[ ${SETUP_EXIT} -eq 0 ]]; then
   STEP_SETUP=0
   log "Devcontainer setup complete"
 else
   STEP_SETUP=2
-  err "Devcontainer setup FAILED (exit $?)"
+  err "Devcontainer setup FAILED (exit ${SETUP_EXIT})"
   err "Cannot continue — aborting"
   exit 1  # triggers cleanup trap
 fi
@@ -162,12 +164,14 @@ log "═════════════════════════
 log "STEP 2: Start development platform"
 log "═══════════════════════════════════════════════════"
 
-if npx nx start platform --output-style=stream --verbose; then
+npx nx start platform --output-style=stream --verbose
+PLATFORM_EXIT=$?
+if [[ ${PLATFORM_EXIT} -eq 0 ]]; then
   STEP_PLATFORM=0
   log "Platform started successfully"
 else
   STEP_PLATFORM=2
-  err "Platform start FAILED (exit $?)"
+  err "Platform start FAILED (exit ${PLATFORM_EXIT})"
   err "Cannot run tests without a running platform — aborting"
   exit 1  # triggers cleanup trap
 fi
@@ -180,12 +184,14 @@ log "═════════════════════════
 log "STEP 3: E2E tests"
 log "═══════════════════════════════════════════════════"
 
-if npx nx run platform:test:e2e --output-style=stream --verbose 2>&1 | tee /tmp/e2e-output.log; then
+npx nx run platform:test:e2e --output-style=stream --verbose 2>&1 | tee /tmp/e2e-output.log
+TEST_EXIT=${PIPESTATUS[0]}
+if [[ ${TEST_EXIT} -eq 0 ]]; then
   STEP_TESTS=0
   log "E2E tests passed"
 else
   STEP_TESTS=2
-  err "E2E tests FAILED"
+  err "E2E tests FAILED (exit ${TEST_EXIT})"
 fi
 
 # ═════════════════════════════════════════════════════════════════
