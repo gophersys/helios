@@ -35,6 +35,7 @@
 </script>
 
 <TestAppStatusCard status={product.testAppStatus?.validation ?? null} type="VALIDATION" />
+<TestPackageList productId={product.id} packageType="VALIDATION" {onRefresh} />
 
 {#if activeRevisions.length === 0}
   <div class="text-center py-8">
@@ -57,7 +58,6 @@
   </div>
 
   {#if selectedRevision}
-    <TestPackageList productId={product.id} packageType="VALIDATION" boardRevisionId={selectedRevision.id} {onRefresh} />
     <ProductStages
       productId={product.id}
       productName={product.name}
