@@ -2,18 +2,19 @@
 
 Usage:
     corectl test init --product sigma5 --board sigma5_a0
+    corectl test init --product sigma5 --board sigma5_a0 --type manufacturing
     corectl test validate [--path .] [--strict]
     corectl test run smoke [--timeout 30]
     corectl test run regression --marker health_check
     corectl test package
     corectl test upload --env staging
+    corectl test migrate
 """
 
-import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import click
 import yaml
@@ -22,19 +23,104 @@ from ..config import get_api_url, get_tls_verify, require_auth
 from ..api import ConcordAPI
 
 
-MANIFEST_NAME = "concord.test.yaml"
+MANIFEST_NAME = "concord.yaml"
+LEGACY_MANIFEST_NAME = "concord.test.yaml"
 
 # Standard stage directories — convention, not configuration
 STANDARD_STAGES = ["smoke", "driver", "integration", "regression", "fuota"]
 MANUFACTURING_STAGES = ["manufacturing"]
 ALL_STAGES = STANDARD_STAGES + MANUFACTURING_STAGES
 
-# Required files in a valid test project
-REQUIRED_FILES = [
+# Required files in a valid test project (v2)
+REQUIRED_FILES_V2 = [
+    "concord.yaml",
+    "conftest.py",
+    "pytest.ini",
+]
+
+# Required files for legacy v1 projects
+REQUIRED_FILES_V1 = [
     "concord.test.yaml",
     "conftest.py",
     "pytest.ini",
 ]
+
+# Try to import the manifest library (optional — not always installed)
+try:
+    from corekinect.manifest.loader import load_manifest, find_manifest, load_manifest_raw
+    from corekinect.manifest.schema import validate_manifest as schema_validate_manifest
+    from corekinect.manifest.types import Manifest
+
+    HAS_MANIFEST_LIB = True
+except ImportError:
+    HAS_MANIFEST_LIB = False
+
+
+def _find_manifest_path(project_dir: Path) -> Tuple[Path, bool]:
+    """Find the manifest file in project_dir.
+
+    Returns (path, is_v2) — looks for concord.yaml first, then concord.test.yaml.
+    Raises SystemExit if neither is found.
+    """
+    v2_path = project_dir / MANIFEST_NAME
+    if v2_path.exists():
+        return v2_path, True
+
+    v1_path = project_dir / LEGACY_MANIFEST_NAME
+    if v1_path.exists():
+        return v1_path, False
+
+    click.echo(f"No {MANIFEST_NAME} or {LEGACY_MANIFEST_NAME} found", err=True)
+    raise SystemExit(1)
+
+
+def _load_manifest_yaml(manifest_path: Path) -> dict:
+    """Load a manifest file as a raw dict."""
+    with open(manifest_path) as f:
+        data = yaml.safe_load(f) or {}
+    return data
+
+
+def _warn_legacy():
+    """Print a migration warning for v1 manifests."""
+    click.echo(click.style(
+        f"  ⚠ Using legacy {LEGACY_MANIFEST_NAME} — run 'corectl test migrate' to upgrade to {MANIFEST_NAME}",
+        fg="yellow",
+    ))
+
+
+def _get_slug(manifest: dict, is_v2: bool) -> str:
+    """Extract the product slug from a manifest dict."""
+    if is_v2:
+        return manifest.get("product", {}).get("slug", "unknown")
+    return manifest.get("product", {}).get("name", "unknown")
+
+
+def _get_version(manifest: dict, is_v2: bool) -> str:
+    """Extract the package version from a manifest dict."""
+    if is_v2:
+        return manifest.get("package", {}).get("version", "0.0.0")
+    return manifest.get("test_version", manifest.get("version", "dev"))
+
+
+def _get_framework(manifest: dict, is_v2: bool) -> str:
+    """Extract the framework constraint from a manifest dict."""
+    if is_v2:
+        return manifest.get("package", {}).get("framework", "unknown")
+    return manifest.get("framework", "unknown")
+
+
+def _get_package_type(manifest: dict, is_v2: bool) -> str:
+    """Extract or detect the package type."""
+    if is_v2:
+        return manifest.get("package", {}).get("type", "validation").upper()
+    # v1: auto-detect from stages
+    stages = manifest.get("stages", {})
+    has_manufacturing = stages.get("manufacturing", False)
+    has_validation = any(stages.get(s, False) for s in STANDARD_STAGES)
+    if has_manufacturing and not has_validation:
+        return "MANUFACTURING"
+    return "VALIDATION"
 
 
 # =============================================================================
@@ -64,11 +150,89 @@ class ValidationResult:
         return len(self.errors) == 0
 
 
-def _validate_structure(project_dir: Path, result: ValidationResult) -> dict:
-    """Level 1: Does the project look right?"""
+def _validate_structure_v2(project_dir: Path, result: ValidationResult) -> dict:
+    """Level 1 for v2 manifests: JSON Schema validation + file checks."""
+
+    manifest_path = project_dir / MANIFEST_NAME
+    manifest = _load_manifest_yaml(manifest_path)
 
     # Required files
-    for filename in REQUIRED_FILES:
+    for filename in REQUIRED_FILES_V2:
+        if (project_dir / filename).exists():
+            result.ok(f"{filename}")
+        else:
+            result.error(f"Missing: {filename}")
+
+    # pyproject.toml (recommended, not required)
+    if (project_dir / "pyproject.toml").exists():
+        result.ok("pyproject.toml")
+    else:
+        result.warn("No pyproject.toml — needed for standalone installation")
+
+    if not manifest:
+        result.error(f"{MANIFEST_NAME} is empty or invalid YAML")
+        return manifest
+
+    # JSON Schema validation via the manifest library
+    if HAS_MANIFEST_LIB:
+        schema_result = schema_validate_manifest(manifest)
+        for err in schema_result.errors:
+            result.error(f"Schema: {err}")
+        for warn in schema_result.warnings:
+            result.warn(f"Schema: {warn}")
+        if not schema_result.valid:
+            return manifest
+    else:
+        result.warn("corekinect.manifest not installed — skipping JSON Schema validation")
+        # Basic field checks as fallback
+        for fld in ["schema", "package", "product", "fixture"]:
+            if fld not in manifest:
+                result.error(f"Manifest missing '{fld}' field")
+
+    pkg_type = manifest.get("package", {}).get("type", "validation")
+
+    # Validate stage/step directories exist
+    if pkg_type == "validation":
+        stages = manifest.get("stages", {})
+        if not stages:
+            result.error("No stages defined in manifest")
+        for stage_name, stage_cfg in stages.items():
+            directory = stage_cfg.get("directory", f"tests/{stage_name}") if isinstance(stage_cfg, dict) else f"tests/{stage_name}"
+            stage_dir = project_dir / directory
+            if stage_dir.is_dir():
+                test_files = list(stage_dir.glob("test_*.py"))
+                if test_files:
+                    result.ok(f"{directory}/ ({len(test_files)} test files)")
+                else:
+                    result.warn(f"{directory}/ has no test files")
+            else:
+                result.error(f"Stage '{stage_name}' directory missing: {directory}")
+    elif pkg_type == "manufacturing":
+        steps = manifest.get("steps", [])
+        if not steps:
+            result.error("No steps defined in manifest")
+        for step in steps:
+            module = step.get("module", "")
+            result.ok(f"Step: {step.get('name', '?')} -> {module}")
+
+    # Fixture profile
+    fixture = manifest.get("fixture", {})
+    profile_path = fixture.get("profile", "")
+    if profile_path:
+        full_path = project_dir / profile_path
+        if full_path.exists():
+            result.ok(f"Fixture profile: {profile_path}")
+        else:
+            result.warn(f"Fixture profile not found: {profile_path}")
+
+    return manifest
+
+
+def _validate_structure_v1(project_dir: Path, result: ValidationResult) -> dict:
+    """Level 1 for v1 (legacy) manifests: original structure checks."""
+
+    # Required files
+    for filename in REQUIRED_FILES_V1:
         if (project_dir / filename).exists():
             result.ok(f"{filename}")
         else:
@@ -82,24 +246,24 @@ def _validate_structure(project_dir: Path, result: ValidationResult) -> dict:
 
     # Manifest
     manifest = {}
-    manifest_path = project_dir / MANIFEST_NAME
+    manifest_path = project_dir / LEGACY_MANIFEST_NAME
     if manifest_path.exists():
         with open(manifest_path) as f:
             manifest = yaml.safe_load(f) or {}
 
     if not manifest:
-        result.error(f"{MANIFEST_NAME} is empty or invalid YAML")
+        result.error(f"{LEGACY_MANIFEST_NAME} is empty or invalid YAML")
         return manifest
 
     # Required manifest fields
-    for field in ["version", "framework", "product"]:
-        if field not in manifest:
-            result.error(f"Manifest missing '{field}' field")
+    for fld in ["version", "framework", "product"]:
+        if fld not in manifest:
+            result.error(f"Manifest missing '{fld}' field")
 
     product = manifest.get("product", {})
-    for field in ["name", "board"]:
-        if field not in product:
-            result.error(f"Manifest product missing '{field}' field")
+    for fld in ["name", "board"]:
+        if fld not in product:
+            result.error(f"Manifest product missing '{fld}' field")
 
     # Stage directories
     stages = manifest.get("stages", {})
@@ -138,14 +302,21 @@ def _validate_structure(project_dir: Path, result: ValidationResult) -> dict:
     return manifest
 
 
-def _validate_semantics(project_dir: Path, manifest: dict, result: ValidationResult) -> None:
+def _validate_semantics(project_dir: Path, manifest: dict, is_v2: bool, result: ValidationResult) -> None:
     """Level 2: Does the project make sense?"""
 
     product = manifest.get("product", {})
 
-    # Device type/variant should be non-zero for real products
-    dt = product.get("device_type_id", 0)
-    dv = product.get("device_variant_id", 0)
+    if is_v2:
+        # v2: device info is nested under product.device
+        device = product.get("device", {})
+        dt = device.get("type_id", 0)
+        dv = device.get("variant_id", 0)
+    else:
+        # v1: flat fields on product
+        dt = product.get("device_type_id", 0)
+        dv = product.get("device_variant_id", 0)
+
     if dt == 0 or dv == 0:
         result.warn(f"Device type={dt}, variant={dv} — set these for production use")
 
@@ -186,19 +357,29 @@ def _validate_semantics(project_dir: Path, manifest: dict, result: ValidationRes
     pytest_ini = project_dir / "pytest.ini"
     if pytest_ini.exists():
         ini_content = pytest_ini.read_text()
-        stages = manifest.get("stages", {})
 
-        if stages.get("regression") and "health_check" not in ini_content:
-            result.warn("Regression enabled but 'health_check' marker not in pytest.ini")
-        if stages.get("fuota") and "fuota_fast" not in ini_content:
-            result.warn("FUOTA enabled but 'fuota_fast' marker not in pytest.ini")
+        if is_v2:
+            # v2: check markers declared in stage configs
+            stages = manifest.get("stages", {})
+            for stage_name, stage_cfg in stages.items():
+                if isinstance(stage_cfg, dict):
+                    for marker in stage_cfg.get("markers", []):
+                        if marker not in ini_content:
+                            result.warn(f"Stage '{stage_name}' uses marker '{marker}' not in pytest.ini")
+        else:
+            # v1: hardcoded marker checks
+            stages = manifest.get("stages", {})
+            if stages.get("regression") and "health_check" not in ini_content:
+                result.warn("Regression enabled but 'health_check' marker not in pytest.ini")
+            if stages.get("fuota") and "fuota_fast" not in ini_content:
+                result.warn("FUOTA enabled but 'fuota_fast' marker not in pytest.ini")
 
 
-def _validate_compatibility(project_dir: Path, manifest: dict, result: ValidationResult) -> None:
+def _validate_compatibility(project_dir: Path, manifest: dict, is_v2: bool, result: ValidationResult) -> None:
     """Level 3: Will it work with the platform?"""
 
     # Check framework version
-    required_version = manifest.get("framework", "")
+    required_version = _get_framework(manifest, is_v2)
     try:
         import corekinect
         installed = getattr(corekinect, "__version__", "unknown")
@@ -214,22 +395,23 @@ def _validate_compatibility(project_dir: Path, manifest: dict, result: Validatio
     except ImportError:
         result.warn(f"corekinect not installed — cannot verify compatibility")
 
-    # Check stage build labels
-    try:
-        from corekinect.stages import get_required_labels, Stage
+    # Check stage build labels (v1 only — v2 stages are self-describing)
+    if not is_v2:
+        try:
+            from corekinect.stages import get_required_labels, Stage
 
-        stages = manifest.get("stages", {})
-        for stage_name, enabled in stages.items():
-            if not enabled:
-                continue
-            try:
-                stage = Stage(stage_name)
-                labels = get_required_labels(stage)
-                result.ok(f"{stage_name} requires {len(labels)} builds: {labels}")
-            except (ValueError, KeyError):
-                pass  # Non-standard stage, skip
-    except ImportError:
-        pass  # Framework not installed
+            stages = manifest.get("stages", {})
+            for stage_name, enabled in stages.items():
+                if not enabled:
+                    continue
+                try:
+                    stage = Stage(stage_name)
+                    labels = get_required_labels(stage)
+                    result.ok(f"{stage_name} requires {len(labels)} builds: {labels}")
+                except (ValueError, KeyError):
+                    pass  # Non-standard stage, skip
+        except ImportError:
+            pass  # Framework not installed
 
     # Try pytest collection
     try:
@@ -260,48 +442,83 @@ def _validate_compatibility(project_dir: Path, manifest: dict, result: Validatio
 
 @click.group()
 def test():
-    """Manage validation test projects."""
+    """Manage validation and manufacturing test projects."""
     pass
 
 
 @test.command()
 @click.option("--product", prompt="Product name", help="Product name (e.g., sigma5)")
 @click.option("--board", prompt="Board name", help="Board revision (e.g., sigma5_a0)")
+@click.option("--type", "pkg_type", type=click.Choice(["validation", "manufacturing"]),
+              default="validation", help="Package type (default: validation)")
 @click.argument("path", default=".", required=False)
-def init(product: str, board: str, path: str):
-    """Scaffold a new validation test project."""
+def init(product: str, board: str, pkg_type: str, path: str):
+    """Scaffold a new test project (validation or manufacturing)."""
     project_dir = Path(path)
     project_dir.mkdir(parents=True, exist_ok=True)
 
+    # Board class name: alpha_b0 -> AlphaB0
+    board_class = "".join(part.capitalize() for part in board.split("_"))
+
+    if pkg_type == "manufacturing":
+        _init_manufacturing(project_dir, product, board, board_class)
+    else:
+        _init_validation(project_dir, product, board, board_class)
+
+
+def _init_validation(project_dir: Path, product: str, board: str, board_class: str):
+    """Scaffold a validation test project with v2 manifest."""
+
     # Create directory structure
-    (project_dir / "fixtures").mkdir(exist_ok=True)
+    (project_dir / "fixtures" / board).mkdir(parents=True, exist_ok=True)
     (project_dir / "scripts").mkdir(exist_ok=True)
     (project_dir / "deploy").mkdir(exist_ok=True)
     (project_dir / "tests" / "common").mkdir(parents=True, exist_ok=True)
 
-    for stage in STANDARD_STAGES:
+    enabled_stages = ["smoke", "regression", "fuota"]
+    for stage in enabled_stages:
         stage_dir = project_dir / "tests" / stage
-        stage_dir.mkdir(exist_ok=True)
+        stage_dir.mkdir(parents=True, exist_ok=True)
         (stage_dir / "__init__.py").touch()
         (stage_dir / "conftest.py").write_text(
-            f'"""Stage {STANDARD_STAGES.index(stage) + 1}: {stage.title()} tests."""\n'
+            f'"""Stage: {stage.title()} tests."""\n'
         )
 
-    # Create manifest
-    manifest = {
-        "version": 1,
-        "framework": ">=0.2.0",
-        "product": {
-            "name": product,
-            "board": board,
-            "device_type_id": 0,
-            "device_variant_id": 0,
-        },
-        "stages": {stage: (stage in ["smoke", "regression", "fuota"]) for stage in STANDARD_STAGES},
-    }
-    (project_dir / MANIFEST_NAME).write_text(
-        yaml.dump(manifest, default_flow_style=False, sort_keys=False)
+    # Create v2 manifest as a formatted YAML string for readable output
+    manifest_text = (
+        f'schema: "2.0"\n'
+        f'\n'
+        f'package:\n'
+        f'  type: validation\n'
+        f'  version: "0.1.0"\n'
+        f'  framework: ">=0.3.0"\n'
+        f'\n'
+        f'product:\n'
+        f'  slug: {product}\n'
+        f'  board: {board}\n'
+        f'  device:\n'
+        f'    type_id: 0\n'
+        f'    variant_id: 0\n'
+        f'\n'
+        f'fixture:\n'
+        f'  controller: fixtures.{board}.controller.{board_class}Fixture\n'
+        f'  profile: fixtures/{board}/fixture.yaml\n'
+        f'\n'
+        f'stages:\n'
+        f'  smoke:\n'
+        f'    directory: tests/smoke\n'
+        f'    timeout_s: 120\n'
+        f'    hardware: [power]\n'
+        f'  regression:\n'
+        f'    directory: tests/regression\n'
+        f'    timeout_s: 600\n'
+        f'    hardware: [power]\n'
+        f'  fuota:\n'
+        f'    directory: tests/fuota\n'
+        f'    timeout_s: 1800\n'
+        f'    hardware: [power]\n'
     )
+    (project_dir / MANIFEST_NAME).write_text(manifest_text)
 
     # Create basic files
     (project_dir / "tests" / "__init__.py").touch()
@@ -320,24 +537,90 @@ def init(product: str, board: str, path: str):
     (project_dir / "pyproject.toml").write_text(
         f'[project]\nname = "concord-validation-{product}"\n'
         f'version = "0.1.0"\n'
-        f'dependencies = ["corekinect>=0.2.0"]\n'
+        f'dependencies = ["corekinect>=0.3.0"]\n'
     )
 
     (project_dir / "conftest.py").write_text(
-        f'"""Root pytest fixtures for {product} validation tests.\n\n'
-        f'See the Alpha validation app for reference patterns.\n'
-        f'"""\n'
+        'pytest_plugins = ["corekinect.test.autoconf"]\n'
     )
 
     click.echo(f"Created {product} validation project:")
     click.echo(f"  {MANIFEST_NAME}")
-    click.echo(f"  tests/ with {sum(1 for s in manifest['stages'].values() if s)} enabled stages")
+    click.echo(f"  tests/ with {len(enabled_stages)} stages: {', '.join(enabled_stages)}")
     click.echo()
     click.echo("Next steps:")
-    click.echo(f"  1. Set device_type_id and device_variant_id in {MANIFEST_NAME}")
-    click.echo(f"  2. Create fixtures/{product}_{board}.json")
+    click.echo(f"  1. Set device type_id and variant_id in {MANIFEST_NAME}")
+    click.echo(f"  2. Create fixtures/{board}/fixture.yaml")
     click.echo(f"  3. Write tests in tests/smoke/")
     click.echo(f"  4. corectl test validate")
+
+
+def _init_manufacturing(project_dir: Path, product: str, board: str, board_class: str):
+    """Scaffold a manufacturing test project with v2 manifest."""
+
+    # Create directory structure
+    (project_dir / "fixtures" / board).mkdir(parents=True, exist_ok=True)
+    (project_dir / "scripts").mkdir(exist_ok=True)
+    (project_dir / "deploy").mkdir(exist_ok=True)
+    (project_dir / "tests" / "manufacturing").mkdir(parents=True, exist_ok=True)
+    (project_dir / "tests" / "manufacturing" / "__init__.py").touch()
+
+    # Create v2 manufacturing manifest
+    manifest_text = (
+        f'schema: "2.0"\n'
+        f'\n'
+        f'package:\n'
+        f'  type: manufacturing\n'
+        f'  version: "0.1.0"\n'
+        f'  framework: ">=0.3.0"\n'
+        f'\n'
+        f'product:\n'
+        f'  slug: {product}\n'
+        f'  board: {board}\n'
+        f'\n'
+        f'fixture:\n'
+        f'  controller: fixtures.{board}.controller.{board_class}MfgFixture\n'
+        f'  profile: fixtures/{board}/fixture.yaml\n'
+        f'  multi_slot: true\n'
+        f'\n'
+        f'steps:\n'
+        f'  - name: Electrical\n'
+        f'    module: tests.manufacturing.test_electrical\n'
+        f'    timeout_s: 30\n'
+        f'  - name: Flash Firmware\n'
+        f'    module: tests.manufacturing.test_flash\n'
+        f'    timeout_s: 120\n'
+        f'  - name: POST\n'
+        f'    module: tests.manufacturing.test_post\n'
+        f'    timeout_s: 300\n'
+    )
+    (project_dir / MANIFEST_NAME).write_text(manifest_text)
+
+    # Create basic files
+    (project_dir / "tests" / "__init__.py").touch()
+
+    (project_dir / "pytest.ini").write_text(
+        f"[pytest]\ntestpaths = tests\npython_files = test_*.py\n"
+    )
+
+    (project_dir / "pyproject.toml").write_text(
+        f'[project]\nname = "concord-manufacturing-{product}"\n'
+        f'version = "0.1.0"\n'
+        f'dependencies = ["corekinect>=0.3.0"]\n'
+    )
+
+    (project_dir / "conftest.py").write_text(
+        'pytest_plugins = ["corekinect.test.autoconf"]\n'
+    )
+
+    click.echo(f"Created {product} manufacturing project:")
+    click.echo(f"  {MANIFEST_NAME}")
+    click.echo(f"  3 steps: Electrical, Flash Firmware, POST")
+    click.echo()
+    click.echo("Next steps:")
+    click.echo(f"  1. Create fixtures/{board}/fixture.yaml")
+    click.echo(f"  2. Write tests in tests/manufacturing/")
+    click.echo(f"  3. corectl test validate")
 
 
 @test.command()
@@ -347,31 +630,44 @@ def validate(path: str, strict: bool):
     """Validate a test project — structure, semantics, and compatibility.
 
     Three validation levels:
-      Level 1 (Structure): Files exist, directories match manifest
+      Level 1 (Structure): Files exist, directories match manifest (+ JSON Schema for v2)
       Level 2 (Semantics): Profiles valid, markers defined, IDs set
       Level 3 (Compatibility): Framework version, build labels, pytest collection
     """
     project_dir = Path(path).resolve()
     result = ValidationResult()
 
+    # Detect manifest version
+    is_v2 = (project_dir / MANIFEST_NAME).exists()
+    is_v1 = (project_dir / LEGACY_MANIFEST_NAME).exists()
+
+    if not is_v2 and not is_v1:
+        click.echo(f"No {MANIFEST_NAME} or {LEGACY_MANIFEST_NAME} found in {project_dir}", err=True)
+        raise SystemExit(1)
+
     click.echo(f"Validating: {project_dir.name}/")
+    if is_v1 and not is_v2:
+        _warn_legacy()
     click.echo()
 
     # Level 1
     click.echo("Structure:")
-    manifest = _validate_structure(project_dir, result)
+    if is_v2:
+        manifest = _validate_structure_v2(project_dir, result)
+    else:
+        manifest = _validate_structure_v1(project_dir, result)
 
     # Level 2 (only if structure passed)
     if manifest:
         click.echo()
         click.echo("Semantics:")
-        _validate_semantics(project_dir, manifest, result)
+        _validate_semantics(project_dir, manifest, is_v2, result)
 
     # Level 3 (only if semantics passed)
     if manifest and not result.errors:
         click.echo()
         click.echo("Compatibility:")
-        _validate_compatibility(project_dir, manifest, result)
+        _validate_compatibility(project_dir, manifest, is_v2, result)
 
     # Report
     click.echo()
@@ -440,20 +736,18 @@ def package(path: str):
     import hashlib
 
     project_dir = Path(path).resolve()
-    manifest_path = project_dir / MANIFEST_NAME
+    manifest_path, is_v2 = _find_manifest_path(project_dir)
 
-    if not manifest_path.exists():
-        click.echo(f"{MANIFEST_NAME} not found", err=True)
-        raise SystemExit(1)
+    if not is_v2:
+        _warn_legacy()
 
-    with open(manifest_path) as f:
-        manifest = yaml.safe_load(f)
+    manifest = _load_manifest_yaml(manifest_path)
 
-    product = manifest.get("product", {})
-    slug = product.get("name", "unknown")
-    version = manifest.get("test_version", "dev")
+    slug = _get_slug(manifest, is_v2)
+    version = _get_version(manifest, is_v2)
+    pkg_type = _get_package_type(manifest, is_v2).lower()
 
-    output_name = f"{slug}-validation-{version}.tar.gz"
+    output_name = f"{slug}-{pkg_type}-{version}.tar.gz"
     output_path = project_dir / "dist" / output_name
     output_path.parent.mkdir(exist_ok=True)
 
@@ -463,9 +757,9 @@ def package(path: str):
         ".git", ".env", "node_modules", ".vscode", ".idea",
     }
 
-    def should_include(path: str) -> bool:
-        parts = Path(path).parts
-        return not any(part in excludes for part in parts) and not path.endswith(".pyc")
+    def should_include(fpath: str) -> bool:
+        parts = Path(fpath).parts
+        return not any(part in excludes for part in parts) and not fpath.endswith(".pyc")
 
     with tarfile.open(str(output_path), "w:gz") as tar:
         for item in sorted(project_dir.rglob("*")):
@@ -480,11 +774,12 @@ def package(path: str):
     click.echo(f"Packaged: {output_name} ({size_kb:.1f} KB, sha256:{sha256})")
     click.echo(f"  Product: {slug}")
     click.echo(f"  Version: {version}")
+    click.echo(f"  Type: {pkg_type}")
     click.echo(f"  Path: {output_path}")
 
 
 @test.command()
-@click.option("--release", is_flag=True, help="Upload as immutable release (uses test_version from manifest)")
+@click.option("--release", is_flag=True, help="Upload as immutable release (uses package.version from manifest)")
 @click.option("--version", "version_override", default=None, help="Explicit version override")
 @click.argument("path", default=".", required=False)
 @click.pass_context
@@ -495,7 +790,7 @@ def upload(ctx, release: bool, version_override: Optional[str], path: str):
         Auto-generates version from git SHA. Mutable — overwrites previous.
 
     Release uploads (--release):
-        Uses test_version from concord.test.yaml. Immutable — cannot overwrite.
+        Uses package.version from concord.yaml. Immutable — cannot overwrite.
 
     Examples:
         corectl test upload                    # dev-abc12345
@@ -510,25 +805,23 @@ def upload(ctx, release: bool, version_override: Optional[str], path: str):
     api_url = get_api_url(config)
 
     project_dir = Path(path).resolve()
-    manifest_path = project_dir / MANIFEST_NAME
+    manifest_path, is_v2 = _find_manifest_path(project_dir)
 
-    if not manifest_path.exists():
-        click.echo(f"{MANIFEST_NAME} not found — run 'corectl test init' first", err=True)
-        raise SystemExit(1)
+    if not is_v2:
+        _warn_legacy()
 
-    with open(manifest_path) as f:
-        manifest = yaml.safe_load(f)
+    manifest = _load_manifest_yaml(manifest_path)
 
-    product = manifest.get("product", {})
-    slug = product.get("name", "unknown")
+    slug = _get_slug(manifest, is_v2)
 
     # Determine version
     if version_override:
         version = version_override
     elif release:
-        version = manifest.get("test_version")
-        if not version:
-            click.echo("No test_version in manifest — set it or use --version", err=True)
+        version = _get_version(manifest, is_v2)
+        if not version or version == "dev":
+            field_name = "package.version" if is_v2 else "test_version"
+            click.echo(f"No {field_name} in manifest — set it or use --version", err=True)
             raise SystemExit(1)
     else:
         # Development version from git SHA
@@ -568,15 +861,7 @@ def upload(ctx, release: bool, version_override: Optional[str], path: str):
     ).strip()
 
     status = "RELEASED" if release else "DEVELOPMENT"
-
-    # Auto-detect package type from manifest stages
-    stages = manifest.get("stages", {})
-    has_manufacturing = stages.get("manufacturing", False)
-    has_validation = any(stages.get(s, False) for s in STANDARD_STAGES)
-    if has_manufacturing and not has_validation:
-        package_type = "MANUFACTURING"
-    else:
-        package_type = "VALIDATION"
+    package_type = _get_package_type(manifest, is_v2)
 
     click.echo(f"Uploading {slug}@{version} ({status}, {package_type})...")
 
@@ -606,19 +891,33 @@ def upload(ctx, release: bool, version_override: Optional[str], path: str):
 
     import json as json_mod
 
+    # Build stages/steps info for the upload payload
+    if is_v2:
+        pkg_type_str = manifest.get("package", {}).get("type", "validation")
+        if pkg_type_str == "validation":
+            stages_enabled = {name: True for name in manifest.get("stages", {}).keys()}
+        else:
+            stages_enabled = {step["name"]: True for step in manifest.get("steps", [])}
+    else:
+        stages_enabled = manifest.get("stages", {})
+
     upload_manifest = {
         "version": version,
         "type": package_type,
         "status": status,
-        "frameworkVersion": manifest.get("framework", "unknown"),
+        "frameworkVersion": _get_framework(manifest, is_v2),
         "productSlug": slug,
         "manifestHash": manifest_hash,
-        "stagesEnabled": manifest.get("stages", {}),
+        "stagesEnabled": stages_enabled,
         "testCount": 0,  # Backend can override from collection
         "message": upload_message,
         "gitSha": git_sha,
         "gitDirty": git_dirty,
     }
+
+    # Add schema version for v2 manifests
+    if is_v2:
+        upload_manifest["schemaVersion"] = manifest.get("schema", "2.0")
 
     resp = requests.post(
         f"{api_url}/v2/products/{slug}/test-packages",
@@ -633,11 +932,13 @@ def upload(ctx, release: bool, version_override: Optional[str], path: str):
         click.echo(click.style(f"Uploaded: {slug}@{version}", fg="green"))
         click.echo(f"  ID: {data.get('id', 'unknown')}")
         click.echo(f"  Status: {status}")
+        click.echo(f"  Type: {package_type}")
         click.echo(f"  Tests: {data.get('testCount', '?')}")
     elif resp.status_code == 409:
+        version_field = "package.version" if is_v2 else "test_version"
         click.echo(click.style(
             f"Version {version} already exists and is RELEASED (immutable). "
-            f"Bump test_version in {MANIFEST_NAME} or use a different version.",
+            f"Bump {version_field} in {manifest_path.name} or use a different version.",
             fg="red",
         ), err=True)
         raise SystemExit(1)
@@ -659,17 +960,13 @@ def versions(ctx, path: str):
     api_url = get_api_url(config)
 
     project_dir = Path(path).resolve()
-    manifest_path = project_dir / MANIFEST_NAME
+    manifest_path, is_v2 = _find_manifest_path(project_dir)
 
-    if not manifest_path.exists():
-        click.echo(f"{MANIFEST_NAME} not found", err=True)
-        raise SystemExit(1)
+    if not is_v2:
+        _warn_legacy()
 
-    with open(manifest_path) as f:
-        manifest = yaml.safe_load(f)
-
-    product = manifest.get("product", {})
-    slug = product.get("name", "unknown")
+    manifest = _load_manifest_yaml(manifest_path)
+    slug = _get_slug(manifest, is_v2)
 
     api = ConcordAPI(api_url, token, tls_verify=get_tls_verify(ctx.obj["config"]))
     resp = api.get(f"/v2/products/{slug}/test-packages")
@@ -692,3 +989,145 @@ def versions(ctx, path: str):
         tests = str(pkg.get("testCount", "?")).rjust(3)
         date = str(pkg.get("createdAt", ""))[:10]
         click.echo(f"  {click.style(ver, fg=status_color)} {status} {tests} tests  {date}")
+
+
+@test.command()
+@click.argument("path", default=".", required=False)
+def migrate(path: str):
+    """Migrate concord.test.yaml (v1) to concord.yaml (v2).
+
+    Reads the legacy manifest, converts it to v2 format, and writes concord.yaml.
+    Does NOT delete the old file — remove it manually after verifying.
+    """
+    project_dir = Path(path).resolve()
+    v1_path = project_dir / LEGACY_MANIFEST_NAME
+    v2_path = project_dir / MANIFEST_NAME
+
+    if v2_path.exists():
+        click.echo(f"{MANIFEST_NAME} already exists — migration not needed", err=True)
+        raise SystemExit(1)
+
+    if not v1_path.exists():
+        click.echo(f"{LEGACY_MANIFEST_NAME} not found — nothing to migrate", err=True)
+        raise SystemExit(1)
+
+    with open(v1_path) as f:
+        v1 = yaml.safe_load(f) or {}
+
+    if not v1:
+        click.echo(f"{LEGACY_MANIFEST_NAME} is empty or invalid", err=True)
+        raise SystemExit(1)
+
+    # Extract v1 fields
+    product = v1.get("product", {})
+    slug = product.get("name", "unknown")
+    board = product.get("board", "unknown")
+    device_type_id = product.get("device_type_id", 0)
+    device_variant_id = product.get("device_variant_id", 0)
+    test_version = v1.get("test_version", v1.get("version", "0.1.0"))
+    framework = v1.get("framework", ">=0.3.0")
+
+    # Auto-detect package type from v1 stages
+    v1_stages = v1.get("stages", {})
+    has_manufacturing = v1_stages.get("manufacturing", False)
+    has_validation = any(v1_stages.get(s, False) for s in STANDARD_STAGES)
+    if has_manufacturing and not has_validation:
+        pkg_type = "manufacturing"
+    else:
+        pkg_type = "validation"
+
+    # Board class name: alpha_b0 -> AlphaB0
+    board_class = "".join(part.capitalize() for part in board.split("_"))
+
+    # Ensure framework has >= prefix
+    if framework and not framework.startswith(">="):
+        framework = f">={framework}"
+
+    # Ensure version is a string
+    test_version = str(test_version)
+    # If version is just an int like "1", make it semver-ish
+    if test_version.count(".") == 0:
+        test_version = f"{test_version}.0.0"
+    elif test_version.count(".") == 1:
+        test_version = f"{test_version}.0"
+
+    # Build v2 manifest
+    lines = [
+        f'schema: "2.0"',
+        f'',
+        f'package:',
+        f'  type: {pkg_type}',
+        f'  version: "{test_version}"',
+        f'  framework: "{framework}"',
+        f'',
+        f'product:',
+        f'  slug: {slug}',
+        f'  board: {board}',
+        f'  device:',
+        f'    type_id: {device_type_id}',
+        f'    variant_id: {device_variant_id}',
+        f'',
+        f'fixture:',
+        f'  controller: fixtures.{board}.controller.{board_class}Fixture',
+        f'  profile: fixtures/{board}/fixture.yaml',
+    ]
+
+    if pkg_type == "manufacturing":
+        # Add multi_slot under fixture block before closing it
+        lines.append(f'  multi_slot: true')
+
+    if pkg_type == "validation":
+        lines.append('')
+        lines.append('stages:')
+
+        # Default timeouts per stage
+        default_timeouts = {
+            "smoke": 120,
+            "driver": 300,
+            "integration": 600,
+            "regression": 600,
+            "fuota": 1800,
+        }
+
+        for stage_name, enabled in v1_stages.items():
+            if stage_name == "manufacturing":
+                continue
+            if not enabled:
+                continue
+            timeout = default_timeouts.get(stage_name, 300)
+            lines.append(f'  {stage_name}:')
+            lines.append(f'    directory: tests/{stage_name}')
+            lines.append(f'    timeout_s: {timeout}')
+            lines.append(f'    hardware: [power]')
+    else:
+        # Manufacturing — create default steps
+        lines.append('')
+        lines.append('steps:')
+        lines.append('  - name: Manufacturing Test')
+        lines.append('    module: tests.manufacturing.test_mfg')
+        lines.append('    timeout_s: 300')
+
+    lines.append('')  # trailing newline
+
+    v2_text = '\n'.join(lines)
+    v2_path.write_text(v2_text)
+
+    click.echo(f"Migrated {LEGACY_MANIFEST_NAME} -> {MANIFEST_NAME}")
+    click.echo()
+    click.echo(f"  Product: {slug}")
+    click.echo(f"  Board: {board}")
+    click.echo(f"  Type: {pkg_type}")
+    click.echo(f"  Version: {test_version}")
+    click.echo()
+
+    # Show the generated file
+    click.echo("Generated concord.yaml:")
+    click.echo(click.style("--- ", fg="cyan"))
+    for line in v2_text.splitlines():
+        click.echo(click.style(f"  {line}", fg="cyan"))
+    click.echo(click.style("--- ", fg="cyan"))
+
+    click.echo()
+    click.echo(f"Review the output, then delete {LEGACY_MANIFEST_NAME} when satisfied:")
+    click.echo(f"  rm {LEGACY_MANIFEST_NAME}")
+    click.echo(f"  corectl test validate")

@@ -106,8 +106,6 @@ class Prisma(SyncBasePrisma):
     buildrun: 'actions.BuildRunActions[models.BuildRun]'
     buildjob: 'actions.BuildJobActions[models.BuildJob]'
     buildartifact: 'actions.BuildArtifactActions[models.BuildArtifact]'
-    session: 'actions.SessionActions[models.Session]'
-    device: 'actions.DeviceActions[models.Device]'
     fixturedesign: 'actions.FixtureDesignActions[models.FixtureDesign]'
     fixture: 'actions.FixtureActions[models.Fixture]'
     fixtureslot: 'actions.FixtureSlotActions[models.FixtureSlot]'
@@ -115,9 +113,6 @@ class Prisma(SyncBasePrisma):
     icledevice: 'actions.IcleDeviceActions[models.IcleDevice]'
     iclependingcommand: 'actions.IclePendingCommandActions[models.IclePendingCommand]'
     iclelog: 'actions.IcleLogActions[models.IcleLog]'
-    test: 'actions.TestActions[models.Test]'
-    testexecution: 'actions.TestExecutionActions[models.TestExecution]'
-    teststep: 'actions.TestStepActions[models.TestStep]'
     user: 'actions.UserActions[models.User]'
     productaccess: 'actions.ProductAccessActions[models.ProductAccess]'
     permissionset: 'actions.PermissionSetActions[models.PermissionSet]'
@@ -132,8 +127,11 @@ class Prisma(SyncBasePrisma):
     asset: 'actions.AssetActions[models.Asset]'
     manufacturingconfig: 'actions.ManufacturingConfigActions[models.ManufacturingConfig]'
     manufacturingsession: 'actions.ManufacturingSessionActions[models.ManufacturingSession]'
-    manufacturingpanel: 'actions.ManufacturingPanelActions[models.ManufacturingPanel]'
-    manufacturingunit: 'actions.ManufacturingUnitActions[models.ManufacturingUnit]'
+    testrun: 'actions.TestRunActions[models.TestRun]'
+    runtarget: 'actions.RunTargetActions[models.RunTarget]'
+    testexecution: 'actions.TestExecutionActions[models.TestExecution]'
+    teststep: 'actions.TestStepActions[models.TestStep]'
+    testpackagestage: 'actions.TestPackageStageActions[models.TestPackageStage]'
 
     __slots__ = (
         'product',
@@ -148,8 +146,6 @@ class Prisma(SyncBasePrisma):
         'buildrun',
         'buildjob',
         'buildartifact',
-        'session',
-        'device',
         'fixturedesign',
         'fixture',
         'fixtureslot',
@@ -157,9 +153,6 @@ class Prisma(SyncBasePrisma):
         'icledevice',
         'iclependingcommand',
         'iclelog',
-        'test',
-        'testexecution',
-        'teststep',
         'user',
         'productaccess',
         'permissionset',
@@ -174,8 +167,11 @@ class Prisma(SyncBasePrisma):
         'asset',
         'manufacturingconfig',
         'manufacturingsession',
-        'manufacturingpanel',
-        'manufacturingunit',
+        'testrun',
+        'runtarget',
+        'testexecution',
+        'teststep',
+        'testpackagestage',
     )
 
     def __init__(
@@ -218,8 +214,6 @@ class Prisma(SyncBasePrisma):
         self.buildrun = actions.BuildRunActions[models.BuildRun](self, models.BuildRun)
         self.buildjob = actions.BuildJobActions[models.BuildJob](self, models.BuildJob)
         self.buildartifact = actions.BuildArtifactActions[models.BuildArtifact](self, models.BuildArtifact)
-        self.session = actions.SessionActions[models.Session](self, models.Session)
-        self.device = actions.DeviceActions[models.Device](self, models.Device)
         self.fixturedesign = actions.FixtureDesignActions[models.FixtureDesign](self, models.FixtureDesign)
         self.fixture = actions.FixtureActions[models.Fixture](self, models.Fixture)
         self.fixtureslot = actions.FixtureSlotActions[models.FixtureSlot](self, models.FixtureSlot)
@@ -227,9 +221,6 @@ class Prisma(SyncBasePrisma):
         self.icledevice = actions.IcleDeviceActions[models.IcleDevice](self, models.IcleDevice)
         self.iclependingcommand = actions.IclePendingCommandActions[models.IclePendingCommand](self, models.IclePendingCommand)
         self.iclelog = actions.IcleLogActions[models.IcleLog](self, models.IcleLog)
-        self.test = actions.TestActions[models.Test](self, models.Test)
-        self.testexecution = actions.TestExecutionActions[models.TestExecution](self, models.TestExecution)
-        self.teststep = actions.TestStepActions[models.TestStep](self, models.TestStep)
         self.user = actions.UserActions[models.User](self, models.User)
         self.productaccess = actions.ProductAccessActions[models.ProductAccess](self, models.ProductAccess)
         self.permissionset = actions.PermissionSetActions[models.PermissionSet](self, models.PermissionSet)
@@ -244,8 +235,11 @@ class Prisma(SyncBasePrisma):
         self.asset = actions.AssetActions[models.Asset](self, models.Asset)
         self.manufacturingconfig = actions.ManufacturingConfigActions[models.ManufacturingConfig](self, models.ManufacturingConfig)
         self.manufacturingsession = actions.ManufacturingSessionActions[models.ManufacturingSession](self, models.ManufacturingSession)
-        self.manufacturingpanel = actions.ManufacturingPanelActions[models.ManufacturingPanel](self, models.ManufacturingPanel)
-        self.manufacturingunit = actions.ManufacturingUnitActions[models.ManufacturingUnit](self, models.ManufacturingUnit)
+        self.testrun = actions.TestRunActions[models.TestRun](self, models.TestRun)
+        self.runtarget = actions.RunTargetActions[models.RunTarget](self, models.RunTarget)
+        self.testexecution = actions.TestExecutionActions[models.TestExecution](self, models.TestExecution)
+        self.teststep = actions.TestStepActions[models.TestStep](self, models.TestStep)
+        self.testpackagestage = actions.TestPackageStageActions[models.TestPackageStage](self, models.TestPackageStage)
 
         if auto_register:
             register(self)
@@ -408,8 +402,6 @@ class Batch:
     buildrun: 'BuildRunBatchActions'
     buildjob: 'BuildJobBatchActions'
     buildartifact: 'BuildArtifactBatchActions'
-    session: 'SessionBatchActions'
-    device: 'DeviceBatchActions'
     fixturedesign: 'FixtureDesignBatchActions'
     fixture: 'FixtureBatchActions'
     fixtureslot: 'FixtureSlotBatchActions'
@@ -417,9 +409,6 @@ class Batch:
     icledevice: 'IcleDeviceBatchActions'
     iclependingcommand: 'IclePendingCommandBatchActions'
     iclelog: 'IcleLogBatchActions'
-    test: 'TestBatchActions'
-    testexecution: 'TestExecutionBatchActions'
-    teststep: 'TestStepBatchActions'
     user: 'UserBatchActions'
     productaccess: 'ProductAccessBatchActions'
     permissionset: 'PermissionSetBatchActions'
@@ -434,8 +423,11 @@ class Batch:
     asset: 'AssetBatchActions'
     manufacturingconfig: 'ManufacturingConfigBatchActions'
     manufacturingsession: 'ManufacturingSessionBatchActions'
-    manufacturingpanel: 'ManufacturingPanelBatchActions'
-    manufacturingunit: 'ManufacturingUnitBatchActions'
+    testrun: 'TestRunBatchActions'
+    runtarget: 'RunTargetBatchActions'
+    testexecution: 'TestExecutionBatchActions'
+    teststep: 'TestStepBatchActions'
+    testpackagestage: 'TestPackageStageBatchActions'
 
     def __init__(self, client: Prisma) -> None:
         self.__client = client
@@ -453,8 +445,6 @@ class Batch:
         self.buildrun = BuildRunBatchActions(self)
         self.buildjob = BuildJobBatchActions(self)
         self.buildartifact = BuildArtifactBatchActions(self)
-        self.session = SessionBatchActions(self)
-        self.device = DeviceBatchActions(self)
         self.fixturedesign = FixtureDesignBatchActions(self)
         self.fixture = FixtureBatchActions(self)
         self.fixtureslot = FixtureSlotBatchActions(self)
@@ -462,9 +452,6 @@ class Batch:
         self.icledevice = IcleDeviceBatchActions(self)
         self.iclependingcommand = IclePendingCommandBatchActions(self)
         self.iclelog = IcleLogBatchActions(self)
-        self.test = TestBatchActions(self)
-        self.testexecution = TestExecutionBatchActions(self)
-        self.teststep = TestStepBatchActions(self)
         self.user = UserBatchActions(self)
         self.productaccess = ProductAccessBatchActions(self)
         self.permissionset = PermissionSetBatchActions(self)
@@ -479,8 +466,11 @@ class Batch:
         self.asset = AssetBatchActions(self)
         self.manufacturingconfig = ManufacturingConfigBatchActions(self)
         self.manufacturingsession = ManufacturingSessionBatchActions(self)
-        self.manufacturingpanel = ManufacturingPanelBatchActions(self)
-        self.manufacturingunit = ManufacturingUnitBatchActions(self)
+        self.testrun = TestRunBatchActions(self)
+        self.runtarget = RunTargetBatchActions(self)
+        self.testexecution = TestExecutionBatchActions(self)
+        self.teststep = TestStepBatchActions(self)
+        self.testpackagestage = TestPackageStageBatchActions(self)
 
     def _add(self, **kwargs: Any) -> None:
         builder = QueryBuilder(
@@ -1867,228 +1857,6 @@ class BuildArtifactBatchActions:
 
 # NOTE: some arguments are meaningless in this context but are included
 # for completeness sake
-class SessionBatchActions:
-    def __init__(self, batcher: Batch) -> None:
-        self._batcher = batcher
-
-    def create(
-        self,
-        data: types.SessionCreateInput,
-        include: Optional[types.SessionInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='create',
-            model=models.Session,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-
-    def create_many(
-        self,
-        data: List[types.SessionCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> None:
-        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
-
-        self._batcher._add(
-            method='create_many',
-            model=models.Session,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-
-    def delete(
-        self,
-        where: types.SessionWhereUniqueInput,
-        include: Optional[types.SessionInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete',
-            model=models.Session,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def update(
-        self,
-        data: types.SessionUpdateInput,
-        where: types.SessionWhereUniqueInput,
-        include: Optional[types.SessionInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='update',
-            model=models.Session,
-            arguments={
-                'data': data,
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def upsert(
-        self,
-        where: types.SessionWhereUniqueInput,
-        data: types.SessionUpsertInput,
-        include: Optional[types.SessionInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='upsert',
-            model=models.Session,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-
-    def update_many(
-        self,
-        data: types.SessionUpdateManyMutationInput,
-        where: types.SessionWhereInput,
-    ) -> None:
-        self._batcher._add(
-            method='update_many',
-            model=models.Session,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-
-    def delete_many(
-        self,
-        where: Optional[types.SessionWhereInput] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete_many',
-            model=models.Session,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-
-
-
-# NOTE: some arguments are meaningless in this context but are included
-# for completeness sake
-class DeviceBatchActions:
-    def __init__(self, batcher: Batch) -> None:
-        self._batcher = batcher
-
-    def create(
-        self,
-        data: types.DeviceCreateInput,
-        include: Optional[types.DeviceInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='create',
-            model=models.Device,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-
-    def create_many(
-        self,
-        data: List[types.DeviceCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> None:
-        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
-
-        self._batcher._add(
-            method='create_many',
-            model=models.Device,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-
-    def delete(
-        self,
-        where: types.DeviceWhereUniqueInput,
-        include: Optional[types.DeviceInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete',
-            model=models.Device,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def update(
-        self,
-        data: types.DeviceUpdateInput,
-        where: types.DeviceWhereUniqueInput,
-        include: Optional[types.DeviceInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='update',
-            model=models.Device,
-            arguments={
-                'data': data,
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def upsert(
-        self,
-        where: types.DeviceWhereUniqueInput,
-        data: types.DeviceUpsertInput,
-        include: Optional[types.DeviceInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='upsert',
-            model=models.Device,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-
-    def update_many(
-        self,
-        data: types.DeviceUpdateManyMutationInput,
-        where: types.DeviceWhereInput,
-    ) -> None:
-        self._batcher._add(
-            method='update_many',
-            model=models.Device,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-
-    def delete_many(
-        self,
-        where: Optional[types.DeviceWhereInput] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete_many',
-            model=models.Device,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-
-
-
-# NOTE: some arguments are meaningless in this context but are included
-# for completeness sake
 class FixtureDesignBatchActions:
     def __init__(self, batcher: Batch) -> None:
         self._batcher = batcher
@@ -2858,339 +2626,6 @@ class IcleLogBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.IcleLog,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-
-
-
-# NOTE: some arguments are meaningless in this context but are included
-# for completeness sake
-class TestBatchActions:
-    def __init__(self, batcher: Batch) -> None:
-        self._batcher = batcher
-
-    def create(
-        self,
-        data: types.TestCreateInput,
-        include: Optional[types.TestInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='create',
-            model=models.Test,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-
-    def create_many(
-        self,
-        data: List[types.TestCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> None:
-        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
-
-        self._batcher._add(
-            method='create_many',
-            model=models.Test,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-
-    def delete(
-        self,
-        where: types.TestWhereUniqueInput,
-        include: Optional[types.TestInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete',
-            model=models.Test,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def update(
-        self,
-        data: types.TestUpdateInput,
-        where: types.TestWhereUniqueInput,
-        include: Optional[types.TestInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='update',
-            model=models.Test,
-            arguments={
-                'data': data,
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def upsert(
-        self,
-        where: types.TestWhereUniqueInput,
-        data: types.TestUpsertInput,
-        include: Optional[types.TestInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='upsert',
-            model=models.Test,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-
-    def update_many(
-        self,
-        data: types.TestUpdateManyMutationInput,
-        where: types.TestWhereInput,
-    ) -> None:
-        self._batcher._add(
-            method='update_many',
-            model=models.Test,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-
-    def delete_many(
-        self,
-        where: Optional[types.TestWhereInput] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete_many',
-            model=models.Test,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-
-
-
-# NOTE: some arguments are meaningless in this context but are included
-# for completeness sake
-class TestExecutionBatchActions:
-    def __init__(self, batcher: Batch) -> None:
-        self._batcher = batcher
-
-    def create(
-        self,
-        data: types.TestExecutionCreateInput,
-        include: Optional[types.TestExecutionInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='create',
-            model=models.TestExecution,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-
-    def create_many(
-        self,
-        data: List[types.TestExecutionCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> None:
-        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
-
-        self._batcher._add(
-            method='create_many',
-            model=models.TestExecution,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-
-    def delete(
-        self,
-        where: types.TestExecutionWhereUniqueInput,
-        include: Optional[types.TestExecutionInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete',
-            model=models.TestExecution,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def update(
-        self,
-        data: types.TestExecutionUpdateInput,
-        where: types.TestExecutionWhereUniqueInput,
-        include: Optional[types.TestExecutionInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='update',
-            model=models.TestExecution,
-            arguments={
-                'data': data,
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def upsert(
-        self,
-        where: types.TestExecutionWhereUniqueInput,
-        data: types.TestExecutionUpsertInput,
-        include: Optional[types.TestExecutionInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='upsert',
-            model=models.TestExecution,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-
-    def update_many(
-        self,
-        data: types.TestExecutionUpdateManyMutationInput,
-        where: types.TestExecutionWhereInput,
-    ) -> None:
-        self._batcher._add(
-            method='update_many',
-            model=models.TestExecution,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-
-    def delete_many(
-        self,
-        where: Optional[types.TestExecutionWhereInput] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete_many',
-            model=models.TestExecution,
-            arguments={'where': where},
-            root_selection=['count'],
-        )
-
-
-
-# NOTE: some arguments are meaningless in this context but are included
-# for completeness sake
-class TestStepBatchActions:
-    def __init__(self, batcher: Batch) -> None:
-        self._batcher = batcher
-
-    def create(
-        self,
-        data: types.TestStepCreateInput,
-        include: Optional[types.TestStepInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='create',
-            model=models.TestStep,
-            arguments={
-                'data': data,
-                'include': include,
-            },
-        )
-
-    def create_many(
-        self,
-        data: List[types.TestStepCreateWithoutRelationsInput],
-        *,
-        skip_duplicates: Optional[bool] = None,
-    ) -> None:
-        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
-            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
-
-        self._batcher._add(
-            method='create_many',
-            model=models.TestStep,
-            arguments={
-                'data': data,
-                'skipDuplicates': skip_duplicates,
-            },
-            root_selection=['count'],
-        )
-
-    def delete(
-        self,
-        where: types.TestStepWhereUniqueInput,
-        include: Optional[types.TestStepInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete',
-            model=models.TestStep,
-            arguments={
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def update(
-        self,
-        data: types.TestStepUpdateInput,
-        where: types.TestStepWhereUniqueInput,
-        include: Optional[types.TestStepInclude] = None
-    ) -> None:
-        self._batcher._add(
-            method='update',
-            model=models.TestStep,
-            arguments={
-                'data': data,
-                'where': where,
-                'include': include,
-            },
-        )
-
-    def upsert(
-        self,
-        where: types.TestStepWhereUniqueInput,
-        data: types.TestStepUpsertInput,
-        include: Optional[types.TestStepInclude] = None,
-    ) -> None:
-        self._batcher._add(
-            method='upsert',
-            model=models.TestStep,
-            arguments={
-                'where': where,
-                'include': include,
-                'create': data.get('create'),
-                'update': data.get('update'),
-            },
-        )
-
-    def update_many(
-        self,
-        data: types.TestStepUpdateManyMutationInput,
-        where: types.TestStepWhereInput,
-    ) -> None:
-        self._batcher._add(
-            method='update_many',
-            model=models.TestStep,
-            arguments={'data': data, 'where': where,},
-            root_selection=['count'],
-        )
-
-    def delete_many(
-        self,
-        where: Optional[types.TestStepWhereInput] = None,
-    ) -> None:
-        self._batcher._add(
-            method='delete_many',
-            model=models.TestStep,
             arguments={'where': where},
             root_selection=['count'],
         )
@@ -4753,18 +4188,18 @@ class ManufacturingSessionBatchActions:
 
 # NOTE: some arguments are meaningless in this context but are included
 # for completeness sake
-class ManufacturingPanelBatchActions:
+class TestRunBatchActions:
     def __init__(self, batcher: Batch) -> None:
         self._batcher = batcher
 
     def create(
         self,
-        data: types.ManufacturingPanelCreateInput,
-        include: Optional[types.ManufacturingPanelInclude] = None
+        data: types.TestRunCreateInput,
+        include: Optional[types.TestRunInclude] = None
     ) -> None:
         self._batcher._add(
             method='create',
-            model=models.ManufacturingPanel,
+            model=models.TestRun,
             arguments={
                 'data': data,
                 'include': include,
@@ -4773,7 +4208,7 @@ class ManufacturingPanelBatchActions:
 
     def create_many(
         self,
-        data: List[types.ManufacturingPanelCreateWithoutRelationsInput],
+        data: List[types.TestRunCreateWithoutRelationsInput],
         *,
         skip_duplicates: Optional[bool] = None,
     ) -> None:
@@ -4782,7 +4217,7 @@ class ManufacturingPanelBatchActions:
 
         self._batcher._add(
             method='create_many',
-            model=models.ManufacturingPanel,
+            model=models.TestRun,
             arguments={
                 'data': data,
                 'skipDuplicates': skip_duplicates,
@@ -4792,12 +4227,12 @@ class ManufacturingPanelBatchActions:
 
     def delete(
         self,
-        where: types.ManufacturingPanelWhereUniqueInput,
-        include: Optional[types.ManufacturingPanelInclude] = None,
+        where: types.TestRunWhereUniqueInput,
+        include: Optional[types.TestRunInclude] = None,
     ) -> None:
         self._batcher._add(
             method='delete',
-            model=models.ManufacturingPanel,
+            model=models.TestRun,
             arguments={
                 'where': where,
                 'include': include,
@@ -4806,13 +4241,13 @@ class ManufacturingPanelBatchActions:
 
     def update(
         self,
-        data: types.ManufacturingPanelUpdateInput,
-        where: types.ManufacturingPanelWhereUniqueInput,
-        include: Optional[types.ManufacturingPanelInclude] = None
+        data: types.TestRunUpdateInput,
+        where: types.TestRunWhereUniqueInput,
+        include: Optional[types.TestRunInclude] = None
     ) -> None:
         self._batcher._add(
             method='update',
-            model=models.ManufacturingPanel,
+            model=models.TestRun,
             arguments={
                 'data': data,
                 'where': where,
@@ -4822,13 +4257,13 @@ class ManufacturingPanelBatchActions:
 
     def upsert(
         self,
-        where: types.ManufacturingPanelWhereUniqueInput,
-        data: types.ManufacturingPanelUpsertInput,
-        include: Optional[types.ManufacturingPanelInclude] = None,
+        where: types.TestRunWhereUniqueInput,
+        data: types.TestRunUpsertInput,
+        include: Optional[types.TestRunInclude] = None,
     ) -> None:
         self._batcher._add(
             method='upsert',
-            model=models.ManufacturingPanel,
+            model=models.TestRun,
             arguments={
                 'where': where,
                 'include': include,
@@ -4839,23 +4274,23 @@ class ManufacturingPanelBatchActions:
 
     def update_many(
         self,
-        data: types.ManufacturingPanelUpdateManyMutationInput,
-        where: types.ManufacturingPanelWhereInput,
+        data: types.TestRunUpdateManyMutationInput,
+        where: types.TestRunWhereInput,
     ) -> None:
         self._batcher._add(
             method='update_many',
-            model=models.ManufacturingPanel,
+            model=models.TestRun,
             arguments={'data': data, 'where': where,},
             root_selection=['count'],
         )
 
     def delete_many(
         self,
-        where: Optional[types.ManufacturingPanelWhereInput] = None,
+        where: Optional[types.TestRunWhereInput] = None,
     ) -> None:
         self._batcher._add(
             method='delete_many',
-            model=models.ManufacturingPanel,
+            model=models.TestRun,
             arguments={'where': where},
             root_selection=['count'],
         )
@@ -4864,18 +4299,18 @@ class ManufacturingPanelBatchActions:
 
 # NOTE: some arguments are meaningless in this context but are included
 # for completeness sake
-class ManufacturingUnitBatchActions:
+class RunTargetBatchActions:
     def __init__(self, batcher: Batch) -> None:
         self._batcher = batcher
 
     def create(
         self,
-        data: types.ManufacturingUnitCreateInput,
-        include: Optional[types.ManufacturingUnitInclude] = None
+        data: types.RunTargetCreateInput,
+        include: Optional[types.RunTargetInclude] = None
     ) -> None:
         self._batcher._add(
             method='create',
-            model=models.ManufacturingUnit,
+            model=models.RunTarget,
             arguments={
                 'data': data,
                 'include': include,
@@ -4884,7 +4319,7 @@ class ManufacturingUnitBatchActions:
 
     def create_many(
         self,
-        data: List[types.ManufacturingUnitCreateWithoutRelationsInput],
+        data: List[types.RunTargetCreateWithoutRelationsInput],
         *,
         skip_duplicates: Optional[bool] = None,
     ) -> None:
@@ -4893,7 +4328,7 @@ class ManufacturingUnitBatchActions:
 
         self._batcher._add(
             method='create_many',
-            model=models.ManufacturingUnit,
+            model=models.RunTarget,
             arguments={
                 'data': data,
                 'skipDuplicates': skip_duplicates,
@@ -4903,12 +4338,12 @@ class ManufacturingUnitBatchActions:
 
     def delete(
         self,
-        where: types.ManufacturingUnitWhereUniqueInput,
-        include: Optional[types.ManufacturingUnitInclude] = None,
+        where: types.RunTargetWhereUniqueInput,
+        include: Optional[types.RunTargetInclude] = None,
     ) -> None:
         self._batcher._add(
             method='delete',
-            model=models.ManufacturingUnit,
+            model=models.RunTarget,
             arguments={
                 'where': where,
                 'include': include,
@@ -4917,13 +4352,13 @@ class ManufacturingUnitBatchActions:
 
     def update(
         self,
-        data: types.ManufacturingUnitUpdateInput,
-        where: types.ManufacturingUnitWhereUniqueInput,
-        include: Optional[types.ManufacturingUnitInclude] = None
+        data: types.RunTargetUpdateInput,
+        where: types.RunTargetWhereUniqueInput,
+        include: Optional[types.RunTargetInclude] = None
     ) -> None:
         self._batcher._add(
             method='update',
-            model=models.ManufacturingUnit,
+            model=models.RunTarget,
             arguments={
                 'data': data,
                 'where': where,
@@ -4933,13 +4368,13 @@ class ManufacturingUnitBatchActions:
 
     def upsert(
         self,
-        where: types.ManufacturingUnitWhereUniqueInput,
-        data: types.ManufacturingUnitUpsertInput,
-        include: Optional[types.ManufacturingUnitInclude] = None,
+        where: types.RunTargetWhereUniqueInput,
+        data: types.RunTargetUpsertInput,
+        include: Optional[types.RunTargetInclude] = None,
     ) -> None:
         self._batcher._add(
             method='upsert',
-            model=models.ManufacturingUnit,
+            model=models.RunTarget,
             arguments={
                 'where': where,
                 'include': include,
@@ -4950,23 +4385,356 @@ class ManufacturingUnitBatchActions:
 
     def update_many(
         self,
-        data: types.ManufacturingUnitUpdateManyMutationInput,
-        where: types.ManufacturingUnitWhereInput,
+        data: types.RunTargetUpdateManyMutationInput,
+        where: types.RunTargetWhereInput,
     ) -> None:
         self._batcher._add(
             method='update_many',
-            model=models.ManufacturingUnit,
+            model=models.RunTarget,
             arguments={'data': data, 'where': where,},
             root_selection=['count'],
         )
 
     def delete_many(
         self,
-        where: Optional[types.ManufacturingUnitWhereInput] = None,
+        where: Optional[types.RunTargetWhereInput] = None,
     ) -> None:
         self._batcher._add(
             method='delete_many',
-            model=models.ManufacturingUnit,
+            model=models.RunTarget,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class TestExecutionBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.TestExecutionCreateInput,
+        include: Optional[types.TestExecutionInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.TestExecution,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.TestExecutionCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.TestExecution,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.TestExecutionWhereUniqueInput,
+        include: Optional[types.TestExecutionInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.TestExecution,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.TestExecutionUpdateInput,
+        where: types.TestExecutionWhereUniqueInput,
+        include: Optional[types.TestExecutionInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.TestExecution,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.TestExecutionWhereUniqueInput,
+        data: types.TestExecutionUpsertInput,
+        include: Optional[types.TestExecutionInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.TestExecution,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.TestExecutionUpdateManyMutationInput,
+        where: types.TestExecutionWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.TestExecution,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.TestExecutionWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.TestExecution,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class TestStepBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.TestStepCreateInput,
+        include: Optional[types.TestStepInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.TestStep,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.TestStepCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.TestStep,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.TestStepWhereUniqueInput,
+        include: Optional[types.TestStepInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.TestStep,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.TestStepUpdateInput,
+        where: types.TestStepWhereUniqueInput,
+        include: Optional[types.TestStepInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.TestStep,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.TestStepWhereUniqueInput,
+        data: types.TestStepUpsertInput,
+        include: Optional[types.TestStepInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.TestStep,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.TestStepUpdateManyMutationInput,
+        where: types.TestStepWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.TestStep,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.TestStepWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.TestStep,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class TestPackageStageBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.TestPackageStageCreateInput,
+        include: Optional[types.TestPackageStageInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.TestPackageStage,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.TestPackageStageCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.TestPackageStage,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.TestPackageStageWhereUniqueInput,
+        include: Optional[types.TestPackageStageInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.TestPackageStage,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.TestPackageStageUpdateInput,
+        where: types.TestPackageStageWhereUniqueInput,
+        include: Optional[types.TestPackageStageInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.TestPackageStage,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.TestPackageStageWhereUniqueInput,
+        data: types.TestPackageStageUpsertInput,
+        include: Optional[types.TestPackageStageInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.TestPackageStage,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.TestPackageStageUpdateManyMutationInput,
+        where: types.TestPackageStageWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.TestPackageStage,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.TestPackageStageWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.TestPackageStage,
             arguments={'where': where},
             root_selection=['count'],
         )

@@ -62,8 +62,8 @@
     try {
       const [buildsRes, runsRes, mfgRes] = await Promise.allSettled([
         api.get(`/v2/builds?productId=${product.id}&limit=5`),
-        api.get(`/v2/sessions?productId=${product.id}&limit=5&type=VALIDATION`),
-        api.get(`/v2/sessions?productId=${product.id}&limit=1&type=MANUFACTURING`),
+        api.get(`/v2/runs?productId=${product.id}&limit=5&type=VALIDATION`),
+        api.get(`/v2/runs?productId=${product.id}&limit=1&type=MANUFACTURING`),
       ]);
       if (buildsRes.status === 'fulfilled') {
         const d = buildsRes.value as { data?: { data?: any[]; pagination?: { total?: number } } };

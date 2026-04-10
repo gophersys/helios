@@ -251,7 +251,7 @@ def test_update_product_not_found(authed_client, mock_db):
 
 
 def test_delete_product(authed_client, mock_db):
-    """Test deleting a product with no sessions or tests."""
+    """Test deleting a product with no test runs."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-delete",
         name="Product to Delete",
@@ -263,9 +263,8 @@ def test_delete_product(authed_client, mock_db):
         **_product_defaults(),
     )
 
-    # Mock session and test checks return None
-    mock_db.session.find_first.return_value = None
-    mock_db.test.find_first.return_value = None
+    # Mock test run check returns None
+    mock_db.testrun.find_first.return_value = None
 
     with patch("src.api.v2.products.products.log_audit"):
         response = authed_client.delete("/v2/products/prod-delete")
@@ -275,11 +274,11 @@ def test_delete_product(authed_client, mock_db):
     assert data["data"]["deleted"] is True
 
 
-def test_delete_product_with_sessions(authed_client, mock_db):
-    """Test deleting a product with sessions returns 409."""
+def test_delete_product_with_runs(authed_client, mock_db):
+    """Test deleting a product with test runs returns 409."""
     mock_db.product.find_unique.return_value = make_obj(
-        id="prod-has-sessions",
-        name="Product with Sessions",
+        id="prod-has-runs",
+        name="Product with Runs",
         description="",
         active=True,
         metadata={},
@@ -288,13 +287,13 @@ def test_delete_product_with_sessions(authed_client, mock_db):
         **_product_defaults(),
     )
 
-    # Mock session check returns a session
-    mock_db.session.find_first.return_value = make_obj(
-        id="session-1",
-        productId="prod-has-sessions",
+    # Mock test run check returns a run
+    mock_db.testrun.find_first.return_value = make_obj(
+        id="run-1",
+        productId="prod-has-runs",
     )
 
-    response = authed_client.delete("/v2/products/prod-has-sessions")
+    response = authed_client.delete("/v2/products/prod-has-runs")
     assert response.status_code == 409
     data = json.loads(response.data)
     assert len(data["errors"]) > 0
@@ -329,11 +328,11 @@ def test_update_product_duplicate_name(authed_client, mock_db):
     assert response.status_code == 409
 
 
-def test_delete_product_with_tests(authed_client, mock_db):
-    """Test deleting a product with associated tests returns 409."""
+def test_delete_product_no_runs_succeeds(authed_client, mock_db):
+    """Test deleting a product with no test runs succeeds."""
     mock_db.product.find_unique.return_value = make_obj(
-        id="prod-has-tests",
-        name="Product with Tests",
+        id="prod-no-runs",
+        name="Product No Runs",
         description="",
         active=True,
         metadata={},
@@ -342,16 +341,14 @@ def test_delete_product_with_tests(authed_client, mock_db):
         **_product_defaults(),
     )
 
-    mock_db.session.find_first.return_value = None
-    mock_db.test.find_first.return_value = make_obj(
-        id="test-1",
-        productId="prod-has-tests",
-    )
+    mock_db.testrun.find_first.return_value = None
 
-    response = authed_client.delete("/v2/products/prod-has-tests")
-    assert response.status_code == 409
+    with patch("api.v2.products.products.log_audit"):
+        response = authed_client.delete("/v2/products/prod-no-runs")
+
+    assert response.status_code == 200
     data = json.loads(response.data)
-    assert len(data["errors"]) > 0
+    assert data["data"]["deleted"] is True
 
 
 # ── Target tests ───────────────────────────────────────────
@@ -475,8 +472,7 @@ def test_delete_product_with_board_targets_succeeds(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         **_product_defaults(),
     )
-    mock_db.session.find_first.return_value = None
-    mock_db.test.find_first.return_value = None
+    mock_db.testrun.find_first.return_value = None
 
     with patch("api.v2.products.products.log_audit"):
         response = authed_client.delete("/v2/products/prod-cascade")

@@ -565,16 +565,19 @@ class TestStorageConfigWriter:
             assert cfg.STORAGE_ACCESS_KEY is None
             assert cfg.STORAGE_SECRET_ACCESS_KEY is None
             assert cfg.STORAGE_BUCKET_NAME == "concord"
-            assert cfg.CONCORD_RUN_ID is None
             assert cfg.CONCORD_API_URL is None
             assert cfg.CONCORD_API_KEY is None
             assert cfg.CONCORD_API_HOST is None
 
-    def test_reads_run_id(self):
-        """Test reads run id."""
+    def test_reads_run_id_via_helper(self):
+        """Test run ID is read via get_run_id() helper, not _StorageConfig."""
+        from corekinect.test.env import get_run_id
+        with patch.dict(os.environ, {"CONCORD_SESSION_ID": "session-abc"}, clear=True):
+            assert get_run_id() == "session-abc"
         with patch.dict(os.environ, {"CONCORD_RUN_ID": "run-xyz"}, clear=True):
-            cfg = _StorageConfig(auto_load_env=False)
-            assert cfg.CONCORD_RUN_ID == "run-xyz"
+            assert get_run_id() == "run-xyz"
+        with patch.dict(os.environ, {"CONCORD_SESSION_ID": "new", "CONCORD_RUN_ID": "old"}, clear=True):
+            assert get_run_id() == "new"  # prefers CONCORD_SESSION_ID
 
     def test_reads_api_config(self):
         """Test reads api config."""
@@ -593,9 +596,8 @@ class TestStorageConfigWriter:
         """ArtifactWriter.enabled needs storage_url + run_id + minio."""
         env = {
             "STORAGE_URL": "http://minio:9000",
-            "CONCORD_RUN_ID": "run-123",
+            "CONCORD_SESSION_ID": "run-123",
         }
         with patch.dict(os.environ, env, clear=True):
             cfg = _StorageConfig(auto_load_env=False)
             assert cfg.STORAGE_URL == "http://minio:9000"
-            assert cfg.CONCORD_RUN_ID == "run-123"

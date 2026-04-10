@@ -31,33 +31,33 @@ enum NodeType {
 // DeploymentStatus enum removed — Deployment model deleted.
 // MTIB deployment state tracked via Node.metadata["deployment_name"].
 
-enum SessionType {
-  MANUFACTURING
+enum TestRunType {
   VALIDATION
+  MANUFACTURING
 }
 
-enum SessionStatus {
+enum TestRunStatus {
   PENDING
   ACTIVE
-  PASSED
+  COMPLETED
   FAILED
   CANCELLED
 }
 
-enum DeviceStatus {
+enum TargetStatus {
   PENDING
-  IN_PROGRESS
+  RUNNING
   PASSED
   FAILED
+  ERROR
 }
 
-enum TestExecutionStatus {
-  QUEUED
+enum ExecutionStatus {
+  PENDING
   RUNNING
   PASSED
   FAILED
   SKIPPED
-  CANCELLED
   ERROR
 }
 
@@ -207,8 +207,6 @@ model Product {
   boards                Board[]
   firmwareSets          FirmwareSet[]
   fixtures              Fixture[]
-  tests                 Test[]
-  sessions              Session[]
   buildJobs             BuildJob[]
   buildRuns             BuildRun[]
   stageConfigs          ProductStageConfig[]
@@ -218,6 +216,7 @@ model Product {
   assetSets             AssetSet[]
   manufacturingConfigs  ManufacturingConfig[]
   manufacturingSessions ManufacturingSession[]
+  testRuns              TestRun[]
 
   @@map("products")
 }
@@ -241,7 +240,8 @@ model TestPackage {
   frameworkVersion String /// corekinect version tests were validated against
   manifestHash     String? /// SHA-256 of concord.test.yaml for change detection
   testCount        Int               @default(0) /// Number of tests collected
-  stagesEnabled    Json? /// Which stages are enabled: {"smoke": true, "fuota": true, ...}
+  schemaVersion    String? /// Manifest schema version (e.g. "2.0") — enforced on upload
+  stagesEnabled    Json? /// Which stages are enabled (v1 legacy — replaced by packageStages in v2)
   message          String? /// Developer-provided description at upload time
   gitSha           String? /// Git HEAD SHA at upload time (short, e.g., "abc12345")
   gitDirty         Boolean? /// True if working tree had uncommitted changes
@@ -250,10 +250,10 @@ model TestPackage {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  product               Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdBy             User?                  @relation(fields: [createdById], references: [id])
-  sessions              Session[]
-  manufacturingSessions ManufacturingSession[] @relation("ManufacturingTestPackage")
+  product       Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdBy     User?              @relation(fields: [createdById], references: [id])
+  testRuns      TestRun[]
+  packageStages TestPackageStage[]
 
   @@unique([productId, version, type])
   @@index([productId, status])
@@ -472,8 +472,8 @@ model ValidationQueueEntry {
   // Fixture assignment
   fixtureId String? /// Assigned fixture (null until ASSIGNED)
 
-  // Session (created when tests actually start)
-  sessionId String? @unique
+  // TestRun (created when tests actually start)
+  testRunId String? @unique
 
   // Context
   reason       String? /// "PR #42", "regression 2026-03-11", "manual"
@@ -491,7 +491,7 @@ model ValidationQueueEntry {
   buildRun    BuildRun            @relation(fields: [buildRunId], references: [id])
   stageConfig ProductStageConfig? @relation(fields: [stageConfigId], references: [id])
   fixture     Fixture?            @relation(fields: [fixtureId], references: [id])
-  session     Session?            @relation(fields: [sessionId], references: [id])
+  testRun     TestRun?            @relation(fields: [testRunId], references: [id])
 
   @@index([status, priority])
   @@index([buildRunId])
@@ -556,9 +556,9 @@ model BuildRun {
   stageConfig   ProductStageConfig?    @relation(fields: [stageConfigId], references: [id])
   recipeVersion RecipeVersion?         @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id])
   builds        BuildJob[]
-  sessions      Session[]
   queueEntries  ValidationQueueEntry[]
   assetSet      AssetSet?
+  testRuns      TestRun[]
 
   @@index([productId, branch])
   @@index([productId, prNumber])
@@ -658,103 +658,6 @@ model BuildArtifact {
 
 // =============================================================================
 //
-//  SESSIONS
-//  Unified manufacturing and validation sessions, DUT device tracking.
-//
-// =============================================================================
-
-/// A unified test session: manufacturing or validation.
-/// Every test execution happens within a session, giving full traceability.
-///
-/// The count fields are denormalized for dashboard performance.
-/// They are updated by the API when devices complete testing
-/// and can always be recomputed from Device statuses.
-model Session {
-  id        String        @id @default(cuid())
-  name      String
-  type      SessionType
-  productId String
-  status    SessionStatus @default(PENDING)
-
-  // Fixture assignment
-  fixtureId String?
-
-  // Pipeline link (CI trigger)
-  buildRunId String?
-
-  // Test package (which test code version was used)
-  testPackageId String?
-
-  // Progress (denormalized for dashboard)
-  targetCount    Int?
-  completedCount Int  @default(0)
-  passedCount    Int  @default(0)
-  failedCount    Int  @default(0)
-
-  config       Json?
-  notes        String?
-  errorMessage String?
-  createdById  String?
-
-  startedAt  DateTime?
-  finishedAt DateTime?
-  durationMs Int?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  // Asset set — which firmware assets this session consumed
-  assetSetId String?
-
-  product     Product               @relation(fields: [productId], references: [id])
-  fixture     Fixture?              @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
-  pipeline    BuildRun?             @relation(fields: [buildRunId], references: [id], onDelete: SetNull)
-  testPackage TestPackage?          @relation(fields: [testPackageId], references: [id], onDelete: SetNull)
-  assetSet    AssetSet?             @relation(fields: [assetSetId], references: [id])
-  createdBy   User?                 @relation(fields: [createdById], references: [id])
-  devices     Device[]
-  queueEntry  ValidationQueueEntry?
-
-  @@index([productId])
-  @@index([type, status])
-  @@index([buildRunId])
-  @@index([testPackageId])
-  @@index([fixtureId])
-  @@index([assetSetId])
-  @@index([createdById])
-  @@map("sessions")
-}
-
-/// An individual device (DUT) going through testing within a session.
-/// Tracks serial number, overall pass/fail status, and links to all
-/// test executions run on this device.
-///
-/// The same serial number may appear in different sessions
-/// (e.g., a device that failed and was retested later).
-///
-/// Device status lifecycle:
-///   PENDING     -> device registered, no tests started
-///   IN_PROGRESS -> at least one execution running
-///   PASSED      -> all required tests passed
-///   FAILED      -> any test failed
-model Device {
-  id           String       @id @default(cuid())
-  serialNumber String
-  sessionId    String
-  status       DeviceStatus @default(PENDING)
-  metadata     Json? /// IMEI, ICCID, hardware info, calibration data
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  session    Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  executions TestExecution[]
-
-  @@unique([serialNumber, sessionId])
-  @@index([serialNumber])
-  @@map("devices")
-}
-
-// =============================================================================
-//
 //  FIXTURES
 //  Unified test fixtures: physical test rigs with multi-DUT slots.
 //  Absorbs former TestBench model.
@@ -826,9 +729,9 @@ model Fixture {
   boardRevision         BoardRevision?         @relation(fields: [boardRevisionId], references: [id])
   design                FixtureDesign?         @relation(fields: [designId], references: [id])
   slots                 FixtureSlot[]
-  sessions              Session[]
   queueEntries          ValidationQueueEntry[]
   manufacturingSessions ManufacturingSession[]
+  testRuns              TestRun[]
 
   @@index([productId, status])
   @@index([boardRevisionId])
@@ -863,9 +766,9 @@ model FixtureSlot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  fixture        Fixture         @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
-  node           Node?           @relation(fields: [nodeId], references: [id], onDelete: SetNull)
-  testExecutions TestExecution[]
+  fixture    Fixture     @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  node       Node?       @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+  runTargets RunTarget[]
 
   @@unique([fixtureId, slotIndex])
   @@map("fixture_slots")
@@ -897,8 +800,7 @@ model Node {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  fixtureSlot    FixtureSlot? /// one-to-one via @unique on FixtureSlot.nodeId
-  testExecutions TestExecution[]
+  fixtureSlot FixtureSlot? /// one-to-one via @unique on FixtureSlot.nodeId
 
   @@map("nodes")
 }
@@ -976,100 +878,6 @@ model IcleLog {
 //
 // =============================================================================
 
-/// A test definition for a product. Defines WHAT to test,
-/// not a specific run. Tests are grouped by category
-/// (e.g., "electrical", "firmware", "post") and ordered
-/// by sortOrder for sequential execution.
-///
-/// Tests with execution history cannot be deleted (default
-/// Restrict). Disable with enabled = false instead.
-model Test {
-  id          String   @id @default(cuid())
-  name        String
-  productId   String
-  description String?
-  category    String? /// "electrical", "firmware", "post", etc.
-  sortOrder   Int      @default(0)
-  config      Json? /// default config template (can be overridden per-execution)
-  enabled     Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  executions TestExecution[]
-
-  @@unique([productId, name, category])
-  @@map("tests")
-}
-
-/// A single run of a test on a node for a device.
-///
-/// Links to: Test (what), Node (where), Device (who/what DUT),
-/// FixtureSlot (which slot), User (triggered by).
-///
-/// deviceId is optional for system-level or ad-hoc tests that
-/// don't target a specific device.
-///
-/// On cascade behavior:
-///   - test/node: Restrict (cannot delete test/node with history)
-///   - device:    Cascade  (session cleanup cascades through)
-///   - slot/user: SetNull  (preserve execution if slot/user removed)
-model TestExecution {
-  id            String              @id @default(cuid())
-  testId        String
-  nodeId        String
-  deviceId      String?
-  slotId        String?
-  status        TestExecutionStatus @default(QUEUED)
-  config        Json? /// execution-specific config overrides
-  triggeredById String?
-  startedAt     DateTime?
-  finishedAt    DateTime?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-
-  test        Test         @relation(fields: [testId], references: [id])
-  node        Node         @relation(fields: [nodeId], references: [id])
-  device      Device?      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  slot        FixtureSlot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
-  triggeredBy User?        @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
-  steps       TestStep[]
-
-  @@index([status])
-  @@index([testId])
-  @@index([nodeId])
-  @@index([deviceId])
-  @@map("test_executions")
-}
-
-/// A single step within a test execution. Steps provide sub-test
-/// granularity for live progress tracking and detailed diagnostics.
-/// Replaces the former TestResult model with richer fields.
-model TestStep {
-  id          String              @id @default(cuid())
-  executionId String
-  stepIndex   Int
-  name        String
-  status      TestExecutionStatus @default(QUEUED)
-
-  passed       Boolean?
-  errorMessage String?
-  measurements Json?
-
-  logOutput     String? @db.Text
-  logStorageKey String?
-
-  startedAt  DateTime?
-  finishedAt DateTime?
-  durationMs Int?
-  createdAt  DateTime  @default(now())
-
-  execution TestExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
-
-  @@index([executionId])
-  @@map("test_steps")
-}
-
 // =============================================================================
 //
 //  PLATFORM
@@ -1098,14 +906,13 @@ model User {
   permissionSet         PermissionSet?         @relation(fields: [permissionSetId], references: [id])
   productAccess         ProductAccess[]
   apiKeys               ApiKey[]
-  sessions              Session[]
-  testExecutions        TestExecution[]
   testPackages          TestPackage[]
   auditLogs             AuditLog[]
   secrets               Secret[]
   recipeVersions        RecipeVersion[]
   assetSets             AssetSet[]
   manufacturingSessions ManufacturingSession[] @relation("ManufacturingOperator")
+  testRuns              TestRun[]              @relation("TestRunOperator")
 
   @@map("users")
 }
@@ -1326,7 +1133,7 @@ model AssetSet {
   recipeVersion RecipeVersion? @relation(fields: [recipeVersionId], references: [id])
   createdBy     User?          @relation(fields: [createdById], references: [id])
   assets        Asset[]
-  sessions      Session[]
+  testRuns      TestRun[]
 
   @@index([productId, stage, status])
   @@index([productId, version])
@@ -1372,20 +1179,6 @@ enum ManufacturingSessionStatus {
   CANCELLED
 }
 
-enum PanelStatus {
-  RUNNING
-  PASSED
-  FAILED
-  CANCELLED
-}
-
-enum UnitStatus {
-  RUNNING
-  PASSED
-  FAILED
-  ERROR
-}
-
 /// Manufacturing configuration for a product + board revision combination.
 /// Defines which stages to run, firmware source, and pass criteria.
 model ManufacturingConfig {
@@ -1408,77 +1201,210 @@ model ManufacturingConfig {
   @@map("manufacturing_configs")
 }
 
-/// An active or completed manufacturing session on a fixture.
-/// Tracks operator, fixture lock, and aggregate panel/unit counts.
+/// An operator-managed manufacturing session on a fixture.
+/// Groups multiple TestRuns (one per panel scan).
+/// Lifecycle: operator starts session → scans panels (creating runs) → ends session.
 model ManufacturingSession {
-  id            String                     @id @default(cuid())
-  productId     String
-  fixtureId     String
-  status        ManufacturingSessionStatus @default(ACTIVE)
-  operatorId    String
-  testPackageId String?
-  panelCount    Int                        @default(0)
-  passedCount   Int                        @default(0)
-  failedCount   Int                        @default(0)
-  config        Json?
-  startedAt     DateTime                   @default(now())
-  endedAt       DateTime?
-  createdAt     DateTime                   @default(now())
-  updatedAt     DateTime                   @updatedAt
+  id         String                     @id @default(cuid())
+  productId  String
+  fixtureId  String
+  status     ManufacturingSessionStatus @default(ACTIVE)
+  operatorId String
+  config     Json?
+  notes      String?
+  startedAt  DateTime                   @default(now())
+  endedAt    DateTime?
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @updatedAt
 
-  product     Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
-  fixture     Fixture              @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
-  operator    User                 @relation("ManufacturingOperator", fields: [operatorId], references: [id], onDelete: Restrict)
-  testPackage TestPackage?         @relation("ManufacturingTestPackage", fields: [testPackageId], references: [id], onDelete: SetNull)
-  panels      ManufacturingPanel[]
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  fixture  Fixture   @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
+  operator User      @relation("ManufacturingOperator", fields: [operatorId], references: [id], onDelete: Restrict)
+  runs     TestRun[]
 
   @@index([productId, status])
   @@index([fixtureId])
   @@index([operatorId])
-  @@index([testPackageId])
   @@map("manufacturing_sessions")
 }
 
-/// A panel scanned during a manufacturing session. Each panel contains
-/// multiple units (DUTs) that go through manufacturing test stages.
-model ManufacturingPanel {
-  id          String      @id @default(cuid())
-  sessionId   String
-  panelIndex  Int
-  qrCode      String
-  status      PanelStatus @default(RUNNING)
-  unitCount   Int
-  passedUnits Int         @default(0)
-  failedUnits Int         @default(0)
-  startedAt   DateTime    @default(now())
+// =============================================================================
+//
+//  TEST EXECUTION MODEL
+//  Shared hierarchy: TestRun → RunTarget → TestExecution → TestStep
+//  Validation: standalone runs. Manufacturing: runs within sessions.
+//
+// =============================================================================
+
+/// The atomic unit of test execution — shared between validation and manufacturing.
+/// Validation: one run per CI trigger or manual invocation. Standalone.
+/// Manufacturing: one run per panel scan, nested within a ManufacturingSession.
+model TestRun {
+  id   String      @id @default(cuid())
+  type TestRunType /// VALIDATION or MANUFACTURING
+  name String? /// Display name
+
+  productId              String
+  fixtureId              String
+  testPackageId          String?
+  buildRunId             String? /// Validation only — CI pipeline link
+  manufacturingSessionId String? /// Manufacturing only — parent session
+  panelIdentifier        String? /// QR code (manufacturing) or auto-generated (validation)
+  assetSetId             String? /// Firmware asset set used for this run
+
+  status     TestRunStatus @default(PENDING)
+  operatorId String /// Who triggered this run
+
+  // Aggregate counts
+  targetCount    Int @default(0)
+  completedCount Int @default(0)
+  passedCount    Int @default(0)
+  failedCount    Int @default(0)
+
+  config       Json?
+  notes        String?
+  errorMessage String?
+
+  startedAt   DateTime?
   completedAt DateTime?
   durationMs  Int?
-  createdAt   DateTime    @default(now())
 
-  session ManufacturingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  units   ManufacturingUnit[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([sessionId, panelIndex])
-  @@map("manufacturing_panels")
+  product     Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  fixture     Fixture               @relation(fields: [fixtureId], references: [id])
+  testPackage TestPackage?          @relation(fields: [testPackageId], references: [id], onDelete: SetNull)
+  buildRun    BuildRun?             @relation(fields: [buildRunId], references: [id], onDelete: SetNull)
+  session     ManufacturingSession? @relation(fields: [manufacturingSessionId], references: [id], onDelete: Cascade)
+  assetSet    AssetSet?             @relation(fields: [assetSetId], references: [id], onDelete: SetNull)
+  operator    User                  @relation("TestRunOperator", fields: [operatorId], references: [id])
+
+  targets    RunTarget[]
+  queueEntry ValidationQueueEntry?
+
+  @@index([productId, type, status])
+  @@index([fixtureId])
+  @@index([testPackageId])
+  @@index([buildRunId])
+  @@index([manufacturingSessionId])
+  @@index([operatorId])
+  @@index([assetSetId])
+  @@map("test_runs")
 }
 
-/// A single DUT (device under test) within a manufacturing panel.
-/// Stages are stored as a JSON array, appended by stage-result callbacks.
-model ManufacturingUnit {
-  id           String     @id @default(cuid())
-  panelId      String
-  slotIndex    Int
-  slotId       String
-  serialNumber String?
-  status       UnitStatus @default(RUNNING)
-  stages       Json /// [{name, status, durationMs, measurements?, errorMessage?}, ...]
+/// A single DUT (device under test) within a run.
+/// Linked to a physical fixture slot for traceability.
+model RunTarget {
+  id        String  @id @default(cuid())
+  runId     String
+  slotIndex Int /// Physical fixture slot position (0-based)
+  slotId    String? /// FK to FixtureSlot
+
+  serialNumber String? /// DUT serial number (may be discovered during manufacturing)
+  deviceId     String? /// CoreCloud device ID
+
+  status TargetStatus @default(PENDING)
+
+  metadata     Json? /// IMEI, ICCID, hardware info, calibration data
   errorMessage String?
-  startedAt    DateTime   @default(now())
-  completedAt  DateTime?
-  durationMs   Int?
 
-  panel ManufacturingPanel @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  startedAt   DateTime?
+  completedAt DateTime?
+  durationMs  Int?
 
-  @@unique([panelId, slotIndex])
-  @@map("manufacturing_units")
+  createdAt DateTime @default(now())
+
+  run        TestRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
+  slot       FixtureSlot?    @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  executions TestExecution[]
+
+  @@unique([runId, slotIndex])
+  @@index([runId])
+  @@map("run_targets")
+}
+
+/// A single test function (validation) or manufacturing step execution.
+/// Validation: one per pytest test function per target.
+/// Manufacturing: one per sequential step (Electrical, Flash, POST) per target.
+model TestExecution {
+  id             String @id @default(cuid())
+  targetId       String
+  executionIndex Int /// Order within target (0-based)
+
+  name   String /// Test function name or step name
+  module String? /// Pytest module path (e.g., "tests.smoke.test_hardware")
+
+  status ExecutionStatus @default(PENDING)
+
+  durationMs    Int?
+  errorMessage  String?
+  measurements  Json? /// Power measurements, ADC readings, etc.
+  logOutput     String? @db.Text /// Captured stdout/stderr
+  logStorageKey String? /// MinIO key for log overflow
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  target RunTarget  @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  steps  TestStep[]
+
+  @@unique([targetId, executionIndex])
+  @@index([targetId])
+  @@map("test_executions")
+}
+
+/// A sub-step within a test execution.
+/// Created by `with report.step("name"):` in test code.
+model TestStep {
+  id          String @id @default(cuid())
+  executionId String
+  stepIndex   Int
+
+  name String
+
+  status ExecutionStatus @default(PENDING)
+  passed Boolean?
+
+  durationMs    Int?
+  errorMessage  String?
+  measurements  Json?
+  logOutput     String? @db.Text
+  logStorageKey String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  execution TestExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@unique([executionId, stepIndex])
+  @@index([executionId])
+  @@map("test_steps")
+}
+
+/// Structured stage/step metadata extracted from a test package manifest on upload.
+/// Replaces the untyped `stagesEnabled` JSON blob.
+model TestPackageStage {
+  id            String @id @default(cuid())
+  testPackageId String
+
+  name       String /// "smoke", "regression", "Electrical", "POST"
+  stageIndex Int /// Order within package (matters for manufacturing steps)
+  directory  String? /// "tests/smoke" (validation stages)
+  module     String? /// "tests.manufacturing.test_electrical" (manufacturing steps)
+  timeoutS   Int? /// Maximum execution time in seconds
+  hardware   String[] /// Required fixture capabilities
+  markers    String[] /// Pytest markers
+
+  createdAt DateTime @default(now())
+
+  testPackage TestPackage @relation(fields: [testPackageId], references: [id], onDelete: Cascade)
+
+  @@unique([testPackageId, name])
+  @@index([testPackageId])
+  @@map("test_package_stages")
 }

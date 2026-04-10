@@ -201,9 +201,9 @@ def test_complete_asset_set_already_complete(authed_client, mock_db):
 
 
 def test_delete_asset_set(authed_client, mock_db):
-    """DELETE /v2/asset-sets/<id> deletes asset set with no linked sessions."""
+    """DELETE /v2/asset-sets/<id> deletes asset set with no linked runs."""
     mock_db.assetset.find_unique.return_value = _make_asset_set(id="as-del")
-    mock_db.session.count.return_value = 0
+    mock_db.testrun.count.return_value = 0
 
     with patch("src.api.v2.assets.asset_sets.log_audit"):
         response = authed_client.delete("/v2/asset-sets/as-del")
@@ -222,10 +222,10 @@ def test_delete_asset_set_not_found(authed_client, mock_db):
     assert response.status_code == 404
 
 
-def test_delete_asset_set_has_sessions(authed_client, mock_db):
-    """DELETE /v2/asset-sets/<id> returns 400 when sessions reference it."""
+def test_delete_asset_set_has_runs(authed_client, mock_db):
+    """DELETE /v2/asset-sets/<id> returns 400 when test runs reference it."""
     mock_db.assetset.find_unique.return_value = _make_asset_set(id="as-linked")
-    mock_db.session.count.return_value = 3
+    mock_db.testrun.count.return_value = 3
 
     response = authed_client.delete("/v2/asset-sets/as-linked")
     assert response.status_code == 400

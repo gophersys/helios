@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { getToken } from '$lib/api';
 
 let systemSocket: Socket | null = null;
-let validationSocket: Socket | null = null;
+let runSocket: Socket | null = null;
 
 export interface LogSubscription {
   namespace: string;
@@ -82,32 +82,32 @@ export function disconnectSystemSocket(): void {
   }
 }
 
-// ── Validation Namespace ──────────────────────────────────────────────────────
+// ── Runs Namespace (validation + manufacturing) ─────────────────────────────
 
 /**
- * Get or create the Socket.IO connection to /validation namespace.
- * Authenticates with JWT token.
+ * Get or create the Socket.IO connection to /runs namespace.
+ * Used for both validation and manufacturing run events.
  */
-export function getValidationSocket(): Socket | null {
+export function getRunSocket(): Socket | null {
   if (!browser) return null;
 
-  if (validationSocket?.connected) {
-    return validationSocket;
+  if (runSocket?.connected) {
+    return runSocket;
   }
 
   const token = getToken();
   if (!token) {
-    console.warn('No auth token available for validation WebSocket connection');
+    console.warn('No auth token available for run WebSocket connection');
     return null;
   }
 
   // Close existing socket if any
-  if (validationSocket) {
-    validationSocket.disconnect();
+  if (runSocket) {
+    runSocket.disconnect();
   }
 
   // Create new socket connection
-  validationSocket = io('/validation', {
+  runSocket = io('/runs', {
     auth: { token },
     transports: ['polling', 'websocket'],
     reconnection: true,
@@ -116,31 +116,35 @@ export function getValidationSocket(): Socket | null {
     reconnectionDelayMax: 10000,
   });
 
-  validationSocket.on('connect', () => {
-    console.log('Validation WebSocket connected');
+  runSocket.on('connect', () => {
+    console.log('Run WebSocket connected');
   });
 
-  validationSocket.on('connect_error', (err) => {
-    console.error('Validation WebSocket connection error:', err.message);
+  runSocket.on('connect_error', (err) => {
+    console.error('Run WebSocket connection error:', err.message);
   });
 
-  validationSocket.on('disconnect', (reason) => {
-    console.log('Validation WebSocket disconnected:', reason);
-    // If transport closed, the socket will auto-reconnect (Infinity attempts)
+  runSocket.on('disconnect', (reason) => {
+    console.log('Run WebSocket disconnected:', reason);
   });
 
-  return validationSocket;
+  return runSocket;
 }
 
 /**
- * Disconnect the validation socket.
+ * Disconnect the run socket.
  */
-export function disconnectValidationSocket(): void {
-  if (validationSocket) {
-    validationSocket.disconnect();
-    validationSocket = null;
+export function disconnectRunSocket(): void {
+  if (runSocket) {
+    runSocket.disconnect();
+    runSocket = null;
   }
 }
+
+/** @deprecated Use getRunSocket */
+export const getValidationSocket = getRunSocket;
+/** @deprecated Use disconnectRunSocket */
+export const disconnectValidationSocket = disconnectRunSocket;
 
 /**
  * Subscribe to pod logs.
@@ -346,40 +350,45 @@ export function subscribeUart(
   };
 }
 
-// ── Validation Run Subscriptions ──────────────────────────────────────
+// ── Run Subscriptions (validation + manufacturing) ──────────────────────────
 
-export interface ValidationTestStartEvent {
+export interface RunExecutionStartEvent {
   runId: string;
-  testName: string;
+  name: string;
+  testName?: string; // alias — backend emits "name"
   module: string | null;
   executionId: string;
+  targetId?: string;
   testIndex?: number;
   totalTests?: number;
 }
 
-export interface ValidationTestResultEvent {
+export interface RunExecutionResultEvent {
   runId: string;
-  testName: string;
+  name: string;
+  testName?: string; // alias — backend emits "name"
   module: string | null;
   passed: boolean;
   skipped?: boolean;
-  durationS: number | null;
+  durationMs: number | null;
+  durationS?: number | null; // legacy alias
   errorMessage: string | null;
   measurements: Record<string, unknown> | null;
   logOutput: string | null;
 }
 
-export interface ValidationRunFinishEvent {
+export interface RunFinishEvent {
   runId: string;
   status: string;
   total: number;
   passed: number;
   failed: number;
   errors: number;
-  durationS: number | null;
+  durationMs: number | null;
+  durationS?: number | null; // legacy alias
 }
 
-export interface ValidationLogChunkEvent {
+export interface RunLogChunkEvent {
   runId: string;
   testName?: string;
   file: string;
@@ -400,37 +409,44 @@ export interface TelemetrySample {
   [key: string]: unknown; // extensible for future sensor types
 }
 
-export interface TelemetryEvent {
+export interface RunTelemetryEvent {
   runId: string;
   samples: TelemetrySample[];
 }
 
+/** Backward-compat aliases */
+export type ValidationTestStartEvent = RunExecutionStartEvent;
+export type ValidationTestResultEvent = RunExecutionResultEvent;
+export type ValidationRunFinishEvent = RunFinishEvent;
+export type ValidationLogChunkEvent = RunLogChunkEvent;
+export type TelemetryEvent = RunTelemetryEvent;
+
 /**
- * Subscribe to real-time validation run events using the /validation namespace.
+ * Subscribe to real-time run events using the /runs namespace.
+ * Works for both validation and manufacturing runs.
  * Uses room-based subscription for efficient event delivery.
- * Supports log streaming alongside test events.
  *
- * @param runId - The validation run ID to subscribe to
- * @param callbacks - Event handlers for test and log events
+ * @param runId - The run ID to subscribe to
+ * @param callbacks - Event handlers for execution and log events
  * @param onError - Optional error handler
  * @returns Cleanup function to unsubscribe
  */
-export function subscribeValidationRunWithLogs(
+export function subscribeRunWithLogs(
   runId: string,
   callbacks: {
-    onTestStart?: (data: ValidationTestStartEvent) => void;
-    onTestResult?: (data: ValidationTestResultEvent) => void;
-    onRunFinish?: (data: ValidationRunFinishEvent) => void;
+    onTestStart?: (data: RunExecutionStartEvent) => void;
+    onTestResult?: (data: RunExecutionResultEvent) => void;
+    onRunFinish?: (data: RunFinishEvent) => void;
     onRunStart?: (data: { runId: string; status: string }) => void;
-    onLogChunk?: (data: ValidationLogChunkEvent) => void;
-    onTelemetry?: (data: TelemetryEvent) => void;
+    onLogChunk?: (data: RunLogChunkEvent) => void;
+    onTelemetry?: (data: RunTelemetryEvent) => void;
     onTestList?: (data: { runId: string; tests: { name: string; module: string | null }[] }) => void;
   },
   onError?: (message: string) => void
 ): () => void {
-  const socket = getValidationSocket();
+  const socket = getRunSocket();
   if (!socket) {
-    onError?.('Validation WebSocket not available');
+    onError?.('Run WebSocket not available');
     return () => {};
   }
 
@@ -439,23 +455,23 @@ export function subscribeValidationRunWithLogs(
     callbacks.onRunStart?.(data);
   };
 
-  const testStartHandler = (data: ValidationTestStartEvent) => {
+  const testStartHandler = (data: RunExecutionStartEvent) => {
     callbacks.onTestStart?.(data);
   };
 
-  const testResultHandler = (data: ValidationTestResultEvent) => {
+  const testResultHandler = (data: RunExecutionResultEvent) => {
     callbacks.onTestResult?.(data);
   };
 
-  const runFinishHandler = (data: ValidationRunFinishEvent) => {
+  const runFinishHandler = (data: RunFinishEvent) => {
     callbacks.onRunFinish?.(data);
   };
 
-  const logChunkHandler = (data: ValidationLogChunkEvent) => {
+  const logChunkHandler = (data: RunLogChunkEvent) => {
     callbacks.onLogChunk?.(data);
   };
 
-  const telemetryHandler = (data: TelemetryEvent) => {
+  const telemetryHandler = (data: RunTelemetryEvent) => {
     callbacks.onTelemetry?.(data);
   };
 
@@ -468,17 +484,17 @@ export function subscribeValidationRunWithLogs(
   };
 
   const subscribedHandler = (data: { runId: string }) => {
-    console.log('Subscribed to validation run:', data.runId);
+    console.log('Subscribed to run:', data.runId);
   };
 
-  // Register handlers
-  socket.on('validation_run_start', runStartHandler);
-  socket.on('validation_test_start', testStartHandler);
-  socket.on('validation_test_result', testResultHandler);
-  socket.on('validation_run_finish', runFinishHandler);
-  socket.on('validation_log_chunk', logChunkHandler);
-  socket.on('telemetry', telemetryHandler);
-  socket.on('validation_test_list', testListHandler);
+  // Register handlers with new event names
+  socket.on('run_start', runStartHandler);
+  socket.on('run_execution_start', testStartHandler);
+  socket.on('run_execution_result', testResultHandler);
+  socket.on('run_finish', runFinishHandler);
+  socket.on('run_log_chunk', logChunkHandler);
+  socket.on('run_telemetry', telemetryHandler);
+  socket.on('run_test_list', testListHandler);
   socket.on('error', errorHandler);
   socket.on('subscribed', subscribedHandler);
 
@@ -499,13 +515,13 @@ export function subscribeValidationRunWithLogs(
 
   // Return cleanup function
   return () => {
-    socket.off('validation_run_start', runStartHandler);
-    socket.off('validation_test_start', testStartHandler);
-    socket.off('validation_test_result', testResultHandler);
-    socket.off('validation_run_finish', runFinishHandler);
-    socket.off('validation_log_chunk', logChunkHandler);
-    socket.off('telemetry', telemetryHandler);
-    socket.off('validation_test_list', testListHandler);
+    socket.off('run_start', runStartHandler);
+    socket.off('run_execution_start', testStartHandler);
+    socket.off('run_execution_result', testResultHandler);
+    socket.off('run_finish', runFinishHandler);
+    socket.off('run_log_chunk', logChunkHandler);
+    socket.off('run_telemetry', telemetryHandler);
+    socket.off('run_test_list', testListHandler);
     socket.off('error', errorHandler);
     socket.off('subscribed', subscribedHandler);
     socket.off('connect', connectHandler);
@@ -514,6 +530,9 @@ export function subscribeValidationRunWithLogs(
     }
   };
 }
+
+/** @deprecated Use subscribeRunWithLogs */
+export const subscribeValidationRunWithLogs = subscribeRunWithLogs;
 
 // ── CI Build Subscriptions ────────────────────────────────────
 
@@ -636,16 +655,19 @@ export function subscribeCiPipeline(
   };
 }
 
-// ── Validation Log Streaming ────────────────────────────────────
+// ── Run Log Streaming ───────────────────────────────────────────
 
-export interface ValidationLogSubscription {
+export interface RunLogSubscription {
   runId: string;
   testName: string;
   file: string;
 }
 
+/** @deprecated Use RunLogSubscription */
+export type ValidationLogSubscription = RunLogSubscription;
+
 /**
- * Subscribe to real-time validation log streaming for a specific test file.
+ * Subscribe to real-time run log streaming for a specific test file.
  * Supports gap detection and recovery via offset tracking.
  *
  * @param subscription - Log file subscription details
@@ -653,8 +675,8 @@ export interface ValidationLogSubscription {
  * @param onError - Optional error handler
  * @returns Cleanup function to unsubscribe
  */
-export function subscribeValidationLogs(
-  subscription: ValidationLogSubscription,
+export function subscribeRunLogs(
+  subscription: RunLogSubscription,
   onChunk: (data: { offset: number; chunk: string }) => void,
   onError?: (message: string) => void
 ): () => void {
@@ -666,7 +688,7 @@ export function subscribeValidationLogs(
 
   const { runId, testName, file } = subscription;
 
-  const chunkHandler = (data: ValidationLogChunkEvent) => {
+  const chunkHandler = (data: RunLogChunkEvent) => {
     // Filter to this specific file
     if (data.runId !== runId || data.testName !== testName || data.file !== file) {
       return;
@@ -689,12 +711,12 @@ export function subscribeValidationLogs(
     onError?.(data.message);
   };
 
-  socket.on('validation_log_chunk', chunkHandler);
-  socket.on('validation_log_error', errorHandler);
+  socket.on('run_log_chunk', chunkHandler);
+  socket.on('run_log_error', errorHandler);
 
   // Subscribe to log stream
   const emitSubscribe = () => {
-    socket.emit('subscribe_validation_logs', { runId, testName, file });
+    socket.emit('subscribe_run_logs', { runId, testName, file });
   };
 
   const connectHandler = () => {
@@ -708,11 +730,125 @@ export function subscribeValidationLogs(
   }
 
   return () => {
-    socket.off('validation_log_chunk', chunkHandler);
-    socket.off('validation_log_error', errorHandler);
+    socket.off('run_log_chunk', chunkHandler);
+    socket.off('run_log_error', errorHandler);
     socket.off('connect', connectHandler);
     if (socket.connected) {
-      socket.emit('unsubscribe_validation_logs', { runId, testName, file });
+      socket.emit('unsubscribe_run_logs', { runId, testName, file });
     }
   };
 }
+
+/** @deprecated Use subscribeRunLogs */
+export const subscribeValidationLogs = subscribeRunLogs;
+
+// ── Manufacturing Session Subscriptions ─────────────────────────────
+
+export interface ManufacturingUnitStartEvent {
+  panelId: string;
+  slotIndex: number;
+  slotLabel: string;
+  serialNumber: string | null;
+}
+
+export interface ManufacturingStageResultEvent {
+  panelId: string;
+  slotIndex: number;
+  stage: string;
+  status: string;
+  durationMs: number | null;
+  errorMessage: string | null;
+}
+
+export interface ManufacturingUnitResultEvent {
+  panelId: string;
+  slotIndex: number;
+  serialNumber: string | null;
+  status: string;
+  errorMessage: string | null;
+}
+
+export interface ManufacturingPanelCompleteEvent {
+  panelId: string;
+  passCount: number;
+  failCount: number;
+}
+
+/**
+ * Subscribe to real-time manufacturing session events.
+ * Uses the /runs namespace with manufacturing-specific events.
+ */
+export function subscribeManufacturingSession(
+  sessionId: string,
+  callbacks: {
+    onUnitStart?: (data: ManufacturingUnitStartEvent) => void;
+    onStageResult?: (data: ManufacturingStageResultEvent) => void;
+    onUnitResult?: (data: ManufacturingUnitResultEvent) => void;
+    onPanelComplete?: (data: ManufacturingPanelCompleteEvent) => void;
+  },
+  onError?: (message: string) => void
+): () => void {
+  const socket = getRunSocket();
+  if (!socket) {
+    onError?.('Manufacturing WebSocket not available');
+    return () => {};
+  }
+
+  const unitStartHandler = (data: ManufacturingUnitStartEvent) => {
+    callbacks.onUnitStart?.(data);
+  };
+
+  const stageResultHandler = (data: ManufacturingStageResultEvent) => {
+    callbacks.onStageResult?.(data);
+  };
+
+  const unitResultHandler = (data: ManufacturingUnitResultEvent) => {
+    callbacks.onUnitResult?.(data);
+  };
+
+  const panelCompleteHandler = (data: ManufacturingPanelCompleteEvent) => {
+    callbacks.onPanelComplete?.(data);
+  };
+
+  const errorHandler = (data: { message: string }) => {
+    onError?.(data.message);
+  };
+
+  socket.on('mfg_unit_start', unitStartHandler);
+  socket.on('mfg_stage_result', stageResultHandler);
+  socket.on('mfg_unit_result', unitResultHandler);
+  socket.on('mfg_panel_complete', panelCompleteHandler);
+  socket.on('error', errorHandler);
+
+  const emitSubscribe = () => {
+    socket.emit('subscribe_run', { runId: sessionId });
+  };
+
+  const connectHandler = () => {
+    emitSubscribe();
+  };
+
+  if (socket.connected) {
+    emitSubscribe();
+  } else {
+    socket.on('connect', connectHandler);
+  }
+
+  return () => {
+    socket.off('mfg_unit_start', unitStartHandler);
+    socket.off('mfg_stage_result', stageResultHandler);
+    socket.off('mfg_unit_result', unitResultHandler);
+    socket.off('mfg_panel_complete', panelCompleteHandler);
+    socket.off('error', errorHandler);
+    socket.off('connect', connectHandler);
+    if (socket.connected) {
+      socket.emit('unsubscribe_run', { runId: sessionId });
+    }
+  };
+}
+
+/**
+ * Disconnect the manufacturing socket.
+ * @deprecated Use disconnectRunSocket — manufacturing now uses the shared /runs namespace.
+ */
+export const disconnectManufacturingSocket = disconnectRunSocket;

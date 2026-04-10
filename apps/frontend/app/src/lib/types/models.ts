@@ -581,84 +581,101 @@ export interface ResourceYamlData {
   yaml: string;
 }
 
-// ── Validation types ─────────────────────────────────────────
+// ── Test Run types (unified validation + manufacturing) ──────
 
-export interface ValidationDevice {
+export interface TestRun {
   id: string;
-  serialNumber: string;
-  sessionId: string;
-  status: string;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ValidationTest {
-  id: string;
-  name: string;
-  category: string;
-  enabled: boolean;
-  sortOrder: number;
-}
-
-export interface ValidationResult {
-  id: string;
-  executionId: string;
-  stepIndex: number;
-  groupIndex: number;
-  passed: boolean;
-  result: Record<string, unknown> | null;
-  createdAt: string;
-}
-
-export interface ValidationExecution {
-  id: string;
-  testId: string;
-  nodeId: string;
-  deviceId: string;
-  status: 'QUEUED' | 'RUNNING' | 'PASSED' | 'FAILED' | 'CANCELLED' | 'SKIPPED';
-  config: Record<string, unknown> | null;
-  startedAt: string | null;
-  finishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  test?: ValidationTest;
-  resultCount?: number;
-  resultsPassed?: number;
-  results?: ValidationResult[];
-}
-
-export type ValidationTrigger = 'manual' | 'bitbucket' | 'regression' | 'scheduled' | 'ci';
-export type ValidationStage = 'smoke' | 'driver' | 'integration' | 'regression' | 'fuota';
-
-export interface ValidationRun {
-  id: string;
-  name: string;
+  type: 'VALIDATION' | 'MANUFACTURING';
+  name?: string;
   productId: string;
-  fixtureId: string | null;
-  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'PAUSED';
-  config: Record<string, unknown> | null;
+  fixtureId: string;
+  testPackageId?: string;
+  buildRunId?: string;
+  manufacturingSessionId?: string;
+  panelIdentifier?: string;
+  assetSetId?: string;
+  status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  operatorId: string;
   targetCount: number;
   completedCount: number;
   passedCount: number;
   failedCount: number;
-  startedAt: string | null;
-  finishedAt: string | null;
-  notes: string | null;
+  config?: Record<string, any>;
+  notes?: string;
+  errorMessage?: string;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
   createdAt: string;
   updatedAt: string;
-  product?: { id: string; name: string };
-  createdBy?: { id: string; name: string; email: string };
-  devices?: ValidationDevice[];
-  executions?: ValidationExecution[];
-  executionCount?: number;
-  // Extended fields for filtering/display
-  trigger?: ValidationTrigger;
-  stage?: ValidationStage;
-  buildRunId?: string;
-  commitSha?: string;
-  branch?: string;
+  // Relations (when included)
+  product?: { id: string; name: string; slug?: string };
+  fixture?: { id: string; name: string; stationId?: string };
+  operator?: { id: string; name: string; email: string };
+  testPackage?: { id: string; version: string; type: string };
+  buildRun?: { id: string; name?: string; commitSha?: string; branch: string };
+  targets?: RunTarget[];
 }
+
+/** Backward-compat aliases */
+export type ValidationRun = TestRun;
+export type ValidationDevice = RunTarget;
+export type ValidationExecution = TestExecution;
+export type ValidationResult = TestStep;
+
+export interface RunTarget {
+  id: string;
+  runId: string;
+  slotIndex: number;
+  slotId?: string;
+  serialNumber?: string;
+  deviceId?: string;
+  status: 'PENDING' | 'RUNNING' | 'PASSED' | 'FAILED' | 'ERROR';
+  metadata?: Record<string, any>;
+  errorMessage?: string;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+  createdAt: string;
+  executions?: TestExecution[];
+}
+
+export interface TestExecution {
+  id: string;
+  targetId: string;
+  executionIndex: number;
+  name: string;
+  module?: string;
+  status: 'PENDING' | 'RUNNING' | 'PASSED' | 'FAILED' | 'SKIPPED' | 'ERROR';
+  durationMs?: number;
+  errorMessage?: string;
+  measurements?: Record<string, any>;
+  logOutput?: string;
+  logStorageKey?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  steps?: TestStep[];
+}
+
+export interface TestStep {
+  id: string;
+  executionId: string;
+  stepIndex: number;
+  name: string;
+  status: 'PENDING' | 'RUNNING' | 'PASSED' | 'FAILED' | 'SKIPPED' | 'ERROR';
+  passed?: boolean;
+  durationMs?: number;
+  errorMessage?: string;
+  measurements?: Record<string, any>;
+  logOutput?: string;
+  logStorageKey?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export type ValidationTrigger = 'manual' | 'bitbucket' | 'regression' | 'scheduled' | 'ci';
+export type ValidationStage = 'smoke' | 'driver' | 'integration' | 'regression' | 'fuota';
 
 // ── Test Catalog types ────────────────────────────────────────
 
@@ -902,40 +919,36 @@ export interface ManufacturingConfig {
 
 // ── Manufacturing session types ───────────────────────────
 
-export interface ManufacturingFixture {
+export interface ManufacturingSession {
   id: string;
-  name: string;
   productId: string;
-  productName?: string;
-  type: string;
-  status: string;
-  slotCount: number;
-  description?: string;
-  activeSessionId?: string | null;
+  fixtureId: string;
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  operatorId: string;
+  config?: Record<string, any>;
+  notes?: string;
+  startedAt: string;
+  endedAt?: string;
+  createdAt: string;
+  // Relations
+  product?: { id: string; name: string; slug?: string };
+  fixture?: { id: string; name: string };
+  operator?: { id: string; name: string; email: string };
+  runs?: TestRun[];
 }
 
-export interface ManufacturingStage {
-  name: string;
-  status: string;
-  durationMs?: number | null;
-  measurements?: Record<string, unknown> | null;
-  errorMessage?: string | null;
+/**
+ * @deprecated Use ManufacturingSession with `runs` relation instead.
+ * Kept for backward compatibility with components that still reference panels.
+ */
+export interface ManufacturingSessionDetail extends ManufacturingSession {
+  panels: ManufacturingPanel[];
 }
 
-export interface ManufacturingUnit {
-  id: string;
-  panelId: string;
-  slotIndex: number;
-  slotId: string;
-  serialNumber: string | null;
-  status: string;
-  stages: ManufacturingStage[];
-  errorMessage: string | null;
-  startedAt: string | null;
-  completedAt: string | null;
-  durationMs: number | null;
-}
-
+/**
+ * @deprecated Use TestRun (type=MANUFACTURING) instead.
+ * Panels map to individual TestRun entries within a ManufacturingSession.
+ */
 export interface ManufacturingPanel {
   id: string;
   sessionId: string;
@@ -951,29 +964,47 @@ export interface ManufacturingPanel {
   units: ManufacturingUnit[];
 }
 
-export interface ManufacturingSession {
+/**
+ * @deprecated Use RunTarget instead.
+ */
+export interface ManufacturingUnit {
   id: string;
-  productId: string;
-  fixtureId: string;
+  panelId: string;
+  slotIndex: number;
+  slotId: string;
+  serialNumber: string | null;
   status: string;
-  operatorId: string;
-  operatorName?: string;
-  testPackageId: string | null;
-  testPackageVersion: string | null;
-  panelCount: number;
-  passedCount: number;
-  failedCount: number;
-  config: Record<string, unknown> | null;
+  stages: ManufacturingStage[];
+  errorMessage: string | null;
   startedAt: string | null;
-  endedAt: string | null;
-  createdAt: string | null;
-  product?: { id: string; name: string } | null;
-  fixture?: { id: string; name: string } | null;
-  operator?: { id: string; name: string; email: string } | null;
+  completedAt: string | null;
+  durationMs: number | null;
 }
 
-export interface ManufacturingSessionDetail extends ManufacturingSession {
-  panels: ManufacturingPanel[];
+/**
+ * @deprecated Use TestExecution / TestStep instead.
+ */
+export interface ManufacturingStage {
+  name: string;
+  status: string;
+  durationMs?: number | null;
+  measurements?: Record<string, unknown> | null;
+  errorMessage?: string | null;
+}
+
+/**
+ * @deprecated Use Fixture instead.
+ */
+export interface ManufacturingFixture {
+  id: string;
+  name: string;
+  productId: string;
+  productName?: string;
+  type: string;
+  status: string;
+  slotCount: number;
+  description?: string;
+  activeSessionId?: string | null;
 }
 
 // ── Dashboard types ────────────────────────────────────────

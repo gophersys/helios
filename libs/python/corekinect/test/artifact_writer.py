@@ -11,7 +11,7 @@ Opt-in activation via environment variables:
     STORAGE_ACCESS_KEY:        MinIO access key.
     STORAGE_SECRET_ACCESS_KEY: MinIO secret key.
     STORAGE_BUCKET_NAME_NAME:       Bucket name (default: concord).
-    CONCORD_RUN_ID:            Validation run ID.
+    CONCORD_SESSION_ID:        Run ID (preferred). Falls back to CONCORD_RUN_ID.
     CONCORD_API_URL:           (Optional) Backend URL for chunk notifications.
     CONCORD_API_KEY:           (Optional) API key for notifications.
 
@@ -65,7 +65,6 @@ class _StorageConfig(EnvConfig):
     STORAGE_ACCESS_KEY: Optional[str] = None
     STORAGE_SECRET_ACCESS_KEY: Optional[str] = None
     STORAGE_BUCKET_NAME: str = "concord"
-    CONCORD_RUN_ID: Optional[str] = None
     CONCORD_API_URL: Optional[str] = None
     CONCORD_API_KEY: Optional[str] = None
     CONCORD_API_HOST: Optional[str] = None
@@ -121,12 +120,14 @@ class ArtifactWriter:
     """
 
     def __init__(self):
+        from .env import get_run_id
+
         cfg = _StorageConfig()
         self.storage_url = cfg.STORAGE_URL or ""
         self.access_key = cfg.STORAGE_ACCESS_KEY or ""
         self.secret_key = cfg.STORAGE_SECRET_ACCESS_KEY or ""
         self.bucket = cfg.STORAGE_BUCKET_NAME
-        self.run_id = cfg.CONCORD_RUN_ID or ""
+        self.run_id = get_run_id()
         self.api_url = (cfg.CONCORD_API_URL or "").rstrip("/")
         self.api_key = cfg.CONCORD_API_KEY or ""
         self.api_host = cfg.CONCORD_API_HOST or ""
@@ -193,7 +194,7 @@ class ArtifactWriter:
             return
 
         try:
-            url = f"{self.api_url}/v2/sessions/{self.run_id}/report/artifact-chunk"
+            url = f"{self.api_url}/v2/runs/{self.run_id}/report/artifact-chunk"
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"ApiKey {self.api_key}"

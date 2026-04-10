@@ -1,4 +1,9 @@
-"""Tests for manufacturing reporter callbacks — /v2/manufacturing/sessions/<id>/report/."""
+"""Tests for unified reporter callbacks — /v2/runs/<id>/report/.
+
+The manufacturing reporter endpoints are now part of the unified TestRun
+reporter. These tests validate the key reporting paths using the new
+data model: TestRun -> RunTarget -> TestExecution -> TestStep.
+"""
 
 from __future__ import annotations
 
@@ -19,19 +24,18 @@ def _now():
     return datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
-def _session(**overrides):
+def _run(**overrides):
     defaults = dict(
-        id="s10-sess-1",
+        id="s10-run-1",
+        type="MANUFACTURING",
         productId="s10-prod-1",
         fixtureId="s10-fix-1",
         status="ACTIVE",
-        operatorId="test-user-id",
-        panelCount=1,
+        targetCount=4,
         passedCount=0,
         failedCount=0,
-        config=None,
         startedAt=_now(),
-        endedAt=None,
+        completedAt=None,
         createdAt=_now(),
         updatedAt=_now(),
     )
@@ -39,35 +43,29 @@ def _session(**overrides):
     return make_obj(**defaults)
 
 
-def _panel(**overrides):
+def _target(**overrides):
     defaults = dict(
-        id="s10-panel-1",
-        sessionId="s10-sess-1",
-        panelIndex=0,
-        qrCode="s10-QR-001",
-        status="RUNNING",
-        unitCount=4,
-        passedUnits=0,
-        failedUnits=0,
-        startedAt=_now(),
+        id="s10-target-1",
+        runId="s10-run-1",
+        slotIndex=0,
+        slotId="slot-0",
+        serialNumber=None,
+        status="PENDING",
+        startedAt=None,
         completedAt=None,
-        durationMs=None,
-        createdAt=_now(),
     )
     defaults.update(overrides)
     return make_obj(**defaults)
 
 
-def _unit(**overrides):
+def _execution(**overrides):
     defaults = dict(
-        id="s10-unit-1",
-        panelId="s10-panel-1",
-        slotIndex=0,
-        slotId="slot-0",
-        serialNumber=None,
+        id="s10-exec-1",
+        targetId="s10-target-1",
+        executionIndex=0,
+        name="test_electrical",
+        module=None,
         status="RUNNING",
-        stages=[],
-        errorMessage=None,
         startedAt=_now(),
         completedAt=None,
         durationMs=None,
@@ -78,201 +76,149 @@ def _unit(**overrides):
 
 @pytest.fixture(autouse=True)
 def _mock_socketio():
-    with patch("api.v2.manufacturing.reporter._socketio", new=MagicMock()) as mock_sio:
+    with patch("api.v2.runs.reporter._socketio", new=MagicMock()) as mock_sio:
         yield mock_sio
 
 
 # ---------------------------------------------------------------------------
-# POST /report/panel-start
+# POST /report/target-start
 # ---------------------------------------------------------------------------
 
-class TestPanelStart:
-    def test_creates_panel(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingpanel.count.return_value = 0
-        mock_db.manufacturingpanel.create.return_value = _panel()
-        mock_db.manufacturingsession.update.return_value = _session(panelCount=1)
+class TestTargetStart:
+    def test_starts_target(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = _run()
+        mock_db.runtarget.find_unique.return_value = _target()
+        mock_db.runtarget.update.return_value = _target(status="RUNNING")
 
         resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/panel-start",
-            data=json.dumps({"qrCode": "s10-QR-001", "unitCount": 4}),
+            "/v2/runs/s10-run-1/report/target-start",
+            data=json.dumps({"slotIndex": 0}),
         )
-        assert resp.status_code == 201
+        assert resp.status_code == 200
 
-    def test_returns_404_if_session_missing(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = None
+    def test_returns_404_if_run_missing(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = None
 
         resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-missing/report/panel-start",
-            data=json.dumps({"qrCode": "s10-QR-001", "unitCount": 4}),
+            "/v2/runs/s10-missing/report/target-start",
+            data=json.dumps({"slotIndex": 0}),
         )
         assert resp.status_code == 404
 
     def test_returns_400_missing_fields(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
+        mock_db.testrun.find_unique.return_value = _run()
 
         resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/panel-start",
+            "/v2/runs/s10-run-1/report/target-start",
             data=json.dumps({}),
         )
         assert resp.status_code == 400
 
 
 # ---------------------------------------------------------------------------
-# POST /report/unit-start
+# POST /report/execution-start
 # ---------------------------------------------------------------------------
 
-class TestUnitStart:
-    def test_creates_unit(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingpanel.find_unique.return_value = _panel()
-        mock_db.manufacturingunit.create.return_value = _unit()
+class TestExecutionStart:
+    def test_creates_execution(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = _run()
+        mock_db.runtarget.find_first.return_value = _target()
+        mock_db.testexecution.find_first.return_value = None
+        mock_db.testexecution.count.return_value = 0
+        mock_db.testexecution.create.return_value = _execution()
 
         resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/unit-start",
-            data=json.dumps({
-                "panelId": "s10-panel-1",
-                "slotIndex": 0,
-                "slotId": "slot-0",
-            }),
-        )
-        assert resp.status_code == 201
-
-    def test_returns_404_if_panel_missing(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingpanel.find_unique.return_value = None
-
-        resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/unit-start",
-            data=json.dumps({
-                "panelId": "s10-missing",
-                "slotIndex": 0,
-                "slotId": "slot-0",
-            }),
-        )
-        assert resp.status_code == 404
-
-
-# ---------------------------------------------------------------------------
-# POST /report/stage-result
-# ---------------------------------------------------------------------------
-
-class TestStageResult:
-    def test_appends_stage_result(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingunit.find_unique.return_value = _unit(stages=[])
-        mock_db.manufacturingunit.update.return_value = _unit(
-            stages=[{"name": "Electrical", "status": "PASSED", "durationMs": 500}]
-        )
-
-        resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/stage-result",
-            data=json.dumps({
-                "unitId": "s10-unit-1",
-                "stageName": "Electrical",
-                "status": "PASSED",
-                "durationMs": 500,
-            }),
+            "/v2/runs/s10-run-1/report/execution-start",
+            data=json.dumps({"name": "test_electrical"}),
         )
         assert resp.status_code == 200
 
-    def test_returns_404_if_unit_missing(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingunit.find_unique.return_value = None
+    def test_returns_400_missing_name(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = _run()
 
         resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/stage-result",
-            data=json.dumps({
-                "unitId": "s10-missing",
-                "stageName": "Electrical",
-                "status": "PASSED",
-            }),
-        )
-        assert resp.status_code == 404
-
-
-# ---------------------------------------------------------------------------
-# POST /report/unit-result
-# ---------------------------------------------------------------------------
-
-class TestUnitResult:
-    def test_updates_unit_status(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingunit.find_unique.return_value = _unit()
-        mock_db.manufacturingunit.update.return_value = _unit(status="PASSED")
-
-        resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/unit-result",
-            data=json.dumps({
-                "unitId": "s10-unit-1",
-                "status": "PASSED",
-                "serialNumber": "SN001",
-                "durationMs": 3000,
-            }),
-        )
-        assert resp.status_code == 200
-
-    def test_returns_404_if_unit_missing(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingunit.find_unique.return_value = None
-
-        resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/unit-result",
-            data=json.dumps({
-                "unitId": "s10-missing",
-                "status": "PASSED",
-            }),
-        )
-        assert resp.status_code == 404
-
-    def test_returns_400_invalid_status(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingunit.find_unique.return_value = _unit()
-
-        resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/unit-result",
-            data=json.dumps({
-                "unitId": "s10-unit-1",
-                "status": "INVALID_STATUS",
-            }),
+            "/v2/runs/s10-run-1/report/execution-start",
+            data=json.dumps({}),
         )
         assert resp.status_code == 400
 
 
 # ---------------------------------------------------------------------------
-# POST /report/panel-complete
+# POST /report/execution-result
 # ---------------------------------------------------------------------------
 
-class TestPanelComplete:
-    def test_completes_panel_and_updates_counts(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingpanel.find_unique.return_value = _panel()
-        mock_db.manufacturingpanel.update.return_value = _panel(status="PASSED")
-        mock_db.manufacturingsession.update.return_value = _session(passedCount=1)
+class TestExecutionResult:
+    def test_updates_execution_status(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = _run()
+        mock_db.runtarget.find_first.return_value = _target()
+        mock_db.testexecution.find_first.return_value = _execution()
+        mock_db.testexecution.update.return_value = _execution(status="PASSED")
 
         resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/panel-complete",
+            "/v2/runs/s10-run-1/report/execution-result",
             data=json.dumps({
-                "panelId": "s10-panel-1",
-                "status": "PASSED",
-                "passedUnits": 4,
-                "failedUnits": 0,
+                "name": "test_electrical",
+                "passed": True,
+                "durationMs": 500,
+            }),
+        )
+        assert resp.status_code == 200
+
+    def test_returns_404_if_execution_missing(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = _run()
+        mock_db.runtarget.find_first.return_value = _target()
+        mock_db.testexecution.find_first.return_value = None
+
+        resp = authed_client.post(
+            "/v2/runs/s10-run-1/report/execution-result",
+            data=json.dumps({
+                "name": "test_missing",
+                "passed": True,
+            }),
+        )
+        assert resp.status_code == 404
+
+    def test_returns_400_missing_name(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = _run()
+
+        resp = authed_client.post(
+            "/v2/runs/s10-run-1/report/execution-result",
+            data=json.dumps({"passed": True}),
+        )
+        assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# POST /report/target-result
+# ---------------------------------------------------------------------------
+
+class TestTargetResult:
+    def test_completes_target(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = _run()
+        mock_db.runtarget.find_unique.return_value = _target()
+        mock_db.runtarget.update.return_value = _target(status="PASSED")
+        mock_db.testrun.update.return_value = _run(passedCount=1)
+        mock_db.testexecution.count.return_value = 0
+
+        resp = authed_client.post(
+            "/v2/runs/s10-run-1/report/target-result",
+            data=json.dumps({
+                "slotIndex": 0,
+                "passed": True,
                 "durationMs": 12000,
             }),
         )
         assert resp.status_code == 200
 
-    def test_returns_404_if_panel_missing(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingpanel.find_unique.return_value = None
+    def test_returns_404_if_target_missing(self, authed_client, mock_db):
+        mock_db.testrun.find_unique.return_value = _run()
+        mock_db.runtarget.find_unique.return_value = None
 
         resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/report/panel-complete",
+            "/v2/runs/s10-run-1/report/target-result",
             data=json.dumps({
-                "panelId": "s10-missing",
-                "status": "PASSED",
-                "passedUnits": 4,
-                "failedUnits": 0,
+                "slotIndex": 99,
+                "passed": True,
             }),
         )
         assert resp.status_code == 404

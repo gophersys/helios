@@ -138,7 +138,7 @@ def test_session_start_posts(active_reporter, mock_requests):
 
     mock_requests.post.assert_called_once()
     url = mock_requests.post.call_args[0][0]
-    assert url == "http://localhost:9001/v2/sessions/run-123/report/start"
+    assert url == "http://localhost:9001/v2/runs/run-123/report/start"
     assert mock_requests.post.call_args[1]["json"] == {"started": True}
 
 

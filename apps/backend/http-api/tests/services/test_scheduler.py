@@ -90,7 +90,7 @@ class TestScheduleQueue:
         """schedule_queue returns empty list when queue is empty."""
         mock_db.validationqueueentry.find_many.return_value = []
 
-        from src.api.v2.sessions.scheduler import schedule_queue
+        from src.api.v2.runs.scheduler import schedule_queue
         result = schedule_queue()
 
         assert result == []
@@ -100,7 +100,7 @@ class TestScheduleQueue:
         mock_db.validationqueueentry.find_many.return_value = [_make_queue_entry()]
         mock_db.fixture.find_many.return_value = []
 
-        from src.api.v2.sessions.scheduler import schedule_queue
+        from src.api.v2.runs.scheduler import schedule_queue
         result = schedule_queue()
 
         assert result == []
@@ -114,9 +114,9 @@ class TestScheduleQueue:
         mock_db.validationqueueentry.update.return_value = entry
         mock_db.fixture.update.return_value = fixture
 
-        with patch("api.v2.sessions.scheduler.log_audit"), \
-             patch("api.v2.sessions.scheduler._trigger_validation_job", return_value="job-abc"):
-            from src.api.v2.sessions.scheduler import schedule_queue
+        with patch("api.v2.runs.scheduler.log_audit"), \
+             patch("api.v2.runs.scheduler._trigger_validation_job", return_value="job-abc"):
+            from src.api.v2.runs.scheduler import schedule_queue
             result = schedule_queue()
 
         assert len(result) == 1
@@ -130,7 +130,7 @@ class TestScheduleQueue:
         mock_db.validationqueueentry.find_many.return_value = [entry]
         mock_db.fixture.find_many.return_value = [wrong_fixture]
 
-        from src.api.v2.sessions.scheduler import schedule_queue
+        from src.api.v2.runs.scheduler import schedule_queue
         result = schedule_queue()
 
         assert result == []
@@ -146,9 +146,9 @@ class TestScheduleQueue:
         mock_db.validationqueueentry.update.return_value = entry1
         mock_db.fixture.update.return_value = fixture
 
-        with patch("api.v2.sessions.scheduler.log_audit"), \
-             patch("api.v2.sessions.scheduler._trigger_validation_job", return_value="job-1"):
-            from src.api.v2.sessions.scheduler import schedule_queue
+        with patch("api.v2.runs.scheduler.log_audit"), \
+             patch("api.v2.runs.scheduler._trigger_validation_job", return_value="job-1"):
+            from src.api.v2.runs.scheduler import schedule_queue
             result = schedule_queue()
 
         # Only one assignment should be made (fixture already taken)
@@ -162,7 +162,7 @@ class TestOnBuildComplete:
         """on_build_complete returns None when the build run does not exist."""
         mock_db.buildrun.find_unique.return_value = None
 
-        from src.api.v2.sessions.scheduler import on_build_complete
+        from src.api.v2.runs.scheduler import on_build_complete
         result = on_build_complete("bad-id")
 
         assert result is None
@@ -173,7 +173,7 @@ class TestOnBuildComplete:
         run = _make_build_run(builds=[failed_build], stageConfig=_make_stage_config())
         mock_db.buildrun.find_unique.return_value = run
 
-        from src.api.v2.sessions.scheduler import on_build_complete
+        from src.api.v2.runs.scheduler import on_build_complete
         result = on_build_complete("run-1")
 
         assert result is None
@@ -184,7 +184,7 @@ class TestOnBuildComplete:
         run = _make_build_run(builds=[pending_build], stageConfig=_make_stage_config())
         mock_db.buildrun.find_unique.return_value = run
 
-        from src.api.v2.sessions.scheduler import on_build_complete
+        from src.api.v2.runs.scheduler import on_build_complete
         result = on_build_complete("run-1")
 
         assert result is None
@@ -197,7 +197,7 @@ class TestOnBuildComplete:
         run.stageConfig = no_bench_config
         mock_db.buildrun.find_unique.return_value = run
 
-        from src.api.v2.sessions.scheduler import on_build_complete
+        from src.api.v2.runs.scheduler import on_build_complete
         result = on_build_complete("run-1")
 
         assert result is None
@@ -210,7 +210,7 @@ class TestOnBuildComplete:
         mock_db.buildrun.find_unique.return_value = run
         mock_db.validationqueueentry.find_first.return_value = existing_entry
 
-        from src.api.v2.sessions.scheduler import on_build_complete
+        from src.api.v2.runs.scheduler import on_build_complete
         result = on_build_complete("run-1")
 
         assert result == "entry-existing"
@@ -227,8 +227,8 @@ class TestOnBuildComplete:
         mock_db.validationqueueentry.find_many.return_value = []  # for schedule_queue
         mock_db.fixture.find_many.return_value = []
 
-        with patch("api.v2.sessions.scheduler.log_audit"):
-            from src.api.v2.sessions.scheduler import on_build_complete
+        with patch("api.v2.runs.scheduler.log_audit"):
+            from src.api.v2.runs.scheduler import on_build_complete
             result = on_build_complete("run-1")
 
         assert result == "entry-new"

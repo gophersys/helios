@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://concord.corekinect.com/schemas/concord-manifest/env-contract.json",
+  "title": "Concord K8s Job Environment Contract",
+  "description": "Defines all environment variables injected into validation/manufacturing K8s jobs. Used by create_kubernetes_job() for validation and by the runner for preflight checks.",
+
+  "variables": {
+    "session": {
+      "CONCORD_SESSION_ID": {
+        "type": "string",
+        "required": true,
+        "description": "Unified session ID (SessionV2.id). The reporter uses this as the target for all callbacks."
+      },
+      "CONCORD_SESSION_TYPE": {
+        "type": "string",
+        "enum": ["VALIDATION", "MANUFACTURING"],
+        "required": true,
+        "description": "Session type. Determines reporter endpoint behavior."
+      }
+    },
+
+    "api": {
+      "CONCORD_API_URL": {
+        "type": "string",
+        "required": true,
+        "description": "Base URL for the Concord HTTP API (e.g., 'http://concord-http-api.staging.svc.cluster.local:9001')."
+      },
+      "CONCORD_API_KEY": {
+        "type": "string",
+        "required": true,
+        "description": "Ephemeral API key (24h TTL) for reporter callbacks and artifact access."
+      },
+      "CONCORD_API_HOST": {
+        "type": "string",
+        "required": false,
+        "description": "Host header for ingress routing when API URL uses an IP address."
+      }
+    },
+
+    "product": {
+      "PRODUCT_SLUG": {
+        "type": "string",
+        "required": true,
+        "description": "Product slug (e.g., 'alpha'). Used to fetch product metadata from the API."
+      },
+      "BOARD_NAME": {
+        "type": "string",
+        "required": false,
+        "description": "Board revision name (e.g., 'alpha_b0'). Derived from manifest if not set."
+      }
+    },
+
+    "test_package": {
+      "TEST_PACKAGE_VERSION": {
+        "type": "string",
+        "required": true,
+        "description": "Test package version to download from MinIO (e.g., '1.0.0' or 'dev-abc12345')."
+      },
+      "TEST_PACKAGE_TYPE": {
+        "type": "string",
+        "enum": ["VALIDATION", "MANUFACTURING"],
+        "required": true,
+        "description": "Package type. Determines MinIO storage path prefix."
+      }
+    },
+
+    "stage": {
+      "STAGE": {
+        "type": "string",
+        "required": false,
+        "description": "Validation pipeline stage to run (e.g., 'smoke', 'regression', 'fuota'). Not set for manufacturing (all steps run)."
+      },
+      "PYTEST_FILTER": {
+        "type": "string",
+        "required": false,
+        "description": "Pytest -k filter expression for selective test execution."
+      },
+      "PYTEST_MARKER": {
+        "type": "string",
+        "required": false,
+        "description": "Pytest -m marker expression for selective test execution."
+      }
+    },
+
+    "firmware": {
+      "PIPELINE_ID": {
+        "type": "string",
+        "required": false,
+        "description": "BuildRun ID for firmware artifact resolution via StageAssets."
+      },
+      "FIRMWARE_SET_ID": {
+        "type": "string",
+        "required": false,
+        "description": "Pinned FirmwareSet ID (overrides PIPELINE_ID when set)."
+      }
+    },
+
+    "fixture": {
+      "MTIB_HOSTS": {
+        "type": "string",
+        "required": true,
+        "description": "Comma-separated MTIB gRPC addresses (host:port). One per fixture slot."
+      },
+      "MTIB_PORT": {
+        "type": "string",
+        "required": false,
+        "default": "50053",
+        "description": "Default gRPC port (used when MTIB_HOSTS entries don't include port)."
+      },
+      "SLOT_SNRS": {
+        "type": "string",
+        "required": false,
+        "description": "Comma-separated J-Link probe serial numbers, aligned with MTIB_HOSTS."
+      },
+      "SLOT_DEVICE_IDS": {
+        "type": "string",
+        "required": false,
+        "description": "Comma-separated CoreCloud device IDs, aligned with MTIB_HOSTS."
+      },
+      "FIXTURE_ID": {
+        "type": "string",
+        "required": true,
+        "description": "Fixture DB ID for session tracking and fixture locking."
+      },
+      "FIXTURE_PROFILE_PATH": {
+        "type": "string",
+        "required": false,
+        "description": "Path to single-slot fixture profile JSON inside the container (validation)."
+      },
+      "FIXTURE_CONFIG_PATH": {
+        "type": "string",
+        "required": false,
+        "description": "Path to multi-slot fixture config JSON inside the container (manufacturing). Contains slot definitions with per-slot MTIB addresses."
+      }
+    },
+
+    "device_identity": {
+      "DEVICE_IMEI": {
+        "type": "string",
+        "required": false,
+        "description": "Pre-known IMEI for the DUT (single-slot). Avoids modem shell read during personalization."
+      },
+      "DEVICE_ICCIDS": {
+        "type": "string",
+        "required": false,
+        "description": "Pre-known ICCIDs for the DUT (single-slot). Comma-separated if multiple SIMs."
+      }
+    },
+
+    "corecloud": {
+      "CORECLOUD_DB_ENV": {
+        "type": "string",
+        "required": false,
+        "default": "VAL_1_0",
+        "description": "CoreCloud environment namespace key. Selects which VAL_*_DB_* and VAL_*_API_* vars to read."
+      },
+      "COREOPS_SERVER_URL": {
+        "type": "string",
+        "required": false,
+        "description": "CoreOps API server URL for device personalization (e.g., 'https://10.4.45.3:443').",
+        "source": "secretKeyRef:coreops-credentials"
+      },
+      "COREOPS_AUTH_SERVER_URL": {
+        "type": "string",
+        "required": false,
+        "description": "CoreOps auth server URL.",
+        "source": "secretKeyRef:coreops-credentials"
+      }
+    },
+
+    "logging": {
+      "LOG_LEVEL": {
+        "type": "string",
+        "required": false,
+        "default": "4",
+        "description": "Python logging level (numeric)."
+      },
+      "LOKI_URL": {
+        "type": "string",
+        "required": false,
+        "description": "Loki push endpoint for centralized log aggregation."
+      }
+    },
+
+    "storage": {
+      "STORAGE_URL": {
+        "type": "string",
+        "required": true,
+        "description": "MinIO endpoint URL (FQDN for cross-namespace access)."
+      },
+      "STORAGE_ACCESS_KEY": {
+        "type": "string",
+        "required": true,
+        "description": "MinIO access key."
+      },
+      "STORAGE_SECRET_ACCESS_KEY": {
+        "type": "string",
+        "required": true,
+        "description": "MinIO secret key."
+      },
+      "STORAGE_BUCKET_NAME": {
+        "type": "string",
+        "required": true,
+        "description": "MinIO bucket name."
+      }
+    },
+
+    "environment": {
+      "ENVIRONMENT": {
+        "type": "string",
+        "enum": ["development", "staging", "production"],
+        "required": true,
+        "description": "Deployment environment name."
+      },
+      "ARTIFACTS_DIR": {
+        "type": "string",
+        "required": false,
+        "default": "/var/log/validation",
+        "description": "Directory for writing test artifacts (UART logs, screenshots)."
+      }
+    }
+  },
+
+  "deprecated": {
+    "CONCORD_RUN_ID": {
+      "replacement": "CONCORD_SESSION_ID",
+      "description": "Legacy session ID field. Use CONCORD_SESSION_ID instead."
+    },
+    "MTIB_ADDRESS": {
+      "replacement": "MTIB_HOSTS",
+      "description": "Single MTIB address. Use MTIB_HOSTS (comma-separated) for multi-slot support."
+    },
+    "MTIB_HOST": {
+      "replacement": "MTIB_HOSTS",
+      "description": "Single MTIB host. Use MTIB_HOSTS (comma-separated) for multi-slot support."
+    },
+    "DEVICE_SNR": {
+      "replacement": "SLOT_SNRS",
+      "description": "Single device SNR. Use SLOT_SNRS (comma-separated) for multi-slot support."
+    },
+    "DEVICE_ID": {
+      "replacement": "SLOT_DEVICE_IDS",
+      "description": "Single device ID. Use SLOT_DEVICE_IDS (comma-separated) for multi-slot support."
+    },
+    "BENCH_ID": {
+      "replacement": "FIXTURE_ID",
+      "description": "Legacy fixture ID field name."
+    }
+  }
+}

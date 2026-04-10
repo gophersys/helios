@@ -23,12 +23,12 @@ def _now():
     return datetime.now(timezone.utc)
 
 
-def _old_session(id: str, days_ago: int = 70):
+def _old_run(id: str, days_ago: int = 70):
     finished = _now() - timedelta(days=days_ago)
     return make_obj(
         id=id,
-        finishedAt=finished,
-        testExecutions=[],
+        completedAt=finished,
+        targets=[],
     )
 
 
@@ -65,19 +65,19 @@ class TestCleanupOldValidationRuns:
     def test_returns_zero_when_no_old_runs(self, mock_db_and_storage):
         """Returns zero counts when no runs are older than retention period."""
         db, storage = mock_db_and_storage
-        db.session.find_many.return_value = []
+        db.testrun.find_many.return_value = []
 
         result = cleanup_old_validation_runs()
 
         assert result["runs_deleted"] == 0
         assert result["objects_deleted"] == 0
-        db.session.delete.assert_not_called()
+        db.testrun.delete.assert_not_called()
 
     def test_deletes_single_old_run(self, mock_db_and_storage):
         """Deletes a single run older than retention period and its objects."""
         db, storage = mock_db_and_storage
-        run = _old_session("run-old", days_ago=70)
-        db.session.find_many.return_value = [run]
+        run = _old_run("run-old", days_ago=70)
+        db.testrun.find_many.return_value = [run]
 
         # Two MinIO objects for this run
         storage.list_objects.return_value = [
@@ -89,14 +89,14 @@ class TestCleanupOldValidationRuns:
 
         assert result["runs_deleted"] == 1
         assert result["objects_deleted"] == 2
-        db.session.delete.assert_called_once_with(where={"id": "run-old"})
+        db.testrun.delete.assert_called_once_with(where={"id": "run-old"})
         assert storage.remove_object.call_count == 2
 
     def test_deletes_multiple_old_runs(self, mock_db_and_storage):
         """Deletes all runs older than retention and counts totals correctly."""
         db, storage = mock_db_and_storage
-        runs = [_old_session(f"run-{i}", days_ago=90) for i in range(3)]
-        db.session.find_many.return_value = runs
+        runs = [_old_run(f"run-{i}", days_ago=90) for i in range(3)]
+        db.testrun.find_many.return_value = runs
 
         # Each run has 1 object
         storage.list_objects.side_effect = [
@@ -111,8 +111,8 @@ class TestCleanupOldValidationRuns:
     def test_skips_directory_objects(self, mock_db_and_storage):
         """Directory objects are skipped (not counted as deleted)."""
         db, storage = mock_db_and_storage
-        run = _old_session("run-dir-test")
-        db.session.find_many.return_value = [run]
+        run = _old_run("run-dir-test")
+        db.testrun.find_many.return_value = [run]
 
         storage.list_objects.return_value = [
             _minio_obj("validation/runs/run-dir-test/", is_dir=True),
@@ -127,10 +127,10 @@ class TestCleanupOldValidationRuns:
         """Storage error for one run does not abort processing of others."""
         db, storage = mock_db_and_storage
         runs = [
-            _old_session("run-ok", days_ago=90),
-            _old_session("run-fail", days_ago=90),
+            _old_run("run-ok", days_ago=90),
+            _old_run("run-fail", days_ago=90),
         ]
-        db.session.find_many.return_value = runs
+        db.testrun.find_many.return_value = runs
 
         # First run: storage error; second run: 1 object
         storage.list_objects.side_effect = [
@@ -151,14 +151,14 @@ class TestCleanupOldValidationRuns:
         """DB delete error for one run is recorded and processing continues."""
         db, storage = mock_db_and_storage
         runs = [
-            _old_session("run-fail-db", days_ago=90),
-            _old_session("run-ok", days_ago=90),
+            _old_run("run-fail-db", days_ago=90),
+            _old_run("run-ok", days_ago=90),
         ]
-        db.session.find_many.return_value = runs
+        db.testrun.find_many.return_value = runs
         storage.list_objects.return_value = []
 
         # First delete fails, second succeeds
-        db.session.delete.side_effect = [Exception("FK violation"), None]
+        db.testrun.delete.side_effect = [Exception("FK violation"), None]
 
         result = cleanup_old_validation_runs()
 
@@ -169,8 +169,8 @@ class TestCleanupOldValidationRuns:
     def test_summary_includes_cutoff_date(self, mock_db_and_storage):
         """Return summary includes retention_days and cutoff_date when runs exist."""
         db, storage = mock_db_and_storage
-        run = _old_session("run-dated", days_ago=90)
-        db.session.find_many.return_value = [run]
+        run = _old_run("run-dated", days_ago=90)
+        db.testrun.find_many.return_value = [run]
         storage.list_objects.return_value = []
 
         result = cleanup_old_validation_runs(retention_days=30)
@@ -181,24 +181,24 @@ class TestCleanupOldValidationRuns:
     def test_uses_default_retention_days(self, mock_db_and_storage):
         """Default retention period is DEFAULT_RETENTION_DAYS (60) in the return."""
         db, storage = mock_db_and_storage
-        run = _old_session("run-default")
-        db.session.find_many.return_value = [run]
+        run = _old_run("run-default")
+        db.testrun.find_many.return_value = [run]
         storage.list_objects.return_value = []
 
         result = cleanup_old_validation_runs()
 
         assert result["retention_days"] == DEFAULT_RETENTION_DAYS
 
-    def test_query_uses_lt_cutoff_for_finishedAt(self, mock_db_and_storage):
-        """DB query uses finishedAt < cutoff to find old runs."""
+    def test_query_uses_lt_cutoff_for_completedAt(self, mock_db_and_storage):
+        """DB query uses completedAt < cutoff to find old runs."""
         db, storage = mock_db_and_storage
-        db.session.find_many.return_value = []
+        db.testrun.find_many.return_value = []
 
         cleanup_old_validation_runs(retention_days=60)
 
-        call_args = db.session.find_many.call_args[1]
-        assert "finishedAt" in call_args["where"]
-        assert "lt" in call_args["where"]["finishedAt"]
+        call_args = db.testrun.find_many.call_args[1]
+        assert "completedAt" in call_args["where"]
+        assert "lt" in call_args["where"]["completedAt"]
 
 
 # ---------------------------------------------------------------------------

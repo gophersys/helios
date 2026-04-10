@@ -113,7 +113,7 @@
   function durationMs(run: ValidationRun | null): number | null {
     if (!run?.startedAt) return null;
     const start = new Date(run.startedAt).getTime();
-    const end = run.finishedAt ? new Date(run.finishedAt).getTime() : Date.now();
+    const end = run.completedAt ? new Date(run.completedAt).getTime() : Date.now();
     return end - start;
   }
 
@@ -134,8 +134,8 @@
 
     try {
       const [resA, resB] = await Promise.all([
-        apiFetch<ApiResponse<ValidationRun>>(`/v2/sessions/${runIdA}`),
-        apiFetch<ApiResponse<ValidationRun>>(`/v2/sessions/${runIdB}`),
+        apiFetch<ApiResponse<ValidationRun>>(`/v2/runs/${runIdA}`),
+        apiFetch<ApiResponse<ValidationRun>>(`/v2/runs/${runIdB}`),
       ]);
       runA = resA.data;
       runB = resB.data;

@@ -35,6 +35,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
+from corekinect.test.env import get_run_id
 from corekinect.utils import Logger
 
 log = Logger(log_name="validation.runner")
@@ -502,7 +503,7 @@ class RunReporter:
         if not self.enabled:
             return None
 
-        url = f"{self.api_url}/v2/sessions/{self.run_id}{endpoint}"
+        url = f"{self.api_url}/v2/runs/{self.run_id}{endpoint}"
         try:
             resp = self.session.post(url, json=data, timeout=30)
             resp.raise_for_status()
@@ -688,8 +689,8 @@ def main():
     )
     parser.add_argument(
         "--run-id",
-        default=os.environ.get("CONCORD_RUN_ID"),
-        help="Run ID for reporting",
+        default=get_run_id(),
+        help="Run ID for reporting (env: CONCORD_SESSION_ID or CONCORD_RUN_ID)",
     )
     parser.add_argument(
         "--preflight-only",

@@ -109,58 +109,8 @@ from .kubernetes.config import list_configmaps, get_configmap, list_secrets, get
 from .kubernetes.resources import get_resource_yaml, apply_resource_yaml, delete_resource
 from .kubernetes.rbac import list_roles, list_cluster_roles, list_role_bindings, list_cluster_role_bindings, list_service_accounts
 
-# Session handlers (was validation/runs/)
-from .sessions.validation_ws import register_validation_ws_handlers
-from .sessions.runs import (
-    create_run,
-    list_runs,
-    get_run,
-    get_run_job,
-    cancel_run,
-    rerun_session,
-)
-from .sessions.executions import (
-    list_executions,
-    list_execution_results,
-)
-from .sessions.artifacts import (
-    list_artifacts as list_run_artifacts,
-    download_artifact as download_run_artifact,
-)
-from .sessions.reporter import (
-    report_start,
-    report_test_list,
-    report_test_start,
-    report_test_result,
-    report_finish,
-    report_telemetry,
-    report_step_start,
-    report_step_result,
-)
-from .sessions.trigger import trigger_run
-from .sessions.demo import simulate_run
-from .sessions.reporter import set_validation_socketio
-from .sessions.logs import (
-    report_log_chunk,
-    get_log_file,
-    download_run,
-    get_manifest,
-)
-from .sessions.telemetry_api import (
-    get_telemetry_manifest,
-    get_telemetry_channel,
-)
-from .sessions.manual import run_tests
-from .sessions.queue import (
-    list_queue,
-    get_queue_entry,
-    create_queue_entry,
-    update_queue_entry,
-    cancel_queue_entry,
-    promote_queue_entry,
-    get_queue_stats,
-    trigger_scheduler,
-)
+# Run handlers (unified TestRun model — replaces old sessions/)
+from .runs.routes import register_run_routes
 
 # ICLE device handlers
 from .icle.heartbeat import heartbeat as icle_heartbeat, set_socketio as set_icle_socketio
@@ -282,28 +232,6 @@ from .products.manufacturing_config import (
     create_manufacturing_config,
     update_manufacturing_config,
     delete_manufacturing_config,
-)
-
-# Manufacturing sessions
-from .manufacturing.sessions import (
-    list_manufacturing_fixtures,
-    create_manufacturing_session,
-    list_manufacturing_sessions,
-    get_manufacturing_session,
-    add_manufacturing_panel,
-    end_manufacturing_session,
-    get_manufacturing_results,
-    set_manufacturing_socketio,
-)
-
-# Manufacturing reporter callbacks
-from .manufacturing.reporter import (
-    report_panel_start,
-    report_unit_start,
-    report_stage_result,
-    report_unit_result,
-    report_panel_complete,
-    set_manufacturing_reporter_socketio,
 )
 
 # Stage config handlers (product validation stages)
@@ -515,24 +443,6 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/products/<product_id>/manufacturing",                                      endpoint="update_mfg_config",        view_func=update_manufacturing_config, methods=["PUT"])
     v2.add_url_rule("/products/<product_id>/manufacturing",                                      endpoint="delete_mfg_config",        view_func=delete_manufacturing_config, methods=["DELETE"])
 
-    # Manufacturing — Fixtures listing
-    v2.add_url_rule("/manufacturing/fixtures",                                                   endpoint="list_mfg_fixtures",        view_func=list_manufacturing_fixtures, methods=["GET"])
-
-    # Manufacturing — Sessions
-    v2.add_url_rule("/manufacturing/sessions",                                                   endpoint="list_mfg_sessions",        view_func=list_manufacturing_sessions, methods=["GET"])
-    v2.add_url_rule("/manufacturing/sessions",                                                   endpoint="create_mfg_session",       view_func=create_manufacturing_session, methods=["POST"])
-    v2.add_url_rule("/manufacturing/sessions/<session_id>",                                      endpoint="get_mfg_session",          view_func=get_manufacturing_session,   methods=["GET"])
-    v2.add_url_rule("/manufacturing/sessions/<session_id>/panels",                               endpoint="add_mfg_panel",            view_func=add_manufacturing_panel,     methods=["POST"])
-    v2.add_url_rule("/manufacturing/sessions/<session_id>/end",                                  endpoint="end_mfg_session",          view_func=end_manufacturing_session,   methods=["POST"])
-    v2.add_url_rule("/manufacturing/sessions/<session_id>/results",                              endpoint="get_mfg_results",          view_func=get_manufacturing_results,   methods=["GET"])
-
-    # Manufacturing — Reporter callbacks
-    v2.add_url_rule("/manufacturing/sessions/<session_id>/report/panel-start",                   endpoint="mfg_report_panel_start",   view_func=report_panel_start,          methods=["POST"])
-    v2.add_url_rule("/manufacturing/sessions/<session_id>/report/unit-start",                    endpoint="mfg_report_unit_start",    view_func=report_unit_start,           methods=["POST"])
-    v2.add_url_rule("/manufacturing/sessions/<session_id>/report/stage-result",                  endpoint="mfg_report_stage_result",  view_func=report_stage_result,         methods=["POST"])
-    v2.add_url_rule("/manufacturing/sessions/<session_id>/report/unit-result",                   endpoint="mfg_report_unit_result",   view_func=report_unit_result,          methods=["POST"])
-    v2.add_url_rule("/manufacturing/sessions/<session_id>/report/panel-complete",                endpoint="mfg_report_panel_complete", view_func=report_panel_complete,       methods=["POST"])
-
     # System - History
     v2.add_url_rule("/system/history",                                        view_func=list_history,       methods=["GET"])
     v2.add_url_rule("/system/history/entity-types",                           view_func=list_entity_types,  methods=["GET"])
@@ -561,56 +471,8 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     from .assets.storage_download import download_storage_file
     v2.add_url_rule("/storage/download",                                                               endpoint="download_storage_file",        view_func=download_storage_file,    methods=["GET"])
 
-    # Sessions (was /validation/runs)
-    v2.add_url_rule("/sessions",                                                                    endpoint="list_sessions",                view_func=list_runs,                methods=["GET"])
-    v2.add_url_rule("/sessions",                                                                    endpoint="create_session",               view_func=create_run,               methods=["POST"])
-    v2.add_url_rule("/sessions/<run_id>",                                                           endpoint="get_session",                  view_func=get_run,                  methods=["GET"])
-    v2.add_url_rule("/sessions/<run_id>/cancel",                                                    endpoint="cancel_session",               view_func=cancel_run,               methods=["POST"])
-    v2.add_url_rule("/sessions/<run_id>/job",                                                       endpoint="get_session_job",              view_func=get_run_job,              methods=["GET"])
-    v2.add_url_rule("/sessions/<run_id>/executions",                                                endpoint="list_session_executions",      view_func=list_executions,          methods=["GET"])
-    v2.add_url_rule("/sessions/<run_id>/executions/<execution_id>/results",                         endpoint="list_execution_results",       view_func=list_execution_results,   methods=["GET"])
-    v2.add_url_rule("/sessions/<run_id>/artifacts",                                                 endpoint="list_run_artifacts",           view_func=list_run_artifacts,       methods=["GET"])
-    v2.add_url_rule("/sessions/<run_id>/artifacts/<path:name>",                                     endpoint="download_run_artifact",        view_func=download_run_artifact,    methods=["GET"])
-
-    # Sessions - Trigger & Rerun
-    v2.add_url_rule("/sessions/<run_id>/trigger",                                                    endpoint="trigger_session",              view_func=trigger_run,              methods=["POST"])
-    v2.add_url_rule("/sessions/<session_id>/rerun",                                                  endpoint="rerun_session",                view_func=rerun_session,            methods=["POST"])
-
-    # Sessions - Reporter callbacks (called by pytest plugin in K8s Jobs)
-    v2.add_url_rule("/sessions/<run_id>/report/start",                                              endpoint="report_run_start",             view_func=report_start,             methods=["POST"])
-    v2.add_url_rule("/sessions/<run_id>/report/test-start",                                         endpoint="report_test_start",            view_func=report_test_start,        methods=["POST"])
-    v2.add_url_rule("/sessions/<run_id>/report/test-result",                                        endpoint="report_test_result",           view_func=report_test_result,       methods=["POST"])
-    v2.add_url_rule("/sessions/<run_id>/report/finish",                                             endpoint="report_run_finish",            view_func=report_finish,            methods=["POST"])
-    v2.add_url_rule("/sessions/<run_id>/report/test-list",                                          endpoint="report_test_list",             view_func=report_test_list,         methods=["POST"])
-    v2.add_url_rule("/sessions/<run_id>/report/log-chunk",                                          endpoint="report_log_chunk",             view_func=report_log_chunk,         methods=["POST"])
-    v2.add_url_rule("/sessions/<run_id>/report/telemetry",                                         endpoint="report_telemetry",             view_func=report_telemetry,         methods=["POST"])
-    v2.add_url_rule("/sessions/<run_id>/report/step-start",                                        endpoint="report_step_start",            view_func=report_step_start,        methods=["POST"])
-    v2.add_url_rule("/sessions/<run_id>/report/step-result",                                       endpoint="report_step_result",           view_func=report_step_result,       methods=["POST"])
-
-    # Sessions - Log & artifact retrieval
-    v2.add_url_rule("/sessions/<run_id>/logs/<path:file_path>",                                     endpoint="get_run_log_file",             view_func=get_log_file,             methods=["GET"])
-    v2.add_url_rule("/sessions/<run_id>/download",                                                  endpoint="download_session",             view_func=download_run,             methods=["GET"])
-    v2.add_url_rule("/sessions/<run_id>/manifest",                                                  endpoint="get_run_manifest",             view_func=get_manifest,             methods=["GET"])
-
-    # Sessions - Telemetry (post-analysis)
-    v2.add_url_rule("/sessions/<run_id>/telemetry/manifest",                                       endpoint="get_telemetry_manifest",       view_func=get_telemetry_manifest,   methods=["GET"])
-    v2.add_url_rule("/sessions/<run_id>/telemetry/<channel>",                                      endpoint="get_telemetry_channel",        view_func=get_telemetry_channel,    methods=["GET"])
-
-    # Sessions - Demo (simulate a run via WebSocket events)
-    v2.add_url_rule("/sessions/<run_id>/demo/simulate",                                            endpoint="simulate_session",             view_func=simulate_run,             methods=["POST"])
-
-    # Sessions - Legacy manufacturing test run
-    v2.add_url_rule("/sessions/manual/run",                                                         endpoint="manual_test_run",              view_func=run_tests,                methods=["POST"])
-
-    # Sessions - Queue (was /validation/queue)
-    v2.add_url_rule("/sessions/queue",                                                        endpoint="list_queue",               view_func=list_queue,            methods=["GET"])
-    v2.add_url_rule("/sessions/queue",                                                        endpoint="create_queue_entry",       view_func=create_queue_entry,    methods=["POST"])
-    v2.add_url_rule("/sessions/queue/stats",                                                  endpoint="get_queue_stats",          view_func=get_queue_stats,       methods=["GET"])
-    v2.add_url_rule("/sessions/queue/<entry_id>",                                             endpoint="get_queue_entry",          view_func=get_queue_entry,       methods=["GET"])
-    v2.add_url_rule("/sessions/queue/<entry_id>",                                             endpoint="update_queue_entry",       view_func=update_queue_entry,    methods=["PATCH"])
-    v2.add_url_rule("/sessions/queue/<entry_id>/cancel",                                      endpoint="cancel_queue_entry",       view_func=cancel_queue_entry,    methods=["POST"])
-    v2.add_url_rule("/sessions/queue/<entry_id>/promote",                                     endpoint="promote_queue_entry",      view_func=promote_queue_entry,   methods=["POST"])
-    v2.add_url_rule("/sessions/queue/schedule",                                               endpoint="trigger_scheduler",        view_func=trigger_scheduler,     methods=["POST"])
+    # Runs + Manufacturing (unified TestRun model — registers /runs/*, /manufacturing/*)
+    register_run_routes(v2, socketio)
 
     # Fixtures
     v2.add_url_rule("/fixtures",                                         endpoint="list_fixtures",           view_func=list_fixtures,            methods=["GET"])
@@ -783,18 +645,14 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/builds/recipe-templates",                                                 endpoint="list_recipe_templates",    view_func=list_recipe_templates, methods=["GET"])
     v2.add_url_rule("/builds/recipe-templates/<template_id>",                                   endpoint="get_recipe_template",      view_func=get_recipe_template,   methods=["GET"])
 
-    # WebSocket handlers
+    # WebSocket handlers (system-level — run WS handlers registered via register_run_routes)
     register_log_handlers(socketio)
     register_exec_handlers(socketio)
     register_observability_handlers(socketio)
     register_icle_handlers(socketio)
-    register_validation_ws_handlers(socketio)
 
-    # Set SocketIO instances
+    # Set SocketIO instances (system-level — run/mfg socketio set via register_run_routes)
     set_icle_socketio(socketio)
-    set_validation_socketio(socketio)
     set_ci_socketio(socketio)
-    set_manufacturing_socketio(socketio)
-    set_manufacturing_reporter_socketio(socketio)
 
     server.register_blueprint(v2)

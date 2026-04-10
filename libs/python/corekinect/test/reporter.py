@@ -1,12 +1,13 @@
 """Pytest plugin that reports test results to the Concord HTTP API.
 
-Activated by env vars: CONCORD_RUN_ID, CONCORD_API_URL, CONCORD_API_KEY.
+Activated by env vars: CONCORD_SESSION_ID (or legacy CONCORD_RUN_ID),
+CONCORD_API_URL, CONCORD_API_KEY.
 When not set, the plugin is inert -- tests run normally with zero overhead.
 
 All HTTP calls are fire-and-forget. The reporter never causes a test to fail.
 
 Features:
-  - Test start/result/finish callbacks to /v2/sessions/<id>/report/*
+  - Test start/result/finish callbacks to /v2/runs/<id>/report/*
   - Live stdout/stderr streaming via log-chunk endpoint
   - Sub-step reporting via ``report.step("name")`` context manager
   - Multi-device support via ``reporter.set_device(serial)``
@@ -25,6 +26,7 @@ from typing import Any, Dict, Optional
 
 import pytest
 
+from corekinect.test.env import get_run_id
 from corekinect.utils import EnvConfig, Logger
 
 log = Logger(log_name="concord_reporter")
@@ -145,12 +147,13 @@ class NoOpReporter:
 class ConcordReporter:
     """Pytest plugin that streams test results to the Concord API.
 
-    Inert when CONCORD_RUN_ID is not set. All HTTP calls are fire-and-forget.
+    Inert when CONCORD_SESSION_ID / CONCORD_RUN_ID is not set. All HTTP calls
+    are fire-and-forget.
     """
 
     def __init__(self, config: Optional[Any] = None):
-        """Initialize from CONCORD_* env vars. Inert if CONCORD_RUN_ID not set."""
-        self.run_id = os.environ.get("CONCORD_RUN_ID") or ""
+        """Initialize from CONCORD_* env vars. Inert if run ID not set."""
+        self.run_id = get_run_id()
         self.api_url = (os.environ.get("CONCORD_API_URL") or "").rstrip("/")
         self.api_key = os.environ.get("CONCORD_API_KEY") or ""
         self.enabled = bool(self.run_id and self.api_url)
@@ -205,7 +208,7 @@ class ConcordReporter:
                 self._stream_capture_enabled,
             )
         else:
-            log.debug("ConcordReporter: inactive (CONCORD_RUN_ID not set)")
+            log.debug("ConcordReporter: inactive (CONCORD_SESSION_ID / CONCORD_RUN_ID not set)")
 
     # -- Multi-device support -----------------------------------------
 
@@ -239,7 +242,7 @@ class ConcordReporter:
 
     def _post(self, path: str, json_data: Dict[str, Any]) -> Optional[Dict]:
         """POST to Concord API. Returns JSON or None on failure."""
-        url = f"{self.api_url}/v2/sessions/{self.run_id}/{path}"
+        url = f"{self.api_url}/v2/runs/{self.run_id}/{path}"
         try:
             resp = requests.post(url, json=json_data, headers=self._headers(), timeout=10, verify=_TLS_VERIFY)
             if resp.status_code >= 400:
@@ -416,7 +419,7 @@ class ConcordReporter:
         if self._current_device is not None:
             payload["deviceSerial"] = self._current_device
 
-        self._post("report/test-start", payload)
+        self._post("report/execution-start", payload)
 
     # -- Report helpers (extracted from pytest_runtest_makereport) -------
 
@@ -433,7 +436,7 @@ class ConcordReporter:
         }
         if self._current_device is not None:
             payload["deviceSerial"] = self._current_device
-        self._post("report/test-result", payload)
+        self._post("report/execution-result", payload)
 
     def _accumulate_output(self, item: pytest.Item, report) -> None:
         """Accumulate captured output from a test phase (setup/call/teardown)."""
@@ -521,7 +524,7 @@ class ConcordReporter:
         if self._current_device is not None:
             payload["deviceSerial"] = self._current_device
 
-        self._post("report/test-result", payload)
+        self._post("report/execution-result", payload)
 
     # -- pytest hook: makereport ----------------------------------------
 
@@ -599,11 +602,11 @@ def report(request):
 # -- Plugin registration ----------------------------------------------
 
 def pytest_configure(config: pytest.Config) -> None:
-    """Register ConcordReporter if CONCORD_RUN_ID is set.
+    """Register ConcordReporter if CONCORD_SESSION_ID or CONCORD_RUN_ID is set.
 
     This function is discovered by pytest when this module is listed
     in pytest_plugins or when the package is installed as a plugin.
     """
-    if os.environ.get("CONCORD_RUN_ID"):
+    if get_run_id():
         reporter = ConcordReporter(config)
         config.pluginmanager.register(reporter, "concord_reporter")

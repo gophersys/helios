@@ -26,7 +26,7 @@ export async function listQueue(params?: {
   const qs = searchParams.toString();
 
   const res = await apiFetch<PaginatedApiResponse<ValidationQueueEntry[]>>(
-    `/v2/sessions/queue${qs ? `?${qs}` : ''}`
+    `/v2/runs/queue${qs ? `?${qs}` : ''}`
   );
   return {
     data: res.data,
@@ -40,7 +40,7 @@ export async function listQueue(params?: {
 }
 
 export async function getQueueEntry(entryId: string): Promise<ValidationQueueEntry> {
-  const res = await apiFetch<ApiResponse<ValidationQueueEntry>>(`/v2/sessions/queue/${entryId}`);
+  const res = await apiFetch<ApiResponse<ValidationQueueEntry>>(`/v2/runs/queue/${entryId}`);
   return res.data;
 }
 
@@ -50,7 +50,7 @@ export async function createQueueEntry(data: {
   priority?: number;
   reason?: string;
 }): Promise<ValidationQueueEntry> {
-  const res = await apiFetch<ApiResponse<ValidationQueueEntry>>('/v2/sessions/queue', {
+  const res = await apiFetch<ApiResponse<ValidationQueueEntry>>('/v2/runs/queue', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -58,20 +58,20 @@ export async function createQueueEntry(data: {
 }
 
 export async function cancelQueueEntry(entryId: string): Promise<ValidationQueueEntry> {
-  const res = await apiFetch<ApiResponse<ValidationQueueEntry>>(`/v2/sessions/queue/${entryId}/cancel`, {
+  const res = await apiFetch<ApiResponse<ValidationQueueEntry>>(`/v2/runs/queue/${entryId}/cancel`, {
     method: 'POST',
   });
   return res.data;
 }
 
 export async function promoteQueueEntry(entryId: string): Promise<ValidationQueueEntry> {
-  const res = await apiFetch<ApiResponse<ValidationQueueEntry>>(`/v2/sessions/queue/${entryId}/promote`, {
+  const res = await apiFetch<ApiResponse<ValidationQueueEntry>>(`/v2/runs/queue/${entryId}/promote`, {
     method: 'POST',
   });
   return res.data;
 }
 
 export async function getQueueStats(): Promise<QueueStats> {
-  const res = await apiFetch<ApiResponse<QueueStats>>('/v2/sessions/queue/stats');
+  const res = await apiFetch<ApiResponse<QueueStats>>('/v2/runs/queue/stats');
   return res.data;
 }

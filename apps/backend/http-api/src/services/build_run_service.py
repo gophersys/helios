@@ -892,7 +892,7 @@ def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str
         for b in builds
     ]
 
-    session = db.session.create(
+    session = db.testrun.create(
         data={
             "name": f"FUOTA validation — {product.name} {pipeline.branch}",
             "type": "VALIDATION",
@@ -900,6 +900,8 @@ def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str
             "fixtureId": fixture.id,
             "buildRunId": run_id,
             "status": "ACTIVE",
+            "operatorId": get_system_user_id(db),
+            "targetCount": 1,
             "config": Json({
                 "pipelineId": run_id,
                 "branch": pipeline.branch,
@@ -913,17 +915,18 @@ def _create_validation_session(db, fixture, slot, mtib_address: str, run_id: str
                 },
                 "mtibAddress": mtib_address,
             }),
-            "createdById": get_system_user_id(db),
         },
     )
 
-    db.device.create(
+    db.runtarget.create(
         data={
+            "runId": session.id,
+            "slotIndex": 0,
+            "slotId": slot.id,
             "serialNumber": slot.dutSnr,
-            "sessionId": session.id,
-            "status": "IN_PROGRESS",
+            "deviceId": slot.dutDeviceId,
+            "status": "RUNNING",
             "metadata": Json({
-                "deviceId": slot.dutDeviceId,
                 "imei": slot.dutImei,
                 "iccids": slot.dutIccids,
                 "fixtureSlotId": slot.id,
@@ -955,7 +958,7 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
         ``{"queued": True, "entryId": "..."}`` — queued for later execution
         ``None`` — unrecoverable failure
     """
-    from src.api.v2.sessions.manual import create_kubernetes_job
+    from src.api.v2.runs.manual import create_kubernetes_job
 
     db = get_db_client()
 
@@ -1061,7 +1064,7 @@ def trigger_pipeline_validation(run_id: str, pipeline, builds: list) -> Optional
         }
         config["apiUrl"] = api_url
 
-        db.session.update(
+        db.testrun.update(
             where={"id": session.id},
             data={"config": Json(config)},
         )

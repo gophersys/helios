@@ -97,8 +97,6 @@ class Product(bases.BaseProduct):
     boards: Optional[List['models.Board']] = None
     firmwareSets: Optional[List['models.FirmwareSet']] = None
     fixtures: Optional[List['models.Fixture']] = None
-    tests: Optional[List['models.Test']] = None
-    sessions: Optional[List['models.Session']] = None
     buildJobs: Optional[List['models.BuildJob']] = None
     buildRuns: Optional[List['models.BuildRun']] = None
     stageConfigs: Optional[List['models.ProductStageConfig']] = None
@@ -108,6 +106,7 @@ class Product(bases.BaseProduct):
     assetSets: Optional[List['models.AssetSet']] = None
     manufacturingConfigs: Optional[List['models.ManufacturingConfig']] = None
     manufacturingSessions: Optional[List['models.ManufacturingSession']] = None
+    testRuns: Optional[List['models.TestRun']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -271,8 +270,12 @@ class TestPackage(bases.BaseTestPackage):
     """Number of tests collected
     """
 
+    schemaVersion: Optional[_str] = None
+    """Manifest schema version (e.g. "2.0") — enforced on upload
+    """
+
     stagesEnabled: Optional['fields.Json'] = None
-    """Which stages are enabled: {"smoke": true, "fuota": true, ...}
+    """Which stages are enabled (v1 legacy — replaced by packageStages in v2)
     """
 
     message: Optional[_str] = None
@@ -293,8 +296,8 @@ class TestPackage(bases.BaseTestPackage):
     updatedAt: datetime.datetime
     product: Optional['models.Product'] = None
     createdBy: Optional['models.User'] = None
-    sessions: Optional[List['models.Session']] = None
-    manufacturingSessions: Optional[List['models.ManufacturingSession']] = None
+    testRuns: Optional[List['models.TestRun']] = None
+    packageStages: Optional[List['models.TestPackageStage']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -1439,7 +1442,7 @@ class ValidationQueueEntry(bases.BaseValidationQueueEntry):
     """Assigned fixture (null until ASSIGNED)
     """
 
-    sessionId: Optional[_str] = None
+    testRunId: Optional[_str] = None
     reason: Optional[_str] = None
     """"PR #42", "regression 2026-03-11", "manual"
     """
@@ -1458,7 +1461,7 @@ class ValidationQueueEntry(bases.BaseValidationQueueEntry):
     buildRun: Optional['models.BuildRun'] = None
     stageConfig: Optional['models.ProductStageConfig'] = None
     fixture: Optional['models.Fixture'] = None
-    session: Optional['models.Session'] = None
+    testRun: Optional['models.TestRun'] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -1674,9 +1677,9 @@ class BuildRun(bases.BaseBuildRun):
     stageConfig: Optional['models.ProductStageConfig'] = None
     recipeVersion: Optional['models.RecipeVersion'] = None
     builds: Optional[List['models.BuildJob']] = None
-    sessions: Optional[List['models.Session']] = None
     queueEntries: Optional[List['models.ValidationQueueEntry']] = None
     assetSet: Optional['models.AssetSet'] = None
+    testRuns: Optional[List['models.TestRun']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -2146,320 +2149,6 @@ class BuildArtifact(bases.BaseBuildArtifact):
         _created_partial_types.add(name)
 
 
-class Session(bases.BaseSession):
-    """A unified test session: manufacturing or validation.
-    Every test execution happens within a session, giving full traceability.
-
-    The count fields are denormalized for dashboard performance.
-    They are updated by the API when devices complete testing
-    and can always be recomputed from Device statuses.
-    """
-
-    id: _str
-    name: _str
-    type: 'enums.SessionType'
-    productId: _str
-    status: 'enums.SessionStatus'
-    fixtureId: Optional[_str] = None
-    buildRunId: Optional[_str] = None
-    testPackageId: Optional[_str] = None
-    targetCount: Optional[_int] = None
-    completedCount: _int
-    passedCount: _int
-    failedCount: _int
-    config: Optional['fields.Json'] = None
-    notes: Optional[_str] = None
-    errorMessage: Optional[_str] = None
-    createdById: Optional[_str] = None
-    startedAt: Optional[datetime.datetime] = None
-    finishedAt: Optional[datetime.datetime] = None
-    durationMs: Optional[_int] = None
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    assetSetId: Optional[_str] = None
-    product: Optional['models.Product'] = None
-    fixture: Optional['models.Fixture'] = None
-    pipeline: Optional['models.BuildRun'] = None
-    testPackage: Optional['models.TestPackage'] = None
-    assetSet: Optional['models.AssetSet'] = None
-    createdBy: Optional['models.User'] = None
-    devices: Optional[List['models.Device']] = None
-    queueEntry: Optional['models.ValidationQueueEntry'] = None
-
-    # take *args and **kwargs so that other metaclasses can define arguments
-    def __init_subclass__(
-        cls,
-        *args: Any,
-        warn_subclass: Optional[bool] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__()
-        if warn_subclass is not None:
-            warnings.warn(
-                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-
-    @staticmethod
-    def create_partial(
-        name: str,
-        include: Optional[Iterable['types.SessionKeys']] = None,
-        exclude: Optional[Iterable['types.SessionKeys']] = None,
-        required: Optional[Iterable['types.SessionKeys']] = None,
-        optional: Optional[Iterable['types.SessionKeys']] = None,
-        relations: Optional[Mapping['types.SessionRelationalFieldKeys', str]] = None,
-        exclude_relational_fields: bool = False,
-    ) -> None:
-        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
-            raise RuntimeError(
-                'Attempted to create a partial type outside of client generation.'
-            )
-
-        if name in _created_partial_types:
-            raise ValueError(f'Partial type "{name}" has already been created.')
-
-        if include is not None:
-            if exclude is not None:
-                raise TypeError('Exclude and include are mutually exclusive.')
-            if exclude_relational_fields is True:
-                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
-
-        if required and optional:
-            shared = set(required) & set(optional)
-            if shared:
-                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
-
-        if exclude_relational_fields and relations:
-            raise ValueError(
-                'exclude_relational_fields and relations are mutually exclusive'
-            )
-
-        fields: Dict['types.SessionKeys', PartialModelField] = OrderedDict()
-
-        try:
-            if include:
-                for field in include:
-                    fields[field] = _Session_fields[field].copy()
-            elif exclude:
-                for field in exclude:
-                    if field not in _Session_fields:
-                        raise KeyError(field)
-
-                fields = {
-                    key: data.copy()
-                    for key, data in _Session_fields.items()
-                    if key not in exclude
-                }
-            else:
-                fields = {
-                    key: data.copy()
-                    for key, data in _Session_fields.items()
-                }
-
-            if required:
-                for field in required:
-                    fields[field]['optional'] = False
-
-            if optional:
-                for field in optional:
-                    fields[field]['optional'] = True
-
-            if exclude_relational_fields:
-                fields = {
-                    key: data
-                    for key, data in fields.items()
-                    if key not in _Session_relational_fields
-                }
-
-            if relations:
-                for field, type_ in relations.items():
-                    if field not in _Session_relational_fields:
-                        raise errors.UnknownRelationalFieldError('Session', field)
-
-                    # TODO: this method of validating types is not ideal
-                    # as it means we cannot two create partial types that
-                    # reference each other
-                    if type_ not in _created_partial_types:
-                        raise ValueError(
-                            f'Unknown partial type: "{type_}". '
-                            f'Did you remember to generate the {type_} type before this one?'
-                        )
-
-                    # TODO: support non prisma.partials models
-                    info = fields[field]
-                    if info['is_list']:
-                        info['type'] = f'List[\'partials.{type_}\']'
-                    else:
-                        info['type'] = f'\'partials.{type_}\''
-        except KeyError as exc:
-            raise ValueError(
-                f'{exc.args[0]} is not a valid Session / {name} field.'
-            ) from None
-
-        models = partial_models_ctx.get()
-        models.append(
-            {
-                'name': name,
-                'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'Session',
-            }
-        )
-        _created_partial_types.add(name)
-
-
-class Device(bases.BaseDevice):
-    """An individual device (DUT) going through testing within a session.
-    Tracks serial number, overall pass/fail status, and links to all
-    test executions run on this device.
-
-    The same serial number may appear in different sessions
-    (e.g., a device that failed and was retested later).
-
-    Device status lifecycle:
-    PENDING     -> device registered, no tests started
-    IN_PROGRESS -> at least one execution running
-    PASSED      -> all required tests passed
-    FAILED      -> any test failed
-    """
-
-    id: _str
-    serialNumber: _str
-    sessionId: _str
-    status: 'enums.DeviceStatus'
-    metadata: Optional['fields.Json'] = None
-    """IMEI, ICCID, hardware info, calibration data
-    """
-
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    session: Optional['models.Session'] = None
-    executions: Optional[List['models.TestExecution']] = None
-
-    # take *args and **kwargs so that other metaclasses can define arguments
-    def __init_subclass__(
-        cls,
-        *args: Any,
-        warn_subclass: Optional[bool] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__()
-        if warn_subclass is not None:
-            warnings.warn(
-                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-
-    @staticmethod
-    def create_partial(
-        name: str,
-        include: Optional[Iterable['types.DeviceKeys']] = None,
-        exclude: Optional[Iterable['types.DeviceKeys']] = None,
-        required: Optional[Iterable['types.DeviceKeys']] = None,
-        optional: Optional[Iterable['types.DeviceKeys']] = None,
-        relations: Optional[Mapping['types.DeviceRelationalFieldKeys', str]] = None,
-        exclude_relational_fields: bool = False,
-    ) -> None:
-        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
-            raise RuntimeError(
-                'Attempted to create a partial type outside of client generation.'
-            )
-
-        if name in _created_partial_types:
-            raise ValueError(f'Partial type "{name}" has already been created.')
-
-        if include is not None:
-            if exclude is not None:
-                raise TypeError('Exclude and include are mutually exclusive.')
-            if exclude_relational_fields is True:
-                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
-
-        if required and optional:
-            shared = set(required) & set(optional)
-            if shared:
-                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
-
-        if exclude_relational_fields and relations:
-            raise ValueError(
-                'exclude_relational_fields and relations are mutually exclusive'
-            )
-
-        fields: Dict['types.DeviceKeys', PartialModelField] = OrderedDict()
-
-        try:
-            if include:
-                for field in include:
-                    fields[field] = _Device_fields[field].copy()
-            elif exclude:
-                for field in exclude:
-                    if field not in _Device_fields:
-                        raise KeyError(field)
-
-                fields = {
-                    key: data.copy()
-                    for key, data in _Device_fields.items()
-                    if key not in exclude
-                }
-            else:
-                fields = {
-                    key: data.copy()
-                    for key, data in _Device_fields.items()
-                }
-
-            if required:
-                for field in required:
-                    fields[field]['optional'] = False
-
-            if optional:
-                for field in optional:
-                    fields[field]['optional'] = True
-
-            if exclude_relational_fields:
-                fields = {
-                    key: data
-                    for key, data in fields.items()
-                    if key not in _Device_relational_fields
-                }
-
-            if relations:
-                for field, type_ in relations.items():
-                    if field not in _Device_relational_fields:
-                        raise errors.UnknownRelationalFieldError('Device', field)
-
-                    # TODO: this method of validating types is not ideal
-                    # as it means we cannot two create partial types that
-                    # reference each other
-                    if type_ not in _created_partial_types:
-                        raise ValueError(
-                            f'Unknown partial type: "{type_}". '
-                            f'Did you remember to generate the {type_} type before this one?'
-                        )
-
-                    # TODO: support non prisma.partials models
-                    info = fields[field]
-                    if info['is_list']:
-                        info['type'] = f'List[\'partials.{type_}\']'
-                    else:
-                        info['type'] = f'\'partials.{type_}\''
-        except KeyError as exc:
-            raise ValueError(
-                f'{exc.args[0]} is not a valid Device / {name} field.'
-            ) from None
-
-        models = partial_models_ctx.get()
-        models.append(
-            {
-                'name': name,
-                'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'Device',
-            }
-        )
-        _created_partial_types.add(name)
-
-
 class FixtureDesign(bases.BaseFixtureDesign):
     """A versioned fixture hardware design — the PCB/wiring spec for testing a product.
     Example: "alpha-fixture-v1.2" describes REV1.2 MTIB carrier with specific GPIO wiring.
@@ -2708,9 +2397,9 @@ class Fixture(bases.BaseFixture):
     boardRevision: Optional['models.BoardRevision'] = None
     design: Optional['models.FixtureDesign'] = None
     slots: Optional[List['models.FixtureSlot']] = None
-    sessions: Optional[List['models.Session']] = None
     queueEntries: Optional[List['models.ValidationQueueEntry']] = None
     manufacturingSessions: Optional[List['models.ManufacturingSession']] = None
+    testRuns: Optional[List['models.TestRun']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -2890,7 +2579,7 @@ class FixtureSlot(bases.BaseFixtureSlot):
     updatedAt: datetime.datetime
     fixture: Optional['models.Fixture'] = None
     node: Optional['models.Node'] = None
-    testExecutions: Optional[List['models.TestExecution']] = None
+    runTargets: Optional[List['models.RunTarget']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -3061,7 +2750,6 @@ class Node(bases.BaseNode):
     """one-to-one via @unique on FixtureSlot.nodeId
     """
 
-    testExecutions: Optional[List['models.TestExecution']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -3632,463 +3320,6 @@ class IcleLog(bases.BaseIcleLog):
         _created_partial_types.add(name)
 
 
-class Test(bases.BaseTest):
-    """A test definition for a product. Defines WHAT to test,
-    not a specific run. Tests are grouped by category
-    (e.g., "electrical", "firmware", "post") and ordered
-    by sortOrder for sequential execution.
-
-    Tests with execution history cannot be deleted (default
-    Restrict). Disable with enabled = false instead.
-    """
-
-    id: _str
-    name: _str
-    productId: _str
-    description: Optional[_str] = None
-    category: Optional[_str] = None
-    """"electrical", "firmware", "post", etc.
-    """
-
-    sortOrder: _int
-    config: Optional['fields.Json'] = None
-    """default config template (can be overridden per-execution)
-    """
-
-    enabled: _bool
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    product: Optional['models.Product'] = None
-    executions: Optional[List['models.TestExecution']] = None
-
-    # take *args and **kwargs so that other metaclasses can define arguments
-    def __init_subclass__(
-        cls,
-        *args: Any,
-        warn_subclass: Optional[bool] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__()
-        if warn_subclass is not None:
-            warnings.warn(
-                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-
-    @staticmethod
-    def create_partial(
-        name: str,
-        include: Optional[Iterable['types.TestKeys']] = None,
-        exclude: Optional[Iterable['types.TestKeys']] = None,
-        required: Optional[Iterable['types.TestKeys']] = None,
-        optional: Optional[Iterable['types.TestKeys']] = None,
-        relations: Optional[Mapping['types.TestRelationalFieldKeys', str]] = None,
-        exclude_relational_fields: bool = False,
-    ) -> None:
-        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
-            raise RuntimeError(
-                'Attempted to create a partial type outside of client generation.'
-            )
-
-        if name in _created_partial_types:
-            raise ValueError(f'Partial type "{name}" has already been created.')
-
-        if include is not None:
-            if exclude is not None:
-                raise TypeError('Exclude and include are mutually exclusive.')
-            if exclude_relational_fields is True:
-                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
-
-        if required and optional:
-            shared = set(required) & set(optional)
-            if shared:
-                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
-
-        if exclude_relational_fields and relations:
-            raise ValueError(
-                'exclude_relational_fields and relations are mutually exclusive'
-            )
-
-        fields: Dict['types.TestKeys', PartialModelField] = OrderedDict()
-
-        try:
-            if include:
-                for field in include:
-                    fields[field] = _Test_fields[field].copy()
-            elif exclude:
-                for field in exclude:
-                    if field not in _Test_fields:
-                        raise KeyError(field)
-
-                fields = {
-                    key: data.copy()
-                    for key, data in _Test_fields.items()
-                    if key not in exclude
-                }
-            else:
-                fields = {
-                    key: data.copy()
-                    for key, data in _Test_fields.items()
-                }
-
-            if required:
-                for field in required:
-                    fields[field]['optional'] = False
-
-            if optional:
-                for field in optional:
-                    fields[field]['optional'] = True
-
-            if exclude_relational_fields:
-                fields = {
-                    key: data
-                    for key, data in fields.items()
-                    if key not in _Test_relational_fields
-                }
-
-            if relations:
-                for field, type_ in relations.items():
-                    if field not in _Test_relational_fields:
-                        raise errors.UnknownRelationalFieldError('Test', field)
-
-                    # TODO: this method of validating types is not ideal
-                    # as it means we cannot two create partial types that
-                    # reference each other
-                    if type_ not in _created_partial_types:
-                        raise ValueError(
-                            f'Unknown partial type: "{type_}". '
-                            f'Did you remember to generate the {type_} type before this one?'
-                        )
-
-                    # TODO: support non prisma.partials models
-                    info = fields[field]
-                    if info['is_list']:
-                        info['type'] = f'List[\'partials.{type_}\']'
-                    else:
-                        info['type'] = f'\'partials.{type_}\''
-        except KeyError as exc:
-            raise ValueError(
-                f'{exc.args[0]} is not a valid Test / {name} field.'
-            ) from None
-
-        models = partial_models_ctx.get()
-        models.append(
-            {
-                'name': name,
-                'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'Test',
-            }
-        )
-        _created_partial_types.add(name)
-
-
-class TestExecution(bases.BaseTestExecution):
-    """A single run of a test on a node for a device.
-
-    Links to: Test (what), Node (where), Device (who/what DUT),
-    FixtureSlot (which slot), User (triggered by).
-
-    deviceId is optional for system-level or ad-hoc tests that
-    don't target a specific device.
-
-    On cascade behavior:
-    - test/node: Restrict (cannot delete test/node with history)
-    - device:    Cascade  (session cleanup cascades through)
-    - slot/user: SetNull  (preserve execution if slot/user removed)
-    """
-
-    id: _str
-    testId: _str
-    nodeId: _str
-    deviceId: Optional[_str] = None
-    slotId: Optional[_str] = None
-    status: 'enums.TestExecutionStatus'
-    config: Optional['fields.Json'] = None
-    """execution-specific config overrides
-    """
-
-    triggeredById: Optional[_str] = None
-    startedAt: Optional[datetime.datetime] = None
-    finishedAt: Optional[datetime.datetime] = None
-    createdAt: datetime.datetime
-    updatedAt: datetime.datetime
-    test: Optional['models.Test'] = None
-    node: Optional['models.Node'] = None
-    device: Optional['models.Device'] = None
-    slot: Optional['models.FixtureSlot'] = None
-    triggeredBy: Optional['models.User'] = None
-    steps: Optional[List['models.TestStep']] = None
-
-    # take *args and **kwargs so that other metaclasses can define arguments
-    def __init_subclass__(
-        cls,
-        *args: Any,
-        warn_subclass: Optional[bool] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__()
-        if warn_subclass is not None:
-            warnings.warn(
-                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-
-    @staticmethod
-    def create_partial(
-        name: str,
-        include: Optional[Iterable['types.TestExecutionKeys']] = None,
-        exclude: Optional[Iterable['types.TestExecutionKeys']] = None,
-        required: Optional[Iterable['types.TestExecutionKeys']] = None,
-        optional: Optional[Iterable['types.TestExecutionKeys']] = None,
-        relations: Optional[Mapping['types.TestExecutionRelationalFieldKeys', str]] = None,
-        exclude_relational_fields: bool = False,
-    ) -> None:
-        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
-            raise RuntimeError(
-                'Attempted to create a partial type outside of client generation.'
-            )
-
-        if name in _created_partial_types:
-            raise ValueError(f'Partial type "{name}" has already been created.')
-
-        if include is not None:
-            if exclude is not None:
-                raise TypeError('Exclude and include are mutually exclusive.')
-            if exclude_relational_fields is True:
-                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
-
-        if required and optional:
-            shared = set(required) & set(optional)
-            if shared:
-                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
-
-        if exclude_relational_fields and relations:
-            raise ValueError(
-                'exclude_relational_fields and relations are mutually exclusive'
-            )
-
-        fields: Dict['types.TestExecutionKeys', PartialModelField] = OrderedDict()
-
-        try:
-            if include:
-                for field in include:
-                    fields[field] = _TestExecution_fields[field].copy()
-            elif exclude:
-                for field in exclude:
-                    if field not in _TestExecution_fields:
-                        raise KeyError(field)
-
-                fields = {
-                    key: data.copy()
-                    for key, data in _TestExecution_fields.items()
-                    if key not in exclude
-                }
-            else:
-                fields = {
-                    key: data.copy()
-                    for key, data in _TestExecution_fields.items()
-                }
-
-            if required:
-                for field in required:
-                    fields[field]['optional'] = False
-
-            if optional:
-                for field in optional:
-                    fields[field]['optional'] = True
-
-            if exclude_relational_fields:
-                fields = {
-                    key: data
-                    for key, data in fields.items()
-                    if key not in _TestExecution_relational_fields
-                }
-
-            if relations:
-                for field, type_ in relations.items():
-                    if field not in _TestExecution_relational_fields:
-                        raise errors.UnknownRelationalFieldError('TestExecution', field)
-
-                    # TODO: this method of validating types is not ideal
-                    # as it means we cannot two create partial types that
-                    # reference each other
-                    if type_ not in _created_partial_types:
-                        raise ValueError(
-                            f'Unknown partial type: "{type_}". '
-                            f'Did you remember to generate the {type_} type before this one?'
-                        )
-
-                    # TODO: support non prisma.partials models
-                    info = fields[field]
-                    if info['is_list']:
-                        info['type'] = f'List[\'partials.{type_}\']'
-                    else:
-                        info['type'] = f'\'partials.{type_}\''
-        except KeyError as exc:
-            raise ValueError(
-                f'{exc.args[0]} is not a valid TestExecution / {name} field.'
-            ) from None
-
-        models = partial_models_ctx.get()
-        models.append(
-            {
-                'name': name,
-                'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'TestExecution',
-            }
-        )
-        _created_partial_types.add(name)
-
-
-class TestStep(bases.BaseTestStep):
-    """A single step within a test execution. Steps provide sub-test
-    granularity for live progress tracking and detailed diagnostics.
-    Replaces the former TestResult model with richer fields.
-    """
-
-    id: _str
-    executionId: _str
-    stepIndex: _int
-    name: _str
-    status: 'enums.TestExecutionStatus'
-    passed: Optional[_bool] = None
-    errorMessage: Optional[_str] = None
-    measurements: Optional['fields.Json'] = None
-    logOutput: Optional[_str] = None
-    logStorageKey: Optional[_str] = None
-    startedAt: Optional[datetime.datetime] = None
-    finishedAt: Optional[datetime.datetime] = None
-    durationMs: Optional[_int] = None
-    createdAt: datetime.datetime
-    execution: Optional['models.TestExecution'] = None
-
-    # take *args and **kwargs so that other metaclasses can define arguments
-    def __init_subclass__(
-        cls,
-        *args: Any,
-        warn_subclass: Optional[bool] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__()
-        if warn_subclass is not None:
-            warnings.warn(
-                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-
-    @staticmethod
-    def create_partial(
-        name: str,
-        include: Optional[Iterable['types.TestStepKeys']] = None,
-        exclude: Optional[Iterable['types.TestStepKeys']] = None,
-        required: Optional[Iterable['types.TestStepKeys']] = None,
-        optional: Optional[Iterable['types.TestStepKeys']] = None,
-        relations: Optional[Mapping['types.TestStepRelationalFieldKeys', str]] = None,
-        exclude_relational_fields: bool = False,
-    ) -> None:
-        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
-            raise RuntimeError(
-                'Attempted to create a partial type outside of client generation.'
-            )
-
-        if name in _created_partial_types:
-            raise ValueError(f'Partial type "{name}" has already been created.')
-
-        if include is not None:
-            if exclude is not None:
-                raise TypeError('Exclude and include are mutually exclusive.')
-            if exclude_relational_fields is True:
-                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
-
-        if required and optional:
-            shared = set(required) & set(optional)
-            if shared:
-                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
-
-        if exclude_relational_fields and relations:
-            raise ValueError(
-                'exclude_relational_fields and relations are mutually exclusive'
-            )
-
-        fields: Dict['types.TestStepKeys', PartialModelField] = OrderedDict()
-
-        try:
-            if include:
-                for field in include:
-                    fields[field] = _TestStep_fields[field].copy()
-            elif exclude:
-                for field in exclude:
-                    if field not in _TestStep_fields:
-                        raise KeyError(field)
-
-                fields = {
-                    key: data.copy()
-                    for key, data in _TestStep_fields.items()
-                    if key not in exclude
-                }
-            else:
-                fields = {
-                    key: data.copy()
-                    for key, data in _TestStep_fields.items()
-                }
-
-            if required:
-                for field in required:
-                    fields[field]['optional'] = False
-
-            if optional:
-                for field in optional:
-                    fields[field]['optional'] = True
-
-            if exclude_relational_fields:
-                fields = {
-                    key: data
-                    for key, data in fields.items()
-                    if key not in _TestStep_relational_fields
-                }
-
-            if relations:
-                for field, type_ in relations.items():
-                    if field not in _TestStep_relational_fields:
-                        raise errors.UnknownRelationalFieldError('TestStep', field)
-
-                    # TODO: this method of validating types is not ideal
-                    # as it means we cannot two create partial types that
-                    # reference each other
-                    if type_ not in _created_partial_types:
-                        raise ValueError(
-                            f'Unknown partial type: "{type_}". '
-                            f'Did you remember to generate the {type_} type before this one?'
-                        )
-
-                    # TODO: support non prisma.partials models
-                    info = fields[field]
-                    if info['is_list']:
-                        info['type'] = f'List[\'partials.{type_}\']'
-                    else:
-                        info['type'] = f'\'partials.{type_}\''
-        except KeyError as exc:
-            raise ValueError(
-                f'{exc.args[0]} is not a valid TestStep / {name} field.'
-            ) from None
-
-        models = partial_models_ctx.get()
-        models.append(
-            {
-                'name': name,
-                'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'TestStep',
-            }
-        )
-        _created_partial_types.add(name)
-
-
 class User(bases.BaseUser):
     """A platform user, authenticated via Google OAuth.
 
@@ -4114,14 +3345,13 @@ class User(bases.BaseUser):
     permissionSet: Optional['models.PermissionSet'] = None
     productAccess: Optional[List['models.ProductAccess']] = None
     apiKeys: Optional[List['models.ApiKey']] = None
-    sessions: Optional[List['models.Session']] = None
-    testExecutions: Optional[List['models.TestExecution']] = None
     testPackages: Optional[List['models.TestPackage']] = None
     auditLogs: Optional[List['models.AuditLog']] = None
     secrets: Optional[List['models.Secret']] = None
     recipeVersions: Optional[List['models.RecipeVersion']] = None
     assetSets: Optional[List['models.AssetSet']] = None
     manufacturingSessions: Optional[List['models.ManufacturingSession']] = None
+    testRuns: Optional[List['models.TestRun']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -5558,7 +4788,7 @@ class AssetSet(bases.BaseAssetSet):
     recipeVersion: Optional['models.RecipeVersion'] = None
     createdBy: Optional['models.User'] = None
     assets: Optional[List['models.Asset']] = None
-    sessions: Optional[List['models.Session']] = None
+    testRuns: Optional[List['models.TestRun']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -5997,8 +5227,9 @@ class ManufacturingConfig(bases.BaseManufacturingConfig):
 
 
 class ManufacturingSession(bases.BaseManufacturingSession):
-    """An active or completed manufacturing session on a fixture.
-    Tracks operator, fixture lock, and aggregate panel/unit counts.
+    """An operator-managed manufacturing session on a fixture.
+    Groups multiple TestRuns (one per panel scan).
+    Lifecycle: operator starts session → scans panels (creating runs) → ends session.
     """
 
     id: _str
@@ -6006,11 +5237,8 @@ class ManufacturingSession(bases.BaseManufacturingSession):
     fixtureId: _str
     status: 'enums.ManufacturingSessionStatus'
     operatorId: _str
-    testPackageId: Optional[_str] = None
-    panelCount: _int
-    passedCount: _int
-    failedCount: _int
     config: Optional['fields.Json'] = None
+    notes: Optional[_str] = None
     startedAt: datetime.datetime
     endedAt: Optional[datetime.datetime] = None
     createdAt: datetime.datetime
@@ -6018,8 +5246,7 @@ class ManufacturingSession(bases.BaseManufacturingSession):
     product: Optional['models.Product'] = None
     fixture: Optional['models.Fixture'] = None
     operator: Optional['models.User'] = None
-    testPackage: Optional['models.TestPackage'] = None
-    panels: Optional[List['models.ManufacturingPanel']] = None
+    runs: Optional[List['models.TestRun']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -6144,25 +5371,66 @@ class ManufacturingSession(bases.BaseManufacturingSession):
         _created_partial_types.add(name)
 
 
-class ManufacturingPanel(bases.BaseManufacturingPanel):
-    """A panel scanned during a manufacturing session. Each panel contains
-    multiple units (DUTs) that go through manufacturing test stages.
+class TestRun(bases.BaseTestRun):
+    """The atomic unit of test execution — shared between validation and manufacturing.
+    Validation: one run per CI trigger or manual invocation. Standalone.
+    Manufacturing: one run per panel scan, nested within a ManufacturingSession.
     """
 
     id: _str
-    sessionId: _str
-    panelIndex: _int
-    qrCode: _str
-    status: 'enums.PanelStatus'
-    unitCount: _int
-    passedUnits: _int
-    failedUnits: _int
-    startedAt: datetime.datetime
+    type: 'enums.TestRunType'
+    """VALIDATION or MANUFACTURING
+    """
+
+    name: Optional[_str] = None
+    """Display name
+    """
+
+    productId: _str
+    fixtureId: _str
+    testPackageId: Optional[_str] = None
+    buildRunId: Optional[_str] = None
+    """Validation only — CI pipeline link
+    """
+
+    manufacturingSessionId: Optional[_str] = None
+    """Manufacturing only — parent session
+    """
+
+    panelIdentifier: Optional[_str] = None
+    """QR code (manufacturing) or auto-generated (validation)
+    """
+
+    assetSetId: Optional[_str] = None
+    """Firmware asset set used for this run
+    """
+
+    status: 'enums.TestRunStatus'
+    operatorId: _str
+    """Who triggered this run
+    """
+
+    targetCount: _int
+    completedCount: _int
+    passedCount: _int
+    failedCount: _int
+    config: Optional['fields.Json'] = None
+    notes: Optional[_str] = None
+    errorMessage: Optional[_str] = None
+    startedAt: Optional[datetime.datetime] = None
     completedAt: Optional[datetime.datetime] = None
     durationMs: Optional[_int] = None
     createdAt: datetime.datetime
+    updatedAt: datetime.datetime
+    product: Optional['models.Product'] = None
+    fixture: Optional['models.Fixture'] = None
+    testPackage: Optional['models.TestPackage'] = None
+    buildRun: Optional['models.BuildRun'] = None
     session: Optional['models.ManufacturingSession'] = None
-    units: Optional[List['models.ManufacturingUnit']] = None
+    assetSet: Optional['models.AssetSet'] = None
+    operator: Optional['models.User'] = None
+    targets: Optional[List['models.RunTarget']] = None
+    queueEntry: Optional['models.ValidationQueueEntry'] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -6183,11 +5451,11 @@ class ManufacturingPanel(bases.BaseManufacturingPanel):
     @staticmethod
     def create_partial(
         name: str,
-        include: Optional[Iterable['types.ManufacturingPanelKeys']] = None,
-        exclude: Optional[Iterable['types.ManufacturingPanelKeys']] = None,
-        required: Optional[Iterable['types.ManufacturingPanelKeys']] = None,
-        optional: Optional[Iterable['types.ManufacturingPanelKeys']] = None,
-        relations: Optional[Mapping['types.ManufacturingPanelRelationalFieldKeys', str]] = None,
+        include: Optional[Iterable['types.TestRunKeys']] = None,
+        exclude: Optional[Iterable['types.TestRunKeys']] = None,
+        required: Optional[Iterable['types.TestRunKeys']] = None,
+        optional: Optional[Iterable['types.TestRunKeys']] = None,
+        relations: Optional[Mapping['types.TestRunRelationalFieldKeys', str]] = None,
         exclude_relational_fields: bool = False,
     ) -> None:
         if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
@@ -6214,26 +5482,26 @@ class ManufacturingPanel(bases.BaseManufacturingPanel):
                 'exclude_relational_fields and relations are mutually exclusive'
             )
 
-        fields: Dict['types.ManufacturingPanelKeys', PartialModelField] = OrderedDict()
+        fields: Dict['types.TestRunKeys', PartialModelField] = OrderedDict()
 
         try:
             if include:
                 for field in include:
-                    fields[field] = _ManufacturingPanel_fields[field].copy()
+                    fields[field] = _TestRun_fields[field].copy()
             elif exclude:
                 for field in exclude:
-                    if field not in _ManufacturingPanel_fields:
+                    if field not in _TestRun_fields:
                         raise KeyError(field)
 
                 fields = {
                     key: data.copy()
-                    for key, data in _ManufacturingPanel_fields.items()
+                    for key, data in _TestRun_fields.items()
                     if key not in exclude
                 }
             else:
                 fields = {
                     key: data.copy()
-                    for key, data in _ManufacturingPanel_fields.items()
+                    for key, data in _TestRun_fields.items()
                 }
 
             if required:
@@ -6248,13 +5516,13 @@ class ManufacturingPanel(bases.BaseManufacturingPanel):
                 fields = {
                     key: data
                     for key, data in fields.items()
-                    if key not in _ManufacturingPanel_relational_fields
+                    if key not in _TestRun_relational_fields
                 }
 
             if relations:
                 for field, type_ in relations.items():
-                    if field not in _ManufacturingPanel_relational_fields:
-                        raise errors.UnknownRelationalFieldError('ManufacturingPanel', field)
+                    if field not in _TestRun_relational_fields:
+                        raise errors.UnknownRelationalFieldError('TestRun', field)
 
                     # TODO: this method of validating types is not ideal
                     # as it means we cannot two create partial types that
@@ -6273,7 +5541,7 @@ class ManufacturingPanel(bases.BaseManufacturingPanel):
                         info['type'] = f'\'partials.{type_}\''
         except KeyError as exc:
             raise ValueError(
-                f'{exc.args[0]} is not a valid ManufacturingPanel / {name} field.'
+                f'{exc.args[0]} is not a valid TestRun / {name} field.'
             ) from None
 
         models = partial_models_ctx.get()
@@ -6281,32 +5549,48 @@ class ManufacturingPanel(bases.BaseManufacturingPanel):
             {
                 'name': name,
                 'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'ManufacturingPanel',
+                'from_model': 'TestRun',
             }
         )
         _created_partial_types.add(name)
 
 
-class ManufacturingUnit(bases.BaseManufacturingUnit):
-    """A single DUT (device under test) within a manufacturing panel.
-    Stages are stored as a JSON array, appended by stage-result callbacks.
+class RunTarget(bases.BaseRunTarget):
+    """A single DUT (device under test) within a run.
+    Linked to a physical fixture slot for traceability.
     """
 
     id: _str
-    panelId: _str
+    runId: _str
     slotIndex: _int
-    slotId: _str
+    """Physical fixture slot position (0-based)
+    """
+
+    slotId: Optional[_str] = None
+    """FK to FixtureSlot
+    """
+
     serialNumber: Optional[_str] = None
-    status: 'enums.UnitStatus'
-    stages: 'fields.Json'
-    """[{name, status, durationMs, measurements?, errorMessage?}, ...]
+    """DUT serial number (may be discovered during manufacturing)
+    """
+
+    deviceId: Optional[_str] = None
+    """CoreCloud device ID
+    """
+
+    status: 'enums.TargetStatus'
+    metadata: Optional['fields.Json'] = None
+    """IMEI, ICCID, hardware info, calibration data
     """
 
     errorMessage: Optional[_str] = None
-    startedAt: datetime.datetime
+    startedAt: Optional[datetime.datetime] = None
     completedAt: Optional[datetime.datetime] = None
     durationMs: Optional[_int] = None
-    panel: Optional['models.ManufacturingPanel'] = None
+    createdAt: datetime.datetime
+    run: Optional['models.TestRun'] = None
+    slot: Optional['models.FixtureSlot'] = None
+    executions: Optional[List['models.TestExecution']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -6327,11 +5611,11 @@ class ManufacturingUnit(bases.BaseManufacturingUnit):
     @staticmethod
     def create_partial(
         name: str,
-        include: Optional[Iterable['types.ManufacturingUnitKeys']] = None,
-        exclude: Optional[Iterable['types.ManufacturingUnitKeys']] = None,
-        required: Optional[Iterable['types.ManufacturingUnitKeys']] = None,
-        optional: Optional[Iterable['types.ManufacturingUnitKeys']] = None,
-        relations: Optional[Mapping['types.ManufacturingUnitRelationalFieldKeys', str]] = None,
+        include: Optional[Iterable['types.RunTargetKeys']] = None,
+        exclude: Optional[Iterable['types.RunTargetKeys']] = None,
+        required: Optional[Iterable['types.RunTargetKeys']] = None,
+        optional: Optional[Iterable['types.RunTargetKeys']] = None,
+        relations: Optional[Mapping['types.RunTargetRelationalFieldKeys', str]] = None,
         exclude_relational_fields: bool = False,
     ) -> None:
         if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
@@ -6358,26 +5642,26 @@ class ManufacturingUnit(bases.BaseManufacturingUnit):
                 'exclude_relational_fields and relations are mutually exclusive'
             )
 
-        fields: Dict['types.ManufacturingUnitKeys', PartialModelField] = OrderedDict()
+        fields: Dict['types.RunTargetKeys', PartialModelField] = OrderedDict()
 
         try:
             if include:
                 for field in include:
-                    fields[field] = _ManufacturingUnit_fields[field].copy()
+                    fields[field] = _RunTarget_fields[field].copy()
             elif exclude:
                 for field in exclude:
-                    if field not in _ManufacturingUnit_fields:
+                    if field not in _RunTarget_fields:
                         raise KeyError(field)
 
                 fields = {
                     key: data.copy()
-                    for key, data in _ManufacturingUnit_fields.items()
+                    for key, data in _RunTarget_fields.items()
                     if key not in exclude
                 }
             else:
                 fields = {
                     key: data.copy()
-                    for key, data in _ManufacturingUnit_fields.items()
+                    for key, data in _RunTarget_fields.items()
                 }
 
             if required:
@@ -6392,13 +5676,13 @@ class ManufacturingUnit(bases.BaseManufacturingUnit):
                 fields = {
                     key: data
                     for key, data in fields.items()
-                    if key not in _ManufacturingUnit_relational_fields
+                    if key not in _RunTarget_relational_fields
                 }
 
             if relations:
                 for field, type_ in relations.items():
-                    if field not in _ManufacturingUnit_relational_fields:
-                        raise errors.UnknownRelationalFieldError('ManufacturingUnit', field)
+                    if field not in _RunTarget_relational_fields:
+                        raise errors.UnknownRelationalFieldError('RunTarget', field)
 
                     # TODO: this method of validating types is not ideal
                     # as it means we cannot two create partial types that
@@ -6417,7 +5701,7 @@ class ManufacturingUnit(bases.BaseManufacturingUnit):
                         info['type'] = f'\'partials.{type_}\''
         except KeyError as exc:
             raise ValueError(
-                f'{exc.args[0]} is not a valid ManufacturingUnit / {name} field.'
+                f'{exc.args[0]} is not a valid RunTarget / {name} field.'
             ) from None
 
         models = partial_models_ctx.get()
@@ -6425,7 +5709,489 @@ class ManufacturingUnit(bases.BaseManufacturingUnit):
             {
                 'name': name,
                 'fields': cast(Mapping[str, PartialModelField], fields),
-                'from_model': 'ManufacturingUnit',
+                'from_model': 'RunTarget',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class TestExecution(bases.BaseTestExecution):
+    """A single test function (validation) or manufacturing step execution.
+    Validation: one per pytest test function per target.
+    Manufacturing: one per sequential step (Electrical, Flash, POST) per target.
+    """
+
+    id: _str
+    targetId: _str
+    executionIndex: _int
+    """Order within target (0-based)
+    """
+
+    name: _str
+    """Test function name or step name
+    """
+
+    module: Optional[_str] = None
+    """Pytest module path (e.g., "tests.smoke.test_hardware")
+    """
+
+    status: 'enums.ExecutionStatus'
+    durationMs: Optional[_int] = None
+    errorMessage: Optional[_str] = None
+    measurements: Optional['fields.Json'] = None
+    """Power measurements, ADC readings, etc.
+    """
+
+    logOutput: Optional[_str] = None
+    """Captured stdout/stderr
+    """
+
+    logStorageKey: Optional[_str] = None
+    """MinIO key for log overflow
+    """
+
+    startedAt: Optional[datetime.datetime] = None
+    completedAt: Optional[datetime.datetime] = None
+    createdAt: datetime.datetime
+    target: Optional['models.RunTarget'] = None
+    steps: Optional[List['models.TestStep']] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.TestExecutionKeys']] = None,
+        exclude: Optional[Iterable['types.TestExecutionKeys']] = None,
+        required: Optional[Iterable['types.TestExecutionKeys']] = None,
+        optional: Optional[Iterable['types.TestExecutionKeys']] = None,
+        relations: Optional[Mapping['types.TestExecutionRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.TestExecutionKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _TestExecution_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _TestExecution_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _TestExecution_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _TestExecution_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _TestExecution_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _TestExecution_relational_fields:
+                        raise errors.UnknownRelationalFieldError('TestExecution', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid TestExecution / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'TestExecution',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class TestStep(bases.BaseTestStep):
+    """A sub-step within a test execution.
+    Created by `with report.step("name"):` in test code.
+    """
+
+    id: _str
+    executionId: _str
+    stepIndex: _int
+    name: _str
+    status: 'enums.ExecutionStatus'
+    passed: Optional[_bool] = None
+    durationMs: Optional[_int] = None
+    errorMessage: Optional[_str] = None
+    measurements: Optional['fields.Json'] = None
+    logOutput: Optional[_str] = None
+    logStorageKey: Optional[_str] = None
+    startedAt: Optional[datetime.datetime] = None
+    completedAt: Optional[datetime.datetime] = None
+    createdAt: datetime.datetime
+    execution: Optional['models.TestExecution'] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.TestStepKeys']] = None,
+        exclude: Optional[Iterable['types.TestStepKeys']] = None,
+        required: Optional[Iterable['types.TestStepKeys']] = None,
+        optional: Optional[Iterable['types.TestStepKeys']] = None,
+        relations: Optional[Mapping['types.TestStepRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.TestStepKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _TestStep_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _TestStep_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _TestStep_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _TestStep_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _TestStep_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _TestStep_relational_fields:
+                        raise errors.UnknownRelationalFieldError('TestStep', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid TestStep / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'TestStep',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class TestPackageStage(bases.BaseTestPackageStage):
+    """Structured stage/step metadata extracted from a test package manifest on upload.
+    Replaces the untyped `stagesEnabled` JSON blob.
+    """
+
+    id: _str
+    testPackageId: _str
+    name: _str
+    """"smoke", "regression", "Electrical", "POST"
+    """
+
+    stageIndex: _int
+    """Order within package (matters for manufacturing steps)
+    """
+
+    directory: Optional[_str] = None
+    """"tests/smoke" (validation stages)
+    """
+
+    module: Optional[_str] = None
+    """"tests.manufacturing.test_electrical" (manufacturing steps)
+    """
+
+    timeoutS: Optional[_int] = None
+    """Maximum execution time in seconds
+    """
+
+    hardware: List[_str]
+    """Required fixture capabilities
+    """
+
+    markers: List[_str]
+    """Pytest markers
+    """
+
+    createdAt: datetime.datetime
+    testPackage: Optional['models.TestPackage'] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+    @field_validator('hardware', 'markers', pre=True, allow_reuse=True)
+    @classmethod
+    def _transform_required_list_fields(cls, value: object) -> object:
+        # When using raw queries, some databases will return `None` for an array field that has not been set yet.
+        #
+        # In our case we want to use an empty list instead as that is the internal Prisma behaviour and we want
+        # to use the same consistent structure between the core ORM and raw queries. For example, if we updated
+        # our type definitions to include `None` for `List` fields then it would be misleading as it will only
+        # ever be `None` in raw queries.
+        if value is None:
+            return []
+
+        return value
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.TestPackageStageKeys']] = None,
+        exclude: Optional[Iterable['types.TestPackageStageKeys']] = None,
+        required: Optional[Iterable['types.TestPackageStageKeys']] = None,
+        optional: Optional[Iterable['types.TestPackageStageKeys']] = None,
+        relations: Optional[Mapping['types.TestPackageStageRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.TestPackageStageKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _TestPackageStage_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _TestPackageStage_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _TestPackageStage_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _TestPackageStage_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _TestPackageStage_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _TestPackageStage_relational_fields:
+                        raise errors.UnknownRelationalFieldError('TestPackageStage', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid TestPackageStage / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'TestPackageStage',
             }
         )
         _created_partial_types.add(name)
@@ -6436,8 +6202,6 @@ _Product_relational_fields: Set[str] = {
         'boards',
         'firmwareSets',
         'fixtures',
-        'tests',
-        'sessions',
         'buildJobs',
         'buildRuns',
         'stageConfigs',
@@ -6447,6 +6211,7 @@ _Product_relational_fields: Set[str] = {
         'assetSets',
         'manufacturingConfigs',
         'manufacturingSessions',
+        'testRuns',
     }
 _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
     [
@@ -6570,22 +6335,6 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
-        ('tests', {
-            'name': 'tests',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.Test\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('sessions', {
-            'name': 'sessions',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.Session\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
         ('buildJobs', {
             'name': 'buildJobs',
             'is_list': True,
@@ -6658,14 +6407,22 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
+        ('testRuns', {
+            'name': 'testRuns',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TestRun\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
     ],
 )
 
 _TestPackage_relational_fields: Set[str] = {
         'product',
         'createdBy',
-        'sessions',
-        'manufacturingSessions',
+        'testRuns',
+        'packageStages',
     }
 _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedDict(
     [
@@ -6741,13 +6498,21 @@ _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedD
             'is_relational': False,
             'documentation': '''Number of tests collected''',
         }),
+        ('schemaVersion', {
+            'name': 'schemaVersion',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Manifest schema version (e.g. "2.0") — enforced on upload''',
+        }),
         ('stagesEnabled', {
             'name': 'stagesEnabled',
             'is_list': False,
             'optional': True,
             'type': 'fields.Json',
             'is_relational': False,
-            'documentation': '''Which stages are enabled: {"smoke": true, "fuota": true, ...}''',
+            'documentation': '''Which stages are enabled (v1 legacy — replaced by packageStages in v2)''',
         }),
         ('message', {
             'name': 'message',
@@ -6821,19 +6586,19 @@ _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedD
             'is_relational': True,
             'documentation': None,
         }),
-        ('sessions', {
-            'name': 'sessions',
+        ('testRuns', {
+            'name': 'testRuns',
             'is_list': True,
             'optional': True,
-            'type': 'List[\'models.Session\']',
+            'type': 'List[\'models.TestRun\']',
             'is_relational': True,
             'documentation': None,
         }),
-        ('manufacturingSessions', {
-            'name': 'manufacturingSessions',
+        ('packageStages', {
+            'name': 'packageStages',
             'is_list': True,
             'optional': True,
-            'type': 'List[\'models.ManufacturingSession\']',
+            'type': 'List[\'models.TestPackageStage\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -7670,7 +7435,7 @@ _ValidationQueueEntry_relational_fields: Set[str] = {
         'buildRun',
         'stageConfig',
         'fixture',
-        'session',
+        'testRun',
     }
 _ValidationQueueEntry_fields: Dict['types.ValidationQueueEntryKeys', PartialModelField] = OrderedDict(
     [
@@ -7730,8 +7495,8 @@ _ValidationQueueEntry_fields: Dict['types.ValidationQueueEntryKeys', PartialMode
             'is_relational': False,
             'documentation': '''Assigned fixture (null until ASSIGNED)''',
         }),
-        ('sessionId', {
-            'name': 'sessionId',
+        ('testRunId', {
+            'name': 'testRunId',
             'is_list': False,
             'optional': True,
             'type': '_str',
@@ -7834,11 +7599,11 @@ _ValidationQueueEntry_fields: Dict['types.ValidationQueueEntryKeys', PartialMode
             'is_relational': True,
             'documentation': None,
         }),
-        ('session', {
-            'name': 'session',
+        ('testRun', {
+            'name': 'testRun',
             'is_list': False,
             'optional': True,
-            'type': 'models.Session',
+            'type': 'models.TestRun',
             'is_relational': True,
             'documentation': None,
         }),
@@ -7850,9 +7615,9 @@ _BuildRun_relational_fields: Set[str] = {
         'stageConfig',
         'recipeVersion',
         'builds',
-        'sessions',
         'queueEntries',
         'assetSet',
+        'testRuns',
     }
 _BuildRun_fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict(
     [
@@ -8112,14 +7877,6 @@ _BuildRun_fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
-        ('sessions', {
-            'name': 'sessions',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.Session\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
         ('queueEntries', {
             'name': 'queueEntries',
             'is_list': True,
@@ -8133,6 +7890,14 @@ _BuildRun_fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict(
             'is_list': False,
             'optional': True,
             'type': 'models.AssetSet',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('testRuns', {
+            'name': 'testRuns',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TestRun\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -8560,342 +8325,6 @@ _BuildArtifact_fields: Dict['types.BuildArtifactKeys', PartialModelField] = Orde
     ],
 )
 
-_Session_relational_fields: Set[str] = {
-        'product',
-        'fixture',
-        'pipeline',
-        'testPackage',
-        'assetSet',
-        'createdBy',
-        'devices',
-        'queueEntry',
-    }
-_Session_fields: Dict['types.SessionKeys', PartialModelField] = OrderedDict(
-    [
-        ('id', {
-            'name': 'id',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('name', {
-            'name': 'name',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('type', {
-            'name': 'type',
-            'is_list': False,
-            'optional': False,
-            'type': 'enums.SessionType',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('productId', {
-            'name': 'productId',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('status', {
-            'name': 'status',
-            'is_list': False,
-            'optional': False,
-            'type': 'enums.SessionStatus',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('fixtureId', {
-            'name': 'fixtureId',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('buildRunId', {
-            'name': 'buildRunId',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('testPackageId', {
-            'name': 'testPackageId',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('targetCount', {
-            'name': 'targetCount',
-            'is_list': False,
-            'optional': True,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('completedCount', {
-            'name': 'completedCount',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('passedCount', {
-            'name': 'passedCount',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('failedCount', {
-            'name': 'failedCount',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('config', {
-            'name': 'config',
-            'is_list': False,
-            'optional': True,
-            'type': 'fields.Json',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('notes', {
-            'name': 'notes',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('errorMessage', {
-            'name': 'errorMessage',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('createdById', {
-            'name': 'createdById',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('startedAt', {
-            'name': 'startedAt',
-            'is_list': False,
-            'optional': True,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('finishedAt', {
-            'name': 'finishedAt',
-            'is_list': False,
-            'optional': True,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('durationMs', {
-            'name': 'durationMs',
-            'is_list': False,
-            'optional': True,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('createdAt', {
-            'name': 'createdAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('updatedAt', {
-            'name': 'updatedAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('assetSetId', {
-            'name': 'assetSetId',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('product', {
-            'name': 'product',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.Product',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('fixture', {
-            'name': 'fixture',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.Fixture',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('pipeline', {
-            'name': 'pipeline',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.BuildRun',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('testPackage', {
-            'name': 'testPackage',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.TestPackage',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('assetSet', {
-            'name': 'assetSet',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.AssetSet',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('createdBy', {
-            'name': 'createdBy',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.User',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('devices', {
-            'name': 'devices',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.Device\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('queueEntry', {
-            'name': 'queueEntry',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.ValidationQueueEntry',
-            'is_relational': True,
-            'documentation': None,
-        }),
-    ],
-)
-
-_Device_relational_fields: Set[str] = {
-        'session',
-        'executions',
-    }
-_Device_fields: Dict['types.DeviceKeys', PartialModelField] = OrderedDict(
-    [
-        ('id', {
-            'name': 'id',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('serialNumber', {
-            'name': 'serialNumber',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('sessionId', {
-            'name': 'sessionId',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('status', {
-            'name': 'status',
-            'is_list': False,
-            'optional': False,
-            'type': 'enums.DeviceStatus',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('metadata', {
-            'name': 'metadata',
-            'is_list': False,
-            'optional': True,
-            'type': 'fields.Json',
-            'is_relational': False,
-            'documentation': '''IMEI, ICCID, hardware info, calibration data''',
-        }),
-        ('createdAt', {
-            'name': 'createdAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('updatedAt', {
-            'name': 'updatedAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('session', {
-            'name': 'session',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.Session',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('executions', {
-            'name': 'executions',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.TestExecution\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-    ],
-)
-
 _FixtureDesign_relational_fields: Set[str] = {
         'boardRevision',
         'fixtures',
@@ -9022,9 +8451,9 @@ _Fixture_relational_fields: Set[str] = {
         'boardRevision',
         'design',
         'slots',
-        'sessions',
         'queueEntries',
         'manufacturingSessions',
+        'testRuns',
     }
 _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
     [
@@ -9196,14 +8625,6 @@ _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
-        ('sessions', {
-            'name': 'sessions',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.Session\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
         ('queueEntries', {
             'name': 'queueEntries',
             'is_list': True,
@@ -9220,13 +8641,21 @@ _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
+        ('testRuns', {
+            'name': 'testRuns',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TestRun\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
     ],
 )
 
 _FixtureSlot_relational_fields: Set[str] = {
         'fixture',
         'node',
-        'testExecutions',
+        'runTargets',
     }
 _FixtureSlot_fields: Dict['types.FixtureSlotKeys', PartialModelField] = OrderedDict(
     [
@@ -9374,11 +8803,11 @@ _FixtureSlot_fields: Dict['types.FixtureSlotKeys', PartialModelField] = OrderedD
             'is_relational': True,
             'documentation': None,
         }),
-        ('testExecutions', {
-            'name': 'testExecutions',
+        ('runTargets', {
+            'name': 'runTargets',
             'is_list': True,
             'optional': True,
-            'type': 'List[\'models.TestExecution\']',
+            'type': 'List[\'models.RunTarget\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -9387,7 +8816,6 @@ _FixtureSlot_fields: Dict['types.FixtureSlotKeys', PartialModelField] = OrderedD
 
 _Node_relational_fields: Set[str] = {
         'fixtureSlot',
-        'testExecutions',
     }
 _Node_fields: Dict['types.NodeKeys', PartialModelField] = OrderedDict(
     [
@@ -9478,14 +8906,6 @@ _Node_fields: Dict['types.NodeKeys', PartialModelField] = OrderedDict(
             'type': 'models.FixtureSlot',
             'is_relational': True,
             'documentation': '''one-to-one via @unique on FixtureSlot.nodeId''',
-        }),
-        ('testExecutions', {
-            'name': 'testExecutions',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.TestExecution\']',
-            'is_relational': True,
-            'documentation': None,
         }),
     ],
 )
@@ -9787,408 +9207,17 @@ _IcleLog_fields: Dict['types.IcleLogKeys', PartialModelField] = OrderedDict(
     ],
 )
 
-_Test_relational_fields: Set[str] = {
-        'product',
-        'executions',
-    }
-_Test_fields: Dict['types.TestKeys', PartialModelField] = OrderedDict(
-    [
-        ('id', {
-            'name': 'id',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('name', {
-            'name': 'name',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('productId', {
-            'name': 'productId',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('description', {
-            'name': 'description',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('category', {
-            'name': 'category',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''"electrical", "firmware", "post", etc.''',
-        }),
-        ('sortOrder', {
-            'name': 'sortOrder',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('config', {
-            'name': 'config',
-            'is_list': False,
-            'optional': True,
-            'type': 'fields.Json',
-            'is_relational': False,
-            'documentation': '''default config template (can be overridden per-execution)''',
-        }),
-        ('enabled', {
-            'name': 'enabled',
-            'is_list': False,
-            'optional': False,
-            'type': '_bool',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('createdAt', {
-            'name': 'createdAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('updatedAt', {
-            'name': 'updatedAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('product', {
-            'name': 'product',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.Product',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('executions', {
-            'name': 'executions',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.TestExecution\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-    ],
-)
-
-_TestExecution_relational_fields: Set[str] = {
-        'test',
-        'node',
-        'device',
-        'slot',
-        'triggeredBy',
-        'steps',
-    }
-_TestExecution_fields: Dict['types.TestExecutionKeys', PartialModelField] = OrderedDict(
-    [
-        ('id', {
-            'name': 'id',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('testId', {
-            'name': 'testId',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('nodeId', {
-            'name': 'nodeId',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('deviceId', {
-            'name': 'deviceId',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('slotId', {
-            'name': 'slotId',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('status', {
-            'name': 'status',
-            'is_list': False,
-            'optional': False,
-            'type': 'enums.TestExecutionStatus',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('config', {
-            'name': 'config',
-            'is_list': False,
-            'optional': True,
-            'type': 'fields.Json',
-            'is_relational': False,
-            'documentation': '''execution-specific config overrides''',
-        }),
-        ('triggeredById', {
-            'name': 'triggeredById',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('startedAt', {
-            'name': 'startedAt',
-            'is_list': False,
-            'optional': True,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('finishedAt', {
-            'name': 'finishedAt',
-            'is_list': False,
-            'optional': True,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('createdAt', {
-            'name': 'createdAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('updatedAt', {
-            'name': 'updatedAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('test', {
-            'name': 'test',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.Test',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('node', {
-            'name': 'node',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.Node',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('device', {
-            'name': 'device',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.Device',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('slot', {
-            'name': 'slot',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.FixtureSlot',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('triggeredBy', {
-            'name': 'triggeredBy',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.User',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('steps', {
-            'name': 'steps',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.TestStep\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-    ],
-)
-
-_TestStep_relational_fields: Set[str] = {
-        'execution',
-    }
-_TestStep_fields: Dict['types.TestStepKeys', PartialModelField] = OrderedDict(
-    [
-        ('id', {
-            'name': 'id',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('executionId', {
-            'name': 'executionId',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('stepIndex', {
-            'name': 'stepIndex',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('name', {
-            'name': 'name',
-            'is_list': False,
-            'optional': False,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('status', {
-            'name': 'status',
-            'is_list': False,
-            'optional': False,
-            'type': 'enums.TestExecutionStatus',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('passed', {
-            'name': 'passed',
-            'is_list': False,
-            'optional': True,
-            'type': '_bool',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('errorMessage', {
-            'name': 'errorMessage',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('measurements', {
-            'name': 'measurements',
-            'is_list': False,
-            'optional': True,
-            'type': 'fields.Json',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('logOutput', {
-            'name': 'logOutput',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('logStorageKey', {
-            'name': 'logStorageKey',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('startedAt', {
-            'name': 'startedAt',
-            'is_list': False,
-            'optional': True,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('finishedAt', {
-            'name': 'finishedAt',
-            'is_list': False,
-            'optional': True,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('durationMs', {
-            'name': 'durationMs',
-            'is_list': False,
-            'optional': True,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('createdAt', {
-            'name': 'createdAt',
-            'is_list': False,
-            'optional': False,
-            'type': 'datetime.datetime',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('execution', {
-            'name': 'execution',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.TestExecution',
-            'is_relational': True,
-            'documentation': None,
-        }),
-    ],
-)
-
 _User_relational_fields: Set[str] = {
         'permissionSet',
         'productAccess',
         'apiKeys',
-        'sessions',
-        'testExecutions',
         'testPackages',
         'auditLogs',
         'secrets',
         'recipeVersions',
         'assetSets',
         'manufacturingSessions',
+        'testRuns',
     }
 _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
     [
@@ -10296,22 +9325,6 @@ _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
-        ('sessions', {
-            'name': 'sessions',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.Session\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('testExecutions', {
-            'name': 'testExecutions',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.TestExecution\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
         ('testPackages', {
             'name': 'testPackages',
             'is_list': True,
@@ -10357,6 +9370,14 @@ _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.ManufacturingSession\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('testRuns', {
+            'name': 'testRuns',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TestRun\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -11141,7 +10162,7 @@ _AssetSet_relational_fields: Set[str] = {
         'recipeVersion',
         'createdBy',
         'assets',
-        'sessions',
+        'testRuns',
     }
 _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
     [
@@ -11329,11 +10350,11 @@ _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
-        ('sessions', {
-            'name': 'sessions',
+        ('testRuns', {
+            'name': 'testRuns',
             'is_list': True,
             'optional': True,
-            'type': 'List[\'models.Session\']',
+            'type': 'List[\'models.TestRun\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -11585,8 +10606,7 @@ _ManufacturingSession_relational_fields: Set[str] = {
         'product',
         'fixture',
         'operator',
-        'testPackage',
-        'panels',
+        'runs',
     }
 _ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialModelField] = OrderedDict(
     [
@@ -11630,43 +10650,19 @@ _ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialMode
             'is_relational': False,
             'documentation': None,
         }),
-        ('testPackageId', {
-            'name': 'testPackageId',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('panelCount', {
-            'name': 'panelCount',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('passedCount', {
-            'name': 'passedCount',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('failedCount', {
-            'name': 'failedCount',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
         ('config', {
             'name': 'config',
             'is_list': False,
             'optional': True,
             'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('notes', {
+            'name': 'notes',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
             'is_relational': False,
             'documentation': None,
         }),
@@ -11726,30 +10722,29 @@ _ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialMode
             'is_relational': True,
             'documentation': None,
         }),
-        ('testPackage', {
-            'name': 'testPackage',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.TestPackage',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('panels', {
-            'name': 'panels',
+        ('runs', {
+            'name': 'runs',
             'is_list': True,
             'optional': True,
-            'type': 'List[\'models.ManufacturingPanel\']',
+            'type': 'List[\'models.TestRun\']',
             'is_relational': True,
             'documentation': None,
         }),
     ],
 )
 
-_ManufacturingPanel_relational_fields: Set[str] = {
+_TestRun_relational_fields: Set[str] = {
+        'product',
+        'fixture',
+        'testPackage',
+        'buildRun',
         'session',
-        'units',
+        'assetSet',
+        'operator',
+        'targets',
+        'queueEntry',
     }
-_ManufacturingPanel_fields: Dict['types.ManufacturingPanelKeys', PartialModelField] = OrderedDict(
+_TestRun_fields: Dict['types.TestRunKeys', PartialModelField] = OrderedDict(
     [
         ('id', {
             'name': 'id',
@@ -11759,66 +10754,154 @@ _ManufacturingPanel_fields: Dict['types.ManufacturingPanelKeys', PartialModelFie
             'is_relational': False,
             'documentation': None,
         }),
-        ('sessionId', {
-            'name': 'sessionId',
+        ('type', {
+            'name': 'type',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.TestRunType',
+            'is_relational': False,
+            'documentation': '''VALIDATION or MANUFACTURING''',
+        }),
+        ('name', {
+            'name': 'name',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Display name''',
+        }),
+        ('productId', {
+            'name': 'productId',
             'is_list': False,
             'optional': False,
             'type': '_str',
             'is_relational': False,
             'documentation': None,
         }),
-        ('panelIndex', {
-            'name': 'panelIndex',
-            'is_list': False,
-            'optional': False,
-            'type': '_int',
-            'is_relational': False,
-            'documentation': None,
-        }),
-        ('qrCode', {
-            'name': 'qrCode',
+        ('fixtureId', {
+            'name': 'fixtureId',
             'is_list': False,
             'optional': False,
             'type': '_str',
             'is_relational': False,
             'documentation': None,
+        }),
+        ('testPackageId', {
+            'name': 'testPackageId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('buildRunId', {
+            'name': 'buildRunId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Validation only — CI pipeline link''',
+        }),
+        ('manufacturingSessionId', {
+            'name': 'manufacturingSessionId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Manufacturing only — parent session''',
+        }),
+        ('panelIdentifier', {
+            'name': 'panelIdentifier',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''QR code (manufacturing) or auto-generated (validation)''',
+        }),
+        ('assetSetId', {
+            'name': 'assetSetId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Firmware asset set used for this run''',
         }),
         ('status', {
             'name': 'status',
             'is_list': False,
             'optional': False,
-            'type': 'enums.PanelStatus',
+            'type': 'enums.TestRunStatus',
             'is_relational': False,
             'documentation': None,
         }),
-        ('unitCount', {
-            'name': 'unitCount',
+        ('operatorId', {
+            'name': 'operatorId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Who triggered this run''',
+        }),
+        ('targetCount', {
+            'name': 'targetCount',
             'is_list': False,
             'optional': False,
             'type': '_int',
             'is_relational': False,
             'documentation': None,
         }),
-        ('passedUnits', {
-            'name': 'passedUnits',
+        ('completedCount', {
+            'name': 'completedCount',
             'is_list': False,
             'optional': False,
             'type': '_int',
             'is_relational': False,
             'documentation': None,
         }),
-        ('failedUnits', {
-            'name': 'failedUnits',
+        ('passedCount', {
+            'name': 'passedCount',
             'is_list': False,
             'optional': False,
             'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('failedCount', {
+            'name': 'failedCount',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('config', {
+            'name': 'config',
+            'is_list': False,
+            'optional': True,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('notes', {
+            'name': 'notes',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('errorMessage', {
+            'name': 'errorMessage',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
             'is_relational': False,
             'documentation': None,
         }),
         ('startedAt', {
             'name': 'startedAt',
             'is_list': False,
-            'optional': False,
+            'optional': True,
             'type': 'datetime.datetime',
             'is_relational': False,
             'documentation': None,
@@ -11847,6 +10930,46 @@ _ManufacturingPanel_fields: Dict['types.ManufacturingPanelKeys', PartialModelFie
             'is_relational': False,
             'documentation': None,
         }),
+        ('updatedAt', {
+            'name': 'updatedAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('product', {
+            'name': 'product',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.Product',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('fixture', {
+            'name': 'fixture',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.Fixture',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('testPackage', {
+            'name': 'testPackage',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.TestPackage',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('buildRun', {
+            'name': 'buildRun',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BuildRun',
+            'is_relational': True,
+            'documentation': None,
+        }),
         ('session', {
             'name': 'session',
             'is_list': False,
@@ -11855,21 +10978,47 @@ _ManufacturingPanel_fields: Dict['types.ManufacturingPanelKeys', PartialModelFie
             'is_relational': True,
             'documentation': None,
         }),
-        ('units', {
-            'name': 'units',
+        ('assetSet', {
+            'name': 'assetSet',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.AssetSet',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('operator', {
+            'name': 'operator',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('targets', {
+            'name': 'targets',
             'is_list': True,
             'optional': True,
-            'type': 'List[\'models.ManufacturingUnit\']',
+            'type': 'List[\'models.RunTarget\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('queueEntry', {
+            'name': 'queueEntry',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.ValidationQueueEntry',
             'is_relational': True,
             'documentation': None,
         }),
     ],
 )
 
-_ManufacturingUnit_relational_fields: Set[str] = {
-        'panel',
+_RunTarget_relational_fields: Set[str] = {
+        'run',
+        'slot',
+        'executions',
     }
-_ManufacturingUnit_fields: Dict['types.ManufacturingUnitKeys', PartialModelField] = OrderedDict(
+_RunTarget_fields: Dict['types.RunTargetKeys', PartialModelField] = OrderedDict(
     [
         ('id', {
             'name': 'id',
@@ -11879,8 +11028,8 @@ _ManufacturingUnit_fields: Dict['types.ManufacturingUnitKeys', PartialModelField
             'is_relational': False,
             'documentation': None,
         }),
-        ('panelId', {
-            'name': 'panelId',
+        ('runId', {
+            'name': 'runId',
             'is_list': False,
             'optional': False,
             'type': '_str',
@@ -11893,15 +11042,15 @@ _ManufacturingUnit_fields: Dict['types.ManufacturingUnitKeys', PartialModelField
             'optional': False,
             'type': '_int',
             'is_relational': False,
-            'documentation': None,
+            'documentation': '''Physical fixture slot position (0-based)''',
         }),
         ('slotId', {
             'name': 'slotId',
             'is_list': False,
-            'optional': False,
+            'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': None,
+            'documentation': '''FK to FixtureSlot''',
         }),
         ('serialNumber', {
             'name': 'serialNumber',
@@ -11909,23 +11058,31 @@ _ManufacturingUnit_fields: Dict['types.ManufacturingUnitKeys', PartialModelField
             'optional': True,
             'type': '_str',
             'is_relational': False,
-            'documentation': None,
+            'documentation': '''DUT serial number (may be discovered during manufacturing)''',
+        }),
+        ('deviceId', {
+            'name': 'deviceId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''CoreCloud device ID''',
         }),
         ('status', {
             'name': 'status',
             'is_list': False,
             'optional': False,
-            'type': 'enums.UnitStatus',
+            'type': 'enums.TargetStatus',
             'is_relational': False,
             'documentation': None,
         }),
-        ('stages', {
-            'name': 'stages',
+        ('metadata', {
+            'name': 'metadata',
             'is_list': False,
-            'optional': False,
+            'optional': True,
             'type': 'fields.Json',
             'is_relational': False,
-            'documentation': '''[{name, status, durationMs, measurements?, errorMessage?}, ...]''',
+            'documentation': '''IMEI, ICCID, hardware info, calibration data''',
         }),
         ('errorMessage', {
             'name': 'errorMessage',
@@ -11938,7 +11095,7 @@ _ManufacturingUnit_fields: Dict['types.ManufacturingUnitKeys', PartialModelField
         ('startedAt', {
             'name': 'startedAt',
             'is_list': False,
-            'optional': False,
+            'optional': True,
             'type': 'datetime.datetime',
             'is_relational': False,
             'documentation': None,
@@ -11959,11 +11116,396 @@ _ManufacturingUnit_fields: Dict['types.ManufacturingUnitKeys', PartialModelField
             'is_relational': False,
             'documentation': None,
         }),
-        ('panel', {
-            'name': 'panel',
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('run', {
+            'name': 'run',
             'is_list': False,
             'optional': True,
-            'type': 'models.ManufacturingPanel',
+            'type': 'models.TestRun',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('slot', {
+            'name': 'slot',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.FixtureSlot',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('executions', {
+            'name': 'executions',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TestExecution\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_TestExecution_relational_fields: Set[str] = {
+        'target',
+        'steps',
+    }
+_TestExecution_fields: Dict['types.TestExecutionKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('targetId', {
+            'name': 'targetId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('executionIndex', {
+            'name': 'executionIndex',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': '''Order within target (0-based)''',
+        }),
+        ('name', {
+            'name': 'name',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Test function name or step name''',
+        }),
+        ('module', {
+            'name': 'module',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Pytest module path (e.g., "tests.smoke.test_hardware")''',
+        }),
+        ('status', {
+            'name': 'status',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.ExecutionStatus',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('durationMs', {
+            'name': 'durationMs',
+            'is_list': False,
+            'optional': True,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('errorMessage', {
+            'name': 'errorMessage',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('measurements', {
+            'name': 'measurements',
+            'is_list': False,
+            'optional': True,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': '''Power measurements, ADC readings, etc.''',
+        }),
+        ('logOutput', {
+            'name': 'logOutput',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Captured stdout/stderr''',
+        }),
+        ('logStorageKey', {
+            'name': 'logStorageKey',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''MinIO key for log overflow''',
+        }),
+        ('startedAt', {
+            'name': 'startedAt',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('completedAt', {
+            'name': 'completedAt',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('target', {
+            'name': 'target',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.RunTarget',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('steps', {
+            'name': 'steps',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TestStep\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_TestStep_relational_fields: Set[str] = {
+        'execution',
+    }
+_TestStep_fields: Dict['types.TestStepKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('executionId', {
+            'name': 'executionId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('stepIndex', {
+            'name': 'stepIndex',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('name', {
+            'name': 'name',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('status', {
+            'name': 'status',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.ExecutionStatus',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('passed', {
+            'name': 'passed',
+            'is_list': False,
+            'optional': True,
+            'type': '_bool',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('durationMs', {
+            'name': 'durationMs',
+            'is_list': False,
+            'optional': True,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('errorMessage', {
+            'name': 'errorMessage',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('measurements', {
+            'name': 'measurements',
+            'is_list': False,
+            'optional': True,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('logOutput', {
+            'name': 'logOutput',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('logStorageKey', {
+            'name': 'logStorageKey',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('startedAt', {
+            'name': 'startedAt',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('completedAt', {
+            'name': 'completedAt',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('execution', {
+            'name': 'execution',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.TestExecution',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_TestPackageStage_relational_fields: Set[str] = {
+        'testPackage',
+    }
+_TestPackageStage_fields: Dict['types.TestPackageStageKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('testPackageId', {
+            'name': 'testPackageId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('name', {
+            'name': 'name',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"smoke", "regression", "Electrical", "POST"''',
+        }),
+        ('stageIndex', {
+            'name': 'stageIndex',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': '''Order within package (matters for manufacturing steps)''',
+        }),
+        ('directory', {
+            'name': 'directory',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"tests/smoke" (validation stages)''',
+        }),
+        ('module', {
+            'name': 'module',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"tests.manufacturing.test_electrical" (manufacturing steps)''',
+        }),
+        ('timeoutS', {
+            'name': 'timeoutS',
+            'is_list': False,
+            'optional': True,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': '''Maximum execution time in seconds''',
+        }),
+        ('hardware', {
+            'name': 'hardware',
+            'is_list': True,
+            'optional': False,
+            'type': 'List[_str]',
+            'is_relational': False,
+            'documentation': '''Required fixture capabilities''',
+        }),
+        ('markers', {
+            'name': 'markers',
+            'is_list': True,
+            'optional': False,
+            'type': 'List[_str]',
+            'is_relational': False,
+            'documentation': '''Pytest markers''',
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('testPackage', {
+            'name': 'testPackage',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.TestPackage',
             'is_relational': True,
             'documentation': None,
         }),
@@ -11989,8 +11531,6 @@ model_rebuild(ValidationQueueEntry)
 model_rebuild(BuildRun)
 model_rebuild(BuildJob)
 model_rebuild(BuildArtifact)
-model_rebuild(Session)
-model_rebuild(Device)
 model_rebuild(FixtureDesign)
 model_rebuild(Fixture)
 model_rebuild(FixtureSlot)
@@ -11998,9 +11538,6 @@ model_rebuild(Node)
 model_rebuild(IcleDevice)
 model_rebuild(IclePendingCommand)
 model_rebuild(IcleLog)
-model_rebuild(Test)
-model_rebuild(TestExecution)
-model_rebuild(TestStep)
 model_rebuild(User)
 model_rebuild(ProductAccess)
 model_rebuild(PermissionSet)
@@ -12015,5 +11552,8 @@ model_rebuild(AssetSet)
 model_rebuild(Asset)
 model_rebuild(ManufacturingConfig)
 model_rebuild(ManufacturingSession)
-model_rebuild(ManufacturingPanel)
-model_rebuild(ManufacturingUnit)
+model_rebuild(TestRun)
+model_rebuild(RunTarget)
+model_rebuild(TestExecution)
+model_rebuild(TestStep)
+model_rebuild(TestPackageStage)

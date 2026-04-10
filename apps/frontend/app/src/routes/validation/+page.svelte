@@ -225,7 +225,7 @@
   function getDuration(run: ValidationRun): string | null {
     if (!run.startedAt) return null;
     const start = new Date(run.startedAt).getTime();
-    const end = run.finishedAt ? new Date(run.finishedAt).getTime() : Date.now();
+    const end = run.completedAt ? new Date(run.completedAt).getTime() : Date.now();
     return formatDuration(end - start);
   }
 
@@ -279,7 +279,7 @@
       }
 
       const res = await apiFetch<ApiResponse<{ data: ValidationRun[]; pagination: Pagination }>>(
-        '/v2/sessions?' + params.toString()
+        '/v2/runs?type=VALIDATION&' + params.toString()
       );
 
       runs = res.data.data;
@@ -333,7 +333,7 @@
     if (formStage) body.stage = formStage;
     if (formNotes.trim()) body.notes = formNotes.trim();
     try {
-      const res = await api.post<ApiResponse<ValidationRun>>('/v2/sessions', body);
+      const res = await api.post<ApiResponse<ValidationRun>>('/v2/runs', body);
       resetForm();
       await fetchRuns();
       if (res.data?.id) goto(`/validation/runs/${res.data.id}`);

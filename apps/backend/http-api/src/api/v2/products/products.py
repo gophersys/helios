@@ -399,15 +399,15 @@ def delete_product(product_id: str):
     if not existing:
         return not_found("Product not found")
 
-    # Check if product has sessions
-    session_ref = db.session.find_first(where={"productId": product_id})
-    if session_ref:
-        return conflict("Cannot delete product: it has associated sessions")
+    # Check if product has test runs
+    run_ref = db.testrun.find_first(where={"productId": product_id})
+    if run_ref:
+        return conflict("Cannot delete product: it has associated test runs")
 
-    # Check if product has tests
-    test_ref = db.test.find_first(where={"productId": product_id})
-    if test_ref:
-        return conflict("Cannot delete product: it has associated tests")
+    # Check if product has manufacturing sessions
+    mfg_ref = db.manufacturingsession.find_first(where={"productId": product_id})
+    if mfg_ref:
+        return conflict("Cannot delete product: it has associated manufacturing sessions")
 
     db.product.delete(where={"id": product_id})
     log_audit("product.delete", "Product", product_id, {"name": existing.name})

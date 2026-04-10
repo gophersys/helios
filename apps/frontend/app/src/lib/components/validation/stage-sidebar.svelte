@@ -83,7 +83,7 @@
       </div>
       {#each ctx.artifacts.slice(0, 5) as artifact (artifact.objectName)}
         <a
-          href="/v2/sessions/{ctx.runId}/artifacts/{artifact.name}"
+          href="/v2/runs/{ctx.runId}/artifacts/{artifact.name}"
           target="_blank"
           class="flex items-center gap-2 px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-1 rounded transition-colors"
         >

@@ -18,8 +18,6 @@ PRISMA_MODELS: set[str] = {
     'BuildRun',
     'BuildJob',
     'BuildArtifact',
-    'Session',
-    'Device',
     'FixtureDesign',
     'Fixture',
     'FixtureSlot',
@@ -27,9 +25,6 @@ PRISMA_MODELS: set[str] = {
     'IcleDevice',
     'IclePendingCommand',
     'IcleLog',
-    'Test',
-    'TestExecution',
-    'TestStep',
     'User',
     'ProductAccess',
     'PermissionSet',
@@ -44,8 +39,11 @@ PRISMA_MODELS: set[str] = {
     'Asset',
     'ManufacturingConfig',
     'ManufacturingSession',
-    'ManufacturingPanel',
-    'ManufacturingUnit',
+    'TestRun',
+    'RunTarget',
+    'TestExecution',
+    'TestStep',
+    'TestPackageStage',
 }
 
 RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
@@ -53,8 +51,6 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'boards': 'Board',
         'firmwareSets': 'FirmwareSet',
         'fixtures': 'Fixture',
-        'tests': 'Test',
-        'sessions': 'Session',
         'buildJobs': 'BuildJob',
         'buildRuns': 'BuildRun',
         'stageConfigs': 'ProductStageConfig',
@@ -64,12 +60,13 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'assetSets': 'AssetSet',
         'manufacturingConfigs': 'ManufacturingConfig',
         'manufacturingSessions': 'ManufacturingSession',
+        'testRuns': 'TestRun',
     },
     'TestPackage': {
         'product': 'Product',
         'createdBy': 'User',
-        'sessions': 'Session',
-        'manufacturingSessions': 'ManufacturingSession',
+        'testRuns': 'TestRun',
+        'packageStages': 'TestPackageStage',
     },
     'ProductTarget': {
         'boardRevision': 'BoardRevision',
@@ -111,16 +108,16 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'buildRun': 'BuildRun',
         'stageConfig': 'ProductStageConfig',
         'fixture': 'Fixture',
-        'session': 'Session',
+        'testRun': 'TestRun',
     },
     'BuildRun': {
         'product': 'Product',
         'stageConfig': 'ProductStageConfig',
         'recipeVersion': 'RecipeVersion',
         'builds': 'BuildJob',
-        'sessions': 'Session',
         'queueEntries': 'ValidationQueueEntry',
         'assetSet': 'AssetSet',
+        'testRuns': 'TestRun',
     },
     'BuildJob': {
         'buildRun': 'BuildRun',
@@ -133,20 +130,6 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     'BuildArtifact': {
         'buildJob': 'BuildJob',
     },
-    'Session': {
-        'product': 'Product',
-        'fixture': 'Fixture',
-        'pipeline': 'BuildRun',
-        'testPackage': 'TestPackage',
-        'assetSet': 'AssetSet',
-        'createdBy': 'User',
-        'devices': 'Device',
-        'queueEntry': 'ValidationQueueEntry',
-    },
-    'Device': {
-        'session': 'Session',
-        'executions': 'TestExecution',
-    },
     'FixtureDesign': {
         'boardRevision': 'BoardRevision',
         'fixtures': 'Fixture',
@@ -156,18 +139,17 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'boardRevision': 'BoardRevision',
         'design': 'FixtureDesign',
         'slots': 'FixtureSlot',
-        'sessions': 'Session',
         'queueEntries': 'ValidationQueueEntry',
         'manufacturingSessions': 'ManufacturingSession',
+        'testRuns': 'TestRun',
     },
     'FixtureSlot': {
         'fixture': 'Fixture',
         'node': 'Node',
-        'testExecutions': 'TestExecution',
+        'runTargets': 'RunTarget',
     },
     'Node': {
         'fixtureSlot': 'FixtureSlot',
-        'testExecutions': 'TestExecution',
     },
     'IcleDevice': {
         'commands': 'IclePendingCommand',
@@ -179,33 +161,17 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     'IcleLog': {
         'device': 'IcleDevice',
     },
-    'Test': {
-        'product': 'Product',
-        'executions': 'TestExecution',
-    },
-    'TestExecution': {
-        'test': 'Test',
-        'node': 'Node',
-        'device': 'Device',
-        'slot': 'FixtureSlot',
-        'triggeredBy': 'User',
-        'steps': 'TestStep',
-    },
-    'TestStep': {
-        'execution': 'TestExecution',
-    },
     'User': {
         'permissionSet': 'PermissionSet',
         'productAccess': 'ProductAccess',
         'apiKeys': 'ApiKey',
-        'sessions': 'Session',
-        'testExecutions': 'TestExecution',
         'testPackages': 'TestPackage',
         'auditLogs': 'AuditLog',
         'secrets': 'Secret',
         'recipeVersions': 'RecipeVersion',
         'assetSets': 'AssetSet',
         'manufacturingSessions': 'ManufacturingSession',
+        'testRuns': 'TestRun',
     },
     'ProductAccess': {
         'user': 'User',
@@ -246,7 +212,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'recipeVersion': 'RecipeVersion',
         'createdBy': 'User',
         'assets': 'Asset',
-        'sessions': 'Session',
+        'testRuns': 'TestRun',
     },
     'Asset': {
         'assetSet': 'AssetSet',
@@ -259,15 +225,33 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'product': 'Product',
         'fixture': 'Fixture',
         'operator': 'User',
+        'runs': 'TestRun',
+    },
+    'TestRun': {
+        'product': 'Product',
+        'fixture': 'Fixture',
         'testPackage': 'TestPackage',
-        'panels': 'ManufacturingPanel',
-    },
-    'ManufacturingPanel': {
+        'buildRun': 'BuildRun',
         'session': 'ManufacturingSession',
-        'units': 'ManufacturingUnit',
+        'assetSet': 'AssetSet',
+        'operator': 'User',
+        'targets': 'RunTarget',
+        'queueEntry': 'ValidationQueueEntry',
     },
-    'ManufacturingUnit': {
-        'panel': 'ManufacturingPanel',
+    'RunTarget': {
+        'run': 'TestRun',
+        'slot': 'FixtureSlot',
+        'executions': 'TestExecution',
+    },
+    'TestExecution': {
+        'target': 'RunTarget',
+        'steps': 'TestStep',
+    },
+    'TestStep': {
+        'execution': 'TestExecution',
+    },
+    'TestPackageStage': {
+        'testPackage': 'TestPackage',
     },
 }
 

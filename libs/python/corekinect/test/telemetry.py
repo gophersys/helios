@@ -324,7 +324,7 @@ class TelemetryStreamer:
                 headers["Host"] = self._host_header
 
             _requests.post(
-                f"{self._api_url}/v2/sessions/{self._run_id}/report/telemetry",
+                f"{self._api_url}/v2/runs/{self._run_id}/report/telemetry",
                 json={"samples": batch},
                 headers=headers,
                 timeout=2,

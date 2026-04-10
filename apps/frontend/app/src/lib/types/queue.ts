@@ -10,7 +10,7 @@ export interface ValidationQueueEntry {
   priority: number;
   status: QueueEntryStatus;
   benchId: string | null;
-  validationRunId: string | null;
+  testRunId: string | null;
   reason: string | null;
   errorMessage: string | null;
   requestedAt: string;
@@ -38,6 +38,11 @@ export interface ValidationQueueEntry {
     id: string;
     name: string;
     stage: number;
+  };
+  testRun?: {
+    id: string;
+    type: 'VALIDATION' | 'MANUFACTURING';
+    status: string;
   };
 }
 

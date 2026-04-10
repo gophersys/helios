@@ -22,14 +22,14 @@ vi.mock('$lib/api', () => ({
 }));
 
 vi.mock('$lib/services/websocket', () => ({
-  subscribeValidationRunWithLogs: vi.fn(() => vi.fn()),
+  subscribeRunWithLogs: vi.fn(() => vi.fn()),
 }));
 
 // ── Imports under test ──────────────────────────────────────────────
 
 import { RunContext } from './run-context.svelte';
 import { apiFetch, api, getToken } from '$lib/api';
-import { subscribeValidationRunWithLogs } from '$lib/services/websocket';
+import { subscribeRunWithLogs } from '$lib/services/websocket';
 import type { LiveTest, BuildJob, Stage } from './run-context.svelte';
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ function makeRun(overrides: Record<string, unknown> = {}) {
     passedCount: 2,
     failedCount: 0,
     startedAt: '2026-03-20T10:00:00Z',
-    finishedAt: null,
+    completedAt: null,
     notes: null,
     createdAt: '2026-03-20T09:59:00Z',
     updatedAt: '2026-03-20T10:00:00Z',
@@ -323,7 +323,7 @@ describe('RunContext', () => {
 
     beforeEach(() => {
       // Capture the WebSocket callbacks when subscribe is called
-      vi.mocked(subscribeValidationRunWithLogs).mockImplementation(
+      vi.mocked(subscribeRunWithLogs).mockImplementation(
         (_runId: string, callbacks: any) => {
           wsCallbacks = callbacks;
           return vi.fn();
@@ -733,7 +733,7 @@ describe('RunContext', () => {
     beforeEach(() => {
       vi.useFakeTimers();
 
-      vi.mocked(subscribeValidationRunWithLogs).mockImplementation(
+      vi.mocked(subscribeRunWithLogs).mockImplementation(
         (_runId: string, callbacks: any) => {
           wsCallbacks = callbacks;
           return vi.fn();
@@ -1330,10 +1330,10 @@ describe('RunContext', () => {
       expect(ctx.durationMs).toBeNull();
     });
 
-    it('calculates duration from startedAt to finishedAt', () => {
+    it('calculates duration from startedAt to completedAt', () => {
       ctx.run = makeRun({
         startedAt: '2026-03-20T10:00:00Z',
-        finishedAt: '2026-03-20T10:05:00Z',
+        completedAt: '2026-03-20T10:05:00Z',
       }) as any;
 
       expect(ctx.durationMs).toBe(5 * 60 * 1000);
@@ -1572,7 +1572,7 @@ describe('RunContext', () => {
         if (url.includes('/artifacts')) return { data: [] };
         return { data: makeRun() };
       });
-      vi.mocked(subscribeValidationRunWithLogs).mockReturnValue(vi.fn());
+      vi.mocked(subscribeRunWithLogs).mockReturnValue(vi.fn());
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({ data: [] }),
@@ -1588,8 +1588,8 @@ describe('RunContext', () => {
     it('subscribe calls fetchRun, fetchArtifacts, and sets up WebSocket', () => {
       ctx.subscribe();
 
-      expect(apiFetch).toHaveBeenCalledWith('/v2/sessions/run-123');
-      expect(subscribeValidationRunWithLogs).toHaveBeenCalledWith(
+      expect(apiFetch).toHaveBeenCalledWith('/v2/runs/run-123');
+      expect(subscribeRunWithLogs).toHaveBeenCalledWith(
         'run-123',
         expect.any(Object),
       );
@@ -1617,7 +1617,7 @@ describe('RunContext', () => {
 
     it('destroy calls WebSocket unsubscribe', () => {
       const unsub = vi.fn();
-      vi.mocked(subscribeValidationRunWithLogs).mockReturnValue(unsub);
+      vi.mocked(subscribeRunWithLogs).mockReturnValue(unsub);
 
       ctx.subscribe();
       ctx.destroy();
@@ -1642,7 +1642,7 @@ describe('RunContext', () => {
 
     beforeEach(() => {
       vi.useFakeTimers();
-      vi.mocked(subscribeValidationRunWithLogs).mockImplementation(
+      vi.mocked(subscribeRunWithLogs).mockImplementation(
         (_runId: string, callbacks: any) => {
           wsCallbacks = callbacks;
           return vi.fn();
@@ -1852,7 +1852,7 @@ describe('RunContext', () => {
     it('fetches manifest when run is completed', () => {
       ctx.run = makeRun({ status: 'COMPLETED' }) as any;
       ctx.checkTelemetryFetch();
-      expect(apiFetch).toHaveBeenCalledWith('/v2/sessions/run-123/telemetry/manifest');
+      expect(apiFetch).toHaveBeenCalledWith('/v2/runs/run-123/telemetry/manifest');
     });
 
     it('only fetches manifest once (idempotent)', () => {
@@ -1945,7 +1945,7 @@ describe('RunContext', () => {
         if (url.includes('/telemetry')) return { data: null };
         return { data: makeRun({ status: 'CANCELLED' }) };
       });
-      vi.mocked(subscribeValidationRunWithLogs).mockReturnValue(vi.fn());
+      vi.mocked(subscribeRunWithLogs).mockReturnValue(vi.fn());
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({ data: [] }),
@@ -2021,7 +2021,7 @@ describe('RunContext', () => {
 
       await ctx.triggerRun();
 
-      expect(api.post).toHaveBeenCalledWith('/v2/sessions/run-123/trigger', {
+      expect(api.post).toHaveBeenCalledWith('/v2/runs/run-123/trigger', {
         firmwareVersion: 'v1.0.0',
       });
     });
@@ -2099,7 +2099,7 @@ describe('RunContext', () => {
       await ctx.startDemo('failure_case');
 
       expect(api.post).toHaveBeenCalledWith(
-        '/v2/sessions/run-123/demo/simulate?speed=0.1&scenario=failure_case'
+        '/v2/runs/run-123/demo/simulate?speed=0.1&scenario=failure_case'
       );
     });
 

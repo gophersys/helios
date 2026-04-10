@@ -22,7 +22,7 @@
   function runDuration(run: ValidationRun): string {
     if (!run.startedAt) return '\u2014';
     const start = new Date(run.startedAt).getTime();
-    const end = run.finishedAt ? new Date(run.finishedAt).getTime() : Date.now();
+    const end = run.completedAt ? new Date(run.completedAt).getTime() : Date.now();
     return formatDuration(end - start);
   }
 
@@ -38,7 +38,7 @@
     try {
       const params = new URLSearchParams({ productId, limit: '20' });
       const res = await apiFetch<ApiResponse<{ data: ValidationRun[]; pagination: Pagination }>>(
-        `/v2/sessions?${params.toString()}`
+        `/v2/runs?type=VALIDATION&${params.toString()}`
       );
       runs = res.data.data;
     } catch (err: unknown) {

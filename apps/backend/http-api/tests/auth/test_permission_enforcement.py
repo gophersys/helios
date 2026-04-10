@@ -331,7 +331,7 @@ class TestValidationRunsPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "builds:view",
         )
-        response = client.get("/v2/sessions/some-run-id", headers=auth_headers)
+        response = client.get("/v2/runs/some-run-id", headers=auth_headers)
         _assert_403(response)
 
     def test_cancel_run_view_only(self, client, auth_headers, mock_db):
@@ -339,7 +339,7 @@ class TestValidationRunsPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:view",
         )
-        response = client.post("/v2/sessions/some-id/cancel",
+        response = client.post("/v2/runs/some-id/cancel",
                                headers=auth_headers)
         _assert_403(response)
 
@@ -349,10 +349,10 @@ class TestValidationRunsPermissions:
 # ---------------------------------------------------------------------------
 
 class TestValidationTriggerPermissions:
-    """Tests for /v2/sessions/<id>/trigger — requires validation:run."""
+    """Tests for /v2/runs/<id>/trigger — requires validation:run."""
 
     def test_trigger_unauthenticated(self, client):
-        response = client.post("/v2/sessions/some-id/trigger",
+        response = client.post("/v2/runs/some-id/trigger",
                                data=json.dumps({}),
                                content_type="application/json")
         _assert_401(response)
@@ -362,7 +362,7 @@ class TestValidationTriggerPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:view",
         )
-        response = client.post("/v2/sessions/some-id/trigger",
+        response = client.post("/v2/runs/some-id/trigger",
                                data=json.dumps({}), headers=auth_headers)
         _assert_403(response)
 
@@ -370,7 +370,7 @@ class TestValidationTriggerPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:run",
         )
-        response = client.post("/v2/sessions/some-id/trigger",
+        response = client.post("/v2/runs/some-id/trigger",
                                data=json.dumps({}), headers=auth_headers)
         _assert_not_denied(response)
 
@@ -928,10 +928,10 @@ class TestObservabilityPermissions:
 # ---------------------------------------------------------------------------
 
 class TestValidationLegacyPermissions:
-    """Tests for /v2/sessions/manual/run — requires validation:run."""
+    """Tests for /v2/runs/manual/run — requires validation:run."""
 
     def test_run_tests_unauthenticated(self, client):
-        response = client.post("/v2/sessions/manual/run",
+        response = client.post("/v2/runs/manual/run",
                                data=json.dumps({}),
                                content_type="application/json")
         _assert_401(response)
@@ -940,7 +940,7 @@ class TestValidationLegacyPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:view",
         )
-        response = client.post("/v2/sessions/manual/run",
+        response = client.post("/v2/runs/manual/run",
                                data=json.dumps({}), headers=auth_headers)
         _assert_403(response)
 
@@ -948,7 +948,7 @@ class TestValidationLegacyPermissions:
         mock_db.permissionset.find_unique.return_value = _make_limited_perm_set(
             "validation:run",
         )
-        response = client.post("/v2/sessions/manual/run",
+        response = client.post("/v2/runs/manual/run",
                                data=json.dumps({}), headers=auth_headers)
         _assert_not_denied(response)
 

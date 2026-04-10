@@ -249,7 +249,7 @@ class TestValidateBuildRun:
         queue_entry = make_obj(id="qe-1")
 
         mock_db.buildrun.find_unique.return_value = pipe
-        mock_db.session.find_unique.return_value = prior_run
+        mock_db.testrun.find_unique.return_value = prior_run
         mock_db.validationqueueentry.create.return_value = queue_entry
 
         with patch("api.v2.builds.build_runs.log_audit"):
@@ -315,10 +315,10 @@ class TestListBuildRunSessions:
             id="sess-1", name="Run 1", type="VALIDATION",
             productId="prod-alpha", status="PASSED",
             targetCount=1, completedCount=1, passedCount=5, failedCount=0,
-            startedAt=_now(), finishedAt=_now(), createdAt=_now(),
+            startedAt=_now(), completedAt=_now(), createdAt=_now(),
         )
-        mock_db.session.count.return_value = 1
-        mock_db.session.find_many.return_value = [session]
+        mock_db.testrun.count.return_value = 1
+        mock_db.testrun.find_many.return_value = [session]
 
         response = authed_client.get("/v2/builds/runs/pipe-s/sessions")
 

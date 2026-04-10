@@ -43,12 +43,12 @@ def cleanup_old_validation_runs(retention_days: int = DEFAULT_RETENTION_DAYS) ->
     logger.info(f"Running retention cleanup: deleting runs finished before {cutoff.isoformat()}")
 
     # Find runs older than cutoff that have finished
-    old_runs = db.session.find_many(
+    old_runs = db.testrun.find_many(
         where={
-            "finishedAt": {"lt": cutoff},
+            "completedAt": {"lt": cutoff},
         },
         include={
-            "testExecutions": {"include": {"results": True}},
+            "targets": {"include": {"executions": {"include": {"steps": True}}}},
         },
     )
 
@@ -62,7 +62,7 @@ def cleanup_old_validation_runs(retention_days: int = DEFAULT_RETENTION_DAYS) ->
 
     for run in old_runs:
         run_id = run.id
-        logger.info(f"Cleaning up run {run_id} (finished {run.finishedAt})")
+        logger.info(f"Cleaning up run {run_id} (completed {run.completedAt})")
 
         # Delete MinIO objects
         prefix = storage_key(StoragePrefixes.SESSIONS, f"{run_id}/")
@@ -79,7 +79,7 @@ def cleanup_old_validation_runs(retention_days: int = DEFAULT_RETENTION_DAYS) ->
 
         # Delete database records (cascade handles TestExecution, TestResult, Log)
         try:
-            db.session.delete(where={"id": run_id})
+            db.testrun.delete(where={"id": run_id})
             runs_deleted += 1
             logger.info(f"Deleted run {run_id} from database")
         except Exception as e:

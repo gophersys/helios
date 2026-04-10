@@ -194,26 +194,6 @@ class BaseBuildArtifact(_PrismaModel):
         return actions.BuildArtifactActions[_PrismaModelT](client or get_client(), cls)
 
 
-class BaseSession(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['Session']] = 'Session'  # pyright: ignore[reportIncompatibleVariableOverride]
-
-    @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.SessionActions[_PrismaModelT]':
-        from .client import get_client
-
-        return actions.SessionActions[_PrismaModelT](client or get_client(), cls)
-
-
-class BaseDevice(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['Device']] = 'Device'  # pyright: ignore[reportIncompatibleVariableOverride]
-
-    @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.DeviceActions[_PrismaModelT]':
-        from .client import get_client
-
-        return actions.DeviceActions[_PrismaModelT](client or get_client(), cls)
-
-
 class BaseFixtureDesign(_PrismaModel):
     __prisma_model__: ClassVar[Literal['FixtureDesign']] = 'FixtureDesign'  # pyright: ignore[reportIncompatibleVariableOverride]
 
@@ -282,36 +262,6 @@ class BaseIcleLog(_PrismaModel):
         from .client import get_client
 
         return actions.IcleLogActions[_PrismaModelT](client or get_client(), cls)
-
-
-class BaseTest(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['Test']] = 'Test'  # pyright: ignore[reportIncompatibleVariableOverride]
-
-    @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.TestActions[_PrismaModelT]':
-        from .client import get_client
-
-        return actions.TestActions[_PrismaModelT](client or get_client(), cls)
-
-
-class BaseTestExecution(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['TestExecution']] = 'TestExecution'  # pyright: ignore[reportIncompatibleVariableOverride]
-
-    @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.TestExecutionActions[_PrismaModelT]':
-        from .client import get_client
-
-        return actions.TestExecutionActions[_PrismaModelT](client or get_client(), cls)
-
-
-class BaseTestStep(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['TestStep']] = 'TestStep'  # pyright: ignore[reportIncompatibleVariableOverride]
-
-    @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.TestStepActions[_PrismaModelT]':
-        from .client import get_client
-
-        return actions.TestStepActions[_PrismaModelT](client or get_client(), cls)
 
 
 class BaseUser(_PrismaModel):
@@ -454,23 +404,53 @@ class BaseManufacturingSession(_PrismaModel):
         return actions.ManufacturingSessionActions[_PrismaModelT](client or get_client(), cls)
 
 
-class BaseManufacturingPanel(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['ManufacturingPanel']] = 'ManufacturingPanel'  # pyright: ignore[reportIncompatibleVariableOverride]
+class BaseTestRun(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['TestRun']] = 'TestRun'  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.ManufacturingPanelActions[_PrismaModelT]':
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.TestRunActions[_PrismaModelT]':
         from .client import get_client
 
-        return actions.ManufacturingPanelActions[_PrismaModelT](client or get_client(), cls)
+        return actions.TestRunActions[_PrismaModelT](client or get_client(), cls)
 
 
-class BaseManufacturingUnit(_PrismaModel):
-    __prisma_model__: ClassVar[Literal['ManufacturingUnit']] = 'ManufacturingUnit'  # pyright: ignore[reportIncompatibleVariableOverride]
+class BaseRunTarget(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['RunTarget']] = 'RunTarget'  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @classmethod
-    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.ManufacturingUnitActions[_PrismaModelT]':
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.RunTargetActions[_PrismaModelT]':
         from .client import get_client
 
-        return actions.ManufacturingUnitActions[_PrismaModelT](client or get_client(), cls)
+        return actions.RunTargetActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseTestExecution(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['TestExecution']] = 'TestExecution'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.TestExecutionActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.TestExecutionActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseTestStep(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['TestStep']] = 'TestStep'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.TestStepActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.TestStepActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseTestPackageStage(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['TestPackageStage']] = 'TestPackageStage'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.TestPackageStageActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.TestPackageStageActions[_PrismaModelT](client or get_client(), cls)
 
 

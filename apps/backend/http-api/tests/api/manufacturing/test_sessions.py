@@ -48,9 +48,6 @@ def _session(**overrides):
         fixtureId="s10-fix-1",
         status="ACTIVE",
         operatorId="test-user-id",
-        panelCount=0,
-        passedCount=0,
-        failedCount=0,
         config=None,
         startedAt=_now(),
         endedAt=None,
@@ -59,27 +56,28 @@ def _session(**overrides):
         product=_product(),
         fixture=_fixture(),
         operator=make_obj(id="test-user-id", name="Test User", email="test@example.com"),
-        panels=[],
+        runs=[],
     )
     defaults.update(overrides)
     return make_obj(**defaults)
 
 
-def _panel(**overrides):
+def _run(**overrides):
     defaults = dict(
-        id="s10-panel-1",
-        sessionId="s10-sess-1",
-        panelIndex=0,
-        qrCode="s10-QR-001",
-        status="RUNNING",
-        unitCount=4,
-        passedUnits=0,
-        failedUnits=0,
+        id="s10-run-1",
+        type="MANUFACTURING",
+        productId="s10-prod-1",
+        fixtureId="s10-fix-1",
+        manufacturingSessionId="s10-sess-1",
+        panelIdentifier="s10-QR-001",
+        status="PENDING",
+        targetCount=4,
+        passedCount=0,
+        failedCount=0,
         startedAt=_now(),
         completedAt=None,
-        durationMs=None,
         createdAt=_now(),
-        units=[],
+        targets=[],
     )
     defaults.update(overrides)
     return make_obj(**defaults)
@@ -203,15 +201,14 @@ class TestListSessions:
 # ---------------------------------------------------------------------------
 
 class TestGetSession:
-    def test_returns_session_with_panels(self, authed_client, mock_db):
-        sess = _session(panels=[_panel()])
+    def test_returns_session_with_runs(self, authed_client, mock_db):
+        sess = _session(runs=[_run()])
         mock_db.manufacturingsession.find_unique.return_value = sess
 
         resp = authed_client.get("/v2/manufacturing/sessions/s10-sess-1")
         assert resp.status_code == 200
         data = resp.get_json()["data"]
         assert data["id"] == "s10-sess-1"
-        assert len(data["panels"]) == 1
 
     def test_returns_404(self, authed_client, mock_db):
         mock_db.manufacturingsession.find_unique.return_value = None
@@ -221,20 +218,20 @@ class TestGetSession:
 
 
 # ---------------------------------------------------------------------------
-# POST /v2/manufacturing/sessions/<id>/panels — add panel (QR scan)
+# POST /v2/manufacturing/sessions/<id>/runs — add run (QR scan)
 # ---------------------------------------------------------------------------
 
-class TestAddPanel:
-    def test_adds_panel_to_session(self, authed_client, mock_db):
-        mock_db.manufacturingsession.find_unique.return_value = _session()
-        mock_db.manufacturingpanel.count.return_value = 0
-        created = _panel()
-        mock_db.manufacturingpanel.create.return_value = created
-        mock_db.manufacturingsession.update.return_value = _session(panelCount=1)
+class TestAddRun:
+    def test_adds_run_to_session(self, authed_client, mock_db):
+        fixture_with_slots = _fixture(slots=[])
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture_with_slots)
+        created = _run()
+        mock_db.testrun.create.return_value = created
+        mock_db.testrun.find_unique.return_value = created
 
         resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/panels",
-            data=json.dumps({"qrCode": "s10-QR-001", "unitCount": 4}),
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({"qrCode": "s10-QR-001"}),
         )
         assert resp.status_code == 201
 
@@ -242,8 +239,8 @@ class TestAddPanel:
         mock_db.manufacturingsession.find_unique.return_value = None
 
         resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-missing/panels",
-            data=json.dumps({"qrCode": "s10-QR-001", "unitCount": 4}),
+            "/v2/manufacturing/sessions/s10-missing/runs",
+            data=json.dumps({"qrCode": "s10-QR-001"}),
         )
         assert resp.status_code == 404
 
@@ -251,8 +248,8 @@ class TestAddPanel:
         mock_db.manufacturingsession.find_unique.return_value = _session(status="COMPLETED")
 
         resp = authed_client.post(
-            "/v2/manufacturing/sessions/s10-sess-1/panels",
-            data=json.dumps({"qrCode": "s10-QR-001", "unitCount": 4}),
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({"qrCode": "s10-QR-001"}),
         )
         assert resp.status_code == 400
 
@@ -289,22 +286,23 @@ class TestEndSession:
 
 class TestGetResults:
     def test_returns_results(self, authed_client, mock_db):
-        panel = _panel(
-            units=[
+        run = _run(
+            targetCount=1,
+            passedCount=1,
+            failedCount=0,
+            targets=[
                 make_obj(
-                    id="s10-unit-1", panelId="s10-panel-1", slotIndex=0,
+                    id="s10-target-1", runId="s10-run-1", slotIndex=0,
                     slotId="slot-0", serialNumber="SN001", status="PASSED",
-                    stages=[{"name": "Electrical", "status": "PASSED"}],
-                    errorMessage=None, startedAt=_now(), completedAt=_now(),
-                    durationMs=1500,
+                    executions=[],
+                    startedAt=_now(), completedAt=_now(),
                 )
             ]
         )
-        sess = _session(panels=[panel])
+        sess = _session(runs=[run])
         mock_db.manufacturingsession.find_unique.return_value = sess
 
         resp = authed_client.get("/v2/manufacturing/sessions/s10-sess-1/results")
         assert resp.status_code == 200
         data = resp.get_json()["data"]
-        assert len(data["panels"]) == 1
-        assert len(data["panels"][0]["units"]) == 1
+        assert len(data["runs"]) == 1

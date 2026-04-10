@@ -33,15 +33,7 @@ function createSession(overrides: Partial<ManufacturingSession> = {}): Manufactu
     fixtureId: 'fix-1',
     status: 'ACTIVE',
     operatorId: 'user-1',
-    operatorName: 'Mateo',
-    testPackageId: null,
-    testPackageVersion: null,
-    panelCount: 3,
-    passedCount: 10,
-    failedCount: 2,
-    config: null,
     startedAt: '2026-04-01T10:00:00Z',
-    endedAt: null,
     createdAt: '2026-04-01T10:00:00Z',
     product: { id: 'prod-1', name: 'Alpha B0' },
     fixture: { id: 'fix-1', name: 'Fixture A' },
@@ -145,11 +137,10 @@ describe('ManufacturingSession data model', () => {
   it('computes duration for active sessions', () => {
     const s = createSession({
       startedAt: '2026-04-01T10:00:00Z',
-      endedAt: null,
     });
     expect(s.startedAt).not.toBeNull();
-    expect(s.endedAt).toBeNull();
-    const start = new Date(s.startedAt!).getTime();
+    expect(s.endedAt).toBeUndefined();
+    const start = new Date(s.startedAt).getTime();
     expect(start).toBeGreaterThan(0);
   });
 
@@ -159,7 +150,7 @@ describe('ManufacturingSession data model', () => {
       startedAt: '2026-04-01T10:00:00Z',
       endedAt: '2026-04-01T10:30:00Z',
     });
-    const start = new Date(s.startedAt!).getTime();
+    const start = new Date(s.startedAt).getTime();
     const end = new Date(s.endedAt!).getTime();
     const duration = formatDuration(end - start);
     expect(duration).toBe('30m');
@@ -168,14 +159,12 @@ describe('ManufacturingSession data model', () => {
   it('has operator information', () => {
     const s = createSession();
     expect(s.operator?.name).toBe('Mateo');
-    expect(s.operatorName).toBe('Mateo');
+    expect(s.operatorId).toBe('user-1');
   });
 
-  it('tracks pass/fail counts', () => {
-    const s = createSession({ passedCount: 10, failedCount: 2, panelCount: 3 });
-    expect(s.passedCount).toBe(10);
-    expect(s.failedCount).toBe(2);
-    expect(s.panelCount).toBe(3);
+  it('tracks runs relation', () => {
+    const s = createSession({ runs: [] });
+    expect(s.runs).toEqual([]);
   });
 });
 

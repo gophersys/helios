@@ -25,9 +25,9 @@
   let error = $state<string | null>(null);
   let unsubscribe: (() => void) | null = null;
 
-  // Completed panels (not including active)
+  // Completed runs (panels — not including active)
   const completedPanels = $derived(
-    (session?.panels || []).filter((p) => p.status !== 'RUNNING')
+    (session?.runs || []).filter((r: any) => r.status !== 'ACTIVE' && r.status !== 'PENDING')
   );
 
   async function fetchSession() {
@@ -40,12 +40,12 @@
 
       // Also fetch results if available
       try {
-        const resultsRes = await apiFetch<ApiResponse<{ panels: ManufacturingPanel[] }>>(
+        const resultsRes = await apiFetch<ApiResponse<any>>(
           `/v2/manufacturing/sessions/${sessionId}/results`
         );
-        const panelsData = (resultsRes as any).data;
-        if (panelsData?.panels) {
-          session = { ...session!, panels: panelsData.panels };
+        const resultsData = (resultsRes as any).data;
+        if (resultsData?.runs) {
+          session = { ...session!, runs: resultsData.runs };
         }
       } catch {
         // Results endpoint may not exist yet; that's fine
@@ -60,7 +60,7 @@
   async function handleRunPanel(qrCode: string) {
     error = null;
     try {
-      await api.post(`/v2/manufacturing/sessions/${sessionId}/panels`, { qrCode });
+      await api.post(`/v2/manufacturing/sessions/${sessionId}/runs`, { qrCode });
       await fetchSession();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to run panel';

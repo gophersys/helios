@@ -27,6 +27,7 @@ from .cloud_client import CloudClient
 from .firmware import FirmwareAssetManager
 from .acceleration_profiler import AccelerationProfiler
 from .power_profiler import PowerProfiler
+from .env import get_run_id
 from .telemetry import TelemetryStreamer
 from .uart_demuxer import UartDemuxer
 
@@ -70,7 +71,7 @@ class TestContext:
         self.artifact_writer = ArtifactWriter()
 
         # Telemetry streamer — wired to UART and power callbacks in connect()
-        run_id = os.environ.get("CONCORD_RUN_ID", "")
+        run_id = get_run_id()
         api_url = os.environ.get("CONCORD_API_URL", "")
         api_key = os.environ.get("CONCORD_API_KEY", "")
 

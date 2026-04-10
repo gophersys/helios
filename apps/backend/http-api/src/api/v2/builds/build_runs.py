@@ -326,8 +326,8 @@ def list_build_run_sessions(run_id: str):
             return not_found(f"Pipeline not found: {run_id}")
 
         where = {"buildRunId": run_id}
-        total = db.session.count(where=where)
-        sessions = db.session.find_many(
+        total = db.testrun.count(where=where)
+        runs = db.testrun.find_many(
             where=where,
             skip=skip,
             take=limit,
@@ -338,23 +338,23 @@ def list_build_run_sessions(run_id: str):
         pages = (total + limit - 1) // limit if limit > 0 else 0
 
         data = []
-        for s in sessions:
+        for r in runs:
             entry = {
-                "id": s.id,
-                "name": s.name,
-                "type": s.type if hasattr(s, "type") else "VALIDATION",
-                "productId": s.productId,
-                "status": s.status,
-                "targetCount": s.targetCount,
-                "completedCount": s.completedCount,
-                "passedCount": s.passedCount,
-                "failedCount": s.failedCount,
-                "startedAt": s.startedAt.isoformat() if s.startedAt else None,
-                "finishedAt": s.finishedAt.isoformat() if s.finishedAt else None,
-                "createdAt": s.createdAt.isoformat(),
+                "id": r.id,
+                "name": r.name,
+                "type": r.type if hasattr(r, "type") else "VALIDATION",
+                "productId": r.productId,
+                "status": r.status,
+                "targetCount": r.targetCount,
+                "completedCount": r.completedCount,
+                "passedCount": r.passedCount,
+                "failedCount": r.failedCount,
+                "startedAt": r.startedAt.isoformat() if r.startedAt else None,
+                "completedAt": r.completedAt.isoformat() if r.completedAt else None,
+                "createdAt": r.createdAt.isoformat(),
             }
-            if hasattr(s, "product") and s.product is not None:
-                entry["product"] = {"id": s.product.id, "name": s.product.name}
+            if hasattr(r, "product") and r.product is not None:
+                entry["product"] = {"id": r.product.id, "name": r.product.name}
             data.append(entry)
 
         return jsonify(ApiResponse.ok({
@@ -394,7 +394,7 @@ def validate_build_run(run_id: str):
             return bad_request("No successful builds — cannot trigger validation")
 
         if build_run.validationRunId:
-            prior_run = db.session.find_unique(where={"id": build_run.validationRunId})
+            prior_run = db.testrun.find_unique(where={"id": build_run.validationRunId})
             if prior_run and prior_run.status in ("ACTIVE", "RUNNING"):
                 logger.info("Prior run %s still active, queuing new validation", build_run.validationRunId[:8])
                 result = {"queued": True, "entryId": None, "reason": "Prior run still active"}

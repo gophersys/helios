@@ -310,10 +310,10 @@ def delete_asset_set(asset_set_id: str):
     if not asset_set:
         return not_found("Asset set not found")
 
-    # Check if any sessions reference this asset set
-    linked_sessions = db.session.count(where={"assetSetId": asset_set_id})
-    if linked_sessions > 0:
-        return bad_request(f"Cannot delete — {linked_sessions} session(s) reference this asset set")
+    # Check if any test runs reference this asset set
+    linked_runs = db.testrun.count(where={"assetSetId": asset_set_id})
+    if linked_runs > 0:
+        return bad_request(f"Cannot delete — {linked_runs} run(s) reference this asset set")
 
     db.assetset.delete(where={"id": asset_set_id})
     log_audit("assetSet.delete", "AssetSet", asset_set_id, {"version": asset_set.version})

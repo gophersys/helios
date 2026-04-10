@@ -5,7 +5,7 @@ import type { ApiResponse } from '$lib/types';
 import type { PowerSample, AccelSample, JoulescopeSample } from './types';
 import type { TelemetryManifest, TimeRange, StepInfo } from './time-context';
 import {
-  subscribeValidationRunWithLogs,
+  subscribeRunWithLogs,
   type ValidationTestStartEvent,
   type ValidationTestResultEvent,
   type ValidationRunFinishEvent,
@@ -284,7 +284,7 @@ class RunContext {
   readonly durationMs = $derived.by(() => {
     if (!this.run?.startedAt) return null;
     const start = new Date(this.run.startedAt).getTime();
-    const end = this.run.finishedAt ? new Date(this.run.finishedAt).getTime() : Date.now();
+    const end = this.run.completedAt ? new Date(this.run.completedAt).getTime() : Date.now();
     return end - start;
   });
 
@@ -451,7 +451,7 @@ class RunContext {
 
   async fetchRun(): Promise<void> {
     try {
-      const res = await apiFetch<ApiResponse<ValidationRun>>(`/v2/sessions/${this._runId}`);
+      const res = await apiFetch<ApiResponse<ValidationRun>>(`/v2/runs/${this._runId}`);
       this.run = res.data;
       this.error = null;
 
@@ -616,7 +616,7 @@ class RunContext {
           const authHeaders = { 'Authorization': `Bearer ${getToken()}` };
 
           try {
-            const logRes = await fetch(`/v2/sessions/${this._runId}/artifacts/logs/output.log`, { headers: authHeaders });
+            const logRes = await fetch(`/v2/runs/${this._runId}/artifacts/logs/output.log`, { headers: authHeaders });
             if (logRes.ok) {
               const fullLog = await logRes.text();
               const runningTest2 = this.liveTests.find(t => t.status === 'running');
@@ -628,13 +628,13 @@ class RunContext {
           } catch { /* non-critical */ }
 
           try {
-            const artRes = await fetch(`/v2/sessions/${this._runId}/artifacts`, { headers: authHeaders });
+            const artRes = await fetch(`/v2/runs/${this._runId}/artifacts`, { headers: authHeaders });
             if (artRes.ok) {
               const artData = await artRes.json();
               const jsonlFiles = ((artData.data || []) as { name?: string }[]).filter((a) => a.name?.startsWith('telemetry/') && a.name?.endsWith('.jsonl'));
               for (const art of jsonlFiles) {
                 try {
-                  const jRes = await fetch(`/v2/sessions/${this._runId}/artifacts/${art.name}`, { headers: authHeaders });
+                  const jRes = await fetch(`/v2/runs/${this._runId}/artifacts/${art.name}`, { headers: authHeaders });
                   if (!jRes.ok) continue;
                   const text = await jRes.text();
                   for (const line of text.split('\n')) {
@@ -666,7 +666,7 @@ class RunContext {
   async cancelRun(): Promise<void> {
     this.cancelling = true;
     try {
-      await api.post(`/v2/sessions/${this._runId}/cancel`);
+      await api.post(`/v2/runs/${this._runId}/cancel`);
       this.liveRunning = false;
       this.liveFinished = true;
       for (const t of this.liveTests) {
@@ -696,7 +696,7 @@ class RunContext {
   async triggerRun(): Promise<void> {
     this.triggering = true;
     try {
-      await api.post(`/v2/sessions/${this._runId}/trigger`, {
+      await api.post(`/v2/runs/${this._runId}/trigger`, {
         firmwareVersion: this.triggerFwVersion.trim(),
       });
       this.showTrigger = false;
@@ -718,7 +718,7 @@ class RunContext {
     this.selectedStage = null;
 
     try {
-      await api.post(`/v2/sessions/${this._runId}/demo/simulate?speed=0.1&scenario=${scenario}`);
+      await api.post(`/v2/runs/${this._runId}/demo/simulate?speed=0.1&scenario=${scenario}`);
     } catch (err: unknown) {
       this.error = err instanceof Error ? err.message : 'Failed to start demo';
       this.simulating = false;
@@ -728,7 +728,7 @@ class RunContext {
   async fetchArtifacts(): Promise<void> {
     this.artifactsLoading = true;
     try {
-      const res = await apiFetch<ApiResponse<Artifact[]>>(`/v2/sessions/${this._runId}/artifacts`);
+      const res = await apiFetch<ApiResponse<Artifact[]>>(`/v2/runs/${this._runId}/artifacts`);
       this.artifacts = res.data;
       this.loadTelemetryFromArtifacts(res.data);
       this.loadRunningTestOutput(res.data);
@@ -752,7 +752,7 @@ class RunContext {
         const headers: Record<string, string> = {};
         const token = getToken();
         if (token) headers['Authorization'] = `Bearer ${token}`;
-        const res = await fetch(`/v2/sessions/${this._runId}/artifacts/logs/output.log`, { headers });
+        const res = await fetch(`/v2/runs/${this._runId}/artifacts/logs/output.log`, { headers });
         if (!res.ok) return;
         text = await res.text();
       } catch { return; }
@@ -785,7 +785,7 @@ class RunContext {
         const token = getToken();
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const res = await fetch(`/v2/sessions/${this._runId}/artifacts/${art.name}`, { headers });
+        const res = await fetch(`/v2/runs/${this._runId}/artifacts/${art.name}`, { headers });
         if (!res.ok) continue;
         const text = await res.text();
         if (!text) continue;
@@ -836,7 +836,7 @@ class RunContext {
 
   async fetchTelemetryManifest(): Promise<void> {
     try {
-      const res = await apiFetch<{ data: TelemetryManifest }>(`/v2/sessions/${this._runId}/telemetry/manifest`);
+      const res = await apiFetch<{ data: TelemetryManifest }>(`/v2/runs/${this._runId}/telemetry/manifest`);
       if (res.data) {
         this.telemetryManifest = res.data;
         await this.loadTelemetryChannels();
@@ -857,7 +857,7 @@ class RunContext {
       const channelEntries = Object.entries(this.telemetryManifest.channels);
       await Promise.all(channelEntries.map(async ([name, _info]) => {
         try {
-          const res = await fetch(`/v2/sessions/${this._runId}/telemetry/${name}`, { headers });
+          const res = await fetch(`/v2/runs/${this._runId}/telemetry/${name}`, { headers });
           if (!res.ok) return;
           const text = await res.text();
           if (!text) return;
@@ -944,7 +944,7 @@ class RunContext {
       return;
     }
     try {
-      const res = await fetch(`/v2/sessions/${this._runId}/artifacts/${artifact.name}`);
+      const res = await fetch(`/v2/runs/${this._runId}/artifacts/${artifact.name}`);
       if (res.redirected) {
         const textRes = await fetch(res.url);
         this.logContent = await textRes.text();
@@ -962,18 +962,19 @@ class RunContext {
 
   private setupWebSocket(): void {
     if (!this._runId) return;
-    this._unsubscribeWs = subscribeValidationRunWithLogs(
+    this._unsubscribeWs = subscribeRunWithLogs(
       this._runId,
       {
         onTestStart: (data: ValidationTestStartEvent) => {
           this.liveRunning = true;
-          const existing = this.findTest(data.testName, data.module);
+          const testName = data.name || data.testName || '';
+          const existing = this.findTest(testName, data.module);
           if (existing) {
             existing.status = 'running';
             existing.startedAtMs = Date.now();
           } else {
             this.liveTests.push({
-              name: data.testName,
+              name: testName,
               module: data.module,
               status: 'running',
               durationS: null,
@@ -990,17 +991,18 @@ class RunContext {
           }
           if (this.autoFollow) {
             for (const t of this.liveTests) {
-              t.expanded = (t.name === data.testName && (data.module ? t.module === data.module : true));
+              t.expanded = (t.name === testName && (data.module ? t.module === data.module : true));
             }
             this.liveTests = this.liveTests;
-            setTimeout(() => this._scrollToTest(data.testName, data.module ?? null, 10), 150);
+            setTimeout(() => this._scrollToTest(testName, data.module ?? null, 10), 150);
           }
         },
         onTestResult: (data: ValidationTestResultEvent) => {
-          const existing = this.findTest(data.testName, data.module);
+          const testName = data.name || data.testName || '';
+          const existing = this.findTest(testName, data.module);
           if (existing) {
             existing.status = data.skipped ? 'skipped' : data.passed ? 'passed' : 'failed';
-            existing.durationS = data.durationS;
+            existing.durationS = data.durationMs != null ? data.durationMs / 1000 : (data.durationS ?? null);
             existing.errorMessage = data.errorMessage;
             existing.measurements = data.measurements;
             existing.logOutput = data.logOutput;
@@ -1032,7 +1034,7 @@ class RunContext {
             passed: data.passed,
             failed: data.failed,
             errors: data.errors,
-            durationS: data.durationS,
+            durationS: data.durationMs != null ? data.durationMs / 1000 : (data.durationS ?? null),
           };
           // Snapshot live data before fetching artifacts/telemetry so it's
           // available as fallback if the telemetry files haven't been written yet.

@@ -39,7 +39,7 @@
         fetchBuildRuns({ product: productName, limit: 50 }),
         getQueueStats().catch(() => ({ total: 0, byStatus: { QUEUED: 0 }, avgWaitSeconds: null })),
         apiFetch<ApiResponse<{ data: ValidationRun[]; pagination: Pagination }>>(
-          '/v2/sessions?limit=50'
+          '/v2/runs?type=VALIDATION&limit=50'
         ).catch(() => ({ data: { data: [] as ValidationRun[], pagination: { total: 0, page: 1, limit: 50, pages: 0 } } })),
       ]);
 

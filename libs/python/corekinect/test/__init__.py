@@ -58,6 +58,9 @@ from .version_detector import DEFAULT_VERSION_PATTERNS, BootVersionDetector
 # ── Multi-Slot ──
 from .slot import FixtureContext, SlotContext
 
+# ── Environment ──
+from .env import get_run_id
+
 # ── Pytest Integration ──
 from .pytest_integration import (
     get_required_capabilities,
@@ -115,6 +118,8 @@ __all__ = [
     # ── Multi-Slot ──
     "FixtureContext",
     "SlotContext",
+    # ── Environment ──
+    "get_run_id",
     # ── Pytest Integration ──
     "get_required_capabilities",
     "get_required_feature",

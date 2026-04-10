@@ -51,30 +51,30 @@ class NodeType(StrEnum):
     MANUFACTURING = 'MANUFACTURING'
     VALIDATION = 'VALIDATION'
 
-class SessionType(StrEnum):
-    MANUFACTURING = 'MANUFACTURING'
+class TestRunType(StrEnum):
     VALIDATION = 'VALIDATION'
+    MANUFACTURING = 'MANUFACTURING'
 
-class SessionStatus(StrEnum):
+class TestRunStatus(StrEnum):
     PENDING = 'PENDING'
     ACTIVE = 'ACTIVE'
-    PASSED = 'PASSED'
+    COMPLETED = 'COMPLETED'
     FAILED = 'FAILED'
     CANCELLED = 'CANCELLED'
 
-class DeviceStatus(StrEnum):
+class TargetStatus(StrEnum):
     PENDING = 'PENDING'
-    IN_PROGRESS = 'IN_PROGRESS'
+    RUNNING = 'RUNNING'
     PASSED = 'PASSED'
     FAILED = 'FAILED'
+    ERROR = 'ERROR'
 
-class TestExecutionStatus(StrEnum):
-    QUEUED = 'QUEUED'
+class ExecutionStatus(StrEnum):
+    PENDING = 'PENDING'
     RUNNING = 'RUNNING'
     PASSED = 'PASSED'
     FAILED = 'FAILED'
     SKIPPED = 'SKIPPED'
-    CANCELLED = 'CANCELLED'
     ERROR = 'ERROR'
 
 class LifecycleStatus(StrEnum):
@@ -183,16 +183,4 @@ class ManufacturingSessionStatus(StrEnum):
     ACTIVE = 'ACTIVE'
     COMPLETED = 'COMPLETED'
     CANCELLED = 'CANCELLED'
-
-class PanelStatus(StrEnum):
-    RUNNING = 'RUNNING'
-    PASSED = 'PASSED'
-    FAILED = 'FAILED'
-    CANCELLED = 'CANCELLED'
-
-class UnitStatus(StrEnum):
-    RUNNING = 'RUNNING'
-    PASSED = 'PASSED'
-    FAILED = 'FAILED'
-    ERROR = 'ERROR'
 

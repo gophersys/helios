@@ -44,8 +44,8 @@ def test_board_with_revisions_blocks_delete(authed_client, mock_db):
 # ── 2. Product with sessions blocks delete ──
 
 
-def test_product_with_sessions_blocks_delete(authed_client, mock_db):
-    """Deleting a product that has sessions should return 409."""
+def test_product_with_runs_blocks_delete(authed_client, mock_db):
+    """Deleting a product that has test runs should return 409."""
     mock_db.product.find_unique.return_value = make_obj(
         id="prod-1",
         name="Product Alpha",
@@ -56,45 +56,16 @@ def test_product_with_sessions_blocks_delete(authed_client, mock_db):
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
-    mock_db.session.find_first.return_value = make_obj(
-        id="session-1",
+    mock_db.testrun.find_first.return_value = make_obj(
+        id="run-1",
         productId="prod-1",
     )
 
     response = authed_client.delete("/v2/products/prod-1")
     assert response.status_code == 409
-    data = json.loads(response.data)
-    assert "sessions" in data["errors"][0]["message"].lower()
 
 
-# ── 3. Product with tests blocks delete ──
-
-
-def test_product_with_tests_blocks_delete(authed_client, mock_db):
-    """Deleting a product that has tests (but no sessions) should return 409."""
-    mock_db.product.find_unique.return_value = make_obj(
-        id="prod-2",
-        name="Product Beta",
-        description="",
-        active=True,
-        metadata={},
-        createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
-        updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
-    )
-
-    mock_db.session.find_first.return_value = None
-    mock_db.test.find_first.return_value = make_obj(
-        id="test-1",
-        productId="prod-2",
-    )
-
-    response = authed_client.delete("/v2/products/prod-2")
-    assert response.status_code == 409
-    data = json.loads(response.data)
-    assert "tests" in data["errors"][0]["message"].lower()
-
-
-# ── 4. Board name unique per product ──
+# ── 3. Board name unique per product ──
 
 
 def test_board_name_unique_per_product(authed_client, mock_db):

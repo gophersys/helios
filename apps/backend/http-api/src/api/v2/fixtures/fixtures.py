@@ -77,12 +77,12 @@ def dashboard_overview():
         }
 
     if "validation:view" in perms:
-        sess_where: dict = {"type": "VALIDATION"}
+        run_where: dict = {"type": "VALIDATION"}
         if product_where:
-            sess_where["productId"] = product_where.get("id", {})
-        total_runs = db.session.count(where=sess_where)
-        active_runs = db.session.count(where={**sess_where, "status": "ACTIVE"})
-        passed_runs = db.session.count(where={**sess_where, "status": "PASSED"})
+            run_where["productId"] = product_where.get("id", {})
+        total_runs = db.testrun.count(where=run_where)
+        active_runs = db.testrun.count(where={**run_where, "status": "ACTIVE"})
+        passed_runs = db.testrun.count(where={**run_where, "status": "COMPLETED"})
         queue_depth = db.validationqueueentry.count(where={"status": {"in": ["QUEUED", "ASSIGNED"]}})
         stats["validation"] = {
             "total": total_runs,
