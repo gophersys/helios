@@ -201,9 +201,11 @@ model Product {
 
   buildConfig Json? /// structured build configuration (overlays, post-build steps)
   metadata    Json? /// additional product-specific config
+  createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  createdBy      User?  @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   boards         Board[]
   firmwareSets   FirmwareSet[]
   fixtures       Fixture[]
@@ -257,8 +259,8 @@ model TestPackage {
 
   product        Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
   boardRevision  BoardRevision?   @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
-  createdBy      User?            @relation(fields: [createdById], references: [id])
-  releasedBy     User?            @relation("TestPackageReleasedBy", fields: [releasedById], references: [id])
+  createdBy      User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  releasedBy     User?            @relation("TestPackageReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
   testRuns       TestRun[]
   packageStages  TestPackageStage[]
 
@@ -301,9 +303,11 @@ model Board {
   vendor         String   @default("corekinect")
   description    String?
   active         Boolean  @default(true)
+  createdById    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  createdBy User?           @relation("BoardCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   revisions BoardRevision[]
 
@@ -325,9 +329,11 @@ model BoardRevision {
   modemStorageKey String? /// MinIO key for modem firmware zip
   status          LifecycleStatus @default(ACTIVE)
   notes           String?
+  createdById     String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  createdBy      User?                @relation("BoardRevisionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   board          Board                @relation(fields: [boardId], references: [id], onDelete: Cascade)
   targets        ProductTarget[]
   firmwareSets   FirmwareSet[]
@@ -358,9 +364,10 @@ model ModemFirmware {
   notes           String?
   createdById     String?
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Cascade)
-  createdBy     User?         @relation("ModemFirmwareUploader", fields: [createdById], references: [id])
+  createdBy     User?         @relation("ModemFirmwareUploader", fields: [createdById], references: [id], onDelete: SetNull)
   assetSets     AssetSet[]    @relation("AssetSetModemFirmware")
 
   @@unique([boardRevisionId, version])
@@ -399,7 +406,7 @@ model FirmwareSet {
   updatedAt DateTime @updatedAt
 
   product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  boardRevision BoardRevision?  @relation(fields: [boardRevisionId], references: [id])
+  boardRevision BoardRevision?  @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
   builds        FirmwareBuild[]
 
   @@index([productId])
@@ -435,7 +442,7 @@ model FirmwareBuild {
   updatedAt DateTime @updatedAt
 
   firmwareSet FirmwareSet    @relation(fields: [firmwareSetId], references: [id], onDelete: Cascade)
-  target      ProductTarget? @relation(fields: [targetId], references: [id])
+  target      ProductTarget? @relation(fields: [targetId], references: [id], onDelete: SetNull)
 
   @@index([firmwareSetId])
   @@map("firmware_builds")
@@ -472,16 +479,18 @@ model ProductStageConfig {
   // Signing — which key set to use for builds
   signingKeyId String? /// FK to Secret (signing key for this stage's builds)
 
+  createdById  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Per-stage recipe override (optional — falls back to product-level recipe)
   recipeVersionId String?
 
-  product            Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
-  boardRevision      BoardRevision          @relation(fields: [boardRevisionId], references: [id])
-  signingKey         Secret?                @relation(fields: [signingKeyId], references: [id])
-  recipeVersion      RecipeVersion?         @relation("StageConfigRecipe", fields: [recipeVersionId], references: [id])
+  createdBy          User?                  @relation("StageConfigCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  product            Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  boardRevision      BoardRevision          @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
+  signingKey         Secret?                @relation(fields: [signingKeyId], references: [id], onDelete: SetNull)
+  recipeVersion      RecipeVersion?         @relation("StageConfigRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
   buildRuns          BuildRun[]
   queueEntries       ValidationQueueEntry[]
   buildMatrixEntries StageBuildMatrix[]
@@ -524,10 +533,10 @@ model ValidationQueueEntry {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  buildRun    BuildRun            @relation(fields: [buildRunId], references: [id])
-  stageConfig ProductStageConfig? @relation(fields: [stageConfigId], references: [id])
-  fixture     Fixture?            @relation(fields: [fixtureId], references: [id])
-  testRun     TestRun?            @relation(fields: [testRunId], references: [id])
+  buildRun    BuildRun            @relation(fields: [buildRunId], references: [id], onDelete: Restrict)
+  stageConfig ProductStageConfig? @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  fixture     Fixture?            @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+  testRun     TestRun?            @relation(fields: [testRunId], references: [id], onDelete: SetNull)
 
   @@index([status, priority])
   @@index([buildRunId])
@@ -582,15 +591,17 @@ model BuildRun {
   // Timing
   startedAt  DateTime?
   finishedAt DateTime?
+  createdById String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
   // Recipe pinning — which recipe version was used for this build run
   recipeVersionId String?
 
-  product         Product                @relation(fields: [productId], references: [id])
-  stageConfig     ProductStageConfig?    @relation(fields: [stageConfigId], references: [id])
-  recipeVersion   RecipeVersion?         @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id])
+  createdBy       User?                  @relation("BuildRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  product         Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  stageConfig     ProductStageConfig?    @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  recipeVersion   RecipeVersion?         @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
   builds          BuildJob[]
   queueEntries    ValidationQueueEntry[]
   assetSet        AssetSet?
@@ -638,7 +649,7 @@ model BuildJob {
 
   // Pipeline relation
   buildRunId String?
-  buildRun   BuildRun? @relation(fields: [buildRunId], references: [id])
+  buildRun   BuildRun? @relation(fields: [buildRunId], references: [id], onDelete: Cascade)
 
   // Priority queue — higher number = processed first (manual=100, webhook=50, scheduled=25)
   priority Int @default(50)
@@ -657,10 +668,10 @@ model BuildJob {
   // Recipe pinning
   recipeVersionId String?
 
-  product         Product         @relation(fields: [productId], references: [id])
-  recipeVersion   RecipeVersion?  @relation("BuildJobRecipe", fields: [recipeVersionId], references: [id])
+  product         Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  recipeVersion   RecipeVersion?  @relation("BuildJobRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
   artifacts       BuildArtifact[]
-  reusedFrom      BuildJob?       @relation("BuildReuse", fields: [reusedFromId], references: [id])
+  reusedFrom      BuildJob?       @relation("BuildReuse", fields: [reusedFromId], references: [id], onDelete: SetNull)
   reusedBy        BuildJob[]      @relation("BuildReuse")
 
   @@index([productId, branch])
@@ -719,10 +730,12 @@ model FixtureDesign {
   bomUrl          String? /// Link to BOM spreadsheet
   assemblyGuide   String? /// Link to assembly instructions
   notes           String? /// Build notes, known issues, changelog
+  createdById     String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id])
+  createdBy     User?         @relation("FixtureDesignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
   fixtures      Fixture[]
 
   @@index([boardRevisionId])
@@ -758,12 +771,14 @@ model Fixture {
   active           Boolean   @default(true)
   metadata         Json? /// physical location, rack position, etc.
   lastHealthCheck  DateTime?
+  createdById      String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  product       Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
-  boardRevision BoardRevision?         @relation(fields: [boardRevisionId], references: [id])
-  design        FixtureDesign?         @relation(fields: [designId], references: [id])
+  createdBy     User?                  @relation("FixtureCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  product       Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  boardRevision BoardRevision?         @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  design        FixtureDesign?         @relation(fields: [designId], references: [id], onDelete: Restrict)
   slots         FixtureSlot[]
   queueEntries            ValidationQueueEntry[]
   manufacturingSessions   ManufacturingSession[]
@@ -939,7 +954,7 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  permissionSet  PermissionSet?  @relation(fields: [permissionSetId], references: [id])
+  permissionSet  PermissionSet?  @relation(fields: [permissionSetId], references: [id], onDelete: SetNull)
   productAccess  ProductAccess[]
   apiKeys               ApiKey[]
   testPackages          TestPackage[]
@@ -951,6 +966,13 @@ model User {
   testRuns              TestRun[]              @relation("TestRunOperator")
   releasedTestPackages  TestPackage[]          @relation("TestPackageReleasedBy")
   modemFirmwareUploads  ModemFirmware[]        @relation("ModemFirmwareUploader")
+  createdProducts       Product[]              @relation("ProductCreatedBy")
+  createdBoards         Board[]                @relation("BoardCreatedBy")
+  createdBoardRevisions BoardRevision[]        @relation("BoardRevisionCreatedBy")
+  createdStageConfigs   ProductStageConfig[]   @relation("StageConfigCreatedBy")
+  createdFixtureDesigns FixtureDesign[]        @relation("FixtureDesignCreatedBy")
+  createdFixtures       Fixture[]              @relation("FixtureCreatedBy")
+  createdBuildRuns      BuildRun[]             @relation("BuildRunCreatedBy")
 
   @@map("users")
 }
@@ -1074,7 +1096,7 @@ model RecipeVersion {
   createdAt   DateTime @default(now())
 
   product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdBy    User?                @relation(fields: [createdById], references: [id])
+  createdBy    User?                @relation(fields: [createdById], references: [id], onDelete: SetNull)
   stageConfigs ProductStageConfig[] @relation("StageConfigRecipe")
   buildRuns    BuildRun[]           @relation("BuildRunRecipe")
   buildJobs    BuildJob[]           @relation("BuildJobRecipe")
@@ -1168,12 +1190,12 @@ model AssetSet {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  product         Product        @relation(fields: [productId], references: [id])
-  boardRevision   BoardRevision? @relation(fields: [boardRevisionId], references: [id])
-  buildRun        BuildRun?      @relation(fields: [buildRunId], references: [id])
-  recipeVersion   RecipeVersion? @relation(fields: [recipeVersionId], references: [id])
+  product         Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  boardRevision   BoardRevision? @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  buildRun        BuildRun?      @relation(fields: [buildRunId], references: [id], onDelete: SetNull)
+  recipeVersion   RecipeVersion? @relation(fields: [recipeVersionId], references: [id], onDelete: SetNull)
   modemFirmware   ModemFirmware? @relation("AssetSetModemFirmware", fields: [modemFirmwareId], references: [id], onDelete: SetNull)
-  createdBy              User?          @relation(fields: [createdById], references: [id])
+  createdBy              User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
   assets                 Asset[]
   testRuns               TestRun[]
   manufacturingSessions  ManufacturingSession[]
@@ -1328,14 +1350,14 @@ model TestRun {
 
   boardRevisionId String? /// Board revision (populated from fixture at creation time)
 
-  product        Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
-  fixture        Fixture                @relation(fields: [fixtureId], references: [id])
+  product        Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  fixture        Fixture                @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
   boardRevision  BoardRevision?         @relation("TestRunBoardRevision", fields: [boardRevisionId], references: [id], onDelete: SetNull)
   testPackage    TestPackage?           @relation(fields: [testPackageId], references: [id], onDelete: SetNull)
   buildRun       BuildRun?              @relation(fields: [buildRunId], references: [id], onDelete: SetNull)
   session        ManufacturingSession?  @relation(fields: [manufacturingSessionId], references: [id], onDelete: Cascade)
   assetSet       AssetSet?              @relation(fields: [assetSetId], references: [id], onDelete: SetNull)
-  operator       User                   @relation("TestRunOperator", fields: [operatorId], references: [id])
+  operator       User                   @relation("TestRunOperator", fields: [operatorId], references: [id], onDelete: Restrict)
 
   targets    RunTarget[]
   queueEntry ValidationQueueEntry?
