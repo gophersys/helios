@@ -607,6 +607,10 @@ def report_target_result(run_id: str):
     if not status:
         return bad_request("status is required")
 
+    VALID_TARGET_STATUSES = {"PENDING", "RUNNING", "PASSED", "FAILED", "ERROR", "SKIPPED"}
+    if status not in VALID_TARGET_STATUSES:
+        return bad_request(f"Invalid target status. Must be one of: {', '.join(sorted(VALID_TARGET_STATUSES))}")
+
     db = get_db_client()
     target = db.runtarget.find_unique(
         where={"runId_slotIndex": {"runId": run_id, "slotIndex": slot_index}},
@@ -657,6 +661,9 @@ def report_finish(run_id: str):
     run, err = _get_run_or_404(run_id)
     if err:
         return err
+
+    if run.status not in ("ACTIVE", "PENDING"):
+        return bad_request(f"Cannot finish run in '{run.status}' status — must be ACTIVE or PENDING")
 
     now = datetime.now(timezone.utc)
     total = body.get("total", 0)

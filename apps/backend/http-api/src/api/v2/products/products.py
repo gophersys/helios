@@ -423,6 +423,19 @@ def delete_product(product_id: str):
     if not existing:
         return not_found("Product not found")
 
+    # Check if product has build runs
+    build_runs = db.buildrun.count(where={"productId": product_id})
+    if build_runs > 0:
+        return conflict(f"Cannot delete — {build_runs} build run(s) reference this product")
+
+    asset_sets = db.assetset.count(where={"productId": product_id})
+    if asset_sets > 0:
+        return conflict(f"Cannot delete — {asset_sets} asset set(s) reference this product")
+
+    fixtures = db.fixture.count(where={"productId": product_id})
+    if fixtures > 0:
+        return conflict(f"Cannot delete — {fixtures} fixture(s) reference this product")
+
     # Check if product has test runs
     run_ref = db.testrun.find_first(where={"productId": product_id})
     if run_ref:

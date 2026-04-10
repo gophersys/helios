@@ -315,6 +315,13 @@ def delete_asset_set(asset_set_id: str):
     if linked_runs > 0:
         return bad_request(f"Cannot delete — {linked_runs} run(s) reference this asset set")
 
+    # Check if any manufacturing sessions reference this asset set
+    linked_sessions = db.manufacturingsession.count(
+        where={"assetSetId": asset_set_id}
+    )
+    if linked_sessions > 0:
+        return bad_request(f"Cannot delete — {linked_sessions} manufacturing session(s) reference this asset set")
+
     db.assetset.delete(where={"id": asset_set_id})
     log_audit("assetSet.delete", "AssetSet", asset_set_id, {"version": asset_set.version})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200

@@ -34,6 +34,10 @@ class TestCreateStageConfig:
     def test_success(self, authed_client, mock_db):
         created = _stage_obj(stage=5, name="FUOTA", boardRevisionId="rev-1")
         mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
+        mock_db.boardrevision.find_unique.return_value = make_obj(
+            id="rev-1", version="B0", ckBoardsName="alpha_b0", status="ACTIVE",
+            board=make_obj(id="board-1", productId="prod-1"),
+        )
         mock_db.productstageconfig.find_first.return_value = None
         mock_db.productstageconfig.create.return_value = created
         mock_db.productstageconfig.find_unique.return_value = created

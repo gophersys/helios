@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # ── Dashboard ─────────────────────────────────────────────────
 
 
-@require_auth
+@require_auth  # Intentionally open to all authenticated users — dashboard self-filters sections by the caller's permission set
 def dashboard_overview():
     """Dashboard overview — stats and fixtures filtered by role and product access.
 
@@ -448,14 +448,19 @@ def delete_fixture(fixture_id: str):
     db = get_db_client()
     existing = db.fixture.find_unique(
         where={"id": fixture_id},
-        include={"sessions": True},
+        include={"manufacturingSessions": True},
     )
     if not existing:
         return not_found("Fixture not found")
 
-    # Check for active sessions
-    if hasattr(existing, "sessions") and existing.sessions:
-        return conflict("Cannot delete fixture: it has associated sessions")
+    # Check for associated manufacturing sessions
+    if hasattr(existing, "manufacturingSessions") and existing.manufacturingSessions:
+        return conflict("Cannot delete fixture: it has associated manufacturing sessions")
+
+    # Check for associated test runs
+    test_runs = db.testrun.count(where={"fixtureId": fixture_id})
+    if test_runs > 0:
+        return conflict(f"Cannot delete — {test_runs} test run(s) reference this fixture")
 
     db.fixture.delete(where={"id": fixture_id})
     log_audit("fixture.delete", "Fixture", fixture_id, {"name": existing.name, "type": existing.type})

@@ -37,7 +37,7 @@ def _fixture_obj(**overrides):
         lastHealthCheck=None,
         product=make_obj(id="prod-1", name="Alpha"),
         slots=[],
-        sessions=[],
+        manufacturingSessions=[],
         deployments=[],
         createdAt=_now(),
         updatedAt=_now(),
@@ -302,7 +302,7 @@ class TestDeleteFixture:
     def test_delete_with_sessions_returns_409(self, authed_client, mock_db):
         """Delete fixture with linked sessions returns 409."""
         session = make_obj(id="sess-1")
-        mock_db.fixture.find_unique.return_value = _fixture_obj(sessions=[session], deployments=[])
+        mock_db.fixture.find_unique.return_value = _fixture_obj(manufacturingSessions=[session], deployments=[])
 
         resp = authed_client.delete("/v2/fixtures/fix-1")
         assert resp.status_code == 409

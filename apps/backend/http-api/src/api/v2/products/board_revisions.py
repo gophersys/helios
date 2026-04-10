@@ -210,6 +210,27 @@ def delete_board_revision(product_id: str, board_id: str, revision_id: str):
     if not revision:
         return not_found("Board revision not found")
 
+    # Check for referencing models before deletion
+    stage_configs = db.productstageconfig.count(where={"boardRevisionId": revision_id})
+    if stage_configs > 0:
+        return conflict(f"Cannot delete — {stage_configs} stage config(s) reference this revision")
+
+    fixtures = db.fixture.count(where={"boardRevisionId": revision_id})
+    if fixtures > 0:
+        return conflict(f"Cannot delete — {fixtures} fixture(s) reference this revision")
+
+    asset_sets = db.assetset.count(where={"boardRevisionId": revision_id})
+    if asset_sets > 0:
+        return conflict(f"Cannot delete — {asset_sets} asset set(s) reference this revision")
+
+    test_runs = db.testrun.count(where={"boardRevisionId": revision_id})
+    if test_runs > 0:
+        return conflict(f"Cannot delete — {test_runs} test run(s) reference this revision")
+
+    modem_fws = db.modemfirmware.count(where={"boardRevisionId": revision_id})
+    if modem_fws > 0:
+        return conflict(f"Cannot delete — {modem_fws} modem firmware(s) reference this revision. Delete them first.")
+
     db.boardrevision.delete(where={"id": revision_id})
     log_audit("boardRevision.delete", "BoardRevision", revision_id, {
         "version": revision.version,

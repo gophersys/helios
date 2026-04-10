@@ -37,7 +37,7 @@ def _serialize_config(cfg) -> dict:
     }
 
 
-@require_permissions(Permissions.MANUFACTURING_MANAGE)
+@require_permissions(Permissions.MANUFACTURING_VIEW)
 def get_manufacturing_config(product_id: str):
     """GET /v2/products/<id>/manufacturing"""
     db = get_db_client()

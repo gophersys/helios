@@ -7,7 +7,7 @@ import logging
 from flask import g, jsonify, request
 
 from src.lib.audit import log_audit
-from src.lib.decorators import require_auth, require_permissions, _get_permissions_for_set
+from src.lib.decorators import require_permissions, _get_permissions_for_set
 from src.lib.errors import bad_request, conflict, forbidden, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
@@ -85,7 +85,7 @@ def _serialize_stage_config(cfg) -> dict:
     return data
 
 
-@require_auth
+@require_permissions(Permissions.BUILDS_VIEW)
 def list_stage_configs(product_id: str):
     """List stage configs for a product. Filter with ?type=VALIDATION or ?type=MANUFACTURING."""
     db = get_db_client()
@@ -124,7 +124,7 @@ def get_stage_config(product_id: str, stage: str):
     return jsonify(ApiResponse.ok(_serialize_stage_config(config)).to_dict()), 200
 
 
-@require_auth
+@require_permissions(Permissions.BUILDS_MANAGE)
 def create_stage_config(product_id: str):
     """Create a new stage config for a product. Stage 0 = manufacturing."""
     db = get_db_client()
@@ -139,16 +139,23 @@ def create_stage_config(product_id: str):
         return perm_err
     if not req.boardRevisionId:
         return bad_request("boardRevisionId is required — stage configs must be scoped to a hardware revision")
+    # Validate board revision exists and belongs to this product
+    revision = db.boardrevision.find_unique(
+        where={"id": req.boardRevisionId},
+        include={"board": True},
+    )
+    if not revision:
+        return not_found("Board revision not found")
+    if revision.board.productId != product_id:
+        return bad_request("Board revision does not belong to this product")
     existing = db.productstageconfig.find_first(
         where={"productId": product_id, "type": req.type, "stage": req.stage, "boardRevisionId": req.boardRevisionId}
     )
     if existing:
         return conflict(f"{req.type} stage {req.stage} already exists for this product and revision")
     # Block creating enabled stages for deprecated/EOL revisions
-    if req.enabled and req.boardRevisionId:
-        rev = db.boardrevision.find_unique(where={"id": req.boardRevisionId})
-        if rev and rev.status in ("DEPRECATED", "EOL"):
-            return bad_request(f"Cannot enable stage for {rev.status} revision {rev.version}")
+    if req.enabled and revision.status in ("DEPRECATED", "EOL"):
+        return bad_request(f"Cannot enable stage for {revision.status} revision {revision.version}")
     config = db.productstageconfig.create(
         data={
             "productId": product_id,
@@ -317,6 +324,15 @@ def delete_stage_config(product_id: str, stage: str):
     )
     if not config:
         return not_found(f"Stage {stage} config not found")
+
+    build_runs = db.buildrun.count(where={"stageConfigId": config.id})
+    if build_runs > 0:
+        return conflict(f"Cannot delete — {build_runs} build run(s) reference this stage config")
+
+    queue_entries = db.validationqueueentry.count(where={"stageConfigId": config.id, "status": {"in": ["QUEUED", "ASSIGNED", "RUNNING"]}})
+    if queue_entries > 0:
+        return conflict(f"Cannot delete — {queue_entries} active queue entry/entries reference this stage config")
+
     db.productstageconfig.delete(where={"id": config.id})
     log_audit("stageConfig.delete", "ProductStageConfig", config.id, {"stage": stage_num})
     return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200

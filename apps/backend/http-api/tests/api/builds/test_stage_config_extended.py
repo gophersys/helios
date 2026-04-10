@@ -23,7 +23,10 @@ def _stage_obj(**overrides):
 
 
 def _rev_obj(**overrides):
-    defaults = dict(id="rev-1", version="1.0", ckBoardsName="alpha_b0", status="ACTIVE")
+    defaults = dict(
+        id="rev-1", version="1.0", ckBoardsName="alpha_b0", status="ACTIVE",
+        board=make_obj(id="board-1", productId="prod-1"),
+    )
     defaults.update(overrides)
     return make_obj(**defaults)
 
@@ -156,6 +159,7 @@ class TestCreateStageConfigGuards:
         """Creating a disabled stage config for a deprecated revision is allowed."""
         created = _stage_obj(stage=3, enabled=False)
         mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
+        mock_db.boardrevision.find_unique.return_value = _rev_obj(status="DEPRECATED", version="1.0")
         mock_db.productstageconfig.find_first.return_value = None
         mock_db.productstageconfig.create.return_value = created
         mock_db.productstageconfig.find_unique.return_value = created
@@ -178,6 +182,7 @@ class TestCreateStageConfigGuards:
     def test_create_stage_conflict_returns_409(self, authed_client, mock_db):
         """Creating duplicate stage for same product and revision returns 409."""
         mock_db.product.find_unique.return_value = make_obj(id="prod-1", name="Alpha")
+        mock_db.boardrevision.find_unique.return_value = _rev_obj()
         mock_db.productstageconfig.find_first.return_value = _stage_obj()
 
         resp = authed_client.post(

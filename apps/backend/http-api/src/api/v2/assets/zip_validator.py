@@ -4,11 +4,11 @@ Scans a zip file's directory structure and validates that all required
 build labels and artifact types are present.
 
 Expected zip structure:
-    MFG_BASE/
+    MFG_APP_DEBUG/
         build.json
         *.hex
         *.cfw  (if produces_cfw)
-    FUT_VERBOSE_A/
+    FUT_APP_BASE_A/
         build.json
         *.hex
         *.cfw
@@ -69,6 +69,19 @@ def validate_zip(
             result.valid = False
             result.errors.append(f"Unsafe path in zip: {name}")
             return result
+
+    # Check for dangerous file extensions
+    BLOCKED_EXTENSIONS = {".exe", ".sh", ".py", ".bat", ".cmd", ".ps1", ".msi", ".dll", ".so"}
+    for name in zf.namelist():
+        if name.endswith("/"):
+            continue  # directory entry
+        ext = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+        if ext in BLOCKED_EXTENSIONS:
+            result.valid = False
+            result.errors.append(f"Blocked file type: {name} ({ext} files are not allowed)")
+
+    if not result.valid:
+        return result
 
     # Build expected labels from matrix (excluding skipped labels)
     required_labels = {entry.label for entry in build_matrix_entries if entry.label not in skip_labels}

@@ -24,7 +24,7 @@ from flask import g, jsonify, request
 from database import Json
 
 from src.lib.audit import log_audit
-from src.lib.decorators import require_auth, require_permissions
+from src.lib.decorators import require_permissions
 from src.lib.errors import bad_request, forbidden, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
@@ -87,7 +87,7 @@ def _try_parse_version(zf: zipfile.ZipFile) -> tuple[str | None, str | None]:
     return None, None
 
 
-@require_auth
+@require_permissions(Permissions.BUILDS_VIEW)
 def validate_asset_zip(product_id: str):
     """POST /products/<id>/asset-sets/validate-zip — validate without uploading.
 
@@ -187,7 +187,7 @@ def validate_asset_zip(product_id: str):
     }).to_dict()), 200
 
 
-@require_auth
+@require_permissions(Permissions.BUILDS_MANAGE)
 def upload_asset_set_zip(product_id: str):
     """Upload a zip file of firmware assets for a specific stage config.
 
@@ -264,6 +264,8 @@ def upload_asset_set_zip(product_id: str):
         modem_fw = db.modemfirmware.find_first(where={"id": modem_firmware_id})
         if not modem_fw:
             return bad_request("Selected modem firmware not found")
+        if modem_fw.boardRevisionId != stage_config.boardRevisionId:
+            return bad_request("Selected modem firmware belongs to a different board revision")
 
     # Auto-extract version from build.json manifest if not provided
     if not version or version == "auto":
@@ -584,7 +586,7 @@ def _build_match_reason(processor, variant, file_type, label) -> str:
     return f"{reason} matches {label}" if reason else f"Matched to {label}"
 
 
-@require_permissions(Permissions.BUILDS_MANAGE)
+@require_permissions(Permissions.BUILDS_VIEW)
 def analyze_asset_files(product_id: str):
     """Analyze uploaded files and suggest matrix label matches.
 
@@ -788,6 +790,8 @@ def upload_asset_files(product_id: str):
         modem_fw = db.modemfirmware.find_first(where={"id": modem_firmware_id})
         if not modem_fw:
             return bad_request("Selected modem firmware not found")
+        if modem_fw.boardRevisionId != stage_config.boardRevisionId:
+            return bad_request("Selected modem firmware belongs to a different board revision")
 
     # Create AssetSet
     user_id = g.current_user.get("sub") if g.current_user else None
