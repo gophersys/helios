@@ -345,10 +345,34 @@ _REGRESSION_BUILDS: List[StageBuildDef] = [
 
 _MANUFACTURING_BUILDS: List[StageBuildDef] = [
     StageBuildDef(
-        label="MFG_BASE",
-        fw_type="mfg", variant="mfg", config_log=True,
+        label="MFG_APP_DEBUG",
+        fw_type="app", variant="debug", config_log=True,
         produces_hex=True, produces_cfw=False, git_ref="main",
-        description="Manufacturing firmware — J-Link flash for production POST",
+        description="Application processor firmware — debug variant (nRF52840)",
+    ),
+    StageBuildDef(
+        label="MFG_APP_RELEASE",
+        fw_type="app", variant="release", config_log=False,
+        produces_hex=True, produces_cfw=False, git_ref="main",
+        description="Application processor firmware — release variant (nRF52840)",
+    ),
+    StageBuildDef(
+        label="MFG_COMMS_DEBUG",
+        fw_type="comms", variant="debug", config_log=True,
+        produces_hex=True, produces_cfw=False, git_ref="main",
+        description="Communications processor firmware — debug variant (nRF9151)",
+    ),
+    StageBuildDef(
+        label="MFG_COMMS_RELEASE",
+        fw_type="comms", variant="release", config_log=False,
+        produces_hex=True, produces_cfw=False, git_ref="main",
+        description="Communications processor firmware — release variant (nRF9151)",
+    ),
+    StageBuildDef(
+        label="MODEM_FW",
+        fw_type="modem", variant="release", config_log=False,
+        produces_hex=False, produces_cfw=False, git_ref="main",
+        description="Modem firmware package (.zip) for nRF91 series",
     ),
 ]
 
