@@ -223,8 +223,8 @@
         </div>
 
         <!-- Stage config (single revision — subtabs handle revision selection) -->
-        {@const rev = activeRevisions[0]}
-        {#if rev}
+        {#if activeRevisions.length > 0}
+          {@const rev = activeRevisions[0]}
           {@const cfg = getConfig(stageNum, rev.id)}
           <div class="px-4 py-3">
             {#if cfg && cfg.enabled}
