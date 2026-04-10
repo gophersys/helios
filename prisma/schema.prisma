@@ -338,10 +338,34 @@ model BoardRevision {
   manufacturingConfigs ManufacturingConfig[]
   testPackages   TestPackage[]
   testRuns       TestRun[]            @relation("TestRunBoardRevision")
+  modemFirmwares ModemFirmware[]
 
   @@unique([boardId, version])
   @@unique([ckBoardsName])
   @@map("board_revisions")
+}
+
+/// A modem firmware version uploaded for a specific board revision.
+/// Multiple versions can coexist — AssetSets reference a specific version.
+model ModemFirmware {
+  id              String   @id @default(cuid())
+  boardRevisionId String
+  version         String /// "2.0.2", "1.3.6"
+  filename        String /// Original filename: "mfw_nrf91x1_2.0.2.zip"
+  storageKey      String /// MinIO key
+  sizeBytes       Int      @default(0)
+  checksum        String? /// SHA-256
+  notes           String?
+  createdById     String?
+  createdAt       DateTime @default(now())
+
+  boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Cascade)
+  createdBy     User?         @relation("ModemFirmwareUploader", fields: [createdById], references: [id])
+  assetSets     AssetSet[]    @relation("AssetSetModemFirmware")
+
+  @@unique([boardRevisionId, version])
+  @@index([boardRevisionId])
+  @@map("modem_firmwares")
 }
 
 /// An uploaded firmware build file with version metadata.
@@ -926,6 +950,7 @@ model User {
   manufacturingSessions ManufacturingSession[] @relation("ManufacturingOperator")
   testRuns              TestRun[]              @relation("TestRunOperator")
   releasedTestPackages  TestPackage[]          @relation("TestPackageReleasedBy")
+  modemFirmwareUploads  ModemFirmware[]        @relation("ModemFirmwareUploader")
 
   @@map("users")
 }
@@ -1134,6 +1159,7 @@ model AssetSet {
   recipeVersionId String?
 
   status          AssetSetStatus @default(PENDING)
+  modemFirmwareId String? /// Selected modem firmware for this asset set
   notes           String?
   createdById     String?
 
@@ -1144,6 +1170,7 @@ model AssetSet {
   boardRevision   BoardRevision? @relation(fields: [boardRevisionId], references: [id])
   buildRun        BuildRun?      @relation(fields: [buildRunId], references: [id])
   recipeVersion   RecipeVersion? @relation(fields: [recipeVersionId], references: [id])
+  modemFirmware   ModemFirmware? @relation("AssetSetModemFirmware", fields: [modemFirmwareId], references: [id], onDelete: SetNull)
   createdBy              User?          @relation(fields: [createdById], references: [id])
   assets                 Asset[]
   testRuns               TestRun[]
