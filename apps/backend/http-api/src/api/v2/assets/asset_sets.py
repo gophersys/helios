@@ -176,6 +176,14 @@ def create_asset_set(product_id: str):
         "stage": req.stage,
     }
     if req.boardRevisionId:
+        rev = db.boardrevision.find_unique(
+            where={"id": req.boardRevisionId},
+            include={"board": True},
+        )
+        if not rev:
+            return not_found("Board revision not found")
+        if rev.board and rev.board.productId != product_id:
+            return bad_request("Board revision does not belong to this product")
         create_data["boardRevision"] = {"connect": {"id": req.boardRevisionId}}
     if req.commitSha:
         create_data["commitSha"] = req.commitSha
