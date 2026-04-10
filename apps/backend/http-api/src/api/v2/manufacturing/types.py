@@ -87,6 +87,7 @@ class ManufacturingConfigUpdateRequest:
 class SessionCreateRequest:
     productId: str
     fixtureId: str
+    testPackageVersion: Optional[str] = None
     config: Optional[dict] = None
 
     @classmethod
@@ -102,6 +103,7 @@ class SessionCreateRequest:
         return cls(
             productId=product_id,
             fixtureId=fixture_id,
+            testPackageVersion=data.get("testPackageVersion"),
             config=data.get("config"),
         ), None
 

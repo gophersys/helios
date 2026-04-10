@@ -112,7 +112,7 @@
                   {#if (design as any).slotDefinitions?.length}
                     <div class="text-2xs text-text-tertiary">{(design as any).slotDefinitions.length} slot{(design as any).slotDefinitions.length === 1 ? '' : 's'}</div>
                   {/if}
-                  {@const power = (design.profileTemplate as any)?.power}
+                  {@const power = design.profileTemplate ? (design.profileTemplate as any)?.power : null}
                   {#if power}
                     <div class="flex items-center gap-3 mt-2 text-2xs text-text-tertiary">
                       <Zap size={10} class="text-warning" />
@@ -151,7 +151,7 @@
                   {#if (design as any).slotDefinitions?.length}
                     <div class="text-2xs text-text-tertiary">{(design as any).slotDefinitions.length} slot{(design as any).slotDefinitions.length === 1 ? '' : 's'}</div>
                   {/if}
-                  {@const power = (design.profileTemplate as any)?.power}
+                  {@const power = design.profileTemplate ? (design.profileTemplate as any)?.power : null}
                   {#if power}
                     <div class="flex items-center gap-3 mt-2 text-2xs text-text-tertiary">
                       <Zap size={10} class="text-warning" />

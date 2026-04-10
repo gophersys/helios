@@ -85,6 +85,33 @@ def _serialize_product(p: Any, include_children: bool = False) -> dict:
             for s in sorted(stages, key=lambda x: x.stage)
         ]
         data["enabledStageCount"] = sum(1 for s in stages if s.enabled)
+    # Test app status (latest test package per type)
+    if hasattr(p, "testPackages") and p.testPackages is not None:
+        def _tp_summary(tp):
+            return {
+                "version": tp.version,
+                "status": tp.status,
+                "testCount": tp.testCount,
+                "message": getattr(tp, "message", None),
+                "gitSha": getattr(tp, "gitSha", None),
+                "gitDirty": getattr(tp, "gitDirty", None),
+                "updatedAt": tp.updatedAt.isoformat() if tp.updatedAt else None,
+            }
+
+        def _latest_tp(pkgs):
+            released = [tp for tp in pkgs if tp.status == "RELEASED"]
+            if released:
+                return max(released, key=lambda x: x.createdAt)
+            return max(pkgs, key=lambda x: x.createdAt) if pkgs else None
+
+        val_pkgs = [tp for tp in p.testPackages if getattr(tp, "type", "VALIDATION") == "VALIDATION"]
+        mfg_pkgs = [tp for tp in p.testPackages if getattr(tp, "type", None) == "MANUFACTURING"]
+        latest_val = _latest_tp(val_pkgs)
+        latest_mfg = _latest_tp(mfg_pkgs)
+        data["testAppStatus"] = {
+            "validation": _tp_summary(latest_val) if latest_val else None,
+            "manufacturing": _tp_summary(latest_mfg) if latest_mfg else None,
+        }
     # Revision summary (always included for card display)
     if hasattr(p, "boards") and p.boards:
         revisions = []
@@ -195,7 +222,8 @@ def list_products():
         include={
             "boards": {"include": {"revisions": {"include": {"targets": True}}}},
             "firmwareSets": True,
-            "stageConfigs": True,
+            "stageConfigs": {"include": {"boardRevision": True}},
+            "testPackages": True,
         },
     )
     return jsonify(ApiResponse.ok({
@@ -316,6 +344,9 @@ def get_product(product_id: str):
                 "order_by": {"stage": "asc"},
                 "include": {"boardRevision": True},
             },
+            "testPackages": {
+                "order_by": {"createdAt": "desc"},
+            },
         },
     )
     if not product:
@@ -385,13 +416,14 @@ def delete_product(product_id: str):
 
 @require_permissions(Permissions.PRODUCTS_VIEW)
 def get_product_by_slug(slug: str):
-    """GET /v2/catalog/products/by-slug/<slug> — Find product by slug (for API consumers)."""
+    """GET /v2/products/by-slug/<slug> — Find product by slug (for API consumers)."""
     db = get_db_client()
     product = db.product.find_first(
         where={"slug": slug},
         include={
             "boards": {"include": {"revisions": {"include": {"targets": True}}}},
-            "stageConfigs": {"order_by": {"stage": "asc"}},
+            "stageConfigs": {"order_by": {"stage": "asc"}, "include": {"boardRevision": True}},
+            "testPackages": {"order_by": {"createdAt": "desc"}},
         },
     )
     if not product:

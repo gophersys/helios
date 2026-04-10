@@ -1741,6 +1741,92 @@ TestPackageStatusListUpdate = Union[
     _TestPackageStatusListUpdatePush,
 ]
 
+class _TestPackageTypeListFilterEqualsInput(TypedDict):
+    equals: Optional[List['enums.TestPackageType']]
+
+
+class _TestPackageTypeListFilterHasInput(TypedDict):
+    has: 'enums.TestPackageType'
+
+
+class _TestPackageTypeListFilterHasEveryInput(TypedDict):
+    has_every: List['enums.TestPackageType']
+
+
+class _TestPackageTypeListFilterHasSomeInput(TypedDict):
+    has_some: List['enums.TestPackageType']
+
+
+class _TestPackageTypeListFilterIsEmptyInput(TypedDict):
+    is_empty: bool
+
+
+TestPackageTypeListFilter = Union[
+    _TestPackageTypeListFilterHasInput,
+    _TestPackageTypeListFilterEqualsInput,
+    _TestPackageTypeListFilterHasSomeInput,
+    _TestPackageTypeListFilterIsEmptyInput,
+    _TestPackageTypeListFilterHasEveryInput,
+]
+
+
+class _TestPackageTypeListUpdateSet(TypedDict):
+    set: List['enums.TestPackageType']
+
+
+class _TestPackageTypeListUpdatePush(TypedDict):
+    push: List['enums.TestPackageType']
+
+
+TestPackageTypeListUpdate = Union[
+    List['enums.TestPackageType'],
+    _TestPackageTypeListUpdateSet,
+    _TestPackageTypeListUpdatePush,
+]
+
+class _StageTypeListFilterEqualsInput(TypedDict):
+    equals: Optional[List['enums.StageType']]
+
+
+class _StageTypeListFilterHasInput(TypedDict):
+    has: 'enums.StageType'
+
+
+class _StageTypeListFilterHasEveryInput(TypedDict):
+    has_every: List['enums.StageType']
+
+
+class _StageTypeListFilterHasSomeInput(TypedDict):
+    has_some: List['enums.StageType']
+
+
+class _StageTypeListFilterIsEmptyInput(TypedDict):
+    is_empty: bool
+
+
+StageTypeListFilter = Union[
+    _StageTypeListFilterHasInput,
+    _StageTypeListFilterEqualsInput,
+    _StageTypeListFilterHasSomeInput,
+    _StageTypeListFilterIsEmptyInput,
+    _StageTypeListFilterHasEveryInput,
+]
+
+
+class _StageTypeListUpdateSet(TypedDict):
+    set: List['enums.StageType']
+
+
+class _StageTypeListUpdatePush(TypedDict):
+    push: List['enums.StageType']
+
+
+StageTypeListUpdate = Union[
+    List['enums.StageType'],
+    _StageTypeListUpdateSet,
+    _StageTypeListUpdatePush,
+]
+
 class _BuildRunStatusListFilterEqualsInput(TypedDict):
     equals: Optional[List['enums.BuildRunStatus']]
 
@@ -1954,49 +2040,6 @@ FirmwareSetStatusListUpdate = Union[
     List['enums.FirmwareSetStatus'],
     _FirmwareSetStatusListUpdateSet,
     _FirmwareSetStatusListUpdatePush,
-]
-
-class _StageTypeListFilterEqualsInput(TypedDict):
-    equals: Optional[List['enums.StageType']]
-
-
-class _StageTypeListFilterHasInput(TypedDict):
-    has: 'enums.StageType'
-
-
-class _StageTypeListFilterHasEveryInput(TypedDict):
-    has_every: List['enums.StageType']
-
-
-class _StageTypeListFilterHasSomeInput(TypedDict):
-    has_some: List['enums.StageType']
-
-
-class _StageTypeListFilterIsEmptyInput(TypedDict):
-    is_empty: bool
-
-
-StageTypeListFilter = Union[
-    _StageTypeListFilterHasInput,
-    _StageTypeListFilterEqualsInput,
-    _StageTypeListFilterHasSomeInput,
-    _StageTypeListFilterIsEmptyInput,
-    _StageTypeListFilterHasEveryInput,
-]
-
-
-class _StageTypeListUpdateSet(TypedDict):
-    set: List['enums.StageType']
-
-
-class _StageTypeListUpdatePush(TypedDict):
-    push: List['enums.StageType']
-
-
-StageTypeListUpdate = Union[
-    List['enums.StageType'],
-    _StageTypeListUpdateSet,
-    _StageTypeListUpdatePush,
 ]
 
 class _RecipeStatusListFilterEqualsInput(TypedDict):
@@ -2735,6 +2778,7 @@ class TestPackageIncludeFromProduct(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive1']
     createdBy: Union[bool, 'UserArgsFromProductRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductRecursive1']
 
 
 class TestPackageIncludeFromProductRecursive1(TypedDict, total=False):
@@ -2742,6 +2786,7 @@ class TestPackageIncludeFromProductRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive2']
     createdBy: Union[bool, 'UserArgsFromProductRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductRecursive2']
 
 
 class TestPackageIncludeFromProductRecursive2(TypedDict, total=False):
@@ -2749,6 +2794,7 @@ class TestPackageIncludeFromProductRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive3']
     createdBy: Union[bool, 'UserArgsFromProductRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductRecursive3']
 
 
 class TestPackageIncludeFromProductRecursive3(TypedDict, total=False):
@@ -2756,6 +2802,7 @@ class TestPackageIncludeFromProductRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive4']
     createdBy: Union[bool, 'UserArgsFromProductRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductRecursive4']
 
 
 class TestPackageIncludeFromProductRecursive4(TypedDict, total=False):
@@ -3425,7 +3472,6 @@ class ProductStageConfigIncludeFromProduct(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductRecursive1']
 
 
 class ProductStageConfigIncludeFromProductRecursive1(TypedDict, total=False):
@@ -3437,7 +3483,6 @@ class ProductStageConfigIncludeFromProductRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductRecursive2']
 
 
 class ProductStageConfigIncludeFromProductRecursive2(TypedDict, total=False):
@@ -3449,7 +3494,6 @@ class ProductStageConfigIncludeFromProductRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductRecursive3']
 
 
 class ProductStageConfigIncludeFromProductRecursive3(TypedDict, total=False):
@@ -3461,7 +3505,6 @@ class ProductStageConfigIncludeFromProductRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductRecursive4']
 
 
 class ProductStageConfigIncludeFromProductRecursive4(TypedDict, total=False):
@@ -6500,7 +6543,6 @@ class AssetSetIncludeFromProduct(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromProductRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductRecursive1']
     createdBy: Union[bool, 'UserArgsFromProductRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromProductRecursive1']
@@ -6512,7 +6554,6 @@ class AssetSetIncludeFromProductRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromProductRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductRecursive2']
     createdBy: Union[bool, 'UserArgsFromProductRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromProductRecursive2']
@@ -6524,7 +6565,6 @@ class AssetSetIncludeFromProductRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromProductRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductRecursive3']
     createdBy: Union[bool, 'UserArgsFromProductRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromProductRecursive3']
@@ -6536,7 +6576,6 @@ class AssetSetIncludeFromProductRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromProductRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductRecursive4']
     createdBy: Union[bool, 'UserArgsFromProductRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromProductRecursive4']
@@ -6847,6 +6886,7 @@ class ManufacturingSessionIncludeFromProduct(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive1']
     fixture: Union[bool, 'FixtureArgsFromProductRecursive1']
     operator: Union[bool, 'UserArgsFromProductRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromProductRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductRecursive1']
 
 
@@ -6855,6 +6895,7 @@ class ManufacturingSessionIncludeFromProductRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive2']
     fixture: Union[bool, 'FixtureArgsFromProductRecursive2']
     operator: Union[bool, 'UserArgsFromProductRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromProductRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductRecursive2']
 
 
@@ -6863,6 +6904,7 @@ class ManufacturingSessionIncludeFromProductRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive3']
     fixture: Union[bool, 'FixtureArgsFromProductRecursive3']
     operator: Union[bool, 'UserArgsFromProductRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromProductRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductRecursive3']
 
 
@@ -6871,6 +6913,7 @@ class ManufacturingSessionIncludeFromProductRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductRecursive4']
     fixture: Union[bool, 'FixtureArgsFromProductRecursive4']
     operator: Union[bool, 'UserArgsFromProductRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromProductRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductRecursive4']
 
 
@@ -7652,10 +7695,14 @@ class TestPackageOptionalCreateInput(TypedDict, total=False):
     """Optional arguments to the TestPackage create method"""
     id: _str
     productId: _str
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     manifestHash: Optional[_str]
     testCount: _int
     stagesEnabled: Optional['fields.Json']
+    message: Optional[_str]
+    gitSha: Optional[_str]
+    gitDirty: Optional[_bool]
     notes: Optional[_str]
     createdById: Optional[_str]
     createdAt: datetime.datetime
@@ -7663,6 +7710,7 @@ class TestPackageOptionalCreateInput(TypedDict, total=False):
     product: 'ProductCreateNestedWithoutRelationsInput'
     createdBy: 'UserCreateNestedWithoutRelationsInput'
     sessions: 'SessionCreateManyNestedWithoutRelationsInput'
+    manufacturingSessions: 'ManufacturingSessionCreateManyNestedWithoutRelationsInput'
 
 
 class TestPackageCreateInput(TestPackageOptionalCreateInput):
@@ -7679,10 +7727,14 @@ class TestPackageOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     """Optional arguments to the TestPackage create method, without relations"""
     id: _str
     productId: _str
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     manifestHash: Optional[_str]
     testCount: _int
     stagesEnabled: Optional['fields.Json']
+    message: Optional[_str]
+    gitSha: Optional[_str]
+    gitDirty: Optional[_bool]
     notes: Optional[_str]
     createdById: Optional[_str]
     createdAt: datetime.datetime
@@ -7718,26 +7770,27 @@ _TestPackageWhereUnique_id_Input = TypedDict(
     total=True
 )
 
-_TestPackageCompoundproductId_versionKeyInner = TypedDict(
-    '_TestPackageCompoundproductId_versionKeyInner',
+_TestPackageCompoundproductId_version_typeKeyInner = TypedDict(
+    '_TestPackageCompoundproductId_version_typeKeyInner',
     {
         'productId': '_str',
         'version': '_str',
+        'type': 'enums.TestPackageType',
     },
     total=True
 )
 
-_TestPackageCompoundproductId_versionKey = TypedDict(
-    '_TestPackageCompoundproductId_versionKey',
+_TestPackageCompoundproductId_version_typeKey = TypedDict(
+    '_TestPackageCompoundproductId_version_typeKey',
     {
-        'productId_version': '_TestPackageCompoundproductId_versionKeyInner',
+        'productId_version_type': '_TestPackageCompoundproductId_version_typeKeyInner',
     },
     total=True
 )
 
 TestPackageWhereUniqueInput = Union[
     '_TestPackageWhereUnique_id_Input',
-    '_TestPackageCompoundproductId_versionKey',
+    '_TestPackageCompoundproductId_version_typeKey',
 ]
 
 
@@ -7745,30 +7798,39 @@ class TestPackageUpdateInput(TypedDict, total=False):
     """Optional arguments for updating a record"""
     id: _str
     version: _str
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: _str
     frameworkVersion: _str
     manifestHash: Optional[_str]
     testCount: Union[AtomicIntInput, _int]
     stagesEnabled: Optional['fields.Json']
+    message: Optional[_str]
+    gitSha: Optional[_str]
+    gitDirty: Optional[_bool]
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     product: 'ProductUpdateOneWithoutRelationsInput'
     createdBy: 'UserUpdateOneWithoutRelationsInput'
     sessions: 'SessionUpdateManyWithoutRelationsInput'
+    manufacturingSessions: 'ManufacturingSessionUpdateManyWithoutRelationsInput'
 
 
 class TestPackageUpdateManyMutationInput(TypedDict, total=False):
     """Arguments for updating many records"""
     id: _str
     version: _str
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: _str
     frameworkVersion: _str
     manifestHash: Optional[_str]
     testCount: Union[AtomicIntInput, _int]
     stagesEnabled: Optional['fields.Json']
+    message: Optional[_str]
+    gitSha: Optional[_str]
+    gitDirty: Optional[_bool]
     notes: Optional[_str]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -7830,6 +7892,14 @@ _TestPackage_version_OrderByInput = TypedDict(
     total=True
 )
 
+_TestPackage_type_OrderByInput = TypedDict(
+    '_TestPackage_type_OrderByInput',
+    {
+        'type': 'SortOrder',
+    },
+    total=True
+)
+
 _TestPackage_status_OrderByInput = TypedDict(
     '_TestPackage_status_OrderByInput',
     {
@@ -7874,6 +7944,30 @@ _TestPackage_stagesEnabled_OrderByInput = TypedDict(
     '_TestPackage_stagesEnabled_OrderByInput',
     {
         'stagesEnabled': 'SortOrder',
+    },
+    total=True
+)
+
+_TestPackage_message_OrderByInput = TypedDict(
+    '_TestPackage_message_OrderByInput',
+    {
+        'message': 'SortOrder',
+    },
+    total=True
+)
+
+_TestPackage_gitSha_OrderByInput = TypedDict(
+    '_TestPackage_gitSha_OrderByInput',
+    {
+        'gitSha': 'SortOrder',
+    },
+    total=True
+)
+
+_TestPackage_gitDirty_OrderByInput = TypedDict(
+    '_TestPackage_gitDirty_OrderByInput',
+    {
+        'gitDirty': 'SortOrder',
     },
     total=True
 )
@@ -7932,12 +8026,16 @@ TestPackageOrderByInput = Union[
     '_TestPackage_id_OrderByInput',
     '_TestPackage_productId_OrderByInput',
     '_TestPackage_version_OrderByInput',
+    '_TestPackage_type_OrderByInput',
     '_TestPackage_status_OrderByInput',
     '_TestPackage_storageKey_OrderByInput',
     '_TestPackage_frameworkVersion_OrderByInput',
     '_TestPackage_manifestHash_OrderByInput',
     '_TestPackage_testCount_OrderByInput',
     '_TestPackage_stagesEnabled_OrderByInput',
+    '_TestPackage_message_OrderByInput',
+    '_TestPackage_gitSha_OrderByInput',
+    '_TestPackage_gitDirty_OrderByInput',
     '_TestPackage_notes_OrderByInput',
     '_TestPackage_createdById_OrderByInput',
     '_TestPackage_createdAt_OrderByInput',
@@ -7976,6 +8074,7 @@ class TestPackageInclude(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestPackage']
     createdBy: Union[bool, 'UserArgsFromTestPackage']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackage']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestPackage']
 
 
     
@@ -8142,6 +8241,7 @@ class TestPackageIncludeFromTestPackage(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestPackageRecursive1']
     createdBy: Union[bool, 'UserArgsFromTestPackageRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestPackageRecursive1']
 
 
 class TestPackageIncludeFromTestPackageRecursive1(TypedDict, total=False):
@@ -8149,6 +8249,7 @@ class TestPackageIncludeFromTestPackageRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestPackageRecursive2']
     createdBy: Union[bool, 'UserArgsFromTestPackageRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestPackageRecursive2']
 
 
 class TestPackageIncludeFromTestPackageRecursive2(TypedDict, total=False):
@@ -8156,6 +8257,7 @@ class TestPackageIncludeFromTestPackageRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestPackageRecursive3']
     createdBy: Union[bool, 'UserArgsFromTestPackageRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestPackageRecursive3']
 
 
 class TestPackageIncludeFromTestPackageRecursive3(TypedDict, total=False):
@@ -8163,6 +8265,7 @@ class TestPackageIncludeFromTestPackageRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestPackageRecursive4']
     createdBy: Union[bool, 'UserArgsFromTestPackageRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestPackageRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestPackageRecursive4']
 
 
 class TestPackageIncludeFromTestPackageRecursive4(TypedDict, total=False):
@@ -8832,7 +8935,6 @@ class ProductStageConfigIncludeFromTestPackage(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestPackageRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestPackageRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestPackageRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestPackageRecursive1']
 
 
 class ProductStageConfigIncludeFromTestPackageRecursive1(TypedDict, total=False):
@@ -8844,7 +8946,6 @@ class ProductStageConfigIncludeFromTestPackageRecursive1(TypedDict, total=False)
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestPackageRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestPackageRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestPackageRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestPackageRecursive2']
 
 
 class ProductStageConfigIncludeFromTestPackageRecursive2(TypedDict, total=False):
@@ -8856,7 +8957,6 @@ class ProductStageConfigIncludeFromTestPackageRecursive2(TypedDict, total=False)
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestPackageRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestPackageRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestPackageRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestPackageRecursive3']
 
 
 class ProductStageConfigIncludeFromTestPackageRecursive3(TypedDict, total=False):
@@ -8868,7 +8968,6 @@ class ProductStageConfigIncludeFromTestPackageRecursive3(TypedDict, total=False)
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestPackageRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestPackageRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestPackageRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestPackageRecursive4']
 
 
 class ProductStageConfigIncludeFromTestPackageRecursive4(TypedDict, total=False):
@@ -11907,7 +12006,6 @@ class AssetSetIncludeFromTestPackage(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestPackageRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromTestPackageRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestPackageRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestPackageRecursive1']
     createdBy: Union[bool, 'UserArgsFromTestPackageRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromTestPackageRecursive1']
@@ -11919,7 +12017,6 @@ class AssetSetIncludeFromTestPackageRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestPackageRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromTestPackageRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestPackageRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestPackageRecursive2']
     createdBy: Union[bool, 'UserArgsFromTestPackageRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromTestPackageRecursive2']
@@ -11931,7 +12028,6 @@ class AssetSetIncludeFromTestPackageRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestPackageRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromTestPackageRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestPackageRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestPackageRecursive3']
     createdBy: Union[bool, 'UserArgsFromTestPackageRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromTestPackageRecursive3']
@@ -11943,7 +12039,6 @@ class AssetSetIncludeFromTestPackageRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestPackageRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestPackageRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromTestPackageRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestPackageRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestPackageRecursive4']
     createdBy: Union[bool, 'UserArgsFromTestPackageRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromTestPackageRecursive4']
@@ -12254,6 +12349,7 @@ class ManufacturingSessionIncludeFromTestPackage(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestPackageRecursive1']
     fixture: Union[bool, 'FixtureArgsFromTestPackageRecursive1']
     operator: Union[bool, 'UserArgsFromTestPackageRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromTestPackageRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestPackageRecursive1']
 
 
@@ -12262,6 +12358,7 @@ class ManufacturingSessionIncludeFromTestPackageRecursive1(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromTestPackageRecursive2']
     fixture: Union[bool, 'FixtureArgsFromTestPackageRecursive2']
     operator: Union[bool, 'UserArgsFromTestPackageRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromTestPackageRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestPackageRecursive2']
 
 
@@ -12270,6 +12367,7 @@ class ManufacturingSessionIncludeFromTestPackageRecursive2(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromTestPackageRecursive3']
     fixture: Union[bool, 'FixtureArgsFromTestPackageRecursive3']
     operator: Union[bool, 'UserArgsFromTestPackageRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromTestPackageRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestPackageRecursive3']
 
 
@@ -12278,6 +12376,7 @@ class ManufacturingSessionIncludeFromTestPackageRecursive3(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromTestPackageRecursive4']
     fixture: Union[bool, 'FixtureArgsFromTestPackageRecursive4']
     operator: Union[bool, 'UserArgsFromTestPackageRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromTestPackageRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestPackageRecursive4']
 
 
@@ -12591,12 +12690,16 @@ class TestPackageWhereInput(TypedDict, total=False):
     id: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: Union[_str, 'types.StringFilter']
     frameworkVersion: Union[_str, 'types.StringFilter']
     manifestHash: Union[None, _str, 'types.StringFilter']
     testCount: Union[_int, 'types.IntFilter']
     stagesEnabled: Union[None, 'fields.Json', 'types.JsonFilter']
+    message: Union[None, _str, 'types.StringFilter']
+    gitSha: Union[None, _str, 'types.StringFilter']
+    gitDirty: Union[None, _bool, 'types.BooleanFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdById: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -12604,6 +12707,7 @@ class TestPackageWhereInput(TypedDict, total=False):
     product: 'ProductRelationFilter'
     createdBy: 'UserRelationFilter'
     sessions: 'SessionListRelationFilter'
+    manufacturingSessions: 'ManufacturingSessionListRelationFilter'
 
     # should be noted that AND and NOT should be Union['TestPackageWhereInputRecursive1', List['TestPackageWhereInputRecursive1']]
     # but this causes mypy to hang :/
@@ -12617,12 +12721,16 @@ class TestPackageWhereInputRecursive1(TypedDict, total=False):
     id: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: Union[_str, 'types.StringFilter']
     frameworkVersion: Union[_str, 'types.StringFilter']
     manifestHash: Union[None, _str, 'types.StringFilter']
     testCount: Union[_int, 'types.IntFilter']
     stagesEnabled: Union[None, 'fields.Json', 'types.JsonFilter']
+    message: Union[None, _str, 'types.StringFilter']
+    gitSha: Union[None, _str, 'types.StringFilter']
+    gitDirty: Union[None, _bool, 'types.BooleanFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdById: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -12630,6 +12738,7 @@ class TestPackageWhereInputRecursive1(TypedDict, total=False):
     product: 'ProductRelationFilter'
     createdBy: 'UserRelationFilter'
     sessions: 'SessionListRelationFilter'
+    manufacturingSessions: 'ManufacturingSessionListRelationFilter'
 
     # should be noted that AND and NOT should be Union['TestPackageWhereInputRecursive2', List['TestPackageWhereInputRecursive2']]
     # but this causes mypy to hang :/
@@ -12643,12 +12752,16 @@ class TestPackageWhereInputRecursive2(TypedDict, total=False):
     id: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: Union[_str, 'types.StringFilter']
     frameworkVersion: Union[_str, 'types.StringFilter']
     manifestHash: Union[None, _str, 'types.StringFilter']
     testCount: Union[_int, 'types.IntFilter']
     stagesEnabled: Union[None, 'fields.Json', 'types.JsonFilter']
+    message: Union[None, _str, 'types.StringFilter']
+    gitSha: Union[None, _str, 'types.StringFilter']
+    gitDirty: Union[None, _bool, 'types.BooleanFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdById: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -12656,6 +12769,7 @@ class TestPackageWhereInputRecursive2(TypedDict, total=False):
     product: 'ProductRelationFilter'
     createdBy: 'UserRelationFilter'
     sessions: 'SessionListRelationFilter'
+    manufacturingSessions: 'ManufacturingSessionListRelationFilter'
 
     # should be noted that AND and NOT should be Union['TestPackageWhereInputRecursive3', List['TestPackageWhereInputRecursive3']]
     # but this causes mypy to hang :/
@@ -12669,12 +12783,16 @@ class TestPackageWhereInputRecursive3(TypedDict, total=False):
     id: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: Union[_str, 'types.StringFilter']
     frameworkVersion: Union[_str, 'types.StringFilter']
     manifestHash: Union[None, _str, 'types.StringFilter']
     testCount: Union[_int, 'types.IntFilter']
     stagesEnabled: Union[None, 'fields.Json', 'types.JsonFilter']
+    message: Union[None, _str, 'types.StringFilter']
+    gitSha: Union[None, _str, 'types.StringFilter']
+    gitDirty: Union[None, _bool, 'types.BooleanFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdById: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -12682,6 +12800,7 @@ class TestPackageWhereInputRecursive3(TypedDict, total=False):
     product: 'ProductRelationFilter'
     createdBy: 'UserRelationFilter'
     sessions: 'SessionListRelationFilter'
+    manufacturingSessions: 'ManufacturingSessionListRelationFilter'
 
     # should be noted that AND and NOT should be Union['TestPackageWhereInputRecursive4', List['TestPackageWhereInputRecursive4']]
     # but this causes mypy to hang :/
@@ -12695,12 +12814,16 @@ class TestPackageWhereInputRecursive4(TypedDict, total=False):
     id: Union[_str, 'types.StringFilter']
     productId: Union[_str, 'types.StringFilter']
     version: Union[_str, 'types.StringFilter']
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: Union[_str, 'types.StringFilter']
     frameworkVersion: Union[_str, 'types.StringFilter']
     manifestHash: Union[None, _str, 'types.StringFilter']
     testCount: Union[_int, 'types.IntFilter']
     stagesEnabled: Union[None, 'fields.Json', 'types.JsonFilter']
+    message: Union[None, _str, 'types.StringFilter']
+    gitSha: Union[None, _str, 'types.StringFilter']
+    gitDirty: Union[None, _bool, 'types.BooleanFilter']
     notes: Union[None, _str, 'types.StringFilter']
     createdById: Union[None, _str, 'types.StringFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -12708,6 +12831,7 @@ class TestPackageWhereInputRecursive4(TypedDict, total=False):
     product: 'ProductRelationFilter'
     createdBy: 'UserRelationFilter'
     sessions: 'SessionListRelationFilter'
+    manufacturingSessions: 'ManufacturingSessionListRelationFilter'
 
 
 
@@ -12721,12 +12845,16 @@ class TestPackageScalarWhereWithAggregatesInput(TypedDict, total=False):
     id: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: Union[_str, 'types.StringWithAggregatesFilter']
     frameworkVersion: Union[_str, 'types.StringWithAggregatesFilter']
     manifestHash: Union[_str, 'types.StringWithAggregatesFilter']
     testCount: Union[_int, 'types.IntWithAggregatesFilter']
     stagesEnabled: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    message: Union[_str, 'types.StringWithAggregatesFilter']
+    gitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    gitDirty: Union[_bool, 'types.BooleanWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdById: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -12742,12 +12870,16 @@ class TestPackageScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False
     id: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: Union[_str, 'types.StringWithAggregatesFilter']
     frameworkVersion: Union[_str, 'types.StringWithAggregatesFilter']
     manifestHash: Union[_str, 'types.StringWithAggregatesFilter']
     testCount: Union[_int, 'types.IntWithAggregatesFilter']
     stagesEnabled: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    message: Union[_str, 'types.StringWithAggregatesFilter']
+    gitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    gitDirty: Union[_bool, 'types.BooleanWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdById: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -12763,12 +12895,16 @@ class TestPackageScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False
     id: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: Union[_str, 'types.StringWithAggregatesFilter']
     frameworkVersion: Union[_str, 'types.StringWithAggregatesFilter']
     manifestHash: Union[_str, 'types.StringWithAggregatesFilter']
     testCount: Union[_int, 'types.IntWithAggregatesFilter']
     stagesEnabled: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    message: Union[_str, 'types.StringWithAggregatesFilter']
+    gitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    gitDirty: Union[_bool, 'types.BooleanWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdById: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -12784,12 +12920,16 @@ class TestPackageScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False
     id: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: Union[_str, 'types.StringWithAggregatesFilter']
     frameworkVersion: Union[_str, 'types.StringWithAggregatesFilter']
     manifestHash: Union[_str, 'types.StringWithAggregatesFilter']
     testCount: Union[_int, 'types.IntWithAggregatesFilter']
     stagesEnabled: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    message: Union[_str, 'types.StringWithAggregatesFilter']
+    gitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    gitDirty: Union[_bool, 'types.BooleanWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdById: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -12805,12 +12945,16 @@ class TestPackageScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False
     id: Union[_str, 'types.StringWithAggregatesFilter']
     productId: Union[_str, 'types.StringWithAggregatesFilter']
     version: Union[_str, 'types.StringWithAggregatesFilter']
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: Union[_str, 'types.StringWithAggregatesFilter']
     frameworkVersion: Union[_str, 'types.StringWithAggregatesFilter']
     manifestHash: Union[_str, 'types.StringWithAggregatesFilter']
     testCount: Union[_int, 'types.IntWithAggregatesFilter']
     stagesEnabled: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    message: Union[_str, 'types.StringWithAggregatesFilter']
+    gitSha: Union[_str, 'types.StringWithAggregatesFilter']
+    gitDirty: Union[_bool, 'types.BooleanWithAggregatesFilter']
     notes: Union[_str, 'types.StringWithAggregatesFilter']
     createdById: Union[_str, 'types.StringWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -12822,12 +12966,16 @@ class TestPackageGroupByOutput(TypedDict, total=False):
     id: _str
     productId: _str
     version: _str
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: _str
     frameworkVersion: _str
     manifestHash: _str
     testCount: _int
     stagesEnabled: 'fields.Json'
+    message: _str
+    gitSha: _str
+    gitDirty: _bool
     notes: _str
     createdById: _str
     createdAt: datetime.datetime
@@ -12854,12 +13002,16 @@ class TestPackageScalarAggregateOutput(TypedDict, total=False):
     id: _str
     productId: _str
     version: _str
+    type: 'enums.TestPackageType'
     status: 'enums.TestPackageStatus'
     storageKey: _str
     frameworkVersion: _str
     manifestHash: _str
     testCount: _int
     stagesEnabled: 'fields.Json'
+    message: _str
+    gitSha: _str
+    gitDirty: _bool
     notes: _str
     createdById: _str
     createdAt: datetime.datetime
@@ -12875,12 +13027,16 @@ class TestPackageMaxAggregateInput(TypedDict, total=False):
     id: bool
     productId: bool
     version: bool
+    type: bool
     status: bool
     storageKey: bool
     frameworkVersion: bool
     manifestHash: bool
     testCount: bool
     stagesEnabled: bool
+    message: bool
+    gitSha: bool
+    gitDirty: bool
     notes: bool
     createdById: bool
     createdAt: bool
@@ -12892,12 +13048,16 @@ class TestPackageMinAggregateInput(TypedDict, total=False):
     id: bool
     productId: bool
     version: bool
+    type: bool
     status: bool
     storageKey: bool
     frameworkVersion: bool
     manifestHash: bool
     testCount: bool
     stagesEnabled: bool
+    message: bool
+    gitSha: bool
+    gitDirty: bool
     notes: bool
     createdById: bool
     createdAt: bool
@@ -12919,12 +13079,16 @@ TestPackageCountAggregateInput = TypedDict(
         'id': bool,
         'productId': bool,
         'version': bool,
+        'type': bool,
         'status': bool,
         'storageKey': bool,
         'frameworkVersion': bool,
         'manifestHash': bool,
         'testCount': bool,
         'stagesEnabled': bool,
+        'message': bool,
+        'gitSha': bool,
+        'gitDirty': bool,
         'notes': bool,
         'createdById': bool,
         'createdAt': bool,
@@ -12940,12 +13104,16 @@ TestPackageCountAggregateOutput = TypedDict(
         'id': int,
         'productId': int,
         'version': int,
+        'type': int,
         'status': int,
         'storageKey': int,
         'frameworkVersion': int,
         'manifestHash': int,
         'testCount': int,
         'stagesEnabled': int,
+        'message': int,
+        'gitSha': int,
+        'gitDirty': int,
         'notes': int,
         'createdById': int,
         'createdAt': int,
@@ -12960,12 +13128,16 @@ TestPackageKeys = Literal[
     'id',
     'productId',
     'version',
+    'type',
     'status',
     'storageKey',
     'frameworkVersion',
     'manifestHash',
     'testCount',
     'stagesEnabled',
+    'message',
+    'gitSha',
+    'gitDirty',
     'notes',
     'createdById',
     'createdAt',
@@ -12973,17 +13145,22 @@ TestPackageKeys = Literal[
     'product',
     'createdBy',
     'sessions',
+    'manufacturingSessions',
 ]
 TestPackageScalarFieldKeys = Literal[
     'id',
     'productId',
     'version',
+    'type',
     'status',
     'storageKey',
     'frameworkVersion',
     'manifestHash',
     'testCount',
     'stagesEnabled',
+    'message',
+    'gitSha',
+    'gitDirty',
     'notes',
     'createdById',
     'createdAt',
@@ -12995,6 +13172,7 @@ TestPackageRelationalFieldKeys = Literal[
         'product',
         'createdBy',
         'sessions',
+        'manufacturingSessions',
     ]
 
 # ProductTarget types
@@ -13406,6 +13584,7 @@ class TestPackageIncludeFromProductTarget(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
     createdBy: Union[bool, 'UserArgsFromProductTargetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductTargetRecursive1']
 
 
 class TestPackageIncludeFromProductTargetRecursive1(TypedDict, total=False):
@@ -13413,6 +13592,7 @@ class TestPackageIncludeFromProductTargetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
     createdBy: Union[bool, 'UserArgsFromProductTargetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductTargetRecursive2']
 
 
 class TestPackageIncludeFromProductTargetRecursive2(TypedDict, total=False):
@@ -13420,6 +13600,7 @@ class TestPackageIncludeFromProductTargetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
     createdBy: Union[bool, 'UserArgsFromProductTargetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductTargetRecursive3']
 
 
 class TestPackageIncludeFromProductTargetRecursive3(TypedDict, total=False):
@@ -13427,6 +13608,7 @@ class TestPackageIncludeFromProductTargetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
     createdBy: Union[bool, 'UserArgsFromProductTargetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductTargetRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductTargetRecursive4']
 
 
 class TestPackageIncludeFromProductTargetRecursive4(TypedDict, total=False):
@@ -14096,7 +14278,6 @@ class ProductStageConfigIncludeFromProductTarget(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductTargetRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductTargetRecursive1']
 
 
 class ProductStageConfigIncludeFromProductTargetRecursive1(TypedDict, total=False):
@@ -14108,7 +14289,6 @@ class ProductStageConfigIncludeFromProductTargetRecursive1(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductTargetRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductTargetRecursive2']
 
 
 class ProductStageConfigIncludeFromProductTargetRecursive2(TypedDict, total=False):
@@ -14120,7 +14300,6 @@ class ProductStageConfigIncludeFromProductTargetRecursive2(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductTargetRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductTargetRecursive3']
 
 
 class ProductStageConfigIncludeFromProductTargetRecursive3(TypedDict, total=False):
@@ -14132,7 +14311,6 @@ class ProductStageConfigIncludeFromProductTargetRecursive3(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductTargetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductTargetRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductTargetRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductTargetRecursive4']
 
 
 class ProductStageConfigIncludeFromProductTargetRecursive4(TypedDict, total=False):
@@ -17171,7 +17349,6 @@ class AssetSetIncludeFromProductTarget(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromProductTargetRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductTargetRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductTargetRecursive1']
     createdBy: Union[bool, 'UserArgsFromProductTargetRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromProductTargetRecursive1']
@@ -17183,7 +17360,6 @@ class AssetSetIncludeFromProductTargetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromProductTargetRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductTargetRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductTargetRecursive2']
     createdBy: Union[bool, 'UserArgsFromProductTargetRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromProductTargetRecursive2']
@@ -17195,7 +17371,6 @@ class AssetSetIncludeFromProductTargetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromProductTargetRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductTargetRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductTargetRecursive3']
     createdBy: Union[bool, 'UserArgsFromProductTargetRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromProductTargetRecursive3']
@@ -17207,7 +17382,6 @@ class AssetSetIncludeFromProductTargetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductTargetRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromProductTargetRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductTargetRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductTargetRecursive4']
     createdBy: Union[bool, 'UserArgsFromProductTargetRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromProductTargetRecursive4']
@@ -17518,6 +17692,7 @@ class ManufacturingSessionIncludeFromProductTarget(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductTargetRecursive1']
     fixture: Union[bool, 'FixtureArgsFromProductTargetRecursive1']
     operator: Union[bool, 'UserArgsFromProductTargetRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromProductTargetRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductTargetRecursive1']
 
 
@@ -17526,6 +17701,7 @@ class ManufacturingSessionIncludeFromProductTargetRecursive1(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromProductTargetRecursive2']
     fixture: Union[bool, 'FixtureArgsFromProductTargetRecursive2']
     operator: Union[bool, 'UserArgsFromProductTargetRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromProductTargetRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductTargetRecursive2']
 
 
@@ -17534,6 +17710,7 @@ class ManufacturingSessionIncludeFromProductTargetRecursive2(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromProductTargetRecursive3']
     fixture: Union[bool, 'FixtureArgsFromProductTargetRecursive3']
     operator: Union[bool, 'UserArgsFromProductTargetRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromProductTargetRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductTargetRecursive3']
 
 
@@ -17542,6 +17719,7 @@ class ManufacturingSessionIncludeFromProductTargetRecursive3(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromProductTargetRecursive4']
     fixture: Union[bool, 'FixtureArgsFromProductTargetRecursive4']
     operator: Union[bool, 'UserArgsFromProductTargetRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromProductTargetRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductTargetRecursive4']
 
 
@@ -18570,6 +18748,7 @@ class TestPackageIncludeFromBoard(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive1']
     createdBy: Union[bool, 'UserArgsFromBoardRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBoardRecursive1']
 
 
 class TestPackageIncludeFromBoardRecursive1(TypedDict, total=False):
@@ -18577,6 +18756,7 @@ class TestPackageIncludeFromBoardRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive2']
     createdBy: Union[bool, 'UserArgsFromBoardRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBoardRecursive2']
 
 
 class TestPackageIncludeFromBoardRecursive2(TypedDict, total=False):
@@ -18584,6 +18764,7 @@ class TestPackageIncludeFromBoardRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive3']
     createdBy: Union[bool, 'UserArgsFromBoardRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBoardRecursive3']
 
 
 class TestPackageIncludeFromBoardRecursive3(TypedDict, total=False):
@@ -18591,6 +18772,7 @@ class TestPackageIncludeFromBoardRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive4']
     createdBy: Union[bool, 'UserArgsFromBoardRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBoardRecursive4']
 
 
 class TestPackageIncludeFromBoardRecursive4(TypedDict, total=False):
@@ -19260,7 +19442,6 @@ class ProductStageConfigIncludeFromBoard(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBoardRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRecursive1']
 
 
 class ProductStageConfigIncludeFromBoardRecursive1(TypedDict, total=False):
@@ -19272,7 +19453,6 @@ class ProductStageConfigIncludeFromBoardRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBoardRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRecursive2']
 
 
 class ProductStageConfigIncludeFromBoardRecursive2(TypedDict, total=False):
@@ -19284,7 +19464,6 @@ class ProductStageConfigIncludeFromBoardRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBoardRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRecursive3']
 
 
 class ProductStageConfigIncludeFromBoardRecursive3(TypedDict, total=False):
@@ -19296,7 +19475,6 @@ class ProductStageConfigIncludeFromBoardRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBoardRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRecursive4']
 
 
 class ProductStageConfigIncludeFromBoardRecursive4(TypedDict, total=False):
@@ -22335,7 +22513,6 @@ class AssetSetIncludeFromBoard(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromBoardRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBoardRecursive1']
     createdBy: Union[bool, 'UserArgsFromBoardRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromBoardRecursive1']
@@ -22347,7 +22524,6 @@ class AssetSetIncludeFromBoardRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromBoardRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBoardRecursive2']
     createdBy: Union[bool, 'UserArgsFromBoardRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromBoardRecursive2']
@@ -22359,7 +22535,6 @@ class AssetSetIncludeFromBoardRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromBoardRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBoardRecursive3']
     createdBy: Union[bool, 'UserArgsFromBoardRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromBoardRecursive3']
@@ -22371,7 +22546,6 @@ class AssetSetIncludeFromBoardRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromBoardRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBoardRecursive4']
     createdBy: Union[bool, 'UserArgsFromBoardRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromBoardRecursive4']
@@ -22682,6 +22856,7 @@ class ManufacturingSessionIncludeFromBoard(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive1']
     fixture: Union[bool, 'FixtureArgsFromBoardRecursive1']
     operator: Union[bool, 'UserArgsFromBoardRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromBoardRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBoardRecursive1']
 
 
@@ -22690,6 +22865,7 @@ class ManufacturingSessionIncludeFromBoardRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive2']
     fixture: Union[bool, 'FixtureArgsFromBoardRecursive2']
     operator: Union[bool, 'UserArgsFromBoardRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromBoardRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBoardRecursive2']
 
 
@@ -22698,6 +22874,7 @@ class ManufacturingSessionIncludeFromBoardRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive3']
     fixture: Union[bool, 'FixtureArgsFromBoardRecursive3']
     operator: Union[bool, 'UserArgsFromBoardRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromBoardRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBoardRecursive3']
 
 
@@ -22706,6 +22883,7 @@ class ManufacturingSessionIncludeFromBoardRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRecursive4']
     fixture: Union[bool, 'FixtureArgsFromBoardRecursive4']
     operator: Union[bool, 'UserArgsFromBoardRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromBoardRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBoardRecursive4']
 
 
@@ -23882,6 +24060,7 @@ class TestPackageIncludeFromBoardRevision(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
     createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBoardRevisionRecursive1']
 
 
 class TestPackageIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
@@ -23889,6 +24068,7 @@ class TestPackageIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
     createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBoardRevisionRecursive2']
 
 
 class TestPackageIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
@@ -23896,6 +24076,7 @@ class TestPackageIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
     createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBoardRevisionRecursive3']
 
 
 class TestPackageIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
@@ -23903,6 +24084,7 @@ class TestPackageIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
     createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBoardRevisionRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBoardRevisionRecursive4']
 
 
 class TestPackageIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
@@ -24572,7 +24754,6 @@ class ProductStageConfigIncludeFromBoardRevision(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBoardRevisionRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRevisionRecursive1']
 
 
 class ProductStageConfigIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
@@ -24584,7 +24765,6 @@ class ProductStageConfigIncludeFromBoardRevisionRecursive1(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBoardRevisionRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRevisionRecursive2']
 
 
 class ProductStageConfigIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
@@ -24596,7 +24776,6 @@ class ProductStageConfigIncludeFromBoardRevisionRecursive2(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBoardRevisionRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRevisionRecursive3']
 
 
 class ProductStageConfigIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
@@ -24608,7 +24787,6 @@ class ProductStageConfigIncludeFromBoardRevisionRecursive3(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBoardRevisionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBoardRevisionRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBoardRevisionRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBoardRevisionRecursive4']
 
 
 class ProductStageConfigIncludeFromBoardRevisionRecursive4(TypedDict, total=False):
@@ -27647,7 +27825,6 @@ class AssetSetIncludeFromBoardRevision(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromBoardRevisionRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBoardRevisionRecursive1']
     createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromBoardRevisionRecursive1']
@@ -27659,7 +27836,6 @@ class AssetSetIncludeFromBoardRevisionRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromBoardRevisionRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBoardRevisionRecursive2']
     createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromBoardRevisionRecursive2']
@@ -27671,7 +27847,6 @@ class AssetSetIncludeFromBoardRevisionRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromBoardRevisionRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBoardRevisionRecursive3']
     createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromBoardRevisionRecursive3']
@@ -27683,7 +27858,6 @@ class AssetSetIncludeFromBoardRevisionRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBoardRevisionRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromBoardRevisionRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBoardRevisionRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBoardRevisionRecursive4']
     createdBy: Union[bool, 'UserArgsFromBoardRevisionRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromBoardRevisionRecursive4']
@@ -27994,6 +28168,7 @@ class ManufacturingSessionIncludeFromBoardRevision(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive1']
     fixture: Union[bool, 'FixtureArgsFromBoardRevisionRecursive1']
     operator: Union[bool, 'UserArgsFromBoardRevisionRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromBoardRevisionRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBoardRevisionRecursive1']
 
 
@@ -28002,6 +28177,7 @@ class ManufacturingSessionIncludeFromBoardRevisionRecursive1(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive2']
     fixture: Union[bool, 'FixtureArgsFromBoardRevisionRecursive2']
     operator: Union[bool, 'UserArgsFromBoardRevisionRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromBoardRevisionRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBoardRevisionRecursive2']
 
 
@@ -28010,6 +28186,7 @@ class ManufacturingSessionIncludeFromBoardRevisionRecursive2(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive3']
     fixture: Union[bool, 'FixtureArgsFromBoardRevisionRecursive3']
     operator: Union[bool, 'UserArgsFromBoardRevisionRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromBoardRevisionRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBoardRevisionRecursive3']
 
 
@@ -28018,6 +28195,7 @@ class ManufacturingSessionIncludeFromBoardRevisionRecursive3(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromBoardRevisionRecursive4']
     fixture: Union[bool, 'FixtureArgsFromBoardRevisionRecursive4']
     operator: Union[bool, 'UserArgsFromBoardRevisionRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromBoardRevisionRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBoardRevisionRecursive4']
 
 
@@ -29290,6 +29468,7 @@ class TestPackageIncludeFromFirmwareSet(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
     createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFirmwareSetRecursive1']
 
 
 class TestPackageIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
@@ -29297,6 +29476,7 @@ class TestPackageIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
     createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFirmwareSetRecursive2']
 
 
 class TestPackageIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
@@ -29304,6 +29484,7 @@ class TestPackageIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
     createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFirmwareSetRecursive3']
 
 
 class TestPackageIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
@@ -29311,6 +29492,7 @@ class TestPackageIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
     createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareSetRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFirmwareSetRecursive4']
 
 
 class TestPackageIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
@@ -29980,7 +30162,6 @@ class ProductStageConfigIncludeFromFirmwareSet(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFirmwareSetRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareSetRecursive1']
 
 
 class ProductStageConfigIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
@@ -29992,7 +30173,6 @@ class ProductStageConfigIncludeFromFirmwareSetRecursive1(TypedDict, total=False)
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFirmwareSetRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareSetRecursive2']
 
 
 class ProductStageConfigIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
@@ -30004,7 +30184,6 @@ class ProductStageConfigIncludeFromFirmwareSetRecursive2(TypedDict, total=False)
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFirmwareSetRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareSetRecursive3']
 
 
 class ProductStageConfigIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
@@ -30016,7 +30195,6 @@ class ProductStageConfigIncludeFromFirmwareSetRecursive3(TypedDict, total=False)
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareSetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareSetRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFirmwareSetRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareSetRecursive4']
 
 
 class ProductStageConfigIncludeFromFirmwareSetRecursive4(TypedDict, total=False):
@@ -33055,7 +33233,6 @@ class AssetSetIncludeFromFirmwareSet(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromFirmwareSetRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFirmwareSetRecursive1']
     createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromFirmwareSetRecursive1']
@@ -33067,7 +33244,6 @@ class AssetSetIncludeFromFirmwareSetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromFirmwareSetRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFirmwareSetRecursive2']
     createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromFirmwareSetRecursive2']
@@ -33079,7 +33255,6 @@ class AssetSetIncludeFromFirmwareSetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromFirmwareSetRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFirmwareSetRecursive3']
     createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromFirmwareSetRecursive3']
@@ -33091,7 +33266,6 @@ class AssetSetIncludeFromFirmwareSetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareSetRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromFirmwareSetRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareSetRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFirmwareSetRecursive4']
     createdBy: Union[bool, 'UserArgsFromFirmwareSetRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromFirmwareSetRecursive4']
@@ -33402,6 +33576,7 @@ class ManufacturingSessionIncludeFromFirmwareSet(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive1']
     fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive1']
     operator: Union[bool, 'UserArgsFromFirmwareSetRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromFirmwareSetRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFirmwareSetRecursive1']
 
 
@@ -33410,6 +33585,7 @@ class ManufacturingSessionIncludeFromFirmwareSetRecursive1(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive2']
     fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive2']
     operator: Union[bool, 'UserArgsFromFirmwareSetRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromFirmwareSetRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFirmwareSetRecursive2']
 
 
@@ -33418,6 +33594,7 @@ class ManufacturingSessionIncludeFromFirmwareSetRecursive2(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive3']
     fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive3']
     operator: Union[bool, 'UserArgsFromFirmwareSetRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromFirmwareSetRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFirmwareSetRecursive3']
 
 
@@ -33426,6 +33603,7 @@ class ManufacturingSessionIncludeFromFirmwareSetRecursive3(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromFirmwareSetRecursive4']
     fixture: Union[bool, 'FixtureArgsFromFirmwareSetRecursive4']
     operator: Union[bool, 'UserArgsFromFirmwareSetRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromFirmwareSetRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFirmwareSetRecursive4']
 
 
@@ -34695,6 +34873,7 @@ class TestPackageIncludeFromFirmwareBuild(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
     createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFirmwareBuildRecursive1']
 
 
 class TestPackageIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
@@ -34702,6 +34881,7 @@ class TestPackageIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
     createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFirmwareBuildRecursive2']
 
 
 class TestPackageIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
@@ -34709,6 +34889,7 @@ class TestPackageIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
     createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFirmwareBuildRecursive3']
 
 
 class TestPackageIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
@@ -34716,6 +34897,7 @@ class TestPackageIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
     createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFirmwareBuildRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFirmwareBuildRecursive4']
 
 
 class TestPackageIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
@@ -35385,7 +35567,6 @@ class ProductStageConfigIncludeFromFirmwareBuild(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFirmwareBuildRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareBuildRecursive1']
 
 
 class ProductStageConfigIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
@@ -35397,7 +35578,6 @@ class ProductStageConfigIncludeFromFirmwareBuildRecursive1(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFirmwareBuildRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareBuildRecursive2']
 
 
 class ProductStageConfigIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
@@ -35409,7 +35589,6 @@ class ProductStageConfigIncludeFromFirmwareBuildRecursive2(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFirmwareBuildRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareBuildRecursive3']
 
 
 class ProductStageConfigIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
@@ -35421,7 +35600,6 @@ class ProductStageConfigIncludeFromFirmwareBuildRecursive3(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFirmwareBuildRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFirmwareBuildRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFirmwareBuildRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFirmwareBuildRecursive4']
 
 
 class ProductStageConfigIncludeFromFirmwareBuildRecursive4(TypedDict, total=False):
@@ -38460,7 +38638,6 @@ class AssetSetIncludeFromFirmwareBuild(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromFirmwareBuildRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareBuildRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFirmwareBuildRecursive1']
     createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromFirmwareBuildRecursive1']
@@ -38472,7 +38649,6 @@ class AssetSetIncludeFromFirmwareBuildRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromFirmwareBuildRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareBuildRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFirmwareBuildRecursive2']
     createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromFirmwareBuildRecursive2']
@@ -38484,7 +38660,6 @@ class AssetSetIncludeFromFirmwareBuildRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromFirmwareBuildRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareBuildRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFirmwareBuildRecursive3']
     createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromFirmwareBuildRecursive3']
@@ -38496,7 +38671,6 @@ class AssetSetIncludeFromFirmwareBuildRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFirmwareBuildRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromFirmwareBuildRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFirmwareBuildRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFirmwareBuildRecursive4']
     createdBy: Union[bool, 'UserArgsFromFirmwareBuildRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromFirmwareBuildRecursive4']
@@ -38807,6 +38981,7 @@ class ManufacturingSessionIncludeFromFirmwareBuild(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive1']
     fixture: Union[bool, 'FixtureArgsFromFirmwareBuildRecursive1']
     operator: Union[bool, 'UserArgsFromFirmwareBuildRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromFirmwareBuildRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFirmwareBuildRecursive1']
 
 
@@ -38815,6 +38990,7 @@ class ManufacturingSessionIncludeFromFirmwareBuildRecursive1(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive2']
     fixture: Union[bool, 'FixtureArgsFromFirmwareBuildRecursive2']
     operator: Union[bool, 'UserArgsFromFirmwareBuildRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromFirmwareBuildRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFirmwareBuildRecursive2']
 
 
@@ -38823,6 +38999,7 @@ class ManufacturingSessionIncludeFromFirmwareBuildRecursive2(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive3']
     fixture: Union[bool, 'FixtureArgsFromFirmwareBuildRecursive3']
     operator: Union[bool, 'UserArgsFromFirmwareBuildRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromFirmwareBuildRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFirmwareBuildRecursive3']
 
 
@@ -38831,6 +39008,7 @@ class ManufacturingSessionIncludeFromFirmwareBuildRecursive3(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromFirmwareBuildRecursive4']
     fixture: Union[bool, 'FixtureArgsFromFirmwareBuildRecursive4']
     operator: Union[bool, 'UserArgsFromFirmwareBuildRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromFirmwareBuildRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFirmwareBuildRecursive4']
 
 
@@ -39601,7 +39779,6 @@ class ProductStageConfigOptionalCreateInput(TypedDict, total=False):
     buildRuns: 'BuildRunCreateManyNestedWithoutRelationsInput'
     queueEntries: 'ValidationQueueEntryCreateManyNestedWithoutRelationsInput'
     buildMatrixEntries: 'StageBuildMatrixCreateManyNestedWithoutRelationsInput'
-    assetSets: 'AssetSetCreateManyNestedWithoutRelationsInput'
 
 
 class ProductStageConfigCreateInput(ProductStageConfigOptionalCreateInput):
@@ -39699,7 +39876,6 @@ class ProductStageConfigUpdateInput(TypedDict, total=False):
     buildRuns: 'BuildRunUpdateManyWithoutRelationsInput'
     queueEntries: 'ValidationQueueEntryUpdateManyWithoutRelationsInput'
     buildMatrixEntries: 'StageBuildMatrixUpdateManyWithoutRelationsInput'
-    assetSets: 'AssetSetUpdateManyWithoutRelationsInput'
 
 
 class ProductStageConfigUpdateManyMutationInput(TypedDict, total=False):
@@ -39921,7 +40097,6 @@ class ProductStageConfigInclude(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfig']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfig']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductStageConfig']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductStageConfig']
 
 
     
@@ -40088,6 +40263,7 @@ class TestPackageIncludeFromProductStageConfig(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
     createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductStageConfigRecursive1']
 
 
 class TestPackageIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
@@ -40095,6 +40271,7 @@ class TestPackageIncludeFromProductStageConfigRecursive1(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
     createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductStageConfigRecursive2']
 
 
 class TestPackageIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
@@ -40102,6 +40279,7 @@ class TestPackageIncludeFromProductStageConfigRecursive2(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
     createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductStageConfigRecursive3']
 
 
 class TestPackageIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
@@ -40109,6 +40287,7 @@ class TestPackageIncludeFromProductStageConfigRecursive3(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
     createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductStageConfigRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductStageConfigRecursive4']
 
 
 class TestPackageIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
@@ -40778,7 +40957,6 @@ class ProductStageConfigIncludeFromProductStageConfig(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductStageConfigRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductStageConfigRecursive1']
 
 
 class ProductStageConfigIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
@@ -40790,7 +40968,6 @@ class ProductStageConfigIncludeFromProductStageConfigRecursive1(TypedDict, total
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductStageConfigRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductStageConfigRecursive2']
 
 
 class ProductStageConfigIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
@@ -40802,7 +40979,6 @@ class ProductStageConfigIncludeFromProductStageConfigRecursive2(TypedDict, total
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductStageConfigRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductStageConfigRecursive3']
 
 
 class ProductStageConfigIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
@@ -40814,7 +40990,6 @@ class ProductStageConfigIncludeFromProductStageConfigRecursive3(TypedDict, total
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductStageConfigRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductStageConfigRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductStageConfigRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductStageConfigRecursive4']
 
 
 class ProductStageConfigIncludeFromProductStageConfigRecursive4(TypedDict, total=False):
@@ -43853,7 +44028,6 @@ class AssetSetIncludeFromProductStageConfig(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromProductStageConfigRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductStageConfigRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductStageConfigRecursive1']
     createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromProductStageConfigRecursive1']
@@ -43865,7 +44039,6 @@ class AssetSetIncludeFromProductStageConfigRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromProductStageConfigRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductStageConfigRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductStageConfigRecursive2']
     createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromProductStageConfigRecursive2']
@@ -43877,7 +44050,6 @@ class AssetSetIncludeFromProductStageConfigRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromProductStageConfigRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductStageConfigRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductStageConfigRecursive3']
     createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromProductStageConfigRecursive3']
@@ -43889,7 +44061,6 @@ class AssetSetIncludeFromProductStageConfigRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductStageConfigRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromProductStageConfigRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductStageConfigRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductStageConfigRecursive4']
     createdBy: Union[bool, 'UserArgsFromProductStageConfigRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromProductStageConfigRecursive4']
@@ -44200,6 +44371,7 @@ class ManufacturingSessionIncludeFromProductStageConfig(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive1']
     fixture: Union[bool, 'FixtureArgsFromProductStageConfigRecursive1']
     operator: Union[bool, 'UserArgsFromProductStageConfigRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromProductStageConfigRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductStageConfigRecursive1']
 
 
@@ -44208,6 +44380,7 @@ class ManufacturingSessionIncludeFromProductStageConfigRecursive1(TypedDict, tot
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive2']
     fixture: Union[bool, 'FixtureArgsFromProductStageConfigRecursive2']
     operator: Union[bool, 'UserArgsFromProductStageConfigRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromProductStageConfigRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductStageConfigRecursive2']
 
 
@@ -44216,6 +44389,7 @@ class ManufacturingSessionIncludeFromProductStageConfigRecursive2(TypedDict, tot
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive3']
     fixture: Union[bool, 'FixtureArgsFromProductStageConfigRecursive3']
     operator: Union[bool, 'UserArgsFromProductStageConfigRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromProductStageConfigRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductStageConfigRecursive3']
 
 
@@ -44224,6 +44398,7 @@ class ManufacturingSessionIncludeFromProductStageConfigRecursive3(TypedDict, tot
     product: Union[bool, 'ProductArgsFromProductStageConfigRecursive4']
     fixture: Union[bool, 'FixtureArgsFromProductStageConfigRecursive4']
     operator: Union[bool, 'UserArgsFromProductStageConfigRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromProductStageConfigRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductStageConfigRecursive4']
 
 
@@ -44554,7 +44729,6 @@ class ProductStageConfigWhereInput(TypedDict, total=False):
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
     buildMatrixEntries: 'StageBuildMatrixListRelationFilter'
-    assetSets: 'AssetSetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ProductStageConfigWhereInputRecursive1', List['ProductStageConfigWhereInputRecursive1']]
     # but this causes mypy to hang :/
@@ -44585,7 +44759,6 @@ class ProductStageConfigWhereInputRecursive1(TypedDict, total=False):
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
     buildMatrixEntries: 'StageBuildMatrixListRelationFilter'
-    assetSets: 'AssetSetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ProductStageConfigWhereInputRecursive2', List['ProductStageConfigWhereInputRecursive2']]
     # but this causes mypy to hang :/
@@ -44616,7 +44789,6 @@ class ProductStageConfigWhereInputRecursive2(TypedDict, total=False):
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
     buildMatrixEntries: 'StageBuildMatrixListRelationFilter'
-    assetSets: 'AssetSetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ProductStageConfigWhereInputRecursive3', List['ProductStageConfigWhereInputRecursive3']]
     # but this causes mypy to hang :/
@@ -44647,7 +44819,6 @@ class ProductStageConfigWhereInputRecursive3(TypedDict, total=False):
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
     buildMatrixEntries: 'StageBuildMatrixListRelationFilter'
-    assetSets: 'AssetSetListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ProductStageConfigWhereInputRecursive4', List['ProductStageConfigWhereInputRecursive4']]
     # but this causes mypy to hang :/
@@ -44678,7 +44849,6 @@ class ProductStageConfigWhereInputRecursive4(TypedDict, total=False):
     buildRuns: 'BuildRunListRelationFilter'
     queueEntries: 'ValidationQueueEntryListRelationFilter'
     buildMatrixEntries: 'StageBuildMatrixListRelationFilter'
-    assetSets: 'AssetSetListRelationFilter'
 
 
 
@@ -44948,7 +45118,6 @@ ProductStageConfigKeys = Literal[
     'buildRuns',
     'queueEntries',
     'buildMatrixEntries',
-    'assetSets',
 ]
 ProductStageConfigScalarFieldKeys = Literal[
     'id',
@@ -44975,7 +45144,6 @@ ProductStageConfigRelationalFieldKeys = Literal[
         'buildRuns',
         'queueEntries',
         'buildMatrixEntries',
-        'assetSets',
     ]
 
 # ValidationQueueEntry types
@@ -45516,6 +45684,7 @@ class TestPackageIncludeFromValidationQueueEntry(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
     createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromValidationQueueEntryRecursive1']
 
 
 class TestPackageIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
@@ -45523,6 +45692,7 @@ class TestPackageIncludeFromValidationQueueEntryRecursive1(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
     createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromValidationQueueEntryRecursive2']
 
 
 class TestPackageIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
@@ -45530,6 +45700,7 @@ class TestPackageIncludeFromValidationQueueEntryRecursive2(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
     createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromValidationQueueEntryRecursive3']
 
 
 class TestPackageIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
@@ -45537,6 +45708,7 @@ class TestPackageIncludeFromValidationQueueEntryRecursive3(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
     createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromValidationQueueEntryRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromValidationQueueEntryRecursive4']
 
 
 class TestPackageIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
@@ -46206,7 +46378,6 @@ class ProductStageConfigIncludeFromValidationQueueEntry(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromValidationQueueEntryRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromValidationQueueEntryRecursive1']
 
 
 class ProductStageConfigIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
@@ -46218,7 +46389,6 @@ class ProductStageConfigIncludeFromValidationQueueEntryRecursive1(TypedDict, tot
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromValidationQueueEntryRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromValidationQueueEntryRecursive2']
 
 
 class ProductStageConfigIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
@@ -46230,7 +46400,6 @@ class ProductStageConfigIncludeFromValidationQueueEntryRecursive2(TypedDict, tot
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromValidationQueueEntryRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromValidationQueueEntryRecursive3']
 
 
 class ProductStageConfigIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
@@ -46242,7 +46411,6 @@ class ProductStageConfigIncludeFromValidationQueueEntryRecursive3(TypedDict, tot
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromValidationQueueEntryRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromValidationQueueEntryRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromValidationQueueEntryRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromValidationQueueEntryRecursive4']
 
 
 class ProductStageConfigIncludeFromValidationQueueEntryRecursive4(TypedDict, total=False):
@@ -49281,7 +49449,6 @@ class AssetSetIncludeFromValidationQueueEntry(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromValidationQueueEntryRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromValidationQueueEntryRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromValidationQueueEntryRecursive1']
     createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromValidationQueueEntryRecursive1']
@@ -49293,7 +49460,6 @@ class AssetSetIncludeFromValidationQueueEntryRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromValidationQueueEntryRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromValidationQueueEntryRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromValidationQueueEntryRecursive2']
     createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromValidationQueueEntryRecursive2']
@@ -49305,7 +49471,6 @@ class AssetSetIncludeFromValidationQueueEntryRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromValidationQueueEntryRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromValidationQueueEntryRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromValidationQueueEntryRecursive3']
     createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromValidationQueueEntryRecursive3']
@@ -49317,7 +49482,6 @@ class AssetSetIncludeFromValidationQueueEntryRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromValidationQueueEntryRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromValidationQueueEntryRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromValidationQueueEntryRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromValidationQueueEntryRecursive4']
     createdBy: Union[bool, 'UserArgsFromValidationQueueEntryRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromValidationQueueEntryRecursive4']
@@ -49628,6 +49792,7 @@ class ManufacturingSessionIncludeFromValidationQueueEntry(TypedDict, total=False
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive1']
     fixture: Union[bool, 'FixtureArgsFromValidationQueueEntryRecursive1']
     operator: Union[bool, 'UserArgsFromValidationQueueEntryRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromValidationQueueEntryRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromValidationQueueEntryRecursive1']
 
 
@@ -49636,6 +49801,7 @@ class ManufacturingSessionIncludeFromValidationQueueEntryRecursive1(TypedDict, t
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive2']
     fixture: Union[bool, 'FixtureArgsFromValidationQueueEntryRecursive2']
     operator: Union[bool, 'UserArgsFromValidationQueueEntryRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromValidationQueueEntryRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromValidationQueueEntryRecursive2']
 
 
@@ -49644,6 +49810,7 @@ class ManufacturingSessionIncludeFromValidationQueueEntryRecursive2(TypedDict, t
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive3']
     fixture: Union[bool, 'FixtureArgsFromValidationQueueEntryRecursive3']
     operator: Union[bool, 'UserArgsFromValidationQueueEntryRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromValidationQueueEntryRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromValidationQueueEntryRecursive3']
 
 
@@ -49652,6 +49819,7 @@ class ManufacturingSessionIncludeFromValidationQueueEntryRecursive3(TypedDict, t
     product: Union[bool, 'ProductArgsFromValidationQueueEntryRecursive4']
     fixture: Union[bool, 'FixtureArgsFromValidationQueueEntryRecursive4']
     operator: Union[bool, 'UserArgsFromValidationQueueEntryRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromValidationQueueEntryRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromValidationQueueEntryRecursive4']
 
 
@@ -51134,6 +51302,7 @@ class TestPackageIncludeFromBuildRun(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive1']
     createdBy: Union[bool, 'UserArgsFromBuildRunRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildRunRecursive1']
 
 
 class TestPackageIncludeFromBuildRunRecursive1(TypedDict, total=False):
@@ -51141,6 +51310,7 @@ class TestPackageIncludeFromBuildRunRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive2']
     createdBy: Union[bool, 'UserArgsFromBuildRunRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildRunRecursive2']
 
 
 class TestPackageIncludeFromBuildRunRecursive2(TypedDict, total=False):
@@ -51148,6 +51318,7 @@ class TestPackageIncludeFromBuildRunRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive3']
     createdBy: Union[bool, 'UserArgsFromBuildRunRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildRunRecursive3']
 
 
 class TestPackageIncludeFromBuildRunRecursive3(TypedDict, total=False):
@@ -51155,6 +51326,7 @@ class TestPackageIncludeFromBuildRunRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive4']
     createdBy: Union[bool, 'UserArgsFromBuildRunRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildRunRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildRunRecursive4']
 
 
 class TestPackageIncludeFromBuildRunRecursive4(TypedDict, total=False):
@@ -51824,7 +51996,6 @@ class ProductStageConfigIncludeFromBuildRun(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildRunRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildRunRecursive1']
 
 
 class ProductStageConfigIncludeFromBuildRunRecursive1(TypedDict, total=False):
@@ -51836,7 +52007,6 @@ class ProductStageConfigIncludeFromBuildRunRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildRunRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildRunRecursive2']
 
 
 class ProductStageConfigIncludeFromBuildRunRecursive2(TypedDict, total=False):
@@ -51848,7 +52018,6 @@ class ProductStageConfigIncludeFromBuildRunRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildRunRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildRunRecursive3']
 
 
 class ProductStageConfigIncludeFromBuildRunRecursive3(TypedDict, total=False):
@@ -51860,7 +52029,6 @@ class ProductStageConfigIncludeFromBuildRunRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildRunRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildRunRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildRunRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildRunRecursive4']
 
 
 class ProductStageConfigIncludeFromBuildRunRecursive4(TypedDict, total=False):
@@ -54899,7 +55067,6 @@ class AssetSetIncludeFromBuildRun(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromBuildRunRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildRunRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildRunRecursive1']
     createdBy: Union[bool, 'UserArgsFromBuildRunRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromBuildRunRecursive1']
@@ -54911,7 +55078,6 @@ class AssetSetIncludeFromBuildRunRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromBuildRunRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildRunRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildRunRecursive2']
     createdBy: Union[bool, 'UserArgsFromBuildRunRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromBuildRunRecursive2']
@@ -54923,7 +55089,6 @@ class AssetSetIncludeFromBuildRunRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromBuildRunRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildRunRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildRunRecursive3']
     createdBy: Union[bool, 'UserArgsFromBuildRunRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromBuildRunRecursive3']
@@ -54935,7 +55100,6 @@ class AssetSetIncludeFromBuildRunRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildRunRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromBuildRunRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildRunRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildRunRecursive4']
     createdBy: Union[bool, 'UserArgsFromBuildRunRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromBuildRunRecursive4']
@@ -55246,6 +55410,7 @@ class ManufacturingSessionIncludeFromBuildRun(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive1']
     fixture: Union[bool, 'FixtureArgsFromBuildRunRecursive1']
     operator: Union[bool, 'UserArgsFromBuildRunRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildRunRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildRunRecursive1']
 
 
@@ -55254,6 +55419,7 @@ class ManufacturingSessionIncludeFromBuildRunRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive2']
     fixture: Union[bool, 'FixtureArgsFromBuildRunRecursive2']
     operator: Union[bool, 'UserArgsFromBuildRunRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildRunRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildRunRecursive2']
 
 
@@ -55262,6 +55428,7 @@ class ManufacturingSessionIncludeFromBuildRunRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive3']
     fixture: Union[bool, 'FixtureArgsFromBuildRunRecursive3']
     operator: Union[bool, 'UserArgsFromBuildRunRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildRunRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildRunRecursive3']
 
 
@@ -55270,6 +55437,7 @@ class ManufacturingSessionIncludeFromBuildRunRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildRunRecursive4']
     fixture: Union[bool, 'FixtureArgsFromBuildRunRecursive4']
     operator: Union[bool, 'UserArgsFromBuildRunRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildRunRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildRunRecursive4']
 
 
@@ -57037,6 +57205,7 @@ class TestPackageIncludeFromBuildJob(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
     createdBy: Union[bool, 'UserArgsFromBuildJobRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildJobRecursive1']
 
 
 class TestPackageIncludeFromBuildJobRecursive1(TypedDict, total=False):
@@ -57044,6 +57213,7 @@ class TestPackageIncludeFromBuildJobRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
     createdBy: Union[bool, 'UserArgsFromBuildJobRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildJobRecursive2']
 
 
 class TestPackageIncludeFromBuildJobRecursive2(TypedDict, total=False):
@@ -57051,6 +57221,7 @@ class TestPackageIncludeFromBuildJobRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
     createdBy: Union[bool, 'UserArgsFromBuildJobRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildJobRecursive3']
 
 
 class TestPackageIncludeFromBuildJobRecursive3(TypedDict, total=False):
@@ -57058,6 +57229,7 @@ class TestPackageIncludeFromBuildJobRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
     createdBy: Union[bool, 'UserArgsFromBuildJobRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildJobRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildJobRecursive4']
 
 
 class TestPackageIncludeFromBuildJobRecursive4(TypedDict, total=False):
@@ -57727,7 +57899,6 @@ class ProductStageConfigIncludeFromBuildJob(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildJobRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildJobRecursive1']
 
 
 class ProductStageConfigIncludeFromBuildJobRecursive1(TypedDict, total=False):
@@ -57739,7 +57910,6 @@ class ProductStageConfigIncludeFromBuildJobRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildJobRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildJobRecursive2']
 
 
 class ProductStageConfigIncludeFromBuildJobRecursive2(TypedDict, total=False):
@@ -57751,7 +57921,6 @@ class ProductStageConfigIncludeFromBuildJobRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildJobRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildJobRecursive3']
 
 
 class ProductStageConfigIncludeFromBuildJobRecursive3(TypedDict, total=False):
@@ -57763,7 +57932,6 @@ class ProductStageConfigIncludeFromBuildJobRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildJobRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildJobRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildJobRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildJobRecursive4']
 
 
 class ProductStageConfigIncludeFromBuildJobRecursive4(TypedDict, total=False):
@@ -60802,7 +60970,6 @@ class AssetSetIncludeFromBuildJob(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromBuildJobRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildJobRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildJobRecursive1']
     createdBy: Union[bool, 'UserArgsFromBuildJobRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromBuildJobRecursive1']
@@ -60814,7 +60981,6 @@ class AssetSetIncludeFromBuildJobRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromBuildJobRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildJobRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildJobRecursive2']
     createdBy: Union[bool, 'UserArgsFromBuildJobRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromBuildJobRecursive2']
@@ -60826,7 +60992,6 @@ class AssetSetIncludeFromBuildJobRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromBuildJobRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildJobRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildJobRecursive3']
     createdBy: Union[bool, 'UserArgsFromBuildJobRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromBuildJobRecursive3']
@@ -60838,7 +61003,6 @@ class AssetSetIncludeFromBuildJobRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildJobRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromBuildJobRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildJobRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildJobRecursive4']
     createdBy: Union[bool, 'UserArgsFromBuildJobRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromBuildJobRecursive4']
@@ -61149,6 +61313,7 @@ class ManufacturingSessionIncludeFromBuildJob(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive1']
     fixture: Union[bool, 'FixtureArgsFromBuildJobRecursive1']
     operator: Union[bool, 'UserArgsFromBuildJobRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildJobRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildJobRecursive1']
 
 
@@ -61157,6 +61322,7 @@ class ManufacturingSessionIncludeFromBuildJobRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive2']
     fixture: Union[bool, 'FixtureArgsFromBuildJobRecursive2']
     operator: Union[bool, 'UserArgsFromBuildJobRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildJobRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildJobRecursive2']
 
 
@@ -61165,6 +61331,7 @@ class ManufacturingSessionIncludeFromBuildJobRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive3']
     fixture: Union[bool, 'FixtureArgsFromBuildJobRecursive3']
     operator: Union[bool, 'UserArgsFromBuildJobRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildJobRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildJobRecursive3']
 
 
@@ -61173,6 +61340,7 @@ class ManufacturingSessionIncludeFromBuildJobRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildJobRecursive4']
     fixture: Union[bool, 'FixtureArgsFromBuildJobRecursive4']
     operator: Union[bool, 'UserArgsFromBuildJobRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildJobRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildJobRecursive4']
 
 
@@ -62721,6 +62889,7 @@ class TestPackageIncludeFromBuildArtifact(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive1']
     createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildArtifactRecursive1']
 
 
 class TestPackageIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
@@ -62728,6 +62897,7 @@ class TestPackageIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive2']
     createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildArtifactRecursive2']
 
 
 class TestPackageIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
@@ -62735,6 +62905,7 @@ class TestPackageIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive3']
     createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildArtifactRecursive3']
 
 
 class TestPackageIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
@@ -62742,6 +62913,7 @@ class TestPackageIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive4']
     createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromBuildArtifactRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromBuildArtifactRecursive4']
 
 
 class TestPackageIncludeFromBuildArtifactRecursive4(TypedDict, total=False):
@@ -63411,7 +63583,6 @@ class ProductStageConfigIncludeFromBuildArtifact(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildArtifactRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildArtifactRecursive1']
 
 
 class ProductStageConfigIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
@@ -63423,7 +63594,6 @@ class ProductStageConfigIncludeFromBuildArtifactRecursive1(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildArtifactRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildArtifactRecursive2']
 
 
 class ProductStageConfigIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
@@ -63435,7 +63605,6 @@ class ProductStageConfigIncludeFromBuildArtifactRecursive2(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildArtifactRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildArtifactRecursive3']
 
 
 class ProductStageConfigIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
@@ -63447,7 +63616,6 @@ class ProductStageConfigIncludeFromBuildArtifactRecursive3(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromBuildArtifactRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromBuildArtifactRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromBuildArtifactRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromBuildArtifactRecursive4']
 
 
 class ProductStageConfigIncludeFromBuildArtifactRecursive4(TypedDict, total=False):
@@ -66486,7 +66654,6 @@ class AssetSetIncludeFromBuildArtifact(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromBuildArtifactRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildArtifactRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildArtifactRecursive1']
     createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromBuildArtifactRecursive1']
@@ -66498,7 +66665,6 @@ class AssetSetIncludeFromBuildArtifactRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromBuildArtifactRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildArtifactRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildArtifactRecursive2']
     createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromBuildArtifactRecursive2']
@@ -66510,7 +66676,6 @@ class AssetSetIncludeFromBuildArtifactRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromBuildArtifactRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildArtifactRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildArtifactRecursive3']
     createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromBuildArtifactRecursive3']
@@ -66522,7 +66687,6 @@ class AssetSetIncludeFromBuildArtifactRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromBuildArtifactRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromBuildArtifactRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromBuildArtifactRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromBuildArtifactRecursive4']
     createdBy: Union[bool, 'UserArgsFromBuildArtifactRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromBuildArtifactRecursive4']
@@ -66833,6 +66997,7 @@ class ManufacturingSessionIncludeFromBuildArtifact(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive1']
     fixture: Union[bool, 'FixtureArgsFromBuildArtifactRecursive1']
     operator: Union[bool, 'UserArgsFromBuildArtifactRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildArtifactRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildArtifactRecursive1']
 
 
@@ -66841,6 +67006,7 @@ class ManufacturingSessionIncludeFromBuildArtifactRecursive1(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive2']
     fixture: Union[bool, 'FixtureArgsFromBuildArtifactRecursive2']
     operator: Union[bool, 'UserArgsFromBuildArtifactRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildArtifactRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildArtifactRecursive2']
 
 
@@ -66849,6 +67015,7 @@ class ManufacturingSessionIncludeFromBuildArtifactRecursive2(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive3']
     fixture: Union[bool, 'FixtureArgsFromBuildArtifactRecursive3']
     operator: Union[bool, 'UserArgsFromBuildArtifactRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildArtifactRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildArtifactRecursive3']
 
 
@@ -66857,6 +67024,7 @@ class ManufacturingSessionIncludeFromBuildArtifactRecursive3(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromBuildArtifactRecursive4']
     fixture: Union[bool, 'FixtureArgsFromBuildArtifactRecursive4']
     operator: Union[bool, 'UserArgsFromBuildArtifactRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromBuildArtifactRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromBuildArtifactRecursive4']
 
 
@@ -68108,6 +68276,7 @@ class TestPackageIncludeFromSession(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive1']
     createdBy: Union[bool, 'UserArgsFromSessionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromSessionRecursive1']
 
 
 class TestPackageIncludeFromSessionRecursive1(TypedDict, total=False):
@@ -68115,6 +68284,7 @@ class TestPackageIncludeFromSessionRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive2']
     createdBy: Union[bool, 'UserArgsFromSessionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromSessionRecursive2']
 
 
 class TestPackageIncludeFromSessionRecursive2(TypedDict, total=False):
@@ -68122,6 +68292,7 @@ class TestPackageIncludeFromSessionRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive3']
     createdBy: Union[bool, 'UserArgsFromSessionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromSessionRecursive3']
 
 
 class TestPackageIncludeFromSessionRecursive3(TypedDict, total=False):
@@ -68129,6 +68300,7 @@ class TestPackageIncludeFromSessionRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive4']
     createdBy: Union[bool, 'UserArgsFromSessionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromSessionRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromSessionRecursive4']
 
 
 class TestPackageIncludeFromSessionRecursive4(TypedDict, total=False):
@@ -68798,7 +68970,6 @@ class ProductStageConfigIncludeFromSession(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromSessionRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromSessionRecursive1']
 
 
 class ProductStageConfigIncludeFromSessionRecursive1(TypedDict, total=False):
@@ -68810,7 +68981,6 @@ class ProductStageConfigIncludeFromSessionRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromSessionRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromSessionRecursive2']
 
 
 class ProductStageConfigIncludeFromSessionRecursive2(TypedDict, total=False):
@@ -68822,7 +68992,6 @@ class ProductStageConfigIncludeFromSessionRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromSessionRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromSessionRecursive3']
 
 
 class ProductStageConfigIncludeFromSessionRecursive3(TypedDict, total=False):
@@ -68834,7 +69003,6 @@ class ProductStageConfigIncludeFromSessionRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSessionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSessionRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromSessionRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromSessionRecursive4']
 
 
 class ProductStageConfigIncludeFromSessionRecursive4(TypedDict, total=False):
@@ -71873,7 +72041,6 @@ class AssetSetIncludeFromSession(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromSessionRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromSessionRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromSessionRecursive1']
     createdBy: Union[bool, 'UserArgsFromSessionRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromSessionRecursive1']
@@ -71885,7 +72052,6 @@ class AssetSetIncludeFromSessionRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromSessionRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromSessionRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromSessionRecursive2']
     createdBy: Union[bool, 'UserArgsFromSessionRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromSessionRecursive2']
@@ -71897,7 +72063,6 @@ class AssetSetIncludeFromSessionRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromSessionRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromSessionRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromSessionRecursive3']
     createdBy: Union[bool, 'UserArgsFromSessionRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromSessionRecursive3']
@@ -71909,7 +72074,6 @@ class AssetSetIncludeFromSessionRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSessionRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromSessionRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromSessionRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromSessionRecursive4']
     createdBy: Union[bool, 'UserArgsFromSessionRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromSessionRecursive4']
@@ -72220,6 +72384,7 @@ class ManufacturingSessionIncludeFromSession(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive1']
     fixture: Union[bool, 'FixtureArgsFromSessionRecursive1']
     operator: Union[bool, 'UserArgsFromSessionRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromSessionRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromSessionRecursive1']
 
 
@@ -72228,6 +72393,7 @@ class ManufacturingSessionIncludeFromSessionRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive2']
     fixture: Union[bool, 'FixtureArgsFromSessionRecursive2']
     operator: Union[bool, 'UserArgsFromSessionRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromSessionRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromSessionRecursive2']
 
 
@@ -72236,6 +72402,7 @@ class ManufacturingSessionIncludeFromSessionRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive3']
     fixture: Union[bool, 'FixtureArgsFromSessionRecursive3']
     operator: Union[bool, 'UserArgsFromSessionRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromSessionRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromSessionRecursive3']
 
 
@@ -72244,6 +72411,7 @@ class ManufacturingSessionIncludeFromSessionRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSessionRecursive4']
     fixture: Union[bool, 'FixtureArgsFromSessionRecursive4']
     operator: Union[bool, 'UserArgsFromSessionRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromSessionRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromSessionRecursive4']
 
 
@@ -73589,6 +73757,7 @@ class TestPackageIncludeFromDevice(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive1']
     createdBy: Union[bool, 'UserArgsFromDeviceRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromDeviceRecursive1']
 
 
 class TestPackageIncludeFromDeviceRecursive1(TypedDict, total=False):
@@ -73596,6 +73765,7 @@ class TestPackageIncludeFromDeviceRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive2']
     createdBy: Union[bool, 'UserArgsFromDeviceRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromDeviceRecursive2']
 
 
 class TestPackageIncludeFromDeviceRecursive2(TypedDict, total=False):
@@ -73603,6 +73773,7 @@ class TestPackageIncludeFromDeviceRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive3']
     createdBy: Union[bool, 'UserArgsFromDeviceRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromDeviceRecursive3']
 
 
 class TestPackageIncludeFromDeviceRecursive3(TypedDict, total=False):
@@ -73610,6 +73781,7 @@ class TestPackageIncludeFromDeviceRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive4']
     createdBy: Union[bool, 'UserArgsFromDeviceRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromDeviceRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromDeviceRecursive4']
 
 
 class TestPackageIncludeFromDeviceRecursive4(TypedDict, total=False):
@@ -74279,7 +74451,6 @@ class ProductStageConfigIncludeFromDevice(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromDeviceRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeviceRecursive1']
 
 
 class ProductStageConfigIncludeFromDeviceRecursive1(TypedDict, total=False):
@@ -74291,7 +74462,6 @@ class ProductStageConfigIncludeFromDeviceRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromDeviceRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeviceRecursive2']
 
 
 class ProductStageConfigIncludeFromDeviceRecursive2(TypedDict, total=False):
@@ -74303,7 +74473,6 @@ class ProductStageConfigIncludeFromDeviceRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromDeviceRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeviceRecursive3']
 
 
 class ProductStageConfigIncludeFromDeviceRecursive3(TypedDict, total=False):
@@ -74315,7 +74484,6 @@ class ProductStageConfigIncludeFromDeviceRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromDeviceRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromDeviceRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromDeviceRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromDeviceRecursive4']
 
 
 class ProductStageConfigIncludeFromDeviceRecursive4(TypedDict, total=False):
@@ -77354,7 +77522,6 @@ class AssetSetIncludeFromDevice(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromDeviceRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeviceRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromDeviceRecursive1']
     createdBy: Union[bool, 'UserArgsFromDeviceRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromDeviceRecursive1']
@@ -77366,7 +77533,6 @@ class AssetSetIncludeFromDeviceRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromDeviceRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeviceRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromDeviceRecursive2']
     createdBy: Union[bool, 'UserArgsFromDeviceRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromDeviceRecursive2']
@@ -77378,7 +77544,6 @@ class AssetSetIncludeFromDeviceRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromDeviceRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeviceRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromDeviceRecursive3']
     createdBy: Union[bool, 'UserArgsFromDeviceRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromDeviceRecursive3']
@@ -77390,7 +77555,6 @@ class AssetSetIncludeFromDeviceRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromDeviceRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromDeviceRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromDeviceRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromDeviceRecursive4']
     createdBy: Union[bool, 'UserArgsFromDeviceRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromDeviceRecursive4']
@@ -77701,6 +77865,7 @@ class ManufacturingSessionIncludeFromDevice(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive1']
     fixture: Union[bool, 'FixtureArgsFromDeviceRecursive1']
     operator: Union[bool, 'UserArgsFromDeviceRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromDeviceRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromDeviceRecursive1']
 
 
@@ -77709,6 +77874,7 @@ class ManufacturingSessionIncludeFromDeviceRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive2']
     fixture: Union[bool, 'FixtureArgsFromDeviceRecursive2']
     operator: Union[bool, 'UserArgsFromDeviceRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromDeviceRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromDeviceRecursive2']
 
 
@@ -77717,6 +77883,7 @@ class ManufacturingSessionIncludeFromDeviceRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive3']
     fixture: Union[bool, 'FixtureArgsFromDeviceRecursive3']
     operator: Union[bool, 'UserArgsFromDeviceRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromDeviceRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromDeviceRecursive3']
 
 
@@ -77725,6 +77892,7 @@ class ManufacturingSessionIncludeFromDeviceRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromDeviceRecursive4']
     fixture: Union[bool, 'FixtureArgsFromDeviceRecursive4']
     operator: Union[bool, 'UserArgsFromDeviceRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromDeviceRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromDeviceRecursive4']
 
 
@@ -78799,6 +78967,7 @@ class TestPackageIncludeFromFixtureDesign(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
     createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureDesignRecursive1']
 
 
 class TestPackageIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
@@ -78806,6 +78975,7 @@ class TestPackageIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
     createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureDesignRecursive2']
 
 
 class TestPackageIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
@@ -78813,6 +78983,7 @@ class TestPackageIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
     createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureDesignRecursive3']
 
 
 class TestPackageIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
@@ -78820,6 +78991,7 @@ class TestPackageIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
     createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureDesignRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureDesignRecursive4']
 
 
 class TestPackageIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
@@ -79489,7 +79661,6 @@ class ProductStageConfigIncludeFromFixtureDesign(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureDesignRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureDesignRecursive1']
 
 
 class ProductStageConfigIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
@@ -79501,7 +79672,6 @@ class ProductStageConfigIncludeFromFixtureDesignRecursive1(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureDesignRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureDesignRecursive2']
 
 
 class ProductStageConfigIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
@@ -79513,7 +79683,6 @@ class ProductStageConfigIncludeFromFixtureDesignRecursive2(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureDesignRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureDesignRecursive3']
 
 
 class ProductStageConfigIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
@@ -79525,7 +79694,6 @@ class ProductStageConfigIncludeFromFixtureDesignRecursive3(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureDesignRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureDesignRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureDesignRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureDesignRecursive4']
 
 
 class ProductStageConfigIncludeFromFixtureDesignRecursive4(TypedDict, total=False):
@@ -82564,7 +82732,6 @@ class AssetSetIncludeFromFixtureDesign(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureDesignRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureDesignRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureDesignRecursive1']
     createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureDesignRecursive1']
@@ -82576,7 +82743,6 @@ class AssetSetIncludeFromFixtureDesignRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureDesignRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureDesignRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureDesignRecursive2']
     createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureDesignRecursive2']
@@ -82588,7 +82754,6 @@ class AssetSetIncludeFromFixtureDesignRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureDesignRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureDesignRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureDesignRecursive3']
     createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureDesignRecursive3']
@@ -82600,7 +82765,6 @@ class AssetSetIncludeFromFixtureDesignRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureDesignRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureDesignRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureDesignRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureDesignRecursive4']
     createdBy: Union[bool, 'UserArgsFromFixtureDesignRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureDesignRecursive4']
@@ -82911,6 +83075,7 @@ class ManufacturingSessionIncludeFromFixtureDesign(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive1']
     fixture: Union[bool, 'FixtureArgsFromFixtureDesignRecursive1']
     operator: Union[bool, 'UserArgsFromFixtureDesignRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureDesignRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureDesignRecursive1']
 
 
@@ -82919,6 +83084,7 @@ class ManufacturingSessionIncludeFromFixtureDesignRecursive1(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive2']
     fixture: Union[bool, 'FixtureArgsFromFixtureDesignRecursive2']
     operator: Union[bool, 'UserArgsFromFixtureDesignRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureDesignRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureDesignRecursive2']
 
 
@@ -82927,6 +83093,7 @@ class ManufacturingSessionIncludeFromFixtureDesignRecursive2(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive3']
     fixture: Union[bool, 'FixtureArgsFromFixtureDesignRecursive3']
     operator: Union[bool, 'UserArgsFromFixtureDesignRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureDesignRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureDesignRecursive3']
 
 
@@ -82935,6 +83102,7 @@ class ManufacturingSessionIncludeFromFixtureDesignRecursive3(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromFixtureDesignRecursive4']
     fixture: Union[bool, 'FixtureArgsFromFixtureDesignRecursive4']
     operator: Union[bool, 'UserArgsFromFixtureDesignRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureDesignRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureDesignRecursive4']
 
 
@@ -84175,6 +84343,7 @@ class TestPackageIncludeFromFixture(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive1']
     createdBy: Union[bool, 'UserArgsFromFixtureRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureRecursive1']
 
 
 class TestPackageIncludeFromFixtureRecursive1(TypedDict, total=False):
@@ -84182,6 +84351,7 @@ class TestPackageIncludeFromFixtureRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive2']
     createdBy: Union[bool, 'UserArgsFromFixtureRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureRecursive2']
 
 
 class TestPackageIncludeFromFixtureRecursive2(TypedDict, total=False):
@@ -84189,6 +84359,7 @@ class TestPackageIncludeFromFixtureRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive3']
     createdBy: Union[bool, 'UserArgsFromFixtureRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureRecursive3']
 
 
 class TestPackageIncludeFromFixtureRecursive3(TypedDict, total=False):
@@ -84196,6 +84367,7 @@ class TestPackageIncludeFromFixtureRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive4']
     createdBy: Union[bool, 'UserArgsFromFixtureRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureRecursive4']
 
 
 class TestPackageIncludeFromFixtureRecursive4(TypedDict, total=False):
@@ -84865,7 +85037,6 @@ class ProductStageConfigIncludeFromFixture(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureRecursive1']
 
 
 class ProductStageConfigIncludeFromFixtureRecursive1(TypedDict, total=False):
@@ -84877,7 +85048,6 @@ class ProductStageConfigIncludeFromFixtureRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureRecursive2']
 
 
 class ProductStageConfigIncludeFromFixtureRecursive2(TypedDict, total=False):
@@ -84889,7 +85059,6 @@ class ProductStageConfigIncludeFromFixtureRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureRecursive3']
 
 
 class ProductStageConfigIncludeFromFixtureRecursive3(TypedDict, total=False):
@@ -84901,7 +85070,6 @@ class ProductStageConfigIncludeFromFixtureRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureRecursive4']
 
 
 class ProductStageConfigIncludeFromFixtureRecursive4(TypedDict, total=False):
@@ -87940,7 +88108,6 @@ class AssetSetIncludeFromFixture(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureRecursive1']
     createdBy: Union[bool, 'UserArgsFromFixtureRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureRecursive1']
@@ -87952,7 +88119,6 @@ class AssetSetIncludeFromFixtureRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureRecursive2']
     createdBy: Union[bool, 'UserArgsFromFixtureRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureRecursive2']
@@ -87964,7 +88130,6 @@ class AssetSetIncludeFromFixtureRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureRecursive3']
     createdBy: Union[bool, 'UserArgsFromFixtureRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureRecursive3']
@@ -87976,7 +88141,6 @@ class AssetSetIncludeFromFixtureRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureRecursive4']
     createdBy: Union[bool, 'UserArgsFromFixtureRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureRecursive4']
@@ -88287,6 +88451,7 @@ class ManufacturingSessionIncludeFromFixture(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive1']
     fixture: Union[bool, 'FixtureArgsFromFixtureRecursive1']
     operator: Union[bool, 'UserArgsFromFixtureRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureRecursive1']
 
 
@@ -88295,6 +88460,7 @@ class ManufacturingSessionIncludeFromFixtureRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive2']
     fixture: Union[bool, 'FixtureArgsFromFixtureRecursive2']
     operator: Union[bool, 'UserArgsFromFixtureRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureRecursive2']
 
 
@@ -88303,6 +88469,7 @@ class ManufacturingSessionIncludeFromFixtureRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive3']
     fixture: Union[bool, 'FixtureArgsFromFixtureRecursive3']
     operator: Union[bool, 'UserArgsFromFixtureRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureRecursive3']
 
 
@@ -88311,6 +88478,7 @@ class ManufacturingSessionIncludeFromFixtureRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureRecursive4']
     fixture: Union[bool, 'FixtureArgsFromFixtureRecursive4']
     operator: Union[bool, 'UserArgsFromFixtureRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureRecursive4']
 
 
@@ -89671,6 +89839,7 @@ class TestPackageIncludeFromFixtureSlot(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
     createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureSlotRecursive1']
 
 
 class TestPackageIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
@@ -89678,6 +89847,7 @@ class TestPackageIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
     createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureSlotRecursive2']
 
 
 class TestPackageIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
@@ -89685,6 +89855,7 @@ class TestPackageIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
     createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureSlotRecursive3']
 
 
 class TestPackageIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
@@ -89692,6 +89863,7 @@ class TestPackageIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
     createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromFixtureSlotRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromFixtureSlotRecursive4']
 
 
 class TestPackageIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
@@ -90361,7 +90533,6 @@ class ProductStageConfigIncludeFromFixtureSlot(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureSlotRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureSlotRecursive1']
 
 
 class ProductStageConfigIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
@@ -90373,7 +90544,6 @@ class ProductStageConfigIncludeFromFixtureSlotRecursive1(TypedDict, total=False)
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureSlotRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureSlotRecursive2']
 
 
 class ProductStageConfigIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
@@ -90385,7 +90555,6 @@ class ProductStageConfigIncludeFromFixtureSlotRecursive2(TypedDict, total=False)
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureSlotRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureSlotRecursive3']
 
 
 class ProductStageConfigIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
@@ -90397,7 +90566,6 @@ class ProductStageConfigIncludeFromFixtureSlotRecursive3(TypedDict, total=False)
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromFixtureSlotRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromFixtureSlotRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromFixtureSlotRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromFixtureSlotRecursive4']
 
 
 class ProductStageConfigIncludeFromFixtureSlotRecursive4(TypedDict, total=False):
@@ -93436,7 +93604,6 @@ class AssetSetIncludeFromFixtureSlot(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureSlotRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureSlotRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureSlotRecursive1']
     createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureSlotRecursive1']
@@ -93448,7 +93615,6 @@ class AssetSetIncludeFromFixtureSlotRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureSlotRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureSlotRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureSlotRecursive2']
     createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureSlotRecursive2']
@@ -93460,7 +93626,6 @@ class AssetSetIncludeFromFixtureSlotRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureSlotRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureSlotRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureSlotRecursive3']
     createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureSlotRecursive3']
@@ -93472,7 +93637,6 @@ class AssetSetIncludeFromFixtureSlotRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromFixtureSlotRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromFixtureSlotRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromFixtureSlotRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromFixtureSlotRecursive4']
     createdBy: Union[bool, 'UserArgsFromFixtureSlotRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromFixtureSlotRecursive4']
@@ -93783,6 +93947,7 @@ class ManufacturingSessionIncludeFromFixtureSlot(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive1']
     fixture: Union[bool, 'FixtureArgsFromFixtureSlotRecursive1']
     operator: Union[bool, 'UserArgsFromFixtureSlotRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureSlotRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureSlotRecursive1']
 
 
@@ -93791,6 +93956,7 @@ class ManufacturingSessionIncludeFromFixtureSlotRecursive1(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive2']
     fixture: Union[bool, 'FixtureArgsFromFixtureSlotRecursive2']
     operator: Union[bool, 'UserArgsFromFixtureSlotRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureSlotRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureSlotRecursive2']
 
 
@@ -93799,6 +93965,7 @@ class ManufacturingSessionIncludeFromFixtureSlotRecursive2(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive3']
     fixture: Union[bool, 'FixtureArgsFromFixtureSlotRecursive3']
     operator: Union[bool, 'UserArgsFromFixtureSlotRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureSlotRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureSlotRecursive3']
 
 
@@ -93807,6 +93974,7 @@ class ManufacturingSessionIncludeFromFixtureSlotRecursive3(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromFixtureSlotRecursive4']
     fixture: Union[bool, 'FixtureArgsFromFixtureSlotRecursive4']
     operator: Union[bool, 'UserArgsFromFixtureSlotRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromFixtureSlotRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromFixtureSlotRecursive4']
 
 
@@ -95029,6 +95197,7 @@ class TestPackageIncludeFromNode(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive1']
     createdBy: Union[bool, 'UserArgsFromNodeRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromNodeRecursive1']
 
 
 class TestPackageIncludeFromNodeRecursive1(TypedDict, total=False):
@@ -95036,6 +95205,7 @@ class TestPackageIncludeFromNodeRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive2']
     createdBy: Union[bool, 'UserArgsFromNodeRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromNodeRecursive2']
 
 
 class TestPackageIncludeFromNodeRecursive2(TypedDict, total=False):
@@ -95043,6 +95213,7 @@ class TestPackageIncludeFromNodeRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive3']
     createdBy: Union[bool, 'UserArgsFromNodeRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromNodeRecursive3']
 
 
 class TestPackageIncludeFromNodeRecursive3(TypedDict, total=False):
@@ -95050,6 +95221,7 @@ class TestPackageIncludeFromNodeRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive4']
     createdBy: Union[bool, 'UserArgsFromNodeRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromNodeRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromNodeRecursive4']
 
 
 class TestPackageIncludeFromNodeRecursive4(TypedDict, total=False):
@@ -95719,7 +95891,6 @@ class ProductStageConfigIncludeFromNode(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromNodeRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromNodeRecursive1']
 
 
 class ProductStageConfigIncludeFromNodeRecursive1(TypedDict, total=False):
@@ -95731,7 +95902,6 @@ class ProductStageConfigIncludeFromNodeRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromNodeRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromNodeRecursive2']
 
 
 class ProductStageConfigIncludeFromNodeRecursive2(TypedDict, total=False):
@@ -95743,7 +95913,6 @@ class ProductStageConfigIncludeFromNodeRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromNodeRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromNodeRecursive3']
 
 
 class ProductStageConfigIncludeFromNodeRecursive3(TypedDict, total=False):
@@ -95755,7 +95924,6 @@ class ProductStageConfigIncludeFromNodeRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromNodeRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromNodeRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromNodeRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromNodeRecursive4']
 
 
 class ProductStageConfigIncludeFromNodeRecursive4(TypedDict, total=False):
@@ -98794,7 +98962,6 @@ class AssetSetIncludeFromNode(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromNodeRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromNodeRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromNodeRecursive1']
     createdBy: Union[bool, 'UserArgsFromNodeRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromNodeRecursive1']
@@ -98806,7 +98973,6 @@ class AssetSetIncludeFromNodeRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromNodeRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromNodeRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromNodeRecursive2']
     createdBy: Union[bool, 'UserArgsFromNodeRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromNodeRecursive2']
@@ -98818,7 +98984,6 @@ class AssetSetIncludeFromNodeRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromNodeRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromNodeRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromNodeRecursive3']
     createdBy: Union[bool, 'UserArgsFromNodeRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromNodeRecursive3']
@@ -98830,7 +98995,6 @@ class AssetSetIncludeFromNodeRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromNodeRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromNodeRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromNodeRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromNodeRecursive4']
     createdBy: Union[bool, 'UserArgsFromNodeRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromNodeRecursive4']
@@ -99141,6 +99305,7 @@ class ManufacturingSessionIncludeFromNode(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive1']
     fixture: Union[bool, 'FixtureArgsFromNodeRecursive1']
     operator: Union[bool, 'UserArgsFromNodeRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromNodeRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromNodeRecursive1']
 
 
@@ -99149,6 +99314,7 @@ class ManufacturingSessionIncludeFromNodeRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive2']
     fixture: Union[bool, 'FixtureArgsFromNodeRecursive2']
     operator: Union[bool, 'UserArgsFromNodeRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromNodeRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromNodeRecursive2']
 
 
@@ -99157,6 +99323,7 @@ class ManufacturingSessionIncludeFromNodeRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive3']
     fixture: Union[bool, 'FixtureArgsFromNodeRecursive3']
     operator: Union[bool, 'UserArgsFromNodeRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromNodeRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromNodeRecursive3']
 
 
@@ -99165,6 +99332,7 @@ class ManufacturingSessionIncludeFromNodeRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromNodeRecursive4']
     fixture: Union[bool, 'FixtureArgsFromNodeRecursive4']
     operator: Union[bool, 'UserArgsFromNodeRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromNodeRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromNodeRecursive4']
 
 
@@ -100321,6 +100489,7 @@ class TestPackageIncludeFromIcleDevice(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
     createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIcleDeviceRecursive1']
 
 
 class TestPackageIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
@@ -100328,6 +100497,7 @@ class TestPackageIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
     createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIcleDeviceRecursive2']
 
 
 class TestPackageIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
@@ -100335,6 +100505,7 @@ class TestPackageIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
     createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIcleDeviceRecursive3']
 
 
 class TestPackageIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
@@ -100342,6 +100513,7 @@ class TestPackageIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
     createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIcleDeviceRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIcleDeviceRecursive4']
 
 
 class TestPackageIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
@@ -101011,7 +101183,6 @@ class ProductStageConfigIncludeFromIcleDevice(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIcleDeviceRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleDeviceRecursive1']
 
 
 class ProductStageConfigIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
@@ -101023,7 +101194,6 @@ class ProductStageConfigIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIcleDeviceRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleDeviceRecursive2']
 
 
 class ProductStageConfigIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
@@ -101035,7 +101205,6 @@ class ProductStageConfigIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIcleDeviceRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleDeviceRecursive3']
 
 
 class ProductStageConfigIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
@@ -101047,7 +101216,6 @@ class ProductStageConfigIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleDeviceRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleDeviceRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIcleDeviceRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleDeviceRecursive4']
 
 
 class ProductStageConfigIncludeFromIcleDeviceRecursive4(TypedDict, total=False):
@@ -104086,7 +104254,6 @@ class AssetSetIncludeFromIcleDevice(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromIcleDeviceRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIcleDeviceRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIcleDeviceRecursive1']
     createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromIcleDeviceRecursive1']
@@ -104098,7 +104265,6 @@ class AssetSetIncludeFromIcleDeviceRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromIcleDeviceRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIcleDeviceRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIcleDeviceRecursive2']
     createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromIcleDeviceRecursive2']
@@ -104110,7 +104276,6 @@ class AssetSetIncludeFromIcleDeviceRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromIcleDeviceRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIcleDeviceRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIcleDeviceRecursive3']
     createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromIcleDeviceRecursive3']
@@ -104122,7 +104287,6 @@ class AssetSetIncludeFromIcleDeviceRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleDeviceRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromIcleDeviceRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIcleDeviceRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIcleDeviceRecursive4']
     createdBy: Union[bool, 'UserArgsFromIcleDeviceRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromIcleDeviceRecursive4']
@@ -104433,6 +104597,7 @@ class ManufacturingSessionIncludeFromIcleDevice(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive1']
     fixture: Union[bool, 'FixtureArgsFromIcleDeviceRecursive1']
     operator: Union[bool, 'UserArgsFromIcleDeviceRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromIcleDeviceRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIcleDeviceRecursive1']
 
 
@@ -104441,6 +104606,7 @@ class ManufacturingSessionIncludeFromIcleDeviceRecursive1(TypedDict, total=False
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive2']
     fixture: Union[bool, 'FixtureArgsFromIcleDeviceRecursive2']
     operator: Union[bool, 'UserArgsFromIcleDeviceRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromIcleDeviceRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIcleDeviceRecursive2']
 
 
@@ -104449,6 +104615,7 @@ class ManufacturingSessionIncludeFromIcleDeviceRecursive2(TypedDict, total=False
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive3']
     fixture: Union[bool, 'FixtureArgsFromIcleDeviceRecursive3']
     operator: Union[bool, 'UserArgsFromIcleDeviceRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromIcleDeviceRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIcleDeviceRecursive3']
 
 
@@ -104457,6 +104624,7 @@ class ManufacturingSessionIncludeFromIcleDeviceRecursive3(TypedDict, total=False
     product: Union[bool, 'ProductArgsFromIcleDeviceRecursive4']
     fixture: Union[bool, 'FixtureArgsFromIcleDeviceRecursive4']
     operator: Union[bool, 'UserArgsFromIcleDeviceRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromIcleDeviceRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIcleDeviceRecursive4']
 
 
@@ -105604,6 +105772,7 @@ class TestPackageIncludeFromIclePendingCommand(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
     createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIclePendingCommandRecursive1']
 
 
 class TestPackageIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
@@ -105611,6 +105780,7 @@ class TestPackageIncludeFromIclePendingCommandRecursive1(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
     createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIclePendingCommandRecursive2']
 
 
 class TestPackageIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
@@ -105618,6 +105788,7 @@ class TestPackageIncludeFromIclePendingCommandRecursive2(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
     createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIclePendingCommandRecursive3']
 
 
 class TestPackageIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
@@ -105625,6 +105796,7 @@ class TestPackageIncludeFromIclePendingCommandRecursive3(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
     createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIclePendingCommandRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIclePendingCommandRecursive4']
 
 
 class TestPackageIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
@@ -106294,7 +106466,6 @@ class ProductStageConfigIncludeFromIclePendingCommand(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIclePendingCommandRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIclePendingCommandRecursive1']
 
 
 class ProductStageConfigIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
@@ -106306,7 +106477,6 @@ class ProductStageConfigIncludeFromIclePendingCommandRecursive1(TypedDict, total
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIclePendingCommandRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIclePendingCommandRecursive2']
 
 
 class ProductStageConfigIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
@@ -106318,7 +106488,6 @@ class ProductStageConfigIncludeFromIclePendingCommandRecursive2(TypedDict, total
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIclePendingCommandRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIclePendingCommandRecursive3']
 
 
 class ProductStageConfigIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
@@ -106330,7 +106499,6 @@ class ProductStageConfigIncludeFromIclePendingCommandRecursive3(TypedDict, total
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIclePendingCommandRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIclePendingCommandRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIclePendingCommandRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIclePendingCommandRecursive4']
 
 
 class ProductStageConfigIncludeFromIclePendingCommandRecursive4(TypedDict, total=False):
@@ -109369,7 +109537,6 @@ class AssetSetIncludeFromIclePendingCommand(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromIclePendingCommandRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIclePendingCommandRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIclePendingCommandRecursive1']
     createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromIclePendingCommandRecursive1']
@@ -109381,7 +109548,6 @@ class AssetSetIncludeFromIclePendingCommandRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromIclePendingCommandRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIclePendingCommandRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIclePendingCommandRecursive2']
     createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromIclePendingCommandRecursive2']
@@ -109393,7 +109559,6 @@ class AssetSetIncludeFromIclePendingCommandRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromIclePendingCommandRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIclePendingCommandRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIclePendingCommandRecursive3']
     createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromIclePendingCommandRecursive3']
@@ -109405,7 +109570,6 @@ class AssetSetIncludeFromIclePendingCommandRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIclePendingCommandRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromIclePendingCommandRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIclePendingCommandRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIclePendingCommandRecursive4']
     createdBy: Union[bool, 'UserArgsFromIclePendingCommandRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromIclePendingCommandRecursive4']
@@ -109716,6 +109880,7 @@ class ManufacturingSessionIncludeFromIclePendingCommand(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive1']
     fixture: Union[bool, 'FixtureArgsFromIclePendingCommandRecursive1']
     operator: Union[bool, 'UserArgsFromIclePendingCommandRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromIclePendingCommandRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIclePendingCommandRecursive1']
 
 
@@ -109724,6 +109889,7 @@ class ManufacturingSessionIncludeFromIclePendingCommandRecursive1(TypedDict, tot
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive2']
     fixture: Union[bool, 'FixtureArgsFromIclePendingCommandRecursive2']
     operator: Union[bool, 'UserArgsFromIclePendingCommandRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromIclePendingCommandRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIclePendingCommandRecursive2']
 
 
@@ -109732,6 +109898,7 @@ class ManufacturingSessionIncludeFromIclePendingCommandRecursive2(TypedDict, tot
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive3']
     fixture: Union[bool, 'FixtureArgsFromIclePendingCommandRecursive3']
     operator: Union[bool, 'UserArgsFromIclePendingCommandRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromIclePendingCommandRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIclePendingCommandRecursive3']
 
 
@@ -109740,6 +109907,7 @@ class ManufacturingSessionIncludeFromIclePendingCommandRecursive3(TypedDict, tot
     product: Union[bool, 'ProductArgsFromIclePendingCommandRecursive4']
     fixture: Union[bool, 'FixtureArgsFromIclePendingCommandRecursive4']
     operator: Union[bool, 'UserArgsFromIclePendingCommandRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromIclePendingCommandRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIclePendingCommandRecursive4']
 
 
@@ -110787,6 +110955,7 @@ class TestPackageIncludeFromIcleLog(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
     createdBy: Union[bool, 'UserArgsFromIcleLogRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIcleLogRecursive1']
 
 
 class TestPackageIncludeFromIcleLogRecursive1(TypedDict, total=False):
@@ -110794,6 +110963,7 @@ class TestPackageIncludeFromIcleLogRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
     createdBy: Union[bool, 'UserArgsFromIcleLogRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIcleLogRecursive2']
 
 
 class TestPackageIncludeFromIcleLogRecursive2(TypedDict, total=False):
@@ -110801,6 +110971,7 @@ class TestPackageIncludeFromIcleLogRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
     createdBy: Union[bool, 'UserArgsFromIcleLogRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIcleLogRecursive3']
 
 
 class TestPackageIncludeFromIcleLogRecursive3(TypedDict, total=False):
@@ -110808,6 +110979,7 @@ class TestPackageIncludeFromIcleLogRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
     createdBy: Union[bool, 'UserArgsFromIcleLogRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromIcleLogRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromIcleLogRecursive4']
 
 
 class TestPackageIncludeFromIcleLogRecursive4(TypedDict, total=False):
@@ -111477,7 +111649,6 @@ class ProductStageConfigIncludeFromIcleLog(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIcleLogRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleLogRecursive1']
 
 
 class ProductStageConfigIncludeFromIcleLogRecursive1(TypedDict, total=False):
@@ -111489,7 +111660,6 @@ class ProductStageConfigIncludeFromIcleLogRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIcleLogRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleLogRecursive2']
 
 
 class ProductStageConfigIncludeFromIcleLogRecursive2(TypedDict, total=False):
@@ -111501,7 +111671,6 @@ class ProductStageConfigIncludeFromIcleLogRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIcleLogRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleLogRecursive3']
 
 
 class ProductStageConfigIncludeFromIcleLogRecursive3(TypedDict, total=False):
@@ -111513,7 +111682,6 @@ class ProductStageConfigIncludeFromIcleLogRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromIcleLogRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromIcleLogRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromIcleLogRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromIcleLogRecursive4']
 
 
 class ProductStageConfigIncludeFromIcleLogRecursive4(TypedDict, total=False):
@@ -114552,7 +114720,6 @@ class AssetSetIncludeFromIcleLog(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromIcleLogRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIcleLogRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIcleLogRecursive1']
     createdBy: Union[bool, 'UserArgsFromIcleLogRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromIcleLogRecursive1']
@@ -114564,7 +114731,6 @@ class AssetSetIncludeFromIcleLogRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromIcleLogRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIcleLogRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIcleLogRecursive2']
     createdBy: Union[bool, 'UserArgsFromIcleLogRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromIcleLogRecursive2']
@@ -114576,7 +114742,6 @@ class AssetSetIncludeFromIcleLogRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromIcleLogRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIcleLogRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIcleLogRecursive3']
     createdBy: Union[bool, 'UserArgsFromIcleLogRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromIcleLogRecursive3']
@@ -114588,7 +114753,6 @@ class AssetSetIncludeFromIcleLogRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromIcleLogRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromIcleLogRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromIcleLogRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromIcleLogRecursive4']
     createdBy: Union[bool, 'UserArgsFromIcleLogRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromIcleLogRecursive4']
@@ -114899,6 +115063,7 @@ class ManufacturingSessionIncludeFromIcleLog(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive1']
     fixture: Union[bool, 'FixtureArgsFromIcleLogRecursive1']
     operator: Union[bool, 'UserArgsFromIcleLogRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromIcleLogRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIcleLogRecursive1']
 
 
@@ -114907,6 +115072,7 @@ class ManufacturingSessionIncludeFromIcleLogRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive2']
     fixture: Union[bool, 'FixtureArgsFromIcleLogRecursive2']
     operator: Union[bool, 'UserArgsFromIcleLogRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromIcleLogRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIcleLogRecursive2']
 
 
@@ -114915,6 +115081,7 @@ class ManufacturingSessionIncludeFromIcleLogRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive3']
     fixture: Union[bool, 'FixtureArgsFromIcleLogRecursive3']
     operator: Union[bool, 'UserArgsFromIcleLogRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromIcleLogRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIcleLogRecursive3']
 
 
@@ -114923,6 +115090,7 @@ class ManufacturingSessionIncludeFromIcleLogRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromIcleLogRecursive4']
     fixture: Union[bool, 'FixtureArgsFromIcleLogRecursive4']
     operator: Union[bool, 'UserArgsFromIcleLogRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromIcleLogRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromIcleLogRecursive4']
 
 
@@ -115977,6 +116145,7 @@ class TestPackageIncludeFromTest(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive1']
     createdBy: Union[bool, 'UserArgsFromTestRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestRecursive1']
 
 
 class TestPackageIncludeFromTestRecursive1(TypedDict, total=False):
@@ -115984,6 +116153,7 @@ class TestPackageIncludeFromTestRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive2']
     createdBy: Union[bool, 'UserArgsFromTestRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestRecursive2']
 
 
 class TestPackageIncludeFromTestRecursive2(TypedDict, total=False):
@@ -115991,6 +116161,7 @@ class TestPackageIncludeFromTestRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive3']
     createdBy: Union[bool, 'UserArgsFromTestRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestRecursive3']
 
 
 class TestPackageIncludeFromTestRecursive3(TypedDict, total=False):
@@ -115998,6 +116169,7 @@ class TestPackageIncludeFromTestRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive4']
     createdBy: Union[bool, 'UserArgsFromTestRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestRecursive4']
 
 
 class TestPackageIncludeFromTestRecursive4(TypedDict, total=False):
@@ -116667,7 +116839,6 @@ class ProductStageConfigIncludeFromTest(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestRecursive1']
 
 
 class ProductStageConfigIncludeFromTestRecursive1(TypedDict, total=False):
@@ -116679,7 +116850,6 @@ class ProductStageConfigIncludeFromTestRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestRecursive2']
 
 
 class ProductStageConfigIncludeFromTestRecursive2(TypedDict, total=False):
@@ -116691,7 +116861,6 @@ class ProductStageConfigIncludeFromTestRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestRecursive3']
 
 
 class ProductStageConfigIncludeFromTestRecursive3(TypedDict, total=False):
@@ -116703,7 +116872,6 @@ class ProductStageConfigIncludeFromTestRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestRecursive4']
 
 
 class ProductStageConfigIncludeFromTestRecursive4(TypedDict, total=False):
@@ -119742,7 +119910,6 @@ class AssetSetIncludeFromTest(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromTestRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestRecursive1']
     createdBy: Union[bool, 'UserArgsFromTestRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromTestRecursive1']
@@ -119754,7 +119921,6 @@ class AssetSetIncludeFromTestRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromTestRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestRecursive2']
     createdBy: Union[bool, 'UserArgsFromTestRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromTestRecursive2']
@@ -119766,7 +119932,6 @@ class AssetSetIncludeFromTestRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromTestRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestRecursive3']
     createdBy: Union[bool, 'UserArgsFromTestRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromTestRecursive3']
@@ -119778,7 +119943,6 @@ class AssetSetIncludeFromTestRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromTestRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestRecursive4']
     createdBy: Union[bool, 'UserArgsFromTestRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromTestRecursive4']
@@ -120089,6 +120253,7 @@ class ManufacturingSessionIncludeFromTest(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive1']
     fixture: Union[bool, 'FixtureArgsFromTestRecursive1']
     operator: Union[bool, 'UserArgsFromTestRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromTestRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestRecursive1']
 
 
@@ -120097,6 +120262,7 @@ class ManufacturingSessionIncludeFromTestRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive2']
     fixture: Union[bool, 'FixtureArgsFromTestRecursive2']
     operator: Union[bool, 'UserArgsFromTestRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromTestRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestRecursive2']
 
 
@@ -120105,6 +120271,7 @@ class ManufacturingSessionIncludeFromTestRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive3']
     fixture: Union[bool, 'FixtureArgsFromTestRecursive3']
     operator: Union[bool, 'UserArgsFromTestRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromTestRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestRecursive3']
 
 
@@ -120113,6 +120280,7 @@ class ManufacturingSessionIncludeFromTestRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestRecursive4']
     fixture: Union[bool, 'FixtureArgsFromTestRecursive4']
     operator: Union[bool, 'UserArgsFromTestRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromTestRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestRecursive4']
 
 
@@ -121237,6 +121405,7 @@ class TestPackageIncludeFromTestExecution(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
     createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestExecutionRecursive1']
 
 
 class TestPackageIncludeFromTestExecutionRecursive1(TypedDict, total=False):
@@ -121244,6 +121413,7 @@ class TestPackageIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
     createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestExecutionRecursive2']
 
 
 class TestPackageIncludeFromTestExecutionRecursive2(TypedDict, total=False):
@@ -121251,6 +121421,7 @@ class TestPackageIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
     createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestExecutionRecursive3']
 
 
 class TestPackageIncludeFromTestExecutionRecursive3(TypedDict, total=False):
@@ -121258,6 +121429,7 @@ class TestPackageIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
     createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestExecutionRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestExecutionRecursive4']
 
 
 class TestPackageIncludeFromTestExecutionRecursive4(TypedDict, total=False):
@@ -121927,7 +122099,6 @@ class ProductStageConfigIncludeFromTestExecution(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestExecutionRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestExecutionRecursive1']
 
 
 class ProductStageConfigIncludeFromTestExecutionRecursive1(TypedDict, total=False):
@@ -121939,7 +122110,6 @@ class ProductStageConfigIncludeFromTestExecutionRecursive1(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestExecutionRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestExecutionRecursive2']
 
 
 class ProductStageConfigIncludeFromTestExecutionRecursive2(TypedDict, total=False):
@@ -121951,7 +122121,6 @@ class ProductStageConfigIncludeFromTestExecutionRecursive2(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestExecutionRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestExecutionRecursive3']
 
 
 class ProductStageConfigIncludeFromTestExecutionRecursive3(TypedDict, total=False):
@@ -121963,7 +122132,6 @@ class ProductStageConfigIncludeFromTestExecutionRecursive3(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestExecutionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestExecutionRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestExecutionRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestExecutionRecursive4']
 
 
 class ProductStageConfigIncludeFromTestExecutionRecursive4(TypedDict, total=False):
@@ -125002,7 +125170,6 @@ class AssetSetIncludeFromTestExecution(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromTestExecutionRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestExecutionRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestExecutionRecursive1']
     createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromTestExecutionRecursive1']
@@ -125014,7 +125181,6 @@ class AssetSetIncludeFromTestExecutionRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromTestExecutionRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestExecutionRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestExecutionRecursive2']
     createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromTestExecutionRecursive2']
@@ -125026,7 +125192,6 @@ class AssetSetIncludeFromTestExecutionRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromTestExecutionRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestExecutionRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestExecutionRecursive3']
     createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromTestExecutionRecursive3']
@@ -125038,7 +125203,6 @@ class AssetSetIncludeFromTestExecutionRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestExecutionRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromTestExecutionRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestExecutionRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestExecutionRecursive4']
     createdBy: Union[bool, 'UserArgsFromTestExecutionRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromTestExecutionRecursive4']
@@ -125349,6 +125513,7 @@ class ManufacturingSessionIncludeFromTestExecution(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive1']
     fixture: Union[bool, 'FixtureArgsFromTestExecutionRecursive1']
     operator: Union[bool, 'UserArgsFromTestExecutionRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromTestExecutionRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestExecutionRecursive1']
 
 
@@ -125357,6 +125522,7 @@ class ManufacturingSessionIncludeFromTestExecutionRecursive1(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive2']
     fixture: Union[bool, 'FixtureArgsFromTestExecutionRecursive2']
     operator: Union[bool, 'UserArgsFromTestExecutionRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromTestExecutionRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestExecutionRecursive2']
 
 
@@ -125365,6 +125531,7 @@ class ManufacturingSessionIncludeFromTestExecutionRecursive2(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive3']
     fixture: Union[bool, 'FixtureArgsFromTestExecutionRecursive3']
     operator: Union[bool, 'UserArgsFromTestExecutionRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromTestExecutionRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestExecutionRecursive3']
 
 
@@ -125373,6 +125540,7 @@ class ManufacturingSessionIncludeFromTestExecutionRecursive3(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromTestExecutionRecursive4']
     fixture: Union[bool, 'FixtureArgsFromTestExecutionRecursive4']
     operator: Union[bool, 'UserArgsFromTestExecutionRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromTestExecutionRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestExecutionRecursive4']
 
 
@@ -126577,6 +126745,7 @@ class TestPackageIncludeFromTestStep(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive1']
     createdBy: Union[bool, 'UserArgsFromTestStepRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestStepRecursive1']
 
 
 class TestPackageIncludeFromTestStepRecursive1(TypedDict, total=False):
@@ -126584,6 +126753,7 @@ class TestPackageIncludeFromTestStepRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive2']
     createdBy: Union[bool, 'UserArgsFromTestStepRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestStepRecursive2']
 
 
 class TestPackageIncludeFromTestStepRecursive2(TypedDict, total=False):
@@ -126591,6 +126761,7 @@ class TestPackageIncludeFromTestStepRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive3']
     createdBy: Union[bool, 'UserArgsFromTestStepRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestStepRecursive3']
 
 
 class TestPackageIncludeFromTestStepRecursive3(TypedDict, total=False):
@@ -126598,6 +126769,7 @@ class TestPackageIncludeFromTestStepRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive4']
     createdBy: Union[bool, 'UserArgsFromTestStepRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromTestStepRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromTestStepRecursive4']
 
 
 class TestPackageIncludeFromTestStepRecursive4(TypedDict, total=False):
@@ -127267,7 +127439,6 @@ class ProductStageConfigIncludeFromTestStep(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestStepRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestStepRecursive1']
 
 
 class ProductStageConfigIncludeFromTestStepRecursive1(TypedDict, total=False):
@@ -127279,7 +127450,6 @@ class ProductStageConfigIncludeFromTestStepRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestStepRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestStepRecursive2']
 
 
 class ProductStageConfigIncludeFromTestStepRecursive2(TypedDict, total=False):
@@ -127291,7 +127461,6 @@ class ProductStageConfigIncludeFromTestStepRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestStepRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestStepRecursive3']
 
 
 class ProductStageConfigIncludeFromTestStepRecursive3(TypedDict, total=False):
@@ -127303,7 +127472,6 @@ class ProductStageConfigIncludeFromTestStepRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromTestStepRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromTestStepRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromTestStepRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromTestStepRecursive4']
 
 
 class ProductStageConfigIncludeFromTestStepRecursive4(TypedDict, total=False):
@@ -130342,7 +130510,6 @@ class AssetSetIncludeFromTestStep(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromTestStepRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestStepRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestStepRecursive1']
     createdBy: Union[bool, 'UserArgsFromTestStepRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromTestStepRecursive1']
@@ -130354,7 +130521,6 @@ class AssetSetIncludeFromTestStepRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromTestStepRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestStepRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestStepRecursive2']
     createdBy: Union[bool, 'UserArgsFromTestStepRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromTestStepRecursive2']
@@ -130366,7 +130532,6 @@ class AssetSetIncludeFromTestStepRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromTestStepRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestStepRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestStepRecursive3']
     createdBy: Union[bool, 'UserArgsFromTestStepRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromTestStepRecursive3']
@@ -130378,7 +130543,6 @@ class AssetSetIncludeFromTestStepRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromTestStepRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromTestStepRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromTestStepRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromTestStepRecursive4']
     createdBy: Union[bool, 'UserArgsFromTestStepRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromTestStepRecursive4']
@@ -130689,6 +130853,7 @@ class ManufacturingSessionIncludeFromTestStep(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive1']
     fixture: Union[bool, 'FixtureArgsFromTestStepRecursive1']
     operator: Union[bool, 'UserArgsFromTestStepRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromTestStepRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestStepRecursive1']
 
 
@@ -130697,6 +130862,7 @@ class ManufacturingSessionIncludeFromTestStepRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive2']
     fixture: Union[bool, 'FixtureArgsFromTestStepRecursive2']
     operator: Union[bool, 'UserArgsFromTestStepRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromTestStepRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestStepRecursive2']
 
 
@@ -130705,6 +130871,7 @@ class ManufacturingSessionIncludeFromTestStepRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive3']
     fixture: Union[bool, 'FixtureArgsFromTestStepRecursive3']
     operator: Union[bool, 'UserArgsFromTestStepRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromTestStepRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestStepRecursive3']
 
 
@@ -130713,6 +130880,7 @@ class ManufacturingSessionIncludeFromTestStepRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromTestStepRecursive4']
     fixture: Union[bool, 'FixtureArgsFromTestStepRecursive4']
     operator: Union[bool, 'UserArgsFromTestStepRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromTestStepRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromTestStepRecursive4']
 
 
@@ -131922,6 +132090,7 @@ class TestPackageIncludeFromUser(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive1']
     createdBy: Union[bool, 'UserArgsFromUserRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromUserRecursive1']
 
 
 class TestPackageIncludeFromUserRecursive1(TypedDict, total=False):
@@ -131929,6 +132098,7 @@ class TestPackageIncludeFromUserRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive2']
     createdBy: Union[bool, 'UserArgsFromUserRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromUserRecursive2']
 
 
 class TestPackageIncludeFromUserRecursive2(TypedDict, total=False):
@@ -131936,6 +132106,7 @@ class TestPackageIncludeFromUserRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive3']
     createdBy: Union[bool, 'UserArgsFromUserRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromUserRecursive3']
 
 
 class TestPackageIncludeFromUserRecursive3(TypedDict, total=False):
@@ -131943,6 +132114,7 @@ class TestPackageIncludeFromUserRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive4']
     createdBy: Union[bool, 'UserArgsFromUserRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromUserRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromUserRecursive4']
 
 
 class TestPackageIncludeFromUserRecursive4(TypedDict, total=False):
@@ -132612,7 +132784,6 @@ class ProductStageConfigIncludeFromUser(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromUserRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromUserRecursive1']
 
 
 class ProductStageConfigIncludeFromUserRecursive1(TypedDict, total=False):
@@ -132624,7 +132795,6 @@ class ProductStageConfigIncludeFromUserRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromUserRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromUserRecursive2']
 
 
 class ProductStageConfigIncludeFromUserRecursive2(TypedDict, total=False):
@@ -132636,7 +132806,6 @@ class ProductStageConfigIncludeFromUserRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromUserRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromUserRecursive3']
 
 
 class ProductStageConfigIncludeFromUserRecursive3(TypedDict, total=False):
@@ -132648,7 +132817,6 @@ class ProductStageConfigIncludeFromUserRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromUserRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromUserRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromUserRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromUserRecursive4']
 
 
 class ProductStageConfigIncludeFromUserRecursive4(TypedDict, total=False):
@@ -135687,7 +135855,6 @@ class AssetSetIncludeFromUser(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromUserRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromUserRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromUserRecursive1']
     createdBy: Union[bool, 'UserArgsFromUserRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromUserRecursive1']
@@ -135699,7 +135866,6 @@ class AssetSetIncludeFromUserRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromUserRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromUserRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromUserRecursive2']
     createdBy: Union[bool, 'UserArgsFromUserRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromUserRecursive2']
@@ -135711,7 +135877,6 @@ class AssetSetIncludeFromUserRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromUserRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromUserRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromUserRecursive3']
     createdBy: Union[bool, 'UserArgsFromUserRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromUserRecursive3']
@@ -135723,7 +135888,6 @@ class AssetSetIncludeFromUserRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromUserRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromUserRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromUserRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromUserRecursive4']
     createdBy: Union[bool, 'UserArgsFromUserRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromUserRecursive4']
@@ -136034,6 +136198,7 @@ class ManufacturingSessionIncludeFromUser(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive1']
     fixture: Union[bool, 'FixtureArgsFromUserRecursive1']
     operator: Union[bool, 'UserArgsFromUserRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromUserRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromUserRecursive1']
 
 
@@ -136042,6 +136207,7 @@ class ManufacturingSessionIncludeFromUserRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive2']
     fixture: Union[bool, 'FixtureArgsFromUserRecursive2']
     operator: Union[bool, 'UserArgsFromUserRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromUserRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromUserRecursive2']
 
 
@@ -136050,6 +136216,7 @@ class ManufacturingSessionIncludeFromUserRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive3']
     fixture: Union[bool, 'FixtureArgsFromUserRecursive3']
     operator: Union[bool, 'UserArgsFromUserRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromUserRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromUserRecursive3']
 
 
@@ -136058,6 +136225,7 @@ class ManufacturingSessionIncludeFromUserRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromUserRecursive4']
     fixture: Union[bool, 'FixtureArgsFromUserRecursive4']
     operator: Union[bool, 'UserArgsFromUserRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromUserRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromUserRecursive4']
 
 
@@ -137178,6 +137346,7 @@ class TestPackageIncludeFromProductAccess(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductAccessRecursive1']
     createdBy: Union[bool, 'UserArgsFromProductAccessRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductAccessRecursive1']
 
 
 class TestPackageIncludeFromProductAccessRecursive1(TypedDict, total=False):
@@ -137185,6 +137354,7 @@ class TestPackageIncludeFromProductAccessRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductAccessRecursive2']
     createdBy: Union[bool, 'UserArgsFromProductAccessRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductAccessRecursive2']
 
 
 class TestPackageIncludeFromProductAccessRecursive2(TypedDict, total=False):
@@ -137192,6 +137362,7 @@ class TestPackageIncludeFromProductAccessRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductAccessRecursive3']
     createdBy: Union[bool, 'UserArgsFromProductAccessRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductAccessRecursive3']
 
 
 class TestPackageIncludeFromProductAccessRecursive3(TypedDict, total=False):
@@ -137199,6 +137370,7 @@ class TestPackageIncludeFromProductAccessRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductAccessRecursive4']
     createdBy: Union[bool, 'UserArgsFromProductAccessRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromProductAccessRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromProductAccessRecursive4']
 
 
 class TestPackageIncludeFromProductAccessRecursive4(TypedDict, total=False):
@@ -137868,7 +138040,6 @@ class ProductStageConfigIncludeFromProductAccess(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductAccessRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductAccessRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductAccessRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductAccessRecursive1']
 
 
 class ProductStageConfigIncludeFromProductAccessRecursive1(TypedDict, total=False):
@@ -137880,7 +138051,6 @@ class ProductStageConfigIncludeFromProductAccessRecursive1(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductAccessRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductAccessRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductAccessRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductAccessRecursive2']
 
 
 class ProductStageConfigIncludeFromProductAccessRecursive2(TypedDict, total=False):
@@ -137892,7 +138062,6 @@ class ProductStageConfigIncludeFromProductAccessRecursive2(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductAccessRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductAccessRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductAccessRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductAccessRecursive3']
 
 
 class ProductStageConfigIncludeFromProductAccessRecursive3(TypedDict, total=False):
@@ -137904,7 +138073,6 @@ class ProductStageConfigIncludeFromProductAccessRecursive3(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromProductAccessRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromProductAccessRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromProductAccessRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromProductAccessRecursive4']
 
 
 class ProductStageConfigIncludeFromProductAccessRecursive4(TypedDict, total=False):
@@ -140943,7 +141111,6 @@ class AssetSetIncludeFromProductAccess(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductAccessRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromProductAccessRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductAccessRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductAccessRecursive1']
     createdBy: Union[bool, 'UserArgsFromProductAccessRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromProductAccessRecursive1']
@@ -140955,7 +141122,6 @@ class AssetSetIncludeFromProductAccessRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductAccessRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromProductAccessRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductAccessRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductAccessRecursive2']
     createdBy: Union[bool, 'UserArgsFromProductAccessRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromProductAccessRecursive2']
@@ -140967,7 +141133,6 @@ class AssetSetIncludeFromProductAccessRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductAccessRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromProductAccessRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductAccessRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductAccessRecursive3']
     createdBy: Union[bool, 'UserArgsFromProductAccessRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromProductAccessRecursive3']
@@ -140979,7 +141144,6 @@ class AssetSetIncludeFromProductAccessRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductAccessRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromProductAccessRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromProductAccessRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromProductAccessRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromProductAccessRecursive4']
     createdBy: Union[bool, 'UserArgsFromProductAccessRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromProductAccessRecursive4']
@@ -141290,6 +141454,7 @@ class ManufacturingSessionIncludeFromProductAccess(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromProductAccessRecursive1']
     fixture: Union[bool, 'FixtureArgsFromProductAccessRecursive1']
     operator: Union[bool, 'UserArgsFromProductAccessRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromProductAccessRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductAccessRecursive1']
 
 
@@ -141298,6 +141463,7 @@ class ManufacturingSessionIncludeFromProductAccessRecursive1(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromProductAccessRecursive2']
     fixture: Union[bool, 'FixtureArgsFromProductAccessRecursive2']
     operator: Union[bool, 'UserArgsFromProductAccessRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromProductAccessRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductAccessRecursive2']
 
 
@@ -141306,6 +141472,7 @@ class ManufacturingSessionIncludeFromProductAccessRecursive2(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromProductAccessRecursive3']
     fixture: Union[bool, 'FixtureArgsFromProductAccessRecursive3']
     operator: Union[bool, 'UserArgsFromProductAccessRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromProductAccessRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductAccessRecursive3']
 
 
@@ -141314,6 +141481,7 @@ class ManufacturingSessionIncludeFromProductAccessRecursive3(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromProductAccessRecursive4']
     fixture: Union[bool, 'FixtureArgsFromProductAccessRecursive4']
     operator: Union[bool, 'UserArgsFromProductAccessRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromProductAccessRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromProductAccessRecursive4']
 
 
@@ -142291,6 +142459,7 @@ class TestPackageIncludeFromPermissionSet(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
     createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromPermissionSetRecursive1']
 
 
 class TestPackageIncludeFromPermissionSetRecursive1(TypedDict, total=False):
@@ -142298,6 +142467,7 @@ class TestPackageIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
     createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromPermissionSetRecursive2']
 
 
 class TestPackageIncludeFromPermissionSetRecursive2(TypedDict, total=False):
@@ -142305,6 +142475,7 @@ class TestPackageIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
     createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromPermissionSetRecursive3']
 
 
 class TestPackageIncludeFromPermissionSetRecursive3(TypedDict, total=False):
@@ -142312,6 +142483,7 @@ class TestPackageIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
     createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromPermissionSetRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromPermissionSetRecursive4']
 
 
 class TestPackageIncludeFromPermissionSetRecursive4(TypedDict, total=False):
@@ -142981,7 +143153,6 @@ class ProductStageConfigIncludeFromPermissionSet(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromPermissionSetRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromPermissionSetRecursive1']
 
 
 class ProductStageConfigIncludeFromPermissionSetRecursive1(TypedDict, total=False):
@@ -142993,7 +143164,6 @@ class ProductStageConfigIncludeFromPermissionSetRecursive1(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromPermissionSetRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromPermissionSetRecursive2']
 
 
 class ProductStageConfigIncludeFromPermissionSetRecursive2(TypedDict, total=False):
@@ -143005,7 +143175,6 @@ class ProductStageConfigIncludeFromPermissionSetRecursive2(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromPermissionSetRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromPermissionSetRecursive3']
 
 
 class ProductStageConfigIncludeFromPermissionSetRecursive3(TypedDict, total=False):
@@ -143017,7 +143186,6 @@ class ProductStageConfigIncludeFromPermissionSetRecursive3(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPermissionSetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPermissionSetRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromPermissionSetRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromPermissionSetRecursive4']
 
 
 class ProductStageConfigIncludeFromPermissionSetRecursive4(TypedDict, total=False):
@@ -146056,7 +146224,6 @@ class AssetSetIncludeFromPermissionSet(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromPermissionSetRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromPermissionSetRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromPermissionSetRecursive1']
     createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromPermissionSetRecursive1']
@@ -146068,7 +146235,6 @@ class AssetSetIncludeFromPermissionSetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromPermissionSetRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromPermissionSetRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromPermissionSetRecursive2']
     createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromPermissionSetRecursive2']
@@ -146080,7 +146246,6 @@ class AssetSetIncludeFromPermissionSetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromPermissionSetRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromPermissionSetRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromPermissionSetRecursive3']
     createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromPermissionSetRecursive3']
@@ -146092,7 +146257,6 @@ class AssetSetIncludeFromPermissionSetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPermissionSetRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromPermissionSetRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromPermissionSetRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromPermissionSetRecursive4']
     createdBy: Union[bool, 'UserArgsFromPermissionSetRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromPermissionSetRecursive4']
@@ -146403,6 +146567,7 @@ class ManufacturingSessionIncludeFromPermissionSet(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive1']
     fixture: Union[bool, 'FixtureArgsFromPermissionSetRecursive1']
     operator: Union[bool, 'UserArgsFromPermissionSetRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromPermissionSetRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromPermissionSetRecursive1']
 
 
@@ -146411,6 +146576,7 @@ class ManufacturingSessionIncludeFromPermissionSetRecursive1(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive2']
     fixture: Union[bool, 'FixtureArgsFromPermissionSetRecursive2']
     operator: Union[bool, 'UserArgsFromPermissionSetRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromPermissionSetRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromPermissionSetRecursive2']
 
 
@@ -146419,6 +146585,7 @@ class ManufacturingSessionIncludeFromPermissionSetRecursive2(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive3']
     fixture: Union[bool, 'FixtureArgsFromPermissionSetRecursive3']
     operator: Union[bool, 'UserArgsFromPermissionSetRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromPermissionSetRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromPermissionSetRecursive3']
 
 
@@ -146427,6 +146594,7 @@ class ManufacturingSessionIncludeFromPermissionSetRecursive3(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromPermissionSetRecursive4']
     fixture: Union[bool, 'FixtureArgsFromPermissionSetRecursive4']
     operator: Union[bool, 'UserArgsFromPermissionSetRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromPermissionSetRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromPermissionSetRecursive4']
 
 
@@ -147421,6 +147589,7 @@ class TestPackageIncludeFromApiKey(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
     createdBy: Union[bool, 'UserArgsFromApiKeyRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromApiKeyRecursive1']
 
 
 class TestPackageIncludeFromApiKeyRecursive1(TypedDict, total=False):
@@ -147428,6 +147597,7 @@ class TestPackageIncludeFromApiKeyRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
     createdBy: Union[bool, 'UserArgsFromApiKeyRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromApiKeyRecursive2']
 
 
 class TestPackageIncludeFromApiKeyRecursive2(TypedDict, total=False):
@@ -147435,6 +147605,7 @@ class TestPackageIncludeFromApiKeyRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
     createdBy: Union[bool, 'UserArgsFromApiKeyRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromApiKeyRecursive3']
 
 
 class TestPackageIncludeFromApiKeyRecursive3(TypedDict, total=False):
@@ -147442,6 +147613,7 @@ class TestPackageIncludeFromApiKeyRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
     createdBy: Union[bool, 'UserArgsFromApiKeyRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromApiKeyRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromApiKeyRecursive4']
 
 
 class TestPackageIncludeFromApiKeyRecursive4(TypedDict, total=False):
@@ -148111,7 +148283,6 @@ class ProductStageConfigIncludeFromApiKey(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromApiKeyRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromApiKeyRecursive1']
 
 
 class ProductStageConfigIncludeFromApiKeyRecursive1(TypedDict, total=False):
@@ -148123,7 +148294,6 @@ class ProductStageConfigIncludeFromApiKeyRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromApiKeyRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromApiKeyRecursive2']
 
 
 class ProductStageConfigIncludeFromApiKeyRecursive2(TypedDict, total=False):
@@ -148135,7 +148305,6 @@ class ProductStageConfigIncludeFromApiKeyRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromApiKeyRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromApiKeyRecursive3']
 
 
 class ProductStageConfigIncludeFromApiKeyRecursive3(TypedDict, total=False):
@@ -148147,7 +148316,6 @@ class ProductStageConfigIncludeFromApiKeyRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromApiKeyRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromApiKeyRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromApiKeyRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromApiKeyRecursive4']
 
 
 class ProductStageConfigIncludeFromApiKeyRecursive4(TypedDict, total=False):
@@ -151186,7 +151354,6 @@ class AssetSetIncludeFromApiKey(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromApiKeyRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromApiKeyRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromApiKeyRecursive1']
     createdBy: Union[bool, 'UserArgsFromApiKeyRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromApiKeyRecursive1']
@@ -151198,7 +151365,6 @@ class AssetSetIncludeFromApiKeyRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromApiKeyRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromApiKeyRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromApiKeyRecursive2']
     createdBy: Union[bool, 'UserArgsFromApiKeyRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromApiKeyRecursive2']
@@ -151210,7 +151376,6 @@ class AssetSetIncludeFromApiKeyRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromApiKeyRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromApiKeyRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromApiKeyRecursive3']
     createdBy: Union[bool, 'UserArgsFromApiKeyRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromApiKeyRecursive3']
@@ -151222,7 +151387,6 @@ class AssetSetIncludeFromApiKeyRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromApiKeyRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromApiKeyRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromApiKeyRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromApiKeyRecursive4']
     createdBy: Union[bool, 'UserArgsFromApiKeyRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromApiKeyRecursive4']
@@ -151533,6 +151697,7 @@ class ManufacturingSessionIncludeFromApiKey(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive1']
     fixture: Union[bool, 'FixtureArgsFromApiKeyRecursive1']
     operator: Union[bool, 'UserArgsFromApiKeyRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromApiKeyRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromApiKeyRecursive1']
 
 
@@ -151541,6 +151706,7 @@ class ManufacturingSessionIncludeFromApiKeyRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive2']
     fixture: Union[bool, 'FixtureArgsFromApiKeyRecursive2']
     operator: Union[bool, 'UserArgsFromApiKeyRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromApiKeyRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromApiKeyRecursive2']
 
 
@@ -151549,6 +151715,7 @@ class ManufacturingSessionIncludeFromApiKeyRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive3']
     fixture: Union[bool, 'FixtureArgsFromApiKeyRecursive3']
     operator: Union[bool, 'UserArgsFromApiKeyRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromApiKeyRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromApiKeyRecursive3']
 
 
@@ -151557,6 +151724,7 @@ class ManufacturingSessionIncludeFromApiKeyRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromApiKeyRecursive4']
     fixture: Union[bool, 'FixtureArgsFromApiKeyRecursive4']
     operator: Union[bool, 'UserArgsFromApiKeyRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromApiKeyRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromApiKeyRecursive4']
 
 
@@ -152576,6 +152744,7 @@ class TestPackageIncludeFromAuditLog(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
     createdBy: Union[bool, 'UserArgsFromAuditLogRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAuditLogRecursive1']
 
 
 class TestPackageIncludeFromAuditLogRecursive1(TypedDict, total=False):
@@ -152583,6 +152752,7 @@ class TestPackageIncludeFromAuditLogRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
     createdBy: Union[bool, 'UserArgsFromAuditLogRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAuditLogRecursive2']
 
 
 class TestPackageIncludeFromAuditLogRecursive2(TypedDict, total=False):
@@ -152590,6 +152760,7 @@ class TestPackageIncludeFromAuditLogRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
     createdBy: Union[bool, 'UserArgsFromAuditLogRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAuditLogRecursive3']
 
 
 class TestPackageIncludeFromAuditLogRecursive3(TypedDict, total=False):
@@ -152597,6 +152768,7 @@ class TestPackageIncludeFromAuditLogRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
     createdBy: Union[bool, 'UserArgsFromAuditLogRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromAuditLogRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAuditLogRecursive4']
 
 
 class TestPackageIncludeFromAuditLogRecursive4(TypedDict, total=False):
@@ -153266,7 +153438,6 @@ class ProductStageConfigIncludeFromAuditLog(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAuditLogRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAuditLogRecursive1']
 
 
 class ProductStageConfigIncludeFromAuditLogRecursive1(TypedDict, total=False):
@@ -153278,7 +153449,6 @@ class ProductStageConfigIncludeFromAuditLogRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAuditLogRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAuditLogRecursive2']
 
 
 class ProductStageConfigIncludeFromAuditLogRecursive2(TypedDict, total=False):
@@ -153290,7 +153460,6 @@ class ProductStageConfigIncludeFromAuditLogRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAuditLogRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAuditLogRecursive3']
 
 
 class ProductStageConfigIncludeFromAuditLogRecursive3(TypedDict, total=False):
@@ -153302,7 +153471,6 @@ class ProductStageConfigIncludeFromAuditLogRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAuditLogRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAuditLogRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAuditLogRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAuditLogRecursive4']
 
 
 class ProductStageConfigIncludeFromAuditLogRecursive4(TypedDict, total=False):
@@ -156341,7 +156509,6 @@ class AssetSetIncludeFromAuditLog(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromAuditLogRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAuditLogRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAuditLogRecursive1']
     createdBy: Union[bool, 'UserArgsFromAuditLogRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromAuditLogRecursive1']
@@ -156353,7 +156520,6 @@ class AssetSetIncludeFromAuditLogRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromAuditLogRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAuditLogRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAuditLogRecursive2']
     createdBy: Union[bool, 'UserArgsFromAuditLogRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromAuditLogRecursive2']
@@ -156365,7 +156531,6 @@ class AssetSetIncludeFromAuditLogRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromAuditLogRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAuditLogRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAuditLogRecursive3']
     createdBy: Union[bool, 'UserArgsFromAuditLogRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromAuditLogRecursive3']
@@ -156377,7 +156542,6 @@ class AssetSetIncludeFromAuditLogRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAuditLogRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromAuditLogRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAuditLogRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAuditLogRecursive4']
     createdBy: Union[bool, 'UserArgsFromAuditLogRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromAuditLogRecursive4']
@@ -156688,6 +156852,7 @@ class ManufacturingSessionIncludeFromAuditLog(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive1']
     fixture: Union[bool, 'FixtureArgsFromAuditLogRecursive1']
     operator: Union[bool, 'UserArgsFromAuditLogRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromAuditLogRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAuditLogRecursive1']
 
 
@@ -156696,6 +156861,7 @@ class ManufacturingSessionIncludeFromAuditLogRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive2']
     fixture: Union[bool, 'FixtureArgsFromAuditLogRecursive2']
     operator: Union[bool, 'UserArgsFromAuditLogRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromAuditLogRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAuditLogRecursive2']
 
 
@@ -156704,6 +156870,7 @@ class ManufacturingSessionIncludeFromAuditLogRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive3']
     fixture: Union[bool, 'FixtureArgsFromAuditLogRecursive3']
     operator: Union[bool, 'UserArgsFromAuditLogRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromAuditLogRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAuditLogRecursive3']
 
 
@@ -156712,6 +156879,7 @@ class ManufacturingSessionIncludeFromAuditLogRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAuditLogRecursive4']
     fixture: Union[bool, 'FixtureArgsFromAuditLogRecursive4']
     operator: Union[bool, 'UserArgsFromAuditLogRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromAuditLogRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAuditLogRecursive4']
 
 
@@ -157745,6 +157913,7 @@ class TestPackageIncludeFromSecret(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive1']
     createdBy: Union[bool, 'UserArgsFromSecretRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromSecretRecursive1']
 
 
 class TestPackageIncludeFromSecretRecursive1(TypedDict, total=False):
@@ -157752,6 +157921,7 @@ class TestPackageIncludeFromSecretRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive2']
     createdBy: Union[bool, 'UserArgsFromSecretRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromSecretRecursive2']
 
 
 class TestPackageIncludeFromSecretRecursive2(TypedDict, total=False):
@@ -157759,6 +157929,7 @@ class TestPackageIncludeFromSecretRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive3']
     createdBy: Union[bool, 'UserArgsFromSecretRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromSecretRecursive3']
 
 
 class TestPackageIncludeFromSecretRecursive3(TypedDict, total=False):
@@ -157766,6 +157937,7 @@ class TestPackageIncludeFromSecretRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive4']
     createdBy: Union[bool, 'UserArgsFromSecretRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromSecretRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromSecretRecursive4']
 
 
 class TestPackageIncludeFromSecretRecursive4(TypedDict, total=False):
@@ -158435,7 +158607,6 @@ class ProductStageConfigIncludeFromSecret(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromSecretRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromSecretRecursive1']
 
 
 class ProductStageConfigIncludeFromSecretRecursive1(TypedDict, total=False):
@@ -158447,7 +158618,6 @@ class ProductStageConfigIncludeFromSecretRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromSecretRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromSecretRecursive2']
 
 
 class ProductStageConfigIncludeFromSecretRecursive2(TypedDict, total=False):
@@ -158459,7 +158629,6 @@ class ProductStageConfigIncludeFromSecretRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromSecretRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromSecretRecursive3']
 
 
 class ProductStageConfigIncludeFromSecretRecursive3(TypedDict, total=False):
@@ -158471,7 +158640,6 @@ class ProductStageConfigIncludeFromSecretRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromSecretRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromSecretRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromSecretRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromSecretRecursive4']
 
 
 class ProductStageConfigIncludeFromSecretRecursive4(TypedDict, total=False):
@@ -161510,7 +161678,6 @@ class AssetSetIncludeFromSecret(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromSecretRecursive1']
     createdBy: Union[bool, 'UserArgsFromSecretRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromSecretRecursive1']
@@ -161522,7 +161689,6 @@ class AssetSetIncludeFromSecretRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromSecretRecursive2']
     createdBy: Union[bool, 'UserArgsFromSecretRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromSecretRecursive2']
@@ -161534,7 +161700,6 @@ class AssetSetIncludeFromSecretRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromSecretRecursive3']
     createdBy: Union[bool, 'UserArgsFromSecretRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromSecretRecursive3']
@@ -161546,7 +161711,6 @@ class AssetSetIncludeFromSecretRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromSecretRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromSecretRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromSecretRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromSecretRecursive4']
     createdBy: Union[bool, 'UserArgsFromSecretRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromSecretRecursive4']
@@ -161857,6 +162021,7 @@ class ManufacturingSessionIncludeFromSecret(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive1']
     fixture: Union[bool, 'FixtureArgsFromSecretRecursive1']
     operator: Union[bool, 'UserArgsFromSecretRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromSecretRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromSecretRecursive1']
 
 
@@ -161865,6 +162030,7 @@ class ManufacturingSessionIncludeFromSecretRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive2']
     fixture: Union[bool, 'FixtureArgsFromSecretRecursive2']
     operator: Union[bool, 'UserArgsFromSecretRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromSecretRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromSecretRecursive2']
 
 
@@ -161873,6 +162039,7 @@ class ManufacturingSessionIncludeFromSecretRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive3']
     fixture: Union[bool, 'FixtureArgsFromSecretRecursive3']
     operator: Union[bool, 'UserArgsFromSecretRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromSecretRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromSecretRecursive3']
 
 
@@ -161881,6 +162048,7 @@ class ManufacturingSessionIncludeFromSecretRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromSecretRecursive4']
     fixture: Union[bool, 'FixtureArgsFromSecretRecursive4']
     operator: Union[bool, 'UserArgsFromSecretRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromSecretRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromSecretRecursive4']
 
 
@@ -162927,6 +163095,7 @@ class TestPackageIncludeFromPollCache(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPollCacheRecursive1']
     createdBy: Union[bool, 'UserArgsFromPollCacheRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromPollCacheRecursive1']
 
 
 class TestPackageIncludeFromPollCacheRecursive1(TypedDict, total=False):
@@ -162934,6 +163103,7 @@ class TestPackageIncludeFromPollCacheRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPollCacheRecursive2']
     createdBy: Union[bool, 'UserArgsFromPollCacheRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromPollCacheRecursive2']
 
 
 class TestPackageIncludeFromPollCacheRecursive2(TypedDict, total=False):
@@ -162941,6 +163111,7 @@ class TestPackageIncludeFromPollCacheRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPollCacheRecursive3']
     createdBy: Union[bool, 'UserArgsFromPollCacheRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromPollCacheRecursive3']
 
 
 class TestPackageIncludeFromPollCacheRecursive3(TypedDict, total=False):
@@ -162948,6 +163119,7 @@ class TestPackageIncludeFromPollCacheRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPollCacheRecursive4']
     createdBy: Union[bool, 'UserArgsFromPollCacheRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromPollCacheRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromPollCacheRecursive4']
 
 
 class TestPackageIncludeFromPollCacheRecursive4(TypedDict, total=False):
@@ -163617,7 +163789,6 @@ class ProductStageConfigIncludeFromPollCache(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPollCacheRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPollCacheRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromPollCacheRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromPollCacheRecursive1']
 
 
 class ProductStageConfigIncludeFromPollCacheRecursive1(TypedDict, total=False):
@@ -163629,7 +163800,6 @@ class ProductStageConfigIncludeFromPollCacheRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPollCacheRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPollCacheRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromPollCacheRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromPollCacheRecursive2']
 
 
 class ProductStageConfigIncludeFromPollCacheRecursive2(TypedDict, total=False):
@@ -163641,7 +163811,6 @@ class ProductStageConfigIncludeFromPollCacheRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPollCacheRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPollCacheRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromPollCacheRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromPollCacheRecursive3']
 
 
 class ProductStageConfigIncludeFromPollCacheRecursive3(TypedDict, total=False):
@@ -163653,7 +163822,6 @@ class ProductStageConfigIncludeFromPollCacheRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromPollCacheRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromPollCacheRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromPollCacheRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromPollCacheRecursive4']
 
 
 class ProductStageConfigIncludeFromPollCacheRecursive4(TypedDict, total=False):
@@ -166692,7 +166860,6 @@ class AssetSetIncludeFromPollCache(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPollCacheRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromPollCacheRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromPollCacheRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromPollCacheRecursive1']
     createdBy: Union[bool, 'UserArgsFromPollCacheRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromPollCacheRecursive1']
@@ -166704,7 +166871,6 @@ class AssetSetIncludeFromPollCacheRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPollCacheRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromPollCacheRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromPollCacheRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromPollCacheRecursive2']
     createdBy: Union[bool, 'UserArgsFromPollCacheRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromPollCacheRecursive2']
@@ -166716,7 +166882,6 @@ class AssetSetIncludeFromPollCacheRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPollCacheRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromPollCacheRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromPollCacheRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromPollCacheRecursive3']
     createdBy: Union[bool, 'UserArgsFromPollCacheRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromPollCacheRecursive3']
@@ -166728,7 +166893,6 @@ class AssetSetIncludeFromPollCacheRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPollCacheRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromPollCacheRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromPollCacheRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromPollCacheRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromPollCacheRecursive4']
     createdBy: Union[bool, 'UserArgsFromPollCacheRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromPollCacheRecursive4']
@@ -167039,6 +167203,7 @@ class ManufacturingSessionIncludeFromPollCache(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromPollCacheRecursive1']
     fixture: Union[bool, 'FixtureArgsFromPollCacheRecursive1']
     operator: Union[bool, 'UserArgsFromPollCacheRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromPollCacheRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromPollCacheRecursive1']
 
 
@@ -167047,6 +167212,7 @@ class ManufacturingSessionIncludeFromPollCacheRecursive1(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromPollCacheRecursive2']
     fixture: Union[bool, 'FixtureArgsFromPollCacheRecursive2']
     operator: Union[bool, 'UserArgsFromPollCacheRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromPollCacheRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromPollCacheRecursive2']
 
 
@@ -167055,6 +167221,7 @@ class ManufacturingSessionIncludeFromPollCacheRecursive2(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromPollCacheRecursive3']
     fixture: Union[bool, 'FixtureArgsFromPollCacheRecursive3']
     operator: Union[bool, 'UserArgsFromPollCacheRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromPollCacheRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromPollCacheRecursive3']
 
 
@@ -167063,6 +167230,7 @@ class ManufacturingSessionIncludeFromPollCacheRecursive3(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromPollCacheRecursive4']
     fixture: Union[bool, 'FixtureArgsFromPollCacheRecursive4']
     operator: Union[bool, 'UserArgsFromPollCacheRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromPollCacheRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromPollCacheRecursive4']
 
 
@@ -168087,6 +168255,7 @@ class TestPackageIncludeFromRecipeVersion(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive1']
     createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromRecipeVersionRecursive1']
 
 
 class TestPackageIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
@@ -168094,6 +168263,7 @@ class TestPackageIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive2']
     createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromRecipeVersionRecursive2']
 
 
 class TestPackageIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
@@ -168101,6 +168271,7 @@ class TestPackageIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive3']
     createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromRecipeVersionRecursive3']
 
 
 class TestPackageIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
@@ -168108,6 +168279,7 @@ class TestPackageIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive4']
     createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeVersionRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromRecipeVersionRecursive4']
 
 
 class TestPackageIncludeFromRecipeVersionRecursive4(TypedDict, total=False):
@@ -168777,7 +168949,6 @@ class ProductStageConfigIncludeFromRecipeVersion(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeVersionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromRecipeVersionRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromRecipeVersionRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeVersionRecursive1']
 
 
 class ProductStageConfigIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
@@ -168789,7 +168960,6 @@ class ProductStageConfigIncludeFromRecipeVersionRecursive1(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeVersionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromRecipeVersionRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromRecipeVersionRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeVersionRecursive2']
 
 
 class ProductStageConfigIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
@@ -168801,7 +168971,6 @@ class ProductStageConfigIncludeFromRecipeVersionRecursive2(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeVersionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromRecipeVersionRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromRecipeVersionRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeVersionRecursive3']
 
 
 class ProductStageConfigIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
@@ -168813,7 +168982,6 @@ class ProductStageConfigIncludeFromRecipeVersionRecursive3(TypedDict, total=Fals
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeVersionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromRecipeVersionRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromRecipeVersionRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeVersionRecursive4']
 
 
 class ProductStageConfigIncludeFromRecipeVersionRecursive4(TypedDict, total=False):
@@ -171852,7 +172020,6 @@ class AssetSetIncludeFromRecipeVersion(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromRecipeVersionRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromRecipeVersionRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromRecipeVersionRecursive1']
     createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromRecipeVersionRecursive1']
@@ -171864,7 +172031,6 @@ class AssetSetIncludeFromRecipeVersionRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromRecipeVersionRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromRecipeVersionRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromRecipeVersionRecursive2']
     createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromRecipeVersionRecursive2']
@@ -171876,7 +172042,6 @@ class AssetSetIncludeFromRecipeVersionRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromRecipeVersionRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromRecipeVersionRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromRecipeVersionRecursive3']
     createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromRecipeVersionRecursive3']
@@ -171888,7 +172053,6 @@ class AssetSetIncludeFromRecipeVersionRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeVersionRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromRecipeVersionRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromRecipeVersionRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromRecipeVersionRecursive4']
     createdBy: Union[bool, 'UserArgsFromRecipeVersionRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromRecipeVersionRecursive4']
@@ -172199,6 +172363,7 @@ class ManufacturingSessionIncludeFromRecipeVersion(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive1']
     fixture: Union[bool, 'FixtureArgsFromRecipeVersionRecursive1']
     operator: Union[bool, 'UserArgsFromRecipeVersionRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromRecipeVersionRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromRecipeVersionRecursive1']
 
 
@@ -172207,6 +172372,7 @@ class ManufacturingSessionIncludeFromRecipeVersionRecursive1(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive2']
     fixture: Union[bool, 'FixtureArgsFromRecipeVersionRecursive2']
     operator: Union[bool, 'UserArgsFromRecipeVersionRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromRecipeVersionRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromRecipeVersionRecursive2']
 
 
@@ -172215,6 +172381,7 @@ class ManufacturingSessionIncludeFromRecipeVersionRecursive2(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive3']
     fixture: Union[bool, 'FixtureArgsFromRecipeVersionRecursive3']
     operator: Union[bool, 'UserArgsFromRecipeVersionRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromRecipeVersionRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromRecipeVersionRecursive3']
 
 
@@ -172223,6 +172390,7 @@ class ManufacturingSessionIncludeFromRecipeVersionRecursive3(TypedDict, total=Fa
     product: Union[bool, 'ProductArgsFromRecipeVersionRecursive4']
     fixture: Union[bool, 'FixtureArgsFromRecipeVersionRecursive4']
     operator: Union[bool, 'UserArgsFromRecipeVersionRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromRecipeVersionRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromRecipeVersionRecursive4']
 
 
@@ -173290,6 +173458,7 @@ class TestPackageIncludeFromRecipeTemplate(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive1']
     createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromRecipeTemplateRecursive1']
 
 
 class TestPackageIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
@@ -173297,6 +173466,7 @@ class TestPackageIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive2']
     createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromRecipeTemplateRecursive2']
 
 
 class TestPackageIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
@@ -173304,6 +173474,7 @@ class TestPackageIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive3']
     createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromRecipeTemplateRecursive3']
 
 
 class TestPackageIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
@@ -173311,6 +173482,7 @@ class TestPackageIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive4']
     createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromRecipeTemplateRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromRecipeTemplateRecursive4']
 
 
 class TestPackageIncludeFromRecipeTemplateRecursive4(TypedDict, total=False):
@@ -173980,7 +174152,6 @@ class ProductStageConfigIncludeFromRecipeTemplate(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeTemplateRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromRecipeTemplateRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromRecipeTemplateRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeTemplateRecursive1']
 
 
 class ProductStageConfigIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
@@ -173992,7 +174163,6 @@ class ProductStageConfigIncludeFromRecipeTemplateRecursive1(TypedDict, total=Fal
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeTemplateRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromRecipeTemplateRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromRecipeTemplateRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeTemplateRecursive2']
 
 
 class ProductStageConfigIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
@@ -174004,7 +174174,6 @@ class ProductStageConfigIncludeFromRecipeTemplateRecursive2(TypedDict, total=Fal
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeTemplateRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromRecipeTemplateRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromRecipeTemplateRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeTemplateRecursive3']
 
 
 class ProductStageConfigIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
@@ -174016,7 +174185,6 @@ class ProductStageConfigIncludeFromRecipeTemplateRecursive3(TypedDict, total=Fal
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromRecipeTemplateRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromRecipeTemplateRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromRecipeTemplateRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromRecipeTemplateRecursive4']
 
 
 class ProductStageConfigIncludeFromRecipeTemplateRecursive4(TypedDict, total=False):
@@ -177055,7 +177223,6 @@ class AssetSetIncludeFromRecipeTemplate(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromRecipeTemplateRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromRecipeTemplateRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromRecipeTemplateRecursive1']
     createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromRecipeTemplateRecursive1']
@@ -177067,7 +177234,6 @@ class AssetSetIncludeFromRecipeTemplateRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromRecipeTemplateRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromRecipeTemplateRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromRecipeTemplateRecursive2']
     createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromRecipeTemplateRecursive2']
@@ -177079,7 +177245,6 @@ class AssetSetIncludeFromRecipeTemplateRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromRecipeTemplateRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromRecipeTemplateRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromRecipeTemplateRecursive3']
     createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromRecipeTemplateRecursive3']
@@ -177091,7 +177256,6 @@ class AssetSetIncludeFromRecipeTemplateRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromRecipeTemplateRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromRecipeTemplateRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromRecipeTemplateRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromRecipeTemplateRecursive4']
     createdBy: Union[bool, 'UserArgsFromRecipeTemplateRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromRecipeTemplateRecursive4']
@@ -177402,6 +177566,7 @@ class ManufacturingSessionIncludeFromRecipeTemplate(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive1']
     fixture: Union[bool, 'FixtureArgsFromRecipeTemplateRecursive1']
     operator: Union[bool, 'UserArgsFromRecipeTemplateRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromRecipeTemplateRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromRecipeTemplateRecursive1']
 
 
@@ -177410,6 +177575,7 @@ class ManufacturingSessionIncludeFromRecipeTemplateRecursive1(TypedDict, total=F
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive2']
     fixture: Union[bool, 'FixtureArgsFromRecipeTemplateRecursive2']
     operator: Union[bool, 'UserArgsFromRecipeTemplateRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromRecipeTemplateRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromRecipeTemplateRecursive2']
 
 
@@ -177418,6 +177584,7 @@ class ManufacturingSessionIncludeFromRecipeTemplateRecursive2(TypedDict, total=F
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive3']
     fixture: Union[bool, 'FixtureArgsFromRecipeTemplateRecursive3']
     operator: Union[bool, 'UserArgsFromRecipeTemplateRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromRecipeTemplateRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromRecipeTemplateRecursive3']
 
 
@@ -177426,6 +177593,7 @@ class ManufacturingSessionIncludeFromRecipeTemplateRecursive3(TypedDict, total=F
     product: Union[bool, 'ProductArgsFromRecipeTemplateRecursive4']
     fixture: Union[bool, 'FixtureArgsFromRecipeTemplateRecursive4']
     operator: Union[bool, 'UserArgsFromRecipeTemplateRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromRecipeTemplateRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromRecipeTemplateRecursive4']
 
 
@@ -178525,6 +178693,7 @@ class TestPackageIncludeFromStageBuildMatrix(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive1']
     createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromStageBuildMatrixRecursive1']
 
 
 class TestPackageIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
@@ -178532,6 +178701,7 @@ class TestPackageIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive2']
     createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromStageBuildMatrixRecursive2']
 
 
 class TestPackageIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
@@ -178539,6 +178709,7 @@ class TestPackageIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive3']
     createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromStageBuildMatrixRecursive3']
 
 
 class TestPackageIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False):
@@ -178546,6 +178717,7 @@ class TestPackageIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive4']
     createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromStageBuildMatrixRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromStageBuildMatrixRecursive4']
 
 
 class TestPackageIncludeFromStageBuildMatrixRecursive4(TypedDict, total=False):
@@ -179215,7 +179387,6 @@ class ProductStageConfigIncludeFromStageBuildMatrix(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromStageBuildMatrixRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromStageBuildMatrixRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromStageBuildMatrixRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromStageBuildMatrixRecursive1']
 
 
 class ProductStageConfigIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
@@ -179227,7 +179398,6 @@ class ProductStageConfigIncludeFromStageBuildMatrixRecursive1(TypedDict, total=F
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromStageBuildMatrixRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromStageBuildMatrixRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromStageBuildMatrixRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromStageBuildMatrixRecursive2']
 
 
 class ProductStageConfigIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
@@ -179239,7 +179409,6 @@ class ProductStageConfigIncludeFromStageBuildMatrixRecursive2(TypedDict, total=F
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromStageBuildMatrixRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromStageBuildMatrixRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromStageBuildMatrixRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromStageBuildMatrixRecursive3']
 
 
 class ProductStageConfigIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False):
@@ -179251,7 +179420,6 @@ class ProductStageConfigIncludeFromStageBuildMatrixRecursive3(TypedDict, total=F
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromStageBuildMatrixRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromStageBuildMatrixRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromStageBuildMatrixRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromStageBuildMatrixRecursive4']
 
 
 class ProductStageConfigIncludeFromStageBuildMatrixRecursive4(TypedDict, total=False):
@@ -182290,7 +182458,6 @@ class AssetSetIncludeFromStageBuildMatrix(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromStageBuildMatrixRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromStageBuildMatrixRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromStageBuildMatrixRecursive1']
     createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromStageBuildMatrixRecursive1']
@@ -182302,7 +182469,6 @@ class AssetSetIncludeFromStageBuildMatrixRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromStageBuildMatrixRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromStageBuildMatrixRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromStageBuildMatrixRecursive2']
     createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromStageBuildMatrixRecursive2']
@@ -182314,7 +182480,6 @@ class AssetSetIncludeFromStageBuildMatrixRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromStageBuildMatrixRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromStageBuildMatrixRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromStageBuildMatrixRecursive3']
     createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromStageBuildMatrixRecursive3']
@@ -182326,7 +182491,6 @@ class AssetSetIncludeFromStageBuildMatrixRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromStageBuildMatrixRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromStageBuildMatrixRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromStageBuildMatrixRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromStageBuildMatrixRecursive4']
     createdBy: Union[bool, 'UserArgsFromStageBuildMatrixRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromStageBuildMatrixRecursive4']
@@ -182637,6 +182801,7 @@ class ManufacturingSessionIncludeFromStageBuildMatrix(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive1']
     fixture: Union[bool, 'FixtureArgsFromStageBuildMatrixRecursive1']
     operator: Union[bool, 'UserArgsFromStageBuildMatrixRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromStageBuildMatrixRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromStageBuildMatrixRecursive1']
 
 
@@ -182645,6 +182810,7 @@ class ManufacturingSessionIncludeFromStageBuildMatrixRecursive1(TypedDict, total
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive2']
     fixture: Union[bool, 'FixtureArgsFromStageBuildMatrixRecursive2']
     operator: Union[bool, 'UserArgsFromStageBuildMatrixRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromStageBuildMatrixRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromStageBuildMatrixRecursive2']
 
 
@@ -182653,6 +182819,7 @@ class ManufacturingSessionIncludeFromStageBuildMatrixRecursive2(TypedDict, total
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive3']
     fixture: Union[bool, 'FixtureArgsFromStageBuildMatrixRecursive3']
     operator: Union[bool, 'UserArgsFromStageBuildMatrixRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromStageBuildMatrixRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromStageBuildMatrixRecursive3']
 
 
@@ -182661,6 +182828,7 @@ class ManufacturingSessionIncludeFromStageBuildMatrixRecursive3(TypedDict, total
     product: Union[bool, 'ProductArgsFromStageBuildMatrixRecursive4']
     fixture: Union[bool, 'FixtureArgsFromStageBuildMatrixRecursive4']
     operator: Union[bool, 'UserArgsFromStageBuildMatrixRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromStageBuildMatrixRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromStageBuildMatrixRecursive4']
 
 
@@ -183377,7 +183545,6 @@ class AssetSetOptionalCreateInput(TypedDict, total=False):
     stage: Optional[_int]
     buildRunId: Optional[_str]
     externalBuildId: Optional[_str]
-    stageConfigId: Optional[_str]
     commitSha: Optional[_str]
     branch: Optional[_str]
     recipeVersionId: Optional[_str]
@@ -183389,7 +183556,6 @@ class AssetSetOptionalCreateInput(TypedDict, total=False):
     product: 'ProductCreateNestedWithoutRelationsInput'
     boardRevision: 'BoardRevisionCreateNestedWithoutRelationsInput'
     buildRun: 'BuildRunCreateNestedWithoutRelationsInput'
-    stageConfig: 'ProductStageConfigCreateNestedWithoutRelationsInput'
     recipeVersion: 'RecipeVersionCreateNestedWithoutRelationsInput'
     createdBy: 'UserCreateNestedWithoutRelationsInput'
     assets: 'AssetCreateManyNestedWithoutRelationsInput'
@@ -183414,7 +183580,6 @@ class AssetSetOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     stage: Optional[_int]
     buildRunId: Optional[_str]
     externalBuildId: Optional[_str]
-    stageConfigId: Optional[_str]
     commitSha: Optional[_str]
     branch: Optional[_str]
     recipeVersionId: Optional[_str]
@@ -183484,7 +183649,6 @@ class AssetSetUpdateInput(TypedDict, total=False):
     product: 'ProductUpdateOneWithoutRelationsInput'
     boardRevision: 'BoardRevisionUpdateOneWithoutRelationsInput'
     buildRun: 'BuildRunUpdateOneWithoutRelationsInput'
-    stageConfig: 'ProductStageConfigUpdateOneWithoutRelationsInput'
     recipeVersion: 'RecipeVersionUpdateOneWithoutRelationsInput'
     createdBy: 'UserUpdateOneWithoutRelationsInput'
     assets: 'AssetUpdateManyWithoutRelationsInput'
@@ -183611,14 +183775,6 @@ _AssetSet_externalBuildId_OrderByInput = TypedDict(
     total=True
 )
 
-_AssetSet_stageConfigId_OrderByInput = TypedDict(
-    '_AssetSet_stageConfigId_OrderByInput',
-    {
-        'stageConfigId': 'SortOrder',
-    },
-    total=True
-)
-
 _AssetSet_commitSha_OrderByInput = TypedDict(
     '_AssetSet_commitSha_OrderByInput',
     {
@@ -183711,7 +183867,6 @@ AssetSetOrderByInput = Union[
     '_AssetSet_source_OrderByInput',
     '_AssetSet_buildRunId_OrderByInput',
     '_AssetSet_externalBuildId_OrderByInput',
-    '_AssetSet_stageConfigId_OrderByInput',
     '_AssetSet_commitSha_OrderByInput',
     '_AssetSet_branch_OrderByInput',
     '_AssetSet_recipeVersionId_OrderByInput',
@@ -183754,7 +183909,6 @@ class AssetSetInclude(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSet']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSet']
     buildRun: Union[bool, 'BuildRunArgsFromAssetSet']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAssetSet']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAssetSet']
     createdBy: Union[bool, 'UserArgsFromAssetSet']
     assets: Union[bool, 'FindManyAssetArgsFromAssetSet']
@@ -183925,6 +184079,7 @@ class TestPackageIncludeFromAssetSet(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive1']
     createdBy: Union[bool, 'UserArgsFromAssetSetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAssetSetRecursive1']
 
 
 class TestPackageIncludeFromAssetSetRecursive1(TypedDict, total=False):
@@ -183932,6 +184087,7 @@ class TestPackageIncludeFromAssetSetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive2']
     createdBy: Union[bool, 'UserArgsFromAssetSetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAssetSetRecursive2']
 
 
 class TestPackageIncludeFromAssetSetRecursive2(TypedDict, total=False):
@@ -183939,6 +184095,7 @@ class TestPackageIncludeFromAssetSetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive3']
     createdBy: Union[bool, 'UserArgsFromAssetSetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAssetSetRecursive3']
 
 
 class TestPackageIncludeFromAssetSetRecursive3(TypedDict, total=False):
@@ -183946,6 +184103,7 @@ class TestPackageIncludeFromAssetSetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive4']
     createdBy: Union[bool, 'UserArgsFromAssetSetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromAssetSetRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAssetSetRecursive4']
 
 
 class TestPackageIncludeFromAssetSetRecursive4(TypedDict, total=False):
@@ -184615,7 +184773,6 @@ class ProductStageConfigIncludeFromAssetSet(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetSetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAssetSetRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAssetSetRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetSetRecursive1']
 
 
 class ProductStageConfigIncludeFromAssetSetRecursive1(TypedDict, total=False):
@@ -184627,7 +184784,6 @@ class ProductStageConfigIncludeFromAssetSetRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetSetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAssetSetRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAssetSetRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetSetRecursive2']
 
 
 class ProductStageConfigIncludeFromAssetSetRecursive2(TypedDict, total=False):
@@ -184639,7 +184795,6 @@ class ProductStageConfigIncludeFromAssetSetRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetSetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAssetSetRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAssetSetRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetSetRecursive3']
 
 
 class ProductStageConfigIncludeFromAssetSetRecursive3(TypedDict, total=False):
@@ -184651,7 +184806,6 @@ class ProductStageConfigIncludeFromAssetSetRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetSetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAssetSetRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAssetSetRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetSetRecursive4']
 
 
 class ProductStageConfigIncludeFromAssetSetRecursive4(TypedDict, total=False):
@@ -187690,7 +187844,6 @@ class AssetSetIncludeFromAssetSet(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromAssetSetRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAssetSetRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAssetSetRecursive1']
     createdBy: Union[bool, 'UserArgsFromAssetSetRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromAssetSetRecursive1']
@@ -187702,7 +187855,6 @@ class AssetSetIncludeFromAssetSetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromAssetSetRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAssetSetRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAssetSetRecursive2']
     createdBy: Union[bool, 'UserArgsFromAssetSetRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromAssetSetRecursive2']
@@ -187714,7 +187866,6 @@ class AssetSetIncludeFromAssetSetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromAssetSetRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAssetSetRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAssetSetRecursive3']
     createdBy: Union[bool, 'UserArgsFromAssetSetRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromAssetSetRecursive3']
@@ -187726,7 +187877,6 @@ class AssetSetIncludeFromAssetSetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAssetSetRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromAssetSetRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAssetSetRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAssetSetRecursive4']
     createdBy: Union[bool, 'UserArgsFromAssetSetRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromAssetSetRecursive4']
@@ -188037,6 +188187,7 @@ class ManufacturingSessionIncludeFromAssetSet(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive1']
     fixture: Union[bool, 'FixtureArgsFromAssetSetRecursive1']
     operator: Union[bool, 'UserArgsFromAssetSetRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromAssetSetRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAssetSetRecursive1']
 
 
@@ -188045,6 +188196,7 @@ class ManufacturingSessionIncludeFromAssetSetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive2']
     fixture: Union[bool, 'FixtureArgsFromAssetSetRecursive2']
     operator: Union[bool, 'UserArgsFromAssetSetRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromAssetSetRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAssetSetRecursive2']
 
 
@@ -188053,6 +188205,7 @@ class ManufacturingSessionIncludeFromAssetSetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive3']
     fixture: Union[bool, 'FixtureArgsFromAssetSetRecursive3']
     operator: Union[bool, 'UserArgsFromAssetSetRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromAssetSetRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAssetSetRecursive3']
 
 
@@ -188061,6 +188214,7 @@ class ManufacturingSessionIncludeFromAssetSetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetSetRecursive4']
     fixture: Union[bool, 'FixtureArgsFromAssetSetRecursive4']
     operator: Union[bool, 'UserArgsFromAssetSetRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromAssetSetRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAssetSetRecursive4']
 
 
@@ -188380,7 +188534,6 @@ class AssetSetWhereInput(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: Union[None, _str, 'types.StringFilter']
     externalBuildId: Union[None, _str, 'types.StringFilter']
-    stageConfigId: Union[None, _str, 'types.StringFilter']
     commitSha: Union[None, _str, 'types.StringFilter']
     branch: Union[None, _str, 'types.StringFilter']
     recipeVersionId: Union[None, _str, 'types.StringFilter']
@@ -188392,7 +188545,6 @@ class AssetSetWhereInput(TypedDict, total=False):
     product: 'ProductRelationFilter'
     boardRevision: 'BoardRevisionRelationFilter'
     buildRun: 'BuildRunRelationFilter'
-    stageConfig: 'ProductStageConfigRelationFilter'
     recipeVersion: 'RecipeVersionRelationFilter'
     createdBy: 'UserRelationFilter'
     assets: 'AssetListRelationFilter'
@@ -188416,7 +188568,6 @@ class AssetSetWhereInputRecursive1(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: Union[None, _str, 'types.StringFilter']
     externalBuildId: Union[None, _str, 'types.StringFilter']
-    stageConfigId: Union[None, _str, 'types.StringFilter']
     commitSha: Union[None, _str, 'types.StringFilter']
     branch: Union[None, _str, 'types.StringFilter']
     recipeVersionId: Union[None, _str, 'types.StringFilter']
@@ -188428,7 +188579,6 @@ class AssetSetWhereInputRecursive1(TypedDict, total=False):
     product: 'ProductRelationFilter'
     boardRevision: 'BoardRevisionRelationFilter'
     buildRun: 'BuildRunRelationFilter'
-    stageConfig: 'ProductStageConfigRelationFilter'
     recipeVersion: 'RecipeVersionRelationFilter'
     createdBy: 'UserRelationFilter'
     assets: 'AssetListRelationFilter'
@@ -188452,7 +188602,6 @@ class AssetSetWhereInputRecursive2(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: Union[None, _str, 'types.StringFilter']
     externalBuildId: Union[None, _str, 'types.StringFilter']
-    stageConfigId: Union[None, _str, 'types.StringFilter']
     commitSha: Union[None, _str, 'types.StringFilter']
     branch: Union[None, _str, 'types.StringFilter']
     recipeVersionId: Union[None, _str, 'types.StringFilter']
@@ -188464,7 +188613,6 @@ class AssetSetWhereInputRecursive2(TypedDict, total=False):
     product: 'ProductRelationFilter'
     boardRevision: 'BoardRevisionRelationFilter'
     buildRun: 'BuildRunRelationFilter'
-    stageConfig: 'ProductStageConfigRelationFilter'
     recipeVersion: 'RecipeVersionRelationFilter'
     createdBy: 'UserRelationFilter'
     assets: 'AssetListRelationFilter'
@@ -188488,7 +188636,6 @@ class AssetSetWhereInputRecursive3(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: Union[None, _str, 'types.StringFilter']
     externalBuildId: Union[None, _str, 'types.StringFilter']
-    stageConfigId: Union[None, _str, 'types.StringFilter']
     commitSha: Union[None, _str, 'types.StringFilter']
     branch: Union[None, _str, 'types.StringFilter']
     recipeVersionId: Union[None, _str, 'types.StringFilter']
@@ -188500,7 +188647,6 @@ class AssetSetWhereInputRecursive3(TypedDict, total=False):
     product: 'ProductRelationFilter'
     boardRevision: 'BoardRevisionRelationFilter'
     buildRun: 'BuildRunRelationFilter'
-    stageConfig: 'ProductStageConfigRelationFilter'
     recipeVersion: 'RecipeVersionRelationFilter'
     createdBy: 'UserRelationFilter'
     assets: 'AssetListRelationFilter'
@@ -188524,7 +188670,6 @@ class AssetSetWhereInputRecursive4(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: Union[None, _str, 'types.StringFilter']
     externalBuildId: Union[None, _str, 'types.StringFilter']
-    stageConfigId: Union[None, _str, 'types.StringFilter']
     commitSha: Union[None, _str, 'types.StringFilter']
     branch: Union[None, _str, 'types.StringFilter']
     recipeVersionId: Union[None, _str, 'types.StringFilter']
@@ -188536,7 +188681,6 @@ class AssetSetWhereInputRecursive4(TypedDict, total=False):
     product: 'ProductRelationFilter'
     boardRevision: 'BoardRevisionRelationFilter'
     buildRun: 'BuildRunRelationFilter'
-    stageConfig: 'ProductStageConfigRelationFilter'
     recipeVersion: 'RecipeVersionRelationFilter'
     createdBy: 'UserRelationFilter'
     assets: 'AssetListRelationFilter'
@@ -188560,7 +188704,6 @@ class AssetSetScalarWhereWithAggregatesInput(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: Union[_str, 'types.StringWithAggregatesFilter']
     externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
-    stageConfigId: Union[_str, 'types.StringWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
     branch: Union[_str, 'types.StringWithAggregatesFilter']
     recipeVersionId: Union[_str, 'types.StringWithAggregatesFilter']
@@ -188586,7 +188729,6 @@ class AssetSetScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: Union[_str, 'types.StringWithAggregatesFilter']
     externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
-    stageConfigId: Union[_str, 'types.StringWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
     branch: Union[_str, 'types.StringWithAggregatesFilter']
     recipeVersionId: Union[_str, 'types.StringWithAggregatesFilter']
@@ -188612,7 +188754,6 @@ class AssetSetScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: Union[_str, 'types.StringWithAggregatesFilter']
     externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
-    stageConfigId: Union[_str, 'types.StringWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
     branch: Union[_str, 'types.StringWithAggregatesFilter']
     recipeVersionId: Union[_str, 'types.StringWithAggregatesFilter']
@@ -188638,7 +188779,6 @@ class AssetSetScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: Union[_str, 'types.StringWithAggregatesFilter']
     externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
-    stageConfigId: Union[_str, 'types.StringWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
     branch: Union[_str, 'types.StringWithAggregatesFilter']
     recipeVersionId: Union[_str, 'types.StringWithAggregatesFilter']
@@ -188664,7 +188804,6 @@ class AssetSetScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: Union[_str, 'types.StringWithAggregatesFilter']
     externalBuildId: Union[_str, 'types.StringWithAggregatesFilter']
-    stageConfigId: Union[_str, 'types.StringWithAggregatesFilter']
     commitSha: Union[_str, 'types.StringWithAggregatesFilter']
     branch: Union[_str, 'types.StringWithAggregatesFilter']
     recipeVersionId: Union[_str, 'types.StringWithAggregatesFilter']
@@ -188686,7 +188825,6 @@ class AssetSetGroupByOutput(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: _str
     externalBuildId: _str
-    stageConfigId: _str
     commitSha: _str
     branch: _str
     recipeVersionId: _str
@@ -188723,7 +188861,6 @@ class AssetSetScalarAggregateOutput(TypedDict, total=False):
     source: 'enums.AssetSetSource'
     buildRunId: _str
     externalBuildId: _str
-    stageConfigId: _str
     commitSha: _str
     branch: _str
     recipeVersionId: _str
@@ -188749,7 +188886,6 @@ class AssetSetMaxAggregateInput(TypedDict, total=False):
     source: bool
     buildRunId: bool
     externalBuildId: bool
-    stageConfigId: bool
     commitSha: bool
     branch: bool
     recipeVersionId: bool
@@ -188771,7 +188907,6 @@ class AssetSetMinAggregateInput(TypedDict, total=False):
     source: bool
     buildRunId: bool
     externalBuildId: bool
-    stageConfigId: bool
     commitSha: bool
     branch: bool
     recipeVersionId: bool
@@ -188803,7 +188938,6 @@ AssetSetCountAggregateInput = TypedDict(
         'source': bool,
         'buildRunId': bool,
         'externalBuildId': bool,
-        'stageConfigId': bool,
         'commitSha': bool,
         'branch': bool,
         'recipeVersionId': bool,
@@ -188829,7 +188963,6 @@ AssetSetCountAggregateOutput = TypedDict(
         'source': int,
         'buildRunId': int,
         'externalBuildId': int,
-        'stageConfigId': int,
         'commitSha': int,
         'branch': int,
         'recipeVersionId': int,
@@ -188854,7 +188987,6 @@ AssetSetKeys = Literal[
     'source',
     'buildRunId',
     'externalBuildId',
-    'stageConfigId',
     'commitSha',
     'branch',
     'recipeVersionId',
@@ -188866,7 +188998,6 @@ AssetSetKeys = Literal[
     'product',
     'boardRevision',
     'buildRun',
-    'stageConfig',
     'recipeVersion',
     'createdBy',
     'assets',
@@ -188882,7 +189013,6 @@ AssetSetScalarFieldKeys = Literal[
     'source',
     'buildRunId',
     'externalBuildId',
-    'stageConfigId',
     'commitSha',
     'branch',
     'recipeVersionId',
@@ -188898,7 +189028,6 @@ AssetSetRelationalFieldKeys = Literal[
         'product',
         'boardRevision',
         'buildRun',
-        'stageConfig',
         'recipeVersion',
         'createdBy',
         'assets',
@@ -189390,6 +189519,7 @@ class TestPackageIncludeFromAsset(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive1']
     createdBy: Union[bool, 'UserArgsFromAssetRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAssetRecursive1']
 
 
 class TestPackageIncludeFromAssetRecursive1(TypedDict, total=False):
@@ -189397,6 +189527,7 @@ class TestPackageIncludeFromAssetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive2']
     createdBy: Union[bool, 'UserArgsFromAssetRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAssetRecursive2']
 
 
 class TestPackageIncludeFromAssetRecursive2(TypedDict, total=False):
@@ -189404,6 +189535,7 @@ class TestPackageIncludeFromAssetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive3']
     createdBy: Union[bool, 'UserArgsFromAssetRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAssetRecursive3']
 
 
 class TestPackageIncludeFromAssetRecursive3(TypedDict, total=False):
@@ -189411,6 +189543,7 @@ class TestPackageIncludeFromAssetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive4']
     createdBy: Union[bool, 'UserArgsFromAssetRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromAssetRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromAssetRecursive4']
 
 
 class TestPackageIncludeFromAssetRecursive4(TypedDict, total=False):
@@ -190080,7 +190213,6 @@ class ProductStageConfigIncludeFromAsset(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAssetRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAssetRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetRecursive1']
 
 
 class ProductStageConfigIncludeFromAssetRecursive1(TypedDict, total=False):
@@ -190092,7 +190224,6 @@ class ProductStageConfigIncludeFromAssetRecursive1(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAssetRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAssetRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetRecursive2']
 
 
 class ProductStageConfigIncludeFromAssetRecursive2(TypedDict, total=False):
@@ -190104,7 +190235,6 @@ class ProductStageConfigIncludeFromAssetRecursive2(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAssetRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAssetRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetRecursive3']
 
 
 class ProductStageConfigIncludeFromAssetRecursive3(TypedDict, total=False):
@@ -190116,7 +190246,6 @@ class ProductStageConfigIncludeFromAssetRecursive3(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromAssetRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromAssetRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromAssetRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromAssetRecursive4']
 
 
 class ProductStageConfigIncludeFromAssetRecursive4(TypedDict, total=False):
@@ -193155,7 +193284,6 @@ class AssetSetIncludeFromAsset(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromAssetRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAssetRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAssetRecursive1']
     createdBy: Union[bool, 'UserArgsFromAssetRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromAssetRecursive1']
@@ -193167,7 +193295,6 @@ class AssetSetIncludeFromAssetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromAssetRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAssetRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAssetRecursive2']
     createdBy: Union[bool, 'UserArgsFromAssetRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromAssetRecursive2']
@@ -193179,7 +193306,6 @@ class AssetSetIncludeFromAssetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromAssetRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAssetRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAssetRecursive3']
     createdBy: Union[bool, 'UserArgsFromAssetRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromAssetRecursive3']
@@ -193191,7 +193317,6 @@ class AssetSetIncludeFromAssetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromAssetRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromAssetRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromAssetRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromAssetRecursive4']
     createdBy: Union[bool, 'UserArgsFromAssetRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromAssetRecursive4']
@@ -193502,6 +193627,7 @@ class ManufacturingSessionIncludeFromAsset(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive1']
     fixture: Union[bool, 'FixtureArgsFromAssetRecursive1']
     operator: Union[bool, 'UserArgsFromAssetRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromAssetRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAssetRecursive1']
 
 
@@ -193510,6 +193636,7 @@ class ManufacturingSessionIncludeFromAssetRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive2']
     fixture: Union[bool, 'FixtureArgsFromAssetRecursive2']
     operator: Union[bool, 'UserArgsFromAssetRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromAssetRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAssetRecursive2']
 
 
@@ -193518,6 +193645,7 @@ class ManufacturingSessionIncludeFromAssetRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive3']
     fixture: Union[bool, 'FixtureArgsFromAssetRecursive3']
     operator: Union[bool, 'UserArgsFromAssetRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromAssetRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAssetRecursive3']
 
 
@@ -193526,6 +193654,7 @@ class ManufacturingSessionIncludeFromAssetRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromAssetRecursive4']
     fixture: Union[bool, 'FixtureArgsFromAssetRecursive4']
     operator: Union[bool, 'UserArgsFromAssetRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromAssetRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromAssetRecursive4']
 
 
@@ -194719,6 +194848,7 @@ class TestPackageIncludeFromManufacturingConfig(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive1']
     createdBy: Union[bool, 'UserArgsFromManufacturingConfigRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingConfigRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingConfigRecursive1']
 
 
 class TestPackageIncludeFromManufacturingConfigRecursive1(TypedDict, total=False):
@@ -194726,6 +194856,7 @@ class TestPackageIncludeFromManufacturingConfigRecursive1(TypedDict, total=False
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive2']
     createdBy: Union[bool, 'UserArgsFromManufacturingConfigRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingConfigRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingConfigRecursive2']
 
 
 class TestPackageIncludeFromManufacturingConfigRecursive2(TypedDict, total=False):
@@ -194733,6 +194864,7 @@ class TestPackageIncludeFromManufacturingConfigRecursive2(TypedDict, total=False
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive3']
     createdBy: Union[bool, 'UserArgsFromManufacturingConfigRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingConfigRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingConfigRecursive3']
 
 
 class TestPackageIncludeFromManufacturingConfigRecursive3(TypedDict, total=False):
@@ -194740,6 +194872,7 @@ class TestPackageIncludeFromManufacturingConfigRecursive3(TypedDict, total=False
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive4']
     createdBy: Union[bool, 'UserArgsFromManufacturingConfigRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingConfigRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingConfigRecursive4']
 
 
 class TestPackageIncludeFromManufacturingConfigRecursive4(TypedDict, total=False):
@@ -195409,7 +195542,6 @@ class ProductStageConfigIncludeFromManufacturingConfig(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingConfigRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingConfigRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingConfigRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingConfigRecursive1']
 
 
 class ProductStageConfigIncludeFromManufacturingConfigRecursive1(TypedDict, total=False):
@@ -195421,7 +195553,6 @@ class ProductStageConfigIncludeFromManufacturingConfigRecursive1(TypedDict, tota
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingConfigRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingConfigRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingConfigRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingConfigRecursive2']
 
 
 class ProductStageConfigIncludeFromManufacturingConfigRecursive2(TypedDict, total=False):
@@ -195433,7 +195564,6 @@ class ProductStageConfigIncludeFromManufacturingConfigRecursive2(TypedDict, tota
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingConfigRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingConfigRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingConfigRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingConfigRecursive3']
 
 
 class ProductStageConfigIncludeFromManufacturingConfigRecursive3(TypedDict, total=False):
@@ -195445,7 +195575,6 @@ class ProductStageConfigIncludeFromManufacturingConfigRecursive3(TypedDict, tota
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingConfigRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingConfigRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingConfigRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingConfigRecursive4']
 
 
 class ProductStageConfigIncludeFromManufacturingConfigRecursive4(TypedDict, total=False):
@@ -198484,7 +198613,6 @@ class AssetSetIncludeFromManufacturingConfig(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingConfigRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingConfigRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingConfigRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingConfigRecursive1']
     createdBy: Union[bool, 'UserArgsFromManufacturingConfigRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingConfigRecursive1']
@@ -198496,7 +198624,6 @@ class AssetSetIncludeFromManufacturingConfigRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingConfigRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingConfigRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingConfigRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingConfigRecursive2']
     createdBy: Union[bool, 'UserArgsFromManufacturingConfigRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingConfigRecursive2']
@@ -198508,7 +198635,6 @@ class AssetSetIncludeFromManufacturingConfigRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingConfigRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingConfigRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingConfigRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingConfigRecursive3']
     createdBy: Union[bool, 'UserArgsFromManufacturingConfigRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingConfigRecursive3']
@@ -198520,7 +198646,6 @@ class AssetSetIncludeFromManufacturingConfigRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingConfigRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingConfigRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingConfigRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingConfigRecursive4']
     createdBy: Union[bool, 'UserArgsFromManufacturingConfigRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingConfigRecursive4']
@@ -198831,6 +198956,7 @@ class ManufacturingSessionIncludeFromManufacturingConfig(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive1']
     fixture: Union[bool, 'FixtureArgsFromManufacturingConfigRecursive1']
     operator: Union[bool, 'UserArgsFromManufacturingConfigRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingConfigRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingConfigRecursive1']
 
 
@@ -198839,6 +198965,7 @@ class ManufacturingSessionIncludeFromManufacturingConfigRecursive1(TypedDict, to
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive2']
     fixture: Union[bool, 'FixtureArgsFromManufacturingConfigRecursive2']
     operator: Union[bool, 'UserArgsFromManufacturingConfigRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingConfigRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingConfigRecursive2']
 
 
@@ -198847,6 +198974,7 @@ class ManufacturingSessionIncludeFromManufacturingConfigRecursive2(TypedDict, to
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive3']
     fixture: Union[bool, 'FixtureArgsFromManufacturingConfigRecursive3']
     operator: Union[bool, 'UserArgsFromManufacturingConfigRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingConfigRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingConfigRecursive3']
 
 
@@ -198855,6 +198983,7 @@ class ManufacturingSessionIncludeFromManufacturingConfigRecursive3(TypedDict, to
     product: Union[bool, 'ProductArgsFromManufacturingConfigRecursive4']
     fixture: Union[bool, 'FixtureArgsFromManufacturingConfigRecursive4']
     operator: Union[bool, 'UserArgsFromManufacturingConfigRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingConfigRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingConfigRecursive4']
 
 
@@ -199537,6 +199666,7 @@ class ManufacturingSessionOptionalCreateInput(TypedDict, total=False):
     fixtureId: _str
     status: 'enums.ManufacturingSessionStatus'
     operatorId: _str
+    testPackageId: Optional[_str]
     panelCount: _int
     passedCount: _int
     failedCount: _int
@@ -199548,6 +199678,7 @@ class ManufacturingSessionOptionalCreateInput(TypedDict, total=False):
     product: 'ProductCreateNestedWithoutRelationsInput'
     fixture: 'FixtureCreateNestedWithoutRelationsInput'
     operator: 'UserCreateNestedWithoutRelationsInput'
+    testPackage: 'TestPackageCreateNestedWithoutRelationsInput'
     panels: 'ManufacturingPanelCreateManyNestedWithoutRelationsInput'
 
 
@@ -199565,6 +199696,7 @@ class ManufacturingSessionOptionalCreateWithoutRelationsInput(TypedDict, total=F
     fixtureId: _str
     status: 'enums.ManufacturingSessionStatus'
     operatorId: _str
+    testPackageId: Optional[_str]
     panelCount: _int
     passedCount: _int
     failedCount: _int
@@ -199619,6 +199751,7 @@ class ManufacturingSessionUpdateInput(TypedDict, total=False):
     product: 'ProductUpdateOneWithoutRelationsInput'
     fixture: 'FixtureUpdateOneWithoutRelationsInput'
     operator: 'UserUpdateOneWithoutRelationsInput'
+    testPackage: 'TestPackageUpdateOneWithoutRelationsInput'
     panels: 'ManufacturingPanelUpdateManyWithoutRelationsInput'
 
 
@@ -199704,6 +199837,14 @@ _ManufacturingSession_operatorId_OrderByInput = TypedDict(
     '_ManufacturingSession_operatorId_OrderByInput',
     {
         'operatorId': 'SortOrder',
+    },
+    total=True
+)
+
+_ManufacturingSession_testPackageId_OrderByInput = TypedDict(
+    '_ManufacturingSession_testPackageId_OrderByInput',
+    {
+        'testPackageId': 'SortOrder',
     },
     total=True
 )
@@ -199796,6 +199937,7 @@ ManufacturingSessionOrderByInput = Union[
     '_ManufacturingSession_fixtureId_OrderByInput',
     '_ManufacturingSession_status_OrderByInput',
     '_ManufacturingSession_operatorId_OrderByInput',
+    '_ManufacturingSession_testPackageId_OrderByInput',
     '_ManufacturingSession_panelCount_OrderByInput',
     '_ManufacturingSession_passedCount_OrderByInput',
     '_ManufacturingSession_failedCount_OrderByInput',
@@ -199838,6 +199980,7 @@ class ManufacturingSessionInclude(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingSession']
     fixture: Union[bool, 'FixtureArgsFromManufacturingSession']
     operator: Union[bool, 'UserArgsFromManufacturingSession']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingSession']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingSession']
 
 
@@ -200005,6 +200148,7 @@ class TestPackageIncludeFromManufacturingSession(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive1']
     createdBy: Union[bool, 'UserArgsFromManufacturingSessionRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingSessionRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingSessionRecursive1']
 
 
 class TestPackageIncludeFromManufacturingSessionRecursive1(TypedDict, total=False):
@@ -200012,6 +200156,7 @@ class TestPackageIncludeFromManufacturingSessionRecursive1(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive2']
     createdBy: Union[bool, 'UserArgsFromManufacturingSessionRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingSessionRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingSessionRecursive2']
 
 
 class TestPackageIncludeFromManufacturingSessionRecursive2(TypedDict, total=False):
@@ -200019,6 +200164,7 @@ class TestPackageIncludeFromManufacturingSessionRecursive2(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive3']
     createdBy: Union[bool, 'UserArgsFromManufacturingSessionRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingSessionRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingSessionRecursive3']
 
 
 class TestPackageIncludeFromManufacturingSessionRecursive3(TypedDict, total=False):
@@ -200026,6 +200172,7 @@ class TestPackageIncludeFromManufacturingSessionRecursive3(TypedDict, total=Fals
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive4']
     createdBy: Union[bool, 'UserArgsFromManufacturingSessionRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingSessionRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingSessionRecursive4']
 
 
 class TestPackageIncludeFromManufacturingSessionRecursive4(TypedDict, total=False):
@@ -200695,7 +200842,6 @@ class ProductStageConfigIncludeFromManufacturingSession(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingSessionRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingSessionRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingSessionRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingSessionRecursive1']
 
 
 class ProductStageConfigIncludeFromManufacturingSessionRecursive1(TypedDict, total=False):
@@ -200707,7 +200853,6 @@ class ProductStageConfigIncludeFromManufacturingSessionRecursive1(TypedDict, tot
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingSessionRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingSessionRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingSessionRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingSessionRecursive2']
 
 
 class ProductStageConfigIncludeFromManufacturingSessionRecursive2(TypedDict, total=False):
@@ -200719,7 +200864,6 @@ class ProductStageConfigIncludeFromManufacturingSessionRecursive2(TypedDict, tot
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingSessionRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingSessionRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingSessionRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingSessionRecursive3']
 
 
 class ProductStageConfigIncludeFromManufacturingSessionRecursive3(TypedDict, total=False):
@@ -200731,7 +200875,6 @@ class ProductStageConfigIncludeFromManufacturingSessionRecursive3(TypedDict, tot
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingSessionRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingSessionRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingSessionRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingSessionRecursive4']
 
 
 class ProductStageConfigIncludeFromManufacturingSessionRecursive4(TypedDict, total=False):
@@ -203770,7 +203913,6 @@ class AssetSetIncludeFromManufacturingSession(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingSessionRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingSessionRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingSessionRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingSessionRecursive1']
     createdBy: Union[bool, 'UserArgsFromManufacturingSessionRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingSessionRecursive1']
@@ -203782,7 +203924,6 @@ class AssetSetIncludeFromManufacturingSessionRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingSessionRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingSessionRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingSessionRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingSessionRecursive2']
     createdBy: Union[bool, 'UserArgsFromManufacturingSessionRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingSessionRecursive2']
@@ -203794,7 +203935,6 @@ class AssetSetIncludeFromManufacturingSessionRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingSessionRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingSessionRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingSessionRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingSessionRecursive3']
     createdBy: Union[bool, 'UserArgsFromManufacturingSessionRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingSessionRecursive3']
@@ -203806,7 +203946,6 @@ class AssetSetIncludeFromManufacturingSessionRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingSessionRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingSessionRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingSessionRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingSessionRecursive4']
     createdBy: Union[bool, 'UserArgsFromManufacturingSessionRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingSessionRecursive4']
@@ -204117,6 +204256,7 @@ class ManufacturingSessionIncludeFromManufacturingSession(TypedDict, total=False
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive1']
     fixture: Union[bool, 'FixtureArgsFromManufacturingSessionRecursive1']
     operator: Union[bool, 'UserArgsFromManufacturingSessionRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingSessionRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingSessionRecursive1']
 
 
@@ -204125,6 +204265,7 @@ class ManufacturingSessionIncludeFromManufacturingSessionRecursive1(TypedDict, t
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive2']
     fixture: Union[bool, 'FixtureArgsFromManufacturingSessionRecursive2']
     operator: Union[bool, 'UserArgsFromManufacturingSessionRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingSessionRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingSessionRecursive2']
 
 
@@ -204133,6 +204274,7 @@ class ManufacturingSessionIncludeFromManufacturingSessionRecursive2(TypedDict, t
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive3']
     fixture: Union[bool, 'FixtureArgsFromManufacturingSessionRecursive3']
     operator: Union[bool, 'UserArgsFromManufacturingSessionRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingSessionRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingSessionRecursive3']
 
 
@@ -204141,6 +204283,7 @@ class ManufacturingSessionIncludeFromManufacturingSessionRecursive3(TypedDict, t
     product: Union[bool, 'ProductArgsFromManufacturingSessionRecursive4']
     fixture: Union[bool, 'FixtureArgsFromManufacturingSessionRecursive4']
     operator: Union[bool, 'UserArgsFromManufacturingSessionRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingSessionRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingSessionRecursive4']
 
 
@@ -204456,6 +204599,7 @@ class ManufacturingSessionWhereInput(TypedDict, total=False):
     fixtureId: Union[_str, 'types.StringFilter']
     status: 'enums.ManufacturingSessionStatus'
     operatorId: Union[_str, 'types.StringFilter']
+    testPackageId: Union[None, _str, 'types.StringFilter']
     panelCount: Union[_int, 'types.IntFilter']
     passedCount: Union[_int, 'types.IntFilter']
     failedCount: Union[_int, 'types.IntFilter']
@@ -204467,6 +204611,7 @@ class ManufacturingSessionWhereInput(TypedDict, total=False):
     product: 'ProductRelationFilter'
     fixture: 'FixtureRelationFilter'
     operator: 'UserRelationFilter'
+    testPackage: 'TestPackageRelationFilter'
     panels: 'ManufacturingPanelListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ManufacturingSessionWhereInputRecursive1', List['ManufacturingSessionWhereInputRecursive1']]
@@ -204483,6 +204628,7 @@ class ManufacturingSessionWhereInputRecursive1(TypedDict, total=False):
     fixtureId: Union[_str, 'types.StringFilter']
     status: 'enums.ManufacturingSessionStatus'
     operatorId: Union[_str, 'types.StringFilter']
+    testPackageId: Union[None, _str, 'types.StringFilter']
     panelCount: Union[_int, 'types.IntFilter']
     passedCount: Union[_int, 'types.IntFilter']
     failedCount: Union[_int, 'types.IntFilter']
@@ -204494,6 +204640,7 @@ class ManufacturingSessionWhereInputRecursive1(TypedDict, total=False):
     product: 'ProductRelationFilter'
     fixture: 'FixtureRelationFilter'
     operator: 'UserRelationFilter'
+    testPackage: 'TestPackageRelationFilter'
     panels: 'ManufacturingPanelListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ManufacturingSessionWhereInputRecursive2', List['ManufacturingSessionWhereInputRecursive2']]
@@ -204510,6 +204657,7 @@ class ManufacturingSessionWhereInputRecursive2(TypedDict, total=False):
     fixtureId: Union[_str, 'types.StringFilter']
     status: 'enums.ManufacturingSessionStatus'
     operatorId: Union[_str, 'types.StringFilter']
+    testPackageId: Union[None, _str, 'types.StringFilter']
     panelCount: Union[_int, 'types.IntFilter']
     passedCount: Union[_int, 'types.IntFilter']
     failedCount: Union[_int, 'types.IntFilter']
@@ -204521,6 +204669,7 @@ class ManufacturingSessionWhereInputRecursive2(TypedDict, total=False):
     product: 'ProductRelationFilter'
     fixture: 'FixtureRelationFilter'
     operator: 'UserRelationFilter'
+    testPackage: 'TestPackageRelationFilter'
     panels: 'ManufacturingPanelListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ManufacturingSessionWhereInputRecursive3', List['ManufacturingSessionWhereInputRecursive3']]
@@ -204537,6 +204686,7 @@ class ManufacturingSessionWhereInputRecursive3(TypedDict, total=False):
     fixtureId: Union[_str, 'types.StringFilter']
     status: 'enums.ManufacturingSessionStatus'
     operatorId: Union[_str, 'types.StringFilter']
+    testPackageId: Union[None, _str, 'types.StringFilter']
     panelCount: Union[_int, 'types.IntFilter']
     passedCount: Union[_int, 'types.IntFilter']
     failedCount: Union[_int, 'types.IntFilter']
@@ -204548,6 +204698,7 @@ class ManufacturingSessionWhereInputRecursive3(TypedDict, total=False):
     product: 'ProductRelationFilter'
     fixture: 'FixtureRelationFilter'
     operator: 'UserRelationFilter'
+    testPackage: 'TestPackageRelationFilter'
     panels: 'ManufacturingPanelListRelationFilter'
 
     # should be noted that AND and NOT should be Union['ManufacturingSessionWhereInputRecursive4', List['ManufacturingSessionWhereInputRecursive4']]
@@ -204564,6 +204715,7 @@ class ManufacturingSessionWhereInputRecursive4(TypedDict, total=False):
     fixtureId: Union[_str, 'types.StringFilter']
     status: 'enums.ManufacturingSessionStatus'
     operatorId: Union[_str, 'types.StringFilter']
+    testPackageId: Union[None, _str, 'types.StringFilter']
     panelCount: Union[_int, 'types.IntFilter']
     passedCount: Union[_int, 'types.IntFilter']
     failedCount: Union[_int, 'types.IntFilter']
@@ -204575,6 +204727,7 @@ class ManufacturingSessionWhereInputRecursive4(TypedDict, total=False):
     product: 'ProductRelationFilter'
     fixture: 'FixtureRelationFilter'
     operator: 'UserRelationFilter'
+    testPackage: 'TestPackageRelationFilter'
     panels: 'ManufacturingPanelListRelationFilter'
 
 
@@ -204591,6 +204744,7 @@ class ManufacturingSessionScalarWhereWithAggregatesInput(TypedDict, total=False)
     fixtureId: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.ManufacturingSessionStatus'
     operatorId: Union[_str, 'types.StringWithAggregatesFilter']
+    testPackageId: Union[_str, 'types.StringWithAggregatesFilter']
     panelCount: Union[_int, 'types.IntWithAggregatesFilter']
     passedCount: Union[_int, 'types.IntWithAggregatesFilter']
     failedCount: Union[_int, 'types.IntWithAggregatesFilter']
@@ -204612,6 +204766,7 @@ class ManufacturingSessionScalarWhereWithAggregatesInputRecursive1(TypedDict, to
     fixtureId: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.ManufacturingSessionStatus'
     operatorId: Union[_str, 'types.StringWithAggregatesFilter']
+    testPackageId: Union[_str, 'types.StringWithAggregatesFilter']
     panelCount: Union[_int, 'types.IntWithAggregatesFilter']
     passedCount: Union[_int, 'types.IntWithAggregatesFilter']
     failedCount: Union[_int, 'types.IntWithAggregatesFilter']
@@ -204633,6 +204788,7 @@ class ManufacturingSessionScalarWhereWithAggregatesInputRecursive2(TypedDict, to
     fixtureId: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.ManufacturingSessionStatus'
     operatorId: Union[_str, 'types.StringWithAggregatesFilter']
+    testPackageId: Union[_str, 'types.StringWithAggregatesFilter']
     panelCount: Union[_int, 'types.IntWithAggregatesFilter']
     passedCount: Union[_int, 'types.IntWithAggregatesFilter']
     failedCount: Union[_int, 'types.IntWithAggregatesFilter']
@@ -204654,6 +204810,7 @@ class ManufacturingSessionScalarWhereWithAggregatesInputRecursive3(TypedDict, to
     fixtureId: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.ManufacturingSessionStatus'
     operatorId: Union[_str, 'types.StringWithAggregatesFilter']
+    testPackageId: Union[_str, 'types.StringWithAggregatesFilter']
     panelCount: Union[_int, 'types.IntWithAggregatesFilter']
     passedCount: Union[_int, 'types.IntWithAggregatesFilter']
     failedCount: Union[_int, 'types.IntWithAggregatesFilter']
@@ -204675,6 +204832,7 @@ class ManufacturingSessionScalarWhereWithAggregatesInputRecursive4(TypedDict, to
     fixtureId: Union[_str, 'types.StringWithAggregatesFilter']
     status: 'enums.ManufacturingSessionStatus'
     operatorId: Union[_str, 'types.StringWithAggregatesFilter']
+    testPackageId: Union[_str, 'types.StringWithAggregatesFilter']
     panelCount: Union[_int, 'types.IntWithAggregatesFilter']
     passedCount: Union[_int, 'types.IntWithAggregatesFilter']
     failedCount: Union[_int, 'types.IntWithAggregatesFilter']
@@ -204692,6 +204850,7 @@ class ManufacturingSessionGroupByOutput(TypedDict, total=False):
     fixtureId: _str
     status: 'enums.ManufacturingSessionStatus'
     operatorId: _str
+    testPackageId: _str
     panelCount: _int
     passedCount: _int
     failedCount: _int
@@ -204728,6 +204887,7 @@ class ManufacturingSessionScalarAggregateOutput(TypedDict, total=False):
     fixtureId: _str
     status: 'enums.ManufacturingSessionStatus'
     operatorId: _str
+    testPackageId: _str
     panelCount: _int
     passedCount: _int
     failedCount: _int
@@ -204749,6 +204909,7 @@ class ManufacturingSessionMaxAggregateInput(TypedDict, total=False):
     fixtureId: bool
     status: bool
     operatorId: bool
+    testPackageId: bool
     panelCount: bool
     passedCount: bool
     failedCount: bool
@@ -204766,6 +204927,7 @@ class ManufacturingSessionMinAggregateInput(TypedDict, total=False):
     fixtureId: bool
     status: bool
     operatorId: bool
+    testPackageId: bool
     panelCount: bool
     passedCount: bool
     failedCount: bool
@@ -204795,6 +204957,7 @@ ManufacturingSessionCountAggregateInput = TypedDict(
         'fixtureId': bool,
         'status': bool,
         'operatorId': bool,
+        'testPackageId': bool,
         'panelCount': bool,
         'passedCount': bool,
         'failedCount': bool,
@@ -204816,6 +204979,7 @@ ManufacturingSessionCountAggregateOutput = TypedDict(
         'fixtureId': int,
         'status': int,
         'operatorId': int,
+        'testPackageId': int,
         'panelCount': int,
         'passedCount': int,
         'failedCount': int,
@@ -204836,6 +205000,7 @@ ManufacturingSessionKeys = Literal[
     'fixtureId',
     'status',
     'operatorId',
+    'testPackageId',
     'panelCount',
     'passedCount',
     'failedCount',
@@ -204847,6 +205012,7 @@ ManufacturingSessionKeys = Literal[
     'product',
     'fixture',
     'operator',
+    'testPackage',
     'panels',
 ]
 ManufacturingSessionScalarFieldKeys = Literal[
@@ -204855,6 +205021,7 @@ ManufacturingSessionScalarFieldKeys = Literal[
     'fixtureId',
     'status',
     'operatorId',
+    'testPackageId',
     'panelCount',
     'passedCount',
     'failedCount',
@@ -204870,6 +205037,7 @@ ManufacturingSessionRelationalFieldKeys = Literal[
         'product',
         'fixture',
         'operator',
+        'testPackage',
         'panels',
     ]
 
@@ -205355,6 +205523,7 @@ class TestPackageIncludeFromManufacturingPanel(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive1']
     createdBy: Union[bool, 'UserArgsFromManufacturingPanelRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingPanelRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingPanelRecursive1']
 
 
 class TestPackageIncludeFromManufacturingPanelRecursive1(TypedDict, total=False):
@@ -205362,6 +205531,7 @@ class TestPackageIncludeFromManufacturingPanelRecursive1(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive2']
     createdBy: Union[bool, 'UserArgsFromManufacturingPanelRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingPanelRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingPanelRecursive2']
 
 
 class TestPackageIncludeFromManufacturingPanelRecursive2(TypedDict, total=False):
@@ -205369,6 +205539,7 @@ class TestPackageIncludeFromManufacturingPanelRecursive2(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive3']
     createdBy: Union[bool, 'UserArgsFromManufacturingPanelRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingPanelRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingPanelRecursive3']
 
 
 class TestPackageIncludeFromManufacturingPanelRecursive3(TypedDict, total=False):
@@ -205376,6 +205547,7 @@ class TestPackageIncludeFromManufacturingPanelRecursive3(TypedDict, total=False)
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive4']
     createdBy: Union[bool, 'UserArgsFromManufacturingPanelRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingPanelRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingPanelRecursive4']
 
 
 class TestPackageIncludeFromManufacturingPanelRecursive4(TypedDict, total=False):
@@ -206045,7 +206217,6 @@ class ProductStageConfigIncludeFromManufacturingPanel(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingPanelRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingPanelRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingPanelRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingPanelRecursive1']
 
 
 class ProductStageConfigIncludeFromManufacturingPanelRecursive1(TypedDict, total=False):
@@ -206057,7 +206228,6 @@ class ProductStageConfigIncludeFromManufacturingPanelRecursive1(TypedDict, total
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingPanelRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingPanelRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingPanelRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingPanelRecursive2']
 
 
 class ProductStageConfigIncludeFromManufacturingPanelRecursive2(TypedDict, total=False):
@@ -206069,7 +206239,6 @@ class ProductStageConfigIncludeFromManufacturingPanelRecursive2(TypedDict, total
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingPanelRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingPanelRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingPanelRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingPanelRecursive3']
 
 
 class ProductStageConfigIncludeFromManufacturingPanelRecursive3(TypedDict, total=False):
@@ -206081,7 +206250,6 @@ class ProductStageConfigIncludeFromManufacturingPanelRecursive3(TypedDict, total
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingPanelRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingPanelRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingPanelRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingPanelRecursive4']
 
 
 class ProductStageConfigIncludeFromManufacturingPanelRecursive4(TypedDict, total=False):
@@ -209120,7 +209288,6 @@ class AssetSetIncludeFromManufacturingPanel(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingPanelRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingPanelRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingPanelRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingPanelRecursive1']
     createdBy: Union[bool, 'UserArgsFromManufacturingPanelRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingPanelRecursive1']
@@ -209132,7 +209299,6 @@ class AssetSetIncludeFromManufacturingPanelRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingPanelRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingPanelRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingPanelRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingPanelRecursive2']
     createdBy: Union[bool, 'UserArgsFromManufacturingPanelRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingPanelRecursive2']
@@ -209144,7 +209310,6 @@ class AssetSetIncludeFromManufacturingPanelRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingPanelRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingPanelRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingPanelRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingPanelRecursive3']
     createdBy: Union[bool, 'UserArgsFromManufacturingPanelRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingPanelRecursive3']
@@ -209156,7 +209321,6 @@ class AssetSetIncludeFromManufacturingPanelRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingPanelRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingPanelRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingPanelRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingPanelRecursive4']
     createdBy: Union[bool, 'UserArgsFromManufacturingPanelRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingPanelRecursive4']
@@ -209467,6 +209631,7 @@ class ManufacturingSessionIncludeFromManufacturingPanel(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive1']
     fixture: Union[bool, 'FixtureArgsFromManufacturingPanelRecursive1']
     operator: Union[bool, 'UserArgsFromManufacturingPanelRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingPanelRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingPanelRecursive1']
 
 
@@ -209475,6 +209640,7 @@ class ManufacturingSessionIncludeFromManufacturingPanelRecursive1(TypedDict, tot
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive2']
     fixture: Union[bool, 'FixtureArgsFromManufacturingPanelRecursive2']
     operator: Union[bool, 'UserArgsFromManufacturingPanelRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingPanelRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingPanelRecursive2']
 
 
@@ -209483,6 +209649,7 @@ class ManufacturingSessionIncludeFromManufacturingPanelRecursive2(TypedDict, tot
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive3']
     fixture: Union[bool, 'FixtureArgsFromManufacturingPanelRecursive3']
     operator: Union[bool, 'UserArgsFromManufacturingPanelRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingPanelRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingPanelRecursive3']
 
 
@@ -209491,6 +209658,7 @@ class ManufacturingSessionIncludeFromManufacturingPanelRecursive3(TypedDict, tot
     product: Union[bool, 'ProductArgsFromManufacturingPanelRecursive4']
     fixture: Union[bool, 'FixtureArgsFromManufacturingPanelRecursive4']
     operator: Union[bool, 'UserArgsFromManufacturingPanelRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingPanelRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingPanelRecursive4']
 
 
@@ -210663,6 +210831,7 @@ class TestPackageIncludeFromManufacturingUnit(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive1']
     createdBy: Union[bool, 'UserArgsFromManufacturingUnitRecursive1']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingUnitRecursive1']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingUnitRecursive1']
 
 
 class TestPackageIncludeFromManufacturingUnitRecursive1(TypedDict, total=False):
@@ -210670,6 +210839,7 @@ class TestPackageIncludeFromManufacturingUnitRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive2']
     createdBy: Union[bool, 'UserArgsFromManufacturingUnitRecursive2']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingUnitRecursive2']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingUnitRecursive2']
 
 
 class TestPackageIncludeFromManufacturingUnitRecursive2(TypedDict, total=False):
@@ -210677,6 +210847,7 @@ class TestPackageIncludeFromManufacturingUnitRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive3']
     createdBy: Union[bool, 'UserArgsFromManufacturingUnitRecursive3']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingUnitRecursive3']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingUnitRecursive3']
 
 
 class TestPackageIncludeFromManufacturingUnitRecursive3(TypedDict, total=False):
@@ -210684,6 +210855,7 @@ class TestPackageIncludeFromManufacturingUnitRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive4']
     createdBy: Union[bool, 'UserArgsFromManufacturingUnitRecursive4']
     sessions: Union[bool, 'FindManySessionArgsFromManufacturingUnitRecursive4']
+    manufacturingSessions: Union[bool, 'FindManyManufacturingSessionArgsFromManufacturingUnitRecursive4']
 
 
 class TestPackageIncludeFromManufacturingUnitRecursive4(TypedDict, total=False):
@@ -211353,7 +211525,6 @@ class ProductStageConfigIncludeFromManufacturingUnit(TypedDict, total=False):
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingUnitRecursive1']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingUnitRecursive1']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingUnitRecursive1']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingUnitRecursive1']
 
 
 class ProductStageConfigIncludeFromManufacturingUnitRecursive1(TypedDict, total=False):
@@ -211365,7 +211536,6 @@ class ProductStageConfigIncludeFromManufacturingUnitRecursive1(TypedDict, total=
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingUnitRecursive2']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingUnitRecursive2']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingUnitRecursive2']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingUnitRecursive2']
 
 
 class ProductStageConfigIncludeFromManufacturingUnitRecursive2(TypedDict, total=False):
@@ -211377,7 +211547,6 @@ class ProductStageConfigIncludeFromManufacturingUnitRecursive2(TypedDict, total=
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingUnitRecursive3']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingUnitRecursive3']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingUnitRecursive3']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingUnitRecursive3']
 
 
 class ProductStageConfigIncludeFromManufacturingUnitRecursive3(TypedDict, total=False):
@@ -211389,7 +211558,6 @@ class ProductStageConfigIncludeFromManufacturingUnitRecursive3(TypedDict, total=
     buildRuns: Union[bool, 'FindManyBuildRunArgsFromManufacturingUnitRecursive4']
     queueEntries: Union[bool, 'FindManyValidationQueueEntryArgsFromManufacturingUnitRecursive4']
     buildMatrixEntries: Union[bool, 'FindManyStageBuildMatrixArgsFromManufacturingUnitRecursive4']
-    assetSets: Union[bool, 'FindManyAssetSetArgsFromManufacturingUnitRecursive4']
 
 
 class ProductStageConfigIncludeFromManufacturingUnitRecursive4(TypedDict, total=False):
@@ -214428,7 +214596,6 @@ class AssetSetIncludeFromManufacturingUnit(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive1']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingUnitRecursive1']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingUnitRecursive1']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingUnitRecursive1']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingUnitRecursive1']
     createdBy: Union[bool, 'UserArgsFromManufacturingUnitRecursive1']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingUnitRecursive1']
@@ -214440,7 +214607,6 @@ class AssetSetIncludeFromManufacturingUnitRecursive1(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive2']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingUnitRecursive2']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingUnitRecursive2']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingUnitRecursive2']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingUnitRecursive2']
     createdBy: Union[bool, 'UserArgsFromManufacturingUnitRecursive2']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingUnitRecursive2']
@@ -214452,7 +214618,6 @@ class AssetSetIncludeFromManufacturingUnitRecursive2(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive3']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingUnitRecursive3']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingUnitRecursive3']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingUnitRecursive3']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingUnitRecursive3']
     createdBy: Union[bool, 'UserArgsFromManufacturingUnitRecursive3']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingUnitRecursive3']
@@ -214464,7 +214629,6 @@ class AssetSetIncludeFromManufacturingUnitRecursive3(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive4']
     boardRevision: Union[bool, 'BoardRevisionArgsFromManufacturingUnitRecursive4']
     buildRun: Union[bool, 'BuildRunArgsFromManufacturingUnitRecursive4']
-    stageConfig: Union[bool, 'ProductStageConfigArgsFromManufacturingUnitRecursive4']
     recipeVersion: Union[bool, 'RecipeVersionArgsFromManufacturingUnitRecursive4']
     createdBy: Union[bool, 'UserArgsFromManufacturingUnitRecursive4']
     assets: Union[bool, 'FindManyAssetArgsFromManufacturingUnitRecursive4']
@@ -214775,6 +214939,7 @@ class ManufacturingSessionIncludeFromManufacturingUnit(TypedDict, total=False):
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive1']
     fixture: Union[bool, 'FixtureArgsFromManufacturingUnitRecursive1']
     operator: Union[bool, 'UserArgsFromManufacturingUnitRecursive1']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingUnitRecursive1']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingUnitRecursive1']
 
 
@@ -214783,6 +214948,7 @@ class ManufacturingSessionIncludeFromManufacturingUnitRecursive1(TypedDict, tota
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive2']
     fixture: Union[bool, 'FixtureArgsFromManufacturingUnitRecursive2']
     operator: Union[bool, 'UserArgsFromManufacturingUnitRecursive2']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingUnitRecursive2']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingUnitRecursive2']
 
 
@@ -214791,6 +214957,7 @@ class ManufacturingSessionIncludeFromManufacturingUnitRecursive2(TypedDict, tota
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive3']
     fixture: Union[bool, 'FixtureArgsFromManufacturingUnitRecursive3']
     operator: Union[bool, 'UserArgsFromManufacturingUnitRecursive3']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingUnitRecursive3']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingUnitRecursive3']
 
 
@@ -214799,6 +214966,7 @@ class ManufacturingSessionIncludeFromManufacturingUnitRecursive3(TypedDict, tota
     product: Union[bool, 'ProductArgsFromManufacturingUnitRecursive4']
     fixture: Union[bool, 'FixtureArgsFromManufacturingUnitRecursive4']
     operator: Union[bool, 'UserArgsFromManufacturingUnitRecursive4']
+    testPackage: Union[bool, 'TestPackageArgsFromManufacturingUnitRecursive4']
     panels: Union[bool, 'FindManyManufacturingPanelArgsFromManufacturingUnitRecursive4']
 
 

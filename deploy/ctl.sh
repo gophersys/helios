@@ -36,6 +36,7 @@ REGISTRY_GIT_POLLER="${REGISTRY}/concord-git-poller"
 REGISTRY_VALIDATION="${REGISTRY}/concord-validation-alpha"
 REGISTRY_BUILD_SERVICE="${REGISTRY}/concord-build-service"
 REGISTRY_DOCS="${REGISTRY}/concord-docs"
+REGISTRY_TEST_RUNNER="${REGISTRY}/concord-test-runner"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -182,7 +183,19 @@ cmd_build() {
           --tag "${REGISTRY_VALIDATION}:${env}" \
           --tag "${REGISTRY_VALIDATION}:${env}-${GIT_COMMIT}" \
           --load . > /dev/null 2>&1
-        timer_end "Validation build"
+        timer_end "Validation build (legacy)"
+        ;;
+      runner|test-runner)
+        timer_start
+        docker buildx build \
+          --build-arg APP_VERSION --build-arg ENVIRONMENT \
+          --build-arg GIT_COMMIT --build-arg GIT_BRANCH --build-arg GIT_DIRTY \
+          --build-arg BUILD_TIME --build-arg BUILD_HOST \
+          --file deploy/runner/Dockerfile \
+          --tag "${REGISTRY_TEST_RUNNER}:${env}" \
+          --tag "${REGISTRY_TEST_RUNNER}:${env}-${GIT_COMMIT}" \
+          --load . > /dev/null 2>&1
+        timer_end "Test runner build"
         ;;
       build-service)
         timer_start
@@ -230,6 +243,7 @@ _push_images() {
         frontend|fe|app|ui)       docker save "${REGISTRY_FRONTEND}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
         git-poller|poller)        docker save "${REGISTRY_GIT_POLLER}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
         validation|val)           docker save "${REGISTRY_VALIDATION}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
+        runner|test-runner)       docker save "${REGISTRY_TEST_RUNNER}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
         build-service)            docker save "${REGISTRY_BUILD_SERVICE}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
         docs)                     docker save "${REGISTRY_DOCS}:${env}" | sudo k3s ctr images import - 2>/dev/null || true ;;
       esac
@@ -243,6 +257,7 @@ _push_images() {
         frontend|fe|app|ui)       docker push "${REGISTRY_FRONTEND}:${env}" > /dev/null 2>&1 || true ;;
         git-poller|poller)        docker push "${REGISTRY_GIT_POLLER}:${env}" > /dev/null 2>&1 || true ;;
         validation|val)           docker push "${REGISTRY_VALIDATION}:${env}" > /dev/null 2>&1 || true ;;
+        runner|test-runner)       docker push "${REGISTRY_TEST_RUNNER}:${env}" > /dev/null 2>&1 || true ;;
         build-service)            docker push "${REGISTRY_BUILD_SERVICE}:${env}" > /dev/null 2>&1 || true ;;
         docs)                     docker push "${REGISTRY_DOCS}:${env}" > /dev/null 2>&1 || true ;;
       esac

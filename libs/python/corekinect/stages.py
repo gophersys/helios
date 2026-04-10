@@ -335,6 +335,25 @@ _REGRESSION_BUILDS: List[StageBuildDef] = [
 
 
 # =============================================================================
+# MANUFACTURING stage — production line test (1 build)
+#
+# Firmware flashed via J-Link during manufacturing POST. A single MFG_BASE
+# build produces both app (nRF52840) and comms (nRF9151) hex targets.
+# Tests: electrical (power rail validation), fw_flash (J-Link + AP protect),
+# post (boot, chip IDs, BMS, charger, GPS, modem, personalization, IPC rekey).
+# =============================================================================
+
+_MANUFACTURING_BUILDS: List[StageBuildDef] = [
+    StageBuildDef(
+        label="MFG_BASE",
+        fw_type="mfg", variant="mfg", config_log=True,
+        produces_hex=True, produces_cfw=False, git_ref="main",
+        description="Manufacturing firmware — J-Link flash for production POST",
+    ),
+]
+
+
+# =============================================================================
 # Stage → builds mapping
 # =============================================================================
 
@@ -344,6 +363,7 @@ _STAGE_BUILDS: Dict[Stage, List[StageBuildDef]] = {
     Stage.INTEGRATION: _INTEGRATION_BUILDS,
     Stage.REGRESSION: _REGRESSION_BUILDS,
     Stage.FUOTA: _FUOTA_BUILDS,
+    Stage.MANUFACTURING: _MANUFACTURING_BUILDS,
 }
 
 
@@ -380,6 +400,9 @@ _STAGE_CAPABILITIES: Dict[Stage, List[str]] = {
 
     # FUOTA: needs J-Link for initial flash + power for boot verification
     Stage.FUOTA: ["power", "jlink"],
+
+    # Manufacturing: needs J-Link for firmware flash + power for boot/electrical
+    Stage.MANUFACTURING: ["power", "jlink"],
 }
 
 

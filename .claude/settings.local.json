@@ -3,7 +3,8 @@
     "allow": [
       "Bash(python3:*)",
       "Bash(git add:*)",
-      "Bash(git clean:*)"
+      "Bash(git clean:*)",
+      "Bash(PYTHONPATH=libs/python:libs:libs/protocols mkdocs build -d /tmp/docs-test-build)"
     ]
   }
 }

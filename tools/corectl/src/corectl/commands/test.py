@@ -26,6 +26,8 @@ MANIFEST_NAME = "concord.test.yaml"
 
 # Standard stage directories — convention, not configuration
 STANDARD_STAGES = ["smoke", "driver", "integration", "regression", "fuota"]
+MANUFACTURING_STAGES = ["manufacturing"]
+ALL_STAGES = STANDARD_STAGES + MANUFACTURING_STAGES
 
 # Required files in a valid test project
 REQUIRED_FILES = [
@@ -103,7 +105,7 @@ def _validate_structure(project_dir: Path, result: ValidationResult) -> dict:
     stages = manifest.get("stages", {})
     enabled_count = 0
     for stage_name, enabled in stages.items():
-        if stage_name not in STANDARD_STAGES:
+        if stage_name not in ALL_STAGES:
             result.warn(f"Non-standard stage: '{stage_name}'")
         if enabled:
             enabled_count += 1
@@ -540,9 +542,43 @@ def upload(ctx, release: bool, version_override: Optional[str], path: str):
             sha = "unknown"
         version = f"dev-{sha}"
 
+    # Collect git state for traceability
+    git_sha = ""
+    git_dirty = False
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short=8", "HEAD"],
+            capture_output=True, text=True, cwd=str(project_dir),
+        )
+        git_sha = result.stdout.strip()
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True, text=True, cwd=str(project_dir),
+        )
+        git_dirty = bool(result.stdout.strip())
+    except Exception:
+        pass
+
+    # Prompt for upload message
+    dirty_hint = " (dirty)" if git_dirty else ""
+    upload_message = click.prompt(
+        f"Upload message [{git_sha}{dirty_hint}]",
+        default="",
+        show_default=False,
+    ).strip()
+
     status = "RELEASED" if release else "DEVELOPMENT"
 
-    click.echo(f"Uploading {slug}@{version} ({status})...")
+    # Auto-detect package type from manifest stages
+    stages = manifest.get("stages", {})
+    has_manufacturing = stages.get("manufacturing", False)
+    has_validation = any(stages.get(s, False) for s in STANDARD_STAGES)
+    if has_manufacturing and not has_validation:
+        package_type = "MANUFACTURING"
+    else:
+        package_type = "VALIDATION"
+
+    click.echo(f"Uploading {slug}@{version} ({status}, {package_type})...")
 
     # Package the project
     excludes = {
@@ -572,12 +608,16 @@ def upload(ctx, release: bool, version_override: Optional[str], path: str):
 
     upload_manifest = {
         "version": version,
+        "type": package_type,
         "status": status,
         "frameworkVersion": manifest.get("framework", "unknown"),
         "productSlug": slug,
         "manifestHash": manifest_hash,
         "stagesEnabled": manifest.get("stages", {}),
         "testCount": 0,  # Backend can override from collection
+        "message": upload_message,
+        "gitSha": git_sha,
+        "gitDirty": git_dirty,
     }
 
     resp = requests.post(

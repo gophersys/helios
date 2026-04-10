@@ -94,6 +94,8 @@ def _serialize_session(s, include_panels=False) -> dict:
         "passedCount": s.passedCount,
         "failedCount": s.failedCount,
         "config": s.config,
+        "testPackageId": getattr(s, "testPackageId", None),
+        "testPackageVersion": getattr(s.testPackage, "version", None) if hasattr(s, "testPackage") and s.testPackage else None,
         "startedAt": s.startedAt.isoformat() if s.startedAt else None,
         "endedAt": s.endedAt.isoformat() if hasattr(s, "endedAt") and s.endedAt else None,
         "createdAt": s.createdAt.isoformat() if s.createdAt else None,
@@ -168,9 +170,39 @@ def create_manufacturing_session():
     }
     if data.config is not None:
         create_data["config"] = Json(data.config)
+
+    # Resolve manufacturing test package (explicit version or latest)
+    tp = None
+    try:
+        if data.testPackageVersion:
+            tp = db.testpackage.find_first(
+                where={
+                    "productId": data.productId,
+                    "type": "MANUFACTURING",
+                    "version": data.testPackageVersion,
+                },
+            )
+            if not tp:
+                return not_found(f"Manufacturing test package version '{data.testPackageVersion}' not found")
+        else:
+            tp = db.testpackage.find_first(
+                where={"productId": data.productId, "type": "MANUFACTURING", "status": "RELEASED"},
+                order={"createdAt": "desc"},
+            )
+            if not tp:
+                tp = db.testpackage.find_first(
+                    where={"productId": data.productId, "type": "MANUFACTURING"},
+                    order={"createdAt": "desc"},
+                )
+        if tp:
+            create_data["testPackageId"] = tp.id
+            logger.info("Manufacturing session using test package %s", tp.version)
+    except Exception as e:
+        logger.warning("Failed to resolve manufacturing test package: %s", e)
+
     session = db.manufacturingsession.create(
         data=create_data,
-        include={"product": True, "fixture": True, "operator": True, "panels": True},
+        include={"product": True, "fixture": True, "operator": True, "panels": True, "testPackage": True},
     )
 
     # Lock the fixture

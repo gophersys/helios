@@ -1,0 +1,35 @@
+[project]
+name = "concord-manufacturing-alpha"
+version = "1.0.0"
+requires-python = ">=3.10"
+description = "Manufacturing test suite for Alpha product"
+
+dependencies = [
+    "corekinect-test>=0.1.0",
+    "grpcio>=1.75.0",
+    "grpcio-tools>=1.75.0",
+    "pytest>=9.0.0",
+    "pytest-timeout>=2.0.0",
+    "requests>=2.26.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+markers = [
+    "electrical: marks electrical tests (power rail validation)",
+    "post: marks POST tests (boot, chip ID, BMS, charger, GPS, personalization)",
+    "fw_flash: marks firmware flash tests (J-Link + AP protect)",
+    "sequential: marks tests that must run in order",
+]
+
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+log_cli_date_format = "%H:%M:%S"
+addopts = "-v --tb=short"
+timeout = 300

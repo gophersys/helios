@@ -130,6 +130,14 @@ class TestPackageStatus(StrEnum):
     DEVELOPMENT = 'DEVELOPMENT'
     RELEASED = 'RELEASED'
 
+class TestPackageType(StrEnum):
+    VALIDATION = 'VALIDATION'
+    MANUFACTURING = 'MANUFACTURING'
+
+class StageType(StrEnum):
+    VALIDATION = 'VALIDATION'
+    MANUFACTURING = 'MANUFACTURING'
+
 class BuildRunStatus(StrEnum):
     PENDING = 'PENDING'
     BUILDING = 'BUILDING'
@@ -160,10 +168,6 @@ class FirmwareSetStatus(StrEnum):
     active = 'active'
     deprecated = 'deprecated'
     recalled = 'recalled'
-
-class StageType(StrEnum):
-    VALIDATION = 'VALIDATION'
-    MANUFACTURING = 'MANUFACTURING'
 
 class RecipeStatus(StrEnum):
     draft = 'draft'

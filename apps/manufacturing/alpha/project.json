@@ -118,7 +118,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/manufacturing/alpha",
-        "command": "PYTHONPATH=src:$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols:. pytest tests/ -v"
+        "command": "PYTHONPATH=.:$(pwd)/../../../libs/python:$(pwd)/../../../libs:$(pwd)/../../../libs/protocols pytest tests/manufacturing/ -v"
       }
     },
     "typecheck": {

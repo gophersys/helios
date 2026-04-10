@@ -121,6 +121,21 @@ export interface ProductTarget {
   appId: number;
 }
 
+export interface TestPackageSummary {
+  version: string;
+  status: 'DEVELOPMENT' | 'RELEASED';
+  testCount: number;
+  message: string | null;
+  gitSha: string | null;
+  gitDirty: boolean | null;
+  updatedAt: string | null;
+}
+
+export interface TestAppStatus {
+  validation: TestPackageSummary | null;
+  manufacturing: TestPackageSummary | null;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -137,6 +152,7 @@ export interface Product {
   assetSetCount?: number;
   sessionCount?: number;
   testCount?: number;
+  testAppStatus?: TestAppStatus;
   boards?: Board[];
   createdAt: string;
   updatedAt: string;
@@ -882,6 +898,82 @@ export interface ManufacturingConfig {
   boardRevision?: { id: string; version: string } | null;
   createdAt: string | null;
   updatedAt: string | null;
+}
+
+// ── Manufacturing session types ───────────────────────────
+
+export interface ManufacturingFixture {
+  id: string;
+  name: string;
+  productId: string;
+  productName?: string;
+  type: string;
+  status: string;
+  slotCount: number;
+  description?: string;
+  activeSessionId?: string | null;
+}
+
+export interface ManufacturingStage {
+  name: string;
+  status: string;
+  durationMs?: number | null;
+  measurements?: Record<string, unknown> | null;
+  errorMessage?: string | null;
+}
+
+export interface ManufacturingUnit {
+  id: string;
+  panelId: string;
+  slotIndex: number;
+  slotId: string;
+  serialNumber: string | null;
+  status: string;
+  stages: ManufacturingStage[];
+  errorMessage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+}
+
+export interface ManufacturingPanel {
+  id: string;
+  sessionId: string;
+  panelIndex: number;
+  qrCode: string;
+  status: string;
+  unitCount: number;
+  passedUnits: number;
+  failedUnits: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+  units: ManufacturingUnit[];
+}
+
+export interface ManufacturingSession {
+  id: string;
+  productId: string;
+  fixtureId: string;
+  status: string;
+  operatorId: string;
+  operatorName?: string;
+  testPackageId: string | null;
+  testPackageVersion: string | null;
+  panelCount: number;
+  passedCount: number;
+  failedCount: number;
+  config: Record<string, unknown> | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string | null;
+  product?: { id: string; name: string } | null;
+  fixture?: { id: string; name: string } | null;
+  operator?: { id: string; name: string; email: string } | null;
+}
+
+export interface ManufacturingSessionDetail extends ManufacturingSession {
+  panels: ManufacturingPanel[];
 }
 
 // ── Dashboard types ────────────────────────────────────────

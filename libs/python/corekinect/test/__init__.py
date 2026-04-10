@@ -55,6 +55,9 @@ from .artifact_writer import (
 from .fuota_orchestrator import FuotaOrchestrator, personalize_with_retry
 from .version_detector import DEFAULT_VERSION_PATTERNS, BootVersionDetector
 
+# ── Multi-Slot ──
+from .slot import FixtureContext, SlotContext
+
 # ── Pytest Integration ──
 from .pytest_integration import (
     get_required_capabilities,
@@ -109,6 +112,9 @@ __all__ = [
     "DEFAULT_VERSION_PATTERNS",
     "FuotaOrchestrator",
     "personalize_with_retry",
+    # ── Multi-Slot ──
+    "FixtureContext",
+    "SlotContext",
     # ── Pytest Integration ──
     "get_required_capabilities",
     "get_required_feature",

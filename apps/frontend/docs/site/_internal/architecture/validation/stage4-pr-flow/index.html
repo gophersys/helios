@@ -1,0 +1,4078 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+        <link rel="canonical" href="https://docs.concord.local/_internal/architecture/validation/stage4-pr-flow/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.32">
+    
+    
+      
+        <title>Stage 4 PR Validation Flow — Complete Design - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#stage-4-pr-validation-flow-complete-design" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Stage 4 PR Validation Flow — Complete Design
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../.." class="md-tabs__link">
+        
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../products/" class="md-tabs__link">
+          
+  
+  Products
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../builds/" class="md-tabs__link">
+          
+  
+  Builds
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../validation/" class="md-tabs__link">
+          
+  
+  Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../manufacturing/" class="md-tabs__link">
+          
+  
+  Manufacturing
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../fixtures/" class="md-tabs__link">
+          
+  
+  Fixtures
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../administration/" class="md-tabs__link">
+          
+  
+  Administration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../reference/" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../platform/" class="md-tabs__link">
+          
+  
+  Platform
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../products/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Products
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Products
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/creating-products/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating Products
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/board-revisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Board Revisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/firmware-repos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Repos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/build-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/recipe-editor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recipe Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/stage-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../builds/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builds
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Builds
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../builds/triggering-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Triggering Builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../builds/build-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../builds/ci-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../builds/monitoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../builds/artifacts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Artifacts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../validation/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/running-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/writing-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/run-detail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Detail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Time View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../manufacturing/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manufacturing
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Manufacturing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/fixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manufacturing Fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/station-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Station Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/running-post/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running POST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/reading-results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../fixtures/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixtures
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Fixtures
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../fixtures/managing-fixtures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Managing Fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../fixtures/designs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixture Designs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../fixtures/instances/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixture Instances
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../fixtures/slots-and-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slots & Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../administration/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../administration/initial-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Initial Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../administration/users-and-roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users & Roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../administration/permission-sets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permission Sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../administration/api-keys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../administration/production-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/python-sdk/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python SDK
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python SDK
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/python-sdk/test-framework/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Framework
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2_2" id="__nav_8_2_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Test Framework
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TestContext
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/cloud-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CloudClient
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/uart-demuxer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UartDemuxer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/power-profiler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerProfiler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/stage-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StageAssets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/device-personalizer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DevicePersonalizer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/reporter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reporter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/post/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2_3" id="__nav_8_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CoreCloud
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/corecloud/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core cloud &gt; client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/corecloud/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core cloud &gt; models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/corectl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    corectl CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stages-and-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages & Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../platform/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/system-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../platform/build-system/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build System
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9_3" id="__nav_9_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build System
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/build-system/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/build-system/product-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Product Builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/build-system/artifact-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Artifact Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../platform/validation-system/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation System
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9_4" id="__nav_9_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation System
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/validation-system/system-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/validation-system/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/corecloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-trigger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Trigger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-firmware-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Firmware Assets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Firmware Assets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#naming-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming Convention
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#version-numbering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version Numbering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-the-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. The Flow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-what-each-phase-proves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. What Each Phase Proves
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-fuota-transitions-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. FUOTA Transitions Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-test-suite-tiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Test Suite Tiers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-timing-estimate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Timing Estimate
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Timing Estimate">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimization-can-we-speed-up-fuota" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization: Can We Speed Up FUOTA?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-abstraction-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Abstraction Layers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Abstraction Layers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#repeating-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repeating Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cfwpair" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CfwPair
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-fuota-plan-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. FUOTA Plan Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. FUOTA Plan Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-one-plan-per-transition-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A: One Plan Per Transition (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-multi-stage-plans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B: Multi-Stage Plans
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-safety-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Safety Invariants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-open-questions-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Open Questions — Status
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Open Questions — Status">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#answered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Answered
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#requires-testing-to-verify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requires Testing to Verify
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#future-design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Future Design Decisions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-build-number-injection-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Build Number Injection Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Build Number Injection Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#solution-compiler-flag-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Solution: Compiler Flag Override
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-this-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why This Approach
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-lte-debug-extension-if-socket-issues-persist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. LTE Debug Extension (If Socket Issues Persist)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="stage-4-pr-validation-flow-complete-design">Stage 4 PR Validation Flow — Complete Design<a class="headerlink" href="#stage-4-pr-validation-flow-complete-design" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>The end-to-end firmware validation pipeline triggered when a PR is opened
+against <code>main</code> on <code>alpha_fw</code>. Proves that the firmware under test (FUT)
+works, can be delivered via FUOTA, survives every firmware transition path,
+and is compatible with the current production baseline.</p>
+</blockquote>
+<hr />
+<h2 id="1-trigger">1. Trigger<a class="headerlink" href="#1-trigger" title="Permanent link">&para;</a></h2>
+<p>A pull request is opened against <code>main</code> that modifies <code>alpha_fw</code> (production
+firmware). The validation pipeline runs automatically and blocks merge until
+all phases pass.</p>
+<hr />
+<h2 id="2-firmware-assets">2. Firmware Assets<a class="headerlink" href="#2-firmware-assets" title="Permanent link">&para;</a></h2>
+<p>Each validation run requires <strong>8 firmware builds</strong>, each producing 2 CFW files
+(AppId 108 nRF9151 comms + AppId 109 nRF52840 app) = <strong>16 CFW files</strong> total.</p>
+<h3 id="naming-convention">Naming Convention<a class="headerlink" href="#naming-convention" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>Source</th>
+<th>Version</th>
+<th>Track</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MFG_BASE</strong></td>
+<td><code>alpha_mfg_fw</code> @ main</td>
+<td><code>{108,109}.0.5.{N}-PM</code></td>
+<td>Prod+Mfg</td>
+<td>J-Link flash starting point</td>
+</tr>
+<tr>
+<td><strong>MFG_BUMP</strong></td>
+<td>Same code as MFG_BASE</td>
+<td><code>{108,109}.0.5.{N+1}-PM</code></td>
+<td>Prod+Mfg</td>
+<td>FUOTA sanity target (same code, bumped build)</td>
+</tr>
+<tr>
+<td><strong>FUT_DEBUG_A</strong></td>
+<td><code>alpha_fw</code> @ PR branch</td>
+<td><code>{108,109}.0.8.{M}-ED</code></td>
+<td>Eng+Debug</td>
+<td>Firmware Under Test, debug variant, version A</td>
+</tr>
+<tr>
+<td><strong>FUT_DEBUG_B</strong></td>
+<td>Same code as FUT_DEBUG_A</td>
+<td><code>{108,109}.0.8.{M+1}-ED</code></td>
+<td>Eng+Debug</td>
+<td>Same FUT debug, bumped build (proves FUOTA on debug prod)</td>
+</tr>
+<tr>
+<td><strong>FUT_RELEASE_A</strong></td>
+<td><code>alpha_fw</code> @ PR branch</td>
+<td><code>{108,109}.0.8.{M}-P</code></td>
+<td>Production</td>
+<td>Firmware Under Test, release variant, version A</td>
+</tr>
+<tr>
+<td><strong>FUT_RELEASE_B</strong></td>
+<td>Same code as FUT_RELEASE_A</td>
+<td><code>{108,109}.0.8.{M+1}-P</code></td>
+<td>Production</td>
+<td>Same FUT release, bumped build (proves FUOTA on release prod)</td>
+</tr>
+<tr>
+<td><strong>MAIN_BASELINE</strong></td>
+<td><code>alpha_fw</code> @ main</td>
+<td><code>{108,109}.0.8.{K}-P</code></td>
+<td>Production</td>
+<td>Current production baseline</td>
+</tr>
+<tr>
+<td><strong>MAIN_MERGED</strong></td>
+<td><code>alpha_fw</code> @ main + PR</td>
+<td><code>{108,109}.0.8.{K+1}-P</code></td>
+<td>Production</td>
+<td>Simulated merge result</td>
+</tr>
+</tbody>
+</table>
+<h3 id="version-numbering">Version Numbering<a class="headerlink" href="#version-numbering" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Major.Minor</code> comes from <code>version.conf</code> (<code>CONFIG_APP_FW_MAJOR_VERSION</code>, <code>CONFIG_APP_FW_MINOR_VERSION</code>)</li>
+<li><code>Build</code> comes from <code>VersionDevice.h</code> (<code>BUILD_NUM</code>)</li>
+<li>To produce "same code, different version", the build system patches <code>BUILD_NUM</code> before the second build</li>
+<li>Each build produces <code>zephyr.signed.encrypted.bin</code> which is wrapped into <code>.cfw</code> via <code>corekinect.firmware.cfw.generate_cfw_from_build()</code></li>
+</ul>
+<h3 id="build-matrix">Build Matrix<a class="headerlink" href="#build-matrix" title="Permanent link">&para;</a></h3>
+<p>For each firmware label, the build system must:
+1. Set <code>BUILD_NUM</code> in <code>src/VersionDevice.h</code> AND <code>comm_coproc_mfg/src/VersionDevice.h</code>
+2. Set <code>IS_MANUFACTURING</code> (1 for mfg, 0 for production)
+3. Set variant overlay (<code>--variant debug</code> or default release)
+4. Build with <code>--mtib-rev 1.2</code>
+5. Collect <code>zephyr.signed.encrypted.bin</code> from both MCU builds
+6. Generate 2 CFW files (AppId 108 + 109)</p>
+<hr />
+<h2 id="3-the-flow">3. The Flow<a class="headerlink" href="#3-the-flow" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Phase 1: Hardware Baseline
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  1.1  Electrical test (power rails, current draw)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  1.2  Flash MFG_BASE via J-Link (app + comms + modem)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  1.3  POST + Personalization (lock shells, assign device ID, generate keys)
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  1.4  Register device with CoreCloud VAL
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>Phase 2: FUOTA Mechanism Sanity (Mfg → Mfg)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  2.1  Upload MFG_BASE + MFG_BUMP CFW files
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  2.2  Create FUOTA plan (stage 0: MFG_BASE, stage 1: MFG_BUMP)
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  2.3  Assign DUT, wait for FUOTA completion
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  2.4  Verify device is on MFG_BUMP (boot_reason=&quot;Fuota&quot;, correct version)
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  2.5  Run POST (prove FUOTA didn&#39;t break hardware)
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>Phase 3: Debug Production Validation
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  3.1  Upload FUT_DEBUG_A + FUT_DEBUG_B CFW files
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  3.2  Create FUOTA plan (stage 0: MFG_BUMP, stage 1: FUT_DEBUG_A)
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>  3.3  Assign DUT, wait for FUOTA completion
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  3.4  Verify device is on FUT_DEBUG_A
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>  3.5  Run THOROUGH validation tests (full test suite on debug build)
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>  3.6  Create FUOTA plan (stage 0: FUT_DEBUG_A, stage 1: FUT_DEBUG_B)
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>  3.7  Assign DUT, wait for FUOTA completion
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>  3.8  Verify device is on FUT_DEBUG_B
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>  3.9  Run BASIC validation tests (sanity after same-code FUOTA)
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>Phase 4: Release Production Validation
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>  4.1  Upload FUT_RELEASE_A + FUT_RELEASE_B CFW files
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>  4.2  Create FUOTA plan (stage 0: FUT_DEBUG_B, stage 1: FUT_RELEASE_A)
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>  4.3  Assign DUT, wait for FUOTA completion
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>  4.4  Verify device is on FUT_RELEASE_A
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>  4.5  Run BASIC validation tests (release build black-box)
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>  4.6  Create FUOTA plan (stage 0: FUT_RELEASE_A, stage 1: FUT_RELEASE_B)
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>  4.7  Assign DUT, wait for FUOTA completion
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>  4.8  Verify device is on FUT_RELEASE_B
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>  4.9  Run BASIC validation tests (sanity after same-code FUOTA)
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>Phase 5: Upgrade Path (Main → Merge)
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>  5.1  Flash MAIN_BASELINE via J-Link (chip erase)
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>  5.2  Re-personalize (new EC key, register with CoreCloud)
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>  5.3  Run BASIC validation tests (confirm main baseline works)
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>  5.4  Upload MAIN_BASELINE + MAIN_MERGED CFW files
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>  5.5  Create FUOTA plan (stage 0: MAIN_BASELINE, stage 1: MAIN_MERGED)
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>  5.6  Assign DUT, wait for FUOTA completion
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>  5.7  Verify device is on MAIN_MERGED
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>  5.8  Run BASIC validation tests
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>VERDICT: All phases pass → PR approved for merge
+</code></pre></div>
+<hr />
+<h2 id="4-what-each-phase-proves">4. What Each Phase Proves<a class="headerlink" href="#4-what-each-phase-proves" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Question Answered</th>
+<th>Failure Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Does the hardware work?</td>
+<td>Dead board / solder defect</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Does FUOTA mechanism work on mfg FW?</td>
+<td>FUOTA client broken in mfg build</td>
+</tr>
+<tr>
+<td>3 (FUOTA in)</td>
+<td>Can mfg FW transition to debug prod?</td>
+<td>Cross-track FUOTA broken</td>
+</tr>
+<tr>
+<td>3 (thorough tests)</td>
+<td>Does debug FUT meet spec?</td>
+<td>Regression in PR code</td>
+</tr>
+<tr>
+<td>3 (same-ver FUOTA)</td>
+<td>Does FUOTA work on debug prod FW?</td>
+<td>FUOTA client broken in debug build</td>
+</tr>
+<tr>
+<td>4 (FUOTA in)</td>
+<td>Can debug transition to release?</td>
+<td>Release build linkage / config issue</td>
+</tr>
+<tr>
+<td>4 (basic tests)</td>
+<td>Does release FUT work?</td>
+<td>Release-only regression</td>
+</tr>
+<tr>
+<td>4 (same-ver FUOTA)</td>
+<td>Does FUOTA work on release FW?</td>
+<td>FUOTA client broken in release build</td>
+</tr>
+<tr>
+<td>5 (flash main)</td>
+<td>Does current production work?</td>
+<td>Baseline already broken (pre-existing)</td>
+</tr>
+<tr>
+<td>5 (FUOTA to merge)</td>
+<td>Can deployed devices upgrade to PR?</td>
+<td>Upgrade path broken</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-fuota-transitions-summary">5. FUOTA Transitions Summary<a class="headerlink" href="#5-fuota-transitions-summary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>From</th>
+<th>To</th>
+<th>FUOTA Plan Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>MFG_BASE</td>
+<td>MFG_BUMP</td>
+<td>Mfg → Mfg (same code, version bump)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>MFG_BUMP</td>
+<td>FUT_DEBUG_A</td>
+<td>Mfg → Debug Prod (cross-track)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>FUT_DEBUG_A</td>
+<td>FUT_DEBUG_B</td>
+<td>Debug → Debug (same code, version bump)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>FUT_DEBUG_B</td>
+<td>FUT_RELEASE_A</td>
+<td>Debug → Release (strip debug)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>FUT_RELEASE_A</td>
+<td>FUT_RELEASE_B</td>
+<td>Release → Release (same code, version bump)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>MAIN_BASELINE</td>
+<td>MAIN_MERGED</td>
+<td>Prod → Prod (field upgrade simulation)</td>
+</tr>
+</tbody>
+</table>
+<p>J-Link flash cycles: 2 (Phase 1.2, Phase 5.1)
+Re-personalization cycles: 2 (Phase 1.3, Phase 5.2)</p>
+<hr />
+<h2 id="6-test-suite-tiers">6. Test Suite Tiers<a class="headerlink" href="#6-test-suite-tiers" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>When Used</th>
+<th>Tests</th>
+<th>Duration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>THOROUGH</strong></td>
+<td>Phase 3.5 (debug build, first validation)</td>
+<td>All Stage 4 tests: boot, power, button, motion, environmental, biometric, NFC, CoreCloud integration</td>
+<td>~15-30 min</td>
+</tr>
+<tr>
+<td><strong>BASIC</strong></td>
+<td>Phases 3.9, 4.5, 4.9, 5.3, 5.8 (sanity checks)</td>
+<td>Boot test, power test, button test, CoreCloud connectivity</td>
+<td>~5 min</td>
+</tr>
+<tr>
+<td><strong>POST</strong></td>
+<td>Phases 1.3, 2.5 (hardware verification)</td>
+<td>Accelerometer, altimeter, BLE, modem, LED, current draw</td>
+<td>~2 min</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-timing-estimate">7. Timing Estimate<a class="headerlink" href="#7-timing-estimate" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Activity</th>
+<th>Count</th>
+<th>Time Each</th>
+<th>Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Firmware build</td>
+<td>8</td>
+<td>~5-10 min</td>
+<td>~40-80 min</td>
+</tr>
+<tr>
+<td>J-Link flash cycle</td>
+<td>2</td>
+<td>~3 min</td>
+<td>~6 min</td>
+</tr>
+<tr>
+<td>Personalization</td>
+<td>2</td>
+<td>~2 min</td>
+<td>~4 min</td>
+</tr>
+<tr>
+<td>FUOTA transition</td>
+<td>6</td>
+<td>~15-60 min (depends on uplink interval)</td>
+<td>~90-360 min</td>
+</tr>
+<tr>
+<td>Thorough test suite</td>
+<td>1</td>
+<td>~15-30 min</td>
+<td>~15-30 min</td>
+</tr>
+<tr>
+<td>Basic test suite</td>
+<td>5</td>
+<td>~5 min</td>
+<td>~25 min</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>2</td>
+<td>~2 min</td>
+<td>~4 min</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Total estimated: ~3-8 hours</strong> (dominated by FUOTA wait times)</p>
+<h3 id="optimization-can-we-speed-up-fuota">Optimization: Can We Speed Up FUOTA?<a class="headerlink" href="#optimization-can-we-speed-up-fuota" title="Permanent link">&para;</a></h3>
+<p>FUOTA requires a device uplink. Options:
+1. <strong>Power cycle</strong> — forces immediate boot + uplink (~30s)
+2. <strong>Button press</strong> — some FW versions trigger position report
+3. <strong>Reduce PSM timer</strong> — shorter sleep = more frequent uplinks
+4. <strong>Wait</strong> — default LTE-M PSM cycle (15-60 min)</p>
+<p>If we can trigger immediate uplinks via power cycle after each FUOTA
+assignment, transitions drop to ~5-10 min each (download + apply + reboot).</p>
+<hr />
+<h2 id="8-abstraction-layers">8. Abstraction Layers<a class="headerlink" href="#8-abstraction-layers" title="Permanent link">&para;</a></h2>
+<h3 id="repeating-patterns">Repeating Patterns<a class="headerlink" href="#repeating-patterns" title="Permanent link">&para;</a></h3>
+<p>These operations repeat across phases and must be clean, tested abstractions:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">FirmwareBuildManager</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Builds firmware, patches version numbers, generates CFW files.</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="sd">    Wraps: build.sh + VersionDevice.h patching + cfw.generate_cfw_from_build()</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">build_num</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">variant</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>              <span class="n">is_manufacturing</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BuildArtifacts</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">generate_cfw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">artifacts</span><span class="p">:</span> <span class="n">BuildArtifacts</span><span class="p">,</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>                     <span class="n">release_track</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CfwPair</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">class</span><span class="w"> </span><span class="nc">FuotaClient</span><span class="p">:</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;FUOTA plan lifecycle via CoreCloud /singleton/ REST API.</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="sd">    Wraps: upload CFW, create plan, assign device, poll progress.</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">upload_cfw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cfw_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">create_plan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stages</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">assign_device</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plan_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">device_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>                      <span class="n">max_stage</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_completion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>                           <span class="n">timeout_s</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FuotaProgress</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">disable_device</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">device_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="k">class</span><span class="w"> </span><span class="nc">DeviceFlasher</span><span class="p">:</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;J-Link flash + power cycle via MTIB.</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="sd">    Wraps: upload hex, flash, power cycle, verify boot.</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">flash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app_hex</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">comms_hex</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>              <span class="n">modem_zip</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">power_cycle</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">verify_boot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expected_current_ma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="k">class</span><span class="w"> </span><span class="nc">DevicePersonalizer</span><span class="p">:</span>
+<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Already exists. Wraps CoreOps + shell lock + key upload.&quot;&quot;&quot;</span>
+<a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a>
+<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="k">class</span><span class="w"> </span><span class="nc">ValidationRunner</span><span class="p">:</span>
+<a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Runs pytest test suites at different tiers.</span>
+<a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a>
+<a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a><span class="sd">    Wraps: pytest invocation with marker selection.</span>
+<a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_post</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_basic</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-44" name="__codelineno-1-44" href="#__codelineno-1-44"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_thorough</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestResult</span><span class="p">:</span> <span class="o">...</span>
+<a id="__codelineno-1-45" name="__codelineno-1-45" href="#__codelineno-1-45"></a>
+<a id="__codelineno-1-46" name="__codelineno-1-46" href="#__codelineno-1-46"></a><span class="k">class</span><span class="w"> </span><span class="nc">Stage4Orchestrator</span><span class="p">:</span>
+<a id="__codelineno-1-47" name="__codelineno-1-47" href="#__codelineno-1-47"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Top-level flow coordinator.</span>
+<a id="__codelineno-1-48" name="__codelineno-1-48" href="#__codelineno-1-48"></a>
+<a id="__codelineno-1-49" name="__codelineno-1-49" href="#__codelineno-1-49"></a><span class="sd">    Composes all above classes to execute the 5-phase flow.</span>
+<a id="__codelineno-1-50" name="__codelineno-1-50" href="#__codelineno-1-50"></a><span class="sd">    Implements checkpoint/resume for long-running validation.</span>
+<a id="__codelineno-1-51" name="__codelineno-1-51" href="#__codelineno-1-51"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-1-52" name="__codelineno-1-52" href="#__codelineno-1-52"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pr_config</span><span class="p">:</span> <span class="n">PrValidationConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ValidationVerdict</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div>
+<h3 id="cfwpair">CfwPair<a class="headerlink" href="#cfwpair" title="Permanent link">&para;</a></h3>
+<p>Each firmware build produces TWO CFW files. Always pass them as a pair:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nd">@dataclass</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">CfwPair</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;A matched pair of CFW files (one per MCU).&quot;&quot;&quot;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">comms</span><span class="p">:</span> <span class="nb">str</span>   <span class="c1"># AppId 108, nRF9151</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">app</span><span class="p">:</span> <span class="nb">str</span>     <span class="c1"># AppId 109, nRF52840</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="nd">@property</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">version_string_comms</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span> <span class="o">...</span>  <span class="c1"># e.g., &quot;108.0.8.0-ED&quot;</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="nd">@property</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">version_string_app</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span> <span class="o">...</span>    <span class="c1"># e.g., &quot;109.0.8.0-ED&quot;</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="nd">@property</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">targets</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Stage targets for FUOTA plan.&quot;&quot;&quot;</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">version_string_comms</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">version_string_app</span><span class="p">]</span>
+</code></pre></div>
+<hr />
+<h2 id="9-fuota-plan-strategy">9. FUOTA Plan Strategy<a class="headerlink" href="#9-fuota-plan-strategy" title="Permanent link">&para;</a></h2>
+<h3 id="option-a-one-plan-per-transition-recommended">Option A: One Plan Per Transition (Recommended)<a class="headerlink" href="#option-a-one-plan-per-transition-recommended" title="Permanent link">&para;</a></h3>
+<p>Create a separate 2-stage plan for each transition. Simpler, easier to debug,
+clear ownership.</p>
+<ul>
+<li>Plan 1: [MFG_BASE → MFG_BUMP]</li>
+<li>Plan 2: [MFG_BUMP → FUT_DEBUG_A]</li>
+<li>Plan 3: [FUT_DEBUG_A → FUT_DEBUG_B]</li>
+<li>Plan 4: [FUT_DEBUG_B → FUT_RELEASE_A]</li>
+<li>Plan 5: [FUT_RELEASE_A → FUT_RELEASE_B]</li>
+<li>Plan 6: [MAIN_BASELINE → MAIN_MERGED]</li>
+</ul>
+<p>After each transition completes, assign device to next plan.</p>
+<h3 id="option-b-multi-stage-plans">Option B: Multi-Stage Plans<a class="headerlink" href="#option-b-multi-stage-plans" title="Permanent link">&para;</a></h3>
+<p>Fewer plans but more complex. Stage advancement controlled by <code>maxStage</code>.
+Risk: harder to insert test runs between stages.</p>
+<p><strong>Recommendation: Option A.</strong> Clarity &gt; cleverness.</p>
+<hr />
+<h2 id="10-safety-invariants">10. Safety Invariants<a class="headerlink" href="#10-safety-invariants" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Device ID is hardcoded</strong> — <code>70B3D584C01E1FCC</code>. Never dynamically resolved.</li>
+<li><strong>Plan names include run ID</strong> — e.g., <code>"Stage4 PR#42 run-abc123 Phase2 MFG→MFG"</code></li>
+<li><strong>One device per plan</strong> — never batch-assign multiple devices</li>
+<li><strong>Cleanup on exit</strong> — always POST <code>enableFuota: false</code> in finally block</li>
+<li><strong>No plan reuse</strong> — each run creates fresh plans</li>
+<li><strong>Assert before assign</strong> — verify device has no active FUOTA before assignment</li>
+<li><strong>Version verify after FUOTA</strong> — read UART <code>Running FW version X.Y.Z</code> to confirm</li>
+</ol>
+<hr />
+<h2 id="11-open-questions-status">11. Open Questions — Status<a class="headerlink" href="#11-open-questions-status" title="Permanent link">&para;</a></h2>
+<h3 id="answered">Answered<a class="headerlink" href="#answered" title="Permanent link">&para;</a></h3>
+<p><strong>Q1: Version bumping mechanism</strong> — DECIDED
+Firmware source files must remain untouched. The build system injects
+<code>BUILD_NUM</code> at compile time via <code>-DBUILD_NUM=N</code> compiler flag, passed through
+<code>build.sh --build-num N</code>. This requires <code>VersionDevice.h</code> to guard the
+default with <code>#ifndef BUILD_NUM</code>. This is a one-time, non-breaking change to
+the firmware submodule. The same mechanism will be used by the gRPC build
+service. See Section 12 for design.</p>
+<p><strong>Q6: FUOTA speed</strong> — YES
+Power cycle the DUT after assigning a FUOTA plan to force immediate uplink.
+Cuts transition time from ~30 min to ~5 min.</p>
+<p><strong>Q7: Build server integration</strong> — PARALLEL TASK
+A dual-interface (gRPC + HTTP) build service is designed at
+<code>docs/architecture/build/build-service.md</code>. Architecture: library-first — all
+business logic in <code>BuildEngine</code> class, wrapped by gRPC and HTTP transports.
+Protocol under <code>libs/protocols/build/</code>, server under <code>apps/backend/build-service/</code>.
+Triggered by Bitbucket webhooks. Stores artifacts in MinIO. Queryable by
+both gRPC clients and REST API. Like a headless TeamCity.</p>
+<p><strong>Q9: Test suite tiers</strong> — RUN EVERYTHING
+If the full test suite runs in 10-15 minutes, run it every time. No need for
+basic/thorough tiers. Thoroughness and correctness are paramount. Only split
+into tiers if tests exceed ~15 min total.</p>
+<h3 id="requires-testing-to-verify">Requires Testing to Verify<a class="headerlink" href="#requires-testing-to-verify" title="Permanent link">&para;</a></h3>
+<p><strong>Q2: IS_MANUFACTURING flag</strong> — UNKNOWN
+<code>IS_MANUFACTURING = 1</code> in both <code>alpha_fw</code> and <code>alpha_mfg_fw</code>. This may be
+intentional (early dev) or a bug. <strong>Must run tests to verify assumptions:</strong>
+- Build with <code>IS_MANUFACTURING = 0</code> for production firmware
+- Verify FUOTA plan targeting still works
+- Confirm CFW flag byte correctly distinguishes mfg from prod
+- Document results to get real answers</p>
+<p><strong>Q3: Cross-track FUOTA</strong> — LIKELY BLOCKED, MUST TEST</p>
+<p>Confluence research (2026-03-07) found the following rules in
+<code>docs/validation/research/06-fuota-corecloud-v1.md</code> (lines 257-280):</p>
+<ol>
+<li><strong>No general track switching.</strong> "A device on the Production track cannot
+   receive Engineering or Bench firmware via FUOTA."</li>
+<li><strong>Exception: Mfg → Prod.</strong> "Manufacturing firmware (M flag) can be replaced
+   by production firmware of the same or higher version."</li>
+<li><strong>No debug on production tracks.</strong> "Debug builds are only valid on Bench
+   and Engineering tracks."</li>
+</ol>
+<p><strong>Impact on Transition 2 (MFG_BUMP → FUT_DEBUG_A):</strong> This transition goes
+from <code>-PM</code> (Production+Mfg) to <code>-ED</code> (Engineering+Debug). Per rule #1, this
+<em>should</em> be blocked by the server. But rule #2 allows Mfg→Prod, and the
+debug flag may be orthogonal to track.</p>
+<p><strong>Must test empirically:</strong>
+- Create a plan with <code>-PM</code> → <code>-ED</code> stage transition
+- If server rejects: redesign flow to use <code>-PM</code> → <code>-P</code> first, then <code>-P</code> → <code>-ED</code>
+- If server allows: document that cross-track is permissive in practice
+- The alternative flow (if blocked) would insert an extra stage:
+  <code>MFG_BUMP (-PM)</code> → <code>FUT_RELEASE_A (-P)</code> → <code>FUT_DEBUG_A (-ED)</code></p>
+<p><strong>Q4: Socket immediately closed</strong> — NEEDS INVESTIGATION
+Device on mfg v0.5.1 with default IPC keys. Socket connects then closes.
+<strong>Action plan:</strong>
+- Re-flash latest mfg firmware and re-personalize properly
+- If socket still closes, extend POST tests with LTE debug diagnostics:
+  - AT+CEREG? (registration status)
+  - AT+COPS? (operator info)
+  - AT+CGDCONT? (PDP context)
+  - Socket server TLS handshake debug
+- Verify Verizon network registration for this IMEI/ICCID
+- Document findings regardless — this is foundational infrastructure</p>
+<p><strong>Q5: Comms coprocessor versioning</strong> — ANSWERED (Confluence research 2026-03-07)</p>
+<p>Complete App ID mapping found in <code>docs/validation/plans/stage4-proof/corecloud-complete-reference.md</code>
+(lines 224-243):</p>
+<table>
+<thead>
+<tr>
+<th>App ID</th>
+<th>Name</th>
+<th>Chipset</th>
+<th>MCU</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>108</td>
+<td>Comms</td>
+<td>Alpha Bx</td>
+<td>nRF9151</td>
+</tr>
+<tr>
+<td>109</td>
+<td>Alpha</td>
+<td>Alpha Bx</td>
+<td>nRF52840</td>
+</tr>
+<tr>
+<td>100/101</td>
+<td>Sigma5 Cx</td>
+<td>nRF9160/nRF52840</td>
+<td></td>
+</tr>
+<tr>
+<td>102/103</td>
+<td>Alpha Ax</td>
+<td>nRF9160/nRF52840</td>
+<td></td>
+</tr>
+<tr>
+<td>106/107</td>
+<td>Theta Cx</td>
+<td>nRF9151/nRF52840</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Key: App IDs change when firmware is incompatible (different bootloader).
+Manufacturing firmware shares the same App ID as production firmware
+(enables mfg→prod FUOTA). Comms (108) and app (109) are always paired
+in FUOTA plans — both targets in every stage.</p>
+<p><strong>Q6b: Modem firmware in FUOTA</strong> — LIKELY NO
+FUOTA updates app + comms only (MCUboot secondary slot). Modem firmware
+(<code>mfw_nrf91x1_*.zip</code>) requires J-Link flash. Need to confirm.</p>
+<h3 id="future-design-decisions">Future Design Decisions<a class="headerlink" href="#future-design-decisions" title="Permanent link">&para;</a></h3>
+<p><strong>Q10: Checkpoint/resume</strong> — DEFER
+The full flow takes hours. Implement checkpoint/resume after the basic flow
+works end-to-end. State: current phase, device FW version, completed steps.</p>
+<p><strong>Q11: Multi-DUT parallelism</strong> — DESIGN FOR IT
+Use abstractions that accept device context (MTIB address, device ID, probe
+serial) as parameters. Don't hardcode. But don't over-engineer the parallel
+execution layer until we have 2+ MTIBs active.</p>
+<hr />
+<h2 id="12-build-number-injection-design">12. Build Number Injection Design<a class="headerlink" href="#12-build-number-injection-design" title="Permanent link">&para;</a></h2>
+<h3 id="problem">Problem<a class="headerlink" href="#problem" title="Permanent link">&para;</a></h3>
+<p><code>BUILD_NUM</code> is defined as <code>#define BUILD_NUM 1</code> in <code>VersionDevice.h</code> inside
+the firmware submodule. We need to inject different build numbers for "same
+code, different version" builds WITHOUT modifying source files.</p>
+<h3 id="solution-compiler-flag-override">Solution: Compiler Flag Override<a class="headerlink" href="#solution-compiler-flag-override" title="Permanent link">&para;</a></h3>
+<p><strong>Step 1</strong> (one-time firmware change): Guard the default in <code>VersionDevice.h</code>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="cp">#ifndef BUILD_NUM</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="cp">#define BUILD_NUM 1</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="cp">#endif</span>
+</code></pre></div></p>
+<p>This is a non-breaking change — existing builds still default to <code>BUILD_NUM=1</code>.
+Same pattern for <code>IS_MANUFACTURING</code>.</p>
+<p><strong>Step 2</strong>: Add <code>--build-num N</code> and <code>--is-mfg 0|1</code> to <code>build.sh</code>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">BUILD_NUM</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">BUILD_NUM</span><span class="k">:-</span><span class="nv">1</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nv">IS_MFG</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">IS_MFG</span><span class="k">:-</span><span class="nv">1</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># ...</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>west<span class="w"> </span>build<span class="w"> </span>...<span class="w"> </span>--<span class="w"> </span>...<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>-DCONFIG_COMPILER_OPT<span class="o">=</span><span class="s2">&quot;-DBUILD_NUM=</span><span class="si">${</span><span class="nv">BUILD_NUM</span><span class="si">}</span><span class="s2"> -DIS_MANUFACTURING=</span><span class="si">${</span><span class="nv">IS_MFG</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre></div></p>
+<p><strong>Step 3</strong>: The CFW generator reads the version from the built binary's
+metadata (already embedded by the firmware at compile time), so no additional
+plumbing needed.</p>
+<h3 id="why-this-approach">Why This Approach<a class="headerlink" href="#why-this-approach" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Firmware source untouched (except the one-time <code>#ifndef</code> guard)</li>
+<li>Works with the existing <code>west build</code> toolchain</li>
+<li>Same mechanism used by Docker build server (pass build number as env var)</li>
+<li><code>build.sh</code> remains the single source of truth for how to build</li>
+<li>No Kconfig hacks or CMake cache pollution</li>
+</ul>
+<hr />
+<h2 id="13-lte-debug-extension-if-socket-issues-persist">13. LTE Debug Extension (If Socket Issues Persist)<a class="headerlink" href="#13-lte-debug-extension-if-socket-issues-persist" title="Permanent link">&para;</a></h2>
+<p>If re-flash + re-personalize doesn't fix the socket issue, extend the POST
+test suite with LTE diagnostics:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestLteConnectivity</span><span class="p">:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;LTE-M network registration and socket server connectivity.&quot;&quot;&quot;</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_modem_firmware_version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Verify modem firmware is expected version.&quot;&quot;&quot;</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        <span class="c1"># Read UART for &quot;FW version: mfw_nrf91x1_2.0.2&quot;</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_sim_detection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Verify SIM card detected and ICCID readable.&quot;&quot;&quot;</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="c1"># Read UART for &quot;IMEI,ICCID&quot; line</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_network_registration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Verify CEREG=1 (registered, home network).&quot;&quot;&quot;</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>        <span class="c1"># Read UART for &quot;+CEREG: 1&quot; within 60s of boot</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_socket_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Verify socket connects AND stays connected.&quot;&quot;&quot;</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>        <span class="c1"># Read UART for &quot;Socket connected&quot; and NO &quot;Socket closed&quot; within 10s</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">test_uplink_sent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Verify at least one uplink message sent to CoreCloud.&quot;&quot;&quot;</span>
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>        <span class="c1"># Poll /System/Devices/Status for boot recordId change</span>
+</code></pre></div>
+<p>This is a side quest but worth it — it proves the network stack works before
+attempting FUOTA (which requires successful uplinks).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.tabs","navigation.tabs.sticky","navigation.indexes","navigation.instant","toc.follow","search.suggest","content.code.copy"],"search":"../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.91a19a9e.min.js"></script>
+      
+        <script src="../../../../assets/js/external-links.js"></script>
+      
+        <script src="../../../../assets/js/role-filter.js"></script>
+      
+    
+  </body>
+</html>

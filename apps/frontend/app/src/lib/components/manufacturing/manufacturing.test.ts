@@ -17,12 +17,11 @@ function createFixture(overrides: Partial<ManufacturingFixture> = {}): Manufactu
     name: 'Alpha MFG Fixture A',
     productId: 'prod-1',
     productName: 'Alpha B0',
+    type: 'MANUFACTURING',
     slotCount: 4,
     status: 'AVAILABLE',
     activeSessionId: null,
     description: '4-slot manufacturing fixture',
-    createdAt: '2026-04-01T00:00:00Z',
-    updatedAt: '2026-04-01T00:00:00Z',
     ...overrides,
   };
 }
@@ -35,17 +34,18 @@ function createSession(overrides: Partial<ManufacturingSession> = {}): Manufactu
     status: 'ACTIVE',
     operatorId: 'user-1',
     operatorName: 'Mateo',
+    testPackageId: null,
+    testPackageVersion: null,
     panelCount: 3,
-    passCount: 10,
-    failCount: 2,
+    passedCount: 10,
+    failedCount: 2,
     config: null,
     startedAt: '2026-04-01T10:00:00Z',
-    finishedAt: null,
+    endedAt: null,
     createdAt: '2026-04-01T10:00:00Z',
-    updatedAt: '2026-04-01T10:30:00Z',
     product: { id: 'prod-1', name: 'Alpha B0' },
-    fixture: { id: 'fix-1', name: 'Fixture A', slotCount: 4 },
-    operator: { id: 'user-1', name: 'Mateo' },
+    fixture: { id: 'fix-1', name: 'Fixture A' },
+    operator: { id: 'user-1', name: 'Mateo', email: 'mateo@example.com' },
     ...overrides,
   };
 }
@@ -55,17 +55,18 @@ function createUnit(overrides: Partial<ManufacturingUnit> = {}): ManufacturingUn
     id: 'unit-1',
     panelId: 'panel-1',
     slotIndex: 0,
-    slotLabel: 'Slot 1',
+    slotId: 'slot-1',
     serialNumber: '70B3D584C01E1FCC',
     status: 'PASSED',
     stages: [
-      { type: 'ELECTRICAL', status: 'PASSED', durationMs: 5200, errorMessage: null },
-      { type: 'FLASH', status: 'PASSED', durationMs: 12000, errorMessage: null },
-      { type: 'POST', status: 'PASSED', durationMs: 48000, errorMessage: null },
+      { name: 'ELECTRICAL', status: 'PASSED', durationMs: 5200, errorMessage: null },
+      { name: 'FLASH', status: 'PASSED', durationMs: 12000, errorMessage: null },
+      { name: 'POST', status: 'PASSED', durationMs: 48000, errorMessage: null },
     ],
     errorMessage: null,
     startedAt: '2026-04-01T10:05:00Z',
-    finishedAt: '2026-04-01T10:06:05Z',
+    completedAt: '2026-04-01T10:06:05Z',
+    durationMs: 65000,
     ...overrides,
   };
 }
@@ -78,24 +79,25 @@ function createPanel(overrides: Partial<ManufacturingPanel> = {}): Manufacturing
     panelIndex: 0,
     status: 'PASSED',
     unitCount: 4,
-    passCount: 3,
-    failCount: 1,
+    passedUnits: 3,
+    failedUnits: 1,
     startedAt: '2026-04-01T10:05:00Z',
-    finishedAt: '2026-04-01T10:06:30Z',
+    completedAt: '2026-04-01T10:06:30Z',
+    durationMs: 90000,
     units: [
-      createUnit({ slotIndex: 0, slotLabel: 'Slot 1' }),
-      createUnit({ id: 'unit-2', slotIndex: 1, slotLabel: 'Slot 2' }),
-      createUnit({ id: 'unit-3', slotIndex: 2, slotLabel: 'Slot 3' }),
+      createUnit({ slotIndex: 0, slotId: 'slot-1' }),
+      createUnit({ id: 'unit-2', slotIndex: 1, slotId: 'slot-2' }),
+      createUnit({ id: 'unit-3', slotIndex: 2, slotId: 'slot-3' }),
       createUnit({
         id: 'unit-4',
         slotIndex: 3,
-        slotLabel: 'Slot 4',
+        slotId: 'slot-4',
         status: 'FAILED',
         errorMessage: 'POST step 9 failed: EC keygen timeout',
         stages: [
-          { type: 'ELECTRICAL', status: 'PASSED', durationMs: 5100, errorMessage: null },
-          { type: 'FLASH', status: 'PASSED', durationMs: 11800, errorMessage: null },
-          { type: 'POST', status: 'FAILED', durationMs: 60000, errorMessage: 'EC keygen timeout' },
+          { name: 'ELECTRICAL', status: 'PASSED', durationMs: 5100, errorMessage: null },
+          { name: 'FLASH', status: 'PASSED', durationMs: 11800, errorMessage: null },
+          { name: 'POST', status: 'FAILED', durationMs: 60000, errorMessage: 'EC keygen timeout' },
         ],
       }),
     ],
@@ -143,11 +145,10 @@ describe('ManufacturingSession data model', () => {
   it('computes duration for active sessions', () => {
     const s = createSession({
       startedAt: '2026-04-01T10:00:00Z',
-      finishedAt: null,
+      endedAt: null,
     });
     expect(s.startedAt).not.toBeNull();
-    expect(s.finishedAt).toBeNull();
-    // Duration should be computable
+    expect(s.endedAt).toBeNull();
     const start = new Date(s.startedAt!).getTime();
     expect(start).toBeGreaterThan(0);
   });
@@ -156,10 +157,10 @@ describe('ManufacturingSession data model', () => {
     const s = createSession({
       status: 'COMPLETED',
       startedAt: '2026-04-01T10:00:00Z',
-      finishedAt: '2026-04-01T10:30:00Z',
+      endedAt: '2026-04-01T10:30:00Z',
     });
     const start = new Date(s.startedAt!).getTime();
-    const end = new Date(s.finishedAt!).getTime();
+    const end = new Date(s.endedAt!).getTime();
     const duration = formatDuration(end - start);
     expect(duration).toBe('30m');
   });
@@ -171,9 +172,9 @@ describe('ManufacturingSession data model', () => {
   });
 
   it('tracks pass/fail counts', () => {
-    const s = createSession({ passCount: 10, failCount: 2, panelCount: 3 });
-    expect(s.passCount).toBe(10);
-    expect(s.failCount).toBe(2);
+    const s = createSession({ passedCount: 10, failedCount: 2, panelCount: 3 });
+    expect(s.passedCount).toBe(10);
+    expect(s.failedCount).toBe(2);
     expect(s.panelCount).toBe(3);
   });
 });
@@ -181,30 +182,30 @@ describe('ManufacturingSession data model', () => {
 // ── Unit card tests ─────────────────────────────────────────
 
 describe('ManufacturingUnit data model', () => {
-  it('shows slot label and serial number', () => {
+  it('shows slot id and serial number', () => {
     const u = createUnit();
-    expect(u.slotLabel).toBe('Slot 1');
+    expect(u.slotId).toBe('slot-1');
     expect(u.serialNumber).toBe('70B3D584C01E1FCC');
   });
 
   it('shows all three stage progress indicators', () => {
     const u = createUnit();
     expect(u.stages).toHaveLength(3);
-    expect(u.stages.map((s) => s.type)).toEqual(['ELECTRICAL', 'FLASH', 'POST']);
+    expect(u.stages.map((s) => s.name)).toEqual(['ELECTRICAL', 'FLASH', 'POST']);
   });
 
   it('updates stage from RUNNING to PASSED', () => {
     const u = createUnit({
       status: 'RUNNING',
       stages: [
-        { type: 'ELECTRICAL', status: 'PASSED', durationMs: 5200, errorMessage: null },
-        { type: 'FLASH', status: 'RUNNING', durationMs: null, errorMessage: null },
+        { name: 'ELECTRICAL', status: 'PASSED', durationMs: 5200, errorMessage: null },
+        { name: 'FLASH', status: 'RUNNING', durationMs: null, errorMessage: null },
       ],
     });
     expect(u.stages[1].status).toBe('RUNNING');
 
     // Simulate update
-    u.stages[1] = { type: 'FLASH', status: 'PASSED', durationMs: 12000, errorMessage: null };
+    u.stages[1] = { name: 'FLASH', status: 'PASSED', durationMs: 12000, errorMessage: null };
     expect(u.stages[1].status).toBe('PASSED');
   });
 
@@ -213,9 +214,9 @@ describe('ManufacturingUnit data model', () => {
       status: 'FAILED',
       errorMessage: 'POST step 9 failed: EC keygen timeout',
       stages: [
-        { type: 'ELECTRICAL', status: 'PASSED', durationMs: 5100, errorMessage: null },
-        { type: 'FLASH', status: 'PASSED', durationMs: 11800, errorMessage: null },
-        { type: 'POST', status: 'FAILED', durationMs: 60000, errorMessage: 'EC keygen timeout' },
+        { name: 'ELECTRICAL', status: 'PASSED', durationMs: 5100, errorMessage: null },
+        { name: 'FLASH', status: 'PASSED', durationMs: 11800, errorMessage: null },
+        { name: 'POST', status: 'FAILED', durationMs: 60000, errorMessage: 'EC keygen timeout' },
       ],
     });
     expect(u.status).toBe('FAILED');
@@ -226,10 +227,10 @@ describe('ManufacturingUnit data model', () => {
   it('computes unit duration', () => {
     const u = createUnit({
       startedAt: '2026-04-01T10:05:00Z',
-      finishedAt: '2026-04-01T10:06:05Z',
+      completedAt: '2026-04-01T10:06:05Z',
     });
     const start = new Date(u.startedAt!).getTime();
-    const end = new Date(u.finishedAt!).getTime();
+    const end = new Date(u.completedAt!).getTime();
     const duration = formatDuration(end - start);
     expect(duration).toBe('1m 5s');
   });
@@ -239,14 +240,14 @@ describe('ManufacturingUnit data model', () => {
 
 describe('PanelRunner logic', () => {
   it('Run Panel disabled while panel is running', () => {
+    const runningPanel = createPanel({ status: 'RUNNING' });
     const session: ManufacturingSessionDetail = {
       ...createSession(),
-      activePanel: createPanel({ status: 'RUNNING' }),
-      panels: [],
+      panels: [runningPanel],
     };
-    const panelRunning = session.activePanel?.status === 'RUNNING';
+    const latestPanel = session.panels[session.panels.length - 1];
+    const panelRunning = latestPanel?.status === 'RUNNING';
     expect(panelRunning).toBe(true);
-    // canSubmit should be false when panelRunning
     const canSubmit = session.status === 'ACTIVE' && !panelRunning && 'PANEL-001'.trim().length > 0;
     expect(canSubmit).toBe(false);
   });
@@ -254,10 +255,10 @@ describe('PanelRunner logic', () => {
   it('QR input enables submit when valid', () => {
     const session: ManufacturingSessionDetail = {
       ...createSession(),
-      activePanel: null,
       panels: [],
     };
-    const panelRunning = session.activePanel?.status === 'RUNNING';
+    const latestPanel = session.panels[session.panels.length - 1];
+    const panelRunning = latestPanel?.status === 'RUNNING';
     const qrInput = 'PANEL-2026-002';
     const canSubmit = session.status === 'ACTIVE' && !panelRunning && qrInput.trim().length > 0;
     expect(canSubmit).toBe(true);
@@ -266,10 +267,10 @@ describe('PanelRunner logic', () => {
   it('submit disabled with empty QR input', () => {
     const session: ManufacturingSessionDetail = {
       ...createSession(),
-      activePanel: null,
       panels: [],
     };
-    const panelRunning = session.activePanel?.status === 'RUNNING';
+    const latestPanel = session.panels[session.panels.length - 1];
+    const panelRunning = latestPanel?.status === 'RUNNING';
     const qrInput = '';
     const canSubmit = session.status === 'ACTIVE' && !panelRunning && qrInput.trim().length > 0;
     expect(canSubmit).toBe(false);
@@ -278,10 +279,10 @@ describe('PanelRunner logic', () => {
   it('submit disabled when session is not ACTIVE', () => {
     const session: ManufacturingSessionDetail = {
       ...createSession({ status: 'COMPLETED' }),
-      activePanel: null,
       panels: [],
     };
-    const panelRunning = session.activePanel?.status === 'RUNNING';
+    const latestPanel = session.panels[session.panels.length - 1];
+    const panelRunning = latestPanel?.status === 'RUNNING';
     const qrInput = 'PANEL-2026-002';
     const canSubmit = session.status === 'ACTIVE' && !panelRunning && qrInput.trim().length > 0;
     expect(canSubmit).toBe(false);
@@ -359,30 +360,30 @@ describe('Stage progress ordering', () => {
 
   it('stages render in correct order', () => {
     const stages: ManufacturingStage[] = [
-      { type: 'POST', status: 'QUEUED', durationMs: null, errorMessage: null },
-      { type: 'ELECTRICAL', status: 'PASSED', durationMs: 5000, errorMessage: null },
-      { type: 'FLASH', status: 'RUNNING', durationMs: null, errorMessage: null },
+      { name: 'POST', status: 'QUEUED', durationMs: null, errorMessage: null },
+      { name: 'ELECTRICAL', status: 'PASSED', durationMs: 5000, errorMessage: null },
+      { name: 'FLASH', status: 'RUNNING', durationMs: null, errorMessage: null },
     ];
 
-    const ordered = STAGE_ORDER.map((type) => {
-      return stages.find((s) => s.type === type) || { type, status: 'QUEUED', durationMs: null, errorMessage: null };
+    const ordered = STAGE_ORDER.map((name) => {
+      return stages.find((s) => s.name === name) || { name, status: 'QUEUED', durationMs: null, errorMessage: null };
     });
 
-    expect(ordered[0].type).toBe('ELECTRICAL');
+    expect(ordered[0].name).toBe('ELECTRICAL');
     expect(ordered[0].status).toBe('PASSED');
-    expect(ordered[1].type).toBe('FLASH');
+    expect(ordered[1].name).toBe('FLASH');
     expect(ordered[1].status).toBe('RUNNING');
-    expect(ordered[2].type).toBe('POST');
+    expect(ordered[2].name).toBe('POST');
     expect(ordered[2].status).toBe('QUEUED');
   });
 
   it('fills missing stages as QUEUED', () => {
     const stages: ManufacturingStage[] = [
-      { type: 'ELECTRICAL', status: 'PASSED', durationMs: 5000, errorMessage: null },
+      { name: 'ELECTRICAL', status: 'PASSED', durationMs: 5000, errorMessage: null },
     ];
 
-    const ordered = STAGE_ORDER.map((type) => {
-      return stages.find((s) => s.type === type) || { type, status: 'QUEUED', durationMs: null, errorMessage: null };
+    const ordered = STAGE_ORDER.map((name) => {
+      return stages.find((s) => s.name === name) || { name, status: 'QUEUED', durationMs: null, errorMessage: null };
     });
 
     expect(ordered).toHaveLength(3);

@@ -1,18 +1,20 @@
-"""Unified validation test runner.
+"""Unified test runner for validation and manufacturing.
 
-This is the single entry point for all validation test execution.
-It handles preflight checks, pytest execution, result reporting, and cleanup.
+Single entry point for all test execution — handles preflight checks,
+pytest execution, result reporting, and cleanup. Supports both
+single-slot (validation) and multi-slot (manufacturing panel) fixtures.
 
 Usage:
-    runner = ValidationRunner(stage="fuota", run_id="clxyz...")
+    runner = TestRunner(stage="fuota", run_id="clxyz...")
     exit_code = runner.run()
 
 Environment variables:
-    CONCORD_RUN_ID: Validation run ID (required)
+    CONCORD_RUN_ID: Run ID for reporting (required)
     CONCORD_API_URL: API base URL for reporting
     CONCORD_API_KEY: API key for auth
-    STAGE: Test stage (smoke, driver, integration, regression, fuota)
-    MTIB_ADDRESS: MTIB server address (host:port)
+    STAGE: Test stage (smoke, driver, integration, regression, fuota, manufacturing)
+    MTIB_ADDRESS: MTIB server address (single-slot)
+    MTIB_HOSTS: Comma-separated MTIB addresses (multi-slot)
     DEVICE_SNR: J-Link probe serial number
     FIXTURE_PROFILE_PATH: Path to fixture profile JSON
     PIPELINE_ID: CI pipeline ID (for fuota stage)
@@ -204,6 +206,15 @@ class StageConfig:
                 required_checks=["mtib", "device"],
                 artifact_patterns=["*.log", "*.uart"],
             ),
+            "manufacturing": cls(
+                stage="manufacturing",
+                timeout_s=1800,  # 30 min — POST + electrical + fw_flash
+                retry_count=0,
+                test_path="tests/manufacturing/",
+                pytest_args=["-v", "--tb=long"],
+                required_checks=["mtib"],
+                artifact_patterns=["*.log", "*.uart"],
+            ),
         }
 
         if stage not in configs:
@@ -314,24 +325,51 @@ class PreflightChecker:
         return result
 
     def _check_mtib(self) -> Tuple[bool, str]:
-        """Verify MTIB gRPC connection."""
-        address = os.environ.get("MTIB_ADDRESS")
-        if not address:
-            host = os.environ.get("MTIB_HOST")
-            port_str = os.environ.get("MTIB_PORT", "50053")
-            if not host:
-                return False, "MTIB_ADDRESS or MTIB_HOST not set"
-            try:
-                port_num = int(port_str)
-            except ValueError:
-                return False, f"MTIB_PORT is not a valid integer: {port_str}"
-            address = f"{host}:{port_num}"
+        """Verify MTIB gRPC connection(s).
 
+        Supports both single-slot (MTIB_ADDRESS/MTIB_HOST) and
+        multi-slot (MTIB_HOSTS) configurations. For multi-slot,
+        all addresses must be reachable.
+        """
+        # Collect addresses to check
+        mtib_hosts = os.environ.get("MTIB_HOSTS", "").strip()
+        if mtib_hosts:
+            addresses = [a.strip() for a in mtib_hosts.split(",") if a.strip()]
+        else:
+            address = os.environ.get("MTIB_ADDRESS")
+            if not address:
+                host = os.environ.get("MTIB_HOST")
+                port_str = os.environ.get("MTIB_PORT", "50053")
+                if not host:
+                    return False, "MTIB_ADDRESS, MTIB_HOST, or MTIB_HOSTS not set"
+                try:
+                    port_num = int(port_str)
+                except ValueError:
+                    return False, f"MTIB_PORT is not a valid integer: {port_str}"
+                address = f"{host}:{port_num}"
+            addresses = [address]
+
+        # Check each address
+        failed = []
+        for addr in addresses:
+            ok, msg = self._check_single_mtib(addr)
+            if not ok:
+                failed.append(f"{addr}: {msg}")
+
+        if failed:
+            return False, "; ".join(failed)
+
+        if len(addresses) == 1:
+            return True, f"Connected to {addresses[0]}"
+        return True, f"Connected to {len(addresses)} MTIBs"
+
+    @staticmethod
+    def _check_single_mtib(address: str) -> Tuple[bool, str]:
+        """Verify a single MTIB gRPC connection."""
         try:
             from corekinect.mtib_client.v1.client.config import NetConfig
             from corekinect.mtib_client.v1.client.core import MtibV1Client
 
-            # Parse address - handle host:port format, default port 50053
             parts = address.rsplit(":", 1)
             host = parts[0]
             port = int(parts[1]) if len(parts) > 1 else 50053
@@ -342,7 +380,6 @@ class PreflightChecker:
             if err:
                 return False, f"Connection failed: {err}"
 
-            # HealthCheck returns (ok, details, err)
             result = client.HealthCheck()
             client.disconnect()
 
@@ -354,7 +391,7 @@ class PreflightChecker:
             if err:
                 return False, f"Health check failed: {err}"
 
-            return True, f"Connected to {address}"
+            return True, "OK"
 
         except Exception as e:
             return False, str(e)
@@ -532,12 +569,12 @@ class ArtifactCollector:
 
 
 # =============================================================================
-# VALIDATION RUNNER
+# TEST RUNNER
 # =============================================================================
 
 
-class ValidationRunner:
-    """Unified validation test runner."""
+class TestRunner:
+    """Unified test runner for validation and manufacturing stages."""
 
     def __init__(self, stage: str, run_id: str):
         """  init  ."""
@@ -551,7 +588,7 @@ class ValidationRunner:
     def run(self) -> int:
         """Execute the full test run. Returns exit code."""
         log.info("=" * 60)
-        log.info("ValidationRunner: stage=%s run_id=%s", self.stage, self.run_id)
+        log.info("TestRunner: stage=%s run_id=%s", self.stage, self.run_id)
         log.info("=" * 60)
 
         try:
@@ -642,17 +679,17 @@ def main():
     """CLI entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run validation tests")
+    parser = argparse.ArgumentParser(description="Run validation or manufacturing tests")
     parser.add_argument(
         "--stage",
         default=os.environ.get("STAGE", "fuota"),
-        choices=["smoke", "driver", "integration", "regression", "fuota"],
+        choices=["smoke", "driver", "integration", "regression", "fuota", "manufacturing"],
         help="Test stage to run",
     )
     parser.add_argument(
         "--run-id",
         default=os.environ.get("CONCORD_RUN_ID"),
-        help="Validation run ID for reporting",
+        help="Run ID for reporting",
     )
     parser.add_argument(
         "--preflight-only",
@@ -666,7 +703,7 @@ def main():
         log.warning("No run_id provided - reporting disabled")
         args.run_id = f"local-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
-    runner = ValidationRunner(stage=args.stage, run_id=args.run_id)
+    runner = TestRunner(stage=args.stage, run_id=args.run_id)
 
     if args.preflight_only:
         result = runner.preflight.check_all()

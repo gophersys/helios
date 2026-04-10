@@ -250,9 +250,13 @@ class TestPackage(bases.BaseTestPackage):
     """"1.2.0" (release) or "dev-abc12345" (development)
     """
 
+    type: 'enums.TestPackageType'
+    """VALIDATION or MANUFACTURING
+    """
+
     status: 'enums.TestPackageStatus'
     storageKey: _str
-    """MinIO path: test-packages/{slug}/{version}/package.tar.gz
+    """MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz
     """
 
     frameworkVersion: _str
@@ -271,6 +275,18 @@ class TestPackage(bases.BaseTestPackage):
     """Which stages are enabled: {"smoke": true, "fuota": true, ...}
     """
 
+    message: Optional[_str] = None
+    """Developer-provided description at upload time
+    """
+
+    gitSha: Optional[_str] = None
+    """Git HEAD SHA at upload time (short, e.g., "abc12345")
+    """
+
+    gitDirty: Optional[_bool] = None
+    """True if working tree had uncommitted changes
+    """
+
     notes: Optional[_str] = None
     createdById: Optional[_str] = None
     createdAt: datetime.datetime
@@ -278,6 +294,7 @@ class TestPackage(bases.BaseTestPackage):
     product: Optional['models.Product'] = None
     createdBy: Optional['models.User'] = None
     sessions: Optional[List['models.Session']] = None
+    manufacturingSessions: Optional[List['models.ManufacturingSession']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -1214,7 +1231,7 @@ class FirmwareBuild(bases.BaseFirmwareBuild):
 
 
 class ProductStageConfig(bases.BaseProductStageConfig):
-    """Configuration for a validation or manufacturing stage within a product.
+    """Configuration for a single validation stage within a product.
     Thin config: which revision, which branch, which signing key.
     Test config (directories, markers, timeouts) lives in the test repo itself.
     Build recipes are convention-driven via StageBuildDef (stage_builds.py).
@@ -1227,14 +1244,17 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     """
 
     stage: _int
-    """Order within type: 1-5 for validation, 1 for manufacturing
+    """1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA
     """
 
     name: _str
-    """Display name: "Smoke", "Driver", ..., "Manufacturing"
+    """Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"
     """
 
     enabled: _bool
+    """Disabled by default
+    """
+
     boardRevisionId: Optional[_str] = None
     """FK to BoardRevision (e.g., Alpha B0)
     """
@@ -1261,7 +1281,6 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     buildRuns: Optional[List['models.BuildRun']] = None
     queueEntries: Optional[List['models.ValidationQueueEntry']] = None
     buildMatrixEntries: Optional[List['models.StageBuildMatrix']] = None
-    assetSets: Optional[List['models.AssetSet']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -1783,7 +1802,7 @@ class BuildRun(bases.BaseBuildRun):
 
 
 class BuildJob(bases.BaseBuildJob):
-    """A single firmware build job within a build run.
+    """A single firmware build job within a pipeline.
     """
 
     id: _str
@@ -5525,10 +5544,6 @@ class AssetSet(bases.BaseAssetSet):
     """External CI build ID (TeamCity, Jenkins)
     """
 
-    stageConfigId: Optional[_str] = None
-    """FK to ProductStageConfig (links assets to a specific stage)
-    """
-
     commitSha: Optional[_str] = None
     branch: Optional[_str] = None
     recipeVersionId: Optional[_str] = None
@@ -5540,7 +5555,6 @@ class AssetSet(bases.BaseAssetSet):
     product: Optional['models.Product'] = None
     boardRevision: Optional['models.BoardRevision'] = None
     buildRun: Optional['models.BuildRun'] = None
-    stageConfig: Optional['models.ProductStageConfig'] = None
     recipeVersion: Optional['models.RecipeVersion'] = None
     createdBy: Optional['models.User'] = None
     assets: Optional[List['models.Asset']] = None
@@ -5992,6 +6006,7 @@ class ManufacturingSession(bases.BaseManufacturingSession):
     fixtureId: _str
     status: 'enums.ManufacturingSessionStatus'
     operatorId: _str
+    testPackageId: Optional[_str] = None
     panelCount: _int
     passedCount: _int
     failedCount: _int
@@ -6003,6 +6018,7 @@ class ManufacturingSession(bases.BaseManufacturingSession):
     product: Optional['models.Product'] = None
     fixture: Optional['models.Fixture'] = None
     operator: Optional['models.User'] = None
+    testPackage: Optional['models.TestPackage'] = None
     panels: Optional[List['models.ManufacturingPanel']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
@@ -6649,6 +6665,7 @@ _TestPackage_relational_fields: Set[str] = {
         'product',
         'createdBy',
         'sessions',
+        'manufacturingSessions',
     }
 _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedDict(
     [
@@ -6676,6 +6693,14 @@ _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedD
             'is_relational': False,
             'documentation': '''"1.2.0" (release) or "dev-abc12345" (development)''',
         }),
+        ('type', {
+            'name': 'type',
+            'is_list': False,
+            'optional': False,
+            'type': 'enums.TestPackageType',
+            'is_relational': False,
+            'documentation': '''VALIDATION or MANUFACTURING''',
+        }),
         ('status', {
             'name': 'status',
             'is_list': False,
@@ -6690,7 +6715,7 @@ _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedD
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''MinIO path: test-packages/{slug}/{version}/package.tar.gz''',
+            'documentation': '''MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz''',
         }),
         ('frameworkVersion', {
             'name': 'frameworkVersion',
@@ -6723,6 +6748,30 @@ _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedD
             'type': 'fields.Json',
             'is_relational': False,
             'documentation': '''Which stages are enabled: {"smoke": true, "fuota": true, ...}''',
+        }),
+        ('message', {
+            'name': 'message',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Developer-provided description at upload time''',
+        }),
+        ('gitSha', {
+            'name': 'gitSha',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Git HEAD SHA at upload time (short, e.g., "abc12345")''',
+        }),
+        ('gitDirty', {
+            'name': 'gitDirty',
+            'is_list': False,
+            'optional': True,
+            'type': '_bool',
+            'is_relational': False,
+            'documentation': '''True if working tree had uncommitted changes''',
         }),
         ('notes', {
             'name': 'notes',
@@ -6777,6 +6826,14 @@ _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedD
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.Session\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('manufacturingSessions', {
+            'name': 'manufacturingSessions',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ManufacturingSession\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -7443,7 +7500,6 @@ _ProductStageConfig_relational_fields: Set[str] = {
         'buildRuns',
         'queueEntries',
         'buildMatrixEntries',
-        'assetSets',
     }
 _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelField] = OrderedDict(
     [
@@ -7477,7 +7533,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_int',
             'is_relational': False,
-            'documentation': '''Order within type: 1-5 for validation, 1 for manufacturing''',
+            'documentation': '''1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA''',
         }),
         ('name', {
             'name': 'name',
@@ -7485,7 +7541,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''Display name: "Smoke", "Driver", ..., "Manufacturing"''',
+            'documentation': '''Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"''',
         }),
         ('enabled', {
             'name': 'enabled',
@@ -7493,7 +7549,7 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': False,
             'type': '_bool',
             'is_relational': False,
-            'documentation': None,
+            'documentation': '''Disabled by default''',
         }),
         ('boardRevisionId', {
             'name': 'boardRevisionId',
@@ -7604,14 +7660,6 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.StageBuildMatrix\']',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('assetSets', {
-            'name': 'assetSets',
-            'is_list': True,
-            'optional': True,
-            'type': 'List[\'models.AssetSet\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -11090,7 +11138,6 @@ _AssetSet_relational_fields: Set[str] = {
         'product',
         'boardRevision',
         'buildRun',
-        'stageConfig',
         'recipeVersion',
         'createdBy',
         'assets',
@@ -11169,14 +11216,6 @@ _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
             'type': '_str',
             'is_relational': False,
             'documentation': '''External CI build ID (TeamCity, Jenkins)''',
-        }),
-        ('stageConfigId', {
-            'name': 'stageConfigId',
-            'is_list': False,
-            'optional': True,
-            'type': '_str',
-            'is_relational': False,
-            'documentation': '''FK to ProductStageConfig (links assets to a specific stage)''',
         }),
         ('commitSha', {
             'name': 'commitSha',
@@ -11263,14 +11302,6 @@ _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
             'is_list': False,
             'optional': True,
             'type': 'models.BuildRun',
-            'is_relational': True,
-            'documentation': None,
-        }),
-        ('stageConfig', {
-            'name': 'stageConfig',
-            'is_list': False,
-            'optional': True,
-            'type': 'models.ProductStageConfig',
             'is_relational': True,
             'documentation': None,
         }),
@@ -11554,6 +11585,7 @@ _ManufacturingSession_relational_fields: Set[str] = {
         'product',
         'fixture',
         'operator',
+        'testPackage',
         'panels',
     }
 _ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialModelField] = OrderedDict(
@@ -11594,6 +11626,14 @@ _ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialMode
             'name': 'operatorId',
             'is_list': False,
             'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('testPackageId', {
+            'name': 'testPackageId',
+            'is_list': False,
+            'optional': True,
             'type': '_str',
             'is_relational': False,
             'documentation': None,
@@ -11683,6 +11723,14 @@ _ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialMode
             'is_list': False,
             'optional': True,
             'type': 'models.User',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('testPackage', {
+            'name': 'testPackage',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.TestPackage',
             'is_relational': True,
             'documentation': None,
         }),

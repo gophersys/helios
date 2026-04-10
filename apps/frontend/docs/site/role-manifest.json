@@ -1,0 +1,290 @@
+{
+  "pages": {
+    "/": {
+      "min_role": "OPERATOR",
+      "min_level": 1
+    },
+    "/manufacturing/": {
+      "min_role": "OPERATOR",
+      "min_level": 1
+    },
+    "/manufacturing/configuration/": {
+      "min_role": "MAINTAINER",
+      "min_level": 3
+    },
+    "/manufacturing/fixture/": {
+      "min_role": "MAINTAINER",
+      "min_level": 3
+    },
+    "/manufacturing/reading-results/": {
+      "min_role": "OPERATOR",
+      "min_level": 1
+    },
+    "/manufacturing/station-setup/": {
+      "min_role": "OPERATOR",
+      "min_level": 1
+    },
+    "/manufacturing/running-post/": {
+      "min_role": "OPERATOR",
+      "min_level": 1
+    },
+    "/manufacturing/sessions/": {
+      "min_role": "OPERATOR",
+      "min_level": 1
+    },
+    "/reference/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/stages-and-errors/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/stages-and-errors-stages/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/corectl/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/rest-api/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/stages-and-errors-errors/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/corecloud/client/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/corecloud/models/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/reporter/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/device-personalizer/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/cloud-client/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/post/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/telemetry/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/context/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/uart-demuxer/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/stage-assets/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/power-profiler/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/reference/python-sdk/test-framework/pytest-integration/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/builds/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/builds/build-configuration/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/builds/monitoring/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/builds/artifacts/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/builds/triggering-builds/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/builds/ci-integration/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/products/recipe-editor/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/products/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/products/firmware-repos/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/products/creating-products/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/products/build-matrix/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/products/board-revisions/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/products/stage-config/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/platform/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/platform/corecloud/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/platform/system-architecture/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/platform/build-system/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/platform/build-system/artifact-contract/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/platform/build-system/build-service/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/platform/build-system/product-builds/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/platform/validation-system/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/platform/validation-system/test-runner/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/platform/validation-system/system-design/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/administration/": {
+      "min_role": "ADMIN",
+      "min_level": 4
+    },
+    "/administration/api-keys/": {
+      "min_role": "ADMIN",
+      "min_level": 4
+    },
+    "/administration/users-and-roles/": {
+      "min_role": "ADMIN",
+      "min_level": 4
+    },
+    "/administration/initial-setup/": {
+      "min_role": "ADMIN",
+      "min_level": 4
+    },
+    "/administration/production-operations/": {
+      "min_role": "ADMIN",
+      "min_level": 4
+    },
+    "/administration/permission-sets/": {
+      "min_role": "ADMIN",
+      "min_level": 4
+    },
+    "/validation/running-validation/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/validation/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/validation/run-detail/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/validation/results/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/validation/stages-overview/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/validation/realtime/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/validation/writing-tests/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/validation/queue/": {
+      "min_role": "DEVELOPER",
+      "min_level": 2
+    },
+    "/fixtures/": {
+      "min_role": "MAINTAINER",
+      "min_level": 3
+    },
+    "/fixtures/slots-and-deployment/": {
+      "min_role": "MAINTAINER",
+      "min_level": 3
+    },
+    "/fixtures/managing-fixtures/": {
+      "min_role": "MAINTAINER",
+      "min_level": 3
+    },
+    "/fixtures/instances/": {
+      "min_role": "MAINTAINER",
+      "min_level": 3
+    },
+    "/fixtures/designs/": {
+      "min_role": "MAINTAINER",
+      "min_level": 3
+    }
+  },
+  "role_hierarchy": {
+    "OPERATOR": 1,
+    "DEVELOPER": 2,
+    "MAINTAINER": 3,
+    "ADMIN": 4
+  }
+}

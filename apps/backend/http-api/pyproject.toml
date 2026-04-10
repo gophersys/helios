@@ -1,7 +1,7 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", ".", "../../../libs/python", "../../../libs", "../../../libs/protocols"]
-addopts = "-v --tb=short -m 'not staging' -n auto"
+addopts = "-v --tb=short -m 'not staging'"
 markers = [
     "staging: tests that run against a live staging instance (require STAGING_URL and STAGING_API_KEY)",
 ]

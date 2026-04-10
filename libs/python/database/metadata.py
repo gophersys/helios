@@ -69,6 +69,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'product': 'Product',
         'createdBy': 'User',
         'sessions': 'Session',
+        'manufacturingSessions': 'ManufacturingSession',
     },
     'ProductTarget': {
         'boardRevision': 'BoardRevision',
@@ -258,6 +259,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'product': 'Product',
         'fixture': 'Fixture',
         'operator': 'User',
+        'testPackage': 'TestPackage',
         'panels': 'ManufacturingPanel',
     },
     'ManufacturingPanel': {

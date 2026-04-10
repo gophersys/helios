@@ -1,0 +1,3852 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+        <link rel="canonical" href="https://docs.concord.local/_internal/vision/thesis/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.32">
+    
+    
+      
+        <title>Concord: Continuous Delivery for Embedded Systems - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#concord-continuous-delivery-for-embedded-systems" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Concord: Continuous Delivery for Embedded Systems
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../products/" class="md-tabs__link">
+          
+  
+  Products
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../builds/" class="md-tabs__link">
+          
+  
+  Builds
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../validation/" class="md-tabs__link">
+          
+  
+  Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../manufacturing/" class="md-tabs__link">
+          
+  
+  Manufacturing
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../fixtures/" class="md-tabs__link">
+          
+  
+  Fixtures
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../administration/" class="md-tabs__link">
+          
+  
+  Administration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../reference/" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../platform/" class="md-tabs__link">
+          
+  
+  Platform
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../products/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Products
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Products
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/creating-products/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating Products
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/board-revisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Board Revisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/firmware-repos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Repos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/build-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/recipe-editor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recipe Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/stage-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../builds/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builds
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Builds
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../builds/triggering-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Triggering Builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../builds/build-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../builds/ci-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../builds/monitoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../builds/artifacts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Artifacts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../validation/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/running-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/writing-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/run-detail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Detail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Time View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../manufacturing/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manufacturing
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Manufacturing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/fixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manufacturing Fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/station-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Station Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/running-post/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running POST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/reading-results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../fixtures/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixtures
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Fixtures
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../fixtures/managing-fixtures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Managing Fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../fixtures/designs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixture Designs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../fixtures/instances/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixture Instances
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../fixtures/slots-and-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slots & Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../administration/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/initial-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Initial Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/users-and-roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users & Roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/permission-sets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permission Sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/api-keys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/production-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../reference/python-sdk/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python SDK
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python SDK
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../reference/python-sdk/test-framework/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Framework
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2_2" id="__nav_8_2_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Test Framework
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TestContext
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/cloud-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CloudClient
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/uart-demuxer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UartDemuxer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/power-profiler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerProfiler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/stage-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StageAssets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/device-personalizer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DevicePersonalizer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/reporter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reporter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/post/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2_3" id="__nav_8_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CoreCloud
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/corecloud/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core cloud &gt; client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/corecloud/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core cloud &gt; models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/corectl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    corectl CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/stages-and-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages & Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../platform/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../platform/system-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../platform/build-system/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build System
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9_3" id="__nav_9_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build System
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../platform/build-system/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../platform/build-system/product-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Product Builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../platform/build-system/artifact-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Artifact Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../platform/validation-system/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation System
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9_4" id="__nav_9_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation System
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../platform/validation-system/system-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../platform/validation-system/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../platform/corecloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-core-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The Core Problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-thesis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The Thesis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-the-embedded-deployment-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. The Embedded Deployment Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. The Embedded Deployment Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-pipeline-must-prove" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the Pipeline Must Prove
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-the-four-keys-adapted-for-embedded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. The Four Keys — Adapted for Embedded
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. The Four Keys — Adapted for Embedded">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-lead-time-for-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Lead Time for Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-deployment-frequency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Deployment Frequency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-change-failure-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Change Failure Rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-mean-time-to-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Mean Time to Recovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-beyond-the-four-keys-metrics-the-books-dont-cover" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Beyond the Four Keys — Metrics the Books Don't Cover
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Beyond the Four Keys — Metrics the Books Don&#x27;t Cover">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-test-infrastructure-reliability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Test Infrastructure Reliability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-test-stability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Test Stability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-stage-escape-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Stage Escape Rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-fuota-delivery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 FUOTA Delivery
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-the-self-measuring-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. The Self-Measuring Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-where-concord-stands-today" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Where Concord Stands Today
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Where Concord Stands Today">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-model-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Model Coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#derivable-today-vs-needs-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Derivable Today vs. Needs Work
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-the-gap-that-matters-most" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. The Gap That Matters Most
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. The Gap That Matters Most">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#closing-the-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Closing the Loop
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Open Questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-success-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Success Criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="concord-continuous-delivery-for-embedded-systems">Concord: Continuous Delivery for Embedded Systems<a class="headerlink" href="#concord-continuous-delivery-for-embedded-systems" title="Permanent link">&para;</a></h1>
+<p>A thesis on applying continuous delivery principles to firmware engineering, grounded in Dave Farley's <a href="https://www.amazon.com/Modern-Software-Engineering-Discipline-Development/dp/0137314914"><em>Modern Software Engineering</em></a> and Forsgren, Humble &amp; Kim's <a href="https://www.amazon.com/Accelerate-Software-Performing-Technology-Organizations/dp/1942788339"><em>Accelerate</em></a>.</p>
+<p><strong>Why this matters:</strong></p>
+<ul>
+<li><strong>Elite performers are 2x more likely to exceed profitability, productivity, and customer satisfaction goals.</strong> DORA's <a href="https://dora.dev/research/2024/dora-report/">10+ years of research</a> across 39,000+ professionals proves that speed and stability are <em>correlated</em>, not competing — teams that deploy more frequently also have lower failure rates. (<a href="https://services.google.com/fh/files/misc/2024_final_dora_report.pdf">Accelerate State of DevOps Report, 2024</a>)</li>
+<li><strong>The data holds across industries, including regulated and hardware-adjacent domains.</strong> The research covers organizations of all sizes and sectors. Elite teams deploy multiple times per day with change failure rates below 5%, while low performers deploy monthly with failure rates above 46%. The gap is not marginal — it is <a href="https://www.atlassian.com/devops/frameworks/dora-metrics">an order of magnitude</a>.</li>
+<li><strong>These are engineering practices, not tooling choices.</strong> Farley's core argument is that continuous delivery is the application of <a href="https://www.davefarley.net/?p=352">scientific reasoning to software development</a> — working in small batches, getting fast feedback, and iterating. The principles are universal; only the implementation changes for embedded.</li>
+</ul>
+<hr />
+<h2 id="1-the-core-problem">1. The Core Problem<a class="headerlink" href="#1-the-core-problem" title="Permanent link">&para;</a></h2>
+<p>Embedded engineering operates under a belief system that makes continuous delivery seem impossible:</p>
+<ul>
+<li>"We can't deploy on every commit — we'd brick devices."</li>
+<li>"Hardware-in-the-loop tests are too slow for CI."</li>
+<li>"OTA is too risky to automate."</li>
+<li>"Our release cadence is dictated by hardware, not software."</li>
+</ul>
+<p>These beliefs produce a predictable outcome: long release cycles, manual validation gates, low confidence in firmware quality, and a growing backlog of changes that compound risk with every passing week. The longer you wait to integrate and validate, the harder it becomes to find and fix problems. This is the exact dynamic that <em>Accelerate</em> identifies as the hallmark of low-performing organizations.</p>
+<p>The Accelerate research is unambiguous: <strong>elite performers deploy more frequently AND have lower failure rates.</strong> Speed and stability are not trade-offs — they are correlated outcomes of the same underlying practices. The question is not whether these principles apply to embedded systems. The question is how to implement them given the real constraints of physical hardware, cross-compilation, over-the-air delivery, and devices that can't be SSH'd into when something goes wrong.</p>
+<p>Concord exists to answer that question.</p>
+<hr />
+<h2 id="2-the-thesis">2. The Thesis<a class="headerlink" href="#2-the-thesis" title="Permanent link">&para;</a></h2>
+<p><strong>Concord is a deployment pipeline for embedded systems that treats every firmware commit as a release candidate, validates it through progressive hardware-in-the-loop stages, and delivers it to devices — all without human intervention in the critical path.</strong></p>
+<p>This is not a build system. It is not a test runner. It is not a dashboard. It is the <strong>executable specification of how firmware goes from a developer's commit to a validated, deployed artifact on a physical device.</strong> The pipeline is the product. Everything else — the build service, the validation framework, the FUOTA client, the MTIB infrastructure — exists to serve this pipeline.</p>
+<p>Farley's central insight: the deployment pipeline is the backbone. Every change flows through the same pipeline. Every stage provides fast, automated feedback. The pipeline is deterministic — same inputs, same outputs. When it breaks, you stop and fix it before anything else.</p>
+<p>Web pipelines end at "deploy to production server." Embedded pipelines must pass through physical reality — real silicon, real sensors, real radio links, real power constraints — before they earn the right to be called "deployable." Harder to build, but more valuable once built. The alternative is a human manually running through a test checklist on a lab bench.</p>
+<hr />
+<h2 id="3-the-embedded-deployment-pipeline">3. The Embedded Deployment Pipeline<a class="headerlink" href="#3-the-embedded-deployment-pipeline" title="Permanent link">&para;</a></h2>
+<p>Concord's five-stage model maps directly to Farley's deployment pipeline — each stage provides faster feedback at lower cost before escalating to slower, higher-fidelity validation:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Commit → Build → Stage 1 → Stage 2 → Stage 3 → Stage 4 → Stage 5 → Deploy
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>         (sec)   (min)      (min)      (min)      (hours)   (min)     (min)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>         Cross-   Software   Driver     Harness    Black-box  Gate     FUOTA
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>         compile  sim        real HW    instrum.   product    PR+OTA   delivery
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>         Zero     Zero       Dev-kit    MTIB +     MTIB +     MTIB +   CoreCloud
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>         hardware hardware   fixture    product    product    product  OTA server
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                                        board      board      board
+</code></pre></div>
+<p><strong>The key property:</strong> each stage is a strict quality gate. If Stage 1 fails, you never waste a physical test bench on a build that can't even pass its unit tests. If Stage 5 fails (the fast gate that includes FUOTA), the PR is blocked — the firmware never reaches production devices.</p>
+<p>This is the embedded equivalent of Farley's "fail fast" principle. The cheapest stages run first. The most expensive stages (which require physical hardware, real OTA delivery, and minutes of wall-clock time) run last, and only on firmware that has already survived everything cheaper.</p>
+<h3 id="what-the-pipeline-must-prove">What the Pipeline Must Prove<a class="headerlink" href="#what-the-pipeline-must-prove" title="Permanent link">&para;</a></h3>
+<p>Each stage answers a specific question:</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Question</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Build</td>
+<td>Does it compile for all target boards and configurations?</td>
+<td>Clean cross-compilation, no warnings-as-errors</td>
+</tr>
+<tr>
+<td>1 - Smoke</td>
+<td>Do the software abstractions behave correctly in isolation?</td>
+<td>Unit + integration tests pass on native_sim</td>
+</tr>
+<tr>
+<td>2 - Driver</td>
+<td>Do the drivers work on real silicon?</td>
+<td>Sensor reads, peripheral I/O, power measurements on dev-kit</td>
+</tr>
+<tr>
+<td>3 - Integration</td>
+<td>Does the instrumented firmware work as a system?</td>
+<td>End-to-end flows via concord_harness on product board</td>
+</tr>
+<tr>
+<td>4 - Product</td>
+<td>Does the production binary work as a black-box product?</td>
+<td>89 product test cases (PRDTST) on production firmware, no harness</td>
+</tr>
+<tr>
+<td>5 - Gate</td>
+<td>Can we safely deliver this firmware to devices in the field?</td>
+<td>FUOTA delivery + post-update verification in &lt; 15 minutes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The pipeline doesn't just test the firmware — it tests the delivery mechanism.</strong> Stage 5 includes an actual FUOTA delivery, the same one used to update devices in the field. If FUOTA fails in Stage 5, it would have failed in production. Farley calls this "practice the hard things."</p>
+<hr />
+<h2 id="4-the-four-keys-adapted-for-embedded">4. The Four Keys — Adapted for Embedded<a class="headerlink" href="#4-the-four-keys-adapted-for-embedded" title="Permanent link">&para;</a></h2>
+<p><em>Accelerate</em> identifies four metrics that predict delivery performance. They were designed for web software. Here's what they mean when your deployment target is a microcontroller in a plastic enclosure.</p>
+<h3 id="41-lead-time-for-changes">4.1 Lead Time for Changes<a class="headerlink" href="#41-lead-time-for-changes" title="Permanent link">&para;</a></h3>
+<p>In web: commit to production. In embedded: <strong>commit to validated, deployable firmware</strong> — optionally extended through FUOTA delivery.</p>
+<p>Lead time is the speed of your feedback loop. When it's short, developers learn about breakage while the code is still fresh in their heads. When it's long, they've context-switched to something else and the fix takes twice as long.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Lead Time = PipelineRun.finishedAt - PipelineRun.createdAt
+</code></pre></div>
+<p>That covers build + validation. What it misses: developer wait time before the pipeline triggers, and deployment lag after it succeeds. Breaking it down:</p>
+<table>
+<thead>
+<tr>
+<th>Segment</th>
+<th>Source</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Queue wait</td>
+<td>BuildJob.startedAt - BuildJob.queuedAt</td>
+<td><strong>MISSING</strong> — no <code>queuedAt</code> field</td>
+</tr>
+<tr>
+<td>Build time</td>
+<td>BuildJob.durationSeconds</td>
+<td>Tracked</td>
+</tr>
+<tr>
+<td>Validation time</td>
+<td>Session.finishedAt - Session.startedAt</td>
+<td>Tracked</td>
+</tr>
+<tr>
+<td>FUOTA delivery</td>
+<td>—</td>
+<td><strong>MISSING</strong> — no deployment model</td>
+</tr>
+<tr>
+<td>End-to-end</td>
+<td>PipelineRun.finishedAt - PipelineRun.createdAt</td>
+<td>Tracked</td>
+</tr>
+</tbody>
+</table>
+<p>Targets: Stage 5 gate under 15 minutes, Stage 4 regression under 60 minutes, full pipeline under 2 hours. The trend matters more than the absolute number — if lead time is climbing week over week, the pipeline is degrading.</p>
+<h3 id="42-deployment-frequency">4.2 Deployment Frequency<a class="headerlink" href="#42-deployment-frequency" title="Permanent link">&para;</a></h3>
+<p>Deployment frequency is really a proxy for batch size. Deploy often, and each release carries one or two changes — easy to diagnose when something breaks. Deploy monthly, and you're shipping 47 commits at once, praying the radio stack still works.</p>
+<p>For embedded, frequency splits in two:</p>
+<ul>
+<li><strong>Internal</strong> — how often firmware passes the full pipeline and becomes deployable. Measurable today: <code>COUNT(PipelineRun WHERE status = 'SUCCESS') per week</code>.</li>
+<li><strong>External</strong> — how often firmware actually reaches devices via FUOTA. Not measurable — Concord has no deployment model. FUOTA happens through CoreCloud with no results captured back.</li>
+</ul>
+<p>The goal: every PR triggers a pipeline automatically. No manual "should we test this?" decisions. Multiple successful pipelines per day internally, weekly FUOTA deliveries to staging devices externally.</p>
+<h3 id="43-change-failure-rate">4.3 Change Failure Rate<a class="headerlink" href="#43-change-failure-rate" title="Permanent link">&para;</a></h3>
+<p>The counterbalance to speed. In embedded, a failed deployment isn't a 500 error on a web page — it's a boot loop, a bricked device, or a field recall.</p>
+<p>There's a critical distinction here. Pipeline and validation failures are <em>good</em> — the pipeline caught a problem before it reached a device. The metric that matters is the <strong>post-deployment failure rate</strong>: firmware that passed every stage but still caused problems in the field.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Pipeline CFR  = failed pipelines / total pipelines
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>FUOTA CFR     = failed post-update checks / total deployments  // MISSING MODEL
+</code></pre></div>
+<p>Concord can track build and validation failure rates today. Post-deployment failure rate? Zero visibility — there's no feedback loop from devices back to the platform.</p>
+<p>Targets: build failures under 5% (developers should run Stage 1 locally), validation failures under 15% (cheap stages catch most issues), post-deployment failures under 1%. If Stage 4/5 failure rates are high, that means earlier stages have gaps — bugs are escaping upward.</p>
+<h3 id="44-mean-time-to-recovery">4.4 Mean Time to Recovery<a class="headerlink" href="#44-mean-time-to-recovery" title="Permanent link">&para;</a></h3>
+<p>The hardest metric, and the one with the highest stakes. In web, recovery means rolling back a deployment. In embedded, it depends on how badly things went wrong:</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Recovery</th>
+<th>Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bad firmware, MCUboot rollback works</td>
+<td>Automatic — device reverts to previous slot</td>
+<td>Seconds</td>
+</tr>
+<tr>
+<td>Bad firmware, device boots but degraded</td>
+<td>FUOTA fix delivery</td>
+<td>Minutes to hours</td>
+</tr>
+<tr>
+<td>Bad firmware, device can't reach cloud</td>
+<td>Physical intervention (J-Link reflash)</td>
+<td>Days</td>
+</tr>
+<tr>
+<td>Bad firmware, bricked bootloader</td>
+<td>RMA / physical recovery</td>
+<td>Weeks</td>
+</tr>
+</tbody>
+</table>
+<p>The pipeline's job is to make the bottom two rows impossible. MCUboot handles the first. The pipeline handles the second by catching bugs before they ship. Rows three and four are pipeline failures — that firmware should never have been deployed.</p>
+<p>Concord currently has <strong>zero</strong> incident tracking, <strong>zero</strong> deployment tracking, and <strong>zero</strong> device health monitoring. MTTR is unmeasurable. To change that, we need:</p>
+<ol>
+<li>A <strong>Deployment</strong> model — firmware version, target devices, delivery status, post-update health check</li>
+<li>An <strong>Incident</strong> model or integration with an external system</li>
+<li>A <strong>device health feedback loop</strong> — the device reports its state back to Concord after an update</li>
+</ol>
+<hr />
+<h2 id="5-beyond-the-four-keys-metrics-the-books-dont-cover">5. Beyond the Four Keys — Metrics the Books Don't Cover<a class="headerlink" href="#5-beyond-the-four-keys-metrics-the-books-dont-cover" title="Permanent link">&para;</a></h2>
+<p>DORA was designed for web. Embedded has a physical dimension that creates failure modes — and metrics — with no web equivalent.</p>
+<h3 id="51-test-infrastructure-reliability">5.1 Test Infrastructure Reliability<a class="headerlink" href="#51-test-infrastructure-reliability" title="Permanent link">&para;</a></h3>
+<p>An MTIB that intermittently drops UART bytes produces test failures that look like firmware bugs. If engineers can't trust the pipeline, they stop investigating failures ("probably just the MTIB acting up") and eventually stop using the pipeline entirely. Death by a thousand paper cuts.</p>
+<p>Every test failure needs a classification: <strong>firmware</strong> (the test caught a real bug), <strong>infrastructure</strong> (MTIB, power supply, fixture, or connectivity), or <strong>test</strong> (the assertion or timeout is wrong). Concord's <code>errorMessage</code> is free text today — no structured categorization exists. Without it, you can't distinguish a sick pipeline from a sick product.</p>
+<h3 id="52-test-stability">5.2 Test Stability<a class="headerlink" href="#52-test-stability" title="Permanent link">&para;</a></h3>
+<p>Flaky tests are the #1 pipeline killer. A test that fails 5% of the time means every 20th run produces a false negative. With 50 tests, that's 2-3 spurious failures per run. Engineers start re-running "one more time to see if it passes." Then they stop investigating. Then they bypass the pipeline.</p>
+<p>Measuring flakiness means tracking results per <code>(test_name, firmware_version, hardware_revision)</code> tuple over time. Concord captures individual results but doesn't aggregate them.</p>
+<p>Embedded flakiness has sources web engineers never deal with: sensor noise, wireless interference, power supply settling time, UART streaming latency, and lab temperature drift. Each demands a different fix — wider tolerances, retry logic, environmental monitoring, hardware changes. You can't fix what you can't categorize.</p>
+<h3 id="53-stage-escape-rate">5.3 Stage Escape Rate<a class="headerlink" href="#53-stage-escape-rate" title="Permanent link">&para;</a></h3>
+<p>When Stage 4 catches a bug that Stage 1 could have caught, that's an hour of bench time wasted on a problem that should have been flagged in seconds. The escape rate measures how often bugs slip past cheaper stages to be caught by expensive ones.</p>
+<p>High escape rates from Stage 1 → Stage 4 mean Stage 1 needs more tests. Low escape rates mean the stage model is earning its keep. The <a href="../../reference/traceability-matrix/">traceability matrix</a> maps test cases across stages to make this measurable.</p>
+<h3 id="54-fuota-delivery">5.4 FUOTA Delivery<a class="headerlink" href="#54-fuota-delivery" title="Permanent link">&para;</a></h3>
+<p>FUOTA is the deployment mechanism — embedded's equivalent of <code>kubectl apply</code>, except you can't easily roll back a device that stops responding.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Delivery success rate</td>
+<td><strong>Not tracked</strong></td>
+</tr>
+<tr>
+<td>Delivery time (plan creation → 100%)</td>
+<td><strong>Not tracked</strong></td>
+</tr>
+<tr>
+<td>Post-update boot success rate</td>
+<td><strong>Not tracked</strong></td>
+</tr>
+<tr>
+<td>MCUboot rollback rate</td>
+<td><strong>Not tracked</strong></td>
+</tr>
+<tr>
+<td>Pages per second (throughput)</td>
+<td>Measured in tests, not in DB</td>
+</tr>
+</tbody>
+</table>
+<p>None of these are captured. FUOTA goes through CoreCloud, and Concord has no feedback loop. This is the single largest measurement gap in the platform.</p>
+<hr />
+<h2 id="6-the-self-measuring-pipeline">6. The Self-Measuring Pipeline<a class="headerlink" href="#6-the-self-measuring-pipeline" title="Permanent link">&para;</a></h2>
+<p>A pipeline that's getting slower, flakier, or less reliable is quietly destroying the feedback loop that makes continuous delivery work. Concord needs to measure its own health, not just the firmware's.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Question It Answers</th>
+<th>How to Track</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cycle time trend</td>
+<td>Is the pipeline getting slower?</td>
+<td>Weekly rolling average of PipelineRun duration</td>
+</tr>
+<tr>
+<td>Build worker utilization</td>
+<td>Bottlenecked on compute?</td>
+<td>% time workers are building vs. idle</td>
+</tr>
+<tr>
+<td>Test bench utilization</td>
+<td>Bottlenecked on hardware?</td>
+<td>% time MTIBs are running tests vs. idle</td>
+</tr>
+<tr>
+<td>Queue depth</td>
+<td>How much work is waiting?</td>
+<td>QUEUED BuildJobs and TestExecutions over time</td>
+</tr>
+<tr>
+<td>Infrastructure failure rate</td>
+<td>Is test infra degrading?</td>
+<td>Classified failures: infrastructure vs. firmware</td>
+</tr>
+<tr>
+<td>False positive rate</td>
+<td>Wasting developer time?</td>
+<td>Tests that fail on pipeline, pass on re-run</td>
+</tr>
+<tr>
+<td>Feedback latency</td>
+<td>How fast do developers learn?</td>
+<td>Commit push → first failure notification</td>
+</tr>
+</tbody>
+</table>
+<p>After every pipeline run, the platform should record timing data, classify failures, compute rolling metrics, compare against SLAs, and alert on degradation. Humble and Farley call this the "build monitor" — the pipeline's health dashboard should be as prominent as the product's. If the pipeline is sick, the team is flying blind.</p>
+<hr />
+<h2 id="7-where-concord-stands-today">7. Where Concord Stands Today<a class="headerlink" href="#7-where-concord-stands-today" title="Permanent link">&para;</a></h2>
+<h3 id="data-model-coverage">Data Model Coverage<a class="headerlink" href="#data-model-coverage" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Model Exists?</th>
+<th>Timestamps?</th>
+<th>Status Tracking?</th>
+<th>Queryable for Metrics?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Build</td>
+<td>Yes (BuildJob)</td>
+<td>Partial (no queuedAt)</td>
+<td>Yes (8 states)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Pipeline</td>
+<td>Yes (PipelineRun)</td>
+<td>Yes</td>
+<td>Yes (6 states)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Validation Run</td>
+<td>Yes (Session)</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Test Execution</td>
+<td>Yes (TestExecution)</td>
+<td>Yes</td>
+<td>Yes (7 states)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Test Result</td>
+<td>Yes (TestResult)</td>
+<td>Partial</td>
+<td>Boolean pass/fail</td>
+<td>Partial (JSON blob)</td>
+</tr>
+<tr>
+<td>Deployment (FUOTA)</td>
+<td><strong>No</strong></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Incident</td>
+<td><strong>No</strong></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Device Health</td>
+<td><strong>No</strong></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Metric Aggregate</td>
+<td><strong>No</strong></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Failure Category</td>
+<td><strong>No</strong></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="derivable-today-vs-needs-work">Derivable Today vs. Needs Work<a class="headerlink" href="#derivable-today-vs-needs-work" title="Permanent link">&para;</a></h3>
+<p><strong>Can compute right now:</strong>
+- Pipeline cycle time (end-to-end and per-stage)
+- Build success/failure rate
+- Validation pass/fail rate per session
+- Test execution duration distribution
+- Build duration by product/board
+- Deployment frequency (pipeline completions per period)
+- Change failure rate (pipeline failures per period)</p>
+<p><strong>Needs small schema additions:</strong>
+- Queue wait time (add <code>queuedAt</code> to BuildJob)
+- Failure categorization (add <code>failureCategory</code> enum to TestExecution)
+- SLA compliance (compare durations against stage config thresholds)
+- Test flakiness (add historical comparison query or materialized view)</p>
+<p><strong>Needs new models:</strong>
+- Deployment tracking (FUOTA plan → device delivery → post-update check)
+- Device health feedback (device → cloud → Concord)
+- Incident tracking (or integration with external system)
+- Metric aggregates (pre-computed daily/weekly summaries)</p>
+<hr />
+<h2 id="8-the-gap-that-matters-most">8. The Gap That Matters Most<a class="headerlink" href="#8-the-gap-that-matters-most" title="Permanent link">&para;</a></h2>
+<p><strong>Concord has no concept of "deployed to production."</strong></p>
+<p>The pipeline ends at "validation passed." No record of which firmware version runs on which devices. No record of when a firmware was delivered, whether devices booted successfully, or whether a deployment was rolled back. Three of the four DORA metrics are either unmeasurable (MTTR) or only partially measurable (deployment frequency, change failure rate).</p>
+<p>This is a factory with no shipping dock — you can build and inspect the product, but you have no idea what happens after it leaves the building.</p>
+<h3 id="closing-the-loop">Closing the Loop<a class="headerlink" href="#closing-the-loop" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Pipeline Success
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    → Firmware marked &quot;deployable&quot;
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    → FUOTA plan created in CoreCloud (tracked in Concord)
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    → Device delivery progress tracked
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    → Post-update health check (boot success, basic telemetry)
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    → Deployment record closed with outcome
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    → Metrics updated
+</code></pre></div>
+<p>This loop is the difference between CI (we build and test) and CD (we build, test, and deliver). Concord is currently a CI system. The thesis is that it should be a CD system.</p>
+<hr />
+<h2 id="9-principles">9. Principles<a class="headerlink" href="#9-principles" title="Permanent link">&para;</a></h2>
+<p>Five rules, drawn from Farley and the Accelerate research, that should govern how Concord is built.</p>
+<p><strong>Every commit is a release candidate.</strong> No "development builds" vs. "release builds." Every commit triggers the same pipeline, and the pipeline — not a human — decides if the firmware ships. Concord's <code>triggerType</code> already supports webhooks. That needs to be the default, not the exception.</p>
+<p><strong>The pipeline is the authority.</strong> Pass means deployable. Fail means not. No human override, no "let's ship it anyway, we're under pressure." The moment you bypass the pipeline, you've destroyed the feedback loop. <code>blocksMerge</code> must be enforced at the Bitbucket level — a failed Stage 5 gate should physically prevent PR merge.</p>
+<p><strong>Fix the pipeline before fixing the product.</strong> A broken pipeline is worse than a broken product, because it means you can't detect or fix anything. A flaky test is a higher priority than the next feature. A rising flake rate should trigger the same urgency as a production outage.</p>
+<p><strong>Measure outcomes, not activity.</strong> Lines of code, commit count, test count — activity metrics. They show people are busy. They don't show whether working firmware is reaching devices. The primary dashboard shows the four DORA keys. Build counts and test counts are diagnostic detail.</p>
+<p><strong>Optimize for fast feedback.</strong> The most important property of the pipeline is speed. A developer who gets feedback in 10 minutes iterates six times in an hour. A developer who waits 2 hours iterates once and context-switches. Stage 5's 15-minute SLA is the constraint everything else must serve.</p>
+<hr />
+<h2 id="10-open-questions">10. Open Questions<a class="headerlink" href="#10-open-questions" title="Permanent link">&para;</a></h2>
+<p>These need concrete answers before this thesis becomes an implementation plan.</p>
+<p><strong>Product &amp; deployment reality:</strong></p>
+<ol>
+<li><strong>What does "production" mean today?</strong> Devices in customers' hands, or internal staging?</li>
+<li><strong>What's the current release cadence?</strong> Weekly? Monthly? "When someone remembers"?</li>
+<li><strong>How many firmware variants?</strong> Products × boards × configs × debug/release — 4 is different from 40.</li>
+</ol>
+<p><strong>Organizational:</strong></p>
+<ol>
+<li><strong>How many developers push firmware changes?</strong> One person's throughput looks different from a team of five.</li>
+<li><strong>Who consumes pipeline results?</strong> Developers only? QA? Management? Auditors?</li>
+<li><strong>Any compliance requirements?</strong> FDA? Industrial safety? Traceability mandates?</li>
+</ol>
+<p><strong>Technical:</strong></p>
+<ol>
+<li><strong>Can devices report back after FUOTA?</strong> Does the device tell CoreCloud its new firmware version? Can Concord query that?</li>
+<li><strong>Where's the biggest bottleneck?</strong> Build time? Queue wait? Test execution? Manual steps? Theory of Constraints: optimize the bottleneck, ignore everything else.</li>
+<li><strong>How many test benches?</strong> One MTIB means zero parallelism. Ten changes the design entirely.</li>
+<li><strong>Can Concord write to CoreCloud?</strong> Create FUOTA plans, assign devices, track delivery — programmatically?</li>
+</ol>
+<hr />
+<h2 id="11-success-criteria">11. Success Criteria<a class="headerlink" href="#11-success-criteria" title="Permanent link">&para;</a></h2>
+<p>A developer pushes a firmware change. Without any human intervention, it's built, validated across all stages, and — if every gate passes — delivered to staging devices via FUOTA. The developer sees pass/fail/deployed within a defined time window. The entire journey is tracked, timed, and measurable.</p>
+<p><strong>The four numbers on the wall:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Current (estimate)</th>
+<th>90-day target</th>
+<th>North star</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lead time (commit → validated)</td>
+<td>Unknown (manual)</td>
+<td>&lt; 2 hours</td>
+<td>&lt; 30 min</td>
+</tr>
+<tr>
+<td>Deployment frequency</td>
+<td>Ad-hoc</td>
+<td>Weekly</td>
+<td>On every merge to main</td>
+</tr>
+<tr>
+<td>Change failure rate</td>
+<td>Unknown</td>
+<td>&lt; 20%</td>
+<td>&lt; 5%</td>
+</tr>
+<tr>
+<td>Mean time to recovery</td>
+<td>Unknown (days?)</td>
+<td>&lt; 4 hours</td>
+<td>&lt; 1 hour</td>
+</tr>
+</tbody>
+</table>
+<p>These are estimates. Filling them in with real data is the first milestone — you can't improve what you don't measure.</p>
+<hr />
+<p><em>The pipeline is the product. Everything Concord builds traces back to these principles, these metrics, and these questions.</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../..","features":["navigation.tabs","navigation.tabs.sticky","navigation.indexes","navigation.instant","toc.follow","search.suggest","content.code.copy"],"search":"../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.91a19a9e.min.js"></script>
+      
+        <script src="../../../assets/js/external-links.js"></script>
+      
+        <script src="../../../assets/js/role-filter.js"></script>
+      
+    
+  </body>
+</html>

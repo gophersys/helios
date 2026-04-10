@@ -1550,11 +1550,11 @@ class TestPackageActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the second TestPackage record ordered by the status field
+        # find the second TestPackage record ordered by the type field
         testpackage = TestPackage.prisma().find_first(
             skip=1,
             order={
-                'status': 'desc',
+                'type': 'desc',
             },
         )
         ```
@@ -1618,11 +1618,11 @@ class TestPackageActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # find the second TestPackage record ordered by the storageKey field
+        # find the second TestPackage record ordered by the status field
         testpackage = TestPackage.prisma().find_first_or_raise(
             skip=1,
             order={
-                'storageKey': 'desc',
+                'status': 'desc',
             },
         )
         ```
@@ -1794,7 +1794,7 @@ class TestPackageActions(Generic[_PrismaModelT]):
         # update all TestPackage records
         total = TestPackage.prisma().update_many(
             data={
-                'frameworkVersion': 'caaaedabfc'
+                'storageKey': 'caaaedabfc'
             },
             where={}
         )
@@ -1858,7 +1858,7 @@ class TestPackageActions(Generic[_PrismaModelT]):
         results = TestPackage.prisma().count(
             select={
                 '_all': True,
-                'manifestHash': True,
+                'frameworkVersion': True,
             },
         )
         ```
@@ -1925,7 +1925,7 @@ class TestPackageActions(Generic[_PrismaModelT]):
         results = TestPackage.prisma().count(
             select={
                 '_all': True,
-                'testCount': True,
+                'manifestHash': True,
             },
         )
         ```
@@ -2065,10 +2065,10 @@ class TestPackageActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group TestPackage records by stagesEnabled values
+        # group TestPackage records by testCount values
         # and count how many records are in each group
         results = TestPackage.prisma().group_by(
-            ['stagesEnabled'],
+            ['testCount'],
             count=True,
         )
         ```
@@ -38992,7 +38992,7 @@ class ManufacturingSessionActions(Generic[_PrismaModelT]):
         # update all ManufacturingSession records
         total = ManufacturingSession.prisma().update_many(
             data={
-                'panelCount': 1713452621
+                'testPackageId': 'bhbdefcgcb'
             },
             where={}
         )
@@ -39056,7 +39056,7 @@ class ManufacturingSessionActions(Generic[_PrismaModelT]):
         results = ManufacturingSession.prisma().count(
             select={
                 '_all': True,
-                'passedCount': True,
+                'panelCount': True,
             },
         )
         ```
@@ -39123,7 +39123,7 @@ class ManufacturingSessionActions(Generic[_PrismaModelT]):
         results = ManufacturingSession.prisma().count(
             select={
                 '_all': True,
-                'failedCount': True,
+                'passedCount': True,
             },
         )
         ```
@@ -39263,10 +39263,10 @@ class ManufacturingSessionActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group ManufacturingSession records by config values
+        # group ManufacturingSession records by failedCount values
         # and count how many records are in each group
         results = ManufacturingSession.prisma().group_by(
-            ['config'],
+            ['failedCount'],
             count=True,
         )
         ```

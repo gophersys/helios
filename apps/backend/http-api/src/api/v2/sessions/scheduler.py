@@ -228,6 +228,7 @@ def _trigger_validation_job(
             latest_tp = db.testpackage.find_first(
                 where={
                     "productId": product_record.id,
+                    "type": "VALIDATION",
                     "status": "RELEASED",
                 },
                 order={"createdAt": "desc"},
@@ -239,17 +240,26 @@ def _trigger_validation_job(
                     product_slug, test_package_version, run_id,
                 )
             else:
-                # Fall back to latest dev package
-                dev_tp = db.testpackage.find_first(
-                    where={"productId": product_record.id},
-                    order={"createdAt": "desc"},
-                )
-                if dev_tp:
-                    test_package_version = dev_tp.version
-                    logger.info(
-                        "No RELEASED test package — using dev %s@%s",
-                        product_slug, test_package_version,
+                # Fall back to latest dev package (blocked in production)
+                if env_config.ENVIRONMENT == "production":
+                    logger.warning(
+                        "No RELEASED validation test package for %s — refusing to use DEVELOPMENT in production",
+                        product_slug,
                     )
+                else:
+                    dev_tp = db.testpackage.find_first(
+                        where={
+                            "productId": product_record.id,
+                            "type": "VALIDATION",
+                        },
+                        order={"createdAt": "desc"},
+                    )
+                    if dev_tp:
+                        test_package_version = dev_tp.version
+                        logger.info(
+                            "No RELEASED test package — using dev %s@%s",
+                            product_slug, test_package_version,
+                        )
     except Exception as e:
         logger.warning("Failed to look up test package: %s", e)
 

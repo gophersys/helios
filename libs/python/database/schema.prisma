@@ -127,6 +127,11 @@ enum TestPackageType {
   MANUFACTURING
 }
 
+enum StageType {
+  VALIDATION
+  MANUFACTURING
+}
+
 enum BuildRunStatus {
   PENDING // Waiting for builds to start
   BUILDING // Builds in progress
@@ -237,6 +242,9 @@ model TestPackage {
   manifestHash     String? /// SHA-256 of concord.test.yaml for change detection
   testCount        Int               @default(0) /// Number of tests collected
   stagesEnabled    Json? /// Which stages are enabled: {"smoke": true, "fuota": true, ...}
+  message          String? /// Developer-provided description at upload time
+  gitSha           String? /// Git HEAD SHA at upload time (short, e.g., "abc12345")
+  gitDirty         Boolean? /// True if working tree had uncommitted changes
   notes            String?
   createdById      String?
   createdAt        DateTime          @default(now())
@@ -246,7 +254,6 @@ model TestPackage {
   createdBy             User?                  @relation(fields: [createdById], references: [id])
   sessions              Session[]
   manufacturingSessions ManufacturingSession[] @relation("ManufacturingTestPackage")
-  fixtureDesigns        FixtureDesign[]
 
   @@unique([productId, version, type])
   @@index([productId, status])
@@ -410,11 +417,12 @@ model FirmwareBuild {
 /// Test config (directories, markers, timeouts) lives in the test repo itself.
 /// Build recipes are convention-driven via StageBuildDef (stage_builds.py).
 model ProductStageConfig {
-  id        String  @id @default(cuid())
+  id        String    @id @default(cuid())
   productId String
+  type      StageType @default(VALIDATION) /// VALIDATION or MANUFACTURING
   stage     Int /// 1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA
   name      String /// Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"
-  enabled   Boolean @default(false) /// Disabled by default
+  enabled   Boolean   @default(false) /// Disabled by default
 
   // Target — which hardware revision to build and test against
   boardRevisionId String? /// FK to BoardRevision (e.g., Alpha B0)
@@ -442,8 +450,8 @@ model ProductStageConfig {
   queueEntries       ValidationQueueEntry[]
   buildMatrixEntries StageBuildMatrix[]
 
-  @@unique([productId, stage, boardRevisionId])
-  @@index([productId])
+  @@unique([productId, type, stage, boardRevisionId])
+  @@index([productId, type])
   @@map("product_stage_configs")
 }
 
@@ -762,28 +770,23 @@ model Device {
 ///
 /// Individual Fixture records can override specific fields via profileOverrides.
 model FixtureDesign {
-  id              String    @id @default(cuid())
-  name            String    @unique /// "alpha-val-fixture-v1.2"
+  id              String   @id @default(cuid())
+  name            String   @unique /// "alpha-fixture-v1.2"
   boardRevisionId String /// FK — which board revision this design targets
-  type            StageType @default(VALIDATION) /// VALIDATION or MANUFACTURING
   revision        String /// "1.2" — fixture hardware revision (NOT board revision)
   capabilities    String[] /// ["button", "peltier", "charger_relay"]
-  slotDefinitions Json? /// Slot hardware layout from fixture.yaml [{index, label, jlink_app_serial, ...}]
-  profileTemplate Json /// Default fixture profile JSON (passed to test runner)
-  testPackageId   String? /// Which test package upload created/updated this design
+  profileTemplate Json /// Default fixture profile JSON (passed to test runner, not interpreted by Concord)
   schematicUrl    String? /// Link to schematic PDF/CAD files
   bomUrl          String? /// Link to BOM spreadsheet
   assemblyGuide   String? /// Link to assembly instructions
-  notes           String?
+  notes           String? /// Build notes, known issues, changelog
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id])
-  testPackage   TestPackage?  @relation(fields: [testPackageId], references: [id], onDelete: SetNull)
   fixtures      Fixture[]
 
   @@index([boardRevisionId])
-  @@index([boardRevisionId, type])
   @@map("fixture_designs")
 }
 

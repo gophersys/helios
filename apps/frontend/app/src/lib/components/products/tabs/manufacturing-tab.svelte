@@ -1,5 +1,6 @@
 <script lang="ts">
   import ProductStages from '../product-stages.svelte';
+  import TestAppStatusCard from '../test-app-status-card.svelte';
   import type { Product } from '$lib/types/models';
 
   interface Props {
@@ -14,6 +15,8 @@
     (product.boards || []).flatMap((b) => b.revisions || [])
   );
 </script>
+
+<TestAppStatusCard status={product.testAppStatus?.manufacturing ?? null} type="MANUFACTURING" />
 
 <ProductStages
   productId={product.id}

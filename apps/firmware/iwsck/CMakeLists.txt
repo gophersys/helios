@@ -12,12 +12,25 @@ set(BOARD iwsck_a1/nrf54l15/cpuapp)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(iwsck_bringup)
 
-target_sources(app PRIVATE
-  src/main.c
-  src/rs232.c
-  src/led.c
-  src/ble.c
-  src/fuel.c
-  src/power.c
-  src/nfc.c
-)
+if(CONFIG_SHELL)
+  # Full bring-up shell with all peripherals
+  target_sources(app PRIVATE
+    src/main.c
+    src/rs232.c
+    src/led.c
+    src/ble.c
+    src/fuel.c
+    src/power.c
+    src/nfc.c
+  )
+elseif(CONFIG_NFC_T2T_NRFXLIB)
+  # Headless BLE + NFC beacon
+  target_sources(app PRIVATE
+    src/main_beacon.c
+  )
+else()
+  # Minimal no-shell (sleep only)
+  target_sources(app PRIVATE
+    src/main_noshell.c
+  )
+endif()

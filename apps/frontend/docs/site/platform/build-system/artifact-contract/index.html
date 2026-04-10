@@ -1,0 +1,4670 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+        <link rel="canonical" href="https://docs.concord.local/platform/build-system/artifact-contract/">
+      
+      
+        <link rel="prev" href="../product-builds/">
+      
+      
+        <link rel="next" href="../../validation-system/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.32">
+    
+    
+      
+        <title>Artifact Contract & Stage Interface Specification - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#artifact-contract-stage-interface-specification" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Artifact Contract &amp; Stage Interface Specification
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../products/" class="md-tabs__link">
+          
+  
+  Products
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../builds/" class="md-tabs__link">
+          
+  
+  Builds
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../validation/" class="md-tabs__link">
+          
+  
+  Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../manufacturing/" class="md-tabs__link">
+          
+  
+  Manufacturing
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../fixtures/" class="md-tabs__link">
+          
+  
+  Fixtures
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../administration/" class="md-tabs__link">
+          
+  
+  Administration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../reference/" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  Platform
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../products/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Products
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Products
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/creating-products/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating Products
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/board-revisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Board Revisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/firmware-repos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Repos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/build-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/recipe-editor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recipe Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../products/stage-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../builds/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builds
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Builds
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../builds/triggering-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Triggering Builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../builds/build-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../builds/ci-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../builds/monitoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../builds/artifacts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Artifacts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../validation/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/running-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/writing-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/run-detail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Detail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../validation/realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Time View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../manufacturing/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manufacturing
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Manufacturing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/fixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manufacturing Fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/station-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Station Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/running-post/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running POST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../manufacturing/reading-results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../fixtures/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixtures
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Fixtures
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../fixtures/managing-fixtures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Managing Fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../fixtures/designs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixture Designs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../fixtures/instances/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixture Instances
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../fixtures/slots-and-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slots & Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../administration/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/initial-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Initial Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/users-and-roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users & Roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/permission-sets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permission Sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/api-keys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/production-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../reference/python-sdk/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python SDK
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python SDK
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../reference/python-sdk/test-framework/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Framework
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2_2" id="__nav_8_2_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Test Framework
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TestContext
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/cloud-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CloudClient
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/uart-demuxer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UartDemuxer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/power-profiler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerProfiler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/stage-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StageAssets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/device-personalizer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DevicePersonalizer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/reporter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reporter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/post/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/test-framework/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2_3" id="__nav_8_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CoreCloud
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/corecloud/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core cloud &gt; client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/python-sdk/corecloud/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core cloud &gt; models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/corectl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    corectl CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/stages-and-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages & Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../system-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_3" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build System
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9_3" id="__nav_9_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build System
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../product-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Product Builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Artifact Contract
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Artifact Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The Problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-build-manifest-buildjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Build Manifest (build.json)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Build Manifest (build.json)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Reference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Target Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Decisions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#single-processor-example-sigma5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Single-Processor Example (Sigma5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-artifact-db-model-enhancement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Artifact DB Model Enhancement
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Artifact DB Model Enhancement">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current State
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#proposed-enhancement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposed Enhancement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-stage-input-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Stage Input Contracts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Stage Input Contracts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stage-1-smoke-software-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 1 — Smoke (Software Tests)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-2-driver-driver-hardware-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 2 — Driver (Driver Hardware Tests)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-3-integration-full-board-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 3 — Integration (Full Board Tests)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-4-regression-product-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 4 — Regression (Product Validation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-5-gate-pr-fuota-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 5 — Gate (PR FUOTA Validation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-artifactresolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. ArtifactResolver
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. ArtifactResolver">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Principles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-it-replaces-current-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Replaces Current Code
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-productbuildconfig-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Product.buildConfig Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Product.buildConfig Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-lives-where" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Lives Where
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-migration-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Migration Path
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Migration Path">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-add-buildjson-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Add build.json Generation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-enhance-artifact-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Enhance Artifact Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-implement-artifactresolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Implement ArtifactResolver
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-4-migrate-consumers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Migrate Consumers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-5-remove-old-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Remove Old Code
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Documents
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../validation-system/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation System
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9_4" id="__nav_9_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation System
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation-system/system-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation-system/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../corecloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The Problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-build-manifest-buildjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Build Manifest (build.json)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Build Manifest (build.json)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Reference
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Target Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#design-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Decisions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#single-processor-example-sigma5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Single-Processor Example (Sigma5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-artifact-db-model-enhancement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Artifact DB Model Enhancement
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Artifact DB Model Enhancement">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current State
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#proposed-enhancement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposed Enhancement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-stage-input-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Stage Input Contracts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Stage Input Contracts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stage-1-smoke-software-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 1 — Smoke (Software Tests)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-2-driver-driver-hardware-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 2 — Driver (Driver Hardware Tests)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-3-integration-full-board-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 3 — Integration (Full Board Tests)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-4-regression-product-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 4 — Regression (Product Validation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stage-5-gate-pr-fuota-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 5 — Gate (PR FUOTA Validation)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-artifactresolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. ArtifactResolver
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. ArtifactResolver">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Principles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-it-replaces-current-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Replaces Current Code
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-productbuildconfig-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Product.buildConfig Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Product.buildConfig Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-lives-where" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Lives Where
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-migration-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Migration Path
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Migration Path">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-add-buildjson-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Add build.json Generation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-enhance-artifact-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Enhance Artifact Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-implement-artifactresolver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Implement ArtifactResolver
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-4-migrate-consumers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Migrate Consumers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-5-remove-old-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Remove Old Code
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Documents
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="artifact-contract-stage-interface-specification">Artifact Contract &amp; Stage Interface Specification<a class="headerlink" href="#artifact-contract-stage-interface-specification" title="Permanent link">&para;</a></h1>
+<p><strong>Last reviewed:</strong> 2026-03-26
+<strong>Status:</strong> Draft</p>
+<blockquote>
+<p>Self-describing build manifests that eliminate hardcoded App IDs, chip names,
+and filename pattern-matching across the entire pipeline. Every consumer reads
+the manifest instead of guessing.</p>
+</blockquote>
+<div class="admonition note">
+<p class="admonition-title">Upstream Spec</p>
+<p>App IDs, version format (<code>major.minor.build</code>), release track flags, and CFW
+structure all follow the <strong>Device Firmware Versioning SS V1.0</strong> specification
+(Confluence). This document defines how Concord <em>implements</em> that spec in its
+build and validation flow.</p>
+</div>
+<hr />
+<h2 id="1-the-problem">1. The Problem<a class="headerlink" href="#1-the-problem" title="Permanent link">&para;</a></h2>
+<p>Today, builds produce files with ad-hoc naming and no manifest. Validation discovers artifacts by pattern-matching filenames — "starts with <code>109.</code>" means app processor, "starts with <code>108.</code>" means comms. App IDs, chip names, host types, device types, and J-Link families are hardcoded at six layers:</p>
+<ol>
+<li>Build scripts</li>
+<li>Pipeline artifact upload</li>
+<li>PipelineAssets download/resolution</li>
+<li>FUOTA client (CFW target construction)</li>
+<li>FixtureController (flash target selection)</li>
+<li>Test assertions (version string parsing)</li>
+</ol>
+<p>Adding a second product requires changing code in 15+ files. A self-describing manifest fixes this by making every artifact queryable by role and type rather than by filename convention.</p>
+<hr />
+<h2 id="2-build-manifest-buildjson">2. Build Manifest (build.json)<a class="headerlink" href="#2-build-manifest-buildjson" title="Permanent link">&para;</a></h2>
+<p>Every build MUST produce a <code>build.json</code> alongside its hex/cfw files. This is the single source of truth for what the build contains.</p>
+<h3 id="schema">Schema<a class="headerlink" href="#schema" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;schemaVersion&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">&quot;product&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;alpha&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">&quot;board&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;alpha_b0&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0.8.3&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">&quot;variant&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;mfg&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">&quot;track&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BM&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="nt">&quot;releaseTrack&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bench&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="nt">&quot;ncsVersion&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;v2.9.0&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="nt">&quot;commitSha&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;abc1234def5678&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="nt">&quot;branch&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;main&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="nt">&quot;builtAt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-26T18:30:00Z&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">  </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">      </span><span class="nt">&quot;role&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;app&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">      </span><span class="nt">&quot;processor&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nrf52840&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">      </span><span class="nt">&quot;appId&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">109</span><span class="p">,</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">      </span><span class="nt">&quot;hostType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HOST_TYPE_NRF52840&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">      </span><span class="nt">&quot;jlinkFamily&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;NRF52&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">      </span><span class="nt">&quot;plaintextHex&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hex/109.0.8.3-BM.hex&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">      </span><span class="nt">&quot;encryptedCfw&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cfw/109.0.8.3-BM.cfw&quot;</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">      </span><span class="nt">&quot;role&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;comms&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">      </span><span class="nt">&quot;processor&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nrf9151&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">      </span><span class="nt">&quot;appId&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">108</span><span class="p">,</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">      </span><span class="nt">&quot;hostType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HOST_TYPE_NRF9151&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">      </span><span class="nt">&quot;jlinkFamily&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;NRF91&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">      </span><span class="nt">&quot;plaintextHex&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hex/108.0.8.3-BM.hex&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">      </span><span class="nt">&quot;encryptedCfw&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cfw/108.0.8.3-BM.cfw&quot;</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="w">  </span><span class="nt">&quot;modemFirmware&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="w">    </span><span class="nt">&quot;chipset&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nrf9151&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="w">    </span><span class="nt">&quot;file&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;modem/mfw_nrf91x1_2.0.2.zip&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="w">    </span><span class="nt">&quot;hostType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HOST_TYPE_NRF9151&quot;</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="w">  </span><span class="nt">&quot;corecloud&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="w">    </span><span class="nt">&quot;deviceTypeId&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="w">    </span><span class="nt">&quot;deviceVariantId&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="w">    </span><span class="nt">&quot;apiEnv&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;val&quot;</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a><span class="w">  </span><span class="p">},</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a><span class="w">  </span><span class="nt">&quot;signing&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="w">    </span><span class="nt">&quot;keyFingerprints&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="w">      </span><span class="nt">&quot;109&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;a1b2c3d4e5f6...&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="w">      </span><span class="nt">&quot;108&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;f6e5d4c3b2a1...&quot;</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="field-reference">Field Reference<a class="headerlink" href="#field-reference" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schemaVersion</code></td>
+<td>Yes</td>
+<td>Always <code>1</code>. Consumers check this before parsing.</td>
+</tr>
+<tr>
+<td><code>product</code></td>
+<td>Yes</td>
+<td>Product name (matches <code>Product.name</code> in DB)</td>
+</tr>
+<tr>
+<td><code>board</code></td>
+<td>Yes</td>
+<td>Board identifier from ck_boards</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>Yes</td>
+<td>Semver build version</td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td>Yes</td>
+<td>Build variant: <code>mfg</code>, <code>debug</code>, <code>release</code></td>
+</tr>
+<tr>
+<td><code>track</code></td>
+<td>Yes</td>
+<td>CFW track string: <code>BM</code> (bench+mfg), <code>BMD</code> (bench+mfg+debug), <code>P</code> (production)</td>
+</tr>
+<tr>
+<td><code>releaseTrack</code></td>
+<td>Yes</td>
+<td>Release track: <code>bench</code>, <code>engineering</code>, or <code>production</code>. Determines signing keys and bootloader ID. Sourced from <code>Product.buildConfig.releaseTrack</code>.</td>
+</tr>
+<tr>
+<td><code>ncsVersion</code></td>
+<td>Yes</td>
+<td>nRF Connect SDK version used</td>
+</tr>
+<tr>
+<td><code>commitSha</code></td>
+<td>Yes</td>
+<td>Full git commit hash</td>
+</tr>
+<tr>
+<td><code>branch</code></td>
+<td>Yes</td>
+<td>Source branch</td>
+</tr>
+<tr>
+<td><code>builtAt</code></td>
+<td>Yes</td>
+<td>ISO 8601 build timestamp</td>
+</tr>
+<tr>
+<td><code>targets</code></td>
+<td>Yes</td>
+<td>Array of build targets (see below)</td>
+</tr>
+<tr>
+<td><code>modemFirmware</code></td>
+<td>No</td>
+<td>Modem firmware blob, if the product includes a cellular SoC</td>
+</tr>
+<tr>
+<td><code>corecloud</code></td>
+<td>Yes</td>
+<td>CoreCloud device identity for this product</td>
+</tr>
+<tr>
+<td><code>signing</code></td>
+<td>No</td>
+<td>SHA-256 fingerprints per target, required for production builds</td>
+</tr>
+</tbody>
+</table>
+<h3 id="target-fields">Target Fields<a class="headerlink" href="#target-fields" title="Permanent link">&para;</a></h3>
+<p>Each target produces <strong>two</strong> artifact types per the Device Firmware Versioning SS V1.0:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>role</code></td>
+<td>Logical role: <code>app</code>, <code>comms</code></td>
+</tr>
+<tr>
+<td><code>processor</code></td>
+<td>SoC identifier: <code>nrf52840</code>, <code>nrf9151</code></td>
+</tr>
+<tr>
+<td><code>appId</code></td>
+<td>CoreCloud application ID (integer)</td>
+</tr>
+<tr>
+<td><code>hostType</code></td>
+<td>MTIB gRPC <code>HostType</code> enum value for UART/flash routing</td>
+</tr>
+<tr>
+<td><code>jlinkFamily</code></td>
+<td>nrfjprog <code>-f</code> argument: <code>NRF52</code>, <code>NRF91</code></td>
+</tr>
+<tr>
+<td><code>plaintextHex</code></td>
+<td>Merged bootloader + plaintext application Intel HEX. Used by validation for J-Link flashing.</td>
+</tr>
+<tr>
+<td><code>encryptedCfw</code></td>
+<td>Encrypted application image only, no bootloader. Used for FUOTA OTA delivery. <code>null</code> if CFW not produced for this target.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why two artifact types?</strong> J-Link flashing needs the full image (bootloader + app, plaintext) because it writes the entire flash. FUOTA delivery needs only the encrypted application because MCUboot on the device handles the swap. These are fundamentally different artifacts with different security properties — plaintext hex should never leave the build/test environment, while encrypted CFW is safe to transmit over the air.</p>
+<h3 id="design-decisions">Design Decisions<a class="headerlink" href="#design-decisions" title="Permanent link">&para;</a></h3>
+<p><strong>MFG App ID enforcement.</strong> Manufacturing firmware MUST share the same App ID as production firmware for the same chipset. The system enforces this — MFG builds inherit App IDs from <code>Product.buildConfig.cfw.appIds</code>. There is no way to configure a different App ID for MFG vs production. This ensures FUOTA transitions between MFG and production firmware work without App ID mismatches.</p>
+<p><strong>Release track determines signing.</strong> The <code>releaseTrack</code> field (<code>bench</code>, <code>engineering</code>, <code>production</code>) controls which signing keys are used during the build and which bootloader ID is embedded in the CFW header. This is set in <code>Product.buildConfig.releaseTrack</code> and flows through to every build — it cannot be overridden per-build.</p>
+<p><strong>FUOTA pre-flight validation.</strong> Before a CFW is uploaded for FUOTA delivery, the system validates:</p>
+<ol>
+<li><strong>Same App ID</strong> — the CFW's App ID must match the device's current firmware App ID</li>
+<li><strong>Same release track</strong> — bench CFW can only update bench firmware, production can only update production (no cross-track FUOTA)</li>
+<li><strong>Higher version</strong> — <code>major.minor.build</code> must be strictly greater than the current version, except for MFG → production transitions where the version comparison is relaxed (MFG v0.5.0 → production v0.8.0 is valid regardless of track change)</li>
+</ol>
+<p>These checks prevent accidental downgrades, cross-track contamination, and App ID mismatches that would cause the device to reject the update.</p>
+<h3 id="single-processor-example-sigma5">Single-Processor Example (Sigma5)<a class="headerlink" href="#single-processor-example-sigma5" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;schemaVersion&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;product&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sigma5&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">&quot;board&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sigma5_std&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">&quot;variant&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;release&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">&quot;track&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;P&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="nt">&quot;releaseTrack&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;production&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="nt">&quot;ncsVersion&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;v2.9.0&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="nt">&quot;commitSha&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;789abcdef012&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span><span class="nt">&quot;branch&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;release/v1.0&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="nt">&quot;builtAt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-26T19:00:00Z&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">      </span><span class="nt">&quot;role&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;app&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">      </span><span class="nt">&quot;processor&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nrf52840&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">      </span><span class="nt">&quot;appId&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">201</span><span class="p">,</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">      </span><span class="nt">&quot;hostType&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;HOST_TYPE_NRF52840&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">      </span><span class="nt">&quot;jlinkFamily&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;NRF52&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">      </span><span class="nt">&quot;plaintextHex&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hex/201.1.0.0-P.hex&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">      </span><span class="nt">&quot;encryptedCfw&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cfw/201.1.0.0-P.cfw&quot;</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">  </span><span class="nt">&quot;corecloud&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">    </span><span class="nt">&quot;deviceTypeId&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">    </span><span class="nt">&quot;deviceVariantId&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="nt">&quot;apiEnv&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;val&quot;</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="p">}</span>
+</code></pre></div>
+<p>One target, no modem firmware, no comms processor. The manifest describes exactly what is there — consumers iterate <code>targets[]</code> and handle whatever they find.</p>
+<hr />
+<h2 id="3-artifact-db-model-enhancement">3. Artifact DB Model Enhancement<a class="headerlink" href="#3-artifact-db-model-enhancement" title="Permanent link">&para;</a></h2>
+<h3 id="current-state">Current State<a class="headerlink" href="#current-state" title="Permanent link">&para;</a></h3>
+<p>The <code>BuildArtifact</code> model stores:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>String</td>
+<td>Filename (e.g., <code>109.0.8.3-BM.hex</code>)</td>
+</tr>
+<tr>
+<td><code>storageKey</code></td>
+<td>String</td>
+<td>MinIO object key</td>
+</tr>
+<tr>
+<td><code>sizeBytes</code></td>
+<td>Int</td>
+<td>File size</td>
+</tr>
+<tr>
+<td><code>sha256</code></td>
+<td>String</td>
+<td>Content hash</td>
+</tr>
+</tbody>
+</table>
+<p>To find "the app processor hex for this build," you parse the filename. This breaks when naming conventions change or a new product uses different patterns.</p>
+<h3 id="proposed-enhancement">Proposed Enhancement<a class="headerlink" href="#proposed-enhancement" title="Permanent link">&para;</a></h3>
+<p>Add structured metadata fields:</p>
+<table>
+<thead>
+<tr>
+<th>New Field</th>
+<th>Type</th>
+<th>Values</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>role</code></td>
+<td>Enum</td>
+<td><code>app</code>, <code>comms</code>, <code>modem</code>, <code>log</code>, <code>manifest</code></td>
+<td>What this artifact represents</td>
+</tr>
+<tr>
+<td><code>processor</code></td>
+<td>String?</td>
+<td><code>nrf52840</code>, <code>nrf9151</code>, null</td>
+<td>Which SoC (null for logs/manifests)</td>
+</tr>
+<tr>
+<td><code>artifactType</code></td>
+<td>Enum</td>
+<td><code>plaintext_hex</code>, <code>encrypted_cfw</code>, <code>log</code>, <code>manifest</code>, <code>metadata</code></td>
+<td>File format/purpose</td>
+</tr>
+</tbody>
+</table>
+<h3 id="query-examples">Query Examples<a class="headerlink" href="#query-examples" title="Permanent link">&para;</a></h3>
+<p>With these fields, API queries become straightforward:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a># Get all app processor hexes from pipeline 42
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>GET /v2/ci/builds/42/artifacts?role=app&amp;artifactType=plaintext_hex
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a># Get all encrypted CFWs (for FUOTA upload)
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>GET /v2/ci/builds/42/artifacts?artifactType=encrypted_cfw
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a># Get the build manifest
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>GET /v2/ci/builds/42/artifacts?role=manifest
+</code></pre></div>
+<p>No filename parsing. No hardcoded App IDs. Works for any product.</p>
+<hr />
+<h2 id="4-stage-input-contracts">4. Stage Input Contracts<a class="headerlink" href="#4-stage-input-contracts" title="Permanent link">&para;</a></h2>
+<p>Each validation stage requires specific artifacts. These contracts define the minimum artifact set — if any are missing, the stage should fail fast with a clear error rather than discovering the gap mid-test.</p>
+<h3 id="stage-1-smoke-software-tests">Stage 1 — Smoke (Software Tests)<a class="headerlink" href="#stage-1-smoke-software-tests" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Role</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>build.json</td>
+<td>manifest</td>
+<td>manifest</td>
+<td>Version and target metadata</td>
+</tr>
+<tr>
+<td>App hex</td>
+<td>app</td>
+<td>hex</td>
+<td>Flash and boot verification on native_sim</td>
+</tr>
+<tr>
+<td>Comms hex</td>
+<td>comms</td>
+<td>hex</td>
+<td>Flash and boot verification on native_sim</td>
+</tr>
+</tbody>
+</table>
+<p>No CFW needed — Stage 1 runs on <code>native_sim</code>, not real hardware. No FUOTA.</p>
+<h3 id="stage-2-driver-driver-hardware-tests">Stage 2 — Driver (Driver Hardware Tests)<a class="headerlink" href="#stage-2-driver-driver-hardware-tests" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Role</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>build.json</td>
+<td>manifest</td>
+<td>manifest</td>
+<td>Target metadata for flash routing</td>
+</tr>
+<tr>
+<td>App hex</td>
+<td>app</td>
+<td>hex</td>
+<td>Flash app processor via J-Link</td>
+</tr>
+<tr>
+<td>Comms hex</td>
+<td>comms</td>
+<td>hex</td>
+<td>Flash comms processor via J-Link</td>
+</tr>
+<tr>
+<td>Mfg hex (app)</td>
+<td>app</td>
+<td>hex</td>
+<td>Manufacturing firmware for shell-based driver tests</td>
+</tr>
+<tr>
+<td>Mfg hex (comms)</td>
+<td>comms</td>
+<td>hex</td>
+<td>Manufacturing firmware for shell-based driver tests</td>
+</tr>
+</tbody>
+</table>
+<p>Stage 2 needs manufacturing firmware because driver tests use the manufacturing shell to exercise individual peripherals.</p>
+<h3 id="stage-3-integration-full-board-tests">Stage 3 — Integration (Full Board Tests)<a class="headerlink" href="#stage-3-integration-full-board-tests" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Role</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>build.json</td>
+<td>manifest</td>
+<td>manifest</td>
+<td>Target metadata, version for assertions</td>
+</tr>
+<tr>
+<td>Mfg hex (app)</td>
+<td>app</td>
+<td>hex</td>
+<td>Manufacturing firmware (personalization, shell access)</td>
+</tr>
+<tr>
+<td>Mfg hex (comms)</td>
+<td>comms</td>
+<td>hex</td>
+<td>Manufacturing firmware</td>
+</tr>
+<tr>
+<td>App debug hex</td>
+<td>app</td>
+<td>hex</td>
+<td>Debug firmware (UART logging enabled)</td>
+</tr>
+<tr>
+<td>App release hex</td>
+<td>app</td>
+<td>hex</td>
+<td>Release firmware (production behavior)</td>
+</tr>
+</tbody>
+</table>
+<p>Integration tests flash multiple firmware variants to test transitions: mfg → debug → release.</p>
+<h3 id="stage-4-regression-product-validation">Stage 4 — Regression (Product Validation)<a class="headerlink" href="#stage-4-regression-product-validation" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Role</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Everything from Stage 3</td>
+<td>—</td>
+<td>—</td>
+<td>Full firmware set</td>
+</tr>
+<tr>
+<td>CFW pair: version A (app)</td>
+<td>app</td>
+<td>cfw</td>
+<td>FUOTA source firmware</td>
+</tr>
+<tr>
+<td>CFW pair: version A (comms)</td>
+<td>comms</td>
+<td>cfw</td>
+<td>FUOTA source firmware</td>
+</tr>
+<tr>
+<td>CFW pair: version B (app)</td>
+<td>app</td>
+<td>cfw</td>
+<td>FUOTA target firmware</td>
+</tr>
+<tr>
+<td>CFW pair: version B (comms)</td>
+<td>comms</td>
+<td>cfw</td>
+<td>FUOTA target firmware</td>
+</tr>
+</tbody>
+</table>
+<p>Stage 4 tests the full FUOTA cycle: upload CFWs, create plan, assign device, monitor progress, verify version after power cycle. Requires two distinct firmware versions (A → B).</p>
+<h3 id="stage-5-gate-pr-fuota-validation">Stage 5 — Gate (PR FUOTA Validation)<a class="headerlink" href="#stage-5-gate-pr-fuota-validation" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Role</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>build.json</td>
+<td>manifest</td>
+<td>manifest</td>
+<td>Version verification after FUOTA</td>
+</tr>
+<tr>
+<td>Mfg hex (app)</td>
+<td>app</td>
+<td>hex</td>
+<td>Flash base firmware for personalization</td>
+</tr>
+<tr>
+<td>Mfg hex (comms)</td>
+<td>comms</td>
+<td>hex</td>
+<td>Flash base firmware for personalization</td>
+</tr>
+<tr>
+<td>Mfg CFW (app)</td>
+<td>app</td>
+<td>cfw</td>
+<td>FUOTA base version</td>
+</tr>
+<tr>
+<td>Mfg CFW (comms)</td>
+<td>comms</td>
+<td>cfw</td>
+<td>FUOTA base version</td>
+</tr>
+<tr>
+<td>PR CFW (app)</td>
+<td>app</td>
+<td>cfw</td>
+<td>FUOTA target — the PR's firmware</td>
+</tr>
+<tr>
+<td>PR CFW (comms)</td>
+<td>comms</td>
+<td>cfw</td>
+<td>FUOTA target — the PR's firmware</td>
+</tr>
+</tbody>
+</table>
+<p>Gate tests flash mfg firmware via J-Link, personalize, then FUOTA to the PR's firmware. build.json provides expected version for post-FUOTA verification.</p>
+<hr />
+<h2 id="5-artifactresolver">5. ArtifactResolver<a class="headerlink" href="#5-artifactresolver" title="Permanent link">&para;</a></h2>
+<p>A single Python class that replaces both <code>FW_*_HEX</code> environment variable paths and <code>PipelineAssets</code> filename parsing. Lives in <code>libs/python/corekinect/test/</code>.</p>
+<h3 id="interface">Interface<a class="headerlink" href="#interface" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">corekinect.test.artifact_resolver</span><span class="w"> </span><span class="kn">import</span> <span class="n">ArtifactResolver</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Initialize with pipeline context</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">resolver</span> <span class="o">=</span> <span class="n">ArtifactResolver</span><span class="p">(</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">build_run_id</span><span class="o">=</span><span class="s2">&quot;build-42&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">api_url</span><span class="o">=</span><span class="s2">&quot;https://concord.local/v2&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">api_key</span><span class="o">=</span><span class="s2">&quot;ck_run_...&quot;</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">)</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># Get a parsed build.json manifest</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">manifest</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">get_manifest</span><span class="p">(</span><span class="s2">&quot;MFG_BASE&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="c1"># manifest.product == &quot;alpha&quot;</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="c1"># manifest.targets[0].role == &quot;app&quot;</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="c1"># manifest.targets[0].appId == 109</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="c1"># Download a specific artifact by role + type</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="n">app_hex</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">get_artifact</span><span class="p">(</span><span class="s2">&quot;MFG_BASE&quot;</span><span class="p">,</span> <span class="n">role</span><span class="o">=</span><span class="s2">&quot;app&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;hex&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="c1"># Returns: Path(&quot;/tmp/artifacts/109.0.8.3-BM.hex&quot;)</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="c1"># Download all artifacts of a type</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="n">cfw_files</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">get_artifacts</span><span class="p">(</span><span class="s2">&quot;MFG_BASE&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;cfw&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="c1"># Returns: [Path(&quot;108.0.8.3-BM.cfw&quot;), Path(&quot;109.0.8.3-BM.cfw&quot;)]</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="c1"># Get target metadata without downloading</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="n">app_target</span> <span class="o">=</span> <span class="n">resolver</span><span class="o">.</span><span class="n">get_target</span><span class="p">(</span><span class="s2">&quot;MFG_BASE&quot;</span><span class="p">,</span> <span class="n">role</span><span class="o">=</span><span class="s2">&quot;app&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="c1"># app_target.appId == 109</span>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="c1"># app_target.hostType == &quot;HOST_TYPE_NRF52840&quot;</span>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="c1"># app_target.jlinkFamily == &quot;NRF52&quot;</span>
+</code></pre></div>
+<h3 id="design-principles">Design Principles<a class="headerlink" href="#design-principles" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Product-agnostic</strong> — uses <code>manifest.targets</code> to resolve artifacts, never hardcodes App IDs or processor names</li>
+<li><strong>Lazy download</strong> — manifests are fetched on first access, artifacts downloaded only when requested</li>
+<li><strong>Local cache</strong> — downloaded files are stored in a temp directory, re-used across multiple calls</li>
+<li><strong>Cleanup</strong> — <code>resolver.cleanup()</code> removes all downloaded artifacts (called by test teardown)</li>
+</ul>
+<h3 id="how-it-replaces-current-code">How It Replaces Current Code<a class="headerlink" href="#how-it-replaces-current-code" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Current Approach</th>
+<th>ArtifactResolver Equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>os.environ["FW_APP_HEX"]</code></td>
+<td><code>resolver.get_artifact("MFG_BASE", role="app", type="hex")</code></td>
+</tr>
+<tr>
+<td><code>PipelineAssets.download_artifact(name="109.0.8.3-BM.hex")</code></td>
+<td><code>resolver.get_artifact("MFG_BASE", role="app", type="hex")</code></td>
+</tr>
+<tr>
+<td><code>if filename.startswith("109"): target = "app"</code></td>
+<td><code>manifest.targets</code> iteration — role is explicit</td>
+</tr>
+<tr>
+<td><code>APP_ID = 109</code> (hardcoded constant)</td>
+<td><code>resolver.get_target("MFG_BASE", role="app").appId</code></td>
+</tr>
+<tr>
+<td><code>HOST_TYPE = HostType.HOST_TYPE_NRF52840</code></td>
+<td><code>resolver.get_target("MFG_BASE", role="app").hostType</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-productbuildconfig-flow">6. Product.buildConfig Flow<a class="headerlink" href="#6-productbuildconfig-flow" title="Permanent link">&para;</a></h2>
+<p>The complete chain from product definition to test execution, showing how metadata flows without hardcoding.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Product.buildConfig
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    │
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    │  targets: [{role: &quot;app&quot;, processor: &quot;nrf52840&quot;, appId: 109}, ...]
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    │
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    ▼
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>Pipeline Service
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    │
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    │  Creates build job with target metadata from buildConfig
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    │
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    ▼
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>Build Worker
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    │
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    │  Runs build hook → produces hex files
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    │  Generates CFW files from hex outputs
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>    │  Writes build.json (populated from buildConfig)
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>    │  Uploads artifacts with role/processor metadata
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>    │
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>    ▼
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>Build API + MinIO
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>    │
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>    │  Stores artifacts with structured metadata
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>    │  build.json stored alongside hex/cfw files
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>    │
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a>    ▼
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a>Validation Runner
+<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a>    │
+<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a>    │  ArtifactResolver fetches build.json
+<a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a>    │  Reads targets[] — knows roles, processors, appIds, hostTypes
+<a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a>    │  Downloads artifacts by role + type
+<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a>    │
+<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a>    ▼
+<a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a>Test Code (product-agnostic)
+<a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a>    │
+<a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a>    │  for target in manifest.targets:
+<a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a>    │      flash(target.plaintextHex, family=target.jlinkFamily)
+<a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a>    │      open_uart(host_type=target.hostType)
+<a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a>    │      verify_version(target.appId, manifest.version)
+</code></pre></div>
+<h3 id="what-lives-where">What Lives Where<a class="headerlink" href="#what-lives-where" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metadata</th>
+<th>Source of Truth</th>
+<th>How It Gets to Tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App IDs (108, 109)</td>
+<td><code>Product.buildConfig.targets[].appId</code></td>
+<td>build.json → <code>manifest.targets[].appId</code></td>
+</tr>
+<tr>
+<td>Processor names</td>
+<td><code>Product.buildConfig.targets[].soc</code></td>
+<td>build.json → <code>manifest.targets[].processor</code></td>
+</tr>
+<tr>
+<td>Host types</td>
+<td>Derived from processor at build time</td>
+<td>build.json → <code>manifest.targets[].hostType</code></td>
+</tr>
+<tr>
+<td>J-Link families</td>
+<td>Derived from processor at build time</td>
+<td>build.json → <code>manifest.targets[].jlinkFamily</code></td>
+</tr>
+<tr>
+<td>Device type/variant</td>
+<td><code>Product.buildConfig.cfw</code></td>
+<td>build.json → <code>manifest.corecloud</code></td>
+</tr>
+<tr>
+<td>File paths</td>
+<td>Build worker output</td>
+<td>build.json → <code>manifest.targets[].plaintextHex</code>, <code>.encryptedCfw</code></td>
+</tr>
+</tbody>
+</table>
+<p>No test code needs to know that Alpha uses App ID 109 for its nRF52840. That information flows from the product definition through the build manifest to the test resolver.</p>
+<hr />
+<h2 id="7-migration-path">7. Migration Path<a class="headerlink" href="#7-migration-path" title="Permanent link">&para;</a></h2>
+<h3 id="phase-1-add-buildjson-generation">Phase 1: Add build.json Generation<a class="headerlink" href="#phase-1-add-buildjson-generation" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> Build worker (end of build, before upload)</p>
+<p>The build worker already has all the metadata — it just needs to serialize it. Generate <code>build.json</code> from the <code>buildConfig</code> + build outputs. Upload it alongside hex/cfw files.</p>
+<h3 id="phase-2-enhance-artifact-model">Phase 2: Enhance Artifact Model<a class="headerlink" href="#phase-2-enhance-artifact-model" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> <code>prisma/schema.prisma</code>, build upload API</p>
+<p>Add <code>role</code>, <code>processor</code>, <code>artifactType</code> fields to <code>BuildArtifact</code>. Populate during upload using metadata from <code>build.json</code>. Existing API responses gain new fields — backwards compatible.</p>
+<h3 id="phase-3-implement-artifactresolver">Phase 3: Implement ArtifactResolver<a class="headerlink" href="#phase-3-implement-artifactresolver" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> <code>libs/python/corekinect/test/artifact_resolver.py</code></p>
+<p>Build the resolver class. Add it to <code>TestContext</code>. Initially, wire it up alongside existing <code>PipelineAssets</code> — both work in parallel during transition.</p>
+<h3 id="phase-4-migrate-consumers">Phase 4: Migrate Consumers<a class="headerlink" href="#phase-4-migrate-consumers" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> All validation test code, FUOTA client, FixtureController</p>
+<p>Replace one consumer at a time:</p>
+<table>
+<thead>
+<tr>
+<th>Consumer</th>
+<th>Current</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PipelineAssets</code></td>
+<td>Filename pattern matching</td>
+<td><code>ArtifactResolver.get_artifact(role, type)</code></td>
+</tr>
+<tr>
+<td>FUOTA client</td>
+<td>Hardcoded <code>APP_ID = 109</code></td>
+<td><code>manifest.targets[].appId</code></td>
+</tr>
+<tr>
+<td>FixtureController</td>
+<td>Hardcoded <code>HostType.HOST_TYPE_NRF52840</code></td>
+<td><code>manifest.targets[].hostType</code></td>
+</tr>
+<tr>
+<td>Flash commands</td>
+<td>Hardcoded <code>-f NRF52</code></td>
+<td><code>manifest.targets[].jlinkFamily</code></td>
+</tr>
+<tr>
+<td>Version assertions</td>
+<td>Regex on UART output with hardcoded patterns</td>
+<td><code>manifest.version</code> + <code>manifest.targets[].appId</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="phase-5-remove-old-code">Phase 5: Remove Old Code<a class="headerlink" href="#phase-5-remove-old-code" title="Permanent link">&para;</a></h3>
+<p>Once all consumers use <code>ArtifactResolver</code>:</p>
+<ul>
+<li>Delete <code>PipelineAssets</code> class</li>
+<li>Remove <code>FW_*_HEX</code> environment variables from K8s job specs</li>
+<li>Remove hardcoded App ID constants from test files</li>
+<li>Remove filename pattern-matching utilities</li>
+</ul>
+<hr />
+<h2 id="related-documents">Related Documents<a class="headerlink" href="#related-documents" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../product-builds/">Product &amp; Build System</a> — build config model and two-layer architecture</li>
+<li><a href="../build-service/">Build Service</a> — current build orchestrator (gRPC + HTTP)</li>
+<li><a href="../../../validation/stages-overview/">Stages Overview</a> — what each validation stage tests</li>
+<li><a href="../../validation-system/test-runner/">Test Runner</a> — test execution architecture</li>
+</ul>
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../..","features":["navigation.tabs","navigation.tabs.sticky","navigation.indexes","navigation.instant","toc.follow","search.suggest","content.code.copy"],"search":"../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.91a19a9e.min.js"></script>
+      
+        <script src="../../../assets/js/external-links.js"></script>
+      
+        <script src="../../../assets/js/role-filter.js"></script>
+      
+    
+  </body>
+</html>

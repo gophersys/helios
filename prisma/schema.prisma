@@ -122,6 +122,16 @@ enum TestPackageStatus {
   RELEASED // Immutable — permanent version for production validation
 }
 
+enum TestPackageType {
+  VALIDATION
+  MANUFACTURING
+}
+
+enum StageType {
+  VALIDATION
+  MANUFACTURING
+}
+
 enum BuildRunStatus {
   PENDING // Waiting for builds to start
   BUILDING // Builds in progress
@@ -225,23 +235,29 @@ model TestPackage {
   id               String            @id @default(cuid())
   productId        String
   version          String /// "1.2.0" (release) or "dev-abc12345" (development)
+  type             TestPackageType   @default(VALIDATION) /// VALIDATION or MANUFACTURING
   status           TestPackageStatus @default(DEVELOPMENT)
-  storageKey       String /// MinIO path: test-packages/{slug}/{version}/package.tar.gz
+  storageKey       String /// MinIO path: test-packages/{slug}/{type}/{version}/package.tar.gz
   frameworkVersion String /// corekinect version tests were validated against
   manifestHash     String? /// SHA-256 of concord.test.yaml for change detection
   testCount        Int               @default(0) /// Number of tests collected
   stagesEnabled    Json? /// Which stages are enabled: {"smoke": true, "fuota": true, ...}
+  message          String? /// Developer-provided description at upload time
+  gitSha           String? /// Git HEAD SHA at upload time (short, e.g., "abc12345")
+  gitDirty         Boolean? /// True if working tree had uncommitted changes
   notes            String?
   createdById      String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdBy User?     @relation(fields: [createdById], references: [id])
-  sessions  Session[]
+  product               Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdBy             User?                  @relation(fields: [createdById], references: [id])
+  sessions              Session[]
+  manufacturingSessions ManufacturingSession[] @relation("ManufacturingTestPackage")
 
-  @@unique([productId, version])
+  @@unique([productId, version, type])
   @@index([productId, status])
+  @@index([productId, type, status])
   @@index([createdById])
   @@map("test_packages")
 }
@@ -401,11 +417,12 @@ model FirmwareBuild {
 /// Test config (directories, markers, timeouts) lives in the test repo itself.
 /// Build recipes are convention-driven via StageBuildDef (stage_builds.py).
 model ProductStageConfig {
-  id        String  @id @default(cuid())
+  id        String    @id @default(cuid())
   productId String
+  type      StageType @default(VALIDATION) /// VALIDATION or MANUFACTURING
   stage     Int /// 1=Smoke, 2=Driver, 3=Integration, 4=Regression, 5=FUOTA
   name      String /// Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"
-  enabled   Boolean @default(false) /// Disabled by default
+  enabled   Boolean   @default(false) /// Disabled by default
 
   // Target — which hardware revision to build and test against
   boardRevisionId String? /// FK to BoardRevision (e.g., Alpha B0)
@@ -433,8 +450,8 @@ model ProductStageConfig {
   queueEntries       ValidationQueueEntry[]
   buildMatrixEntries StageBuildMatrix[]
 
-  @@unique([productId, stage, boardRevisionId])
-  @@index([productId])
+  @@unique([productId, type, stage, boardRevisionId])
+  @@index([productId, type])
   @@map("product_stage_configs")
 }
 
@@ -1394,28 +1411,31 @@ model ManufacturingConfig {
 /// An active or completed manufacturing session on a fixture.
 /// Tracks operator, fixture lock, and aggregate panel/unit counts.
 model ManufacturingSession {
-  id          String                     @id @default(cuid())
-  productId   String
-  fixtureId   String
-  status      ManufacturingSessionStatus @default(ACTIVE)
-  operatorId  String
-  panelCount  Int                        @default(0)
-  passedCount Int                        @default(0)
-  failedCount Int                        @default(0)
-  config      Json?
-  startedAt   DateTime                   @default(now())
-  endedAt     DateTime?
-  createdAt   DateTime                   @default(now())
-  updatedAt   DateTime                   @updatedAt
+  id             String                     @id @default(cuid())
+  productId      String
+  fixtureId      String
+  status         ManufacturingSessionStatus @default(ACTIVE)
+  operatorId     String
+  testPackageId  String?
+  panelCount     Int                        @default(0)
+  passedCount    Int                        @default(0)
+  failedCount    Int                        @default(0)
+  config         Json?
+  startedAt      DateTime                   @default(now())
+  endedAt        DateTime?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
 
-  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
-  fixture  Fixture  @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
-  operator User     @relation("ManufacturingOperator", fields: [operatorId], references: [id], onDelete: Restrict)
-  panels   ManufacturingPanel[]
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  fixture     Fixture      @relation(fields: [fixtureId], references: [id], onDelete: Restrict)
+  operator    User         @relation("ManufacturingOperator", fields: [operatorId], references: [id], onDelete: Restrict)
+  testPackage TestPackage? @relation("ManufacturingTestPackage", fields: [testPackageId], references: [id], onDelete: SetNull)
+  panels      ManufacturingPanel[]
 
   @@index([productId, status])
   @@index([fixtureId])
   @@index([operatorId])
+  @@index([testPackageId])
   @@map("manufacturing_sessions")
 }
 

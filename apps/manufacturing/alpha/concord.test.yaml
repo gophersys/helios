@@ -1,0 +1,12 @@
+version: 1
+test_version: "1.0.0"
+framework: ">=0.2.0"
+
+product:
+  name: alpha
+  board: alpha_b0
+  device_type_id: 2
+  device_variant_id: 3
+
+stages:
+  manufacturing: true

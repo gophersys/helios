@@ -19,6 +19,7 @@
     STOPPED: 'bg-surface-2 text-text-secondary',
     FAILED: 'bg-error-muted text-error',
     CANCELLED: 'bg-surface-2 text-text-tertiary',
+    DEVELOPMENT: 'bg-warning-muted text-warning',
     COMPLETED: 'bg-info-muted text-info',
     // Execution statuses
     QUEUED: 'bg-surface-2 text-text-secondary',

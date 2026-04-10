@@ -115,9 +115,15 @@ Stage 7 must create these infrastructure manifests as part of the implementation
 ### D27: Staging promotion after every wave (2026-04-09)
 After each wave merges, deploy to staging (`nx update platform -c staging`) and re-run the same E2E tests against the K8s-hosted backend. This catches K8s-specific bugs (networking, auth, init containers, resource limits). Staging failures are logged but don't block dev progress — marked as STAGING_BLOCKED. Tests must handle both auth modes: dev (dev-login buttons, AUTH_ENABLED=false) and staging (API key auth, AUTH_ENABLED=true).
 
+### D28: Stage 6 scope reduction (2026-04-08)
+Only 3 of 7 planned build pipeline test files were created (auto-trigger, monitoring, artifacts = 25 tests). Deferred: caching, pr-pipeline, failure, settings (10 tests). Core happy-path coverage is complete; edge cases deferred.
+
+### D29: All 16 stages implemented (2026-04-08)
+All stages have reconciliation sections confirming completion. STATUS.md updated to COMPLETE. Total ~486 tests across 46 spec files + 34 backend unit tests. Implementation includes: 19 page objects, 8 helper modules, 4 manufacturing API modules, 2 infrastructure manifests.
+
 ## Errors Encountered
 
-(None yet — spec phase)
+(None — spec and implementation phases completed without blocking errors)
 
 ## Learnings
 

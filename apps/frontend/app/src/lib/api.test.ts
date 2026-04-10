@@ -92,7 +92,7 @@ describe('apiFetch', () => {
 
     // Mock window.location
     delete (window as any).location;
-    (window as any).location = { href: '' };
+    (window as any).location = { href: '', hostname: 'localhost', protocol: 'http:' };
   });
 
   afterEach(() => {
@@ -356,7 +356,7 @@ describe('apiUpload', () => {
     originalFetch = global.fetch;
     originalLocation = window.location;
     delete (window as any).location;
-    (window as any).location = { href: '' };
+    (window as any).location = { href: '', hostname: 'localhost', protocol: 'http:' };
   });
 
   afterEach(() => {

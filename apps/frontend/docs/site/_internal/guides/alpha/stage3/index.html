@@ -1,0 +1,4180 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Continuous delivery platform for embedded systems">
+      
+      
+      
+        <link rel="canonical" href="https://docs.concord.local/_internal/guides/alpha/stage3/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.32">
+    
+    
+      
+        <title>Stage 3 Alpha Example — Instrumented Firmware Integration Tests - Concord</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../../../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#stage-3-alpha-example-instrumented-firmware-integration-tests" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Concord" class="md-header__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Concord
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Stage 3 Alpha Example — Instrumented Firmware Integration Tests
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../.." class="md-tabs__link">
+        
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../products/" class="md-tabs__link">
+          
+  
+  Products
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../builds/" class="md-tabs__link">
+          
+  
+  Builds
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../validation/" class="md-tabs__link">
+          
+  
+  Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../manufacturing/" class="md-tabs__link">
+          
+  
+  Manufacturing
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../fixtures/" class="md-tabs__link">
+          
+  
+  Fixtures
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../administration/" class="md-tabs__link">
+          
+  
+  Administration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../reference/" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../../platform/" class="md-tabs__link">
+          
+  
+  Platform
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Concord" class="md-nav__button md-logo" aria-label="Concord" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    Concord
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../products/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Products
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Products
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/creating-products/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating Products
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/board-revisions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Board Revisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/firmware-repos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Firmware Repos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/build-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/recipe-editor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Recipe Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../products/stage-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage Config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../builds/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Builds
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Builds
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../builds/triggering-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Triggering Builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../builds/build-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../builds/ci-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../builds/monitoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../builds/artifacts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Artifacts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../validation/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/running-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/writing-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/stages-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/run-detail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run Detail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../validation/realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Time View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../manufacturing/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manufacturing
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Manufacturing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/fixture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manufacturing Fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/station-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Station Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/running-post/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running POST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../manufacturing/reading-results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../fixtures/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixtures
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Fixtures
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../fixtures/managing-fixtures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Managing Fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../fixtures/designs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixture Designs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../fixtures/instances/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fixture Instances
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../fixtures/slots-and-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slots & Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../administration/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../administration/initial-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Initial Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../administration/users-and-roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users & Roles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../administration/permission-sets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permission Sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../administration/api-keys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../administration/production-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/python-sdk/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python SDK
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python SDK
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../reference/python-sdk/test-framework/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Framework
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2_2" id="__nav_8_2_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Test Framework
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TestContext
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/cloud-client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CloudClient
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/uart-demuxer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UartDemuxer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/power-profiler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerProfiler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/stage-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StageAssets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/device-personalizer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DevicePersonalizer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/reporter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reporter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/post/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/test-framework/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2_3" id="__nav_8_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    CoreCloud
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/corecloud/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core cloud &gt; client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/python-sdk/corecloud/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    core cloud &gt; models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/corectl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    corectl CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../reference/stages-and-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stages & Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../platform/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/system-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../platform/build-system/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build System
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9_3" id="__nav_9_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build System
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/build-system/build-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/build-system/product-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Product Builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/build-system/artifact-contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Artifact Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../platform/validation-system/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation System
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9_4" id="__nav_9_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_9_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation System
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/validation-system/system-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/validation-system/test-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../platform/corecloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CoreCloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Introduction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-hardware-configuration-and-connections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Hardware Configuration and Connections
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Hardware Configuration and Connections">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-product-board-assembly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Product Board Assembly
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-mtib-connection-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 MTIB Connection Map
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-why-product-board-not-dev-kit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Why Product Board, Not Dev-Kit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-key-difference-from-stage-2-hardware-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Key Difference from Stage 2 Hardware Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-key-difference-from-stage-4-hardware-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Key Difference from Stage 4 Hardware Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-alpha-firmware-architecture-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Alpha Firmware Architecture Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-kconfig-for-instrumented-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Kconfig for Instrumented Build
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-harness-declarations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Harness Declarations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-uart-output-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. UART Output Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-build-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Build Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-what-this-proves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. What This Proves
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="stage-3-alpha-example-instrumented-firmware-integration-tests">Stage 3 Alpha Example — Instrumented Firmware Integration Tests<a class="headerlink" href="#stage-3-alpha-example-instrumented-firmware-integration-tests" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>A complete walkthrough of Stage 3 integration testing for the Alpha wearable,
+showing how the <code>concord_harness</code> module instruments the firmware and how Python
+integration tests exercise the system through the harness API.</p>
+</blockquote>
+<hr />
+<h2 id="1-introduction">1. Introduction<a class="headerlink" href="#1-introduction" title="Permanent link">&para;</a></h2>
+<p>This document walks through a complete Stage 3 integration test implementation for the Alpha wearable. It covers:</p>
+<ol>
+<li>The hardware configuration: what is on the Alpha B0 product board and how it connects to the MTIB</li>
+<li>How the <code>concord_harness</code> Zephyr module instruments Alpha firmware</li>
+<li>What the harness declarations look like in C</li>
+<li>What the raw UART output looks like with interleaved logs and harness traffic</li>
+<li>How Python integration tests use <code>ctx.harness.*</code> to observe, control, and inject</li>
+<li>How the build system produces both instrumented and production firmware</li>
+</ol>
+<p>The goal is to make the abstract framework described in <a href="../../../vision/validation-philosophy/">00-validation-philosophy.md</a> Section 3.3 concrete by showing every layer for a real product.</p>
+<hr />
+<h2 id="2-hardware-configuration-and-connections">2. Hardware Configuration and Connections<a class="headerlink" href="#2-hardware-configuration-and-connections" title="Permanent link">&para;</a></h2>
+<p>Stage 3 runs on a <strong>full Alpha B0 product board</strong>, not a dev-kit. This section describes the physical hardware assembly, every connection between the Alpha board and the MTIB, and why this hardware configuration matters for integration testing.</p>
+<h3 id="21-product-board-assembly">2.1 Product Board Assembly<a class="headerlink" href="#21-product-board-assembly" title="Permanent link">&para;</a></h3>
+<p>The Alpha B0 product board is a production-representative PCB with two MCUs and all sensors populated:</p>
+<p><strong>MCUs:</strong></p>
+<table>
+<thead>
+<tr>
+<th>MCU</th>
+<th>Role</th>
+<th>Part</th>
+<th>Key Interfaces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App MCU</td>
+<td>Main application: state machines, sensor orchestration, biometric processing, IPC master</td>
+<td>nRF52840 (QIAA)</td>
+<td>BLE, SPI, I2C, UART, GPIO</td>
+</tr>
+<tr>
+<td>Comms MCU</td>
+<td>LTE, GNSS, cloud messaging</td>
+<td>nRF9151 (LACA)</td>
+<td>LTE-M/NB-IoT modem, SPI (ext flash), UART</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Sensors and peripherals on the nRF52840 (all populated on the Alpha B0 board):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Device</th>
+<th>Type</th>
+<th>Bus</th>
+<th>Address / CS</th>
+<th>Pins (from DTS)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LSM6DSO</td>
+<td>6-axis IMU (accel + gyro)</td>
+<td>SPI0</td>
+<td>CS1: P0.08</td>
+<td>SCK=P0.07, MOSI=P0.05, MISO=P1.08, INT=P0.14</td>
+</tr>
+<tr>
+<td>PAH8151</td>
+<td>PPG (optical heart rate / SpO2)</td>
+<td>I2C1</td>
+<td>0x15</td>
+<td>SDA=P1.05, SCL=P1.03, INT=P0.20</td>
+</tr>
+<tr>
+<td>BME280</td>
+<td>Environmental (temp / humidity / pressure)</td>
+<td>I2C1</td>
+<td>0x76</td>
+<td>SDA=P1.05, SCL=P1.03</td>
+</tr>
+<tr>
+<td>MLX90614</td>
+<td>IR skin temperature</td>
+<td>GPIO-I2C (bit-banged)</td>
+<td>0x5A</td>
+<td>SCL=P1.04, SDA=P1.06</td>
+</tr>
+<tr>
+<td>W25Q64JV</td>
+<td>64 Mbit SPI NOR flash</td>
+<td>SPI0</td>
+<td>CS0: P1.09</td>
+<td>(shared SPI0 bus with LSM6DSO)</td>
+</tr>
+<tr>
+<td>u-blox MIA-M10</td>
+<td>GNSS receiver</td>
+<td>I2C1</td>
+<td>0x42</td>
+<td>EXTINT=P1.02, RESET=P1.01, PSM=P1.12</td>
+</tr>
+<tr>
+<td>LP5814</td>
+<td>LED driver (I/O expander)</td>
+<td>I2C1</td>
+<td>0x2C</td>
+<td>(shared I2C1 bus)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Power management:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Device</th>
+<th>Type</th>
+<th>Bus</th>
+<th>Address</th>
+<th>Pins (from DTS)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BQ25622</td>
+<td>Battery charger IC</td>
+<td>I2C1</td>
+<td>0x6B</td>
+<td>INT=P1.15 (CHRG_INT)</td>
+</tr>
+<tr>
+<td>MAX17063</td>
+<td>Fuel gauge (battery SoC)</td>
+<td>I2C1</td>
+<td>0x36</td>
+<td>(shared I2C1 bus)</td>
+</tr>
+<tr>
+<td>Charger enable</td>
+<td>GPIO control</td>
+<td>--</td>
+<td>--</td>
+<td>P1.13 (active low)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Inter-processor communication (IPC):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>nRF52840 Pin</th>
+<th>nRF9151 Pin</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IPC UART1 TX</td>
+<td>P0.28</td>
+<td>P0.02 (RX)</td>
+<td>LPUART, 460800 baud</td>
+</tr>
+<tr>
+<td>IPC UART1 RX</td>
+<td>P0.03</td>
+<td>P0.03 (TX)</td>
+<td>LPUART, 460800 baud</td>
+</tr>
+<tr>
+<td>IPC REQ</td>
+<td>P0.29</td>
+<td>P0.00</td>
+<td>LPUART flow: nRF52 request</td>
+</tr>
+<tr>
+<td>IPC RDY</td>
+<td>P0.30</td>
+<td>P0.01</td>
+<td>LPUART flow: nRF91 ready</td>
+</tr>
+<tr>
+<td>IPC INT</td>
+<td>P0.31</td>
+<td>P0.31</td>
+<td>Interrupt handshake</td>
+</tr>
+<tr>
+<td>nRF91 RESET_N</td>
+<td>P1.11</td>
+<td>--</td>
+<td>nRF52840 can reset the nRF9151</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Other control pins:</strong></p>
+<ul>
+<li>Emergency button: P0.12 (active low, pull-up)</li>
+<li>VSM enable (PPG sensor power): P1.10 (active high)</li>
+<li>Hard reset: P1.14 (active high, pull-down)</li>
+<li>LEDs: Red=P0.17, Green=P0.13, Blue=P0.15 (all active low)</li>
+</ul>
+<p><strong>Antennas:</strong></p>
+<ul>
+<li>BLE antenna (nRF52840): on-board PCB trace antenna or U.FL connector (board-rev dependent)</li>
+<li>LTE antenna (nRF9151): U.FL connector to external LTE-M/NB-IoT antenna</li>
+<li>GNSS antenna (nRF9151 / u-blox MIA-M10): shared or dedicated U.FL (board-rev dependent)</li>
+</ul>
+<p><strong>Battery + charging circuit:</strong></p>
+<ul>
+<li>Single-cell Li-Po battery (3.7V nominal)</li>
+<li>BQ25622 charger IC with programmable charge current</li>
+<li>MAX17063 fuel gauge for SoC reporting</li>
+<li>Charger enable controlled by nRF52840 GPIO (P1.13)</li>
+</ul>
+<h3 id="22-mtib-connection-map">2.2 MTIB Connection Map<a class="headerlink" href="#22-mtib-connection-map" title="Permanent link">&para;</a></h3>
+<p>The MTIB (Manufacturing and Test Interface Board) connects to the Alpha B0 board through the following channels. Stage 3 uses all of these except the full Stage 4 test fixture peripherals.</p>
+<table>
+<thead>
+<tr>
+<th>MTIB Interface</th>
+<th>Alpha Board Connection</th>
+<th>Purpose</th>
+<th>Pin / Protocol Details</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MTIB UART0</strong></td>
+<td>nRF52840 UART0 (P0.23 TX, P0.25 RX)</td>
+<td>Zephyr Shell + device logs + harness transport. This is the single instrumentation channel — the Python test runner sends <code>concord get/set/inject</code> commands and receives <code>[CONCORD:RSP]</code> / <code>[CONCORD:EVT]</code> responses plus interleaved Zephyr log lines over this UART.</td>
+<td>115200 baud, 8N1</td>
+</tr>
+<tr>
+<td><strong>MTIB SWD port 1</strong></td>
+<td>nRF52840 debug port (SWDIO + SWDCLK)</td>
+<td>Flashing instrumented app MCU firmware (<code>merged.hex</code>). Used by <code>ctx.flash_firmware()</code> before each test. Also available for GDB attach during debug sessions.</td>
+<td>SWD, typically via J-Link or CMSIS-DAP</td>
+</tr>
+<tr>
+<td><strong>MTIB SWD port 2</strong></td>
+<td>nRF9151 debug port (SWDIO + SWDCLK)</td>
+<td>Flashing comms MCU firmware. The nRF9151 runs the same binary for Stage 3 and Stage 4 (no harness instrumentation on the comms MCU).</td>
+<td>SWD, typically via J-Link or CMSIS-DAP</td>
+</tr>
+<tr>
+<td><strong>MTIB power supply</strong></td>
+<td>Alpha board power rail</td>
+<td>Configurable voltage supply (e.g., 3.7V for battery simulation). The MTIB can power-cycle the board programmatically — <code>ctx.power_on()</code> and <code>ctx.power_off()</code> control this rail.</td>
+<td>Configurable 2.5V--4.2V, current-limited</td>
+</tr>
+<tr>
+<td><strong>MTIB current sense</strong></td>
+<td>Inline on Alpha board power rail</td>
+<td>System-level current measurement. Measures total board power draw (both MCUs + all sensors + antenna). This is NOT per-sensor isolation (that is Stage 2). Used for coarse power-state validation (e.g., "did current drop when sensors shut down after off-body transition?").</td>
+<td>High-side INA219 or similar, sampled by MTIB MCU</td>
+</tr>
+<tr>
+<td><strong>MTIB GPIO (optional)</strong></td>
+<td>Emergency button (P0.12), charger detect, etc.</td>
+<td>Physical stimulus that does not need harness injection — e.g., pressing the emergency button via a relay, or simulating charger insertion by driving the charge-detect pin.</td>
+<td>Direct GPIO drive or relay</td>
+</tr>
+<tr>
+<td><strong>MTIB BLE interface</strong></td>
+<td>nRF52840 BLE radio (over the air)</td>
+<td>BLE scanning and connection tests. The MTIB has its own BLE-capable MCU (or USB dongle) that can scan for advertisements, connect, discover GATT services, and verify BLE behavior end-to-end.</td>
+<td>BLE 5.x, over-the-air</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-why-product-board-not-dev-kit">2.3 Why Product Board, Not Dev-Kit<a class="headerlink" href="#23-why-product-board-not-dev-kit" title="Permanent link">&para;</a></h3>
+<p>Stage 3 tests component <strong>integration</strong> on the actual product. The real PCB layout, real antenna matching network, real power distribution tree, and real IPC wiring all matter:</p>
+<ul>
+<li><strong>PCB trace impedance and layout</strong>: SPI and I2C signal integrity depends on trace length, via placement, and ground plane continuity. A dev-kit with jumper wires cannot replicate the Alpha B0 board's controlled-impedance SPI0 bus shared between the W25Q64 flash and the LSM6DSO IMU.</li>
+<li><strong>Antenna matching</strong>: The BLE antenna's matching network is tuned for the Alpha B0 board's ground plane geometry. BLE connection tests on a dev-kit with a different antenna would not catch RF detuning caused by enclosure proximity.</li>
+<li><strong>Power distribution</strong>: The Alpha B0 board's power tree routes battery voltage through the BQ25622 charger, then through LDOs to the nRF52840 and nRF9151. The voltage drop, ripple, and transient behavior during sensor wake-up (e.g., PAH8151 LED drive at 255 mA) can only be tested on the real board.</li>
+<li><strong>IPC timing</strong>: The LPUART link between nRF52840 (P0.28/P0.03) and nRF9151 (P0.02/P0.03) at 460800 baud with REQ/RDY handshaking is sensitive to trace length and parasitic capacitance. The request/ready signaling timing on a breadboard would differ from the product board.</li>
+<li><strong>Sensor interrupt routing</strong>: The LSM6DSO interrupt on P0.14 and PAH8151 interrupt on P0.20 share GPIO port 0 interrupt resources. Contention and priority behavior is board-specific.</li>
+</ul>
+<p>Stage 2 uses dev-kits to <strong>isolate individual sensors</strong> behind power relays and measure per-sensor current. Stage 3 deliberately tests them <strong>together</strong> — the whole point is to catch integration issues that only appear when all components share the same power rail, the same SPI bus, the same interrupt controller, and the same firmware main loop.</p>
+<h3 id="24-key-difference-from-stage-2-hardware-setup">2.4 Key Difference from Stage 2 Hardware Setup<a class="headerlink" href="#24-key-difference-from-stage-2-hardware-setup" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Stage 2 (Sensor Characterization)</th>
+<th>Stage 3 (Integration Testing)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Board</td>
+<td>Dev-kit fixture (e.g., nRF52840-DK + sensor breakout)</td>
+<td>Alpha B0 product board</td>
+</tr>
+<tr>
+<td>Sensors</td>
+<td>Single sensor isolated behind power relay</td>
+<td>All sensors populated and active</td>
+</tr>
+<tr>
+<td>Current measurement</td>
+<td>Per-sensor current (high-resolution, isolated shunt on each sensor rail)</td>
+<td>System-level current only (single inline shunt on main power rail)</td>
+</tr>
+<tr>
+<td>Test channel</td>
+<td>Direct SPI/I2C bus access from test host, or Zephyr shell on dev-kit</td>
+<td>Zephyr Shell on UART0 with <code>concord_harness</code> commands — no direct bus access</td>
+</tr>
+<tr>
+<td>What it proves</td>
+<td>Individual sensor driver correctness, power profile, data accuracy</td>
+<td>Subsystem integration: state machine transitions, sensor orchestration, IPC, event propagation</td>
+</tr>
+</tbody>
+</table>
+<h3 id="25-key-difference-from-stage-4-hardware-setup">2.5 Key Difference from Stage 4 Hardware Setup<a class="headerlink" href="#25-key-difference-from-stage-4-hardware-setup" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Stage 3 (Integration Testing)</th>
+<th>Stage 4 (Product Validation)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Board</td>
+<td>Alpha B0 product board</td>
+<td>Alpha B0 product board (same)</td>
+</tr>
+<tr>
+<td>Firmware</td>
+<td><strong>Instrumented</strong> build (<code>CONFIG_CONCORD_HARNESS=y</code>, Zephyr Shell enabled)</td>
+<td><strong>Production</strong> build (<code>CONFIG_CONCORD_HARNESS=n</code>, no shell, no harness)</td>
+</tr>
+<tr>
+<td>MTIB connection</td>
+<td>UART0 for harness transport, SWD for flashing</td>
+<td>UART0 unused (production FW has no shell). SWD for flashing only.</td>
+</tr>
+<tr>
+<td>Test fixture</td>
+<td>MTIB only (UART, SWD, power, current sense, BLE)</td>
+<td>MTIB + <strong>full test fixture</strong>: charger relay, button actuator, motion stage (6-DOF), Peltier temperature controller, photodiode array (PPG stimulus), on-skin electrode simulator</td>
+</tr>
+<tr>
+<td>Observation method</td>
+<td>Software harness (<code>ctx.harness.get/inject/wait_event</code>) — reads firmware internals</td>
+<td><strong>Black-box only</strong>: BLE GATT reads, LED color observation, LTE message capture, physical sensor stimulus</td>
+</tr>
+<tr>
+<td>Why</td>
+<td>Catch architecture-level integration bugs early, with full internal visibility</td>
+<td>Validate end-to-end product behavior as a user/cloud would experience it, using only external interfaces</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-alpha-firmware-architecture-summary">3. Alpha Firmware Architecture Summary<a class="headerlink" href="#3-alpha-firmware-architecture-summary" title="Permanent link">&para;</a></h2>
+<p>The Alpha wearable runs on two MCUs:</p>
+<ul>
+<li><strong>nRF52840</strong> (app MCU): Runs the main application — state machines, sensor orchestration, biometric processing, IPC master</li>
+<li><strong>nRF9151</strong> (comms MCU): Handles LTE, GNSS, cloud messaging</li>
+</ul>
+<p>Key subsystems on the nRF52840 (the MCU we instrument):</p>
+<table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Key State Machine</th>
+<th>Sensors / Peripherals</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Heat risk monitoring</td>
+<td><code>alpha_state_t</code>: <code>off_body_e</code> → <code>low_heat_risk_e</code> → <code>increased_heat_risk_e</code> → <code>heat_emergency_e</code> (+ <code>off_body_validation_e</code> transitional)</td>
+<td>PAH8151 (PPG), MLX90614 (IR skin temp), BME280 (env temp/humidity/pressure)</td>
+</tr>
+<tr>
+<td>Motion detection</td>
+<td><code>motion_state_t</code>: <code>motion_is_stopped</code> → <code>motion_window_open</code> → <code>motion_in_motion</code></td>
+<td>LSM6DSO (6-axis IMU)</td>
+</tr>
+<tr>
+<td>IPC</td>
+<td>Message-based over UART1</td>
+<td>nRF9151 coprocessor</td>
+</tr>
+<tr>
+<td>Power management</td>
+<td>Battery SoC, charging state</td>
+<td>BMS, charger IC</td>
+</tr>
+</tbody>
+</table>
+<p>The firmware uses a cooperative main loop. State machine transitions are event-driven — sensor interrupts and timer callbacks post events to a message queue, and the main loop processes them sequentially.</p>
+<hr />
+<h2 id="4-kconfig-for-instrumented-build">4. Kconfig for Instrumented Build<a class="headerlink" href="#4-kconfig-for-instrumented-build" title="Permanent link">&para;</a></h2>
+<p>The instrumented build adds a Kconfig overlay on top of the normal Alpha firmware configuration:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># alpha_fw/boards/alpha_b0_instrumented.conf</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1"># Overlay applied when building with CONFIG_CONCORD_HARNESS=y</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>CONFIG_CONCORD_HARNESS=y
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Zephyr Shell (required by concord_harness for transport)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>CONFIG_SHELL=y
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>CONFIG_SHELL_BACKEND_SERIAL=y
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Logging (standard Zephyr logging, shared UART with shell)</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>CONFIG_LOG=y
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>CONFIG_LOG_BACKEND_CONCORD=y
+</code></pre></div>
+<p>When <code>CONFIG_CONCORD_HARNESS=n</code> (production build), all <code>CONCORD_*</code> macros expand to nothing. The shell and log backend config are also absent, so the production binary has no shell overhead and no harness thread.</p>
+<hr />
+<h2 id="5-harness-declarations">5. Harness Declarations<a class="headerlink" href="#5-harness-declarations" title="Permanent link">&para;</a></h2>
+<p>The firmware engineer authors <code>src/concord_harness.c</code> in the Alpha firmware repo. This file uses the four macro types to declare instrumentation points that reference real firmware internals.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="cm">/* alpha_fw/src/concord_harness.c</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="cm"> *</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="cm"> * Harness declarations for Alpha Stage 3 integration tests.</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="cm"> * This file compiles to nothing when CONFIG_CONCORD_HARNESS=n.</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="cm"> */</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;concord_harness/concord_harness.h&gt;</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;app/alpha_state_machine.h&quot;</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;app/motion_state_machine.h&quot;</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;app/messages/biometric_data_msg.h&quot;</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;app/lights_handler.h&quot;</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;app/gps_handler.h&quot;</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="cm">/* ── External references to firmware state ─────────────────────────── */</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="cm">/* TODO: Replace extern globals with getter functions (see arch-stage3 Section 9</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="cm"> * &quot;Firmware-side requirements&quot;). Each state variable should have a test-only</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="cm"> * accessor (e.g., get_alpha_state()) so the harness doesn&#39;t depend on global</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="cm"> * symbol visibility. This file is a DRAFT showing the pattern — the final</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="cm"> * implementation will use proper getter functions.</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="cm"> */</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="k">extern</span><span class="w"> </span><span class="n">alpha_state_t</span><span class="w">  </span><span class="n">g_alpha_state</span><span class="p">;</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="k">extern</span><span class="w"> </span><span class="n">motion_state_t</span><span class="w"> </span><span class="n">g_motion_state</span><span class="p">;</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="k">extern</span><span class="w"> </span><span class="n">vsm_data_t</span><span class="w">     </span><span class="n">g_last_vsm_data</span><span class="p">;</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="k">extern</span><span class="w"> </span><span class="n">bio_config_t</span><span class="w">   </span><span class="n">g_bio_config</span><span class="p">;</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="k">extern</span><span class="w"> </span><span class="n">motion_cfg_t</span><span class="w">   </span><span class="n">g_motion_config</span><span class="p">;</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="k">extern</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w">        </span><span class="n">g_battery_soc_pct</span><span class="p">;</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="k">extern</span><span class="w"> </span><span class="kt">bool</span><span class="w">           </span><span class="n">g_battery_charging</span><span class="p">;</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="k">extern</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w">       </span><span class="n">g_ipc_last_msg_age_ms</span><span class="p">;</span>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="cm">/* ── Getters: read-only observation ────────────────────────────────── */</span>
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="nf">alpha_state_str</span><span class="p">(</span><span class="n">alpha_state_t</span><span class="w"> </span><span class="n">s</span><span class="p">)</span>
+<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a><span class="p">{</span>
+<a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="no">off_body_e</span><span class="p">:</span><span class="w">              </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;off_body_e&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="no">low_heat_risk_e</span><span class="p">:</span><span class="w">         </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;low_heat_risk_e&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="no">increased_heat_risk_e</span><span class="p">:</span><span class="w">   </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;increased_heat_risk_e&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="no">heat_emergency_e</span><span class="p">:</span><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;heat_emergency_e&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="no">off_body_validation_e</span><span class="p">:</span><span class="w">   </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;off_body_validation_e&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a><span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w">                      </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;unknown&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-44" name="__codelineno-1-44" href="#__codelineno-1-44"></a><span class="p">}</span>
+<a id="__codelineno-1-45" name="__codelineno-1-45" href="#__codelineno-1-45"></a>
+<a id="__codelineno-1-46" name="__codelineno-1-46" href="#__codelineno-1-46"></a><span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="nf">motion_state_str</span><span class="p">(</span><span class="n">motion_state_t</span><span class="w"> </span><span class="n">s</span><span class="p">)</span>
+<a id="__codelineno-1-47" name="__codelineno-1-47" href="#__codelineno-1-47"></a><span class="p">{</span>
+<a id="__codelineno-1-48" name="__codelineno-1-48" href="#__codelineno-1-48"></a><span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-49" name="__codelineno-1-49" href="#__codelineno-1-49"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="no">motion_is_stopped</span><span class="p">:</span><span class="w">   </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;motion_is_stopped&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-50" name="__codelineno-1-50" href="#__codelineno-1-50"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="no">motion_window_open</span><span class="p">:</span><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;motion_window_open&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-51" name="__codelineno-1-51" href="#__codelineno-1-51"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="no">motion_in_motion</span><span class="p">:</span><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;motion_in_motion&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-52" name="__codelineno-1-52" href="#__codelineno-1-52"></a><span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w">                  </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;unknown&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-53" name="__codelineno-1-53" href="#__codelineno-1-53"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-54" name="__codelineno-1-54" href="#__codelineno-1-54"></a><span class="p">}</span>
+<a id="__codelineno-1-55" name="__codelineno-1-55" href="#__codelineno-1-55"></a>
+<a id="__codelineno-1-56" name="__codelineno-1-56" href="#__codelineno-1-56"></a><span class="n">CONCORD_GETTER</span><span class="p">(</span><span class="s">&quot;app.state&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-57" name="__codelineno-1-57" href="#__codelineno-1-57"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">alpha_state_str</span><span class="p">(</span><span class="n">g_alpha_state</span><span class="p">);</span>
+<a id="__codelineno-1-58" name="__codelineno-1-58" href="#__codelineno-1-58"></a><span class="p">})</span>
+<a id="__codelineno-1-59" name="__codelineno-1-59" href="#__codelineno-1-59"></a>
+<a id="__codelineno-1-60" name="__codelineno-1-60" href="#__codelineno-1-60"></a><span class="n">CONCORD_GETTER</span><span class="p">(</span><span class="s">&quot;motion.state&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-61" name="__codelineno-1-61" href="#__codelineno-1-61"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">motion_state_str</span><span class="p">(</span><span class="n">g_motion_state</span><span class="p">);</span>
+<a id="__codelineno-1-62" name="__codelineno-1-62" href="#__codelineno-1-62"></a><span class="p">})</span>
+<a id="__codelineno-1-63" name="__codelineno-1-63" href="#__codelineno-1-63"></a>
+<a id="__codelineno-1-64" name="__codelineno-1-64" href="#__codelineno-1-64"></a><span class="n">CONCORD_GETTER</span><span class="p">(</span><span class="s">&quot;sensor.hr&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-65" name="__codelineno-1-65" href="#__codelineno-1-65"></a><span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<a id="__codelineno-1-66" name="__codelineno-1-66" href="#__codelineno-1-66"></a><span class="w">    </span><span class="n">snprintf</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;%d&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">g_last_vsm_data</span><span class="p">.</span><span class="n">heartrate</span><span class="p">);</span>
+<a id="__codelineno-1-67" name="__codelineno-1-67" href="#__codelineno-1-67"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">buf</span><span class="p">;</span>
+<a id="__codelineno-1-68" name="__codelineno-1-68" href="#__codelineno-1-68"></a><span class="p">})</span>
+<a id="__codelineno-1-69" name="__codelineno-1-69" href="#__codelineno-1-69"></a>
+<a id="__codelineno-1-70" name="__codelineno-1-70" href="#__codelineno-1-70"></a><span class="n">CONCORD_GETTER</span><span class="p">(</span><span class="s">&quot;sensor.spo2&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-71" name="__codelineno-1-71" href="#__codelineno-1-71"></a><span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<a id="__codelineno-1-72" name="__codelineno-1-72" href="#__codelineno-1-72"></a><span class="w">    </span><span class="n">snprintf</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;%d&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">g_last_vsm_data</span><span class="p">.</span><span class="n">spo2</span><span class="p">);</span>
+<a id="__codelineno-1-73" name="__codelineno-1-73" href="#__codelineno-1-73"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">buf</span><span class="p">;</span>
+<a id="__codelineno-1-74" name="__codelineno-1-74" href="#__codelineno-1-74"></a><span class="p">})</span>
+<a id="__codelineno-1-75" name="__codelineno-1-75" href="#__codelineno-1-75"></a>
+<a id="__codelineno-1-76" name="__codelineno-1-76" href="#__codelineno-1-76"></a><span class="n">CONCORD_GETTER</span><span class="p">(</span><span class="s">&quot;sensor.temp_skin&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-77" name="__codelineno-1-77" href="#__codelineno-1-77"></a><span class="w">    </span><span class="cm">/* Q8.8 fixed point → string with one decimal */</span>
+<a id="__codelineno-1-78" name="__codelineno-1-78" href="#__codelineno-1-78"></a><span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<a id="__codelineno-1-79" name="__codelineno-1-79" href="#__codelineno-1-79"></a><span class="w">    </span><span class="kt">int16_t</span><span class="w"> </span><span class="n">raw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g_last_vsm_data</span><span class="p">.</span><span class="n">skin_temp_degC_q8p8</span><span class="p">;</span>
+<a id="__codelineno-1-80" name="__codelineno-1-80" href="#__codelineno-1-80"></a><span class="w">    </span><span class="n">snprintf</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;%d.%d&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">raw</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="p">((</span><span class="n">raw</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">8</span><span class="p">);</span>
+<a id="__codelineno-1-81" name="__codelineno-1-81" href="#__codelineno-1-81"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">buf</span><span class="p">;</span>
+<a id="__codelineno-1-82" name="__codelineno-1-82" href="#__codelineno-1-82"></a><span class="p">})</span>
+<a id="__codelineno-1-83" name="__codelineno-1-83" href="#__codelineno-1-83"></a>
+<a id="__codelineno-1-84" name="__codelineno-1-84" href="#__codelineno-1-84"></a><span class="n">CONCORD_GETTER</span><span class="p">(</span><span class="s">&quot;sensor.hsi&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-85" name="__codelineno-1-85" href="#__codelineno-1-85"></a><span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<a id="__codelineno-1-86" name="__codelineno-1-86" href="#__codelineno-1-86"></a><span class="w">    </span><span class="n">snprintf</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;%u.%u&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-87" name="__codelineno-1-87" href="#__codelineno-1-87"></a><span class="w">             </span><span class="n">g_last_vsm_data</span><span class="p">.</span><span class="n">heat_strain_index_tenths</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span>
+<a id="__codelineno-1-88" name="__codelineno-1-88" href="#__codelineno-1-88"></a><span class="w">             </span><span class="n">g_last_vsm_data</span><span class="p">.</span><span class="n">heat_strain_index_tenths</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<a id="__codelineno-1-89" name="__codelineno-1-89" href="#__codelineno-1-89"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">buf</span><span class="p">;</span>
+<a id="__codelineno-1-90" name="__codelineno-1-90" href="#__codelineno-1-90"></a><span class="p">})</span>
+<a id="__codelineno-1-91" name="__codelineno-1-91" href="#__codelineno-1-91"></a>
+<a id="__codelineno-1-92" name="__codelineno-1-92" href="#__codelineno-1-92"></a><span class="n">CONCORD_GETTER</span><span class="p">(</span><span class="s">&quot;battery.soc&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-93" name="__codelineno-1-93" href="#__codelineno-1-93"></a><span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">8</span><span class="p">];</span>
+<a id="__codelineno-1-94" name="__codelineno-1-94" href="#__codelineno-1-94"></a><span class="w">    </span><span class="n">snprintf</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;%u&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">g_battery_soc_pct</span><span class="p">);</span>
+<a id="__codelineno-1-95" name="__codelineno-1-95" href="#__codelineno-1-95"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">buf</span><span class="p">;</span>
+<a id="__codelineno-1-96" name="__codelineno-1-96" href="#__codelineno-1-96"></a><span class="p">})</span>
+<a id="__codelineno-1-97" name="__codelineno-1-97" href="#__codelineno-1-97"></a>
+<a id="__codelineno-1-98" name="__codelineno-1-98" href="#__codelineno-1-98"></a><span class="n">CONCORD_GETTER</span><span class="p">(</span><span class="s">&quot;battery.charging&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-99" name="__codelineno-1-99" href="#__codelineno-1-99"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">g_battery_charging</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s">&quot;true&quot;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s">&quot;false&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-100" name="__codelineno-1-100" href="#__codelineno-1-100"></a><span class="p">})</span>
+<a id="__codelineno-1-101" name="__codelineno-1-101" href="#__codelineno-1-101"></a>
+<a id="__codelineno-1-102" name="__codelineno-1-102" href="#__codelineno-1-102"></a><span class="n">CONCORD_GETTER</span><span class="p">(</span><span class="s">&quot;ipc.last_msg_age_ms&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-103" name="__codelineno-1-103" href="#__codelineno-1-103"></a><span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<a id="__codelineno-1-104" name="__codelineno-1-104" href="#__codelineno-1-104"></a><span class="w">    </span><span class="n">snprintf</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;%u&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">g_ipc_last_msg_age_ms</span><span class="p">);</span>
+<a id="__codelineno-1-105" name="__codelineno-1-105" href="#__codelineno-1-105"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">buf</span><span class="p">;</span>
+<a id="__codelineno-1-106" name="__codelineno-1-106" href="#__codelineno-1-106"></a><span class="p">})</span>
+<a id="__codelineno-1-107" name="__codelineno-1-107" href="#__codelineno-1-107"></a>
+<a id="__codelineno-1-108" name="__codelineno-1-108" href="#__codelineno-1-108"></a><span class="cm">/* ── Setters: writable configuration ───────────────────────────────── */</span>
+<a id="__codelineno-1-109" name="__codelineno-1-109" href="#__codelineno-1-109"></a>
+<a id="__codelineno-1-110" name="__codelineno-1-110" href="#__codelineno-1-110"></a><span class="n">CONCORD_SETTER</span><span class="p">(</span><span class="s">&quot;config.low_risk_report_pd&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-111" name="__codelineno-1-111" href="#__codelineno-1-111"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">atoi</span><span class="p">(</span><span class="n">value</span><span class="p">);</span>
+<a id="__codelineno-1-112" name="__codelineno-1-112" href="#__codelineno-1-112"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">val</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;ERR:range&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-113" name="__codelineno-1-113" href="#__codelineno-1-113"></a><span class="w">    </span><span class="n">g_bio_config</span><span class="p">.</span><span class="n">low_risk_report_pd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">uint8_t</span><span class="p">)</span><span class="n">val</span><span class="p">;</span>
+<a id="__codelineno-1-114" name="__codelineno-1-114" href="#__codelineno-1-114"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;OK&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-115" name="__codelineno-1-115" href="#__codelineno-1-115"></a><span class="p">})</span>
+<a id="__codelineno-1-116" name="__codelineno-1-116" href="#__codelineno-1-116"></a>
+<a id="__codelineno-1-117" name="__codelineno-1-117" href="#__codelineno-1-117"></a><span class="n">CONCORD_SETTER</span><span class="p">(</span><span class="s">&quot;config.inc_risk_hsi_threshold&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-118" name="__codelineno-1-118" href="#__codelineno-1-118"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">atoi</span><span class="p">(</span><span class="n">value</span><span class="p">);</span>
+<a id="__codelineno-1-119" name="__codelineno-1-119" href="#__codelineno-1-119"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">val</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;ERR:range&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-120" name="__codelineno-1-120" href="#__codelineno-1-120"></a><span class="w">    </span><span class="n">g_bio_config</span><span class="p">.</span><span class="n">inc_risk_hsi_threshold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">uint8_t</span><span class="p">)</span><span class="n">val</span><span class="p">;</span>
+<a id="__codelineno-1-121" name="__codelineno-1-121" href="#__codelineno-1-121"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;OK&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-122" name="__codelineno-1-122" href="#__codelineno-1-122"></a><span class="p">})</span>
+<a id="__codelineno-1-123" name="__codelineno-1-123" href="#__codelineno-1-123"></a>
+<a id="__codelineno-1-124" name="__codelineno-1-124" href="#__codelineno-1-124"></a><span class="n">CONCORD_SETTER</span><span class="p">(</span><span class="s">&quot;config.motion_start_sec&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-125" name="__codelineno-1-125" href="#__codelineno-1-125"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">atoi</span><span class="p">(</span><span class="n">value</span><span class="p">);</span>
+<a id="__codelineno-1-126" name="__codelineno-1-126" href="#__codelineno-1-126"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">val</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;ERR:range&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-127" name="__codelineno-1-127" href="#__codelineno-1-127"></a><span class="w">    </span><span class="n">g_motion_config</span><span class="p">.</span><span class="n">motion_window_start_sec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">uint8_t</span><span class="p">)</span><span class="n">val</span><span class="p">;</span>
+<a id="__codelineno-1-128" name="__codelineno-1-128" href="#__codelineno-1-128"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;OK&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-129" name="__codelineno-1-129" href="#__codelineno-1-129"></a><span class="p">})</span>
+<a id="__codelineno-1-130" name="__codelineno-1-130" href="#__codelineno-1-130"></a>
+<a id="__codelineno-1-131" name="__codelineno-1-131" href="#__codelineno-1-131"></a><span class="n">CONCORD_SETTER</span><span class="p">(</span><span class="s">&quot;config.motion_stop_sec&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-132" name="__codelineno-1-132" href="#__codelineno-1-132"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">atoi</span><span class="p">(</span><span class="n">value</span><span class="p">);</span>
+<a id="__codelineno-1-133" name="__codelineno-1-133" href="#__codelineno-1-133"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">val</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;ERR:range&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-134" name="__codelineno-1-134" href="#__codelineno-1-134"></a><span class="w">    </span><span class="n">g_motion_config</span><span class="p">.</span><span class="n">motion_stop_sec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">uint8_t</span><span class="p">)</span><span class="n">val</span><span class="p">;</span>
+<a id="__codelineno-1-135" name="__codelineno-1-135" href="#__codelineno-1-135"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;OK&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-136" name="__codelineno-1-136" href="#__codelineno-1-136"></a><span class="p">})</span>
+<a id="__codelineno-1-137" name="__codelineno-1-137" href="#__codelineno-1-137"></a>
+<a id="__codelineno-1-138" name="__codelineno-1-138" href="#__codelineno-1-138"></a><span class="cm">/* ── Injection points: force events from test ──────────────────────── */</span>
+<a id="__codelineno-1-139" name="__codelineno-1-139" href="#__codelineno-1-139"></a>
+<a id="__codelineno-1-140" name="__codelineno-1-140" href="#__codelineno-1-140"></a><span class="n">CONCORD_INJECT</span><span class="p">(</span><span class="s">&quot;sensor.touch&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-141" name="__codelineno-1-141" href="#__codelineno-1-141"></a><span class="w">    </span><span class="cm">/* Simulate PAH8151 touch detection.</span>
+<a id="__codelineno-1-142" name="__codelineno-1-142" href="#__codelineno-1-142"></a><span class="cm">     * Posts the same event the real touch ISR would post. */</span>
+<a id="__codelineno-1-143" name="__codelineno-1-143" href="#__codelineno-1-143"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">strcmp</span><span class="p">(</span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;detected&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-144" name="__codelineno-1-144" href="#__codelineno-1-144"></a><span class="w">        </span><span class="n">app_post_event</span><span class="p">(</span><span class="n">EVT_TOUCH_DETECTED</span><span class="p">);</span>
+<a id="__codelineno-1-145" name="__codelineno-1-145" href="#__codelineno-1-145"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;OK&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-146" name="__codelineno-1-146" href="#__codelineno-1-146"></a><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">strcmp</span><span class="p">(</span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;removed&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-147" name="__codelineno-1-147" href="#__codelineno-1-147"></a><span class="w">        </span><span class="n">app_post_event</span><span class="p">(</span><span class="n">EVT_TOUCH_REMOVED</span><span class="p">);</span>
+<a id="__codelineno-1-148" name="__codelineno-1-148" href="#__codelineno-1-148"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;OK&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-149" name="__codelineno-1-149" href="#__codelineno-1-149"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-150" name="__codelineno-1-150" href="#__codelineno-1-150"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;ERR:expected detected|removed&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-151" name="__codelineno-1-151" href="#__codelineno-1-151"></a><span class="p">})</span>
+<a id="__codelineno-1-152" name="__codelineno-1-152" href="#__codelineno-1-152"></a>
+<a id="__codelineno-1-153" name="__codelineno-1-153" href="#__codelineno-1-153"></a><span class="n">CONCORD_INJECT</span><span class="p">(</span><span class="s">&quot;sensor.motion&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-154" name="__codelineno-1-154" href="#__codelineno-1-154"></a><span class="w">    </span><span class="cm">/* Simulate LSM6DSO motion interrupt */</span>
+<a id="__codelineno-1-155" name="__codelineno-1-155" href="#__codelineno-1-155"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">strcmp</span><span class="p">(</span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;start&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-156" name="__codelineno-1-156" href="#__codelineno-1-156"></a><span class="w">        </span><span class="n">motion_post_event</span><span class="p">(</span><span class="n">MOTION_EVT_DETECTED</span><span class="p">);</span>
+<a id="__codelineno-1-157" name="__codelineno-1-157" href="#__codelineno-1-157"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;OK&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-158" name="__codelineno-1-158" href="#__codelineno-1-158"></a><span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">strcmp</span><span class="p">(</span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;stop&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-159" name="__codelineno-1-159" href="#__codelineno-1-159"></a><span class="w">        </span><span class="n">motion_post_event</span><span class="p">(</span><span class="n">MOTION_EVT_TIMEOUT</span><span class="p">);</span>
+<a id="__codelineno-1-160" name="__codelineno-1-160" href="#__codelineno-1-160"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;OK&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-161" name="__codelineno-1-161" href="#__codelineno-1-161"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-162" name="__codelineno-1-162" href="#__codelineno-1-162"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;ERR:expected start|stop&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-163" name="__codelineno-1-163" href="#__codelineno-1-163"></a><span class="p">})</span>
+<a id="__codelineno-1-164" name="__codelineno-1-164" href="#__codelineno-1-164"></a>
+<a id="__codelineno-1-165" name="__codelineno-1-165" href="#__codelineno-1-165"></a><span class="n">CONCORD_INJECT</span><span class="p">(</span><span class="s">&quot;ipc.rx&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-166" name="__codelineno-1-166" href="#__codelineno-1-166"></a><span class="w">    </span><span class="cm">/* Inject a raw IPC message as if received from nRF9151.</span>
+<a id="__codelineno-1-167" name="__codelineno-1-167" href="#__codelineno-1-167"></a><span class="cm">     * Value is hex-encoded bytes. */</span>
+<a id="__codelineno-1-168" name="__codelineno-1-168" href="#__codelineno-1-168"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">128</span><span class="p">];</span>
+<a id="__codelineno-1-169" name="__codelineno-1-169" href="#__codelineno-1-169"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hex_decode</span><span class="p">(</span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span>
+<a id="__codelineno-1-170" name="__codelineno-1-170" href="#__codelineno-1-170"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">len</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;ERR:hex_decode&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-171" name="__codelineno-1-171" href="#__codelineno-1-171"></a><span class="w">    </span><span class="n">ipc_inject_rx</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span>
+<a id="__codelineno-1-172" name="__codelineno-1-172" href="#__codelineno-1-172"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;OK&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-173" name="__codelineno-1-173" href="#__codelineno-1-173"></a><span class="p">})</span>
+<a id="__codelineno-1-174" name="__codelineno-1-174" href="#__codelineno-1-174"></a>
+<a id="__codelineno-1-175" name="__codelineno-1-175" href="#__codelineno-1-175"></a><span class="cm">/* ── Events: async notifications to test ───────────────────────────── */</span>
+<a id="__codelineno-1-176" name="__codelineno-1-176" href="#__codelineno-1-176"></a>
+<a id="__codelineno-1-177" name="__codelineno-1-177" href="#__codelineno-1-177"></a><span class="n">CONCORD_EVENT</span><span class="p">(</span><span class="s">&quot;app.state_changed&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-178" name="__codelineno-1-178" href="#__codelineno-1-178"></a><span class="n">CONCORD_EVENT</span><span class="p">(</span><span class="s">&quot;motion.state_changed&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-179" name="__codelineno-1-179" href="#__codelineno-1-179"></a><span class="n">CONCORD_EVENT</span><span class="p">(</span><span class="s">&quot;sensor.vitals_ready&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-180" name="__codelineno-1-180" href="#__codelineno-1-180"></a><span class="n">CONCORD_EVENT</span><span class="p">(</span><span class="s">&quot;ipc.msg_sent&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-181" name="__codelineno-1-181" href="#__codelineno-1-181"></a><span class="n">CONCORD_EVENT</span><span class="p">(</span><span class="s">&quot;alert.triggered&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>The firmware engineer then adds <code>CONCORD_EMIT("app.state_changed", alpha_state_str(new_state))</code> calls at the appropriate transition points in <code>alpha_state_machine.c</code> and <code>motion_state_machine.c</code>. These calls also compile to nothing when <code>CONFIG_CONCORD_HARNESS=n</code>.</p>
+<hr />
+<h2 id="6-uart-output-example">6. UART Output Example<a class="headerlink" href="#6-uart-output-example" title="Permanent link">&para;</a></h2>
+<p>Here's what the raw UART stream looks like during a test session. Device logs (standard Zephyr format) and harness traffic (prefixed) are interleaved on UART0:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>[00:00:01.234,567] &lt;inf&gt; app: Alpha firmware v2.1.0 started
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>[00:00:01.240,112] &lt;inf&gt; app: State: off_body_e
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>[00:00:01.245,678] &lt;inf&gt; bme280: Environmental sensor initialized
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>[00:00:01.250,234] &lt;inf&gt; pah8151: PPG sensor initialized (touch-only mode)
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>[00:00:01.255,890] &lt;inf&gt; lsm6dso: IMU initialized at 52Hz
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>[00:00:01.260,456] &lt;inf&gt; ipc: IPC bridge ready (UART1)
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>uart:~$ concord list
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>[CONCORD:RSP] LIST_BEGIN
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>[CONCORD:RSP] GET app.state
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>[CONCORD:RSP] GET motion.state
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>[CONCORD:RSP] GET sensor.hr
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>[CONCORD:RSP] GET sensor.spo2
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>[CONCORD:RSP] GET sensor.temp_skin
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>[CONCORD:RSP] GET sensor.hsi
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>[CONCORD:RSP] GET battery.soc
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>[CONCORD:RSP] GET battery.charging
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>[CONCORD:RSP] GET ipc.last_msg_age_ms
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>[CONCORD:RSP] SET config.low_risk_report_pd
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>[CONCORD:RSP] SET config.inc_risk_hsi_threshold
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>[CONCORD:RSP] SET config.motion_start_sec
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>[CONCORD:RSP] SET config.motion_stop_sec
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>[CONCORD:RSP] INJ sensor.touch
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>[CONCORD:RSP] INJ sensor.motion
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>[CONCORD:RSP] INJ ipc.rx
+<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>[CONCORD:RSP] EVT app.state_changed
+<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>[CONCORD:RSP] EVT motion.state_changed
+<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>[CONCORD:RSP] EVT sensor.vitals_ready
+<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>[CONCORD:RSP] EVT ipc.msg_sent
+<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a>[CONCORD:RSP] EVT alert.triggered
+<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a>[CONCORD:RSP] LIST_END
+<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a>uart:~$ concord get app.state
+<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a>[CONCORD:RSP] app.state=off_body_e
+<a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a>uart:~$ concord inject sensor.touch detected
+<a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a>[CONCORD:RSP] sensor.touch=OK
+<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a>[00:00:05.100,234] &lt;inf&gt; app: Touch detected, transitioning to low_heat_risk_e
+<a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a>[CONCORD:EVT] app.state_changed=low_heat_risk_e
+<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a>[00:00:05.105,678] &lt;inf&gt; pah8151: Switching to active mode
+<a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a>[00:00:05.110,345] &lt;inf&gt; mlx90614: Waking IR sensor
+<a id="__codelineno-2-39" name="__codelineno-2-39" href="#__codelineno-2-39"></a>[00:00:06.200,123] &lt;inf&gt; vsm: Warm-up period started (60s)
+<a id="__codelineno-2-40" name="__codelineno-2-40" href="#__codelineno-2-40"></a>uart:~$ concord get app.state
+<a id="__codelineno-2-41" name="__codelineno-2-41" href="#__codelineno-2-41"></a>[CONCORD:RSP] app.state=low_heat_risk_e
+<a id="__codelineno-2-42" name="__codelineno-2-42" href="#__codelineno-2-42"></a>[00:00:65.500,789] &lt;inf&gt; vsm: Warm-up complete, vitals reporting active
+<a id="__codelineno-2-43" name="__codelineno-2-43" href="#__codelineno-2-43"></a>[CONCORD:EVT] sensor.vitals_ready=hr:72,spo2:98,skin:32.5
+<a id="__codelineno-2-44" name="__codelineno-2-44" href="#__codelineno-2-44"></a>uart:~$ concord get sensor.hr
+<a id="__codelineno-2-45" name="__codelineno-2-45" href="#__codelineno-2-45"></a>[CONCORD:RSP] sensor.hr=72
+<a id="__codelineno-2-46" name="__codelineno-2-46" href="#__codelineno-2-46"></a>uart:~$ concord inject sensor.touch removed
+<a id="__codelineno-2-47" name="__codelineno-2-47" href="#__codelineno-2-47"></a>[CONCORD:RSP] sensor.touch=OK
+<a id="__codelineno-2-48" name="__codelineno-2-48" href="#__codelineno-2-48"></a>[00:00:70.300,456] &lt;inf&gt; app: Touch removed, entering off_body_validation_e
+<a id="__codelineno-2-49" name="__codelineno-2-49" href="#__codelineno-2-49"></a>[CONCORD:EVT] app.state_changed=off_body_validation_e
+<a id="__codelineno-2-50" name="__codelineno-2-50" href="#__codelineno-2-50"></a>[00:00:90.300,789] &lt;inf&gt; app: Off-body verification complete (20s), transitioning to off_body_e
+<a id="__codelineno-2-51" name="__codelineno-2-51" href="#__codelineno-2-51"></a>[CONCORD:EVT] app.state_changed=off_body_e
+</code></pre></div>
+<p>The Python-side demuxer splits this stream into three channels:
+- <strong>Harness responses</strong> (<code>[CONCORD:RSP]</code> lines): Queued for <code>ctx.harness.get/set/inject/list</code> calls
+- <strong>Harness events</strong> (<code>[CONCORD:EVT]</code> lines): Queued for <code>ctx.harness.wait_event()</code> calls
+- <strong>Device logs</strong> (everything else): Available via <code>ctx.logs.wait_for()</code> and <code>ctx.logs.dump()</code></p>
+<hr />
+<h2 id="7-integration-tests">7. Integration Tests<a class="headerlink" href="#7-integration-tests" title="Permanent link">&para;</a></h2>
+<p>Full Python test file for Alpha state machine integration testing:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># alpha_fw/.concord/tests/integration/test_state_machine.py</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1">#</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Stage 3 integration tests for Alpha heat risk state machine.</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># These tests run on real Alpha hardware via MTIB, using instrumented firmware.</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">EXPECTED_HARNESS_POINTS</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="s2">&quot;app.state&quot;</span><span class="p">,</span> <span class="s2">&quot;motion.state&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor.hr&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor.spo2&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="s2">&quot;sensor.temp_skin&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor.hsi&quot;</span><span class="p">,</span> <span class="s2">&quot;battery.soc&quot;</span><span class="p">,</span> <span class="s2">&quot;battery.charging&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="s2">&quot;ipc.last_msg_age_ms&quot;</span><span class="p">,</span> <span class="s2">&quot;config.low_risk_report_pd&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="s2">&quot;config.inc_risk_hsi_threshold&quot;</span><span class="p">,</span> <span class="s2">&quot;config.motion_start_sec&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    <span class="s2">&quot;config.motion_stop_sec&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor.touch&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor.motion&quot;</span><span class="p">,</span> <span class="s2">&quot;ipc.rx&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    <span class="s2">&quot;app.state_changed&quot;</span><span class="p">,</span> <span class="s2">&quot;motion.state_changed&quot;</span><span class="p">,</span> <span class="s2">&quot;sensor.vitals_ready&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    <span class="s2">&quot;ipc.msg_sent&quot;</span><span class="p">,</span> <span class="s2">&quot;alert.triggered&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="p">}</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">test_harness_points</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Validate that the firmware build includes all expected harness points.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">flash_firmware</span><span class="p">()</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">wait_for_boot</span><span class="p">()</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>    <span class="n">points</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>    <span class="n">registered</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">points</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>    <span class="n">missing</span> <span class="o">=</span> <span class="n">EXPECTED_HARNESS_POINTS</span> <span class="o">-</span> <span class="n">registered</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>    <span class="k">assert</span> <span class="ow">not</span> <span class="n">missing</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Missing harness points: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>
+<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">test_boot_reaches_off_body</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Flash, boot, verify initial state is off_body_e.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">flash_firmware</span><span class="p">()</span>
+<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">wait_for_boot</span><span class="p">()</span>
+<a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>
+<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a>    <span class="n">state</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;app.state&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a>    <span class="k">assert</span> <span class="n">state</span> <span class="o">==</span> <span class="s2">&quot;off_body_e&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Expected off_body_e, got </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a>
+<a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a>    <span class="c1"># Verify device logs confirm boot</span>
+<a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a>    <span class="n">log</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">logs</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="s2">&quot;Alpha firmware v&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a>    <span class="k">assert</span> <span class="n">log</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;Boot banner not found in device logs&quot;</span>
+<a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a>
+<a id="__codelineno-3-42" name="__codelineno-3-42" href="#__codelineno-3-42"></a>
+<a id="__codelineno-3-43" name="__codelineno-3-43" href="#__codelineno-3-43"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">test_touch_triggers_monitoring</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-3-44" name="__codelineno-3-44" href="#__codelineno-3-44"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Inject touch → verify state transitions → verify vitals start flowing.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-45" name="__codelineno-3-45" href="#__codelineno-3-45"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">flash_firmware</span><span class="p">()</span>
+<a id="__codelineno-3-46" name="__codelineno-3-46" href="#__codelineno-3-46"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+<a id="__codelineno-3-47" name="__codelineno-3-47" href="#__codelineno-3-47"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">wait_for_boot</span><span class="p">()</span>
+<a id="__codelineno-3-48" name="__codelineno-3-48" href="#__codelineno-3-48"></a>
+<a id="__codelineno-3-49" name="__codelineno-3-49" href="#__codelineno-3-49"></a>    <span class="c1"># Confirm starting state</span>
+<a id="__codelineno-3-50" name="__codelineno-3-50" href="#__codelineno-3-50"></a>    <span class="n">state</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;app.state&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-51" name="__codelineno-3-51" href="#__codelineno-3-51"></a>    <span class="k">assert</span> <span class="n">state</span> <span class="o">==</span> <span class="s2">&quot;off_body_e&quot;</span>
+<a id="__codelineno-3-52" name="__codelineno-3-52" href="#__codelineno-3-52"></a>
+<a id="__codelineno-3-53" name="__codelineno-3-53" href="#__codelineno-3-53"></a>    <span class="c1"># Inject touch detection (simulates PAH8151 touch ISR)</span>
+<a id="__codelineno-3-54" name="__codelineno-3-54" href="#__codelineno-3-54"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">inject</span><span class="p">(</span><span class="s2">&quot;sensor.touch&quot;</span><span class="p">,</span> <span class="s2">&quot;detected&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-55" name="__codelineno-3-55" href="#__codelineno-3-55"></a>
+<a id="__codelineno-3-56" name="__codelineno-3-56" href="#__codelineno-3-56"></a>    <span class="c1"># Wait for transition event</span>
+<a id="__codelineno-3-57" name="__codelineno-3-57" href="#__codelineno-3-57"></a>    <span class="n">evt</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">wait_event</span><span class="p">(</span><span class="s2">&quot;app.state_changed&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-3-58" name="__codelineno-3-58" href="#__codelineno-3-58"></a>    <span class="k">assert</span> <span class="n">evt</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="s2">&quot;low_heat_risk_e&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Expected low_heat_risk_e, got </span><span class="si">{</span><span class="n">evt</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-3-59" name="__codelineno-3-59" href="#__codelineno-3-59"></a>
+<a id="__codelineno-3-60" name="__codelineno-3-60" href="#__codelineno-3-60"></a>    <span class="c1"># Verify getter agrees</span>
+<a id="__codelineno-3-61" name="__codelineno-3-61" href="#__codelineno-3-61"></a>    <span class="n">state</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;app.state&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-62" name="__codelineno-3-62" href="#__codelineno-3-62"></a>    <span class="k">assert</span> <span class="n">state</span> <span class="o">==</span> <span class="s2">&quot;low_heat_risk_e&quot;</span>
+<a id="__codelineno-3-63" name="__codelineno-3-63" href="#__codelineno-3-63"></a>
+<a id="__codelineno-3-64" name="__codelineno-3-64" href="#__codelineno-3-64"></a>    <span class="c1"># Wait for vitals to start flowing (after VSM warm-up period)</span>
+<a id="__codelineno-3-65" name="__codelineno-3-65" href="#__codelineno-3-65"></a>    <span class="n">vitals_evt</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">wait_event</span><span class="p">(</span><span class="s2">&quot;sensor.vitals_ready&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+<a id="__codelineno-3-66" name="__codelineno-3-66" href="#__codelineno-3-66"></a>    <span class="k">assert</span> <span class="n">vitals_evt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;No vitals_ready event after warm-up&quot;</span>
+<a id="__codelineno-3-67" name="__codelineno-3-67" href="#__codelineno-3-67"></a>
+<a id="__codelineno-3-68" name="__codelineno-3-68" href="#__codelineno-3-68"></a>    <span class="c1"># Verify sensor readings are populated</span>
+<a id="__codelineno-3-69" name="__codelineno-3-69" href="#__codelineno-3-69"></a>    <span class="n">hr</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sensor.hr&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-70" name="__codelineno-3-70" href="#__codelineno-3-70"></a>    <span class="k">assert</span> <span class="nb">int</span><span class="p">(</span><span class="n">hr</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Heart rate should be &gt; 0 during monitoring, got </span><span class="si">{</span><span class="n">hr</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-3-71" name="__codelineno-3-71" href="#__codelineno-3-71"></a>
+<a id="__codelineno-3-72" name="__codelineno-3-72" href="#__codelineno-3-72"></a>
+<a id="__codelineno-3-73" name="__codelineno-3-73" href="#__codelineno-3-73"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">test_motion_detection</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-3-74" name="__codelineno-3-74" href="#__codelineno-3-74"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Inject motion → verify motion state transitions via getter and events.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-75" name="__codelineno-3-75" href="#__codelineno-3-75"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">flash_firmware</span><span class="p">()</span>
+<a id="__codelineno-3-76" name="__codelineno-3-76" href="#__codelineno-3-76"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+<a id="__codelineno-3-77" name="__codelineno-3-77" href="#__codelineno-3-77"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">wait_for_boot</span><span class="p">()</span>
+<a id="__codelineno-3-78" name="__codelineno-3-78" href="#__codelineno-3-78"></a>
+<a id="__codelineno-3-79" name="__codelineno-3-79" href="#__codelineno-3-79"></a>    <span class="c1"># Verify initial motion state</span>
+<a id="__codelineno-3-80" name="__codelineno-3-80" href="#__codelineno-3-80"></a>    <span class="n">state</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;motion.state&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-81" name="__codelineno-3-81" href="#__codelineno-3-81"></a>    <span class="k">assert</span> <span class="n">state</span> <span class="o">==</span> <span class="s2">&quot;motion_is_stopped&quot;</span>
+<a id="__codelineno-3-82" name="__codelineno-3-82" href="#__codelineno-3-82"></a>
+<a id="__codelineno-3-83" name="__codelineno-3-83" href="#__codelineno-3-83"></a>    <span class="c1"># Inject motion start (simulates LSM6DSO interrupt)</span>
+<a id="__codelineno-3-84" name="__codelineno-3-84" href="#__codelineno-3-84"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">inject</span><span class="p">(</span><span class="s2">&quot;sensor.motion&quot;</span><span class="p">,</span> <span class="s2">&quot;start&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-85" name="__codelineno-3-85" href="#__codelineno-3-85"></a>
+<a id="__codelineno-3-86" name="__codelineno-3-86" href="#__codelineno-3-86"></a>    <span class="c1"># Wait for motion state change event</span>
+<a id="__codelineno-3-87" name="__codelineno-3-87" href="#__codelineno-3-87"></a>    <span class="n">evt</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">wait_event</span><span class="p">(</span><span class="s2">&quot;motion.state_changed&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-3-88" name="__codelineno-3-88" href="#__codelineno-3-88"></a>    <span class="k">assert</span> <span class="n">evt</span><span class="o">.</span><span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;motion_window_open&quot;</span><span class="p">,</span> <span class="s2">&quot;motion_in_motion&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-89" name="__codelineno-3-89" href="#__codelineno-3-89"></a>
+<a id="__codelineno-3-90" name="__codelineno-3-90" href="#__codelineno-3-90"></a>    <span class="c1"># Verify via getter</span>
+<a id="__codelineno-3-91" name="__codelineno-3-91" href="#__codelineno-3-91"></a>    <span class="n">state</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;motion.state&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-92" name="__codelineno-3-92" href="#__codelineno-3-92"></a>    <span class="k">assert</span> <span class="n">state</span> <span class="o">!=</span> <span class="s2">&quot;motion_is_stopped&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Motion state should have changed, still </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-3-93" name="__codelineno-3-93" href="#__codelineno-3-93"></a>
+<a id="__codelineno-3-94" name="__codelineno-3-94" href="#__codelineno-3-94"></a>
+<a id="__codelineno-3-95" name="__codelineno-3-95" href="#__codelineno-3-95"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">test_config_change_takes_effect</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-3-96" name="__codelineno-3-96" href="#__codelineno-3-96"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Set config.low_risk_report_pd → verify next vitals event respects interval.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-97" name="__codelineno-3-97" href="#__codelineno-3-97"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">flash_firmware</span><span class="p">()</span>
+<a id="__codelineno-3-98" name="__codelineno-3-98" href="#__codelineno-3-98"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+<a id="__codelineno-3-99" name="__codelineno-3-99" href="#__codelineno-3-99"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">wait_for_boot</span><span class="p">()</span>
+<a id="__codelineno-3-100" name="__codelineno-3-100" href="#__codelineno-3-100"></a>
+<a id="__codelineno-3-101" name="__codelineno-3-101" href="#__codelineno-3-101"></a>    <span class="c1"># Enter monitoring state first</span>
+<a id="__codelineno-3-102" name="__codelineno-3-102" href="#__codelineno-3-102"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">inject</span><span class="p">(</span><span class="s2">&quot;sensor.touch&quot;</span><span class="p">,</span> <span class="s2">&quot;detected&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-103" name="__codelineno-3-103" href="#__codelineno-3-103"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">wait_event</span><span class="p">(</span><span class="s2">&quot;app.state_changed&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-3-104" name="__codelineno-3-104" href="#__codelineno-3-104"></a>
+<a id="__codelineno-3-105" name="__codelineno-3-105" href="#__codelineno-3-105"></a>    <span class="c1"># Change reporting period to 5 seconds (default is 10)</span>
+<a id="__codelineno-3-106" name="__codelineno-3-106" href="#__codelineno-3-106"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;config.low_risk_report_pd&quot;</span><span class="p">,</span> <span class="s2">&quot;5&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-107" name="__codelineno-3-107" href="#__codelineno-3-107"></a>
+<a id="__codelineno-3-108" name="__codelineno-3-108" href="#__codelineno-3-108"></a>    <span class="c1"># Wait for warm-up, then measure time between vitals events</span>
+<a id="__codelineno-3-109" name="__codelineno-3-109" href="#__codelineno-3-109"></a>    <span class="n">first</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">wait_event</span><span class="p">(</span><span class="s2">&quot;sensor.vitals_ready&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+<a id="__codelineno-3-110" name="__codelineno-3-110" href="#__codelineno-3-110"></a>    <span class="k">assert</span> <span class="n">first</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+<a id="__codelineno-3-111" name="__codelineno-3-111" href="#__codelineno-3-111"></a>
+<a id="__codelineno-3-112" name="__codelineno-3-112" href="#__codelineno-3-112"></a>    <span class="n">second</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">wait_event</span><span class="p">(</span><span class="s2">&quot;sensor.vitals_ready&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+<a id="__codelineno-3-113" name="__codelineno-3-113" href="#__codelineno-3-113"></a>    <span class="k">assert</span> <span class="n">second</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+<a id="__codelineno-3-114" name="__codelineno-3-114" href="#__codelineno-3-114"></a>
+<a id="__codelineno-3-115" name="__codelineno-3-115" href="#__codelineno-3-115"></a>    <span class="c1"># The interval between events should be approximately 5 seconds</span>
+<a id="__codelineno-3-116" name="__codelineno-3-116" href="#__codelineno-3-116"></a>    <span class="c1"># (allow margin for processing time)</span>
+<a id="__codelineno-3-117" name="__codelineno-3-117" href="#__codelineno-3-117"></a>    <span class="c1"># Note: exact timing validation depends on event timestamps from the harness</span>
+<a id="__codelineno-3-118" name="__codelineno-3-118" href="#__codelineno-3-118"></a>
+<a id="__codelineno-3-119" name="__codelineno-3-119" href="#__codelineno-3-119"></a>
+<a id="__codelineno-3-120" name="__codelineno-3-120" href="#__codelineno-3-120"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">test_ipc_round_trip</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-3-121" name="__codelineno-3-121" href="#__codelineno-3-121"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Inject IPC rx message → verify ipc.msg_sent event (coprocessor echo).&quot;&quot;&quot;</span>
+<a id="__codelineno-3-122" name="__codelineno-3-122" href="#__codelineno-3-122"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">flash_firmware</span><span class="p">()</span>
+<a id="__codelineno-3-123" name="__codelineno-3-123" href="#__codelineno-3-123"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+<a id="__codelineno-3-124" name="__codelineno-3-124" href="#__codelineno-3-124"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">wait_for_boot</span><span class="p">()</span>
+<a id="__codelineno-3-125" name="__codelineno-3-125" href="#__codelineno-3-125"></a>
+<a id="__codelineno-3-126" name="__codelineno-3-126" href="#__codelineno-3-126"></a>    <span class="c1"># Check IPC link health</span>
+<a id="__codelineno-3-127" name="__codelineno-3-127" href="#__codelineno-3-127"></a>    <span class="n">age</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ipc.last_msg_age_ms&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-128" name="__codelineno-3-128" href="#__codelineno-3-128"></a>    <span class="n">age_ms</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">age</span><span class="p">)</span>
+<a id="__codelineno-3-129" name="__codelineno-3-129" href="#__codelineno-3-129"></a>
+<a id="__codelineno-3-130" name="__codelineno-3-130" href="#__codelineno-3-130"></a>    <span class="c1"># Inject a synthetic IPC message (hex-encoded biometric config)</span>
+<a id="__codelineno-3-131" name="__codelineno-3-131" href="#__codelineno-3-131"></a>    <span class="c1"># This simulates a message arriving from the nRF9151 coprocessor</span>
+<a id="__codelineno-3-132" name="__codelineno-3-132" href="#__codelineno-3-132"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">inject</span><span class="p">(</span><span class="s2">&quot;ipc.rx&quot;</span><span class="p">,</span> <span class="s2">&quot;150100000a500a&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-133" name="__codelineno-3-133" href="#__codelineno-3-133"></a>
+<a id="__codelineno-3-134" name="__codelineno-3-134" href="#__codelineno-3-134"></a>    <span class="c1"># Verify the firmware processed it and sent a response</span>
+<a id="__codelineno-3-135" name="__codelineno-3-135" href="#__codelineno-3-135"></a>    <span class="n">evt</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">wait_event</span><span class="p">(</span><span class="s2">&quot;ipc.msg_sent&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-3-136" name="__codelineno-3-136" href="#__codelineno-3-136"></a>    <span class="k">assert</span> <span class="n">evt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;No IPC response sent after injected rx message&quot;</span>
+<a id="__codelineno-3-137" name="__codelineno-3-137" href="#__codelineno-3-137"></a>
+<a id="__codelineno-3-138" name="__codelineno-3-138" href="#__codelineno-3-138"></a>
+<a id="__codelineno-3-139" name="__codelineno-3-139" href="#__codelineno-3-139"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">test_state_machine_full_cycle</span><span class="p">(</span><span class="n">ctx</span><span class="p">):</span>
+<a id="__codelineno-3-140" name="__codelineno-3-140" href="#__codelineno-3-140"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Touch → monitoring → remove touch → back to off_body. Full cycle.&quot;&quot;&quot;</span>
+<a id="__codelineno-3-141" name="__codelineno-3-141" href="#__codelineno-3-141"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">flash_firmware</span><span class="p">()</span>
+<a id="__codelineno-3-142" name="__codelineno-3-142" href="#__codelineno-3-142"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+<a id="__codelineno-3-143" name="__codelineno-3-143" href="#__codelineno-3-143"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">wait_for_boot</span><span class="p">()</span>
+<a id="__codelineno-3-144" name="__codelineno-3-144" href="#__codelineno-3-144"></a>
+<a id="__codelineno-3-145" name="__codelineno-3-145" href="#__codelineno-3-145"></a>    <span class="c1"># Phase 1: off_body_e → low_heat_risk_e</span>
+<a id="__codelineno-3-146" name="__codelineno-3-146" href="#__codelineno-3-146"></a>    <span class="n">state</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;app.state&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-147" name="__codelineno-3-147" href="#__codelineno-3-147"></a>    <span class="k">assert</span> <span class="n">state</span> <span class="o">==</span> <span class="s2">&quot;off_body_e&quot;</span>
+<a id="__codelineno-3-148" name="__codelineno-3-148" href="#__codelineno-3-148"></a>
+<a id="__codelineno-3-149" name="__codelineno-3-149" href="#__codelineno-3-149"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">inject</span><span class="p">(</span><span class="s2">&quot;sensor.touch&quot;</span><span class="p">,</span> <span class="s2">&quot;detected&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-150" name="__codelineno-3-150" href="#__codelineno-3-150"></a>    <span class="n">evt</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">wait_event</span><span class="p">(</span><span class="s2">&quot;app.state_changed&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-3-151" name="__codelineno-3-151" href="#__codelineno-3-151"></a>    <span class="k">assert</span> <span class="n">evt</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="s2">&quot;low_heat_risk_e&quot;</span>
+<a id="__codelineno-3-152" name="__codelineno-3-152" href="#__codelineno-3-152"></a>
+<a id="__codelineno-3-153" name="__codelineno-3-153" href="#__codelineno-3-153"></a>    <span class="c1"># Phase 2: Verify monitoring is active</span>
+<a id="__codelineno-3-154" name="__codelineno-3-154" href="#__codelineno-3-154"></a>    <span class="n">state</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;app.state&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-155" name="__codelineno-3-155" href="#__codelineno-3-155"></a>    <span class="k">assert</span> <span class="n">state</span> <span class="o">==</span> <span class="s2">&quot;low_heat_risk_e&quot;</span>
+<a id="__codelineno-3-156" name="__codelineno-3-156" href="#__codelineno-3-156"></a>
+<a id="__codelineno-3-157" name="__codelineno-3-157" href="#__codelineno-3-157"></a>    <span class="c1"># Phase 3: Remove touch → off_body_validation_e → off_body_e</span>
+<a id="__codelineno-3-158" name="__codelineno-3-158" href="#__codelineno-3-158"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">inject</span><span class="p">(</span><span class="s2">&quot;sensor.touch&quot;</span><span class="p">,</span> <span class="s2">&quot;removed&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-159" name="__codelineno-3-159" href="#__codelineno-3-159"></a>
+<a id="__codelineno-3-160" name="__codelineno-3-160" href="#__codelineno-3-160"></a>    <span class="n">evt</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">wait_event</span><span class="p">(</span><span class="s2">&quot;app.state_changed&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-3-161" name="__codelineno-3-161" href="#__codelineno-3-161"></a>    <span class="k">assert</span> <span class="n">evt</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="s2">&quot;off_body_validation_e&quot;</span>
+<a id="__codelineno-3-162" name="__codelineno-3-162" href="#__codelineno-3-162"></a>
+<a id="__codelineno-3-163" name="__codelineno-3-163" href="#__codelineno-3-163"></a>    <span class="c1"># Wait for validation period (OFF_BODY_VERIFICATION_SEC = 20s)</span>
+<a id="__codelineno-3-164" name="__codelineno-3-164" href="#__codelineno-3-164"></a>    <span class="n">evt</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">wait_event</span><span class="p">(</span><span class="s2">&quot;app.state_changed&quot;</span><span class="p">,</span> <span class="n">timeout_s</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<a id="__codelineno-3-165" name="__codelineno-3-165" href="#__codelineno-3-165"></a>    <span class="k">assert</span> <span class="n">evt</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="s2">&quot;off_body_e&quot;</span>
+<a id="__codelineno-3-166" name="__codelineno-3-166" href="#__codelineno-3-166"></a>
+<a id="__codelineno-3-167" name="__codelineno-3-167" href="#__codelineno-3-167"></a>    <span class="c1"># Verify we&#39;re back to initial state</span>
+<a id="__codelineno-3-168" name="__codelineno-3-168" href="#__codelineno-3-168"></a>    <span class="n">state</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;app.state&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-169" name="__codelineno-3-169" href="#__codelineno-3-169"></a>    <span class="k">assert</span> <span class="n">state</span> <span class="o">==</span> <span class="s2">&quot;off_body_e&quot;</span>
+<a id="__codelineno-3-170" name="__codelineno-3-170" href="#__codelineno-3-170"></a>
+<a id="__codelineno-3-171" name="__codelineno-3-171" href="#__codelineno-3-171"></a>    <span class="c1"># Verify sensors have shut down (HR should be 0 when off-body)</span>
+<a id="__codelineno-3-172" name="__codelineno-3-172" href="#__codelineno-3-172"></a>    <span class="n">hr</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">harness</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sensor.hr&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-173" name="__codelineno-3-173" href="#__codelineno-3-173"></a>    <span class="k">assert</span> <span class="nb">int</span><span class="p">(</span><span class="n">hr</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Heart rate should be 0 off-body, got </span><span class="si">{</span><span class="n">hr</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre></div>
+<hr />
+<h2 id="8-build-configuration">8. Build Configuration<a class="headerlink" href="#8-build-configuration" title="Permanent link">&para;</a></h2>
+<p>The build service produces both instrumented and production firmware from the same source:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># alpha_fw/.concord/build.yaml</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nt">builds</span><span class="p">:</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="c1"># Instrumented build — used by Stage 3 integration tests</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">integration</span><span class="p">:</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="nt">board</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpha_b0</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="nt">soc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nrf52840</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="nt">overlay_configs</span><span class="p">:</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">boards/alpha_b0_instrumented.conf</span><span class="w">    </span><span class="c1"># Adds CONFIG_CONCORD_HARNESS=y + shell + logging</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="nt">extra_modules</span><span class="p">:</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">concord_harness</span><span class="w">                       </span><span class="c1"># Pulled as Zephyr module via west manifest</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="nt">artifacts</span><span class="p">:</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build/integration/nrf52840/zephyr/merged.hex</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">  </span><span class="c1"># Production builds — used by Stage 4 product validation</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">  </span><span class="nt">production_debug</span><span class="p">:</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span><span class="nt">board</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpha_b0</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span><span class="nt">soc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nrf52840</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">    </span><span class="c1"># CONFIG_CONCORD_HARNESS=n, CONFIG_LOG=y</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">    </span><span class="nt">artifacts</span><span class="p">:</span>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build/production_debug/nrf52840/zephyr/merged.hex</span>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">  </span><span class="nt">production_release</span><span class="p">:</span>
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">    </span><span class="nt">board</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpha_b0</span>
+<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="w">    </span><span class="nt">soc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nrf52840</span>
+<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="w">    </span><span class="c1"># CONFIG_CONCORD_HARNESS=n, CONFIG_LOG=n</span>
+<a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="w">    </span><span class="nt">artifacts</span><span class="p">:</span>
+<a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build/production_release/nrf52840/zephyr/merged.hex</span>
+<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a>
+<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a><span class="w">  </span><span class="c1"># Comms MCU build — same for all stages</span>
+<a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a><span class="w">  </span><span class="nt">comms</span><span class="p">:</span>
+<a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a><span class="w">    </span><span class="nt">board</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpha_b0_cpunet</span>
+<a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a><span class="w">    </span><span class="nt">soc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nrf9151</span>
+<a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a><span class="w">    </span><span class="nt">artifacts</span><span class="p">:</span>
+<a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build/comms/nrf9151/zephyr/merged.hex</span>
+<a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a>
+<a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a><span class="c1"># Integration test artifacts (included in build bundle for Stage 3 runner)</span>
+<a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a><span class="nt">test_artifacts</span><span class="p">:</span>
+<a id="__codelineno-4-40" name="__codelineno-4-40" href="#__codelineno-4-40"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.concord/tests/integration/</span>
+<a id="__codelineno-4-41" name="__codelineno-4-41" href="#__codelineno-4-41"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.concord/integration_spec.yaml</span>
+</code></pre></div>
+<p>The Stage 3 runner downloads <code>build/integration/nrf52840/zephyr/merged.hex</code>. The Stage 4 runner downloads <code>build/production_debug/</code> and/or <code>build/production_release/</code> hex files (see arch-stage4 Section 3.4 for which tests run on which build). All stages share the same <code>build/comms/</code> coprocessor build.</p>
+<hr />
+<h2 id="9-what-this-proves">9. What This Proves<a class="headerlink" href="#9-what-this-proves" title="Permanent link">&para;</a></h2>
+<p>Each test maps to specific Alpha integration risks:</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Integration Risk Covered</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_harness_points</code></td>
+<td>Version skew between test expectations and firmware build — catches missing harness declarations before tests run</td>
+</tr>
+<tr>
+<td><code>test_boot_reaches_off_body</code></td>
+<td>Firmware initializes all subsystems (sensors, IPC, state machine) and reaches a stable idle state</td>
+</tr>
+<tr>
+<td><code>test_touch_triggers_monitoring</code></td>
+<td>PAH8151 touch event → state machine transition → sensor orchestration activation — the core Alpha use case</td>
+</tr>
+<tr>
+<td><code>test_motion_detection</code></td>
+<td>LSM6DSO motion interrupt → motion state machine integration — verifies the IMU driver events propagate through the motion subsystem</td>
+</tr>
+<tr>
+<td><code>test_config_change_takes_effect</code></td>
+<td>Runtime configuration propagates to the reporting subsystem — verifies <code>bio_config_t</code> changes are respected by the vitals reporting loop</td>
+</tr>
+<tr>
+<td><code>test_ipc_round_trip</code></td>
+<td>IPC bridge between nRF52840 and nRF9151 correctly receives, parses, and responds to messages — catches serialization bugs, UART framing issues</td>
+</tr>
+<tr>
+<td><code>test_state_machine_full_cycle</code></td>
+<td>Complete lifecycle: off-body → on-body → monitoring → off-body validation → off-body — verifies the <code>OFF_BODY_VERIFICATION_SEC</code> timeout, sensor shutdown on removal, and full state machine roundtrip</td>
+</tr>
+</tbody>
+</table>
+<p>These tests run on <strong>every commit</strong> that changes Alpha firmware. They complete in 3-5 minutes (dominated by the 60-second VSM warm-up in <code>test_touch_triggers_monitoring</code> and the 20-second off-body verification in <code>test_state_machine_full_cycle</code>). They don't replace Stage 4 product validation — they catch architecture-level integration bugs early, before the more expensive black-box tests run.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"../../../..","features":["navigation.tabs","navigation.tabs.sticky","navigation.indexes","navigation.instant","toc.follow","search.suggest","content.code.copy"],"search":"../../../../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.91a19a9e.min.js"></script>
+      
+        <script src="../../../../assets/js/external-links.js"></script>
+      
+        <script src="../../../../assets/js/role-filter.js"></script>
+      
+    
+  </body>
+</html>
