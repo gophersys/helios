@@ -92,13 +92,13 @@
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold text-text-primary">Edit Product</h3>
           <div class="flex items-center gap-2">
-            <button onclick={cancelEditProduct} class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-2">
+            <button onclick={cancelEditProduct} class="btn btn-sm btn-ghost flex items-center gap-1">
               <X size={14} /> Cancel
             </button>
             <button
               onclick={saveProduct}
               disabled={savingProduct || !editName.trim()}
-              class="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+              class="btn btn-sm btn-primary flex items-center gap-1"
             >
               <Check size={14} /> {savingProduct ? 'Saving...' : 'Save'}
             </button>
@@ -134,9 +134,7 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-3">
             <h2 class="text-lg font-semibold text-text-primary">{product.name}</h2>
-            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium {product.active ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'}">
-              {product.active ? 'Active' : 'Inactive'}
-            </span>
+            <StatusBadge status={product.active ? 'ACTIVE' : 'INACTIVE'} />
             {#if canManage}
               <button onclick={startEditProduct} title="Edit product" aria-label="Edit product" class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary">
                 <Pencil size={14} />
@@ -151,7 +149,7 @@
     {/if}
 
     <!-- ═══ TABS ═══ -->
-    <div class="mt-5 flex gap-1 border-b border-border">
+    <div class="mt-6 flex gap-1 border-b border-border">
       {#each tabs as tab}
         {@const TabIcon = tab.icon}
         <button
@@ -165,7 +163,7 @@
     </div>
 
     <!-- ═══ TAB CONTENT ═══ -->
-    <div class="mt-5">
+    <div class="mt-6">
       {#if activeTab === 'overview'}
         <ProductOverviewTab {product} {canManage} onSwitchTab={(tab) => (activeTab = tab as Tab)} />
       {:else if activeTab === 'hardware'}

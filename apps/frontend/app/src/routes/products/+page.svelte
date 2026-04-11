@@ -1,16 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { Plus, Trash2, GitBranch, ExternalLink, Search } from 'lucide-svelte';
+  import { Plus, Trash2, GitBranch, ExternalLink } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
   import { PageHeader, ErrorAlert, EmptyState, LoadingState, ConfirmDeleteDialog } from '$lib/components/ui';
   import FilterBar from '$lib/components/ui/filter-bar.svelte';
   import FilterSelect from '$lib/components/ui/filter-select.svelte';
+  import FilterSearch from '$lib/components/ui/filter-search.svelte';
+  import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import Pagination from '$lib/components/ui/pagination.svelte';
   import ProductCreationWizard from '$lib/components/products/product-creation-wizard.svelte';
   import type { Product } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
+  import { STAGE_NAMES } from '$lib/types/stages';
 
   const auth = getAuth();
   const canManage = $derived(auth.hasPermission('products:manage'));
@@ -32,13 +35,6 @@
 
   // Wizard state
   let showWizard = $state(false);
-
-  // Stage config
-  const stageLabels = ['SM', 'DR', 'IN', 'RG', 'FU'];
-  const stageNames = ['Smoke', 'Driver', 'Integration', 'Regression', 'FUOTA'];
-  const stageColors: Record<number, string> = {
-    1: 'bg-blue-400', 2: 'bg-cyan-400', 3: 'bg-amber-400', 4: 'bg-purple-400', 5: 'bg-red-400',
-  };
 
   // Filtered products
   const filteredProducts = $derived.by(() => {
@@ -101,6 +97,14 @@
       error = err instanceof Error ? err.message : 'Failed to delete';
     }
   }
+
+  function getStageConfigs(p: Product) {
+    return ((p as any).stageConfigs || []) as Array<{ stage: number; enabled: boolean; type?: string }>;
+  }
+
+  function getRevisions(p: Product) {
+    return ((p as any).revisions || []) as Array<{ version: string; status: string }>;
+  }
 </script>
 
 <svelte:head>
@@ -116,7 +120,7 @@
     {#if canManage && !showWizard}
       <button
         onclick={() => { showWizard = true; }}
-        class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+        class="btn btn-md btn-primary flex items-center gap-2"
       >
         <Plus size={16} />
         New Product
@@ -130,7 +134,7 @@
     <ErrorAlert message={error} />
 
     {#if showWizard && canManage}
-      <div class="mb-4">
+      <div class="mb-6">
         <ProductCreationWizard
           onCreated={() => { showWizard = false; fetchProducts(); }}
           onCancel={() => { showWizard = false; }}
@@ -139,117 +143,135 @@
     {/if}
 
     <!-- Filter bar -->
-    <FilterBar>
-      <div class="relative flex-1">
-        <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-        <input
-          type="text"
-          placeholder="Search products..."
-          bind:value={searchQuery}
-          class="w-full rounded-lg border border-border bg-surface-0 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+    <FilterBar class="mb-4">
+      {#snippet filters()}
+        <FilterSearch bind:value={searchQuery} placeholder="Search products..." class="w-56" />
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          onchange={(v) => { statusFilter = v as 'all' | 'active' | 'inactive'; }}
+          options={[
+            { value: 'all', label: 'All Status' },
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+          ]}
         />
-      </div>
-      <FilterSelect
-        label="Status"
-        value={statusFilter}
-        onchange={(v) => { statusFilter = v as 'all' | 'active' | 'inactive'; }}
-        options={[
-          { value: 'all', label: 'All Status' },
-          { value: 'active', label: 'Active' },
-          { value: 'inactive', label: 'Inactive' },
-        ]}
-      />
+      {/snippet}
+      <span class="ml-auto text-2xs text-text-tertiary shrink-0">
+        {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+      </span>
     </FilterBar>
 
     <!-- Product list -->
     {#if filteredProducts.length === 0}
-      <EmptyState message={searchQuery || statusFilter !== 'all' ? 'No products match your filters' : 'No products yet'} />
+      <EmptyState message={searchQuery || statusFilter !== 'all' ? 'No products match your filters.' : 'No products yet.'} />
     {:else}
-      <div class="mt-4 rounded-xl border border-border bg-surface-1 overflow-hidden">
+      <div class="space-y-3">
         {#each paginatedProducts as p (p.id)}
-          {@const revisions = (p as any).revisions || []}
-          {@const stages = (p as any).stageConfigs || []}
+          {@const revisions = getRevisions(p)}
+          {@const stages = getStageConfigs(p)}
+          {@const valStages = stages.filter(s => !s.type || s.type === 'VALIDATION')}
+          {@const enabledCount = valStages.filter(s => s.enabled).length}
+
           <div
             role="button"
             tabindex="0"
             onclick={() => goto(`/products/${p.id}`)}
             onkeydown={(e) => e.key === 'Enter' && goto(`/products/${p.id}`)}
-            class="group flex items-center gap-4 px-4 py-3 border-b border-border-subtle hover:bg-surface-2/50 cursor-pointer transition-colors last:border-b-0"
+            class="group card card-interactive card-md"
           >
-            <!-- Left: Name + description -->
-            <div class="min-w-0 flex-1">
-              <div class="font-semibold text-sm text-text-primary">{p.name}</div>
-              {#if p.description}
-                <p class="text-2xs text-text-tertiary truncate">{p.description}</p>
+            <!-- Row 1: Name + Status -->
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-3">
+                  <h3 class="text-sm font-semibold text-text-primary">{p.name}</h3>
+                  <StatusBadge status={p.active ? 'ACTIVE' : 'INACTIVE'} />
+                </div>
+                {#if p.description}
+                  <p class="text-xs text-text-secondary mt-0.5">{p.description}</p>
+                {/if}
+              </div>
+
+              {#if canManage}
+                <button
+                  onclick={(e) => { e.stopPropagation(); promptDelete(p.id); }}
+                  class="shrink-0 rounded-lg p-1.5 text-text-tertiary opacity-0 transition-opacity group-hover:opacity-100 hover:text-error"
+                  title="Delete" aria-label="Delete {p.name}"
+                >
+                  <Trash2 size={14} />
+                </button>
               {/if}
             </div>
 
-            <!-- Center: Revisions -->
-            {#if revisions.length > 0}
-              <div class="hidden sm:flex flex-wrap gap-1 shrink-0">
-                {#each revisions as rev}
-                  <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 font-mono text-2xs {rev.status === 'ACTIVE' ? 'text-text-primary' : 'text-text-tertiary line-through'}">
-                    {rev.version.toUpperCase()}
-                  </span>
-                {/each}
-              </div>
-            {/if}
+            <!-- Row 2: Metadata -->
+            <div class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+              <!-- Hardware revisions -->
+              {#if revisions.length > 0}
+                <div class="flex items-center gap-2">
+                  <span class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Hardware</span>
+                  <div class="flex gap-1">
+                    {#each revisions as rev}
+                      <span class="badge {rev.status === 'ACTIVE' ? 'badge-accent' : 'badge-neutral'} font-mono">
+                        {rev.version.toUpperCase()}
+                      </span>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
 
-            <!-- Center: Repo links -->
-            {#if p.fwRepoSlug || p.mfgFwRepoSlug}
-              <div class="hidden md:flex gap-1.5 shrink-0">
-                {#if p.fwRepoSlug}
-                  <a
-                    href="https://bitbucket.org/corekinect/{p.fwRepoSlug}"
-                    target="_blank" rel="noopener noreferrer"
-                    class="inline-flex items-center gap-1 rounded bg-surface-0 px-1.5 py-0.5 font-mono text-2xs text-text-secondary hover:text-accent transition-colors"
-                    onclick={(e) => e.stopPropagation()}
-                  >
-                    <GitBranch size={10} /> {p.fwRepoSlug} <ExternalLink size={8} class="opacity-50" />
-                  </a>
-                {/if}
-                {#if p.mfgFwRepoSlug}
-                  <a
-                    href="https://bitbucket.org/corekinect/{p.mfgFwRepoSlug}"
-                    target="_blank" rel="noopener noreferrer"
-                    class="inline-flex items-center gap-1 rounded bg-surface-0 px-1.5 py-0.5 font-mono text-2xs text-text-secondary hover:text-accent transition-colors"
-                    onclick={(e) => e.stopPropagation()}
-                  >
-                    <GitBranch size={10} /> {p.mfgFwRepoSlug} <ExternalLink size={8} class="opacity-50" />
-                  </a>
-                {/if}
-              </div>
-            {/if}
+              <!-- Repositories -->
+              {#if p.fwRepoSlug || p.mfgFwRepoSlug}
+                <div class="flex items-center gap-2">
+                  <span class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Repos</span>
+                  <div class="flex gap-1.5">
+                    {#if p.fwRepoSlug}
+                      <a
+                        href="https://bitbucket.org/corekinect/{p.fwRepoSlug}"
+                        target="_blank" rel="noopener noreferrer"
+                        class="inline-flex items-center gap-1 rounded-md bg-surface-0 px-2 py-0.5 font-mono text-2xs text-text-secondary hover:text-accent transition-colors"
+                        onclick={(e) => e.stopPropagation()}
+                      >
+                        <GitBranch size={10} />
+                        {p.fwRepoSlug}
+                        <ExternalLink size={8} class="opacity-40" />
+                      </a>
+                    {/if}
+                    {#if p.mfgFwRepoSlug}
+                      <a
+                        href="https://bitbucket.org/corekinect/{p.mfgFwRepoSlug}"
+                        target="_blank" rel="noopener noreferrer"
+                        class="inline-flex items-center gap-1 rounded-md bg-surface-0 px-2 py-0.5 font-mono text-2xs text-text-secondary hover:text-accent transition-colors"
+                        onclick={(e) => e.stopPropagation()}
+                      >
+                        <GitBranch size={10} />
+                        {p.mfgFwRepoSlug}
+                        <ExternalLink size={8} class="opacity-40" />
+                      </a>
+                    {/if}
+                  </div>
+                </div>
+              {/if}
 
-            <!-- Right: Stage pills -->
-            <div class="hidden sm:flex gap-0.5 shrink-0">
-              {#each [1, 2, 3, 4, 5] as stageNum}
-                {@const cfg = stages.find((s: any) => s.stage === stageNum)}
-                <span
-                  class="w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold
-                    {cfg?.enabled ? stageColors[stageNum] + ' text-white' : 'bg-surface-2 text-text-tertiary'}"
-                  title="{stageNames[stageNum - 1]}: {cfg?.enabled ? 'Enabled' : 'Off'}"
-                >
-                  {stageLabels[stageNum - 1]}
-                </span>
-              {/each}
+              <!-- Validation stages -->
+              {#if valStages.length > 0}
+                <div class="flex items-center gap-2">
+                  <span class="text-2xs font-medium uppercase tracking-wider text-text-tertiary">Stages</span>
+                  <div class="flex gap-0.5">
+                    {#each [1, 2, 3, 4, 5] as stageNum}
+                      {@const cfg = valStages.find(s => s.stage === stageNum)}
+                      <span
+                        class="inline-flex items-center justify-center w-6 h-5 rounded text-[10px] font-semibold
+                          {cfg?.enabled ? 'bg-accent-muted text-accent' : 'bg-surface-2 text-text-tertiary'}"
+                        title="{STAGE_NAMES['VALIDATION']?.[stageNum] || `Stage ${stageNum}`}: {cfg?.enabled ? 'Enabled' : 'Off'}"
+                      >
+                        {stageNum}
+                      </span>
+                    {/each}
+                  </div>
+                  <span class="text-2xs text-text-tertiary">{enabledCount}/{valStages.length}</span>
+                </div>
+              {/if}
             </div>
-
-            <!-- Right: Status badge -->
-            <span class="shrink-0 rounded-full px-1.5 py-0.5 text-2xs font-medium {p.active ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'}">
-              {p.active ? 'Active' : 'Inactive'}
-            </span>
-
-            <!-- Right: Delete button (hover reveal) -->
-            {#if canManage}
-              <button
-                onclick={(e) => { e.stopPropagation(); promptDelete(p.id); }}
-                class="shrink-0 rounded-lg p-1.5 text-text-tertiary opacity-0 transition-opacity group-hover:opacity-100 hover:text-error"
-                title="Delete" aria-label="Delete {p.name}"
-              >
-                <Trash2 size={14} />
-              </button>
-            {/if}
           </div>
         {/each}
       </div>
