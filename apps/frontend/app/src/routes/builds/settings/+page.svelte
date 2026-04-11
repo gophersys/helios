@@ -127,7 +127,7 @@
             <div>
               <span class="text-2xs font-medium text-text-tertiary">Webhook URL</span>
               <div class="mt-1 flex items-center gap-2 rounded bg-surface-1 px-3 py-2">
-                <Link size={12} class="flex-shrink-0 text-text-tertiary" />
+                <Link size={12} class="shrink-0 text-text-tertiary" />
                 <code class="flex-1 text-xs font-mono text-text-primary break-all">{repo.webhookUrl}</code>
               </div>
             </div>
@@ -141,7 +141,7 @@
                 </code>
                 <button
                   onclick={() => toggleSecret(repo.id)}
-                  class="flex-shrink-0 rounded p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
+                  class="shrink-0 rounded p-1 text-text-tertiary transition-colors hover:bg-surface-2 hover:text-text-primary"
                   title={revealedSecrets.has(repo.id) ? 'Hide secret' : 'Show secret'}
                 >
                   {#if revealedSecrets.has(repo.id)}

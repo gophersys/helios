@@ -269,15 +269,15 @@
     <div class="grid gap-3 sm:grid-cols-3">
       <label class="block">
         <span class="mb-1 block text-2xs font-medium text-text-tertiary">Version *</span>
-        <input type="text" bind:value={addVersion} placeholder="e.g. C0" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none" />
+        <input type="text" bind:value={addVersion} placeholder="e.g. C0" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden" />
       </label>
       <label class="block">
         <span class="mb-1 block text-2xs font-medium text-text-tertiary">Board Name *</span>
-        <input type="text" bind:value={addCkBoardsName} placeholder="e.g. alpha_c0" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none" />
+        <input type="text" bind:value={addCkBoardsName} placeholder="e.g. alpha_c0" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden" />
       </label>
       <label class="block">
         <span class="mb-1 block text-2xs font-medium text-text-tertiary">SoCs (comma-separated)</span>
-        <input type="text" bind:value={addSocs} placeholder="nrf52840, nrf9151" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none" />
+        <input type="text" bind:value={addSocs} placeholder="nrf52840, nrf9151" class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden" />
       </label>
     </div>
     <div class="flex justify-end gap-2">
@@ -321,11 +321,11 @@
             <div class="grid gap-3 sm:grid-cols-2">
               <label class="block">
                 <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Type</span>
-                <input type="number" min="0" bind:value={editRevDeviceType} class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none" />
+                <input type="number" min="0" bind:value={editRevDeviceType} class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden" />
               </label>
               <label class="block">
                 <span class="mb-1 block text-2xs font-medium text-text-tertiary">Device Variant</span>
-                <input type="number" min="0" bind:value={editRevDeviceVariant} class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none" />
+                <input type="number" min="0" bind:value={editRevDeviceVariant} class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden" />
               </label>
             </div>
             <div class="space-y-2">
@@ -338,7 +338,7 @@
                   <div class="flex-1"></div>
                   <label class="flex items-center gap-1.5">
                     <span class="text-2xs text-text-tertiary">AppID</span>
-                    <input type="number" min="0" bind:value={target.appId} class="w-20 rounded border border-border bg-surface-0 px-2 py-1 text-xs font-mono text-text-primary focus:border-accent focus:outline-none" />
+                    <input type="number" min="0" bind:value={target.appId} class="w-20 rounded border border-border bg-surface-0 px-2 py-1 text-xs font-mono text-text-primary focus:border-accent focus:outline-hidden" />
                   </label>
                 </div>
               {/each}
@@ -428,8 +428,8 @@
           </div>
 
           <!-- Latest build -->
+          {@const latestBuild = latestBuildForRevision(rev)}
           <div class="mt-2 flex items-center gap-2">
-            {@const latestBuild = latestBuildForRevision(rev)}
             {#if latestBuild}
               <a href="/builds" class="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-0.5 text-2xs hover:bg-surface-3 transition-colors no-underline">
                 <StatusBadge status={latestBuild.status} />

@@ -300,7 +300,7 @@
             <select
               id="branch-select"
               bind:value={selectedBranch}
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
             >
               <optgroup label="Branches">
                 {#each branches as branch}
@@ -382,7 +382,7 @@
                 type="text"
                 required
                 bind:value={productName}
-                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
               />
             </label>
             <label class="block">
@@ -390,7 +390,7 @@
               <input
                 type="text"
                 bind:value={productSlug}
-                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
               />
             </label>
           </div>
@@ -400,7 +400,7 @@
               type="text"
               bind:value={productDescription}
               placeholder="Optional description"
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
             />
           </label>
 
@@ -425,7 +425,7 @@
                     type="number"
                     min="0"
                     bind:value={cfg.deviceType}
-                    class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                    class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden"
                   />
                 </label>
                 <label class="block">
@@ -434,7 +434,7 @@
                     type="number"
                     min="0"
                     bind:value={cfg.deviceVariant}
-                    class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                    class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden"
                   />
                 </label>
               </div>
@@ -454,7 +454,7 @@
                         min="0"
                         bind:value={target.appId}
                         placeholder="e.g. 109"
-                        class="w-full rounded-lg border border-border bg-surface-0 px-3 py-1.5 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+                        class="w-full rounded-lg border border-border bg-surface-0 px-3 py-1.5 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden"
                       />
                     </label>
                   </div>
@@ -473,7 +473,7 @@
                   bind:value={fwRepoSlug}
                   oninput={() => onFwSlugChange(fwRepoSlug)}
                   placeholder="e.g. alpha_fw"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
                 />
                 {#if fwRepoStatus === 'checking'}
                   <Loader2 size={14} class="animate-spin text-text-tertiary" />
@@ -492,7 +492,7 @@
                   bind:value={mfgFwRepoSlug}
                   oninput={() => onMfgSlugChange(mfgFwRepoSlug)}
                   placeholder="e.g. alpha_mfg_fw"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
                 />
                 {#if mfgRepoStatus === 'checking'}
                   <Loader2 size={14} class="animate-spin text-text-tertiary" />

@@ -51,26 +51,26 @@
 
 <div class="space-y-6">
   {#if success}
-    <div class="rounded-lg border border-[var(--color-success)] bg-[var(--color-surface-1)] p-3 text-sm text-[var(--color-success)]">
+    <div class="rounded-lg border border-success bg-surface-1 p-3 text-sm text-success">
       {success}
     </div>
   {/if}
   {#if error}
-    <div class="flex items-center gap-2 rounded-lg border border-[var(--color-error)] bg-[var(--color-surface-1)] p-3 text-sm text-[var(--color-error)]">
+    <div class="flex items-center gap-2 rounded-lg border border-error bg-surface-1 p-3 text-sm text-error">
       <AlertCircle size={14} /> {error}
     </div>
   {/if}
 
   <!-- General Settings -->
-  <section class="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5">
+  <section class="rounded-lg border border-border bg-surface-1 p-5">
     <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-2 text-[var(--color-text-primary)]">
+      <div class="flex items-center gap-2 text-(--color-text-primary)">
         <Settings size={16} />
         <h3 class="font-semibold text-sm">General Settings</h3>
       </div>
       {#if canManage && !editing}
         <button onclick={startEdit}
-          class="px-3 py-1.5 text-xs rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] transition-colors">
+          class="px-3 py-1.5 text-xs rounded-lg text-(--color-text-secondary) hover:bg-surface-2 transition-colors">
           Edit
         </button>
       {/if}
@@ -79,22 +79,22 @@
     {#if editing}
       <div class="space-y-3">
         <label class="block">
-          <span class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">Name</span>
+          <span class="block text-xs font-medium text-(--color-text-tertiary) mb-1">Name</span>
           <input type="text" bind:value={editName}
-            class="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-0)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none" />
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-(--color-text-primary) focus:border-accent focus:outline-hidden" />
         </label>
         <label class="block">
-          <span class="block text-xs font-medium text-[var(--color-text-tertiary)] mb-1">Description</span>
+          <span class="block text-xs font-medium text-(--color-text-tertiary) mb-1">Description</span>
           <textarea bind:value={editDescription} rows={3}
-            class="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-0)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)] focus:outline-none"></textarea>
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-(--color-text-primary) focus:border-accent focus:outline-hidden"></textarea>
         </label>
         <div class="flex justify-end gap-2">
           <button onclick={cancelEdit}
-            class="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)]">
+            class="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg text-(--color-text-secondary) hover:bg-surface-2">
             <X size={14} /> Cancel
           </button>
           <button onclick={saveChanges} disabled={saving}
-            class="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg bg-[var(--color-accent)] text-white hover:opacity-90 disabled:opacity-50">
+            class="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg bg-accent text-white hover:opacity-90 disabled:opacity-50">
             <Save size={14} /> {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
@@ -102,9 +102,9 @@
     {:else}
       <dl class="space-y-2 text-sm">
         {#each [['Name', product.name], ['Description', product.description || 'No description'], ['Status', product.active ? 'Active' : 'Inactive']] as [label, value]}
-          <div class="flex items-baseline justify-between py-1 border-b border-[var(--color-border)] last:border-0">
-            <dt class="text-xs text-[var(--color-text-tertiary)]">{label}</dt>
-            <dd class="text-[var(--color-text-primary)]">{value}</dd>
+          <div class="flex items-baseline justify-between py-1 border-b border-border last:border-0">
+            <dt class="text-xs text-(--color-text-tertiary)">{label}</dt>
+            <dd class="text-(--color-text-primary)">{value}</dd>
           </div>
         {/each}
       </dl>
@@ -112,23 +112,23 @@
   </section>
 
   <!-- Repository Info -->
-  <section class="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-1)] p-5">
-    <div class="flex items-center gap-2 text-[var(--color-text-primary)] mb-4">
+  <section class="rounded-lg border border-border bg-surface-1 p-5">
+    <div class="flex items-center gap-2 text-(--color-text-primary) mb-4">
       <GitBranch size={16} />
       <h3 class="font-semibold text-sm">Repositories</h3>
     </div>
     {#if loadingRepos}
-      <div class="h-12 animate-pulse rounded bg-[var(--color-surface-2)]"></div>
+      <div class="h-12 animate-pulse rounded bg-surface-2"></div>
     {:else if repoInfo.length === 0}
-      <p class="text-sm text-[var(--color-text-tertiary)] text-center py-4">No repositories configured.</p>
+      <p class="text-sm text-(--color-text-tertiary) text-center py-4">No repositories configured.</p>
     {:else}
       {#each repoInfo as repo}
-        <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-0)] p-3 mb-2 last:mb-0">
+        <div class="rounded-lg border border-border bg-surface-0 p-3 mb-2 last:mb-0">
           <div class="flex items-center justify-between">
-            <span class="text-xs text-[var(--color-text-tertiary)]">{repo.label}</span>
-            {#if repo.branch}<span class="font-mono text-xs text-[var(--color-text-secondary)]">{repo.branch}</span>{/if}
+            <span class="text-xs text-(--color-text-tertiary)">{repo.label}</span>
+            {#if repo.branch}<span class="font-mono text-xs text-(--color-text-secondary)">{repo.branch}</span>{/if}
           </div>
-          <code class="block truncate text-sm text-[var(--color-text-primary)] mt-1">{repo.url}</code>
+          <code class="block truncate text-sm text-(--color-text-primary) mt-1">{repo.url}</code>
         </div>
       {/each}
     {/if}

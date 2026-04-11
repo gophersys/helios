@@ -70,7 +70,7 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     onmousedown={startResize}
-    class="w-3 mx-0.5 flex-shrink-0 flex items-center justify-center cursor-col-resize group rounded
+    class="w-3 mx-0.5 shrink-0 flex items-center justify-center cursor-col-resize group rounded
       {resizing ? 'bg-accent/20' : 'hover:bg-surface-2'}"
   >
     <div class="w-0.5 h-8 rounded-full transition-colors {resizing ? 'bg-accent' : 'bg-border group-hover:bg-text-tertiary'}"></div>

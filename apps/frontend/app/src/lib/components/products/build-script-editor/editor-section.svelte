@@ -144,14 +144,14 @@
         {readonly}
         height="100%"
         maxHeight=""
-        class="flex-1 min-h-0 [&_.cm-editor]:!h-full"
+        class="flex-1 min-h-0 [&_.cm-editor]:h-full!"
       />
     </div>
 
     <!-- Validation panel (split view) -->
     {#if showValidation && validationResult}
       <div class="w-80 shrink-0 border-l border-border bg-surface-0 flex flex-col overflow-hidden">
-        <Card size="sm" closable onclose={() => (showValidation = false)} class="!rounded-none !border-0 !border-b !border-border flex-shrink-0">
+        <Card size="sm" closable onclose={() => (showValidation = false)} class="rounded-none! border-0! border-b! border-border! shrink-0">
           <span class="text-xs font-semibold text-text-primary">Validation</span>
         </Card>
         <div class="flex-1 overflow-y-auto p-3 space-y-2">
@@ -168,20 +168,20 @@
 
           <!-- Errors -->
           {#each validationResult.errors as err}
-            <Card size="sm" class="!bg-error/5 !border-error/20">
+            <Card size="sm" class="bg-error/5! border-error/20!">
               <div class="flex items-start gap-2">
                 <X size={12} class="text-error shrink-0 mt-0.5" />
-                <p class="text-2xs text-error break-words">{err}</p>
+                <p class="text-2xs text-error wrap-break-word">{err}</p>
               </div>
             </Card>
           {/each}
 
           <!-- Warnings -->
           {#each validationResult.warnings as warn}
-            <Card size="sm" class="!bg-warning/5 !border-warning/20">
+            <Card size="sm" class="bg-warning/5! border-warning/20!">
               <div class="flex items-start gap-2">
                 <AlertTriangle size={12} class="text-warning shrink-0 mt-0.5" />
-                <p class="text-2xs text-warning break-words">{warn}</p>
+                <p class="text-2xs text-warning wrap-break-word">{warn}</p>
               </div>
             </Card>
           {/each}
@@ -209,9 +209,9 @@
         disabled={validating || !content}
         class="btn btn-sm btn-ghost
                {validationResult?.valid === true
-                 ? '!text-success hover:!bg-success-muted'
+                 ? 'text-success! hover:bg-success-muted!'
                  : validationResult?.valid === false
-                   ? '!text-error hover:!bg-error-muted'
+                   ? 'text-error! hover:bg-error-muted!'
                    : ''}"
       >
         {#if validating}

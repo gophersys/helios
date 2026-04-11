@@ -60,7 +60,7 @@
               {test.status === 'skipped' ? 'opacity-60' : ''}
             "
           >
-            <div class="flex-shrink-0 text-text-tertiary">
+            <div class="shrink-0 text-text-tertiary">
               {#if test.expanded}
                 <ChevronDown size={14} />
               {:else}
@@ -68,7 +68,7 @@
               {/if}
             </div>
 
-            <div class="flex-shrink-0">
+            <div class="shrink-0">
               {#if test.status === 'queued'}
                 <Circle size={14} class="text-text-tertiary" />
               {:else if test.status === 'running'}
@@ -116,7 +116,7 @@
                   <div class="px-2 py-2 bg-[#0d1117] max-h-80 overflow-auto font-mono text-xs leading-relaxed">
                     {#each highlighted as line}
                       <div class="flex {line.isMarker ? 'bg-warning/10 border-l-2 border-warning' : line.isError ? 'bg-error/5 border-l-2 border-error' : line.isFilePath ? 'hidden' : ''}">
-                        <span class="w-8 text-right pr-2 select-none flex-shrink-0" style="color: #4b5563">{line.lineNum || ''}</span>
+                        <span class="w-8 text-right pr-2 select-none shrink-0" style="color: #4b5563">{line.lineNum || ''}</span>
                         <span class="flex-1 whitespace-pre-wrap">{#each line.segments as seg}<span style={seg.cls}>{seg.text}</span>{/each}</span>
                       </div>
                     {/each}
@@ -131,7 +131,7 @@
                   <div class="divide-y divide-border/20">
                     {#each test.steps as step (step.index)}
                       <div class="flex items-center gap-2 px-4 py-1.5 text-xs">
-                        <div class="flex-shrink-0">
+                        <div class="shrink-0">
                           {#if step.status === 'passed'}
                             <CheckCircle2 size={12} class="text-success" />
                           {:else if step.status === 'failed'}

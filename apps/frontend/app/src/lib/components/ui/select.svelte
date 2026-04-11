@@ -115,7 +115,7 @@
       {disabled}
       onclick={toggle}
       onkeydown={handleKeydown}
-      class="col-start-1 row-start-1 flex w-full min-w-0 cursor-pointer items-center justify-between border bg-surface-0 text-left text-sm transition-colors hover:border-text-tertiary focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 {open ? 'rounded-t-lg border-accent ring-1 ring-accent/30' : 'rounded-lg border-border'}"
+      class="col-start-1 row-start-1 flex w-full min-w-0 cursor-pointer items-center justify-between border bg-surface-0 text-left text-sm transition-colors hover:border-text-tertiary focus:border-accent focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 {open ? 'rounded-t-lg border-accent ring-1 ring-accent/30' : 'rounded-lg border-border'}"
       class:px-3={!compact}
       class:py-2={!compact}
       class:px-2={compact}

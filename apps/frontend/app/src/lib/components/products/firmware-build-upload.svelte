@@ -150,7 +150,7 @@
           required
           bind:value={formVersion}
           placeholder="e.g. 1.0.0"
-          class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
         />
       </label>
       <Select
@@ -181,7 +181,7 @@
           type="text"
           bind:value={formNotes}
           placeholder="Optional"
-          class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
         />
       </label>
     </div>

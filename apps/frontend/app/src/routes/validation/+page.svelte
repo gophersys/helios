@@ -392,7 +392,7 @@
         <div>
           <label for="notes" class="mb-1 block text-2xs font-medium text-text-tertiary">Notes</label>
           <textarea id="notes" bind:value={formNotes} rows={2} placeholder="Optional notes..."
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
           ></textarea>
         </div>
         <div class="flex justify-end gap-2 pt-1">
@@ -552,7 +552,7 @@
 
               <!-- Progress bar -->
               {#if total > 0}
-                <div class="w-24 h-1.5 bg-surface-2 rounded-full overflow-hidden flex-shrink-0">
+                <div class="w-24 h-1.5 bg-surface-2 rounded-full overflow-hidden shrink-0">
                   <div
                     class="h-full rounded-full transition-all duration-500 {failed > 0 ? 'bg-error' : run.status === 'ACTIVE' ? 'bg-accent' : 'bg-success'}"
                     style="width: {Math.round((passed + failed) / total * 100)}%"
@@ -580,7 +580,7 @@
           </div>
 
           <!-- Right: Duration + time -->
-          <div class="flex flex-col items-end gap-1 text-2xs text-text-tertiary flex-shrink-0">
+          <div class="flex flex-col items-end gap-1 text-2xs text-text-tertiary shrink-0">
             {#if getDuration(run)}
               <span class="tabular-nums">{getDuration(run)}</span>
             {/if}

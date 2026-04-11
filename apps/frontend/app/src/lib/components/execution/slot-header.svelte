@@ -67,7 +67,7 @@
       {/if}
     </div>
 
-    <div class="flex items-center gap-3 flex-shrink-0">
+    <div class="flex items-center gap-3 shrink-0">
       <!-- Connection status -->
       {#if !ctx.connected && isLive}
         <div class="flex items-center gap-1.5 text-warning text-2xs">

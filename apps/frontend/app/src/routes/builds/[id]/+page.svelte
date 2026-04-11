@@ -312,7 +312,7 @@
         <div class="space-y-1">
           {#each artifacts as artifact (artifact.id)}
             <div class="flex items-center gap-3 rounded-lg border border-border bg-surface-0 px-3 py-2">
-              <FileText size={14} class="flex-shrink-0 text-text-tertiary" />
+              <FileText size={14} class="shrink-0 text-text-tertiary" />
               <span class="flex-1 text-sm font-mono text-text-primary truncate">{artifact.name}</span>
               <span class="text-2xs text-text-tertiary tabular-nums">
                 {formatSize(String(artifact.sizeBytes))}

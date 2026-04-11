@@ -594,7 +594,7 @@
                       required
                       bind:value={formKeyName}
                       placeholder="e.g. CI Pipeline"
-                      class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                      class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
                     />
                   </label>
                   <label>
@@ -604,7 +604,7 @@
                     <input
                       type="date"
                       bind:value={formExpiresAt}
-                      class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+                      class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
                     />
                   </label>
                 </div>
@@ -699,12 +699,12 @@
                 <div>
                   <label for="secret-name" class="mb-1 block text-2xs font-medium text-text-tertiary">Name</label>
                   <input id="secret-name" type="text" bind:value={secretName} placeholder="e.g. Bench Signing Key"
-                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none" />
+                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden" />
                 </div>
                 <div>
                   <label for="secret-type" class="mb-1 block text-2xs font-medium text-text-tertiary">Type</label>
                   <select id="secret-type" bind:value={secretType}
-                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none">
+                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden">
                     <option value="signing_key">Signing Key</option>
                     <option value="ssh_key">SSH Key</option>
                     <option value="api_token">API Token</option>
@@ -714,12 +714,12 @@
               <div>
                 <label for="secret-value" class="mb-1 block text-2xs font-medium text-text-tertiary">Value (base64-encoded)</label>
                 <textarea id="secret-value" bind:value={secretValue} rows={3} placeholder="Paste base64-encoded key..."
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"></textarea>
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden resize-none"></textarea>
               </div>
               <div>
                 <label for="secret-desc" class="mb-1 block text-2xs font-medium text-text-tertiary">Description (optional)</label>
                 <input id="secret-desc" type="text" bind:value={secretDescription} placeholder="What this secret is for"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none" />
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden" />
               </div>
               <div class="flex gap-2">
                 <button onclick={handleCreateSecret} disabled={secretSaving || !secretName.trim() || !secretValue.trim()}

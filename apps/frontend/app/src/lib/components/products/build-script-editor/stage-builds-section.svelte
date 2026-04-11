@@ -121,7 +121,7 @@
   <div class="space-y-4">
     {#each stageBuilds as stage}
       {@const Icon = stage.icon}
-      <Card size="sm" class="overflow-hidden !p-0">
+      <Card size="sm" class="overflow-hidden p-0!">
         {#snippet header()}
           <div class="flex flex-1 items-center justify-between">
             <div class="flex items-center gap-2.5">

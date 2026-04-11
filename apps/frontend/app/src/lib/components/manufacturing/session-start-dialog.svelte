@@ -145,7 +145,7 @@
           <select
             id="asset-set-select"
             bind:value={selectedAssetSetId}
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
           >
             <option value="">Latest available</option>
             {#each assetSets as set}
@@ -167,7 +167,7 @@
           bind:value={notes}
           rows="2"
           placeholder="Batch number, shift notes, etc."
-          class="w-full resize-none rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          class="w-full resize-none rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
         ></textarea>
       </div>
     </div>

@@ -110,7 +110,7 @@
       type="text"
       bind:value={searchQuery}
       placeholder="Filter variables and functions..."
-      class="w-full rounded-lg border border-border bg-surface-0 pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+      class="w-full rounded-lg border border-border bg-surface-0 pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
     />
   </div>
 
@@ -123,7 +123,7 @@
       </div>
       <div class="space-y-1.5">
         {#each group.items as variable}
-          <Card interactive size="sm" onclick={() => handleCopy(variable.name)} class="group !bg-surface-0 !border-border-subtle">
+          <Card interactive size="sm" onclick={() => handleCopy(variable.name)} class="group bg-surface-0! border-border-subtle!">
             <div class="flex items-center gap-2">
               <code class="text-xs font-mono font-medium text-accent">{variable.name}</code>
               <span class="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -153,7 +153,7 @@
       </div>
       <div class="space-y-1.5">
         {#each filteredFunctions as func}
-          <Card interactive size="sm" onclick={() => handleCopy(func.name)} class="group !bg-surface-0 !border-border-subtle">
+          <Card interactive size="sm" onclick={() => handleCopy(func.name)} class="group bg-surface-0! border-border-subtle!">
             <div class="flex items-center gap-2">
               <code class="text-xs font-mono font-medium text-accent">{func.name}</code>
               <span class="opacity-0 group-hover:opacity-100 transition-opacity">

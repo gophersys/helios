@@ -1,9 +1,592 @@
-@import '@fontsource-variable/inter';
-@import '@fontsource/poppins/400.css';
-@import '@fontsource/poppins/500.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import '@fontsource-variable/inter' layer(base);
+@import '@fontsource/poppins/400.css' layer(base);
+@import '@fontsource/poppins/500.css' layer(base);
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: Inter Variable, Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: JetBrains Mono, Fira Code, Consolas, monospace;
+
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-muted: var(--accent-muted);
+  --color-accent-subtle: var(--accent-subtle);
+
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-active: var(--sidebar-active-bg);
+  --color-sidebar-active-border: var(--sidebar-active-border);
+  --color-sidebar-hover: var(--sidebar-hover-bg);
+
+  --color-success: var(--success);
+  --color-success-muted: var(--success-muted);
+
+  --color-warning: var(--warning);
+  --color-warning-hover: var(--warning-hover);
+  --color-warning-muted: var(--warning-muted);
+
+  --color-error: var(--error);
+  --color-error-hover: var(--error-hover);
+  --color-error-muted: var(--error-muted);
+
+  --color-info: var(--info);
+  --color-info-muted: var(--info-muted);
+
+  --color-overlay: var(--overlay);
+  --color-card-glow: var(--card-glow);
+
+  --spacing-sidebar: 256px;
+  --spacing-sidebar-collapsed: 64px;
+  --spacing-content-sm: 640px;
+  --spacing-content-md: 768px;
+  --spacing-content-lg: 1024px;
+  --spacing-content-xl: 1280px;
+  --spacing-content-2xl: 1440px;
+  --spacing-input-sm: 32px;
+  --spacing-input-md: 40px;
+  --spacing-input-lg: 48px;
+  --spacing-btn-sm: 32px;
+  --spacing-btn-md: 40px;
+  --spacing-btn-lg: 48px;
+  --spacing-header: 64px;
+  --spacing-card-hero: 160px;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-2xs--letter-spacing: 0.01em;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
+
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-card:
+    0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover:
+    0 4px 16px 0 rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+  --shadow-elevated:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-modal:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px var(--card-glow);
+  --shadow-card-dark:
+    0 1px 4px 0 rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-card-dark-hover:
+    0 4px 16px 0 rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+
+  --default-transition-duration: 150ms;
+  --transition-duration-fast: 100ms;
+  --transition-duration-normal: 200ms;
+  --transition-duration-slow: 300ms;
+
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-fade-in-up: fade-in-up 0.3s ease-out;
+  --animate-overlay-in: overlay-in 150ms ease-out;
+  --animate-modal-in: modal-in 200ms ease-out;
+  --animate-slide-in-right: slide-in-right 0.3s ease-out;
+
+  --container-prose: 65ch;
+  --container-form: 480px;
+
+  --z-index-dropdown: 50;
+  --z-index-sticky: 100;
+  --z-index-fixed: 200;
+  --z-index-modal-backdrop: 300;
+  --z-index-modal: 400;
+  --z-index-popover: 500;
+  --z-index-tooltip: 600;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes overlay-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes modal-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPONENT LAYER - Reusable component styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@utility btn {
+  /* ─────────────────────────────────────────────────────────────────────
+     BUTTONS - Consistent sizing aligned to 8px grid
+     ───────────────────────────────────────────────────────────────────── */
+  @apply inline-flex items-center justify-center gap-2 font-medium rounded-md
+           transition-colors duration-150 ease-out
+           disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+@utility btn-sm {
+  @apply h-8 px-3 text-sm; /* 32px height */
+}
+
+@utility btn-md {
+  @apply h-10 px-4 text-sm; /* 40px height */
+}
+
+@utility btn-lg {
+  @apply h-12 px-6 text-base; /* 48px height */
+}
+
+@utility btn-primary {
+  @apply bg-accent text-white hover:bg-accent-hover;
+}
+
+@utility btn-secondary {
+  @apply bg-surface-2 text-text-primary hover:bg-surface-3;
+}
+
+@utility btn-ghost {
+  @apply bg-transparent text-text-secondary hover:bg-surface-2 hover:text-text-primary;
+}
+
+@utility btn-danger {
+  @apply bg-error text-white hover:bg-error-hover;
+}
+
+@utility btn-icon {
+  @apply p-0 aspect-square;
+}
+
+@utility brand-text {
+  /* ─────────────────────────────────────────────────────────────────────
+     BRAND TEXT - Geometric font for branding
+     ───────────────────────────────────────────────────────────────────── */
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+@utility input {
+  /* ─────────────────────────────────────────────────────────────────────
+     INPUTS - Consistent sizing aligned to 8px grid
+     ───────────────────────────────────────────────────────────────────── */
+  @apply w-full rounded-md border border-border bg-surface-1 text-text-primary
+           placeholder:text-text-tertiary
+           focus:outline-hidden focus:border-accent
+           transition-colors duration-150;
+  &:focus {
+    box-shadow: 0 0 0 3px var(--accent-muted);
+  }
+}
+
+@utility input-sm {
+  @apply h-8 px-3 text-sm; /* 32px height */
+}
+
+@utility input-md {
+  @apply h-10 px-3 text-sm; /* 40px height */
+}
+
+@utility input-lg {
+  @apply h-12 px-4 text-base; /* 48px height */
+}
+
+@utility card {
+  /* ─────────────────────────────────────────────────────────────────────
+     CARDS - Consistent padding and rounded corners
+     ───────────────────────────────────────────────────────────────────── */
+  @apply rounded-lg border border-border bg-surface-1;
+}
+
+@utility card-sm {
+  @apply p-4; /* 16px */
+}
+
+@utility card-md {
+  @apply p-5; /* 20px */
+}
+
+@utility card-lg {
+  @apply p-6; /* 24px */
+}
+
+@utility card-interactive {
+  @apply transition-all duration-150 hover:shadow-card-hover hover:border-border-subtle cursor-pointer;
+}
+
+@utility badge {
+  /* ─────────────────────────────────────────────────────────────────────
+     BADGES/CHIPS - Small labels and status indicators
+     ───────────────────────────────────────────────────────────────────── */
+  @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-medium;
+}
+
+@utility badge-accent {
+  @apply bg-accent-muted text-accent;
+}
+
+@utility badge-success {
+  @apply bg-success-muted text-success;
+}
+
+@utility badge-warning {
+  @apply bg-warning-muted text-warning;
+}
+
+@utility badge-error {
+  @apply bg-error-muted text-error;
+}
+
+@utility badge-info {
+  @apply bg-info-muted text-info;
+}
+
+@utility badge-neutral {
+  @apply bg-surface-2 text-text-secondary;
+}
+
+@utility table-wrapper {
+  /* ─────────────────────────────────────────────────────────────────────
+     TABLE STYLES - Consistent cell padding and row heights
+     All table rows should be exactly 48px height (h-12) for uniformity
+     ───────────────────────────────────────────────────────────────────── */
+  @apply rounded-lg border border-border overflow-x-auto;
+}
+
+@utility table {
+  @apply w-full min-w-[640px];
+}
+
+@utility table-header {
+  @apply h-10 px-4 text-left text-2xs font-medium uppercase tracking-wide text-text-tertiary bg-surface-2;
+}
+
+@utility table-cell {
+  @apply h-12 px-4 text-sm align-middle;
+}
+
+@utility table-row {
+  @apply border-b border-border bg-surface-1 transition-colors;
+
+  &:last-child {
+    @apply border-b-0;
+  }
+}
+
+@utility table-row-interactive {
+  @apply cursor-pointer hover:bg-surface-2;
+}
+
+@utility table-empty {
+  @apply h-32 text-center text-sm text-text-tertiary;
+}
+
+@utility page-header {
+  /* ─────────────────────────────────────────────────────────────────────
+     SECTION/PAGE STRUCTURE
+     ───────────────────────────────────────────────────────────────────── */
+  @apply mb-6;
+}
+
+@utility page-title {
+  @apply text-xl font-semibold text-text-primary;
+}
+
+@utility page-subtitle {
+  @apply text-sm text-text-secondary mt-1;
+}
+
+@utility section {
+  @apply space-y-4;
+}
+
+@utility section-title {
+  @apply text-lg font-semibold text-text-primary;
+}
+
+@utility icon-xs {
+  /* ─────────────────────────────────────────────────────────────────────
+     ICON SIZING - Consistent icon sizes to pair with text
+     ───────────────────────────────────────────────────────────────────── */
+  @apply w-3 h-3;
+}
+
+@utility icon-sm {
+  /* 12px - with text-2xs */
+  @apply w-4 h-4;
+}
+
+@utility icon-md {
+  /* 16px - with text-xs/sm */
+  @apply w-5 h-5;
+}
+
+@utility icon-lg {
+  /* 20px - with text-base */
+  @apply w-6 h-6;
+}
+
+@utility icon-xl {
+  /* 24px - standalone or headers */
+  @apply w-8 h-8;
+}
+
+@utility form-group {
+  /* 32px - feature icons */
+
+  /* ─────────────────────────────────────────────────────────────────────
+     FORM LAYOUT
+     ───────────────────────────────────────────────────────────────────── */
+  @apply space-y-1.5;
+}
+
+@utility form-label {
+  @apply block text-sm font-medium text-text-primary;
+}
+
+@utility form-hint {
+  @apply text-xs text-text-tertiary;
+}
+
+@utility form-error {
+  @apply text-xs text-error;
+}
+
+@utility text-primary {
+  /* ─────────────────────────────────────────────────────────────────────
+     UTILITY SHORTCUTS
+     ───────────────────────────────────────────────────────────────────── */
+  @apply text-text-primary;
+}
+
+@utility text-secondary {
+  @apply text-text-secondary;
+}
+
+@utility text-tertiary {
+  @apply text-text-tertiary;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES LAYER - Additional utility classes
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@utility truncate-2 {
+  /* Truncate with ellipsis */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@utility truncate-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@utility scrollbar-hide {
+  /* Hide scrollbar but keep functionality */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility scroll-smooth {
+  /* Smooth scrolling */
+  scroll-behavior: smooth;
+}
+
+@utility ansi-black {
+  /* ─────────────────────────────────────────────────────────────────────
+     ANSI TERMINAL COLORS - For build log rendering
+     ───────────────────────────────────────────────────────────────────── */
+  color: #2e2e2e;
+
+  /* Dark mode adjustments for ANSI colors */
+  .dark & {
+    color: #6c6c6c;
+  }
+}
+
+@utility ansi-red {
+  color: #c75646;
+}
+
+@utility ansi-green {
+  color: #8eb33b;
+}
+
+@utility ansi-yellow {
+  color: #d0b03c;
+}
+
+@utility ansi-blue {
+  color: #4e90d7;
+}
+
+@utility ansi-magenta {
+  color: #c26fc0;
+}
+
+@utility ansi-cyan {
+  color: #55bebe;
+}
+
+@utility ansi-white {
+  color: #d0d0d0;
+  .dark & {
+    color: #f0f0f0;
+  }
+}
+
+@utility ansi-bright-black {
+  color: #5c5c5c;
+}
+
+@utility ansi-bright-red {
+  color: #e09690;
+}
+
+@utility ansi-bright-green {
+  color: #cdee69;
+}
+
+@utility ansi-bright-yellow {
+  color: #ffe377;
+}
+
+@utility ansi-bright-blue {
+  color: #6dbcfa;
+}
+
+@utility ansi-bright-magenta {
+  color: #e4b5db;
+}
+
+@utility ansi-bright-cyan {
+  color: #9aedfe;
+}
+
+@utility ansi-bright-white {
+  color: #f7f7f7;
+}
+
+@utility ansi-bold {
+  font-weight: 700;
+}
+
+@utility ansi-dim {
+  opacity: 0.6;
+}
+
+@utility ansi-italic {
+  font-style: italic;
+}
+
+@utility ansi-underline {
+  text-decoration: underline;
+}
+
+@utility dark {
+  /* Dark mode adjustments for ANSI colors */
+  & .ansi-black {
+    color: #6c6c6c;
+  }
+  & .ansi-white {
+    color: #f0f0f0;
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    DESIGN SYSTEM - Concord Application
@@ -186,301 +769,6 @@
       scroll-behavior: auto !important;
     }
   }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   COMPONENT LAYER - Reusable component styles
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-@layer components {
-  /* ─────────────────────────────────────────────────────────────────────
-     BUTTONS - Consistent sizing aligned to 8px grid
-     ───────────────────────────────────────────────────────────────────── */
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 font-medium rounded-md
-           transition-colors duration-150 ease-out
-           disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-sm {
-    @apply h-8 px-3 text-sm;  /* 32px height */
-  }
-
-  .btn-md {
-    @apply h-10 px-4 text-sm;  /* 40px height */
-  }
-
-  .btn-lg {
-    @apply h-12 px-6 text-base;  /* 48px height */
-  }
-
-  .btn-primary {
-    @apply bg-accent text-white hover:bg-accent-hover;
-  }
-
-  .btn-secondary {
-    @apply bg-surface-2 text-text-primary hover:bg-surface-3;
-  }
-
-  .btn-ghost {
-    @apply bg-transparent text-text-secondary hover:bg-surface-2 hover:text-text-primary;
-  }
-
-  .btn-danger {
-    @apply bg-error text-white hover:bg-error-hover;
-  }
-
-  .btn-icon {
-    @apply p-0 aspect-square;
-  }
-
-  /* ─────────────────────────────────────────────────────────────────────
-     BRAND TEXT - Geometric font for branding
-     ───────────────────────────────────────────────────────────────────── */
-  .brand-text {
-    font-family: 'Poppins', sans-serif;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-  }
-
-  /* ─────────────────────────────────────────────────────────────────────
-     INPUTS - Consistent sizing aligned to 8px grid
-     ───────────────────────────────────────────────────────────────────── */
-  .input {
-    @apply w-full rounded-md border border-border bg-surface-1 text-text-primary
-           placeholder:text-text-tertiary
-           focus:outline-none focus:border-accent
-           transition-colors duration-150;
-    &:focus {
-      box-shadow: 0 0 0 3px var(--accent-muted);
-    }
-  }
-
-  .input-sm {
-    @apply h-8 px-3 text-sm;  /* 32px height */
-  }
-
-  .input-md {
-    @apply h-10 px-3 text-sm;  /* 40px height */
-  }
-
-  .input-lg {
-    @apply h-12 px-4 text-base;  /* 48px height */
-  }
-
-  /* ─────────────────────────────────────────────────────────────────────
-     CARDS - Consistent padding and rounded corners
-     ───────────────────────────────────────────────────────────────────── */
-  .card {
-    @apply rounded-lg border border-border bg-surface-1;
-  }
-
-  .card-sm {
-    @apply p-4;  /* 16px */
-  }
-
-  .card-md {
-    @apply p-5;  /* 20px */
-  }
-
-  .card-lg {
-    @apply p-6;  /* 24px */
-  }
-
-  .card-interactive {
-    @apply transition-all duration-150 hover:shadow-card-hover hover:border-border-subtle cursor-pointer;
-  }
-
-  /* ─────────────────────────────────────────────────────────────────────
-     BADGES/CHIPS - Small labels and status indicators
-     ───────────────────────────────────────────────────────────────────── */
-  .badge {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-medium;
-  }
-
-  .badge-accent {
-    @apply bg-accent-muted text-accent;
-  }
-
-  .badge-success {
-    @apply bg-success-muted text-success;
-  }
-
-  .badge-warning {
-    @apply bg-warning-muted text-warning;
-  }
-
-  .badge-error {
-    @apply bg-error-muted text-error;
-  }
-
-  .badge-info {
-    @apply bg-info-muted text-info;
-  }
-
-  .badge-neutral {
-    @apply bg-surface-2 text-text-secondary;
-  }
-
-  /* ─────────────────────────────────────────────────────────────────────
-     TABLE STYLES - Consistent cell padding and row heights
-     All table rows should be exactly 48px height (h-12) for uniformity
-     ───────────────────────────────────────────────────────────────────── */
-  .table-wrapper {
-    @apply rounded-lg border border-border overflow-x-auto;
-  }
-
-  .table {
-    @apply w-full min-w-[640px];
-  }
-
-  .table-header {
-    @apply h-10 px-4 text-left text-2xs font-medium uppercase tracking-wide text-text-tertiary bg-surface-2;
-  }
-
-  .table-cell {
-    @apply h-12 px-4 text-sm align-middle;
-  }
-
-  .table-row {
-    @apply border-b border-border bg-surface-1 transition-colors;
-  }
-
-  .table-row-interactive {
-    @apply cursor-pointer hover:bg-surface-2;
-  }
-
-  .table-row:last-child {
-    @apply border-b-0;
-  }
-
-  .table-empty {
-    @apply h-32 text-center text-sm text-text-tertiary;
-  }
-
-  /* ─────────────────────────────────────────────────────────────────────
-     SECTION/PAGE STRUCTURE
-     ───────────────────────────────────────────────────────────────────── */
-  .page-header {
-    @apply mb-6;
-  }
-
-  .page-title {
-    @apply text-xl font-semibold text-text-primary;
-  }
-
-  .page-subtitle {
-    @apply text-sm text-text-secondary mt-1;
-  }
-
-  .section {
-    @apply space-y-4;
-  }
-
-  .section-title {
-    @apply text-lg font-semibold text-text-primary;
-  }
-
-  /* ─────────────────────────────────────────────────────────────────────
-     ICON SIZING - Consistent icon sizes to pair with text
-     ───────────────────────────────────────────────────────────────────── */
-  .icon-xs { @apply w-3 h-3; }      /* 12px - with text-2xs */
-  .icon-sm { @apply w-4 h-4; }      /* 16px - with text-xs/sm */
-  .icon-md { @apply w-5 h-5; }      /* 20px - with text-base */
-  .icon-lg { @apply w-6 h-6; }      /* 24px - standalone or headers */
-  .icon-xl { @apply w-8 h-8; }      /* 32px - feature icons */
-
-  /* ─────────────────────────────────────────────────────────────────────
-     FORM LAYOUT
-     ───────────────────────────────────────────────────────────────────── */
-  .form-group {
-    @apply space-y-1.5;
-  }
-
-  .form-label {
-    @apply block text-sm font-medium text-text-primary;
-  }
-
-  .form-hint {
-    @apply text-xs text-text-tertiary;
-  }
-
-  .form-error {
-    @apply text-xs text-error;
-  }
-
-  /* ─────────────────────────────────────────────────────────────────────
-     UTILITY SHORTCUTS
-     ───────────────────────────────────────────────────────────────────── */
-  .text-primary { @apply text-text-primary; }
-  .text-secondary { @apply text-text-secondary; }
-  .text-tertiary { @apply text-text-tertiary; }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   UTILITIES LAYER - Additional utility classes
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-@layer utilities {
-  /* Truncate with ellipsis */
-  .truncate-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .truncate-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  /* Hide scrollbar but keep functionality */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Smooth scrolling */
-  .scroll-smooth {
-    scroll-behavior: smooth;
-  }
-
-  /* ─────────────────────────────────────────────────────────────────────
-     ANSI TERMINAL COLORS - For build log rendering
-     ───────────────────────────────────────────────────────────────────── */
-  .ansi-black { color: #2e2e2e; }
-  .ansi-red { color: #c75646; }
-  .ansi-green { color: #8eb33b; }
-  .ansi-yellow { color: #d0b03c; }
-  .ansi-blue { color: #4e90d7; }
-  .ansi-magenta { color: #c26fc0; }
-  .ansi-cyan { color: #55bebe; }
-  .ansi-white { color: #d0d0d0; }
-
-  .ansi-bright-black { color: #5c5c5c; }
-  .ansi-bright-red { color: #e09690; }
-  .ansi-bright-green { color: #cdee69; }
-  .ansi-bright-yellow { color: #ffe377; }
-  .ansi-bright-blue { color: #6dbcfa; }
-  .ansi-bright-magenta { color: #e4b5db; }
-  .ansi-bright-cyan { color: #9aedfe; }
-  .ansi-bright-white { color: #f7f7f7; }
-
-  .ansi-bold { font-weight: 700; }
-  .ansi-dim { opacity: 0.6; }
-  .ansi-italic { font-style: italic; }
-  .ansi-underline { text-decoration: underline; }
-
-  /* Dark mode adjustments for ANSI colors */
-  .dark .ansi-black { color: #6c6c6c; }
-  .dark .ansi-white { color: #f0f0f0; }
 }
 
 

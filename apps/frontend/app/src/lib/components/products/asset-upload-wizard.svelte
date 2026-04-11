@@ -696,7 +696,7 @@
                               <select
                                 value={file.assignedLabel}
                                 onchange={(e) => setFileLabel(i, (e.target as HTMLSelectElement).value)}
-                                class="w-full rounded border border-border bg-surface-0 px-2 py-1 text-2xs text-text-primary focus:border-accent focus:outline-none"
+                                class="w-full rounded border border-border bg-surface-0 px-2 py-1 text-2xs text-text-primary focus:border-accent focus:outline-hidden"
                               >
                                 <option value="">Select label...</option>
                                 {#if file.suggestedLabel && file.confidence === 'medium'}
@@ -744,7 +744,7 @@
                   type="text"
                   bind:value={uploadVersion}
                   placeholder="e.g., 0.5.2"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
                 />
               </div>
 
@@ -758,7 +758,7 @@
                     <select
                       id="files-modem-select"
                       bind:value={selectedModemFirmwareId}
-                      class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+                      class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
                     >
                       <option value={null}>Select modem firmware...</option>
                       {#each analyzeAvailableModemFirmwares as fw}
@@ -784,7 +784,7 @@
                   bind:value={uploadNotes}
                   placeholder="Notes about this firmware..."
                   rows="2"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden resize-none"
                 ></textarea>
               </div>
 
@@ -925,7 +925,7 @@
                     type="text"
                     bind:value={uploadVersion}
                     placeholder="e.g., 0.5.2"
-                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
                   />
                 </div>
 
@@ -939,7 +939,7 @@
                     bind:value={uploadNotes}
                     placeholder="Notes about this firmware..."
                     rows="2"
-                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none resize-none"
+                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden resize-none"
                   ></textarea>
                 </div>
 
@@ -953,7 +953,7 @@
                       <select
                         id="zip-modem-select"
                         bind:value={selectedModemFirmwareId}
-                        class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+                        class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
                       >
                         <option value={null}>Select modem firmware...</option>
                         {#each validationResult.availableModemFirmwares as fw}

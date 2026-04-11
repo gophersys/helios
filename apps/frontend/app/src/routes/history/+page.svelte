@@ -237,7 +237,7 @@
             type="date"
             bind:value={dateFrom}
             aria-label="From date"
-            class="rounded-md border border-border bg-surface-0 py-1.5 pl-8 pr-2 text-xs text-text-primary transition-colors hover:border-text-tertiary focus:border-accent focus:outline-none"
+            class="rounded-md border border-border bg-surface-0 py-1.5 pl-8 pr-2 text-xs text-text-primary transition-colors hover:border-text-tertiary focus:border-accent focus:outline-hidden"
           />
         </div>
         <ArrowRight size={14} class="text-text-tertiary" />
@@ -245,7 +245,7 @@
           type="date"
           bind:value={dateTo}
           aria-label="To date"
-          class="rounded-md border border-border bg-surface-0 px-2 py-1.5 text-xs text-text-primary transition-colors hover:border-text-tertiary focus:border-accent focus:outline-none"
+          class="rounded-md border border-border bg-surface-0 px-2 py-1.5 text-xs text-text-primary transition-colors hover:border-text-tertiary focus:border-accent focus:outline-hidden"
         />
       </div>
     {/snippet}

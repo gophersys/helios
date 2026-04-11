@@ -24,7 +24,7 @@
   <select
     {value}
     onchange={handleChange}
-    class="rounded-md border border-border bg-surface-0 px-2.5 py-1.5 text-xs text-text-primary transition-colors hover:border-text-tertiary focus:border-accent focus:outline-none"
+    class="rounded-md border border-border bg-surface-0 px-2.5 py-1.5 text-xs text-text-primary transition-colors hover:border-text-tertiary focus:border-accent focus:outline-hidden"
   >
     <option value="">{allLabel}</option>
     {#each options as opt}

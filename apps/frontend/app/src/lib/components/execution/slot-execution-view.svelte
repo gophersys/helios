@@ -54,7 +54,7 @@
   <div class="flex flex-col relative" style="height: calc(100vh - 160px);">
     <!-- Telemetry loading overlay -->
     {#if slot.telemetryLoading && slot.analysisMode}
-      <div class="absolute inset-0 z-20 flex items-center justify-center bg-surface-0/60 backdrop-blur-sm rounded-lg">
+      <div class="absolute inset-0 z-20 flex items-center justify-center bg-surface-0/60 backdrop-blur-xs rounded-lg">
         <div class="flex flex-col items-center gap-3">
           <Loader2 size={28} class="text-accent animate-spin" />
           <span class="text-sm text-text-secondary font-medium">Loading telemetry data...</span>
@@ -65,7 +65,7 @@
     <!-- Top row: stages + tests + charts -->
     <div class="flex overflow-hidden" style="flex: 0 0 {slot.topPanelHeight}%;">
       <!-- Stage sidebar -->
-      <div class="flex-shrink-0 overflow-y-auto" style="width: {slot.sidebarWidth}px;">
+      <div class="shrink-0 overflow-y-auto" style="width: {slot.sidebarWidth}px;">
         <SlotStageSidebar />
       </div>
 
@@ -98,7 +98,7 @@
       </div>
 
       <!-- Charts (right side, xl+ only) -->
-      <div class="flex-shrink-0 hidden xl:flex flex-col gap-2" style="width: {slot.chartsWidth}px;">
+      <div class="shrink-0 hidden xl:flex flex-col gap-2" style="width: {slot.chartsWidth}px;">
         <SlotChartPanel />
       </div>
     </div>

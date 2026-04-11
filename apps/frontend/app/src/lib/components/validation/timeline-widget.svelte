@@ -196,7 +196,7 @@
 </script>
 
 <div class="flex items-center gap-1.5 min-w-0" style="height: {h}px;">
-  <span class="text-2xs font-mono text-text-tertiary flex-shrink-0">{timeStart ? new Date(timeStart * 1000).toISOString().slice(11, 19) : ''}</span>
+  <span class="text-2xs font-mono text-text-tertiary shrink-0">{timeStart ? new Date(timeStart * 1000).toISOString().slice(11, 19) : ''}</span>
   <div bind:this={containerEl} class="relative flex-1 min-w-0" style="height: {h}px;">
     <canvas
       bind:this={canvas}
@@ -214,11 +214,11 @@
       </div>
     {/if}
   </div>
-  <span class="text-2xs font-mono text-text-tertiary flex-shrink-0">{timeEnd ? new Date(timeEnd * 1000).toISOString().slice(11, 19) : ''}</span>
+  <span class="text-2xs font-mono text-text-tertiary shrink-0">{timeEnd ? new Date(timeEnd * 1000).toISOString().slice(11, 19) : ''}</span>
   {#if selectedRange}
     <button
       onclick={() => { selectedRange = null; }}
-      class="flex-shrink-0 flex items-center gap-1 rounded px-2 py-0.5 text-2xs transition-all whitespace-nowrap
+      class="shrink-0 flex items-center gap-1 rounded px-2 py-0.5 text-2xs transition-all whitespace-nowrap
         bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 cursor-pointer"
       title="Clear selection (Esc)"
     >Clear ✕</button>

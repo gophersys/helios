@@ -262,7 +262,7 @@
             id="profile"
             bind:value={formProfileTemplate}
             rows={6}
-            class="font-mono w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            class="font-mono w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
           ></textarea>
         </div>
 
@@ -284,7 +284,7 @@
             bind:value={formNotes}
             rows={2}
             placeholder="Optional notes about this design..."
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
           ></textarea>
         </div>
 

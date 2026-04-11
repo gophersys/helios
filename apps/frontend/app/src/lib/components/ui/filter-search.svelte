@@ -18,7 +18,7 @@
     type="text"
     bind:value
     {placeholder}
-    class="w-full rounded-md border border-border bg-surface-0 py-1.5 pl-8 pr-7 text-xs text-text-primary placeholder:text-text-tertiary transition-colors hover:border-text-tertiary focus:border-accent focus:outline-none"
+    class="w-full rounded-md border border-border bg-surface-0 py-1.5 pl-8 pr-7 text-xs text-text-primary placeholder:text-text-tertiary transition-colors hover:border-text-tertiary focus:border-accent focus:outline-hidden"
   />
   {#if value}
     <button

@@ -59,7 +59,7 @@
         <button
           type="button"
           onclick={() => onPageChange(p)}
-          class="inline-flex min-w-[1.5rem] items-center justify-center rounded px-1.5 py-0.5 text-xs font-medium transition-colors {p === page ? 'bg-accent text-white' : 'text-text-secondary hover:bg-surface-2'}"
+          class="inline-flex min-w-6 items-center justify-center rounded px-1.5 py-0.5 text-xs font-medium transition-colors {p === page ? 'bg-accent text-white' : 'text-text-secondary hover:bg-surface-2'}"
           aria-current={p === page ? 'page' : undefined}
         >
           {p}

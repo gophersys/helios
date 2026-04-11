@@ -60,7 +60,7 @@
 {#if open}
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 z-modal-backdrop bg-overlay backdrop-blur-sm"
+    class="fixed inset-0 z-modal-backdrop bg-overlay backdrop-blur-xs"
     in:fade={overlayIn}
     out:fade={overlayOut}
     onclick={handleBackdropClick}

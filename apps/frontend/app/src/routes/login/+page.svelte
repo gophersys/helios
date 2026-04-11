@@ -477,7 +477,7 @@
               bind:value={email}
               placeholder="you@company.com"
               required
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent"
             />
           </div>
           <div>
@@ -490,7 +490,7 @@
               bind:value={password}
               placeholder="Enter your password"
               required
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent"
             />
           </div>
           <button

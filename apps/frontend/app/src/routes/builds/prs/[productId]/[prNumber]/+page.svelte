@@ -185,7 +185,7 @@
         <!-- Title row -->
         <div class="flex items-start justify-between gap-4 mb-3">
           <div class="flex items-center gap-3">
-            <GitPullRequest size={20} class="text-accent flex-shrink-0" />
+            <GitPullRequest size={20} class="text-accent shrink-0" />
             <h1 class="text-xl font-semibold text-text-primary">
               PR #{prNumber}: {prMeta.prTitle}
             </h1>

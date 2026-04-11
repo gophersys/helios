@@ -27,14 +27,14 @@
     {#each slots as slot (slot.index)}
       <button
         onclick={() => onSelect(slot.index)}
-        class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors flex-shrink-0
+        class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors shrink-0
           {activeIndex === slot.index
             ? 'bg-accent-muted border border-accent/30 text-text-primary font-medium'
             : 'hover:bg-surface-1 text-text-secondary border border-transparent'
           }"
       >
         <!-- Status dot -->
-        <div class="flex-shrink-0">
+        <div class="shrink-0">
           {#if slot.status === 'RUNNING'}
             <span class="relative flex h-2 w-2">
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>

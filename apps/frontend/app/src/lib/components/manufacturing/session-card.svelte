@@ -63,7 +63,7 @@
   </div>
 
   <!-- Right: Duration + time -->
-  <div class="flex flex-col items-end gap-1 text-2xs text-text-tertiary flex-shrink-0">
+  <div class="flex flex-col items-end gap-1 text-2xs text-text-tertiary shrink-0">
     {#if duration}
       <span class="tabular-nums">{duration}</span>
     {/if}

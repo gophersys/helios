@@ -128,7 +128,7 @@
           onkeydown={handleKeydown}
           placeholder={name}
           disabled={loading}
-          class="w-full rounded-lg border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none disabled:opacity-50 {confirmText.length > 0 && !isMatch ? 'border-error focus:border-error' : 'border-border focus:border-accent'}"
+          class="w-full rounded-lg border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-hidden disabled:opacity-50 {confirmText.length > 0 && !isMatch ? 'border-error focus:border-error' : 'border-border focus:border-accent'}"
           autofocus
         />
       </div>

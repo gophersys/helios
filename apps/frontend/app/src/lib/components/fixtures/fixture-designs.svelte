@@ -222,7 +222,7 @@
               required
               bind:value={formName}
               placeholder="e.g. Alpha B0 REV 1.2"
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
             />
           </label>
           <label>
@@ -232,7 +232,7 @@
               required
               bind:value={formRevision}
               placeholder="e.g. 1.2"
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
             />
           </label>
           <Select
@@ -255,7 +255,7 @@
               type="text"
               bind:value={formCapabilities}
               placeholder="e.g. button, peltier, charger_relay, ppg_servo"
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
             />
           </label>
           <label class="col-span-2">
@@ -263,7 +263,7 @@
             <textarea
               bind:value={formProfileTemplate}
               rows={6}
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 font-mono text-xs text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 font-mono text-xs text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
             ></textarea>
           </label>
         </div>

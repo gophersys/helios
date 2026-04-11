@@ -81,7 +81,7 @@
               step="0.1"
               value={stage.config.ch0Voltage ?? 4.5}
               oninput={(e) => updateConfig('ch0Voltage', parseFloat(e.currentTarget.value))}
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
             />
           </label>
           <label class="block">
@@ -91,7 +91,7 @@
               step="0.1"
               value={stage.config.ch1Voltage ?? 0}
               oninput={(e) => updateConfig('ch1Voltage', parseFloat(e.currentTarget.value))}
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
             />
           </label>
           <label class="block">
@@ -100,7 +100,7 @@
               type="number"
               value={stage.config.minCurrentMa ?? 5}
               oninput={(e) => updateConfig('minCurrentMa', parseInt(e.currentTarget.value))}
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
             />
           </label>
           <label class="block">
@@ -109,7 +109,7 @@
               type="number"
               value={stage.config.maxCurrentMa ?? 100}
               oninput={(e) => updateConfig('maxCurrentMa', parseInt(e.currentTarget.value))}
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
             />
           </label>
         </div>
@@ -119,7 +119,7 @@
             type="text"
             value={stage.config.i2cAddresses ?? '0x38,0x50'}
             oninput={(e) => updateConfig('i2cAddresses', e.currentTarget.value)}
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden"
           />
         </label>
 
@@ -150,7 +150,7 @@
             type="number"
             value={stage.config.jlinkSpeed ?? 4000}
             oninput={(e) => updateConfig('jlinkSpeed', parseInt(e.currentTarget.value))}
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
           />
         </label>
 

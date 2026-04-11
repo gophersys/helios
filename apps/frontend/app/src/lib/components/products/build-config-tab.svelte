@@ -153,7 +153,7 @@
   {/if}
 
   <!-- Code Editor -->
-  <Card size="sm" class="overflow-hidden !p-0">
+  <Card size="sm" class="overflow-hidden p-0!">
     <div class="flex items-center justify-between border-b border-border bg-surface-2 px-4 py-2">
       <div class="flex items-center gap-2">
         <Code class="h-4 w-4 text-text-tertiary" />

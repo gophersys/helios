@@ -61,7 +61,7 @@
   {#each stages as stage, i (stage.stage)}
     {@const Icon = STAGE_ICONS[stage.stage] ?? Circle}
     <div class="flex items-center gap-3 rounded-lg border px-3 py-2 {statusColor(stage.status)}">
-      <div class="flex-shrink-0">
+      <div class="shrink-0">
         {#if stage.status === 'RUNNING'}
           <Loader2 size={16} class="animate-spin" />
         {:else if stage.status === 'SUCCESS'}
@@ -82,7 +82,7 @@
       </div>
     </div>
     {#if i < stages.length - 1}
-      <ArrowRight size={16} class="flex-shrink-0 {arrowColor(i)}" />
+      <ArrowRight size={16} class="shrink-0 {arrowColor(i)}" />
     {/if}
   {/each}
 </div>

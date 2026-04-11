@@ -221,7 +221,7 @@
         <select
           id="stage-rev-{stage}"
           bind:value={formRevisionId}
-          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
         >
           <option value="">— Select revision —</option>
           {#each revisions as rev}
@@ -261,7 +261,7 @@
             <select
               id="stage-branch-{stage}"
               bind:value={formBranch}
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden"
             >
               {#each repoBranches as branch}
                 <option value={branch}>{branch}</option>
@@ -273,7 +273,7 @@
               type="text"
               bind:value={formBranch}
               placeholder="main"
-              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+              class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
             />
             {#if fwRepoSlug}
               <p class="mt-1 text-2xs text-text-tertiary">Could not load branches from {fwRepoSlug}</p>
@@ -285,7 +285,7 @@
           <select
             id="stage-key-{stage}"
             bind:value={formSigningKeyId}
-            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
           >
             <option value="">— No signing key —</option>
             {#each signingKeys as key}

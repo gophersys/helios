@@ -81,7 +81,7 @@
     >
       <button
         onclick={() => onEdit(fixture)}
-        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-text-primary"
+        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur-sm hover:text-text-primary"
         title="Edit"
         aria-label="Edit"
       >
@@ -89,7 +89,7 @@
       </button>
       <button
         onclick={() => onDelete(fixture.id)}
-        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-error"
+        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur-sm hover:text-error"
         title="Delete"
         aria-label="Delete"
       >

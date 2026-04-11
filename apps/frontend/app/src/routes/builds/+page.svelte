@@ -680,7 +680,7 @@
 
             <!-- Author -->
             {#if pr.prAuthor}
-              <div class="flex items-center gap-1.5 flex-shrink-0">
+              <div class="flex items-center gap-1.5 shrink-0">
                 <UserAvatar name={pr.prAuthor} size="sm" />
                 <span class="text-2xs text-text-secondary whitespace-nowrap">{pr.prAuthor}</span>
               </div>
@@ -688,7 +688,7 @@
 
             <!-- Branch -->
             {#if pr.sourceBranch}
-              <div class="hidden lg:flex items-center gap-1 text-2xs text-text-secondary flex-shrink-0">
+              <div class="hidden lg:flex items-center gap-1 text-2xs text-text-secondary shrink-0">
                 <GitBranch size={10} class="text-text-tertiary" />
                 <span class="font-mono">{pr.sourceBranch}</span>
                 {#if pr.targetBranch}
@@ -699,17 +699,17 @@
             {/if}
 
             <!-- Product badge -->
-            <span class="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary flex-shrink-0">
+            <span class="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary shrink-0">
               {pr.product}
             </span>
 
             <!-- Stage pills -->
-            <div class="flex-shrink-0">
+            <div class="shrink-0">
               <StagePills stages={buildStagePillData(pr.stages)} />
             </div>
 
             <!-- Updated time -->
-            <div class="text-2xs text-text-tertiary flex-shrink-0 w-16 text-right">
+            <div class="text-2xs text-text-tertiary shrink-0 w-16 text-right">
               <TimeDisplay datetime={pr.updatedAt} />
             </div>
           </button>
@@ -734,30 +734,30 @@
             class="flex w-full items-center gap-4 px-4 py-3 border-b border-border-subtle hover:bg-surface-2/50 cursor-pointer transition-colors text-left"
           >
             <!-- Run ID -->
-            <span class="text-2xs font-mono text-text-tertiary flex-shrink-0 w-16">
+            <span class="text-2xs font-mono text-text-tertiary shrink-0 w-16">
               {run.id.slice(0, 8)}
             </span>
 
             <!-- Product -->
-            <span class="text-sm font-medium text-text-primary flex-shrink-0">
+            <span class="text-sm font-medium text-text-primary shrink-0">
               {run.product || 'Unknown'}
             </span>
 
             <!-- Stage -->
             {#if run.stage}
               {@const stageName = STAGE_NAMES[run.stage]}
-              <span class="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary flex-shrink-0">
+              <span class="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary shrink-0">
                 {run.stage} {stageName ?? ''}
               </span>
             {/if}
 
             <!-- Trigger -->
-            <div class="flex-shrink-0">
+            <div class="shrink-0">
               <TriggerBadge type={run.triggerType ?? 'manual'} prNumber={run.prNumber ?? undefined} />
             </div>
 
             <!-- Status + build progress -->
-            <div class="flex items-center gap-2 flex-shrink-0">
+            <div class="flex items-center gap-2 shrink-0">
               <StatusBadge status={run.status} />
               <span class="text-2xs text-text-tertiary tabular-nums">
                 {run.completedBuilds ?? 0}/{run.expectedBuilds ?? 0} builds
@@ -766,14 +766,14 @@
 
             <!-- Branch -->
             {#if run.branch}
-              <div class="hidden lg:flex items-center gap-1 text-2xs text-text-secondary flex-shrink-0 min-w-0">
-                <GitBranch size={10} class="text-text-tertiary flex-shrink-0" />
+              <div class="hidden lg:flex items-center gap-1 text-2xs text-text-secondary shrink-0 min-w-0">
+                <GitBranch size={10} class="text-text-tertiary shrink-0" />
                 <span class="font-mono truncate max-w-[140px]">{run.branch}</span>
               </div>
             {/if}
 
             <!-- Duration + time (right-aligned) -->
-            <div class="ml-auto flex items-center gap-3 text-2xs text-text-tertiary flex-shrink-0">
+            <div class="ml-auto flex items-center gap-3 text-2xs text-text-tertiary shrink-0">
               <span class="tabular-nums">{runDuration(run)}</span>
               <TimeDisplay datetime={run.createdAt} />
             </div>
@@ -844,7 +844,7 @@
           bind:value={uploadNotes}
           placeholder="Optional notes about this build..."
           rows="2"
-          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
         ></textarea>
       </div>
       <div class="flex justify-end gap-2 pt-2">

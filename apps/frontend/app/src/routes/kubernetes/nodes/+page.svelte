@@ -93,7 +93,7 @@
       placeholder="Filter by label..."
       aria-label="Filter nodes by label"
       bind:value={filterTag}
-      class="px-3 py-1.5 text-sm rounded border border-border bg-surface-1 text-primary placeholder:text-tertiary focus:outline-none focus:ring-1 focus:ring-accent w-64"
+      class="px-3 py-1.5 text-sm rounded border border-border bg-surface-1 text-primary placeholder:text-tertiary focus:outline-hidden focus:ring-1 focus:ring-accent w-64"
     />
     {#if filterTag}
       <button

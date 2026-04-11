@@ -149,7 +149,7 @@
             <textarea
               bind:value={editValue}
               onkeydown={handleTabKey}
-              class="w-full h-96 p-3 rounded bg-surface-0 border border-border font-mono text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+              class="w-full h-96 p-3 rounded bg-surface-0 border border-border font-mono text-xs text-text-primary focus:outline-hidden focus:ring-1 focus:ring-accent resize-none"
               spellcheck="false"
             ></textarea>
             <div class="flex items-center justify-between">

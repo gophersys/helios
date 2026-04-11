@@ -116,7 +116,7 @@
       <button
         type="button"
         onclick={() => onHealthCheck(node.id)}
-        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-success"
+        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur-sm hover:text-success"
         title="Health check"
         aria-label="Health check"
       >
@@ -125,7 +125,7 @@
       <button
         type="button"
         onclick={() => onEdit(node)}
-        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-text-primary"
+        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur-sm hover:text-text-primary"
         title="Edit"
         aria-label="Edit"
       >
@@ -134,7 +134,7 @@
       <button
         type="button"
         onclick={() => onDelete(node.id)}
-        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-error"
+        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur-sm hover:text-error"
         title="Delete"
         aria-label="Delete"
       >

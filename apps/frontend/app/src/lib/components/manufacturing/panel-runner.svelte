@@ -60,7 +60,7 @@
           onkeydown={handleKeydown}
           placeholder="Scan or enter panel QR code"
           disabled={panelRunning || !sessionActive}
-          class="w-full rounded-lg border border-border bg-surface-0 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none disabled:opacity-50"
+          class="w-full rounded-lg border border-border bg-surface-0 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden disabled:opacity-50"
         />
       </div>
 

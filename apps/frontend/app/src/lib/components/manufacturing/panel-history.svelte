@@ -41,7 +41,7 @@
           onclick={() => togglePanel(panel.id)}
           class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2/50"
         >
-          <div class="flex-shrink-0 text-text-tertiary">
+          <div class="shrink-0 text-text-tertiary">
             {#if expanded}
               <ChevronDown size={14} />
             {:else}

@@ -39,7 +39,7 @@
     </div>
 
     {#if panel.targetCount > 0}
-      <div class="w-24 h-1.5 bg-surface-2 rounded-full overflow-hidden flex-shrink-0">
+      <div class="w-24 h-1.5 bg-surface-2 rounded-full overflow-hidden shrink-0">
         <div
           class="h-full rounded-full transition-all duration-500 {progressBarClass}"
           style="width: {Math.round(completedCount / panel.targetCount * 100)}%"

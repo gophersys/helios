@@ -131,7 +131,7 @@
 </script>
 
 <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col h-full">
-  <div class="flex items-center gap-2 px-3 py-1 border-b border-border bg-surface-1 flex-shrink-0">
+  <div class="flex items-center gap-2 px-3 py-1 border-b border-border bg-surface-1 shrink-0">
     <Terminal size={12} class={iconColor} />
     <span class="text-xs font-medium text-text-primary">{label}</span>
     {#if lines.length > 0}
@@ -140,7 +140,7 @@
   </div>
   <div class="flex items-center gap-1 px-2 py-0.5 border-b border-border bg-[#161b22]">
     <Search size={10} class="text-text-tertiary" />
-    <input type="text" bind:value={search} placeholder="Search..." class="flex-1 bg-transparent text-xs text-[#c9d1d9] placeholder:text-text-tertiary outline-none font-mono" />
+    <input type="text" bind:value={search} placeholder="Search..." class="flex-1 bg-transparent text-xs text-[#c9d1d9] placeholder:text-text-tertiary outline-hidden font-mono" />
     {#if search && matches.length > 0}
       <span class="text-2xs text-text-tertiary">{(searchIndex % matches.length) + 1}/{matches.length}</span>
       <button onclick={() => { searchIndex = Math.max(0, searchIndex - 1); scrollToMatch(searchIndex); }} class="text-text-tertiary hover:text-text-primary p-0.5 text-xs">&#x25B2;</button>
@@ -164,7 +164,7 @@
     {#if showJump}
       <button
         onclick={jumpToLatest}
-        class="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-accent/90 hover:bg-accent text-xs text-white font-medium shadow-lg backdrop-blur-sm transition-colors z-10 flex items-center gap-1"
+        class="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-accent/90 hover:bg-accent text-xs text-white font-medium shadow-lg backdrop-blur-xs transition-colors z-10 flex items-center gap-1"
       >
         <ArrowDown size={12} />
         Jump to latest

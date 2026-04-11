@@ -826,25 +826,25 @@
             <a href="/validation/runs/{vr.id}" class="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-1 transition-colors">
               <StatusBadge status={vr.status} />
               <span class="text-xs font-medium text-text-primary truncate flex-1 min-w-0">{vr.name}</span>
-              <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary flex-shrink-0">
+              <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary shrink-0">
                 {buildRun.autoValidate ? 'Auto' : 'Manual'}
               </span>
               {#if vr.passedCount > 0}
-                <span class="flex items-center gap-1 text-2xs text-success flex-shrink-0">
+                <span class="flex items-center gap-1 text-2xs text-success shrink-0">
                   <CheckCircle2 size={10} />
                   {vr.passedCount}
                 </span>
               {/if}
               {#if vr.failedCount > 0}
-                <span class="flex items-center gap-1 text-2xs text-error flex-shrink-0">
+                <span class="flex items-center gap-1 text-2xs text-error shrink-0">
                   <XCircle size={10} />
                   {vr.failedCount}
                 </span>
               {/if}
               {#if vr.startedAt}
-                <span class="text-2xs text-text-tertiary flex-shrink-0">{formatTimeAgo(vr.startedAt)}</span>
+                <span class="text-2xs text-text-tertiary shrink-0">{formatTimeAgo(vr.startedAt)}</span>
               {/if}
-              <ExternalLink size={10} class="text-text-tertiary flex-shrink-0" />
+              <ExternalLink size={10} class="text-text-tertiary shrink-0" />
             </a>
           {/each}
         </div>
@@ -899,24 +899,24 @@
                         <div class="flex items-center justify-between gap-4">
                           <div class="flex items-center gap-2 min-w-0 flex-1">
                             {#if isExpanded}
-                              <ChevronDown size={14} class="text-text-tertiary flex-shrink-0" />
+                              <ChevronDown size={14} class="text-text-tertiary shrink-0" />
                             {:else}
-                              <ChevronRight size={14} class="text-text-tertiary flex-shrink-0" />
+                              <ChevronRight size={14} class="text-text-tertiary shrink-0" />
                             {/if}
                             <!-- Build info -->
-                            <span class="text-xs font-medium text-text-primary flex-shrink-0">
+                            <span class="text-xs font-medium text-text-primary shrink-0">
                               {build.product || 'Unknown'}
                             </span>
-                            <span class="inline-flex items-center rounded bg-surface-2 px-1 py-0.5 text-2xs text-text-secondary font-mono flex-shrink-0">
+                            <span class="inline-flex items-center rounded bg-surface-2 px-1 py-0.5 text-2xs text-text-secondary font-mono shrink-0">
                               {build.variant}
                             </span>
                             {#if build.commitSha}
-                              <span class="inline-flex items-center rounded bg-info-muted px-1 py-0.5 text-2xs text-info font-mono font-medium flex-shrink-0">
+                              <span class="inline-flex items-center rounded bg-info-muted px-1 py-0.5 text-2xs text-info font-mono font-medium shrink-0">
                                 {build.commitSha.slice(0, 7)}
                               </span>
                             {/if}
                             {#if build.versionString}
-                              <span class="inline-flex items-center rounded bg-accent-muted px-1 py-0.5 text-2xs text-accent font-mono font-medium flex-shrink-0">
+                              <span class="inline-flex items-center rounded bg-accent-muted px-1 py-0.5 text-2xs text-accent font-mono font-medium shrink-0">
                                 v{build.versionString}
                               </span>
                             {/if}
@@ -925,14 +925,14 @@
                               <a
                                 href="/builds/{build.reusedFromId}"
                                 onclick={(e) => e.stopPropagation()}
-                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-2 text-text-tertiary text-2xs hover:text-accent transition-colors flex-shrink-0"
+                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-2 text-text-tertiary text-2xs hover:text-accent transition-colors shrink-0"
                                 title="View original build"
                               >
                                 View Original
                               </a>
                             {/if}
                             {#if build.versionBump}
-                              <span class="text-2xs text-info px-1 py-0.5 rounded bg-info-muted flex-shrink-0" title="Version bump (+1 from base)">+1</span>
+                              <span class="text-2xs text-info px-1 py-0.5 rounded bg-info-muted shrink-0" title="Version bump (+1 from base)">+1</span>
                             {/if}
                             {#if build.status === 'BUILDING' || build.status === 'FAILED'}
                               <button
@@ -961,7 +961,7 @@
                               </button>
                             {/if}
                           </div>
-                          <div class="flex items-center gap-2 text-2xs text-text-tertiary flex-shrink-0">
+                          <div class="flex items-center gap-2 text-2xs text-text-tertiary shrink-0">
                             {#if analysis?.errorCount}
                               <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-error-muted text-error font-medium">
                                 <XCircle size={10} />
@@ -1008,10 +1008,10 @@
                                       class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-surface-0 hover:bg-surface-2 transition-colors text-left disabled:opacity-50"
                                     >
                                       <div class="flex items-center gap-2 min-w-0">
-                                        <FileText size={14} class="flex-shrink-0 text-text-tertiary" />
+                                        <FileText size={14} class="shrink-0 text-text-tertiary" />
                                         <span class="text-xs font-mono text-text-primary truncate">{artifact.name}</span>
                                       </div>
-                                      <div class="flex items-center gap-2 flex-shrink-0">
+                                      <div class="flex items-center gap-2 shrink-0">
                                         <span class="text-2xs text-text-tertiary">{formatSize(String(artifact.sizeBytes))}</span>
                                         {#if isDownloading}
                                           <Loader2 size={14} class="text-accent animate-spin" />
@@ -1139,20 +1139,20 @@
                 <div class="flex items-center justify-between gap-4 mb-2">
                   <div class="flex items-center gap-2 min-w-0 flex-1">
                     {#if isExpanded}
-                      <ChevronDown size={14} class="text-text-tertiary flex-shrink-0" />
+                      <ChevronDown size={14} class="text-text-tertiary shrink-0" />
                     {:else}
-                      <ChevronRight size={14} class="text-text-tertiary flex-shrink-0" />
+                      <ChevronRight size={14} class="text-text-tertiary shrink-0" />
                     {/if}
-                    <Package size={16} class="text-text-tertiary flex-shrink-0" />
+                    <Package size={16} class="text-text-tertiary shrink-0" />
                     <span class="text-sm font-medium text-text-primary truncate">{build.product}</span>
                     <StatusBadge status={build.status} />
                     {#if build.variant}
-                      <span class="text-2xs text-text-tertiary px-1.5 py-0.5 rounded bg-surface-2 flex-shrink-0">
+                      <span class="text-2xs text-text-tertiary px-1.5 py-0.5 rounded bg-surface-2 shrink-0">
                         {build.variant}
                       </span>
                     {/if}
                     {#if build.versionString}
-                      <span class="text-2xs font-mono text-text-secondary flex-shrink-0">v{build.versionString}</span>
+                      <span class="text-2xs font-mono text-text-secondary shrink-0">v{build.versionString}</span>
                     {/if}
                     {#if build.status === 'BUILDING' || build.status === 'FAILED'}
                       <button
@@ -1181,7 +1181,7 @@
                       </button>
                     {/if}
                   </div>
-                  <div class="flex items-center gap-2 text-2xs text-text-tertiary flex-shrink-0">
+                  <div class="flex items-center gap-2 text-2xs text-text-tertiary shrink-0">
                     {#if analysis?.errorCount}
                       <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-error-muted text-error font-medium">
                         <XCircle size={10} />
@@ -1229,10 +1229,10 @@
                               class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-surface-0 hover:bg-surface-2 transition-colors text-left disabled:opacity-50"
                             >
                               <div class="flex items-center gap-2 min-w-0">
-                                <FileText size={14} class="flex-shrink-0 text-text-tertiary" />
+                                <FileText size={14} class="shrink-0 text-text-tertiary" />
                                 <span class="text-xs font-mono text-text-primary truncate">{artifact.name}</span>
                               </div>
-                              <div class="flex items-center gap-2 flex-shrink-0">
+                              <div class="flex items-center gap-2 shrink-0">
                                 <span class="text-2xs text-text-tertiary">{formatSize(String(artifact.sizeBytes))}</span>
                                 {#if isDownloading}
                                   <Loader2 size={14} class="text-accent animate-spin" />

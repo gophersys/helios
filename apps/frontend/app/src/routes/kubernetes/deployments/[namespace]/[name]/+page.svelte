@@ -226,7 +226,7 @@
             bind:value={scaleValue}
             min="0"
             max="100"
-            class="w-24 px-3 py-1.5 text-sm rounded border border-border bg-surface-0 text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+            class="w-24 px-3 py-1.5 text-sm rounded border border-border bg-surface-0 text-primary focus:outline-hidden focus:ring-1 focus:ring-accent"
           />
           <button
             onclick={scaleDeployment}

@@ -913,7 +913,7 @@
               {:else if branches.length > 0}
                 <select
                   bind:value={formBranch}
-                  class="w-full rounded-lg border border-border bg-surface-0 px-4 py-2.5 text-sm font-mono text-text-primary focus:border-accent focus:outline-none appearance-none"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-4 py-2.5 text-sm font-mono text-text-primary focus:border-accent focus:outline-hidden appearance-none"
                 >
                   {#each branches as branch}
                     <option value={branch}>{branch}</option>
@@ -925,7 +925,7 @@
                   type="text"
                   bind:value={formBranch}
                   placeholder="e.g. main, master, concord-main"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-4 py-2.5 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                  class="w-full rounded-lg border border-border bg-surface-0 px-4 py-2.5 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
                 />
               {/if}
             </div>
@@ -970,7 +970,7 @@
                             type="text"
                             bind:value={formCronExpression}
                             placeholder="0 2 * * *"
-                            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                            class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
                           />
                           <span class="mt-1 block text-2xs text-text-tertiary">
                             Examples: <code class="bg-surface-2 px-1 rounded">0 2 * * *</code> daily 2am ·
@@ -1418,7 +1418,7 @@
 
 <!-- Disable confirmation dialog (AWS-style) -->
 {#if showDisableConfirm}
-  <div class="fixed inset-0 z-[500] flex items-center justify-center p-4">
+  <div class="fixed inset-0 z-popover flex items-center justify-center p-4">
     <div class="fixed inset-0 bg-overlay" onclick={() => { showDisableConfirm = false; }} role="presentation" tabindex="-1"></div>
     <div class="relative w-full max-w-md rounded-lg border border-border bg-surface-1 shadow-2xl" role="dialog" aria-modal="true">
       <div class="flex items-center justify-between border-b border-border px-4 py-4">
@@ -1450,7 +1450,7 @@
           bind:value={disableConfirmText}
           onkeydown={(e) => { if (e.key === 'Enter' && canDisable) handleDisable(); }}
           placeholder={disablePhrase}
-          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+          class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
           autofocus
         />
       </div>

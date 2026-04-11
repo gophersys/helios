@@ -132,7 +132,7 @@
     >
       <button
         onclick={() => onDelete(product.id)}
-        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur hover:text-error"
+        class="rounded-lg bg-surface-1/90 p-1.5 text-text-tertiary shadow-sm backdrop-blur-sm hover:text-error"
         title="Delete" aria-label="Delete"
       >
         <Trash2 size={14} />

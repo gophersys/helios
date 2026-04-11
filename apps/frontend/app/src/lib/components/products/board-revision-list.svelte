@@ -167,7 +167,7 @@
             required
             bind:value={formVersion}
             placeholder="e.g. b0"
-            class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
           />
         </label>
         <label>
@@ -177,7 +177,7 @@
             required
             bind:value={formCkBoardsName}
             placeholder="e.g. alpha_b0"
-            class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
           />
         </label>
         <label>
@@ -186,7 +186,7 @@
             type="text"
             bind:value={formSocs}
             placeholder="e.g. nrf52840, nrf9151"
-            class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
           />
         </label>
       </div>
@@ -206,7 +206,7 @@
             type="text"
             bind:value={formNotes}
             placeholder="Optional"
-            class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+            class="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
           />
         </label>
       </div>
@@ -285,7 +285,7 @@
                         type="text"
                         placeholder="Version"
                         bind:value={modemVersion}
-                        class="w-16 rounded border border-border bg-surface-0 px-1.5 py-0.5 text-2xs text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                        class="w-16 rounded border border-border bg-surface-0 px-1.5 py-0.5 text-2xs text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
                       />
                       <label class="cursor-pointer rounded bg-accent px-1.5 py-0.5 text-2xs font-medium text-white hover:bg-accent-hover">
                         {modemUploading ? '...' : 'Upload'}

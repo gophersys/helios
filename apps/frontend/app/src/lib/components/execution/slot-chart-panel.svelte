@@ -6,7 +6,7 @@
   const ctx = getSlotContext();
 </script>
 
-<div class="flex-shrink-0" style="min-height: 232px; height: 232px;">
+<div class="shrink-0" style="min-height: 232px; height: 232px;">
   <PowerChart
     samples={ctx.effectivePower}
     chgSamples={ctx.effectivePowerChg}
@@ -14,7 +14,7 @@
     windowSeconds={ctx.analysisMode ? 99999 : ctx.POWER_WINDOW_S}
   />
 </div>
-<div class="flex-shrink-0" style="min-height: 232px; height: 232px;">
+<div class="shrink-0" style="min-height: 232px; height: 232px;">
   <AccelChart
     samples={ctx.accelSamples}
     windowSeconds={ctx.analysisMode ? 99999 : ctx.POWER_WINDOW_S}

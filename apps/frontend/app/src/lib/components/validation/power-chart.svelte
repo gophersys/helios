@@ -378,7 +378,7 @@
 </script>
 
 <div class="rounded-lg border border-border bg-surface-0 overflow-hidden flex flex-col h-full">
-  <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1 flex-shrink-0">
+  <div class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface-1 shrink-0">
     <Activity size={12} class="text-accent" />
     <span class="text-xs font-medium text-text-primary">Power</span>
     <span class="flex items-center gap-2 ml-1">
