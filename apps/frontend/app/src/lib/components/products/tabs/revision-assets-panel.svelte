@@ -216,6 +216,15 @@
     }
   }
 
+  async function handleDownloadZip(assetSetId: string, version: string, variant: string) {
+    try {
+      const filename = `asset-set-${version}-${variant || 'default'}.zip`;
+      await apiDownload(`/v2/asset-sets/${assetSetId}/download`, filename);
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Download failed';
+    }
+  }
+
   async function handleDownloadFile(file: AssetFile) {
     if (!file.storageKey) return;
     try {
@@ -360,6 +369,7 @@
             <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Branch</th>
             <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Files</th>
             <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Uploaded</th>
+            <th class="w-10"></th>
             {#if canManage}<th class="w-10"></th>{/if}
           </tr>
         </thead>
@@ -368,11 +378,14 @@
             {@const isExpanded = expandedId === asset.id}
             {@const hasFiles = (asset.assets?.length ?? 0) > 0}
             <tr class="border-b border-border-subtle last:border-0">
-              <td colspan={canManage ? 8 : 7} class="p-0">
+              <td colspan={canManage ? 9 : 8} class="p-0">
                 <div>
                   <!-- Row -->
-                  <button
+                  <div
+                    role={hasFiles ? 'button' : undefined}
+                    tabindex={hasFiles ? 0 : undefined}
                     onclick={() => hasFiles && (expandedId = isExpanded ? null : asset.id)}
+                    onkeydown={(e) => e.key === 'Enter' && hasFiles && (expandedId = isExpanded ? null : asset.id)}
                     class="flex w-full items-center text-left transition-colors {hasFiles ? 'cursor-pointer hover:bg-surface-2' : 'cursor-default'}"
                   >
                     <div class="w-8 shrink-0 px-3 py-3 flex items-center">
@@ -414,6 +427,15 @@
                     <div class="px-4 py-3 text-right shrink-0">
                       <TimeDisplay datetime={asset.createdAt} />
                     </div>
+                    <div class="shrink-0 flex items-center justify-center px-2">
+                      <button
+                        onclick={(e) => { e.stopPropagation(); handleDownloadZip(asset.id, asset.version, asset.variant); }}
+                        class="rounded-lg p-1.5 text-text-tertiary hover:bg-surface-2 hover:text-accent transition-colors"
+                        title="Download as .zip"
+                      >
+                        <Download size={14} />
+                      </button>
+                    </div>
                     {#if canManage}
                       <div class="w-10 shrink-0 flex items-center justify-center">
                         <button
@@ -425,7 +447,7 @@
                         </button>
                       </div>
                     {/if}
-                  </button>
+                  </div>
 
                   <!-- Expanded file details -->
                   {#if isExpanded && hasFiles}

@@ -396,3 +396,63 @@ def get_latest_asset_set():
         return not_found("No asset set found for this stage config")
 
     return jsonify(ApiResponse.ok(_serialize_asset_set(asset_set)).to_dict()), 200
+
+
+@require_permissions(Permissions.BUILDS_VIEW)
+def download_asset_set_zip(asset_set_id: str):
+    """GET /asset-sets/<id>/download — download all files in an asset set as a .zip archive."""
+    import io
+    import re
+    import zipfile
+
+    from flask import Response
+    from src.services.storage.client import get_storage_client
+
+    db = get_db_client()
+    asset_set = db.assetset.find_unique(
+        where={"id": asset_set_id},
+        include={"assets": True},
+    )
+    if not asset_set:
+        return not_found("Asset set not found")
+
+    assets = asset_set.assets or []
+    if not assets:
+        return not_found("Asset set has no files")
+
+    storage = get_storage_client()
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for asset in assets:
+            if not asset.storageKey:
+                continue
+            try:
+                response = storage.get_object("concord", asset.storageKey)
+                file_data = response.read()
+                response.close()
+                response.release_conn()
+
+                # Use the original filename, sanitized
+                filename = re.sub(r'[^a-zA-Z0-9._-]', '_', asset.filename or asset.label)
+                zf.writestr(filename, file_data)
+            except Exception as e:
+                logger.warning("Failed to fetch %s for zip: %s", asset.storageKey, e)
+
+    zip_buffer.seek(0)
+    zip_data = zip_buffer.read()
+
+    version = asset_set.version or "unknown"
+    variant = asset_set.variant or "default"
+    safe_version = re.sub(r'[^a-zA-Z0-9._-]', '_', version)
+    safe_variant = re.sub(r'[^a-zA-Z0-9._-]', '_', variant)
+    zip_filename = f"asset-set-{safe_version}-{safe_variant}.zip"
+
+    return Response(
+        zip_data,
+        mimetype="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{zip_filename}"',
+            "Content-Length": str(len(zip_data)),
+        },
+    )

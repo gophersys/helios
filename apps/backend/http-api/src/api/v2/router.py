@@ -259,6 +259,7 @@ from .assets.asset_sets import (
     get_latest_asset_set,
     complete_asset_set,
     delete_asset_set,
+    download_asset_set_zip,
 )
 from .assets.assets import upload_asset
 from .assets.zip_upload import (
@@ -435,6 +436,7 @@ def register_v2_routes(logger: Logger, server: Flask, socketio: SocketIO):
     v2.add_url_rule("/asset-sets/<asset_set_id>",                                               endpoint="delete_asset_set",         view_func=delete_asset_set,          methods=["DELETE"])
     v2.add_url_rule("/asset-sets/<asset_set_id>/assets",                                        endpoint="upload_asset",             view_func=upload_asset,              methods=["POST"])
     v2.add_url_rule("/asset-sets/<asset_set_id>/complete",                                      endpoint="complete_asset_set",       view_func=complete_asset_set,        methods=["POST"])
+    v2.add_url_rule("/asset-sets/<asset_set_id>/download",                                      endpoint="download_asset_set_zip",   view_func=download_asset_set_zip,    methods=["GET"])
 
     # Products - Build Recipe (product build script stored in MinIO)
     v2.add_url_rule("/products/<product_id>/recipe",                                             endpoint="get_recipe",               view_func=get_recipe,            methods=["GET"])
