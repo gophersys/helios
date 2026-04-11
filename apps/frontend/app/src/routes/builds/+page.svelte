@@ -602,7 +602,7 @@
           <button
             type="button"
             onclick={() => { prMyPrs = !prMyPrs; }}
-            class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer {prMyPrs ? 'bg-accent text-white' : 'bg-surface-2 text-text-secondary hover:bg-surface-2/80'}"
+            class="inline-flex items-center rounded px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer {prMyPrs ? 'bg-accent text-white' : 'bg-surface-2 text-text-secondary hover:bg-surface-2/80'}"
           >
             My PRs
           </button>
@@ -699,7 +699,7 @@
             {/if}
 
             <!-- Product badge -->
-            <span class="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary shrink-0">
+            <span class="badge badge-neutral shrink-0">
               {pr.product}
             </span>
 
@@ -746,7 +746,7 @@
             <!-- Stage -->
             {#if run.stage}
               {@const stageName = STAGE_NAMES[run.stage]}
-              <span class="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium text-text-secondary shrink-0">
+              <span class="badge badge-neutral shrink-0">
                 {run.stage} {stageName ?? ''}
               </span>
             {/if}
@@ -768,7 +768,7 @@
             {#if run.branch}
               <div class="hidden lg:flex items-center gap-1 text-2xs text-text-secondary shrink-0 min-w-0">
                 <GitBranch size={10} class="text-text-tertiary shrink-0" />
-                <span class="font-mono truncate max-w-[140px]">{run.branch}</span>
+                <span class="font-mono truncate max-w-32">{run.branch}</span>
               </div>
             {/if}
 

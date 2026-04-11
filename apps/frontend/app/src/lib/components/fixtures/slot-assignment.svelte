@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Server } from 'lucide-svelte';
   import Select from '$lib/components/ui/select.svelte';
+  import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import type { FixtureSlot, ConcordNode } from '$lib/types/models';
 
   let { slot, availableNodes, canManage, onAssign, onUnassign }: {
@@ -60,13 +61,6 @@
     {/if}
   </td>
   <td class="table-cell">
-    <span
-      class={[
-        'inline-flex items-center rounded-full px-1.5 py-0.5 text-2xs font-medium',
-        slot.active ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'
-      ].join(' ')}
-    >
-      {slot.active ? 'Active' : 'Inactive'}
-    </span>
+    <StatusBadge status={slot.active ? 'ACTIVE' : 'INACTIVE'} />
   </td>
 </tr>

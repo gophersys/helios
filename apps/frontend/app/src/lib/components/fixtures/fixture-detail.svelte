@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { Play, Square, RotateCcw, Rocket, ChevronDown, ChevronUp } from 'lucide-svelte';
-  import BackButton from '$lib/components/ui/back-button.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import SlotAssignment from './slot-assignment.svelte';
@@ -9,10 +8,9 @@
   import type { Fixture, ConcordNode, ConcordDeployment } from '$lib/types/models';
   import type { ApiResponse } from '$lib/types';
 
-  let { fixture, canManage, onBack, onRefresh }: {
+  let { fixture, canManage, onRefresh }: {
     fixture: Fixture;
     canManage: boolean;
-    onBack: () => void;
     onRefresh: () => void;
   } = $props();
 
@@ -179,8 +177,6 @@
 </script>
 
 <div class="animate-fade-in">
-  <BackButton label="Back to fixtures" onclick={onBack} />
-
   <ErrorAlert message={error} />
 
   <div class="card card-md">
@@ -190,14 +186,7 @@
         <div class="flex items-center gap-3">
           <h2 class="text-lg font-semibold text-text-primary">{fixture.name}</h2>
           <StatusBadge status={fixture.type} />
-          <span
-            class={[
-              'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium',
-              fixture.active ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'
-            ].join(' ')}
-          >
-            {fixture.active ? 'Active' : 'Inactive'}
-          </span>
+          <StatusBadge status={fixture.active ? 'ACTIVE' : 'INACTIVE'} />
         </div>
         {#if fixture.description}
           <p class="mt-1 text-sm text-text-secondary">{fixture.description}</p>

@@ -238,7 +238,7 @@
 
 </script>
 
-<div class="rounded-xl border border-border bg-surface-1">
+<div class="rounded-lg border border-border bg-surface-1">
   <!-- Step indicator -->
   <div class="flex items-center border-b border-border px-6 py-4">
     {#each stepLabels as label, i}
@@ -276,7 +276,7 @@
   </div>
 
   <!-- Content -->
-  <div class="min-h-[320px] p-6">
+  <div class="min-h-80 p-6">
     {#if error}
       <div class="mb-4 rounded-lg border border-error bg-error-muted p-3 text-sm text-error">
         {error}
@@ -286,7 +286,7 @@
     <!-- Step 1: Branch -->
     {#if step === 1}
       <div>
-        <h3 class="mb-1 text-base font-semibold text-text-primary">Select ck_boards branch</h3>
+        <h3 class="mb-1 text-sm font-semibold text-text-primary">Select ck_boards branch</h3>
         <p class="mb-4 text-sm text-text-secondary">
           Choose which branch of the hardware definitions repository to scan for boards.
         </p>
@@ -323,7 +323,7 @@
     <!-- Step 2: Board Family -->
     {#if step === 2}
       <div>
-        <h3 class="mb-1 text-base font-semibold text-text-primary">Select product family</h3>
+        <h3 class="mb-1 text-sm font-semibold text-text-primary">Select product family</h3>
         <p class="mb-4 text-sm text-text-secondary">
           Choose a product family discovered on the <code class="rounded bg-surface-2 px-1.5 py-0.5 text-2xs font-mono">{selectedBranch}</code> branch.
         </p>
@@ -369,7 +369,7 @@
     <!-- Step 3: Configure -->
     {#if step === 3}
       <div>
-        <h3 class="mb-1 text-base font-semibold text-text-primary">Configure product</h3>
+        <h3 class="mb-1 text-sm font-semibold text-text-primary">Configure product</h3>
         <p class="mb-4 text-sm text-text-secondary">
           Confirm or override the auto-populated fields. AppIDs and device type must be set manually.
         </p>
@@ -511,7 +511,7 @@
     <!-- Step 5: Create -->
     {#if step === 4}
       <div>
-        <h3 class="mb-1 text-base font-semibold text-text-primary">Confirm and create</h3>
+        <h3 class="mb-1 text-sm font-semibold text-text-primary">Confirm and create</h3>
         <p class="mb-4 text-sm text-text-secondary">
           Review the final configuration before creating the product.
         </p>
@@ -571,7 +571,7 @@
   <div class="flex items-center justify-between border-t border-border px-6 py-4">
     <button
       onclick={step === 1 ? onCancel : handleBack}
-      class="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2"
+      class="btn btn-md btn-ghost flex items-center gap-1.5"
     >
       <ChevronLeft size={16} />
       {step === 1 ? 'Cancel' : 'Back'}
@@ -581,7 +581,7 @@
       <button
         onclick={handleNext}
         disabled={!canNext}
-        class="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+        class="btn btn-md btn-primary flex items-center gap-1.5"
       >
         Next
         <ChevronRight size={16} />
@@ -590,7 +590,7 @@
       <button
         onclick={handleCreate}
         disabled={submitting}
-        class="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+        class="btn btn-md btn-primary flex items-center gap-1.5"
       >
         {#if submitting}
           <Loader2 size={16} class="animate-spin" />

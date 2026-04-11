@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { AuditEntry } from '$lib/types/models';
   import { formatTimeAgo } from '$lib/utils/formatting';
-  import { Loader2 } from 'lucide-svelte';
+  import { Loader2, History } from 'lucide-svelte';
+  import { EmptyState } from '$lib/components/ui';
 
   let { entries, loading }: { entries: AuditEntry[]; loading: boolean } = $props();
 
@@ -58,15 +59,13 @@
 <div>
   <h2 class="text-sm font-semibold text-text-primary mb-3">Recent Activity</h2>
 
-  <div class="rounded-lg border border-border bg-surface-1">
+  <div class="card overflow-hidden">
     {#if loading}
       <div class="flex items-center justify-center px-4 py-6">
         <Loader2 size={18} class="animate-spin text-text-tertiary" />
       </div>
     {:else if entries.length === 0}
-      <div class="px-4 py-6 text-center">
-        <p class="text-sm text-text-tertiary">No recent activity</p>
-      </div>
+      <EmptyState message="No recent activity" icon={History} />
     {:else}
       {#each entries as entry (entry.id)}
         {@const { verb, entity } = formatAction(entry.action)}

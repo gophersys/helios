@@ -5,7 +5,7 @@
   import { ArrowLeft } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
-  import { ErrorAlert, LoadingState } from '$lib/components/ui';
+  import { ErrorAlert, EmptyState, LoadingState } from '$lib/components/ui';
   import SessionHeader from '$lib/components/manufacturing/session-header.svelte';
   import PanelRunner from '$lib/components/manufacturing/panel-runner.svelte';
   import PanelResultsGrid from '$lib/components/manufacturing/panel-results-grid.svelte';
@@ -390,10 +390,10 @@
 
     <!-- ── Detail View (slot execution) ──────────────────── -->
     {#if detailRunId && activeSlot}
-      <div class="mb-3">
+      <div class="mb-4">
         <button
           onclick={closeSlotDetail}
-          class="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
+          class="btn btn-ghost btn-sm"
         >
           <ArrowLeft size={16} />
           Back to session
@@ -447,15 +447,7 @@
       {/if}
 
       {#if !activeRun && completedRuns.length === 0}
-        <div class="rounded-lg border border-border bg-surface-1 p-8 text-center">
-          <p class="text-sm text-text-tertiary">
-            {#if session.status === 'ACTIVE'}
-              Scan a panel QR code to begin manufacturing.
-            {:else}
-              No panels were run during this session.
-            {/if}
-          </p>
-        </div>
+        <EmptyState message={session.status === 'ACTIVE' ? 'Scan a panel QR code to begin manufacturing.' : 'No panels were run during this session.'} />
       {/if}
     {/if}
   {/if}

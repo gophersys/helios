@@ -316,7 +316,7 @@
               <th class="sticky left-0 z-10 bg-surface-2 text-left px-4 py-2 text-2xs font-semibold uppercase tracking-wider text-text-tertiary border-r border-border-subtle min-w-[140px]">Stage</th>
               {#each matrixRevisions as rev}
                 <th class="text-center px-4 py-2 min-w-[120px]">
-                  <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded {rev.status === 'ACTIVE' ? 'bg-accent-muted text-accent' : 'bg-surface-1 text-text-tertiary'}">{rev.version}</span>
+                  <span class="text-2xs font-mono font-semibold px-1.5 py-0.5 rounded {rev.status === 'ACTIVE' ? 'bg-accent-muted text-accent' : 'bg-surface-1 text-text-tertiary'}">{rev.version}</span>
                 </th>
               {/each}
             </tr>
@@ -327,7 +327,7 @@
               <tr class="border-t border-border-subtle">
                 <td class="sticky left-0 z-10 bg-surface-0 px-4 py-2.5 border-r border-border-subtle">
                   <div class="flex items-center gap-2">
-                    <div class="w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold shrink-0
+                    <div class="w-5 h-5 flex items-center justify-center rounded text-2xs font-bold shrink-0
                       {configured ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
                       {stageNum}
                     </div>
@@ -341,13 +341,13 @@
                       <div class="flex flex-col items-center gap-0.5">
                         <div class="flex flex-wrap justify-center gap-0.5">
                           {#each cell.triggerTypes as trigger}
-                            <span class="text-[9px] font-mono px-1 py-0.5 rounded whitespace-nowrap
+                            <span class="text-2xs font-mono px-1 py-0.5 rounded whitespace-nowrap
                               {trigger === 'AUTO' ? 'bg-success-muted text-success' : 'bg-accent-muted text-accent'}">{trigger}</span>
                           {/each}
                         </div>
                         <div class="flex items-center gap-0.5">
                           {#if cell.watchBranch}
-                            <span class="flex items-center gap-0.5 text-[9px] text-text-tertiary" title="Watch branch: {cell.watchBranch}">
+                            <span class="flex items-center gap-0.5 text-2xs text-text-tertiary" title="Watch branch: {cell.watchBranch}">
                               <GitBranch size={8} />
                               <span class="font-mono">{truncateBranch(cell.watchBranch, 12)}</span>
                             </span>
@@ -403,7 +403,7 @@
                 <th class="sticky left-0 z-10 bg-surface-2 text-left px-4 py-2 text-2xs font-semibold uppercase tracking-wider text-text-tertiary border-r border-border-subtle min-w-[140px]">Stage</th>
                 {#each matrixRevisions as rev}
                   <th class="text-center px-4 py-2 min-w-[120px]">
-                    <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded {rev.status === 'ACTIVE' ? 'bg-accent-muted text-accent' : 'bg-surface-1 text-text-tertiary'}">{rev.version}</span>
+                    <span class="text-2xs font-mono font-semibold px-1.5 py-0.5 rounded {rev.status === 'ACTIVE' ? 'bg-accent-muted text-accent' : 'bg-surface-1 text-text-tertiary'}">{rev.version}</span>
                   </th>
                 {/each}
               </tr>
@@ -414,7 +414,7 @@
                 <tr class="border-t border-border-subtle">
                   <td class="sticky left-0 z-10 bg-surface-0 px-4 py-2.5 border-r border-border-subtle">
                     <div class="flex items-center gap-2">
-                      <div class="w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold bg-warning text-white shrink-0">
+                      <div class="w-5 h-5 flex items-center justify-center rounded text-2xs font-bold bg-warning text-white shrink-0">
                         {stageNum}
                       </div>
                       <span class="font-medium text-text-primary whitespace-nowrap">{stageName || `Stage ${stageNum}`}</span>
@@ -427,13 +427,13 @@
                         <div class="flex flex-col items-center gap-0.5">
                           <div class="flex flex-wrap justify-center gap-0.5">
                             {#each cell.triggerTypes as trigger}
-                              <span class="text-[9px] font-mono px-1 py-0.5 rounded whitespace-nowrap
+                              <span class="text-2xs font-mono px-1 py-0.5 rounded whitespace-nowrap
                                 {trigger === 'AUTO' ? 'bg-success-muted text-success' : 'bg-warning-muted text-warning'}">{trigger}</span>
                             {/each}
                           </div>
                           <div class="flex items-center gap-0.5">
                             {#if cell.watchBranch}
-                              <span class="flex items-center gap-0.5 text-[9px] text-text-tertiary" title="Watch branch: {cell.watchBranch}">
+                              <span class="flex items-center gap-0.5 text-2xs text-text-tertiary" title="Watch branch: {cell.watchBranch}">
                                 <GitBranch size={8} />
                                 <span class="font-mono">{truncateBranch(cell.watchBranch, 12)}</span>
                               </span>

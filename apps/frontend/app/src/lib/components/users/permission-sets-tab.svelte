@@ -471,7 +471,7 @@
           resetForm();
           showForm = true;
         }}
-        class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+        class="btn btn-sm btn-primary"
       >
         <Plus size={16} />
         New set
@@ -532,7 +532,7 @@
           <button
             type="submit"
             disabled={formPermissions.size === 0 || submitting}
-            class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+            class="btn btn-sm btn-primary"
           >
             <Check size={16} />
             {submitting ? 'Saving...' : editingId ? 'Save changes' : 'Create'}
@@ -540,7 +540,7 @@
           <button
             type="button"
             onclick={resetForm}
-            class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-2"
+            class="btn btn-sm btn-ghost"
           >
             Cancel
           </button>

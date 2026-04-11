@@ -1,4 +1,5 @@
 <script lang="ts">
+  import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import type { Fixture } from '$lib/types/models';
 
   let { fixture, onclick }: { fixture: Fixture; onclick: () => void } = $props();
@@ -52,9 +53,9 @@
         <p class="text-2xs text-text-tertiary mt-0.5">{fixture.productName}</p>
       {/if}
     </div>
-    <span class="badge {fixture.type === 'MANUFACTURING' ? 'badge-warning' : 'badge-accent'} shrink-0">
-      {fixture.type}
-    </span>
+    <div class="shrink-0">
+      <StatusBadge status={fixture.type} />
+    </div>
   </div>
 
   {#if slotDots.length > 0}

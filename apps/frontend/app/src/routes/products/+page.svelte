@@ -260,7 +260,7 @@
                     {#each [1, 2, 3, 4, 5] as stageNum}
                       {@const cfg = valStages.find(s => s.stage === stageNum)}
                       <span
-                        class="inline-flex items-center justify-center w-6 h-5 rounded text-[10px] font-semibold
+                        class="inline-flex items-center justify-center w-6 h-5 rounded text-2xs font-semibold
                           {cfg?.enabled ? 'bg-accent-muted text-accent' : 'bg-surface-2 text-text-tertiary'}"
                         title="{STAGE_NAMES['VALIDATION']?.[stageNum] || `Stage ${stageNum}`}: {cfg?.enabled ? 'Enabled' : 'Off'}"
                       >

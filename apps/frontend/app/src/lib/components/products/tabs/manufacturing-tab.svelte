@@ -28,7 +28,7 @@
 </script>
 
 <!-- Test App section -->
-<div class="rounded-lg border border-border bg-surface-1 p-4 mb-6">
+<div class="card card-md mb-6">
   <h3 class="text-sm font-semibold text-text-primary mb-3">Manufacturing Test App</h3>
   <TestAppStatusCard status={product.testAppStatus?.manufacturing ?? null} type="MANUFACTURING" />
   <TestPackageList productId={product.id} packageType="MANUFACTURING" {onRefresh} />

@@ -434,7 +434,7 @@
               <a href="/builds" class="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-0.5 text-2xs hover:bg-surface-3 transition-colors no-underline">
                 <StatusBadge status={latestBuild.status} />
                 {#if latestBuild.branch}
-                  <span class="text-text-secondary font-mono truncate max-w-[100px]">{latestBuild.branch}</span>
+                  <span class="text-text-secondary font-mono truncate max-w-24">{latestBuild.branch}</span>
                 {/if}
                 {#if latestBuild.createdAt}
                   <span class="text-text-tertiary">{formatTimeAgo(latestBuild.createdAt)}</span>

@@ -337,7 +337,7 @@
 <!-- Centered container -->
 <div class="fixed inset-0 z-modal flex items-center justify-center p-4 pointer-events-none">
   <div
-    class="pointer-events-auto flex w-full max-w-[900px] sm:h-full max-h-[90vh] sm:max-h-[680px] flex-col sm:flex-row rounded-xl border border-border bg-surface-0 shadow-xl animate-modal-in"
+    class="pointer-events-auto flex w-full max-w-[900px] sm:h-full max-h-[90vh] sm:max-h-[680px] flex-col sm:flex-row rounded-lg border border-border bg-surface-0 shadow-modal animate-modal-in"
     onclick={(e) => e.stopPropagation()}
     onkeydown={() => {}}
     role="dialog"
@@ -345,8 +345,8 @@
     tabindex="-1"
   >
     <!-- Left nav (side on sm+, top tabs on mobile) -->
-    <div class="hidden sm:flex w-56 shrink-0 flex-col rounded-l-xl border-r border-border bg-surface-1">
-      <div class="px-5 pt-5 pb-4">
+    <div class="hidden sm:flex w-56 shrink-0 flex-col rounded-l-lg border-r border-border bg-surface-1">
+      <div class="px-4 pt-4 pb-4">
         <h2 class="text-sm font-semibold text-text-primary">Settings</h2>
       </div>
       <nav class="flex-1 space-y-0.5 px-3 pb-3">
@@ -355,7 +355,7 @@
           {@const isActive = section.id === activeId}
           <button
             onclick={() => (activeId = section.id)}
-            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors {isActive
+            class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors {isActive
               ? 'bg-accent-muted text-accent'
               : 'text-text-secondary hover:bg-sidebar-hover hover:text-text-primary'}"
           >
@@ -367,7 +367,7 @@
     </div>
 
     <!-- Mobile top tabs (visible below sm) -->
-    <div class="flex sm:hidden border-b border-border bg-surface-1 rounded-t-xl overflow-x-auto shrink-0">
+    <div class="flex sm:hidden border-b border-border bg-surface-1 rounded-t-lg overflow-x-auto shrink-0">
       {#each sections as section}
         {@const Icon = section.icon}
         {@const isActive = section.id === activeId}
@@ -400,17 +400,17 @@
       </div>
 
       <!-- Content -->
-      <div class="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
+      <div class="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
         {#if activeId === 'system'}
           <!-- System Section -->
 
           <!-- Version header -->
           {#if backendInfo || frontendInfo}
             {@const info = backendInfo || frontendInfo}
-            <div class="mb-5 rounded-lg border border-border-subtle bg-surface-1 px-5 py-4">
+            <div class="mb-4 rounded-lg border border-border-subtle bg-surface-1 px-4 py-4">
               <div class="flex items-center justify-between">
                 <div>
-                  <div class="text-lg font-bold text-text-primary tracking-tight">
+                  <div class="text-lg font-semibold text-text-primary tracking-tight">
                     Concord
                     <span class="text-accent">v{info?.version || 'dev'}</span>
                   </div>
@@ -428,7 +428,7 @@
                       <span class="text-2xs text-text-tertiary">({info.gitBranch})</span>
                     {/if}
                     {#if isDirty(info.gitDirty)}
-                      <span class="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">dirty</span>
+                      <span class="badge badge-warning">dirty</span>
                     {/if}
                   </div>
                 {/if}
@@ -438,7 +438,7 @@
 
           <!-- Build details grid -->
           {#if backendInfo || frontendInfo}
-            <div class="mb-5 space-y-3">
+            <div class="mb-4 space-y-3">
               {#each [{ label: 'API Server', info: backendInfo, icon: Server }, { label: 'Frontend', info: frontendInfo, icon: Globe }] as svc}
                 {#if svc.info}
                   {@const SvcIcon = svc.icon}
@@ -446,7 +446,7 @@
                     <div class="mb-2 flex items-center gap-2">
                       <SvcIcon size={14} strokeWidth={1.75} class="text-accent" />
                       <span class="text-xs font-semibold text-text-primary">{svc.label}</span>
-                      <span class="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-mono text-text-secondary">
+                      <span class="rounded bg-surface-2 px-1.5 py-0.5 text-2xs font-mono text-text-secondary">
                         v{svc.info.version}
                       </span>
                     </div>
@@ -480,7 +480,7 @@
               {/each}
             </div>
           {:else if buildInfoLoaded}
-            <div class="mb-5 rounded-lg border border-border-subtle px-4 py-6 text-center text-sm text-text-tertiary">
+            <div class="mb-4 rounded-lg border border-border-subtle px-4 py-6 text-center text-sm text-text-tertiary">
               Build information not available.
             </div>
           {/if}
@@ -495,9 +495,9 @@
             </div>
             <button
               onclick={() => theme.toggle()}
-              class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors {theme.theme === 'dark'
-                ? 'bg-warning-muted text-warning hover:bg-warning/20 border border-warning/30'
-                : 'bg-accent-muted text-accent hover:bg-accent/20 border border-accent/30'}"
+              class="btn btn-sm {theme.theme === 'dark'
+                ? 'bg-warning-muted text-warning hover:bg-warning-muted border border-border'
+                : 'bg-accent-muted text-accent hover:bg-accent-muted border border-border'}"
             >
               {#if theme.theme === 'dark'}
                 <Sun size={16} strokeWidth={1.75} />
@@ -515,7 +515,7 @@
           </p>
 
           <!-- Permission set badge -->
-          <div class="mb-5 flex items-center justify-between rounded-lg border border-border-subtle px-4 py-3">
+          <div class="mb-4 flex items-center justify-between rounded-lg border border-border-subtle px-4 py-3">
             <div>
               <div class="text-2xs text-text-tertiary">Permission set</div>
               <div class="mt-0.5 text-sm font-semibold text-text-primary">
@@ -612,14 +612,14 @@
                   <button
                     type="submit"
                     disabled={submitting}
-                    class="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                    class="btn btn-sm btn-primary"
                   >
                     {submitting ? 'Creating...' : 'Create key'}
                   </button>
                   <button
                     type="button"
                     onclick={() => (showCreateKey = false)}
-                    class="rounded-lg px-3 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-2"
+                    class="btn btn-sm btn-ghost"
                   >
                     Cancel
                   </button>
@@ -628,7 +628,7 @@
             {:else}
               <button
                 onclick={() => (showCreateKey = true)}
-                class="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-1"
+                class="btn btn-sm btn-secondary"
               >
                 <Plus size={16} />
                 Create API key
@@ -694,7 +694,7 @@
 
           <!-- Add secret form -->
           {#if showSecretForm}
-            <div class="mb-4 rounded-lg border border-accent/30 bg-accent/5 p-4 space-y-3">
+            <div class="mb-4 rounded-lg border border-border bg-surface-1 p-4 space-y-3">
               <div class="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label for="secret-name" class="mb-1 block text-2xs font-medium text-text-tertiary">Name</label>
@@ -723,16 +723,16 @@
               </div>
               <div class="flex gap-2">
                 <button onclick={handleCreateSecret} disabled={secretSaving || !secretName.trim() || !secretValue.trim()}
-                  class="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50">
+                  class="btn btn-sm btn-primary">
                   {secretSaving ? 'Saving...' : 'Add Secret'}
                 </button>
                 <button onclick={() => (showSecretForm = false)}
-                  class="rounded-lg px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-2">Cancel</button>
+                  class="btn btn-sm btn-ghost">Cancel</button>
               </div>
             </div>
           {:else}
             <button onclick={() => (showSecretForm = true)}
-              class="mb-4 inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover">
+              class="btn btn-sm btn-primary mb-4">
               <Plus size={14} /> Add Secret
             </button>
           {/if}

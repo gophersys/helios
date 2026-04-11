@@ -1,5 +1,6 @@
 <script lang="ts">
   import { QrCode, Play, Square } from 'lucide-svelte';
+  import Modal from '$lib/components/ui/modal.svelte';
   import type { ManufacturingSession } from '$lib/types/models';
 
   let {
@@ -50,7 +51,7 @@
 </script>
 
 {#if canRun && sessionActive}
-  <div class="rounded-lg border border-border bg-surface-1 p-4 mb-4">
+  <div class="card card-sm mb-4">
     <div class="flex items-center gap-3">
       <div class="relative flex-1">
         <QrCode size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
@@ -60,14 +61,14 @@
           onkeydown={handleKeydown}
           placeholder="Scan or enter panel QR code"
           disabled={panelRunning || !sessionActive}
-          class="w-full rounded-lg border border-border bg-surface-0 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden disabled:opacity-50"
+          class="input input-md pl-9"
         />
       </div>
 
       <button
         onclick={handleRunPanel}
         disabled={!canSubmit}
-        class="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
+        class="btn btn-sm btn-primary"
       >
         <Play size={14} />
         {submitting ? 'Starting...' : 'Run Panel'}
@@ -76,7 +77,7 @@
       <button
         onclick={() => { showEndConfirm = true; }}
         disabled={panelRunning}
-        class="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50 transition-colors"
+        class="btn btn-sm btn-secondary"
       >
         <Square size={14} />
         End Session
@@ -92,27 +93,22 @@
 {/if}
 
 <!-- End session confirmation dialog -->
-{#if showEndConfirm}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog">
-    <div class="rounded-lg border border-border bg-surface-1 p-6 shadow-lg max-w-sm w-full mx-4">
-      <h3 class="text-sm font-semibold text-text-primary mb-2">End Manufacturing Session?</h3>
-      <p class="text-2xs text-text-secondary mb-4">
-        This will finalize the session. No more panels can be run after ending.
-      </p>
-      <div class="flex justify-end gap-2">
-        <button
-          onclick={() => { showEndConfirm = false; }}
-          class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2"
-        >
-          Cancel
-        </button>
-        <button
-          onclick={handleEndSession}
-          class="rounded-lg bg-error px-3 py-2 text-sm font-medium text-white hover:bg-error/80"
-        >
-          End Session
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
+<Modal open={showEndConfirm} title="End Manufacturing Session?" onclose={() => { showEndConfirm = false; }} size="sm">
+  <p class="text-2xs text-text-secondary">
+    This will finalize the session. No more panels can be run after ending.
+  </p>
+  {#snippet footer()}
+    <button
+      onclick={() => { showEndConfirm = false; }}
+      class="btn btn-sm btn-ghost"
+    >
+      Cancel
+    </button>
+    <button
+      onclick={handleEndSession}
+      class="btn btn-sm btn-danger"
+    >
+      End Session
+    </button>
+  {/snippet}
+</Modal>

@@ -106,7 +106,7 @@
       title="Manufacturing Sessions"
       description="Complete history of manufacturing sessions."
     />
-    <button onclick={refresh} disabled={refreshing} class="rounded-lg p-2 text-text-secondary hover:bg-surface-2 transition-colors" title="Refresh">
+    <button onclick={refresh} disabled={refreshing} class="btn btn-ghost btn-sm btn-icon" title="Refresh">
       <RefreshCw size={16} class={refreshing ? 'animate-spin' : ''} />
     </button>
   </div>

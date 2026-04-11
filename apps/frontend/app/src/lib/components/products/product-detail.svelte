@@ -133,7 +133,7 @@
       <div class="flex items-start gap-4">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-3">
-            <h2 class="text-lg font-semibold text-text-primary">{product.name}</h2>
+            <h2 class="text-xl font-semibold text-text-primary">{product.name}</h2>
             <StatusBadge status={product.active ? 'ACTIVE' : 'INACTIVE'} />
             {#if canManage}
               <button onclick={startEditProduct} title="Edit product" aria-label="Edit product" class="rounded p-1 text-text-tertiary hover:bg-surface-2 hover:text-text-primary">

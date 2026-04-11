@@ -333,7 +333,7 @@
                 <td class="px-4 py-3">
                   <StatusBadge status={entry.status} />
                   {#if entry.errorMessage}
-                    <div class="mt-1 max-w-[200px] truncate text-2xs text-error" title={entry.errorMessage}>
+                    <div class="mt-1 max-w-48 truncate text-2xs text-error" title={entry.errorMessage}>
                       {entry.errorMessage}
                     </div>
                   {/if}

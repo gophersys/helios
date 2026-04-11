@@ -41,8 +41,8 @@
   tabindex="0"
   onclick={handleCardClick}
   onkeydown={(e) => e.key === 'Enter' && handleCardClick()}
-  class="card group relative flex flex-col overflow-hidden text-left w-full transition-all duration-200
-    {isServerOnline ? 'hover:ring-2 hover:ring-accent/50 cursor-pointer' : deployState === 'deploying' ? 'hover:ring-2 hover:ring-warning/50 cursor-pointer' : ''}"
+  class="card card-md group relative flex flex-col overflow-hidden text-left w-full transition-all duration-200
+    {isServerOnline ? 'hover:shadow-card-hover cursor-pointer' : deployState === 'deploying' ? 'hover:shadow-card-hover cursor-pointer' : ''}"
 >
   <!-- Status stripe -->
   <div class="h-1 w-full {statusColor} {deployState === 'deploying' ? 'animate-pulse' : ''}"></div>

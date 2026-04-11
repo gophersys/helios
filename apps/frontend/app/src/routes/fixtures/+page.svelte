@@ -6,9 +6,10 @@
   import FixtureGridCard from '$lib/components/fixtures/fixture-grid-card.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
-  import { PageHeader, ErrorAlert, LoadingState } from '$lib/components/ui';
+  import { PageHeader, ErrorAlert, LoadingState, EmptyState } from '$lib/components/ui';
   import FilterBar from '$lib/components/ui/filter-bar.svelte';
   import FilterSelect from '$lib/components/ui/filter-select.svelte';
+  import Select from '$lib/components/ui/select.svelte';
   import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import FixtureDetail from '$lib/components/fixtures/fixture-detail.svelte';
@@ -290,51 +291,49 @@
   {#if loading}
     <LoadingState message="Loading fixtures..." />
   {:else if filtered.length === 0}
-    <div class="rounded-lg border border-dashed border-border bg-surface-1 p-12 text-center">
-      <Wrench size={32} class="mx-auto mb-3 text-text-tertiary opacity-30" />
-      <p class="text-sm text-text-secondary">
-        {fixtures.length === 0 ? 'No fixtures registered' : 'No fixtures match your filters'}
-      </p>
-    </div>
+    <EmptyState
+      message={fixtures.length === 0 ? 'No fixtures registered' : 'No fixtures match your filters'}
+      icon={Wrench}
+    />
   {:else if viewMode === 'table'}
-    <div class="rounded-lg border border-border overflow-hidden">
-      <table class="w-full text-sm">
+    <div class="table-wrapper">
+      <table class="table">
         <thead>
-          <tr class="border-b border-border bg-surface-0/50">
-            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Name</th>
-            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Product</th>
-            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Type</th>
-            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Design</th>
-            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Slots</th>
-            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Health</th>
-            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Revision</th>
+          <tr>
+            <th class="table-header">Name</th>
+            <th class="table-header">Product</th>
+            <th class="table-header">Type</th>
+            <th class="table-header">Design</th>
+            <th class="table-header">Slots</th>
+            <th class="table-header">Health</th>
+            <th class="table-header">Revision</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-border-subtle">
+        <tbody>
           {#each filtered as fixture}
             {@const health = healthIcon(fixture)}
             <tr
-              class="hover:bg-surface-0/50 cursor-pointer transition-colors"
+              class="table-row cursor-pointer"
               onclick={() => fetchDetail(fixture.id)}
             >
-              <td class="px-4 py-2.5">
+              <td class="table-cell">
                 <span class="font-medium text-text-primary">{fixture.name}</span>
               </td>
-              <td class="px-4 py-2.5 text-text-secondary">{fixture.productName || '—'}</td>
-              <td class="px-4 py-2.5">
+              <td class="table-cell text-text-secondary">{fixture.productName || '—'}</td>
+              <td class="table-cell">
                 <StatusBadge status={fixture.type} />
               </td>
-              <td class="px-4 py-2.5 text-2xs text-text-tertiary">
+              <td class="table-cell text-2xs text-text-tertiary">
                 {fixture.design?.name || '—'}
               </td>
-              <td class="px-4 py-2.5">
+              <td class="table-cell">
                 <span class="font-mono text-text-secondary">{slotSummary(fixture)}</span>
                 <span class="text-2xs text-text-tertiary ml-1">assigned</span>
               </td>
-              <td class="px-4 py-2.5">
+              <td class="table-cell">
                 <svelte:component this={health.icon} size={14} class={health.color} />
               </td>
-              <td class="px-4 py-2.5 text-2xs text-text-tertiary">
+              <td class="table-cell text-2xs text-text-tertiary">
                 {fixture.boardRevision?.version || '—'}
               </td>
             </tr>
@@ -354,7 +353,7 @@
   {#if selectedFixture}
     <div class="fixed inset-0 z-50 flex">
       <button onclick={() => selectedFixture = null} class="absolute inset-0 bg-black/30"></button>
-      <div class="relative ml-auto w-full max-w-2xl bg-surface-1 border-l border-border overflow-y-auto p-6">
+      <div class="relative ml-auto w-full max-w-2xl bg-surface-1 border-l border-border shadow-modal overflow-y-auto p-6">
         <button onclick={() => selectedFixture = null} class="absolute top-4 right-4 text-text-tertiary hover:text-text-primary">✕</button>
         <FixtureDetail
           fixture={selectedFixture}

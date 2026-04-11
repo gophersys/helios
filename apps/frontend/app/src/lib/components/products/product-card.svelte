@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Package, Trash2, ExternalLink, GitBranch, FlaskConical, Cpu } from 'lucide-svelte';
+  import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import type { Product } from '$lib/types/models';
 
   interface Props {
@@ -42,9 +43,7 @@
           {/if}
         </div>
       </div>
-      <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {product.active ? 'bg-success-muted text-success' : 'bg-surface-2 text-text-tertiary'}">
-        {product.active ? 'Active' : 'Inactive'}
-      </span>
+      <StatusBadge status={product.active ? 'ACTIVE' : 'INACTIVE'} />
     </div>
 
     <!-- Revisions -->
@@ -93,7 +92,7 @@
           {#each [1, 2, 3, 4, 5] as stageNum}
             {@const cfg = stages.find((s: any) => s.stage === stageNum)}
             <span
-              class="w-6 h-5 flex items-center justify-center rounded text-[9px] font-bold
+              class="w-6 h-5 flex items-center justify-center rounded text-2xs font-bold
                 {cfg?.enabled ? stageColors[stageNum] + ' text-white' : 'bg-surface-2 text-text-tertiary'}"
               title="{cfg?.name || stageLabels[stageNum-1]}: {cfg?.enabled ? 'Enabled' : 'Disabled'}"
             >

@@ -76,7 +76,7 @@
       </div>
       <div class="flex flex-col">
         <span class="text-xs font-medium">{STAGE_LABELS[stage.stage] ?? stage.stage}</span>
-        <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-2xs font-medium {statusChipColor(stage.status)}">
+        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-2xs font-medium {statusChipColor(stage.status)}">
           {stage.status}
         </span>
       </div>

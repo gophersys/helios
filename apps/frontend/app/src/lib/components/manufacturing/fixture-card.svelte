@@ -16,7 +16,7 @@
   let showStartDialog = $state(false);
 </script>
 
-<div class="rounded-lg border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-2/50">
+<div class="card card-sm card-interactive">
   <div class="flex items-start justify-between gap-3">
     <div class="min-w-0 flex-1">
       <h3 class="text-sm font-semibold text-text-primary">{fixture.name}</h3>
@@ -46,7 +46,7 @@
       {:else if canRun && fixture.status === 'AVAILABLE'}
         <button
           onclick={() => showStartDialog = true}
-          class="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-2xs font-medium text-white hover:bg-accent-hover transition-colors"
+          class="btn btn-sm btn-primary text-2xs"
         >
           <Play size={12} />
           New Session
