@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { Plus, Wrench, Search, Loader2, Wifi, WifiOff, AlertTriangle, Lock, Settings as SettingsIcon } from 'lucide-svelte';
+  import { Plus, Wrench, Search, Loader2, Wifi, WifiOff, AlertTriangle, Lock, Settings as SettingsIcon, List, LayoutGrid } from 'lucide-svelte';
+  import FixtureGridCard from '$lib/components/fixtures/fixture-grid-card.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
   import { PageHeader, ErrorAlert, LoadingState } from '$lib/components/ui';
@@ -28,6 +29,15 @@
   let filterType = $state('');
   let filterStatus = $state('');
   let searchQuery = $state('');
+
+  // View mode
+  let viewMode = $state<'table' | 'grid'>('table');
+
+  $effect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('concord-fixtures-view', viewMode);
+    }
+  });
 
   // Detail
   let selectedFixture = $state<Fixture | null>(null);
@@ -177,6 +187,12 @@
       goto('/');
       return;
     }
+
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem('concord-fixtures-view');
+      if (stored === 'grid') viewMode = 'grid';
+    }
+
     fetchFixtures();
     fetchProducts();
 
@@ -250,6 +266,24 @@
       {/if}
       <FilterSelect label="Type" value={filterType} onchange={(v) => { filterType = v; }} options={[{ value: 'VALIDATION', label: 'Validation' }, { value: 'MANUFACTURING', label: 'Manufacturing' }]} />
     {/snippet}
+    <div class="flex items-center gap-2 ml-auto">
+      <div class="flex items-center rounded-md bg-surface-2 p-0.5">
+        <button
+          onclick={() => viewMode = 'table'}
+          class="rounded px-1.5 py-1 transition-colors {viewMode === 'table' ? 'bg-surface-1 text-text-primary shadow-xs' : 'text-text-tertiary hover:text-text-secondary'}"
+          title="Table view"
+        >
+          <List size={14} />
+        </button>
+        <button
+          onclick={() => viewMode = 'grid'}
+          class="rounded px-1.5 py-1 transition-colors {viewMode === 'grid' ? 'bg-surface-1 text-text-primary shadow-xs' : 'text-text-tertiary hover:text-text-secondary'}"
+          title="Grid view"
+        >
+          <LayoutGrid size={14} />
+        </button>
+      </div>
+    </div>
   </FilterBar>
 
   <!-- Fixture list -->
@@ -262,7 +296,7 @@
         {fixtures.length === 0 ? 'No fixtures registered' : 'No fixtures match your filters'}
       </p>
     </div>
-  {:else}
+  {:else if viewMode === 'table'}
     <div class="rounded-lg border border-border overflow-hidden">
       <table class="w-full text-sm">
         <thead>
@@ -307,6 +341,12 @@
           {/each}
         </tbody>
       </table>
+    </div>
+  {:else}
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {#each filtered as fixture (fixture.id)}
+        <FixtureGridCard {fixture} onclick={() => fetchDetail(fixture.id)} />
+      {/each}
     </div>
   {/if}
 

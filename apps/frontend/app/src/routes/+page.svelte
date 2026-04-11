@@ -7,10 +7,11 @@
   } from 'lucide-svelte';
   import { PageHeader, LoadingState, ErrorAlert } from '$lib/components/ui';
   import DashboardFixtureCard from '$lib/components/dashboard/dashboard-fixture-card.svelte';
+  import RecentActivity from '$lib/components/dashboard/recent-activity.svelte';
   import { apiFetch } from '$lib/api';
   import { getAuth } from '$lib/stores/auth.svelte';
   import type { ApiResponse } from '$lib/types';
-  import type { DashboardData, DashboardFixture, DashboardStats } from '$lib/types/models';
+  import type { AuditEntry, DashboardData, DashboardFixture, DashboardStats } from '$lib/types/models';
 
   const auth = getAuth();
 
@@ -18,6 +19,8 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let pollTimer: ReturnType<typeof setInterval> | undefined;
+  let activityEntries = $state<AuditEntry[]>([]);
+  let activityLoading = $state(true);
 
   const stats = $derived(data?.stats ?? {});
   const fixtures = $derived(data?.fixtures ?? []);
@@ -50,6 +53,16 @@
       error = err instanceof Error ? err.message : 'Failed to load dashboard';
     } finally {
       loading = false;
+    }
+
+    if (auth.hasPermission('system:view')) {
+      try {
+        const histRes = await apiFetch<ApiResponse<{ data: AuditEntry[] }>>('/v2/system/history?limit=10');
+        activityEntries = histRes.data.data ?? [];
+      } catch { /* non-critical */ }
+      activityLoading = false;
+    } else {
+      activityLoading = false;
     }
   }
 
@@ -252,6 +265,12 @@
             />
           {/each}
         </div>
+      </div>
+    {/if}
+
+    {#if auth.hasPermission('system:view')}
+      <div>
+        <RecentActivity entries={activityEntries} loading={activityLoading} />
       </div>
     {/if}
   {/if}

@@ -4,6 +4,7 @@
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import type { Product, BoardRevision, ProductTarget } from '$lib/types/models';
   import { api } from '$lib/api';
+  import { formatTimeAgo } from '$lib/utils/formatting';
 
   interface Props {
     product: Product;
@@ -33,6 +34,53 @@
     return stageConfigs
       .filter((s: any) => s.boardRevisionId === revId && s.enabled)
       .map((s: any) => s.name);
+  }
+
+  // ── Build status per revision ───────────────────────────
+  interface BuildRecord {
+    id: string;
+    status: string;
+    branch?: string;
+    commitSha?: string;
+    versionString?: string;
+    createdAt?: string;
+    board?: string;
+  }
+
+  let latestBuilds = $state<BuildRecord[]>([]);
+  let buildsLoading = $state(true);
+
+  async function loadBuilds() {
+    buildsLoading = true;
+    try {
+      const res = await api.get(`/v2/builds?productId=${product.id}&limit=50`);
+      const data = (res as any)?.data?.data || [];
+      latestBuilds = data;
+    } catch {
+      /* non-critical — build status is informational */
+    }
+    buildsLoading = false;
+  }
+
+  $effect(() => {
+    if (product?.id) loadBuilds();
+  });
+
+  const buildByBoard = $derived.by(() => {
+    const map = new Map<string, BuildRecord>();
+    for (const build of latestBuilds) {
+      const boardName = (build as any).board;
+      if (boardName && !map.has(boardName)) {
+        map.set(boardName, build);
+      }
+    }
+    return map;
+  });
+
+  function latestBuildForRevision(rev: any): BuildRecord | null {
+    const ckName = rev.ckBoardsName;
+    if (!ckName) return null;
+    return buildByBoard.get(ckName) ?? null;
   }
 
   // ── Edit revision ──────────────────────────────────────
@@ -376,6 +424,24 @@
                 <Layers size={10} class="text-text-tertiary" />
                 {stagesUsingRevision(rev.id).length} stage{stagesUsingRevision(rev.id).length === 1 ? '' : 's'}
               </span>
+            {/if}
+          </div>
+
+          <!-- Latest build -->
+          <div class="mt-2 flex items-center gap-2">
+            {@const latestBuild = latestBuildForRevision(rev)}
+            {#if latestBuild}
+              <a href="/builds" class="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-0.5 text-2xs hover:bg-surface-3 transition-colors no-underline">
+                <StatusBadge status={latestBuild.status} />
+                {#if latestBuild.branch}
+                  <span class="text-text-secondary font-mono truncate max-w-[100px]">{latestBuild.branch}</span>
+                {/if}
+                {#if latestBuild.createdAt}
+                  <span class="text-text-tertiary">{formatTimeAgo(latestBuild.createdAt)}</span>
+                {/if}
+              </a>
+            {:else if !buildsLoading}
+              <span class="text-2xs text-text-tertiary">No builds</span>
             {/if}
           </div>
 
