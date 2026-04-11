@@ -7,7 +7,6 @@
   import FilterBar from '$lib/components/ui/filter-bar.svelte';
   import FilterSelect from '$lib/components/ui/filter-select.svelte';
   import FilterSearch from '$lib/components/ui/filter-search.svelte';
-  import FilterPills from '$lib/components/ui/filter-pills.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TimeDisplay from '$lib/components/ui/time-display.svelte';
   import EmptyState from '$lib/components/ui/empty-state.svelte';
@@ -39,7 +38,6 @@
   let searchQuery = $state('');
   let filterStage = $state('');
   let filterSource = $state('');
-  let activeStatuses = $state<Set<string>>(new Set());
 
   // Upload wizard
   let showUploadWizard = $state(false);
@@ -76,14 +74,6 @@
     { value: 'EXTERNAL_CI', label: 'External CI' },
   ];
 
-  // Status pill options
-  const STATUS_OPTIONS = [
-    { value: 'PENDING', label: 'Pending' },
-    { value: 'COMPLETE', label: 'Complete' },
-    { value: 'VALIDATED', label: 'Validated' },
-    { value: 'FAILED', label: 'Failed' },
-  ];
-
   // Filter logic (AND)
   const filteredAssets = $derived.by(() => {
     let result = assetSets;
@@ -108,15 +98,11 @@
       result = result.filter(a => a.source === filterSource);
     }
 
-    if (activeStatuses.size > 0) {
-      result = result.filter(a => activeStatuses.has(a.status));
-    }
-
     return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   });
 
   const hasActiveFilters = $derived(
-    !!searchQuery.trim() || !!filterStage || !!filterSource || activeStatuses.size > 0
+    !!searchQuery.trim() || !!filterStage || !!filterSource
   );
 
   // Helpers
@@ -276,7 +262,7 @@
               <p class="text-2xs text-error mt-1">{modemError}</p>
             {/if}
           {:else}
-            <button onclick={() => showModemUpload = true} class="btn btn-sm btn-secondary">
+            <button onclick={() => showModemUpload = true} class="btn btn-sm btn-primary">
               <Upload size={12} /> Upload .zip
             </button>
           {/if}
@@ -334,11 +320,6 @@
           onchange={(v) => { filterSource = v; }}
           options={SOURCE_OPTIONS}
         />
-        <FilterPills
-          options={STATUS_OPTIONS}
-          selected={activeStatuses}
-          onchange={(s) => { activeStatuses = s; }}
-        />
         <FilterSearch bind:value={searchQuery} placeholder="Search assets..." class="w-48" />
       {/snippet}
       <span class="ml-auto text-2xs text-text-tertiary shrink-0">
@@ -358,7 +339,7 @@
     {#if hasActiveFilters && assetSets.length > 0}
       <EmptyState message="No assets match your filters." icon={Search}>
         <p class="text-2xs text-text-tertiary mt-1">
-          <button onclick={() => { searchQuery = ''; filterStage = ''; filterSource = ''; activeStatuses = new Set(); }} class="text-accent hover:text-accent-hover">Clear filters</button> to see all {assetSets.length} asset set{assetSets.length === 1 ? '' : 's'}.
+          <button onclick={() => { searchQuery = ''; filterStage = ''; filterSource = ''; }} class="text-accent hover:text-accent-hover">Clear filters</button> to see all {assetSets.length} asset set{assetSets.length === 1 ? '' : 's'}.
         </p>
       </EmptyState>
     {:else}
@@ -376,7 +357,6 @@
             <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Version</th>
             <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Stage</th>
             <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Source</th>
-            <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Status</th>
             <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Branch</th>
             <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Files</th>
             <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Uploaded</th>
@@ -388,7 +368,7 @@
             {@const isExpanded = expandedId === asset.id}
             {@const hasFiles = (asset.assets?.length ?? 0) > 0}
             <tr class="border-b border-border-subtle last:border-0">
-              <td colspan={canManage ? 9 : 8} class="p-0">
+              <td colspan={canManage ? 8 : 7} class="p-0">
                 <div>
                   <!-- Row -->
                   <button
@@ -415,9 +395,6 @@
                     </div>
                     <div class="px-4 py-3">
                       <StatusBadge status={asset.source === 'BUILD_SERVICE' ? 'BUILD_SERVICE' : asset.source === 'EXTERNAL_CI' ? 'EXTERNAL_CI' : 'MANUAL_UPLOAD'} />
-                    </div>
-                    <div class="px-4 py-3">
-                      <StatusBadge status={asset.status} />
                     </div>
                     <div class="px-4 py-3">
                       {#if asset.branch}
