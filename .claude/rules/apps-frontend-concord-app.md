@@ -90,21 +90,14 @@ Svelte 5 rune-based stores live in `src/lib/stores/`:
 
 Access via context: `const auth = getAuth();`
 
-## Styling Tokens
+## Styling & Design System
 
-Never use hardcoded colors. Use the design token system:
-- Surfaces: `bg-surface-0` (base input), `bg-surface-1` (card), `bg-surface-2` (hover/header)
-- Text: `text-text-primary`, `text-text-secondary`, `text-text-tertiary`
-- Semantic: `bg-accent`, `bg-error`, `bg-success`, `bg-warning` + `-muted` variants
-- Borders: `border-border`, `border-border-subtle`
-- Accent hover: `hover:bg-accent-hover`
+All styling rules, spacing constraints, typography hierarchy, and component patterns are defined in:
 
-Common class patterns:
-- Card: `rounded-xl border border-border bg-surface-1 p-5`
-- Input: `rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none`
-- Primary button: `rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50`
-- Secondary button: `rounded-lg px-3 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2`
-- Small text: `text-2xs` for labels, badges, metadata
+- **`/DESIGN.md`** — the full design system reference (colors, spacing, typography, component patterns)
+- **`.claude/rules/ui-design-system.md`** — enforcement rules that must be followed for all UI code
+
+Key principles: 4px grid, design token colors only, component classes from `app.css`, `rounded-lg` for cards. Read those files before any UI work.
 
 ## Environment Awareness
 
