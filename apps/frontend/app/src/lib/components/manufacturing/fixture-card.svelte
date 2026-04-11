@@ -16,7 +16,7 @@
   let showStartDialog = $state(false);
 </script>
 
-<div class="rounded-xl border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-2/50">
+<div class="rounded-lg border border-border bg-surface-1 p-4 transition-colors hover:bg-surface-2/50">
   <div class="flex items-start justify-between gap-3">
     <div class="min-w-0 flex-1">
       <h3 class="text-sm font-semibold text-text-primary">{fixture.name}</h3>

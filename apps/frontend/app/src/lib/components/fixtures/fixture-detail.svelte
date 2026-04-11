@@ -167,11 +167,14 @@
   const slots = $derived(fixture.slots || []);
   const allPods = $derived(k8sStatus.flatMap(d => d.status?.pods || []));
 
+  const NODE_STATUS_DOT: Record<string, string> = {
+    ONLINE: 'bg-success',
+    ERROR: 'bg-error',
+    OFFLINE: 'bg-surface-2 border border-border',
+  };
+  const NODE_STATUS_DOT_DEFAULT = 'bg-warning';
   function nodeStatusDot(status: string): string {
-    if (status === 'ONLINE') return 'bg-success';
-    if (status === 'ERROR') return 'bg-error';
-    if (status === 'OFFLINE') return 'bg-surface-2 border border-border';
-    return 'bg-warning';
+    return NODE_STATUS_DOT[status] ?? NODE_STATUS_DOT_DEFAULT;
   }
 </script>
 
@@ -206,7 +209,7 @@
     </div>
 
     <!-- Deployment section -->
-    <div class="mt-5 border-t border-border pt-5">
+    <div class="mt-6 border-t border-border pt-6">
       <h3 class="mb-3 text-sm font-semibold text-text-primary">Deployment</h3>
 
       {#if deploymentLoading}
@@ -219,7 +222,7 @@
             <button
               onclick={handleCreateAndDeploy}
               disabled={deploying}
-              class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+              class="btn btn-sm btn-primary"
             >
               <Rocket size={16} />
               {deploying ? 'Deploying...' : 'Deploy'}
@@ -245,7 +248,7 @@
                 <button
                   onclick={handleDeploy}
                   disabled={actionInProgress}
-                  class="flex items-center gap-1.5 rounded-lg bg-success px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  class="btn btn-sm btn-primary"
                 >
                   <Play size={14} />
                   {deployment.status === 'FAILED' ? 'Retry' : 'Deploy'}
@@ -255,7 +258,7 @@
                 <button
                   onclick={handleRestart}
                   disabled={actionInProgress}
-                  class="flex items-center gap-1.5 rounded-lg bg-warning px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  class="btn btn-sm btn-secondary"
                 >
                   <RotateCcw size={14} />
                   Restart
@@ -263,7 +266,7 @@
                 <button
                   onclick={handleStop}
                   disabled={actionInProgress}
-                  class="flex items-center gap-1.5 rounded-lg bg-error px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  class="btn btn-sm btn-danger"
                 >
                   <Square size={14} />
                   Stop
@@ -326,7 +329,7 @@
     </div>
 
     <!-- Slots table -->
-    <div class="mt-5 border-t border-border pt-5">
+    <div class="mt-6 border-t border-border pt-6">
       <h3 class="mb-3 text-sm font-semibold text-text-primary">
         Slots ({slots.length})
       </h3>

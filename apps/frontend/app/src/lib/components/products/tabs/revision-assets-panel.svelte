@@ -148,7 +148,7 @@
     switch (source) {
       case 'BUILD_SERVICE': return 'bg-accent-muted text-accent';
       case 'MANUAL_UPLOAD': return 'bg-warning-muted text-warning';
-      case 'EXTERNAL_CI': return 'bg-blue-500/10 text-blue-400';
+      case 'EXTERNAL_CI': return 'bg-info-muted text-info';
       default: return 'bg-surface-2 text-text-secondary';
     }
   }
@@ -157,7 +157,7 @@
     switch (status) {
       case 'PENDING': return 'bg-warning-muted text-warning';
       case 'COMPLETE': return 'bg-success-muted text-success';
-      case 'VALIDATED': return 'bg-blue-500/10 text-blue-400';
+      case 'VALIDATED': return 'bg-info-muted text-info';
       case 'FAILED': return 'bg-error-muted text-error';
       default: return 'bg-surface-2 text-text-secondary';
     }

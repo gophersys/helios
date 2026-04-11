@@ -203,7 +203,7 @@
     <div class="mb-4">
       <button
         onclick={() => { resetForm(); showForm = true; }}
-        class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+        class="btn btn-sm btn-primary"
       >
         <Plus size={16} />
         Create Design
@@ -271,7 +271,7 @@
           <button
             type="submit"
             disabled={submitting}
-            class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+            class="btn btn-sm btn-primary"
           >
             <Check size={16} />
             {submitting ? 'Saving...' : editingId ? 'Save changes' : 'Create'}
@@ -279,7 +279,7 @@
           <button
             type="button"
             onclick={resetForm}
-            class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2"
+            class="btn btn-sm btn-ghost"
           >
             Cancel
           </button>

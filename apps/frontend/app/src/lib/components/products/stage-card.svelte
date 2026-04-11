@@ -72,11 +72,11 @@
   }
 
   const stageBadgeColors: Record<number, string> = {
-    1: 'bg-blue-500/10 text-blue-400',
-    2: 'bg-cyan-500/10 text-cyan-400',
-    3: 'bg-amber-500/10 text-amber-400',
-    4: 'bg-purple-500/10 text-purple-400',
-    5: 'bg-red-500/10 text-red-400',
+    1: 'bg-accent-muted text-accent',
+    2: 'bg-info-muted text-info',
+    3: 'bg-warning-muted text-warning',
+    4: 'bg-accent-muted text-accent',
+    5: 'bg-error-muted text-error',
   };
 
   const stageIcons: Record<number, string> = {
@@ -195,7 +195,7 @@
         <span class="px-2 py-1 text-xs rounded font-medium bg-success-muted text-success">Enabled</span>
       {:else}
         <button
-          class="px-2 py-1 text-xs rounded font-medium bg-accent text-white hover:bg-accent-hover"
+          class="btn btn-sm btn-primary"
           onclick={(e) => { e.stopPropagation(); startConfiguring(); }}
         >
           Enable
@@ -324,13 +324,13 @@
         <button
           onclick={() => enableStage(true)}
           disabled={saving || !formRevisionId}
-          class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+          class="btn btn-sm btn-primary"
         >
           {saving ? 'Enabling...' : 'Enable'}
         </button>
         <button
           onclick={() => { configuring = false; expanded = false; }}
-          class="rounded-lg px-4 py-2 text-sm font-medium text-text-tertiary hover:bg-surface-2"
+          class="btn btn-sm"
         >
           Cancel
         </button>

@@ -37,7 +37,7 @@
 </script>
 
 <!-- Test App section -->
-<div class="rounded-xl border border-border bg-surface-1 p-5 mb-6">
+<div class="rounded-lg border border-border bg-surface-1 p-4 mb-6">
   <h3 class="text-sm font-semibold text-text-primary mb-3">Validation Test App</h3>
   <TestAppStatusCard status={product.testAppStatus?.validation ?? null} type="VALIDATION" />
   <TestPackageList productId={product.id} packageType="VALIDATION" {onRefresh} />

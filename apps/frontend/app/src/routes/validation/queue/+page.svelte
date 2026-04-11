@@ -9,7 +9,6 @@
     ArrowUpCircle,
     XCircle,
     Clock,
-    Search,
     RefreshCw,
     ListOrdered,
     BarChart3,
@@ -216,33 +215,33 @@
   <!-- Stats cards -->
   {#if stats}
     <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-      <div class="rounded-lg border border-border bg-surface-1 p-4">
+      <div class="rounded-lg border border-border bg-surface-0 p-3">
         <div class="flex items-center gap-2">
           <BarChart3 size={14} class="text-text-tertiary" />
           <span class="text-2xs font-medium text-text-tertiary">Total</span>
         </div>
         <div class="mt-2 text-xl font-semibold tabular-nums text-text-primary">{stats.total}</div>
       </div>
-      <div class="rounded-lg border border-border bg-surface-1 p-4">
+      <div class="rounded-lg border border-border bg-surface-0 p-3">
         <div class="flex items-center gap-2">
           <ListOrdered size={14} class="text-text-tertiary" />
           <span class="text-2xs font-medium text-text-tertiary">Queued</span>
         </div>
         <div class="mt-2 text-xl font-semibold tabular-nums text-warning">{stats.byStatus?.QUEUED ?? 0}</div>
       </div>
-      <div class="rounded-lg border border-border bg-surface-1 p-4">
+      <div class="rounded-lg border border-border bg-surface-0 p-3">
         <div class="text-2xs font-medium text-text-tertiary">Assigned</div>
         <div class="mt-2 text-xl font-semibold tabular-nums text-info">{stats.byStatus?.ASSIGNED ?? 0}</div>
       </div>
-      <div class="rounded-lg border border-border bg-surface-1 p-4">
+      <div class="rounded-lg border border-border bg-surface-0 p-3">
         <div class="text-2xs font-medium text-text-tertiary">Running</div>
         <div class="mt-2 text-xl font-semibold tabular-nums text-success">{stats.byStatus?.RUNNING ?? 0}</div>
       </div>
-      <div class="rounded-lg border border-border bg-surface-1 p-4">
+      <div class="rounded-lg border border-border bg-surface-0 p-3">
         <div class="text-2xs font-medium text-text-tertiary">Completed</div>
         <div class="mt-2 text-xl font-semibold tabular-nums text-text-primary">{(stats.byStatus?.COMPLETED ?? 0) + (stats.byStatus?.FAILED ?? 0)}</div>
       </div>
-      <div class="rounded-lg border border-border bg-surface-1 p-4">
+      <div class="rounded-lg border border-border bg-surface-0 p-3">
         <div class="flex items-center gap-2">
           <Clock size={14} class="text-text-tertiary" />
           <span class="text-2xs font-medium text-text-tertiary">Avg Wait</span>
@@ -276,26 +275,26 @@
   {:else if filteredEntries.length === 0}
     <EmptyState message={searchQuery ? 'No entries match your search.' : 'Queue is empty. Entries appear when build runs request validation.'} />
   {:else}
-    <div class="overflow-hidden rounded-xl border border-border">
+    <div class="overflow-hidden rounded-lg border border-border">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
-            <tr class="bg-surface-1">
-              <th class="px-4 py-3 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Priority</th>
-              <th class="px-4 py-3 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Stage</th>
-              <th class="px-4 py-3 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Pipeline</th>
-              <th class="px-4 py-3 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Status</th>
-              <th class="px-4 py-3 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Bench</th>
-              <th class="px-4 py-3 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Requested</th>
-              <th class="px-4 py-3 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Wait Time</th>
+            <tr class="border-b border-border bg-surface-2">
+              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Priority</th>
+              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Stage</th>
+              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Pipeline</th>
+              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Status</th>
+              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Bench</th>
+              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Requested</th>
+              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Wait Time</th>
               {#if canManage}
-                <th class="px-4 py-3 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Actions</th>
+                <th class="px-4 py-2.5 text-right text-2xs font-medium uppercase tracking-wider text-text-tertiary">Actions</th>
               {/if}
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
             {#each filteredEntries as entry (entry.id)}
-              <tr class="transition-colors hover:bg-surface-1">
+              <tr class="transition-colors hover:bg-surface-2">
                 <!-- Priority -->
                 <td class="px-4 py-3">
                   <span class="font-mono text-sm font-bold tabular-nums {priorityColorClass(entry.priority)}">
@@ -373,7 +372,7 @@
                       <div class="flex items-center justify-end gap-1">
                         <button
                           onclick={() => handlePromote(entry.id)}
-                          class="inline-flex items-center gap-1 rounded-md bg-surface-2 px-2 py-1 text-2xs font-medium text-text-primary transition-colors hover:bg-accent hover:text-white"
+                          class="btn btn-sm btn-secondary gap-1"
                           title="Boost priority +50"
                         >
                           <ArrowUpCircle size={12} />
@@ -381,7 +380,7 @@
                         </button>
                         <button
                           onclick={() => handleCancel(entry.id)}
-                          class="inline-flex items-center gap-1 rounded-md bg-surface-2 px-2 py-1 text-2xs font-medium text-error transition-colors hover:bg-error-muted"
+                          class="btn btn-sm btn-danger gap-1"
                           title="Cancel this queue entry"
                         >
                           <XCircle size={12} />
@@ -392,7 +391,7 @@
                       <div class="flex items-center justify-end gap-1">
                         <button
                           onclick={() => handleCancel(entry.id)}
-                          class="inline-flex items-center gap-1 rounded-md bg-surface-2 px-2 py-1 text-2xs font-medium text-error transition-colors hover:bg-error-muted"
+                          class="btn btn-sm btn-danger gap-1"
                           title="Cancel this queue entry"
                         >
                           <XCircle size={12} />

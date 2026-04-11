@@ -1018,7 +1018,7 @@
               <Loader2 size={16} class="animate-spin" /> Loading signing keys...
             </div>
           {:else if signingKeys.length === 0}
-            <div class="rounded-xl border-2 border-warning/40 bg-warning-muted px-6 py-5">
+            <div class="rounded-lg border-2 border-warning/40 bg-warning-muted px-6 py-4">
               <div class="flex items-center gap-3 mb-2">
                 <ShieldAlert size={22} class="text-warning" />
                 <span class="text-base font-semibold text-warning">No signing keys configured</span>
@@ -1321,8 +1321,8 @@
         <div class="max-w-3xl space-y-6">
           <h3 class="text-sm font-semibold text-text-primary">Review Configuration</h3>
 
-          <div class="rounded-xl border border-border overflow-hidden">
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-surface-0/50">
+          <div class="rounded-lg border border-border overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle bg-surface-0/50">
               <span class="text-sm text-text-secondary">Target Revision</span>
               <div class="flex items-center gap-2">
                 <CircuitBoard size={14} class="text-accent" />
@@ -1331,11 +1331,11 @@
                 </span>
               </div>
             </div>
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle">
+            <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle">
               <span class="text-sm text-text-secondary">Watch Branch</span>
               <span class="font-mono text-sm text-text-primary">{formBranch || '—'}</span>
             </div>
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle bg-surface-0/50">
+            <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle bg-surface-0/50">
               <span class="text-sm text-text-secondary">Triggers</span>
               <div class="flex gap-1.5">
                 {#each formTriggerTypes as t}
@@ -1344,16 +1344,16 @@
               </div>
             </div>
             {#if hasSchedule}
-              <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle">
+              <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle">
                 <span class="text-sm text-text-secondary">Cron Schedule</span>
                 <span class="font-mono text-sm text-text-primary">{formCronExpression}</span>
               </div>
             {/if}
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle {hasSchedule ? 'bg-surface-0/50' : ''}">
+            <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle {hasSchedule ? 'bg-surface-0/50' : ''}">
               <span class="text-sm text-text-secondary">Signing Key</span>
               <span class="text-sm font-medium text-text-primary">{selectedKey?.name || 'None'}</span>
             </div>
-            <div class="flex items-center justify-between px-5 py-3.5">
+            <div class="flex items-center justify-between px-4 py-3.5">
               <span class="text-sm text-text-secondary">Build Recipe</span>
               <span class="text-sm text-text-primary">
                 {recipe.trim() ? `${recipe.split('\n').length} lines` : 'Not configured (external CI)'}
@@ -1376,7 +1376,7 @@
     <div class="flex items-center justify-between px-6 py-3 border-t border-border bg-surface-0/50 shrink-0">
       <button
         onclick={currentStep === 1 ? onClose : prevStep}
-        class="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-2 transition-colors"
+        class="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-text-secondary hover:bg-surface-2 transition-colors"
       >
         <ChevronLeft size={16} />
         {currentStep === 1 ? 'Cancel' : 'Back'}
@@ -1394,7 +1394,7 @@
           <button
             onclick={nextStep}
             disabled={(currentStep === 1 && !step1Valid) || (currentStep === 2 && !step2Valid)}
-            class="flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            class="flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Next <ChevronRight size={16} />
           </button>
@@ -1420,8 +1420,8 @@
 {#if showDisableConfirm}
   <div class="fixed inset-0 z-[500] flex items-center justify-center p-4">
     <div class="fixed inset-0 bg-overlay" onclick={() => { showDisableConfirm = false; }} role="presentation" tabindex="-1"></div>
-    <div class="relative w-full max-w-md rounded-xl border border-border bg-surface-1 shadow-2xl" role="dialog" aria-modal="true">
-      <div class="flex items-center justify-between border-b border-border px-5 py-4">
+    <div class="relative w-full max-w-md rounded-lg border border-border bg-surface-1 shadow-2xl" role="dialog" aria-modal="true">
+      <div class="flex items-center justify-between border-b border-border px-4 py-4">
         <div class="flex items-center gap-3">
           <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-error-muted">
             <AlertTriangle size={20} class="text-error" />
@@ -1432,7 +1432,7 @@
           <X size={20} />
         </button>
       </div>
-      <div class="p-5">
+      <div class="p-4">
         <p class="mb-4 text-sm text-text-secondary">
           This will disable all builds and validation runs for <strong class="text-text-primary">{displayStageName}</strong>
           {#if selectedRevision}
@@ -1454,7 +1454,7 @@
           autofocus
         />
       </div>
-      <div class="flex justify-end gap-2 border-t border-border px-5 py-4">
+      <div class="flex justify-end gap-2 border-t border-border px-4 py-4">
         <button onclick={() => { showDisableConfirm = false; }} class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2">
           Cancel
         </button>

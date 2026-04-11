@@ -50,7 +50,7 @@
 </script>
 
 {#if canRun && sessionActive}
-  <div class="rounded-xl border border-border bg-surface-1 p-4 mb-4">
+  <div class="rounded-lg border border-border bg-surface-1 p-4 mb-4">
     <div class="flex items-center gap-3">
       <div class="relative flex-1">
         <QrCode size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
@@ -94,7 +94,7 @@
 <!-- End session confirmation dialog -->
 {#if showEndConfirm}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog">
-    <div class="rounded-xl border border-border bg-surface-1 p-6 shadow-lg max-w-sm w-full mx-4">
+    <div class="rounded-lg border border-border bg-surface-1 p-6 shadow-lg max-w-sm w-full mx-4">
       <h3 class="text-sm font-semibold text-text-primary mb-2">End Manufacturing Session?</h3>
       <p class="text-2xs text-text-secondary mb-4">
         This will finalize the session. No more panels can be run after ending.

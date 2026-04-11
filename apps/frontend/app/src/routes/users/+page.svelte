@@ -133,7 +133,7 @@
         {#if activeTab === 'users' && canManage}
           <button
             onclick={() => (showCreate = !showCreate)}
-            class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+            class="btn btn-sm btn-primary"
           >
             {#if showCreate}
               <X size={16} />
@@ -213,7 +213,7 @@
               <button
                 type="submit"
                 disabled={submitting}
-                class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                class="btn btn-sm btn-primary"
               >
                 {#if submitting}
                   ...

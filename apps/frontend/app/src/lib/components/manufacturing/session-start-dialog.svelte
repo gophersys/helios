@@ -91,13 +91,13 @@
 <!-- Dialog -->
 <div class="fixed inset-0 z-modal flex items-center justify-center p-4">
   <div
-    class="w-full max-w-md animate-modal-in rounded-xl border border-border bg-surface-1 shadow-xl"
+    class="w-full max-w-md animate-modal-in rounded-lg border border-border bg-surface-1 shadow-xl"
     role="dialog"
     aria-modal="true"
     aria-labelledby="session-start-title"
   >
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-border px-5 py-4">
+    <div class="flex items-center justify-between border-b border-border px-6 py-4">
       <h2 id="session-start-title" class="text-sm font-semibold text-text-primary">
         New Manufacturing Session
       </h2>
@@ -112,7 +112,7 @@
     </div>
 
     <!-- Body -->
-    <div class="p-5 space-y-4">
+    <div class="p-6 space-y-4">
       {#if error}
         <div class="rounded-lg bg-error-muted px-3 py-2 text-sm text-error">
           {error}
@@ -173,7 +173,7 @@
     </div>
 
     <!-- Footer -->
-    <div class="flex justify-end gap-2 border-t border-border px-5 py-4">
+    <div class="flex justify-end gap-2 border-t border-border px-6 py-4">
       <button
         onclick={onCancel}
         disabled={submitting}

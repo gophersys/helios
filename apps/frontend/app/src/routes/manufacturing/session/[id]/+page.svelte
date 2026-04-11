@@ -447,7 +447,7 @@
       {/if}
 
       {#if !activeRun && completedRuns.length === 0}
-        <div class="rounded-xl border border-border bg-surface-1 p-8 text-center">
+        <div class="rounded-lg border border-border bg-surface-1 p-8 text-center">
           <p class="text-sm text-text-tertiary">
             {#if session.status === 'ACTIVE'}
               Scan a panel QR code to begin manufacturing.

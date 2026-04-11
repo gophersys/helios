@@ -260,10 +260,10 @@
   {:else if entries.length === 0}
     <EmptyState message="No audit entries found." />
   {:else}
-    <div class="overflow-hidden rounded-xl border border-border">
+    <div class="overflow-hidden rounded-lg border border-border">
       <table class="w-full">
         <thead>
-          <tr class="border-b border-border bg-surface-1">
+          <tr class="border-b border-border bg-surface-2">
             <th class="w-8 px-3 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary"></th>
             <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Action</th>
             <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Entity</th>

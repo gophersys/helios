@@ -13,6 +13,15 @@
     const end = unit.completedAt ? new Date(unit.completedAt).getTime() : Date.now();
     return formatDuration(end - start);
   });
+
+  const borderClass = $derived.by(() => {
+    switch (unit.status) {
+      case 'PASSED': return 'border-success/30';
+      case 'FAILED': return 'border-error/30';
+      case 'RUNNING': return 'border-accent/30';
+      default: return '';
+    }
+  });
 </script>
 
 <div
@@ -22,9 +31,7 @@
   onkeydown={(e) => { if (onclick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onclick(); } }}
   class="rounded-lg border border-border bg-surface-0 p-3 transition-colors
   {onclick ? 'cursor-pointer hover:bg-surface-1' : ''}
-  {unit.status === 'PASSED' ? 'border-success/30' :
-   unit.status === 'FAILED' ? 'border-error/30' :
-   unit.status === 'RUNNING' ? 'border-accent/30' : ''}"
+  {borderClass}"
 >
   <!-- Header: slot label + status -->
   <div class="flex items-center justify-between mb-2">

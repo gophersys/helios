@@ -11,7 +11,6 @@
     CheckCircle2,
     XCircle,
     Loader2,
-    Search,
     Moon,
     GitCommit,
     Zap,

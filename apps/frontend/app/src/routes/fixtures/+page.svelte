@@ -196,7 +196,7 @@
       {#if canManage}
         <button
           onclick={() => showCreate = !showCreate}
-          class="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+          class="btn btn-sm btn-primary"
         >
           {#if showCreate}Cancel{:else}<Plus size={16} /> New Fixture{/if}
         </button>
@@ -231,7 +231,7 @@
           <Select bind:value={formType} options={[{ value: 'VALIDATION', label: 'Validation' }, { value: 'MANUFACTURING', label: 'Manufacturing' }]} />
         </label>
         <div class="flex items-end">
-          <button type="submit" disabled={submitting || !formDesignId} class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50">
+          <button type="submit" disabled={submitting || !formDesignId} class="btn btn-sm btn-primary">
             {submitting ? 'Creating...' : 'Create'}
           </button>
         </div>
@@ -254,7 +254,7 @@
   {#if loading}
     <LoadingState message="Loading fixtures..." />
   {:else if filtered.length === 0}
-    <div class="rounded-xl border border-dashed border-border bg-surface-1 p-12 text-center">
+    <div class="rounded-lg border border-dashed border-border bg-surface-1 p-12 text-center">
       <Wrench size={32} class="mx-auto mb-3 text-text-tertiary opacity-30" />
       <p class="text-sm text-text-secondary">
         {fixtures.length === 0 ? 'No fixtures registered' : 'No fixtures match your filters'}

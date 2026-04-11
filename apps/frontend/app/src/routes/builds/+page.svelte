@@ -458,7 +458,7 @@
 
   <!-- Summary bar -->
   {#if summary}
-    <div class="mb-5 flex items-center gap-4 text-sm text-text-secondary">
+    <div class="mb-4 flex items-center gap-4 text-sm text-text-secondary">
       <span class="inline-flex items-center gap-1.5">
         <span class="font-semibold tabular-nums text-text-primary">{summary.activeRuns}</span>
         active

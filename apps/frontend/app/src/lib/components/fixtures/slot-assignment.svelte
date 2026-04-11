@@ -50,7 +50,7 @@
         <button
           onclick={handleAssign}
           disabled={!selectedNodeId}
-          class="rounded-lg bg-accent px-2 py-1 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+          class="btn btn-sm btn-primary"
         >
           Assign
         </button>
