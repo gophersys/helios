@@ -27,8 +27,7 @@ logger = logging.getLogger(__name__)
 
 _VALID_ASSET_SET_TRANSITIONS = {
     "PENDING": {"COMPLETE", "FAILED"},
-    "COMPLETE": {"VALIDATED", "FAILED"},
-    "VALIDATED": set(),
+    "COMPLETE": {"FAILED"},
     "FAILED": set(),
 }
 

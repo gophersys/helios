@@ -329,9 +329,9 @@ def create_manufacturing_session():
             return not_found("AssetSet not found")
         if asset_set.productId != product_id:
             return bad_request("AssetSet does not belong to this product")
-        if asset_set.status not in ("COMPLETE", "VALIDATED"):
+        if asset_set.status == "PENDING":
             return bad_request(
-                f"AssetSet status must be COMPLETE or VALIDATED (current: {asset_set.status})"
+                f"AssetSet is not ready (current status: {asset_set.status})"
             )
     else:
         # Auto-resolve from ManufacturingConfig (match fixture's board revision)

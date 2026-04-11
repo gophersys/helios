@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 VALID_SOURCES = {"BUILD_SERVICE", "MANUAL_UPLOAD", "EXTERNAL_CI"}
-VALID_STATUSES = {"PENDING", "COMPLETE", "VALIDATED", "FAILED"}
+VALID_STATUSES = {"PENDING", "COMPLETE", "FAILED"}
 
 
 @dataclass

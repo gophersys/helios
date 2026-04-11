@@ -800,7 +800,7 @@ export interface AssetSet {
   stage: number | null;
   stageType: 'VALIDATION' | 'MANUFACTURING' | null;
   source: 'BUILD_SERVICE' | 'MANUAL_UPLOAD' | 'EXTERNAL_CI';
-  status: 'PENDING' | 'COMPLETE' | 'VALIDATED' | 'FAILED';
+  status: 'PENDING' | 'COMPLETE' | 'FAILED';
   buildRunId: string | null;
   externalBuildId: string | null;
   recipeVersionId: string | null;

@@ -413,13 +413,13 @@
 <!-- Dialog -->
 <div class="fixed inset-0 z-modal flex items-center justify-center p-4">
   <div
-    class="w-full max-w-2xl animate-modal-in rounded-xl border border-border bg-surface-1 shadow-xl max-h-[90vh] flex flex-col"
+    class="w-full max-w-2xl animate-modal-in rounded-lg border border-border bg-surface-1 shadow-modal max-h-[90vh] flex flex-col"
     role="dialog"
     aria-modal="true"
     aria-labelledby="upload-wizard-title"
   >
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
+    <div class="flex items-center justify-between border-b border-border px-6 py-4 shrink-0">
       <div class="flex items-center gap-3">
         <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-muted">
           <Upload size={20} class="text-accent" strokeWidth={1.75} />
@@ -445,7 +445,7 @@
     </div>
 
     <!-- Step indicator -->
-    <div class="flex items-center gap-1 px-5 py-3 border-b border-border-subtle shrink-0">
+    <div class="flex items-center gap-1 px-6 py-3 border-b border-border-subtle shrink-0">
       {#each steps as label, i}
         {@const active = i === stepIndex}
         {@const done = i < stepIndex}
@@ -469,7 +469,7 @@
     </div>
 
     <!-- Body -->
-    <div class="p-5 min-h-[200px] overflow-y-auto">
+    <div class="p-6 min-h-[200px] overflow-y-auto">
 
       <!-- No stages configured -->
       {#if !hasConfigs}
@@ -652,7 +652,7 @@
               <button
                 onclick={handleAnalyze}
                 disabled={analyzing}
-                class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+                class="btn btn-primary w-full"
               >
                 {#if analyzing}
                   <Loader2 size={14} class="animate-spin" />
@@ -744,7 +744,7 @@
                   type="text"
                   bind:value={uploadVersion}
                   placeholder="e.g., 0.5.2"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
+                  class="input w-full"
                 />
               </div>
 
@@ -758,7 +758,7 @@
                     <select
                       id="files-modem-select"
                       bind:value={selectedModemFirmwareId}
-                      class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
+                      class="input w-full"
                     >
                       <option value={null}>Select modem firmware...</option>
                       {#each analyzeAvailableModemFirmwares as fw}
@@ -784,7 +784,7 @@
                   bind:value={uploadNotes}
                   placeholder="Notes about this firmware..."
                   rows="2"
-                  class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden resize-none"
+                  class="input w-full resize-none"
                 ></textarea>
               </div>
 
@@ -792,7 +792,7 @@
               <button
                 onclick={handleFilesUpload}
                 disabled={!allLabelsAssigned || !uploadVersion.trim() || !filesModemReady || uploading}
-                class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+                class="btn btn-primary w-full"
               >
                 {#if uploading}
                   <Loader2 size={14} class="animate-spin" />
@@ -857,7 +857,7 @@
               <button
                 onclick={handleValidateZip}
                 disabled={validating}
-                class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+                class="btn btn-primary w-full"
               >
                 {#if validating}
                   <Loader2 size={14} class="animate-spin" />
@@ -925,7 +925,7 @@
                     type="text"
                     bind:value={uploadVersion}
                     placeholder="e.g., 0.5.2"
-                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden"
+                    class="input w-full"
                   />
                 </div>
 
@@ -939,7 +939,7 @@
                     bind:value={uploadNotes}
                     placeholder="Notes about this firmware..."
                     rows="2"
-                    class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-hidden resize-none"
+                    class="input w-full resize-none"
                   ></textarea>
                 </div>
 
@@ -953,7 +953,7 @@
                       <select
                         id="zip-modem-select"
                         bind:value={selectedModemFirmwareId}
-                        class="w-full rounded-lg border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-hidden"
+                        class="input w-full"
                       >
                         <option value={null}>Select modem firmware...</option>
                         {#each validationResult.availableModemFirmwares as fw}
@@ -974,7 +974,7 @@
                   <button
                     onclick={handleZipUpload}
                     disabled={uploading}
-                    class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+                    class="btn btn-primary w-full"
                   >
                     {#if uploading}
                       <Loader2 size={14} class="animate-spin" />
@@ -1032,13 +1032,13 @@
     </div>
 
     <!-- Footer -->
-    <div class="flex items-center justify-between border-t border-border px-5 py-4 shrink-0">
+    <div class="flex items-center justify-between border-t border-border px-6 py-4 shrink-0">
       <div>
         {#if currentStep === 'upload'}
           <button
             onclick={goBack}
             disabled={busy}
-            class="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50"
+            class="btn btn-ghost"
           >
             <ChevronLeft size={14} />
             Back
@@ -1052,7 +1052,7 @@
         {#if currentStep === 'complete'}
           <button
             onclick={onComplete}
-            class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+            class="btn btn-primary"
           >
             Done
           </button>
@@ -1060,7 +1060,7 @@
           <button
             onclick={() => { if (!busy) onCancel(); }}
             disabled={busy}
-            class="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-2 disabled:opacity-50"
+            class="btn btn-secondary"
           >
             Cancel
           </button>
@@ -1068,7 +1068,7 @@
           {#if !hasConfigs}
             <button
               onclick={onCancel}
-              class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+              class="btn btn-primary"
             >
               Close
             </button>
