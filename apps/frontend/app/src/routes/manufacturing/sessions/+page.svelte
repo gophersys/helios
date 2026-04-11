@@ -136,7 +136,12 @@
   {#if loading}
     <LoadingState message="Loading sessions..." />
   {:else if filteredSessions.length === 0}
-    <EmptyState message={searchQuery || statusFilter ? 'No sessions match your filters.' : 'No manufacturing sessions found.'} />
+    {@const hasFilters = searchQuery || statusFilter}
+    <EmptyState message={hasFilters ? 'No sessions match your filters.' : 'No manufacturing sessions yet.'}>
+      {#if !hasFilters}
+        <p class="text-2xs text-text-tertiary mt-1">Sessions are created when operators start manufacturing on a fixture. <a href="/products" class="text-accent hover:text-accent-hover">Configure manufacturing stages</a> in a product's Manufacturing tab.</p>
+      {/if}
+    </EmptyState>
   {:else}
     <div class="divide-y divide-border-subtle rounded-lg border border-border bg-surface-0">
       {#each filteredSessions as session (session.id)}

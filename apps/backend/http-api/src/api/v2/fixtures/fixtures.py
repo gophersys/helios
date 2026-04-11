@@ -234,6 +234,7 @@ def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
         }
     if hasattr(f, "slots") and f.slots is not None:
         data["slotCount"] = len(f.slots)
+        data["assignedCount"] = len([s for s in f.slots if s.nodeId is not None])
         if include_slots:
             data["slots"] = [_serialize_slot(s) for s in f.slots]
     return data

@@ -154,7 +154,9 @@
       const assigned = f.slots.filter(s => s.nodeId).length;
       return `${assigned}/${f.slots.length}`;
     }
-    // List endpoint only returns slotCount (no full slots array)
+    if (f.assignedCount !== undefined && f.slotCount !== undefined) {
+      return `${f.assignedCount}/${f.slotCount}`;
+    }
     return `${f.slotCount ?? 0}`;
   }
 
@@ -293,7 +295,7 @@
               </td>
               <td class="px-4 py-2.5">
                 <span class="font-mono text-text-secondary">{slotSummary(fixture)}</span>
-                <span class="text-2xs text-text-tertiary ml-1">{fixture.slots ? 'assigned' : 'slots'}</span>
+                <span class="text-2xs text-text-tertiary ml-1">assigned</span>
               </td>
               <td class="px-4 py-2.5">
                 <svelte:component this={health.icon} size={14} class={health.color} />

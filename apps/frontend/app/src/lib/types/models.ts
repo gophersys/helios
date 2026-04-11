@@ -925,6 +925,7 @@ export interface Fixture {
   active: boolean;
   metadata: Record<string, unknown> | null;
   slotCount?: number;
+  assignedCount?: number;
   productName?: string;
   boardRevision?: { id: string; version: string; ckBoardsName: string; socs: string[] } | null;
   design?: FixtureDesignSummary | null;

@@ -656,7 +656,11 @@
   <!-- PR Pipelines View -->
   {:else if activeTab === 'pipelines'}
     {#if prPipelines.length === 0}
-      <EmptyState message="No PR pipelines found." />
+      <EmptyState message={prProductFilter || prMyPrs || prDateRange ? 'No PR pipelines match your filters.' : 'No PR pipelines yet.'}>
+        {#if !prProductFilter && !prMyPrs && !prDateRange}
+          <p class="text-2xs text-text-tertiary mt-1">Pipelines appear when pull requests are opened against watched branches. <a href="/products" class="text-accent hover:text-accent-hover">Configure build triggers</a> in a product's Validation tab.</p>
+        {/if}
+      </EmptyState>
     {:else}
       <div class="space-y-0">
         {#each prPipelines as pr (pr.prNumber + '-' + pr.productId)}
@@ -716,7 +720,12 @@
   <!-- Build Runs View -->
   {:else}
     {#if buildRuns.length === 0}
-      <EmptyState message="No build runs found." />
+      {@const hasRunFilters = runsProductFilter || runsStageFilter || runsStatusFilter.size > 0 || runsTriggerFilter}
+      <EmptyState message={hasRunFilters ? 'No build runs match your filters.' : 'No builds yet.'}>
+        {#if !hasRunFilters}
+          <p class="text-2xs text-text-tertiary mt-1">Builds are triggered when commits land on watched branches. <a href="/products" class="text-accent hover:text-accent-hover">Configure build triggers</a> in a product's Validation tab.</p>
+        {/if}
+      </EmptyState>
     {:else}
       <div class="space-y-0">
         {#each buildRuns as run (run.id)}

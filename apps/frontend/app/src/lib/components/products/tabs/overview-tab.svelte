@@ -38,10 +38,8 @@
   const valStages = $derived(stageConfigs.filter((s) => !s.type || s.type === 'VALIDATION'));
   const mfgStages = $derived(stageConfigs.filter((s) => s.type === 'MANUFACTURING'));
 
-  // Validation stage numbers (rows)
-  const stageNumbers = $derived(
-    ([...new Set(valStages.map((s) => s.stage))] as number[]).sort((a, b) => a - b)
-  );
+  // Validation stage numbers (rows) — always show all 5 standard stages
+  const stageNumbers = [1, 2, 3, 4, 5];
 
   // Manufacturing stage numbers (rows)
   const mfgStageNumbers = $derived(
@@ -64,6 +62,11 @@
 
   function getStageCell(stage: number, revId: string): ProductStageConfig | null {
     return stageMatrix().get(`${stage}:${revId}`) ?? null;
+  }
+
+  // Check if any revision has a config for a given validation stage
+  function hasAnyConfig(stage: number): boolean {
+    return valStages.some((s) => s.stage === stage);
   }
 
   // Manufacturing stage lookup
@@ -303,26 +306,8 @@
   <div>
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-semibold text-text-primary">Validation Stages</h3>
-      {#if valStages.length > 0}
-        <span class="text-2xs text-text-tertiary">{valStages.filter((s) => s.enabled).length} of {valStages.length} enabled</span>
-      {/if}
+      <span class="text-2xs text-text-tertiary">{valStages.filter((s) => s.enabled).length} of 5 configured</span>
     </div>
-    {#if valStages.length === 0}
-      <div class="rounded-lg border border-dashed border-border bg-surface-0 p-6 text-center">
-        <FlaskConical size={24} class="mx-auto mb-2 text-text-tertiary opacity-30" />
-        <p class="text-sm text-text-secondary">No validation stages configured</p>
-        {#if onSwitchTab}
-          <button
-            onclick={() => switchTab('stages')}
-            class="mt-2 text-2xs font-medium text-accent hover:text-accent-hover transition-colors"
-          >
-            Go to Validation tab
-          </button>
-        {:else}
-          <p class="text-2xs text-text-tertiary mt-1">Go to the Validation tab to set up test stages for this product.</p>
-        {/if}
-      </div>
-    {:else}
       <!-- Stage x revision matrix table with sticky stage column -->
       <div class="rounded-lg border border-border overflow-x-auto">
         <table class="w-full text-sm border-collapse">
@@ -338,13 +323,15 @@
           </thead>
           <tbody>
             {#each stageNumbers as stageNum}
+              {@const configured = hasAnyConfig(stageNum)}
               <tr class="border-t border-border-subtle">
                 <td class="sticky left-0 z-10 bg-surface-0 px-4 py-2.5 border-r border-border-subtle">
                   <div class="flex items-center gap-2">
-                    <div class="w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold bg-accent text-white shrink-0">
+                    <div class="w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold shrink-0
+                      {configured ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
                       {stageNum}
                     </div>
-                    <span class="font-medium text-text-primary whitespace-nowrap">{STAGE_NAMES['VALIDATION']?.[stageNum] || `Stage ${stageNum}`}</span>
+                    <span class="whitespace-nowrap {configured ? 'font-medium text-text-primary' : 'font-medium text-text-tertiary'}">{STAGE_NAMES['VALIDATION']?.[stageNum] || `Stage ${stageNum}`}</span>
                   </div>
                 </td>
                 {#each matrixRevisions as rev}
@@ -372,8 +359,10 @@
                           {/if}
                         </div>
                       </div>
-                    {:else}
+                    {:else if cell}
                       <span class="text-text-tertiary opacity-30">&mdash;</span>
+                    {:else}
+                      <span class="text-2xs text-text-tertiary opacity-50">Not configured</span>
                     {/if}
                   </td>
                 {/each}
@@ -382,7 +371,6 @@
           </tbody>
         </table>
       </div>
-    {/if}
 
     <!-- Manufacturing stage matrix -->
     <div class="mt-6">
