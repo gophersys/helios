@@ -8,10 +8,10 @@
   import ProductAssetsTab from './tabs/assets-tab.svelte';
   import ProductManufacturingTab from './tabs/manufacturing-tab.svelte';
   import {
-    Pencil, Check, X,
+    Pencil, Check, X, ChevronDown,
     LayoutDashboard, CircuitBoard, FlaskConical, Package, Factory,
   } from 'lucide-svelte';
-  import type { Product } from '$lib/types/models';
+  import type { Product, BoardRevision } from '$lib/types/models';
   import { api } from '$lib/api';
 
   type Tab = 'overview' | 'hardware' | 'assets' | 'manufacturing' | 'stages';
@@ -27,6 +27,29 @@
 
   let activeTab = $state<Tab>('overview');
   let error = $state<string | null>(null);
+
+  // ── Global revision selection (persists across tabs) ────
+  const allRevisions = $derived(
+    (product.boards || []).flatMap((b: any) => (b.revisions || []) as BoardRevision[])
+  );
+  const activeRevisions = $derived(
+    allRevisions.filter((r) => r.status === 'ACTIVE')
+  );
+  let selectedRevisionId = $state<string | null>(null);
+
+  // Auto-select first active revision if none selected
+  $effect(() => {
+    if (!selectedRevisionId && activeRevisions.length > 0) {
+      selectedRevisionId = activeRevisions[0].id;
+    }
+  });
+
+  const selectedRevision = $derived(
+    allRevisions.find((r) => r.id === selectedRevisionId) ?? activeRevisions[0] ?? null
+  );
+
+  // Tabs that use revision context
+  const revisionTabs: Set<Tab> = new Set(['stages', 'assets', 'manufacturing']);
 
   // ── Product info editing ────────────────────────────────
   let editingProduct = $state(false);
@@ -148,18 +171,38 @@
       </div>
     {/if}
 
-    <!-- ═══ TABS ═══ -->
-    <div class="mt-6 flex gap-1 border-b border-border">
-      {#each tabs as tab}
-        {@const TabIcon = tab.icon}
-        <button
-          onclick={() => (activeTab = tab.key)}
-          class="flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors {activeTab === tab.key ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
-        >
-          <TabIcon size={14} />
-          {tab.label}
-        </button>
-      {/each}
+    <!-- ═══ TABS + REVISION PICKER ═══ -->
+    <div class="mt-6 flex items-end justify-between border-b border-border">
+      <div class="flex gap-1">
+        {#each tabs as tab}
+          {@const TabIcon = tab.icon}
+          <button
+            onclick={() => (activeTab = tab.key)}
+            class="flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors {activeTab === tab.key ? 'border-b-2 border-accent text-accent' : 'text-text-tertiary hover:text-text-secondary'}"
+          >
+            <TabIcon size={14} />
+            {tab.label}
+          </button>
+        {/each}
+      </div>
+
+      <!-- Revision picker (shown when on a revision-scoped tab) -->
+      {#if revisionTabs.has(activeTab) && activeRevisions.length > 1}
+        <div class="flex items-center gap-1 pb-1.5">
+          <span class="text-2xs font-medium text-text-tertiary mr-1">Rev:</span>
+          {#each activeRevisions as rev}
+            <button
+              onclick={() => selectedRevisionId = rev.id}
+              class="rounded-md px-2 py-1 text-xs font-mono font-medium transition-colors
+                {selectedRevisionId === rev.id
+                  ? 'bg-accent text-white'
+                  : 'text-text-tertiary hover:bg-surface-2 hover:text-text-secondary'}"
+            >
+              {rev.version}
+            </button>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     <!-- ═══ TAB CONTENT ═══ -->
@@ -169,11 +212,11 @@
       {:else if activeTab === 'hardware'}
         <ProductHardwareTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'stages'}
-        <ProductStagesTab {product} {canManage} {onRefresh} />
+        <ProductStagesTab {product} {canManage} {onRefresh} selectedRevisionId={selectedRevisionId} />
       {:else if activeTab === 'assets'}
-        <ProductAssetsTab {product} {canManage} {onRefresh} />
+        <ProductAssetsTab {product} {canManage} {onRefresh} selectedRevisionId={selectedRevisionId} />
       {:else if activeTab === 'manufacturing'}
-        <ProductManufacturingTab {product} {canManage} {onRefresh} />
+        <ProductManufacturingTab {product} {canManage} {onRefresh} selectedRevisionId={selectedRevisionId} />
       {/if}
     </div>
   </div>
