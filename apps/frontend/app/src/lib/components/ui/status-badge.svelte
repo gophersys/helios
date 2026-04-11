@@ -57,11 +57,21 @@
     EXTERNAL_CI: 'bg-surface-2 text-text-secondary',
   };
 
+  // Human-readable labels for ugly enum values
+  const LABELS: Record<string, string> = {
+    BUILD_SERVICE: 'Build',
+    MANUAL_UPLOAD: 'Manual',
+    EXTERNAL_CI: 'External',
+    BUILD_FAILED: 'Build Failed',
+    EOL: 'End of Life',
+  };
+
   let { status }: { status: string } = $props();
 
   const colorClass = $derived(COLORS[status] || 'bg-surface-2 text-text-secondary');
+  const label = $derived(LABELS[status] || status);
 </script>
 
 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium {colorClass}">
-  {status}
+  {label}
 </span>
