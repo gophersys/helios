@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, Rocket, Package } from 'lucide-svelte';
+  import { ChevronDown, ChevronRight, Rocket, Package, Wrench } from 'lucide-svelte';
   import { api } from '$lib/api';
   import { getAuth } from '$lib/stores/auth.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
@@ -37,8 +37,8 @@
       if (boardRevisionId) {
         url += `&boardRevisionId=${boardRevisionId}`;
       }
-      const res = await api.get<ApiResponse<TestPackage[]>>(url);
-      packages = res.data;
+      const res = await api.get<ApiResponse<{ data: TestPackage[]; pagination: unknown }>>(url);
+      packages = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load test packages';
     } finally {
@@ -239,6 +239,19 @@
                     </td>
                   {/if}
                 </tr>
+                {#if pkg.fixtureDesign}
+                  <tr class="border-none">
+                    <td colspan={canManage ? 7 : 6} class="px-4 pb-2 pt-0">
+                      <a
+                        href="/fixtures?designId={pkg.fixtureDesign.id}"
+                        class="inline-flex items-center gap-1 text-2xs text-text-tertiary hover:text-accent transition-colors"
+                      >
+                        <Wrench size={10} />
+                        Fixture: {pkg.fixtureDesign.name} v{pkg.fixtureDesign.revision}
+                      </a>
+                    </td>
+                  </tr>
+                {/if}
               {/each}
             </tbody>
           </table>

@@ -216,6 +216,14 @@ def _serialize_fixture(f: Any, include_slots: bool = False) -> dict:
     }
     if hasattr(f, "product") and f.product:
         data["productName"] = f.product.name
+    if hasattr(f, "boardRevision") and f.boardRevision:
+        rev = f.boardRevision
+        data["boardRevision"] = {
+            "id": rev.id,
+            "version": rev.version,
+            "ckBoardsName": getattr(rev, "ckBoardsName", None),
+            "socs": getattr(rev, "socs", []) or [],
+        }
     if hasattr(f, "design") and f.design:
         data["design"] = {
             "id": f.design.id,

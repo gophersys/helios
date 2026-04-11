@@ -45,105 +45,181 @@ TEST_PACKAGES_PREFIX = "test-packages"
 # ── Fixture Design Auto-Extraction ──────────────────────────────────
 
 
-def _extract_fixture_designs(file_data: bytes, product_id: str) -> int:
-    """Extract fixture profiles from the tar.gz and create/update FixtureDesign records.
+def _extract_fixture_designs(
+    file_data: bytes, product_id: str, package_type: str = "VALIDATION"
+) -> Optional[str]:
+    """Extract fixture profile from the tar.gz and create/update a FixtureDesign record.
 
-    Looks for fixtures/*/fixture.yaml files inside the archive.
-    The test app is the source of truth for fixture hardware configuration.
+    Uses the concord.yaml manifest's fixture.profile path to locate the fixture YAML
+    inside the archive. Falls back to scanning for fixtures/*/fixture.yaml patterns.
 
-    Returns the number of designs created or updated.
+    The test app code is the single source of truth for fixture designs.
+
+    Args:
+        file_data: Raw tar.gz bytes.
+        product_id: Concord product ID.
+        package_type: "VALIDATION" or "MANUFACTURING" — sets FixtureDesign.type.
+
+    Returns the ID of the created/updated FixtureDesign, or None.
     """
     db = get_db_client()
-    count = 0
 
     try:
         buf = BytesIO(file_data)
         with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+            # Step 1: Read the manifest to find the declared fixture profile path
+            manifest_data = None
             for member in tar.getmembers():
-                # Match fixtures/{board}/fixture.yaml
-                parts = member.name.split("/")
-                if (
-                    len(parts) >= 3
-                    and parts[-3] == "fixtures"
-                    and parts[-1] in ("fixture.yaml", "fixture.yml")
-                    and member.isfile()
-                ):
-                    board_name = parts[-2]
+                if member.isfile() and member.name.split("/")[-1] == "concord.yaml":
                     f = tar.extractfile(member)
-                    if not f:
+                    if f:
+                        manifest_data = yaml.safe_load(f.read())
+                        break
+
+            # Step 2: Find the fixture profile YAML in the archive
+            profile = None
+            board_name = None
+            profile_path = None
+
+            if manifest_data and isinstance(manifest_data, dict):
+                # Use the manifest's declared profile path
+                fixture_cfg = manifest_data.get("fixture", {})
+                profile_path = fixture_cfg.get("profile", "")
+                product_cfg = manifest_data.get("product", {})
+                board_name = product_cfg.get("board")
+
+                if profile_path:
+                    # Try exact match and common prefixes (./, alpha/, etc.)
+                    candidates = [
+                        profile_path,
+                        f"./{profile_path}",
+                    ]
+                    for member in tar.getmembers():
+                        normalized = member.name.lstrip("./")
+                        if normalized == profile_path.lstrip("./") and member.isfile():
+                            f = tar.extractfile(member)
+                            if f:
+                                try:
+                                    profile = yaml.safe_load(f.read())
+                                except Exception as e:
+                                    logger.warning("Failed to parse %s: %s", member.name, e)
+                            break
+
+            # Step 3: Fallback — scan for fixtures/*/fixture.yaml
+            if not profile:
+                for member in tar.getmembers():
+                    if not member.isfile():
                         continue
-
-                    try:
-                        profile = yaml.safe_load(f.read())
-                    except Exception as e:
-                        logger.warning("Failed to parse %s: %s", member.name, e)
+                    parts = member.name.split("/")
+                    fname = parts[-1]
+                    if fname not in ("fixture.yaml", "fixture.yml"):
                         continue
-
-                    if not isinstance(profile, dict):
+                    # Accept fixtures/{board}/fixture.yaml
+                    if len(parts) >= 3 and parts[-3] == "fixtures":
+                        board_name = board_name or parts[-2]
+                    elif len(parts) >= 2 and parts[-2] == "fixtures":
+                        # fixtures/fixture.yaml — not useful without board context
                         continue
-
-                    capabilities = profile.get("capabilities", [])
-                    if isinstance(capabilities, list):
-                        # Normalize capabilities — may be dicts with names or plain strings
-                        cap_names = []
-                        for cap in capabilities:
-                            if isinstance(cap, str):
-                                cap_names.append(cap.split("(")[0].strip())
-                            elif isinstance(cap, dict) and "name" in cap:
-                                cap_names.append(cap["name"])
-                        capabilities = cap_names
-
-                    # Find board revision by ckBoardsName or version
-                    board_rev = db.boardrevision.find_first(
-                        where={
-                            "board": {"productId": product_id},
-                            "OR": [
-                                {"ckBoardsName": board_name},
-                                {"version": board_name},
-                            ],
-                        },
-                    )
-                    if not board_rev:
-                        logger.info(
-                            "No board revision found for '%s' — skipping fixture design",
-                            board_name,
-                        )
-                        continue
-
-                    # Design name: "{product_slug}-{board}-fixture"
-                    design_name = f"{board_name}-fixture"
-
-                    from database import Json
-
-                    existing = db.fixturedesign.find_first(
-                        where={"boardRevisionId": board_rev.id},
-                    )
-                    if existing:
-                        db.fixturedesign.update(
-                            where={"id": existing.id},
-                            data={
-                                "capabilities": capabilities,
-                                "profileTemplate": Json(profile),
-                            },
-                        )
-                        logger.info("Updated fixture design '%s' from test package", existing.name)
                     else:
-                        db.fixturedesign.create(
-                            data={
-                                "name": design_name,
-                                "boardRevisionId": board_rev.id,
-                                "revision": profile.get("mtib_revision", "1.0"),
-                                "capabilities": capabilities,
-                                "profileTemplate": Json(profile),
-                            },
-                        )
-                        logger.info("Created fixture design '%s' from test package", design_name)
-                    count += 1
+                        continue
+
+                    f = tar.extractfile(member)
+                    if f:
+                        try:
+                            profile = yaml.safe_load(f.read())
+                        except Exception as e:
+                            logger.warning("Failed to parse %s: %s", member.name, e)
+                        break
+
+            if not profile or not isinstance(profile, dict):
+                logger.debug("No fixture profile found in archive for product %s", product_id)
+                return None
+
+            # Extract board name from profile if not already known
+            board_name = board_name or profile.get("board")
+            if not board_name:
+                logger.info("No board name in manifest or fixture profile — skipping")
+                return None
+
+            # Normalize capabilities
+            capabilities = profile.get("capabilities", [])
+            if isinstance(capabilities, list):
+                cap_names = []
+                for cap in capabilities:
+                    if isinstance(cap, str):
+                        cap_names.append(cap.split("(")[0].strip())
+                    elif isinstance(cap, dict) and "name" in cap:
+                        cap_names.append(cap["name"])
+                capabilities = cap_names
+
+            # Design name and revision come from fixture.yaml (source of truth)
+            design_name = profile.get("name", f"{board_name}-fixture")
+            design_revision = str(profile.get("revision", "1.0"))
+
+            # Find board revision by ckBoardsName or version
+            board_rev = db.boardrevision.find_first(
+                where={
+                    "board": {"productId": product_id},
+                    "OR": [
+                        {"ckBoardsName": board_name},
+                        {"version": board_name},
+                    ],
+                },
+            )
+            if not board_rev:
+                logger.info(
+                    "No board revision found for '%s' — skipping fixture design",
+                    board_name,
+                )
+                return None
+
+            node_type = package_type if package_type in ("MANUFACTURING", "VALIDATION") else "VALIDATION"
+
+            from database import Json
+
+            # Upsert by (name, revision) — different revisions coexist
+            existing = db.fixturedesign.find_first(
+                where={
+                    "name": design_name,
+                    "revision": design_revision,
+                },
+            )
+            if existing:
+                db.fixturedesign.update(
+                    where={"id": existing.id},
+                    data={
+                        "capabilities": capabilities,
+                        "profileTemplate": Json(profile),
+                        "type": node_type,
+                        "boardRevisionId": board_rev.id,
+                    },
+                )
+                logger.info(
+                    "Updated fixture design '%s' rev %s from test package",
+                    design_name, design_revision,
+                )
+                return existing.id
+            else:
+                design = db.fixturedesign.create(
+                    data={
+                        "name": design_name,
+                        "boardRevisionId": board_rev.id,
+                        "revision": design_revision,
+                        "type": node_type,
+                        "capabilities": capabilities,
+                        "profileTemplate": Json(profile),
+                    },
+                )
+                logger.info(
+                    "Created fixture design '%s' rev %s from test package",
+                    design_name, design_revision,
+                )
+                return design.id
 
     except Exception as e:
         logger.warning("Fixture design extraction failed: %s", e)
 
-    return count
+    return None
 
 
 def _extract_test_count(file_data: bytes) -> Optional[int]:
@@ -239,6 +315,7 @@ def _serialize_test_package(tp: Any) -> dict:
         "id": tp.id,
         "productId": tp.productId,
         "boardRevisionId": getattr(tp, "boardRevisionId", None),
+        "fixtureDesignId": getattr(tp, "fixtureDesignId", None),
         "version": tp.version,
         "type": tp.type,
         "status": tp.status,
@@ -259,6 +336,15 @@ def _serialize_test_package(tp: Any) -> dict:
     }
     if hasattr(tp, "packageStages") and tp.packageStages:
         data["packageStages"] = [_serialize_package_stage(s) for s in tp.packageStages]
+    if hasattr(tp, "fixtureDesign") and tp.fixtureDesign:
+        fd = tp.fixtureDesign
+        data["fixtureDesign"] = {
+            "id": fd.id,
+            "name": fd.name,
+            "revision": fd.revision,
+            "type": getattr(fd, "type", None),
+            "capabilities": fd.capabilities or [],
+        }
     return data
 
 
@@ -430,14 +516,28 @@ def _upload_test_package_impl(product_id: str):
                 "sizeBytes": size_bytes,
             })
             # Extract fixture designs and test count from the package
-            _extract_fixture_designs(file_data, product.id)
+            design_id = _extract_fixture_designs(file_data, product.id, package_type)
             extracted_count = _extract_test_count(file_data)
+            post_update: dict = {}
             if extracted_count and extracted_count != tp.testCount:
-                db.testpackage.update(where={"id": tp.id}, data={"testCount": extracted_count})
+                post_update["testCount"] = extracted_count
+            if design_id:
+                post_update["fixtureDesignId"] = design_id
+            if post_update:
+                tp = db.testpackage.update(
+                    where={"id": tp.id},
+                    data=post_update,
+                    include={"packageStages": True, "fixtureDesign": True},
+                )
             # Extract v2 metadata if schema version is 2.0+
             schema_version = manifest.get("schemaVersion")
             if schema_version:
                 _extract_v2_metadata(db, tp.id, file_data, schema_version)
+            # Re-fetch with includes for serialization
+            tp = db.testpackage.find_unique(
+                where={"id": tp.id},
+                include={"packageStages": True, "fixtureDesign": True},
+            )
             return jsonify(ApiResponse.ok(_serialize_test_package(tp)).to_dict()), 200
 
     # Create new record
@@ -471,16 +571,24 @@ def _upload_test_package_impl(product_id: str):
         "sizeBytes": size_bytes,
     })
     # Extract fixture designs and test count from the package
-    designs_count = _extract_fixture_designs(file_data, product.id)
+    design_id = _extract_fixture_designs(file_data, product.id, package_type)
     extracted_count = _extract_test_count(file_data)
+    post_update: dict = {}
     if extracted_count:
-        db.testpackage.update(where={"id": tp.id}, data={"testCount": extracted_count})
-    if designs_count:
-        logger.info("Extracted %d fixture design(s) from test package", designs_count)
+        post_update["testCount"] = extracted_count
+    if design_id:
+        post_update["fixtureDesignId"] = design_id
+    if post_update:
+        db.testpackage.update(where={"id": tp.id}, data=post_update)
     # Extract v2 metadata if schema version is 2.0+
     schema_version = manifest.get("schemaVersion")
     if schema_version:
         _extract_v2_metadata(db, tp.id, file_data, schema_version)
+    # Re-fetch with includes for serialization
+    tp = db.testpackage.find_unique(
+        where={"id": tp.id},
+        include={"packageStages": True, "fixtureDesign": True},
+    )
     return jsonify(ApiResponse.ok(_serialize_test_package(tp)).to_dict()), 201
 
 
@@ -522,7 +630,7 @@ def list_test_packages(product_id: str):
         skip=skip,
         take=limit,
         order={"createdAt": "desc"},
-        include={"packageStages": True},
+        include={"packageStages": True, "fixtureDesign": True},
     )
 
     return jsonify(ApiResponse.ok({
@@ -635,7 +743,7 @@ def get_test_package(product_id: str, package_id: str):
     db = get_db_client()
     tp = db.testpackage.find_first(
         where={"id": package_id, "productId": product.id},
-        include={"packageStages": True},
+        include={"packageStages": True, "fixtureDesign": True},
     )
     if not tp:
         return not_found(f"Test package '{package_id}' not found")

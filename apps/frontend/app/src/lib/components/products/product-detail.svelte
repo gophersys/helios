@@ -7,15 +7,14 @@
   import ProductStagesTab from './tabs/stages-tab.svelte';
   import ProductAssetsTab from './tabs/assets-tab.svelte';
   import ProductManufacturingTab from './tabs/manufacturing-tab.svelte';
-  import ProductFixturesTab from './tabs/fixtures-tab.svelte';
   import {
     Pencil, Check, X,
-    LayoutDashboard, CircuitBoard, FlaskConical, Package, Factory, Wrench,
+    LayoutDashboard, CircuitBoard, FlaskConical, Package, Factory,
   } from 'lucide-svelte';
   import type { Product } from '$lib/types/models';
   import { api } from '$lib/api';
 
-  type Tab = 'overview' | 'hardware' | 'assets' | 'fixtures' | 'manufacturing' | 'stages';
+  type Tab = 'overview' | 'hardware' | 'assets' | 'manufacturing' | 'stages';
 
   interface Props {
     product: Product;
@@ -76,7 +75,6 @@
     { key: 'overview', label: 'Overview', icon: LayoutDashboard },
     { key: 'hardware', label: 'Hardware', icon: CircuitBoard },
     { key: 'assets', label: 'Assets', icon: Package },
-    { key: 'fixtures', label: 'Fixtures', icon: Wrench },
     { key: 'manufacturing', label: 'Manufacturing', icon: Factory },
     { key: 'stages', label: 'Validation', icon: FlaskConical },
   ];
@@ -176,8 +174,6 @@
         <ProductStagesTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'assets'}
         <ProductAssetsTab {product} {canManage} {onRefresh} />
-      {:else if activeTab === 'fixtures'}
-        <ProductFixturesTab {product} {canManage} {onRefresh} />
       {:else if activeTab === 'manufacturing'}
         <ProductManufacturingTab {product} {canManage} {onRefresh} />
       {/if}

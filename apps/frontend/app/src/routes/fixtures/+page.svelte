@@ -1,10 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { Plus, Wrench, Search, Loader2, Wifi, WifiOff, AlertTriangle, Lock, Settings as SettingsIcon } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
-  import { PageHeader, ErrorAlert, LoadingState, Select } from '$lib/components/ui';
+  import { PageHeader, ErrorAlert, LoadingState } from '$lib/components/ui';
+  import FilterBar from '$lib/components/ui/filter-bar.svelte';
+  import FilterSelect from '$lib/components/ui/filter-select.svelte';
+  import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import FixtureDetail from '$lib/components/fixtures/fixture-detail.svelte';
   import type { Fixture, Product, Board, FixtureDesign } from '$lib/types/models';
@@ -146,13 +150,17 @@
   }
 
   function slotSummary(f: Fixture): string {
-    const slots = f.slots || [];
-    const assigned = slots.filter(s => s.nodeId).length;
-    return `${assigned}/${slots.length}`;
+    if (f.slots) {
+      const assigned = f.slots.filter(s => s.nodeId).length;
+      return `${assigned}/${f.slots.length}`;
+    }
+    // List endpoint only returns slotCount (no full slots array)
+    return `${f.slotCount ?? 0}`;
   }
 
   function healthIcon(f: Fixture) {
     const slots = f.slots || [];
+    if (slots.length === 0 && !f.slotCount) return { icon: WifiOff, color: 'text-text-tertiary' };
     if (slots.length === 0) return { icon: WifiOff, color: 'text-text-tertiary' };
     const assigned = slots.filter(s => s.nodeId);
     if (assigned.length === 0) return { icon: WifiOff, color: 'text-text-tertiary' };
@@ -169,6 +177,12 @@
     }
     fetchFixtures();
     fetchProducts();
+
+    // Auto-open detail panel if ?selected=<id> is in the URL (e.g. from dashboard)
+    const selectedId = $page.url.searchParams.get('selected');
+    if (selectedId) {
+      fetchDetail(selectedId);
+    }
   });
 </script>
 
@@ -226,19 +240,15 @@
   {/if}
 
   <!-- Filters -->
-  <div class="mb-4 flex flex-wrap items-center gap-3">
-    <div class="relative flex-1 min-w-[200px] max-w-sm">
-      <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-      <input
-        type="text"
-        bind:value={searchQuery}
-        placeholder="Search fixtures..."
-        class="w-full rounded-lg border border-border bg-surface-0 pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-      />
-    </div>
-    <Select bind:value={filterProduct} placeholder="All Products" options={[{ value: '', label: 'All Products' }, ...products.map(p => ({ value: p.id, label: p.name }))]} class="w-40" />
-    <Select bind:value={filterType} placeholder="All Types" options={[{ value: '', label: 'All Types' }, { value: 'VALIDATION', label: 'Validation' }, { value: 'MANUFACTURING', label: 'Manufacturing' }]} class="w-40" />
-  </div>
+  <FilterBar class="mb-4">
+    {#snippet filters()}
+      <FilterSearch bind:value={searchQuery} placeholder="Search fixtures..." class="w-56" />
+      {#if products.length > 0}
+        <FilterSelect label="Product" value={filterProduct} onchange={(v) => { filterProduct = v; }} options={products.map(p => ({ value: p.id, label: p.name }))} />
+      {/if}
+      <FilterSelect label="Type" value={filterType} onchange={(v) => { filterType = v; }} options={[{ value: 'VALIDATION', label: 'Validation' }, { value: 'MANUFACTURING', label: 'Manufacturing' }]} />
+    {/snippet}
+  </FilterBar>
 
   <!-- Fixture list -->
   {#if loading}
@@ -283,7 +293,7 @@
               </td>
               <td class="px-4 py-2.5">
                 <span class="font-mono text-text-secondary">{slotSummary(fixture)}</span>
-                <span class="text-2xs text-text-tertiary ml-1">assigned</span>
+                <span class="text-2xs text-text-tertiary ml-1">{fixture.slots ? 'assigned' : 'slots'}</span>
               </td>
               <td class="px-4 py-2.5">
                 <svelte:component this={health.icon} size={14} class={health.color} />

@@ -77,6 +77,7 @@ def _serialize_asset_set(asset_set) -> dict:
         "version": asset_set.version,
         "variant": asset_set.variant,
         "stage": asset_set.stage,
+        "stageType": getattr(asset_set, "stageType", None),
         "source": asset_set.source,
         "buildRunId": asset_set.buildRunId,
         "externalBuildId": asset_set.externalBuildId,
@@ -215,11 +216,13 @@ def create_asset_set(product_id: str):
     if req.notes:
         create_data["notes"] = req.notes
 
-    # Derive boardRevisionId from stageConfig if not provided
-    if req.stageConfigId and not req.boardRevisionId:
+    # Derive boardRevisionId and stageType from stageConfig
+    if req.stageConfigId:
         sc = db.productstageconfig.find_unique(where={"id": req.stageConfigId})
-        if sc and sc.boardRevisionId:
-            create_data["boardRevisionId"] = sc.boardRevisionId
+        if sc:
+            create_data["stageType"] = sc.type
+            if not req.boardRevisionId and sc.boardRevisionId:
+                create_data["boardRevisionId"] = sc.boardRevisionId
 
     user = getattr(g, "current_user", None)
     if user and isinstance(user, dict):
@@ -251,10 +254,12 @@ def create_external_asset_set(product_id: str):
         "stage": req.stage,
     }
     board_rev_id = req.boardRevisionId
-    if req.stageConfigId and not board_rev_id:
+    if req.stageConfigId:
         sc = db.productstageconfig.find_unique(where={"id": req.stageConfigId})
-        if sc and sc.boardRevisionId:
-            board_rev_id = sc.boardRevisionId
+        if sc:
+            create_data["stageType"] = sc.type
+            if not board_rev_id and sc.boardRevisionId:
+                board_rev_id = sc.boardRevisionId
     if board_rev_id:
         create_data["boardRevision"] = {"connect": {"id": board_rev_id}}
     if req.commitSha:

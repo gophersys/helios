@@ -3,6 +3,7 @@
   import ProductStages from '../product-stages.svelte';
   import TestAppStatusCard from '../test-app-status-card.svelte';
   import TestPackageList from '../test-package-list.svelte';
+  import FixtureDesignsSection from '../fixture-designs-section.svelte';
   import type { Product } from '$lib/types/models';
 
   interface Props {
@@ -31,6 +32,7 @@
   <h3 class="text-sm font-semibold text-text-primary mb-3">Manufacturing Test App</h3>
   <TestAppStatusCard status={product.testAppStatus?.manufacturing ?? null} type="MANUFACTURING" />
   <TestPackageList productId={product.id} packageType="MANUFACTURING" {onRefresh} />
+  <FixtureDesignsSection type="MANUFACTURING" />
 </div>
 
 {#if revisions.length === 0}

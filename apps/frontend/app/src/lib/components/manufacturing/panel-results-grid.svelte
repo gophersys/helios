@@ -3,7 +3,7 @@
   import UnitCard from './unit-card.svelte';
   import type { TestRun } from '$lib/types/models';
 
-  let { panel }: { panel: TestRun } = $props();
+  let { panel, onSelectUnit }: { panel: TestRun; onSelectUnit?: (target: import('$lib/types/models').RunTarget) => void } = $props();
 
   const targets = $derived(panel.targets || []);
 
@@ -45,7 +45,7 @@
   <!-- Target grid -->
   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
     {#each targets as target (target.id)}
-      <UnitCard unit={target} />
+      <UnitCard unit={target} onclick={onSelectUnit ? () => onSelectUnit(target) : undefined} />
     {/each}
   </div>
 </div>

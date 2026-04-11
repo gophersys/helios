@@ -5,7 +5,7 @@
   import { formatDuration } from '$lib/utils/formatting';
   import type { RunTarget } from '$lib/types/models';
 
-  let { unit }: { unit: RunTarget } = $props();
+  let { unit, onclick }: { unit: RunTarget; onclick?: () => void } = $props();
 
   const duration = $derived.by(() => {
     if (!unit.startedAt) return null;
@@ -15,10 +15,17 @@
   });
 </script>
 
-<div class="rounded-lg border border-border bg-surface-0 p-3 transition-colors
+<div
+  role={onclick ? 'button' : undefined}
+  tabindex={onclick ? 0 : undefined}
+  onclick={onclick}
+  onkeydown={(e) => { if (onclick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onclick(); } }}
+  class="rounded-lg border border-border bg-surface-0 p-3 transition-colors
+  {onclick ? 'cursor-pointer hover:bg-surface-1' : ''}
   {unit.status === 'PASSED' ? 'border-success/30' :
    unit.status === 'FAILED' ? 'border-error/30' :
-   unit.status === 'RUNNING' ? 'border-accent/30' : ''}">
+   unit.status === 'RUNNING' ? 'border-accent/30' : ''}"
+>
   <!-- Header: slot label + status -->
   <div class="flex items-center justify-between mb-2">
     <div class="flex items-center gap-2">

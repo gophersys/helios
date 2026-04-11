@@ -159,6 +159,7 @@ def get_run(run_id: str):
         include={
             "product": True,
             "fixture": True,
+            "boardRevision": True,
             "testPackage": True,
             "buildRun": True,
             "assetSet": True,

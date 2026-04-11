@@ -1,9 +1,9 @@
 <script lang="ts">
   import PowerChart from '$lib/components/validation/power-chart.svelte';
   import AccelChart from '$lib/components/validation/accel-chart.svelte';
-  import { getRunContext } from './run-context.svelte';
+  import { getSlotContext } from './slot-context.svelte';
 
-  const ctx = getRunContext();
+  const ctx = getSlotContext();
 </script>
 
 <div class="flex-shrink-0" style="min-height: 232px; height: 232px;">

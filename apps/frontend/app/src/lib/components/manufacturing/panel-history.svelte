@@ -5,7 +5,7 @@
   import { formatDuration } from '$lib/utils/formatting';
   import type { TestRun } from '$lib/types/models';
 
-  let { panels }: { panels: TestRun[] } = $props();
+  let { panels, onSelectUnit }: { panels: TestRun[]; onSelectUnit?: (panel: TestRun, target: import('$lib/types/models').RunTarget) => void } = $props();
 
   let expandedPanels = $state<Set<string>>(new Set());
 
@@ -77,7 +77,7 @@
           <div class="border-t border-border-subtle px-4 py-3">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {#each targets as target (target.id)}
-                <UnitCard unit={target} />
+                <UnitCard unit={target} onclick={onSelectUnit ? () => onSelectUnit(panel, target) : undefined} />
               {/each}
             </div>
           </div>

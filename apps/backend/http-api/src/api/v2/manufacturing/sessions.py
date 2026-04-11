@@ -455,12 +455,13 @@ def get_manufacturing_session(session_id: str):
         where={"id": session_id},
         include={
             "product": True,
-            "fixture": True,
+            "fixture": {"include": {"boardRevision": True}},
             "operator": True,
             "assetSet": True,
             "runs": {
                 "include": {
                     "testPackage": True,
+                    "boardRevision": True,
                     "targets": {
                         "include": {
                             "executions": {

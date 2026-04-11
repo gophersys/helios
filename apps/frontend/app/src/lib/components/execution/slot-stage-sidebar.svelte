@@ -2,18 +2,16 @@
   import {
     CheckCircle2,
     Circle,
-    Download,
     Loader2,
-    Package,
     SkipForward,
     XCircle,
   } from 'lucide-svelte';
   import { formatDuration } from '$lib/utils/formatting';
-  import { getRunContext, type Stage } from './run-context.svelte';
+  import { getSlotContext, type SlotStage } from './slot-context.svelte';
 
-  const ctx = getRunContext();
+  const ctx = getSlotContext();
 
-  function getStageStatusIcon(stage: Stage) {
+  function getStageStatusIcon(stage: SlotStage) {
     if (stage.running > 0) return { icon: Loader2, class: 'text-accent animate-spin' };
     if (stage.failed > 0) return { icon: XCircle, class: 'text-error' };
     const totalTests = stage.tests.length;
@@ -31,9 +29,8 @@
     <button
       onclick={() => {
         ctx.selectedStage = stage.name;
-        // In analysis mode, select the entire stage's time range
-        if (ctx.analysisMode && ctx.telemetryManifest) {
-          const stageSteps = ctx.telemetryManifest.steps.filter(s => s.module === stage.name);
+        if (ctx.analysisMode && ctx.activeManifest) {
+          const stageSteps = ctx.activeManifest.steps.filter(s => s.module === stage.name);
           if (stageSteps.length > 0) {
             ctx.selectedRange = {
               start: Math.min(...stageSteps.map(s => s.startedAt)),
@@ -50,18 +47,9 @@
     >
       {#if statusInfo.icon}{@const StatusIcon = statusInfo.icon}<StatusIcon size={16} class="{statusInfo.class}" />{/if}
       <div class="flex-1 min-w-0">
-        <div class="text-sm font-medium truncate flex items-center gap-1.5">
-          {#if stage.type === 'build'}
-            <Package size={12} class="text-text-tertiary" />
-          {/if}
-          {stage.name}
-        </div>
+        <div class="text-sm font-medium truncate">{stage.name}</div>
         <div class="text-2xs text-text-tertiary">
-          {#if stage.type === 'build'}
-            {stage.builds.length} build{stage.builds.length !== 1 ? 's' : ''}
-          {:else}
-            {stage.tests.length} test{stage.tests.length !== 1 ? 's' : ''}
-          {/if}
+          {stage.tests.length} test{stage.tests.length !== 1 ? 's' : ''}
           {#if stage.durationS > 0}
             · {formatDuration(stage.durationS * 1000)}
           {/if}
@@ -74,28 +62,4 @@
       {/if}
     </button>
   {/each}
-
-  <!-- Artifacts section in sidebar -->
-  {#if ctx.artifacts.length > 0}
-    <div class="mt-4 pt-4 border-t border-border">
-      <div class="text-2xs font-medium text-text-tertiary uppercase tracking-wider mb-2 px-3">
-        Artifacts
-      </div>
-      {#each ctx.artifacts.slice(0, 5) as artifact (artifact.objectName)}
-        <a
-          href="/v2/runs/{ctx.runId}/artifacts/{artifact.name}"
-          target="_blank"
-          class="flex items-center gap-2 px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-1 rounded transition-colors"
-        >
-          <Download size={12} class="text-text-tertiary" />
-          <span class="truncate">{artifact.name}</span>
-        </a>
-      {/each}
-      {#if ctx.artifacts.length > 5}
-        <div class="px-3 py-1 text-2xs text-text-tertiary">
-          +{ctx.artifacts.length - 5} more
-        </div>
-      {/if}
-    </div>
-  {/if}
 </div>

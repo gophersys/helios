@@ -296,6 +296,7 @@ def upload_asset_set_zip(product_id: str):
         "version": version,
         "variant": variant,
         "stage": stage_config.stage,
+        "stageType": stage_config.type,
     }
     if board_revision_id:
         dup_where["boardRevisionId"] = board_revision_id
@@ -312,6 +313,7 @@ def upload_asset_set_zip(product_id: str):
         "version": version,
         "variant": variant,
         "stage": stage_config.stage,
+        "stageType": stage_config.type,
         "source": "MANUAL_UPLOAD",
         "status": "PENDING",
     }
@@ -469,6 +471,7 @@ def _serialize_asset_set(asset_set) -> dict:
         "version": asset_set.version,
         "variant": asset_set.variant,
         "stage": asset_set.stage,
+        "stageType": getattr(asset_set, "stageType", None),
         "source": asset_set.source,
         "status": asset_set.status,
         "commitSha": asset_set.commitSha,
@@ -818,6 +821,7 @@ def upload_asset_files(product_id: str):
         "version": version,
         "variant": "multi",
         "stage": stage_config.stage,
+        "stageType": stage_config.type,
     }
     if board_revision_id:
         dup_where["boardRevisionId"] = board_revision_id
@@ -834,6 +838,7 @@ def upload_asset_files(product_id: str):
         "version": version,
         "variant": "multi",
         "stage": stage_config.stage,
+        "stageType": stage_config.type,
         "source": "MANUAL_UPLOAD",
         "status": "PENDING",
     }

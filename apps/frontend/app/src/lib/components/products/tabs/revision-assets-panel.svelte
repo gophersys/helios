@@ -2,8 +2,11 @@
   import { onMount } from 'svelte';
   import {
     Package, ChevronDown, ChevronRight, Upload, Download,
-    FileCode, Loader2, Radio, Cpu, Trash2, Search, X,
+    FileCode, Loader2, Radio, Cpu, Trash2,
   } from 'lucide-svelte';
+  import FilterBar from '$lib/components/ui/filter-bar.svelte';
+  import FilterSelect from '$lib/components/ui/filter-select.svelte';
+  import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TimeDisplay from '$lib/components/ui/time-display.svelte';
   import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
@@ -54,6 +57,10 @@
     stageConfigs.filter(c => c.boardRevisionId === revision.id)
   );
 
+  // Group configs by type for section headers
+  const validationConfigs = $derived(revConfigs.filter(c => c.type === 'VALIDATION'));
+  const manufacturingConfigs = $derived(revConfigs.filter(c => c.type === 'MANUFACTURING'));
+
   // Filter asset sets by search query + smart filters (AND logic)
   function matchesFilters(asset: AssetSet): boolean {
     // Text search
@@ -75,7 +82,8 @@
     // Stage filter
     if (filterStageConfigId) {
       const filterConfig = revConfigs.find(c => c.id === filterStageConfigId);
-      const matchesStage = filterConfig && asset.stage === filterConfig.stage;
+      const matchesStage = filterConfig && asset.stage === filterConfig.stage
+        && (asset.stageType === filterConfig.type || asset.stageType == null);
       if (!matchesStage) return false;
     }
     return true;
@@ -91,7 +99,7 @@
     [...new Set(assetSets.map(a => a.status))].sort()
   );
   const availableStageConfigs = $derived(
-    revConfigs.filter(c => assetSets.some(a => a.stage === c.stage))
+    revConfigs.filter(c => assetSets.some(a => a.stage === c.stage && (a.stageType === c.type || a.stageType == null)))
   );
   const hasActiveFilters = $derived(
     !!filterSource || !!filterStatus || !!filterStageConfigId || !!searchQuery.trim()
@@ -114,10 +122,10 @@
     searchQuery = '';
   }
 
-  // Group asset sets by stage config — includes backward compat for pre-fix build assets
+  // Group asset sets by stage config — matches both stage number AND type
   function assetsForConfig(config: ProductStageConfig): AssetSet[] {
     return filteredAssetSets
-      .filter(a => a.stage === config.stage)
+      .filter(a => a.stage === config.stage && (a.stageType === config.type || a.stageType == null))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
@@ -333,87 +341,53 @@
 
   <!-- Filter bar and upload controls -->
   {#if !loading}
-    <div class="space-y-2">
-      <div class="flex items-center gap-3">
-        <div class="flex-1 flex flex-wrap items-center gap-2">
-          <!-- Source filters -->
-          {#each availableSources as source}
-            <button
-              onclick={() => toggleFilter('source', source)}
-              class="text-2xs px-2 py-1 rounded-full border transition-colors
-                {filterSource === source
-                  ? 'bg-accent text-white border-accent'
-                  : 'border-border text-text-tertiary hover:text-text-secondary hover:border-border'}"
-            >
-              {sourceLabel(source)}
-            </button>
-          {/each}
-
-          <!-- Status filters -->
-          {#each availableStatuses as status}
-            <button
-              onclick={() => toggleFilter('status', status)}
-              class="text-2xs px-2 py-1 rounded-full border transition-colors
-                {filterStatus === status
-                  ? 'bg-accent text-white border-accent'
-                  : 'border-border text-text-tertiary hover:text-text-secondary hover:border-border'}"
-            >
-              {status}
-            </button>
-          {/each}
-
-          <!-- Stage filters -->
-          {#each availableStageConfigs as config}
-            <button
-              onclick={() => toggleFilter('stage', config.id)}
-              class="text-2xs px-2 py-1 rounded-full border transition-colors
-                {filterStageConfigId === config.id
-                  ? 'bg-accent text-white border-accent'
-                  : 'border-border text-text-tertiary hover:text-text-secondary hover:border-border'}"
-            >
-              {stageName(config.type as StageType, config.stage)}
-            </button>
-          {/each}
-
-          <!-- Text search -->
-          <div class="relative">
-            <Search size={12} class="absolute left-2 top-1/2 -translate-y-1/2 text-text-tertiary" />
-            <input
-              type="text"
-              bind:value={searchQuery}
-              placeholder="Search..."
-              class="text-2xs pl-6 pr-2 py-1 rounded-full border border-border bg-surface-0 w-32 text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-            />
-          </div>
-
-          <!-- Clear filters -->
-          {#if hasActiveFilters}
-            <button
-              onclick={clearFilters}
-              class="flex items-center gap-1 text-2xs text-accent hover:underline"
-            >
-              <X size={10} />
-              Clear
-            </button>
-          {/if}
-        </div>
-
-        <!-- Upload button -->
-        {#if canManage}
+    <FilterBar>
+      {#snippet filters()}
+        {#if availableSources.length > 1}
+          <FilterSelect
+            label="Source"
+            value={filterSource ?? ''}
+            onchange={(v) => { filterSource = v || null; }}
+            options={availableSources.map(s => ({ value: s, label: sourceLabel(s) }))}
+          />
+        {/if}
+        {#if availableStatuses.length > 1}
+          <FilterSelect
+            label="Status"
+            value={filterStatus ?? ''}
+            onchange={(v) => { filterStatus = v || null; }}
+            options={availableStatuses.map(s => ({ value: s, label: s }))}
+          />
+        {/if}
+        {#if availableStageConfigs.length > 1}
+          <FilterSelect
+            label="Stage"
+            value={filterStageConfigId ?? ''}
+            onchange={(v) => { filterStageConfigId = v || null; }}
+            options={availableStageConfigs.map(c => ({ value: c.id, label: stageName(c.type as StageType, c.stage) }))}
+          />
+        {/if}
+        <FilterSearch bind:value={searchQuery} placeholder="Search assets..." class="w-40" />
+      {/snippet}
+      {#if canManage}
+        <div class="ml-auto shrink-0">
           <button
             onclick={() => showUploadWizard = true}
-            class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-3 py-2 text-sm font-medium text-accent hover:bg-accent/15 transition-colors shrink-0"
+            class="flex items-center gap-1 rounded-lg border border-accent/30 bg-accent-muted px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/15 transition-colors"
           >
             <Upload size={14} />
             Upload .zip
           </button>
-        {/if}
-      </div>
-    </div>
+        </div>
+      {/if}
+    </FilterBar>
   {/if}
 
-  <!-- Stage assets — one section per stage config -->
-  {#each revConfigs as config}
+  <!-- Stage assets — grouped by type -->
+  {#if validationConfigs.length > 0}
+    <h3 class="text-xs font-semibold text-text-secondary uppercase tracking-wider mt-2 mb-1">Validation Stages</h3>
+  {/if}
+  {#each validationConfigs as config}
     {@const stageAssets = assetsForConfig(config)}
     {@const latest = stageAssets[0]}
     {@const completeness = (latest as any)?.completeness}
@@ -476,6 +450,129 @@
                   {/if}
                   {#if asset.branch}
                     <span class="text-2xs text-text-tertiary truncate max-w-[120px]" title={asset.branch}>{asset.branch}</span>
+                  {/if}
+                  <div class="flex-1"></div>
+                  <span class="text-2xs text-text-tertiary shrink-0">{asset.assets?.length ?? 0} files</span>
+                  <TimeDisplay datetime={asset.createdAt} />
+                </button>
+                {#if canManage}
+                  <button
+                    onclick={() => deleteTarget = { id: asset.id, name: `${asset.version} (${asset.variant})` }}
+                    class="flex items-center justify-center rounded-lg p-1.5 mr-2 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
+                    title="Delete asset set"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                {/if}
+              </div>
+
+              {#if expandedId === asset.id && asset.assets?.length}
+                <div class="border-t border-border-subtle bg-surface-0/30 px-4 py-2">
+                  <table class="w-full text-2xs">
+                    <thead>
+                      <tr class="border-b border-border-subtle">
+                        <th class="pb-1 text-left font-medium uppercase tracking-wider text-text-tertiary">Label</th>
+                        <th class="pb-1 text-left font-medium uppercase tracking-wider text-text-tertiary">Role</th>
+                        <th class="pb-1 text-left font-medium uppercase tracking-wider text-text-tertiary">Type</th>
+                        <th class="pb-1 text-left font-medium uppercase tracking-wider text-text-tertiary">File</th>
+                        <th class="pb-1 text-right font-medium uppercase tracking-wider text-text-tertiary">Size</th>
+                        <th class="pb-1 w-8"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each asset.assets as file}
+                        <tr class="border-b border-border-subtle last:border-b-0">
+                          <td class="py-1">
+                            <div class="flex items-center gap-1">
+                              <FileCode size={10} class="text-text-tertiary" />
+                              <span class="font-medium text-text-primary">{file.label}</span>
+                            </div>
+                          </td>
+                          <td class="py-1 text-text-secondary">{file.role}{#if file.processor} <span class="text-text-tertiary">({file.processor})</span>{/if}</td>
+                          <td class="py-1"><span class="rounded-full bg-surface-2 px-1.5 py-0.5 text-text-secondary">{file.artifactType}</span></td>
+                          <td class="py-1 font-mono text-text-tertiary truncate max-w-[180px]" title={file.filename}>{file.filename}</td>
+                          <td class="py-1 text-right text-text-tertiary">{formatSize(file.sizeBytes)}</td>
+                          <td class="py-1 text-right">
+                            {#if file.storageKey}
+                              <button
+                                onclick={() => handleDownloadFile(file)}
+                                class="inline-flex items-center justify-center rounded p-0.5 text-text-tertiary hover:text-accent transition-colors"
+                                title="Download {file.filename}"
+                              >
+                                <Download size={10} />
+                              </button>
+                            {/if}
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/each}
+
+  {#if manufacturingConfigs.length > 0}
+    <h3 class="text-xs font-semibold text-text-secondary uppercase tracking-wider mt-4 mb-1">Manufacturing Stages</h3>
+  {/if}
+  {#each manufacturingConfigs as config}
+    {@const stageAssets = assetsForConfig(config)}
+    {@const latest = stageAssets[0]}
+    {@const completeness = (latest as any)?.completeness}
+    {@const typeLabel = stageName(config.type as StageType, config.stage)}
+
+    <div class="rounded-lg border border-border overflow-hidden">
+      <div class="flex items-center gap-3 px-4 py-3 bg-surface-0/50">
+        <div class="w-6 h-6 flex items-center justify-center rounded text-2xs font-bold shrink-0
+          {config.enabled ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
+          M
+        </div>
+        <span class="text-sm font-semibold text-text-primary">{typeLabel}</span>
+        {#if latest}
+          <span class="text-2xs text-text-tertiary">v{latest.version} · {latest.variant}</span>
+          <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {sourceBadgeClass(latest.source)}">
+            {sourceLabel(latest.source)}
+          </span>
+          {#if completeness}
+            <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium
+              {completeness.complete ? 'bg-success-muted text-success' : 'bg-warning-muted text-warning'}">
+              {completeness.present}/{completeness.required} labels
+            </span>
+          {/if}
+          <span class="text-2xs text-text-tertiary">{latest.assets?.length ?? 0} files</span>
+        {:else}
+          <span class="text-2xs text-text-tertiary">No assets</span>
+        {/if}
+      </div>
+
+      {#if stageAssets.length > 0}
+        <div class="divide-y divide-border-subtle">
+          {#each stageAssets as asset}
+            {@const assetTitle = `v${asset.version}${asset.variant ? ` (${asset.variant})` : ''}`}
+            <div>
+              <div class="flex items-center">
+                <button
+                  onclick={() => expandedId = expandedId === asset.id ? null : asset.id}
+                  class="flex-1 flex items-center gap-3 px-4 py-2.5 hover:bg-surface-0/50 transition-colors text-left"
+                >
+                  {#if expandedId === asset.id}
+                    <ChevronDown size={12} class="text-text-tertiary shrink-0" />
+                  {:else}
+                    <ChevronRight size={12} class="text-text-tertiary shrink-0" />
+                  {/if}
+                  <span class="font-mono text-2xs font-semibold text-text-primary">{assetTitle}</span>
+                  <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {sourceBadgeClass(asset.source)}">{sourceLabel(asset.source)}</span>
+                  {#if asset.source !== 'MANUAL' && asset.status !== 'COMPLETE'}
+                    <span class="rounded-full px-1.5 py-0.5 text-2xs font-medium {statusBadgeClass(asset.status)}">{asset.status}</span>
+                  {/if}
+                  {#if asset.modemFirmware}
+                    <span class="flex items-center gap-1 rounded-full bg-surface-2 px-1.5 py-0.5 text-2xs text-text-secondary" title="Modem firmware">
+                      <Radio size={9} /> v{asset.modemFirmware.version}
+                    </span>
                   {/if}
                   <div class="flex-1"></div>
                   <span class="text-2xs text-text-tertiary shrink-0">{asset.assets?.length ?? 0} files</span>

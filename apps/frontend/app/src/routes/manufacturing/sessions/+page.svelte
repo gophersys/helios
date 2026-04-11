@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
-  import { Search, RefreshCw } from 'lucide-svelte';
+  import { RefreshCw } from 'lucide-svelte';
+  import FilterBar from '$lib/components/ui/filter-bar.svelte';
+  import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch } from '$lib/api';
   import {
@@ -17,7 +19,6 @@
     ManufacturingSession,
     Pagination as PaginationType,
   } from '$lib/types/models';
-  import type { ApiResponse } from '$lib/types';
 
   const auth = getAuth();
 
@@ -54,11 +55,11 @@
       params.set('limit', '25');
       if (statusFilter) params.set('status', statusFilter);
 
-      const res = await apiFetch<ApiResponse<{ data: ManufacturingSession[]; pagination: PaginationType }>>(
+      const res = await apiFetch<{ data: ManufacturingSession[]; pagination: PaginationType }>(
         '/v2/manufacturing/sessions?' + params.toString()
       );
-      sessions = res.data.data;
-      pagination = res.data.pagination;
+      sessions = res.data;
+      pagination = res.pagination;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load sessions';
     } finally {
@@ -113,31 +114,24 @@
   <ErrorAlert message={error} />
 
   <!-- Filter bar -->
-  <div class="mb-4 flex flex-wrap items-center gap-3">
-    <FilterSelect
-      label="Status"
-      value={statusFilter}
-      onchange={(v) => { statusFilter = v; }}
-      options={[
-        { value: '', label: 'All Status' },
-        { value: 'ACTIVE', label: 'Active' },
-        { value: 'COMPLETED', label: 'Completed' },
-        { value: 'CANCELLED', label: 'Cancelled' },
-      ]}
-    />
-    <div class="relative">
-      <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-      <input
-        type="text"
-        bind:value={searchQuery}
-        placeholder="Search..."
-        class="pl-9 pr-3 py-1.5 w-48 text-sm rounded-lg border border-border bg-surface-0 text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+  <FilterBar class="mb-4">
+    {#snippet filters()}
+      <FilterSelect
+        label="Status"
+        value={statusFilter}
+        onchange={(v) => { statusFilter = v; }}
+        options={[
+          { value: 'ACTIVE', label: 'Active' },
+          { value: 'COMPLETED', label: 'Completed' },
+          { value: 'CANCELLED', label: 'Cancelled' },
+        ]}
       />
-    </div>
-    <span class="ml-auto text-2xs text-text-tertiary">
+      <FilterSearch bind:value={searchQuery} placeholder="Search sessions..." class="w-48" />
+    {/snippet}
+    <span class="ml-auto text-2xs text-text-tertiary shrink-0">
       {pagination.total} sessions
     </span>
-  </div>
+  </FilterBar>
 
   {#if loading}
     <LoadingState message="Loading sessions..." />

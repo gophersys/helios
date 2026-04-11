@@ -21,7 +21,9 @@
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
   import PageHeader from '$lib/components/ui/page-header.svelte';
-  import Select from '$lib/components/ui/select.svelte';
+  import FilterBar from '$lib/components/ui/filter-bar.svelte';
+  import FilterSelect from '$lib/components/ui/filter-select.svelte';
+  import FilterSearch from '$lib/components/ui/filter-search.svelte';
 
   const auth = getAuth();
 
@@ -224,60 +226,33 @@
   <ErrorAlert message={error} />
 
   <!-- Filters -->
-  <div class="mb-4 flex flex-wrap items-center gap-3">
-    <div class="relative">
-      <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-      <input
-        type="text"
-        bind:value={actionSearch}
-        placeholder="Search actions..."
-        aria-label="Search actions"
-        class="rounded-lg border border-border bg-surface-0 py-2 pl-8 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-      />
-    </div>
-
-    <Select
-      bind:value={entityType}
-      class="w-auto"
-      placeholder="All entity types"
-      options={entityTypes.map((t) => ({ value: t, label: t }))}
-    />
-
-    <!-- Date range -->
-    <div class="flex items-center gap-1.5">
-      <div class="relative">
-        <Calendar size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-tertiary" />
+  <FilterBar class="mb-4">
+    {#snippet filters()}
+      <FilterSearch bind:value={actionSearch} placeholder="Search actions..." class="w-48" />
+      <FilterSelect label="Entity" value={entityType} onchange={(v) => { entityType = v; }} options={entityTypes.map(t => ({ value: t, label: t }))} />
+      <div class="flex items-center gap-1.5">
+        <div class="relative">
+          <Calendar size={14} class="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
+          <input
+            type="date"
+            bind:value={dateFrom}
+            aria-label="From date"
+            class="rounded-md border border-border bg-surface-0 py-1.5 pl-8 pr-2 text-xs text-text-primary transition-colors hover:border-text-tertiary focus:border-accent focus:outline-none"
+          />
+        </div>
+        <ArrowRight size={14} class="text-text-tertiary" />
         <input
           type="date"
-          bind:value={dateFrom}
-          aria-label="From date"
-          class="rounded-lg border border-border bg-surface-0 py-2 pl-8 pr-2 text-sm text-text-primary focus:border-accent focus:outline-none"
+          bind:value={dateTo}
+          aria-label="To date"
+          class="rounded-md border border-border bg-surface-0 px-2 py-1.5 text-xs text-text-primary transition-colors hover:border-text-tertiary focus:border-accent focus:outline-none"
         />
       </div>
-      <ArrowRight size={14} class="text-text-tertiary" />
-      <input
-        type="date"
-        bind:value={dateTo}
-        aria-label="To date"
-        class="rounded-lg border border-border bg-surface-0 px-2 py-2 text-sm text-text-primary focus:border-accent focus:outline-none"
-      />
-    </div>
-
-    {#if hasActiveFilters}
-      <button
-        onclick={clearFilters}
-        class="flex items-center gap-1 rounded-lg px-2 py-2 text-xs text-text-tertiary hover:bg-surface-2 hover:text-text-secondary"
-        aria-label="Clear filters"
-      >
-        <X size={14} />
-        Clear
-      </button>
-    {/if}
-
-    <span class="ml-auto text-2xs text-text-tertiary">
+    {/snippet}
+    <span class="ml-auto text-2xs text-text-tertiary shrink-0">
       {pagination.total.toLocaleString()} entries
     </span>
-  </div>
+  </FilterBar>
 
   <!-- Table -->
   {#if loading}

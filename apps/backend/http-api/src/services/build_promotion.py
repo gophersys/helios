@@ -234,6 +234,13 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
     else:
         primary_variant = next(iter(variants), "debug")
 
+    # Resolve stageType from the build run's stage config
+    stage_type = None
+    if getattr(build_run, "stageConfigId", None):
+        sc = db.productstageconfig.find_unique(where={"id": build_run.stageConfigId})
+        if sc:
+            stage_type = sc.type
+
     # Create the AssetSet
     asset_set = db.assetset.create(data={
         "productId": build_run.productId,
@@ -241,9 +248,9 @@ def create_asset_set_from_build_run(run_id: str) -> Optional[Dict[str, Any]]:
         "version": version,
         "variant": primary_variant,
         "stage": getattr(build_run, "stage", None),
+        "stageType": stage_type,
         "source": "BUILD_SERVICE",
         "buildRunId": build_run.id,
-        "stageConfigId": build_run.stageConfigId,
         "commitSha": build_run.commitSha,
         "branch": build_run.branch,
         "recipeVersionId": getattr(build_run, "recipeVersionId", None),

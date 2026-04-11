@@ -29,6 +29,7 @@ def _serialize_design(design) -> Dict[str, Any]:
         "name": design.name,
         "boardRevisionId": design.boardRevisionId,
         "revision": design.revision,
+        "type": getattr(design, "type", None),
         "capabilities": design.capabilities or [],
         "profileTemplate": design.profileTemplate,
         "schematicUrl": getattr(design, "schematicUrl", None),
@@ -62,6 +63,7 @@ def _serialize_design_summary(design) -> Dict[str, Any]:
         "name": design.name,
         "boardRevisionId": design.boardRevisionId,
         "revision": design.revision,
+        "type": getattr(design, "type", None),
         "capabilities": design.capabilities or [],
         "fixtureCount": len(design.fixtures) if hasattr(design, "fixtures") and design.fixtures else 0,
         "createdAt": design.createdAt.isoformat(),
@@ -91,6 +93,9 @@ def list_designs():
     board_rev_id = request.args.get("boardRevisionId")
     if board_rev_id:
         where["boardRevisionId"] = board_rev_id
+    type_filter = request.args.get("type", "").strip().upper()
+    if type_filter in ("MANUFACTURING", "VALIDATION"):
+        where["type"] = type_filter
 
     total = db.fixturedesign.count(where=where)
     designs = db.fixturedesign.find_many(

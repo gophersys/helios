@@ -166,6 +166,8 @@ export interface TestPackage {
   notes: string | null;
   releasedAt: string | null;
   releasedById: string | null;
+  fixtureDesignId: string | null;
+  fixtureDesign?: FixtureDesignSummary | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -654,6 +656,8 @@ export interface TestRun {
   operator?: { id: string; name: string; email: string };
   testPackage?: { id: string; version: string; type: string };
   buildRun?: { id: string; name?: string; commitSha?: string; branch: string };
+  boardRevision?: { id: string; version: string; ckBoardsName: string | null; socs: string[] } | null;
+  assetSet?: { id: string; version?: string; status: string } | null;
   targets?: RunTarget[];
 }
 
@@ -794,6 +798,7 @@ export interface AssetSet {
   version: string;
   variant: string;
   stage: number | null;
+  stageType: 'VALIDATION' | 'MANUFACTURING' | null;
   source: 'BUILD_SERVICE' | 'MANUAL_UPLOAD' | 'EXTERNAL_CI';
   status: 'PENDING' | 'COMPLETE' | 'VALIDATED' | 'FAILED';
   buildRunId: string | null;
@@ -921,7 +926,7 @@ export interface Fixture {
   metadata: Record<string, unknown> | null;
   slotCount?: number;
   productName?: string;
-  boardRevision?: { id: string; version: string; ckBoardsName: string } | null;
+  boardRevision?: { id: string; version: string; ckBoardsName: string; socs: string[] } | null;
   design?: FixtureDesignSummary | null;
   slots?: FixtureSlot[];
   createdAt: string;
@@ -1227,6 +1232,7 @@ export interface FixtureDesign {
   name: string;
   boardRevisionId: string;
   revision: string;
+  type: 'MANUFACTURING' | 'VALIDATION' | null;
   capabilities: string[];
   profileTemplate: Record<string, unknown>;
   schematicUrl: string | null;
@@ -1244,6 +1250,7 @@ export interface FixtureDesignSummary {
   name: string;
   boardRevisionId: string;
   revision: string;
+  type: 'MANUFACTURING' | 'VALIDATION' | null;
   capabilities: string[];
   boardRevision?: { id: string; version: string; ckBoardsName: string } | null;
   benchCount?: number;

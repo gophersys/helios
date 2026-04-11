@@ -123,6 +123,14 @@ def _serialize_run(run: Any, include_targets: bool = False) -> dict:
             "version": getattr(run.assetSet, "version", None),
             "status": run.assetSet.status,
         }
+    if hasattr(run, "boardRevision") and run.boardRevision is not None:
+        rev = run.boardRevision
+        data["boardRevision"] = {
+            "id": rev.id,
+            "version": rev.version,
+            "ckBoardsName": getattr(rev, "ckBoardsName", None),
+            "socs": getattr(rev, "socs", []) or [],
+        }
 
     if include_targets and hasattr(run, "targets") and run.targets is not None:
         data["targets"] = [_serialize_target(t) for t in run.targets]

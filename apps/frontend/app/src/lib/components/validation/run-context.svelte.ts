@@ -12,6 +12,7 @@ import {
   type ValidationLogChunkEvent,
   type TelemetryEvent,
 } from '$lib/services/websocket';
+import { SlotContext } from '$lib/components/execution/slot-context.svelte';
 
 // ── Shared interfaces ──────────────────────────────────────────────────
 
@@ -369,6 +370,81 @@ class RunContext {
   readonly liveSkippedCount = $derived(this.liveTests.filter(t => t.status === 'skipped').length);
   readonly liveCompletedCount = $derived(this.livePassedCount + this.liveFailedCount + this.liveSkippedCount);
 
+  // ── Shared SlotContext (for SlotExecutionView integration) ─────────
+
+  /** Per-slot context that mirrors the run's primary slot state.
+   *  Created lazily when the validation page needs SlotExecutionView. */
+  slotCtx = $state<SlotContext | null>(null);
+
+  /** SOC labels from boardRevision (for dynamic UART terminal labels). */
+  socLabels = $state<string[]>([]);
+
+  /** Create or return the SlotContext for the primary target. */
+  getOrCreateSlotCtx(): SlotContext {
+    if (!this.slotCtx) {
+      this.slotCtx = new SlotContext(
+        this.run?.targets?.[0]?.id || 'slot-0',
+        0,
+        this.serialNumber || '',
+      );
+      this.slotCtx.startClock();
+    }
+    return this.slotCtx;
+  }
+
+  /** Sync RunContext state → SlotContext (called after hydration). */
+  syncToSlotCtx(): void {
+    const slot = this.getOrCreateSlotCtx();
+
+    // Map LiveTest[] → SlotLiveTest[]
+    slot.liveTests = this.liveTests.map(t => ({
+      name: t.name,
+      module: t.module,
+      status: t.status,
+      durationS: t.durationS,
+      startedAtMs: t.startedAtMs,
+      errorMessage: t.errorMessage,
+      measurements: t.measurements,
+      logOutput: t.logOutput,
+      expanded: t.expanded,
+      steps: [],
+    }));
+
+    slot.liveRunning = this.liveRunning;
+    slot.liveFinished = this.liveFinished;
+    slot.hydrated = true;
+
+    // Telemetry
+    slot.powerSamples = this.powerSamples;
+    slot.powerChgSamples = this.powerChgSamples;
+    slot.powerJsSamples = this.powerJsSamples;
+    slot.accelSamples = this.accelSamples;
+    slot.uartAppLines = this.uartAppLines;
+    slot.uartCommsLines = this.uartCommsLines;
+
+    // Post-analysis
+    slot.telemetryManifest = this.telemetryManifest;
+    slot.historicalPower = this.historicalPower;
+    slot.historicalPowerChg = this.historicalPowerChg;
+    slot.historicalPowerJs = this.historicalPowerJs;
+
+    // UI state sync (bidirectional — SlotContext is the source for layout)
+    slot.selectedStage = this.selectedStage;
+    slot.selectedRange = this.selectedRange;
+    slot.autoFollow = this.autoFollow;
+
+    // SOC labels from boardRevision
+    if (this.run?.boardRevision?.socs) {
+      this.socLabels = this.run.boardRevision.socs;
+    }
+
+    // Status
+    if (this.run?.targets?.[0]) {
+      slot.status = this.run.targets[0].status || 'PENDING';
+      slot.serialNumber = this.run.targets[0].serialNumber || '';
+    }
+  }
+
   // ── Constructor ───────────────────────────────────────────────────
 
   constructor(runId: string) {
@@ -656,6 +732,8 @@ class RunContext {
           } catch { /* non-critical */ }
         }
       }
+      // Sync to shared SlotContext
+      this.syncToSlotCtx();
     } catch (err: unknown) {
       this.error = err instanceof Error ? err.message : 'Failed to load run';
     } finally {
@@ -839,6 +917,7 @@ class RunContext {
       const res = await apiFetch<{ data: TelemetryManifest }>(`/v2/runs/${this._runId}/telemetry/manifest`);
       if (res.data) {
         this.telemetryManifest = res.data;
+        if (this.slotCtx) this.slotCtx.telemetryManifest = res.data;
         await this.loadTelemetryChannels();
       }
     } catch {
@@ -898,6 +977,15 @@ class RunContext {
           }
         } catch { /* skip failed channels */ }
       }));
+      // Sync historical data to SlotContext
+      if (this.slotCtx) {
+        this.slotCtx.historicalPower = this.historicalPower;
+        this.slotCtx.historicalPowerChg = this.historicalPowerChg;
+        this.slotCtx.historicalPowerJs = this.historicalPowerJs;
+        this.slotCtx.uartAppLines = this.historicalUartAppTs.map(l => l.line);
+        this.slotCtx.uartCommsLines = this.historicalUartCommsTs.map(l => l.line);
+        this.slotCtx.telemetryLoading = false;
+      }
     } finally {
       this.telemetryLoading = false;
     }
@@ -996,6 +1084,8 @@ class RunContext {
             this.liveTests = this.liveTests;
             setTimeout(() => this._scrollToTest(testName, data.module ?? null, 10), 150);
           }
+          // Sync to SlotContext
+          if (this.slotCtx) this.slotCtx.handleTestStart(data);
         },
         onTestResult: (data: ValidationTestResultEvent) => {
           const testName = data.name || data.testName || '';
@@ -1024,6 +1114,8 @@ class RunContext {
             }
             this.liveTests = this.liveTests;
           }
+          // Sync to SlotContext
+          if (this.slotCtx) this.slotCtx.handleTestResult(data);
         },
         onRunFinish: (data: ValidationRunFinishEvent) => {
           this.liveRunning = false;
@@ -1039,6 +1131,7 @@ class RunContext {
           // Snapshot live data before fetching artifacts/telemetry so it's
           // available as fallback if the telemetry files haven't been written yet.
           this._snapshotLiveData();
+          if (this.slotCtx) this.slotCtx.handleRunFinish();
           this.fetchRun();
           this.fetchArtifacts();
         },
@@ -1118,6 +1211,9 @@ class RunContext {
           }
 
           if (this._uartAppPending.length > 0 || this._uartCommsPending.length > 0) this._scheduleFlush();
+
+          // Sync to SlotContext
+          if (this.slotCtx) this.slotCtx.handleTelemetry(data);
         },
       },
     );
@@ -1241,6 +1337,7 @@ class RunContext {
     if (this._clockInterval) { clearInterval(this._clockInterval); this._clockInterval = null; }
     if (this._unsubscribeWs) { this._unsubscribeWs(); this._unsubscribeWs = null; }
     if (this._flushTimer) { clearTimeout(this._flushTimer); this._flushTimer = null; }
+    if (this.slotCtx) { this.slotCtx.destroy(); this.slotCtx = null; }
   }
 }
 

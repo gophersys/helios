@@ -32,7 +32,10 @@
   import FormCard from '$lib/components/ui/form-card.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
   import PageHeader from '$lib/components/ui/page-header.svelte';
-  import Select from '$lib/components/ui/select.svelte';
+  import FilterBar from '$lib/components/ui/filter-bar.svelte';
+  import FilterSelect from '$lib/components/ui/filter-select.svelte';
+  import FilterPills from '$lib/components/ui/filter-pills.svelte';
+  import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import TextInput from '$lib/components/ui/text-input.svelte';
   import { BitbucketIcon } from '$lib/components/icons';
@@ -97,11 +100,8 @@
 
   function toggleStatus(status: string) {
     const next = new Set(activeStatuses);
-    if (next.has(status)) {
-      next.delete(status);
-    } else {
-      next.add(status);
-    }
+    if (next.has(status)) next.delete(status);
+    else next.add(status);
     activeStatuses = next;
     currentPage = 1;
   }
@@ -407,40 +407,27 @@
   {/if}
 
   <!-- Filter bar -->
-  <div class="mb-4 flex flex-wrap items-center gap-3">
-    {#if productOptions.length > 0}
-      <Select bind:value={productFilter} placeholder="All products" options={productOptions} />
-    {/if}
-    <Select bind:value={stageFilter} placeholder="All stages" options={STAGE_OPTIONS} />
-    <Select bind:value={dateRange} placeholder="All time" options={DATE_RANGE_OPTIONS} />
-
-    <!-- Status pills -->
-    <div class="flex items-center gap-1.5">
-      {#each ['PASSED', 'FAILED', 'RUNNING', 'QUEUED', 'SKIPPED'] as status}
-        <button
-          onclick={() => toggleStatus(status)}
-          class="rounded-full px-2.5 py-1 text-2xs font-medium transition-colors {activeStatuses.has(status)
-            ? status === 'PASSED' ? 'bg-success text-white'
-            : status === 'FAILED' ? 'bg-error text-white'
-            : status === 'RUNNING' ? 'bg-accent text-white'
-            : 'bg-surface-2 text-text-primary'
-            : 'bg-surface-1 text-text-tertiary hover:bg-surface-2 hover:text-text-secondary'}"
-        >
-          {status}
-        </button>
-      {/each}
-    </div>
-
-    <div class="relative">
-      <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-      <input
-        type="text"
-        bind:value={searchQuery}
-        placeholder="Search..."
-        class="pl-9 pr-3 py-1.5 w-48 text-sm rounded-lg border border-border bg-surface-0 text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+  <FilterBar class="mb-4">
+    {#snippet filters()}
+      {#if productOptions.length > 0}
+        <FilterSelect label="Product" value={productFilter} onchange={(v) => { productFilter = v; }} options={productOptions} />
+      {/if}
+      <FilterSelect label="Stage" value={stageFilter} onchange={(v) => { stageFilter = v; }} options={STAGE_OPTIONS} />
+      <FilterSelect label="Date" value={dateRange} onchange={(v) => { dateRange = v; }} options={DATE_RANGE_OPTIONS} />
+      <FilterPills
+        options={[
+          { value: 'PASSED', label: 'Passed' },
+          { value: 'FAILED', label: 'Failed' },
+          { value: 'RUNNING', label: 'Running' },
+          { value: 'QUEUED', label: 'Queued' },
+          { value: 'SKIPPED', label: 'Skipped' },
+        ]}
+        selected={activeStatuses}
+        onchange={(s) => { activeStatuses = s; }}
       />
-    </div>
-    <span class="ml-auto text-2xs text-text-tertiary">
+      <FilterSearch bind:value={searchQuery} placeholder="Search runs..." class="w-48" />
+    {/snippet}
+    <span class="ml-auto text-2xs text-text-tertiary shrink-0">
       {pagination.total} runs
     </span>
     <button onclick={refresh} disabled={refreshing} class="btn btn-sm flex items-center gap-1.5" title="Refresh">
@@ -452,7 +439,7 @@
         New Run
       </button>
     {/if}
-  </div>
+  </FilterBar>
 
   <!-- Runs list -->
   {#if loading}

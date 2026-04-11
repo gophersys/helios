@@ -24,7 +24,9 @@
   import EmptyState from '$lib/components/ui/empty-state.svelte';
   import LoadingState from '$lib/components/ui/loading-state.svelte';
   import PageHeader from '$lib/components/ui/page-header.svelte';
-  import Select from '$lib/components/ui/select.svelte';
+  import FilterBar from '$lib/components/ui/filter-bar.svelte';
+  import FilterSelect from '$lib/components/ui/filter-select.svelte';
+  import FilterSearch from '$lib/components/ui/filter-search.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
 
   const auth = getAuth();
@@ -253,31 +255,17 @@
   {/if}
 
   <!-- Filter bar -->
-  <div class="mb-4 flex flex-wrap items-center gap-3">
-    <Select
-      bind:value={statusFilter}
-      placeholder="All statuses"
-      options={STATUS_OPTIONS}
-    />
-    <Select
-      bind:value={stageFilter}
-      placeholder="All stages"
-      options={STAGE_OPTIONS}
-    />
-    <div class="relative">
-      <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-      <input
-        type="text"
-        bind:value={searchQuery}
-        placeholder="Search build run, product, branch..."
-        class="rounded-lg border border-border bg-surface-0 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
-      />
-    </div>
-    <span class="ml-auto text-2xs text-text-tertiary">
+  <FilterBar class="mb-4">
+    {#snippet filters()}
+      <FilterSelect label="Status" value={statusFilter} onchange={(v) => { statusFilter = v; }} options={STATUS_OPTIONS} />
+      <FilterSelect label="Stage" value={stageFilter} onchange={(v) => { stageFilter = v; }} options={STAGE_OPTIONS} />
+      <FilterSearch bind:value={searchQuery} placeholder="Search build run, product, branch..." class="w-64" />
+    {/snippet}
+    <span class="ml-auto text-2xs text-text-tertiary shrink-0">
       {filteredEntries.length} of {pagination.total} entries
       <span class="ml-1 opacity-60">| auto-refreshing</span>
     </span>
-  </div>
+  </FilterBar>
 
   <ErrorAlert message={error} />
   <ErrorAlert message={actionError} />
