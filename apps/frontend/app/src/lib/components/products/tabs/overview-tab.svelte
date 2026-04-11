@@ -25,12 +25,9 @@
   );
   const activeRevisions = $derived(revisions.filter((r) => r.status === 'ACTIVE'));
   const deprecatedRevisions = $derived(revisions.filter((r) => r.status === 'DEPRECATED' || r.status === 'EOL'));
-  const latestRevision = $derived(
-    activeRevisions.length > 0
-      ? activeRevisions.reduce((latest, r) =>
-          new Date(r.createdAt) > new Date(latest.createdAt) ? r : latest
-        )
-      : null
+  // Sort revisions by version descending (b0 > a0) for display order
+  const sortedActiveRevisions = $derived(
+    [...activeRevisions].sort((a, b) => b.version.localeCompare(a.version))
   );
 
   // ── Stage configs ────────────────────────────────────────
@@ -200,8 +197,8 @@
     <div class="text-2xs text-text-tertiary">
       {activeRevisions.length === 1 ? '1 active' : `${activeRevisions.length} active`}{#if deprecatedRevisions.length > 0}<span class="text-text-tertiary"> · {deprecatedRevisions.length} deprecated</span>{/if}
     </div>
-    {#if latestRevision}
-      <div class="text-2xs text-text-secondary mt-0.5">Latest: {latestRevision.version}</div>
+    {#if sortedActiveRevisions.length > 0}
+      <div class="text-2xs text-text-secondary mt-0.5">{sortedActiveRevisions.map(r => r.version).join(', ')}</div>
     {/if}
   </div>
 
