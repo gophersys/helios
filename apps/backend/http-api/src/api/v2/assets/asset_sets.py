@@ -439,7 +439,6 @@ def download_asset_set_zip(asset_set_id: str):
                 logger.warning("Failed to fetch %s for zip: %s", asset.storageKey, e)
 
     zip_buffer.seek(0)
-    zip_data = zip_buffer.read()
 
     version = asset_set.version or "unknown"
     variant = asset_set.variant or "default"
@@ -447,11 +446,10 @@ def download_asset_set_zip(asset_set_id: str):
     safe_variant = re.sub(r'[^a-zA-Z0-9._-]', '_', variant)
     zip_filename = f"asset-set-{safe_version}-{safe_variant}.zip"
 
-    return Response(
-        zip_data,
+    from flask import send_file
+    return send_file(
+        zip_buffer,
         mimetype="application/zip",
-        headers={
-            "Content-Disposition": f'attachment; filename="{zip_filename}"',
-            "Content-Length": str(len(zip_data)),
-        },
+        as_attachment=True,
+        download_name=zip_filename,
     )
