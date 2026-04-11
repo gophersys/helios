@@ -115,7 +115,7 @@
         icon: Factory,
         href: '/manufacturing',
         stat: p.manufacturing ? String(p.manufacturing.total) : '—',
-        detail: p.manufacturing?.active ? `${p.manufacturing.active} active` : 'no sessions',
+        detail: p.manufacturing?.active ? `${p.manufacturing.active} active` : 'none',
         color: 'text-accent',
         visible: !!p.manufacturing,
       },
@@ -175,7 +175,7 @@
   {:else}
     <!-- Pipeline stat cards -->
     {#if sections.length > 0}
-      <div class="grid grid-cols-2 gap-4 lg:grid-cols-{Math.min(sections.length, 5)}">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {#each sections as section}
           <a
             href={section.href}
@@ -195,7 +195,7 @@
 
     <!-- Setup checklist (when platform is mostly empty) -->
     {#if nothingConfigured}
-      <div class="rounded-xl border border-border bg-surface-1 p-6">
+      <div class="rounded-lg border border-border bg-surface-1 p-6">
         <div class="mb-4 flex items-center gap-2">
           <Activity size={18} class="text-accent" />
           <h2 class="text-sm font-semibold text-text-primary">Get started</h2>
