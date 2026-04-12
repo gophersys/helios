@@ -37,7 +37,6 @@ dist/
 tmp/
 **/build/
 !docs/**/build/
-/out-tsc
 
 # ---------------------------------------------------------------------------
 # SvelteKit
@@ -60,7 +59,6 @@ libs/python/libs/
 # ---------------------------------------------------------------------------
 # Documentation build output
 # ---------------------------------------------------------------------------
-apps/docs/site/
 apps/frontend/docs/site/
 
 # ---------------------------------------------------------------------------
@@ -70,11 +68,6 @@ apps/frontend/docs/site/
 apps/firmware/products/*/artifacts/
 *.tmp
 CMakeCache.tmp
-
-# ---------------------------------------------------------------------------
-# Helm auto-synced files (copied from source at deploy time)
-# ---------------------------------------------------------------------------
-deploy/helm/concord/files/build-worker/*.py
 
 # ---------------------------------------------------------------------------
 # Secrets & credentials (NEVER commit)
@@ -121,7 +114,6 @@ Thumbs.db
 logs/
 .cache/
 *.bak
-.config.old
 infrastructure/clusters/office/networking/certs/*.key
 
 # Generated kubeconfigs (contain private keys)
@@ -131,5 +123,3 @@ infrastructure/clusters/*/kubeconfigs/generated/
 # Backups (local staging/production data snapshots)
 # ---------------------------------------------------------------------------
 .backups/
-e2e-report/
-.coverage
