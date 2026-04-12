@@ -3,7 +3,7 @@ min_role: OPERATOR
 ---
 # Concord
 
-Concord is CoreKinect's platform for building and testing embedded firmware. It compiles firmware from source, validates it on real hardware through automated test fixtures, and manages the full lifecycle from git push to production-ready binary.
+Concord is CoreKinect's platform for testing and validating. It compiles firmware from source, validates it on real hardware through automated test fixtures, and manages the full lifecycle from git push to production-ready binary.
 
 ## System concepts
 

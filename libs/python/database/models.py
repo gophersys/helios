@@ -92,8 +92,10 @@ class Product(bases.BaseProduct):
     """additional product-specific config
     """
 
+    createdById: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    createdBy: Optional['models.User'] = None
     boards: Optional[List['models.Board']] = None
     firmwareSets: Optional[List['models.FirmwareSet']] = None
     fixtures: Optional[List['models.Fixture']] = None
@@ -291,11 +293,34 @@ class TestPackage(bases.BaseTestPackage):
     """
 
     notes: Optional[_str] = None
+    releasedVersion: Optional[_str] = None
+    """Auto-assigned semver on promotion (e.g. "1.0.0")
+    """
+
+    releasedAt: Optional[datetime.datetime] = None
+    """When promoted to RELEASED
+    """
+
+    releasedById: Optional[_str] = None
+    """User who promoted
+    """
+
     createdById: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    boardRevisionId: Optional[_str] = None
+    """Board revision this package targets (from manifest product.board)
+    """
+
+    fixtureDesignId: Optional[_str] = None
+    """FK — fixture design extracted/linked during upload
+    """
+
     product: Optional['models.Product'] = None
+    boardRevision: Optional['models.BoardRevision'] = None
+    fixtureDesign: Optional['models.FixtureDesign'] = None
     createdBy: Optional['models.User'] = None
+    releasedBy: Optional['models.User'] = None
     testRuns: Optional[List['models.TestRun']] = None
     packageStages: Optional[List['models.TestPackageStage']] = None
 
@@ -586,8 +611,10 @@ class Board(bases.BaseBoard):
     vendor: _str
     description: Optional[_str] = None
     active: _bool
+    createdById: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    createdBy: Optional['models.User'] = None
     product: Optional['models.Product'] = None
     revisions: Optional[List['models.BoardRevision']] = None
 
@@ -751,8 +778,10 @@ class BoardRevision(bases.BaseBoardRevision):
 
     status: 'enums.LifecycleStatus'
     notes: Optional[_str] = None
+    createdById: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    createdBy: Optional['models.User'] = None
     board: Optional['models.Board'] = None
     targets: Optional[List['models.ProductTarget']] = None
     firmwareSets: Optional[List['models.FirmwareSet']] = None
@@ -761,6 +790,9 @@ class BoardRevision(bases.BaseBoardRevision):
     fixtureDesigns: Optional[List['models.FixtureDesign']] = None
     fixtures: Optional[List['models.Fixture']] = None
     manufacturingConfigs: Optional[List['models.ManufacturingConfig']] = None
+    testPackages: Optional[List['models.TestPackage']] = None
+    testRuns: Optional[List['models.TestRun']] = None
+    modemFirmwares: Optional[List['models.ModemFirmware']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -893,6 +925,161 @@ class BoardRevision(bases.BaseBoardRevision):
                 'name': name,
                 'fields': cast(Mapping[str, PartialModelField], fields),
                 'from_model': 'BoardRevision',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class ModemFirmware(bases.BaseModemFirmware):
+    """A modem firmware version uploaded for a specific board revision.
+    Multiple versions can coexist — AssetSets reference a specific version.
+    """
+
+    id: _str
+    boardRevisionId: _str
+    version: _str
+    """"2.0.2", "1.3.6"
+    """
+
+    filename: _str
+    """Original filename: "mfw_nrf91x1_2.0.2.zip"
+    """
+
+    storageKey: _str
+    """MinIO key
+    """
+
+    sizeBytes: _int
+    checksum: Optional[_str] = None
+    """SHA-256
+    """
+
+    notes: Optional[_str] = None
+    createdById: Optional[_str] = None
+    createdAt: datetime.datetime
+    updatedAt: Optional[datetime.datetime] = None
+    boardRevision: Optional['models.BoardRevision'] = None
+    createdBy: Optional['models.User'] = None
+    assetSets: Optional[List['models.AssetSet']] = None
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.ModemFirmwareKeys']] = None,
+        exclude: Optional[Iterable['types.ModemFirmwareKeys']] = None,
+        required: Optional[Iterable['types.ModemFirmwareKeys']] = None,
+        optional: Optional[Iterable['types.ModemFirmwareKeys']] = None,
+        relations: Optional[Mapping['types.ModemFirmwareRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.ModemFirmwareKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _ModemFirmware_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _ModemFirmware_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _ModemFirmware_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _ModemFirmware_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _ModemFirmware_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _ModemFirmware_relational_fields:
+                        raise errors.UnknownRelationalFieldError('ModemFirmware', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid ModemFirmware / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'ModemFirmware',
             }
         )
         _created_partial_types.add(name)
@@ -1258,8 +1445,8 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     """Disabled by default
     """
 
-    boardRevisionId: Optional[_str] = None
-    """FK to BoardRevision (e.g., Alpha B0)
+    boardRevisionId: _str
+    """FK to BoardRevision — every stage config is revision-scoped
     """
 
     watchBranch: Optional[_str] = None
@@ -1274,9 +1461,11 @@ class ProductStageConfig(bases.BaseProductStageConfig):
     """FK to Secret (signing key for this stage's builds)
     """
 
+    createdById: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     recipeVersionId: Optional[_str] = None
+    createdBy: Optional['models.User'] = None
     product: Optional['models.Product'] = None
     boardRevision: Optional['models.BoardRevision'] = None
     signingKey: Optional['models.Secret'] = None
@@ -1670,9 +1859,11 @@ class BuildRun(bases.BaseBuildRun):
 
     startedAt: Optional[datetime.datetime] = None
     finishedAt: Optional[datetime.datetime] = None
+    createdById: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
     recipeVersionId: Optional[_str] = None
+    createdBy: Optional['models.User'] = None
     product: Optional['models.Product'] = None
     stageConfig: Optional['models.ProductStageConfig'] = None
     recipeVersion: Optional['models.RecipeVersion'] = None
@@ -2162,7 +2353,7 @@ class FixtureDesign(bases.BaseFixtureDesign):
 
     id: _str
     name: _str
-    """"alpha-fixture-v1.2"
+    """Human-readable name from fixture.yaml (e.g. "Alpha B0 Manufacturing Fixture")
     """
 
     boardRevisionId: _str
@@ -2170,15 +2361,19 @@ class FixtureDesign(bases.BaseFixtureDesign):
     """
 
     revision: _str
-    """"1.2" — fixture hardware revision (NOT board revision)
+    """Fixture hardware revision from fixture.yaml (e.g. "1.0", "1.2")
+    """
+
+    type: Optional['enums.NodeType'] = None
+    """MANUFACTURING or VALIDATION — set from uploading test package type
     """
 
     capabilities: List[_str]
-    """["button", "peltier", "charger_relay"]
+    """["power", "jlink", "button"] — from fixture.yaml capabilities list
     """
 
     profileTemplate: 'fields.Json'
-    """Default fixture profile JSON (passed to test runner, not interpreted by Concord)
+    """Full fixture.yaml content (power config, thresholds, slot defaults)
     """
 
     schematicUrl: Optional[_str] = None
@@ -2197,10 +2392,13 @@ class FixtureDesign(bases.BaseFixtureDesign):
     """Build notes, known issues, changelog
     """
 
+    createdById: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    createdBy: Optional['models.User'] = None
     boardRevision: Optional['models.BoardRevision'] = None
     fixtures: Optional[List['models.Fixture']] = None
+    testPackages: Optional[List['models.TestPackage']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -2391,8 +2589,10 @@ class Fixture(bases.BaseFixture):
     """
 
     lastHealthCheck: Optional[datetime.datetime] = None
+    createdById: Optional[_str] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    createdBy: Optional['models.User'] = None
     product: Optional['models.Product'] = None
     boardRevision: Optional['models.BoardRevision'] = None
     design: Optional['models.FixtureDesign'] = None
@@ -3352,6 +3552,15 @@ class User(bases.BaseUser):
     assetSets: Optional[List['models.AssetSet']] = None
     manufacturingSessions: Optional[List['models.ManufacturingSession']] = None
     testRuns: Optional[List['models.TestRun']] = None
+    releasedTestPackages: Optional[List['models.TestPackage']] = None
+    modemFirmwareUploads: Optional[List['models.ModemFirmware']] = None
+    createdProducts: Optional[List['models.Product']] = None
+    createdBoards: Optional[List['models.Board']] = None
+    createdBoardRevisions: Optional[List['models.BoardRevision']] = None
+    createdStageConfigs: Optional[List['models.ProductStageConfig']] = None
+    createdFixtureDesigns: Optional[List['models.FixtureDesign']] = None
+    createdFixtures: Optional[List['models.Fixture']] = None
+    createdBuildRuns: Optional[List['models.BuildRun']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -4616,6 +4825,14 @@ class StageBuildMatrix(bases.BaseStageBuildMatrix):
     """
 
     description: Optional[_str] = None
+    processor: Optional[_str] = None
+    """Target processor SoC: "nrf52840", "nrf9151"
+    """
+
+    filenamePattern: Optional[_str] = None
+    """Expected filename pattern: "*_debug_nrf52840.hex"
+    """
+
     stageConfig: Optional['models.ProductStageConfig'] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
@@ -4759,7 +4976,11 @@ class AssetSet(bases.BaseAssetSet):
     """
 
     stage: Optional[_int] = None
-    """Validation stage (1-5) this asset set targets
+    """Stage number (1-5 for validation, 1 for manufacturing)
+    """
+
+    stageType: Optional['enums.StageType'] = None
+    """VALIDATION or MANUFACTURING — disambiguates stage number
     """
 
     source: 'enums.AssetSetSource'
@@ -4778,6 +4999,10 @@ class AssetSet(bases.BaseAssetSet):
     branch: Optional[_str] = None
     recipeVersionId: Optional[_str] = None
     status: 'enums.AssetSetStatus'
+    modemFirmwareId: Optional[_str] = None
+    """Selected modem firmware for this asset set
+    """
+
     notes: Optional[_str] = None
     createdById: Optional[_str] = None
     createdAt: datetime.datetime
@@ -4786,9 +5011,11 @@ class AssetSet(bases.BaseAssetSet):
     boardRevision: Optional['models.BoardRevision'] = None
     buildRun: Optional['models.BuildRun'] = None
     recipeVersion: Optional['models.RecipeVersion'] = None
+    modemFirmware: Optional['models.ModemFirmware'] = None
     createdBy: Optional['models.User'] = None
     assets: Optional[List['models.Asset']] = None
     testRuns: Optional[List['models.TestRun']] = None
+    manufacturingSessions: Optional[List['models.ManufacturingSession']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
     def __init_subclass__(
@@ -5243,9 +5470,23 @@ class ManufacturingSession(bases.BaseManufacturingSession):
     endedAt: Optional[datetime.datetime] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    runnerStatus: Optional[_str] = None
+    """DEPLOYING | READY | RUNNING | ERROR
+    """
+
+    runnerDeploymentName: Optional[_str] = None
+    """K8s deployment name for cleanup
+    """
+
+    runnerLastHeartbeat: Optional[datetime.datetime] = None
+    assetSetId: Optional[_str] = None
+    """Selected firmware AssetSet for this session
+    """
+
     product: Optional['models.Product'] = None
     fixture: Optional['models.Fixture'] = None
     operator: Optional['models.User'] = None
+    assetSet: Optional['models.AssetSet'] = None
     runs: Optional[List['models.TestRun']] = None
 
     # take *args and **kwargs so that other metaclasses can define arguments
@@ -5422,8 +5663,13 @@ class TestRun(bases.BaseTestRun):
     durationMs: Optional[_int] = None
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
+    boardRevisionId: Optional[_str] = None
+    """Board revision (populated from fixture at creation time)
+    """
+
     product: Optional['models.Product'] = None
     fixture: Optional['models.Fixture'] = None
+    boardRevision: Optional['models.BoardRevision'] = None
     testPackage: Optional['models.TestPackage'] = None
     buildRun: Optional['models.BuildRun'] = None
     session: Optional['models.ManufacturingSession'] = None
@@ -6199,6 +6445,7 @@ class TestPackageStage(bases.BaseTestPackageStage):
 
 
 _Product_relational_fields: Set[str] = {
+        'createdBy',
         'boards',
         'firmwareSets',
         'fixtures',
@@ -6295,6 +6542,14 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': '''additional product-specific config''',
         }),
+        ('createdById', {
+            'name': 'createdById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('createdAt', {
             'name': 'createdAt',
             'is_list': False,
@@ -6309,6 +6564,14 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
             'optional': False,
             'type': 'datetime.datetime',
             'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdBy', {
+            'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
             'documentation': None,
         }),
         ('boards', {
@@ -6420,7 +6683,10 @@ _Product_fields: Dict['types.ProductKeys', PartialModelField] = OrderedDict(
 
 _TestPackage_relational_fields: Set[str] = {
         'product',
+        'boardRevision',
+        'fixtureDesign',
         'createdBy',
+        'releasedBy',
         'testRuns',
         'packageStages',
     }
@@ -6546,6 +6812,30 @@ _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedD
             'is_relational': False,
             'documentation': None,
         }),
+        ('releasedVersion', {
+            'name': 'releasedVersion',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Auto-assigned semver on promotion (e.g. "1.0.0")''',
+        }),
+        ('releasedAt', {
+            'name': 'releasedAt',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': '''When promoted to RELEASED''',
+        }),
+        ('releasedById', {
+            'name': 'releasedById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''User who promoted''',
+        }),
         ('createdById', {
             'name': 'createdById',
             'is_list': False,
@@ -6570,6 +6860,22 @@ _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedD
             'is_relational': False,
             'documentation': None,
         }),
+        ('boardRevisionId', {
+            'name': 'boardRevisionId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Board revision this package targets (from manifest product.board)''',
+        }),
+        ('fixtureDesignId', {
+            'name': 'fixtureDesignId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''FK — fixture design extracted/linked during upload''',
+        }),
         ('product', {
             'name': 'product',
             'is_list': False,
@@ -6578,8 +6884,32 @@ _TestPackage_fields: Dict['types.TestPackageKeys', PartialModelField] = OrderedD
             'is_relational': True,
             'documentation': None,
         }),
+        ('boardRevision', {
+            'name': 'boardRevision',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BoardRevision',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('fixtureDesign', {
+            'name': 'fixtureDesign',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.FixtureDesign',
+            'is_relational': True,
+            'documentation': None,
+        }),
         ('createdBy', {
             'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('releasedBy', {
+            'name': 'releasedBy',
             'is_list': False,
             'optional': True,
             'type': 'models.User',
@@ -6671,6 +7001,7 @@ _ProductTarget_fields: Dict['types.ProductTargetKeys', PartialModelField] = Orde
 )
 
 _Board_relational_fields: Set[str] = {
+        'createdBy',
         'product',
         'revisions',
     }
@@ -6732,6 +7063,14 @@ _Board_fields: Dict['types.BoardKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('createdById', {
+            'name': 'createdById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('createdAt', {
             'name': 'createdAt',
             'is_list': False,
@@ -6746,6 +7085,14 @@ _Board_fields: Dict['types.BoardKeys', PartialModelField] = OrderedDict(
             'optional': False,
             'type': 'datetime.datetime',
             'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdBy', {
+            'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
             'documentation': None,
         }),
         ('product', {
@@ -6768,6 +7115,7 @@ _Board_fields: Dict['types.BoardKeys', PartialModelField] = OrderedDict(
 )
 
 _BoardRevision_relational_fields: Set[str] = {
+        'createdBy',
         'board',
         'targets',
         'firmwareSets',
@@ -6776,6 +7124,9 @@ _BoardRevision_relational_fields: Set[str] = {
         'fixtureDesigns',
         'fixtures',
         'manufacturingConfigs',
+        'testPackages',
+        'testRuns',
+        'modemFirmwares',
     }
 _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = OrderedDict(
     [
@@ -6867,6 +7218,14 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': None,
         }),
+        ('createdById', {
+            'name': 'createdById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('createdAt', {
             'name': 'createdAt',
             'is_list': False,
@@ -6881,6 +7240,14 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'optional': False,
             'type': 'datetime.datetime',
             'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdBy', {
+            'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
             'documentation': None,
         }),
         ('board', {
@@ -6944,6 +7311,152 @@ _BoardRevision_fields: Dict['types.BoardRevisionKeys', PartialModelField] = Orde
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.ManufacturingConfig\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('testPackages', {
+            'name': 'testPackages',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TestPackage\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('testRuns', {
+            'name': 'testRuns',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TestRun\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('modemFirmwares', {
+            'name': 'modemFirmwares',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ModemFirmware\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+    ],
+)
+
+_ModemFirmware_relational_fields: Set[str] = {
+        'boardRevision',
+        'createdBy',
+        'assetSets',
+    }
+_ModemFirmware_fields: Dict['types.ModemFirmwareKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('boardRevisionId', {
+            'name': 'boardRevisionId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('version', {
+            'name': 'version',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''"2.0.2", "1.3.6"''',
+        }),
+        ('filename', {
+            'name': 'filename',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Original filename: "mfw_nrf91x1_2.0.2.zip"''',
+        }),
+        ('storageKey', {
+            'name': 'storageKey',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''MinIO key''',
+        }),
+        ('sizeBytes', {
+            'name': 'sizeBytes',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('checksum', {
+            'name': 'checksum',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''SHA-256''',
+        }),
+        ('notes', {
+            'name': 'notes',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdById', {
+            'name': 'createdById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('updatedAt', {
+            'name': 'updatedAt',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('boardRevision', {
+            'name': 'boardRevision',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BoardRevision',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('createdBy', {
+            'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('assetSets', {
+            'name': 'assetSets',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.AssetSet\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -7258,6 +7771,7 @@ _FirmwareBuild_fields: Dict['types.FirmwareBuildKeys', PartialModelField] = Orde
 )
 
 _ProductStageConfig_relational_fields: Set[str] = {
+        'createdBy',
         'product',
         'boardRevision',
         'signingKey',
@@ -7319,10 +7833,10 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
         ('boardRevisionId', {
             'name': 'boardRevisionId',
             'is_list': False,
-            'optional': True,
+            'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''FK to BoardRevision (e.g., Alpha B0)''',
+            'documentation': '''FK to BoardRevision — every stage config is revision-scoped''',
         }),
         ('watchBranch', {
             'name': 'watchBranch',
@@ -7348,6 +7862,14 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'is_relational': False,
             'documentation': '''FK to Secret (signing key for this stage's builds)''',
         }),
+        ('createdById', {
+            'name': 'createdById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('createdAt', {
             'name': 'createdAt',
             'is_list': False,
@@ -7370,6 +7892,14 @@ _ProductStageConfig_fields: Dict['types.ProductStageConfigKeys', PartialModelFie
             'optional': True,
             'type': '_str',
             'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdBy', {
+            'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
             'documentation': None,
         }),
         ('product', {
@@ -7611,6 +8141,7 @@ _ValidationQueueEntry_fields: Dict['types.ValidationQueueEntryKeys', PartialMode
 )
 
 _BuildRun_relational_fields: Set[str] = {
+        'createdBy',
         'product',
         'stageConfig',
         'recipeVersion',
@@ -7821,6 +8352,14 @@ _BuildRun_fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('createdById', {
+            'name': 'createdById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('createdAt', {
             'name': 'createdAt',
             'is_list': False,
@@ -7843,6 +8382,14 @@ _BuildRun_fields: Dict['types.BuildRunKeys', PartialModelField] = OrderedDict(
             'optional': True,
             'type': '_str',
             'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdBy', {
+            'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
             'documentation': None,
         }),
         ('product', {
@@ -8326,8 +8873,10 @@ _BuildArtifact_fields: Dict['types.BuildArtifactKeys', PartialModelField] = Orde
 )
 
 _FixtureDesign_relational_fields: Set[str] = {
+        'createdBy',
         'boardRevision',
         'fixtures',
+        'testPackages',
     }
 _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = OrderedDict(
     [
@@ -8345,7 +8894,7 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''"alpha-fixture-v1.2"''',
+            'documentation': '''Human-readable name from fixture.yaml (e.g. "Alpha B0 Manufacturing Fixture")''',
         }),
         ('boardRevisionId', {
             'name': 'boardRevisionId',
@@ -8361,7 +8910,15 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'optional': False,
             'type': '_str',
             'is_relational': False,
-            'documentation': '''"1.2" — fixture hardware revision (NOT board revision)''',
+            'documentation': '''Fixture hardware revision from fixture.yaml (e.g. "1.0", "1.2")''',
+        }),
+        ('type', {
+            'name': 'type',
+            'is_list': False,
+            'optional': True,
+            'type': 'enums.NodeType',
+            'is_relational': False,
+            'documentation': '''MANUFACTURING or VALIDATION — set from uploading test package type''',
         }),
         ('capabilities', {
             'name': 'capabilities',
@@ -8369,7 +8926,7 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'optional': False,
             'type': 'List[_str]',
             'is_relational': False,
-            'documentation': '''["button", "peltier", "charger_relay"]''',
+            'documentation': '''["power", "jlink", "button"] — from fixture.yaml capabilities list''',
         }),
         ('profileTemplate', {
             'name': 'profileTemplate',
@@ -8377,7 +8934,7 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'optional': False,
             'type': 'fields.Json',
             'is_relational': False,
-            'documentation': '''Default fixture profile JSON (passed to test runner, not interpreted by Concord)''',
+            'documentation': '''Full fixture.yaml content (power config, thresholds, slot defaults)''',
         }),
         ('schematicUrl', {
             'name': 'schematicUrl',
@@ -8411,6 +8968,14 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'is_relational': False,
             'documentation': '''Build notes, known issues, changelog''',
         }),
+        ('createdById', {
+            'name': 'createdById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('createdAt', {
             'name': 'createdAt',
             'is_list': False,
@@ -8425,6 +8990,14 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'optional': False,
             'type': 'datetime.datetime',
             'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdBy', {
+            'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
             'documentation': None,
         }),
         ('boardRevision', {
@@ -8443,10 +9016,19 @@ _FixtureDesign_fields: Dict['types.FixtureDesignKeys', PartialModelField] = Orde
             'is_relational': True,
             'documentation': None,
         }),
+        ('testPackages', {
+            'name': 'testPackages',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TestPackage\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
     ],
 )
 
 _Fixture_relational_fields: Set[str] = {
+        'createdBy',
         'product',
         'boardRevision',
         'design',
@@ -8577,6 +9159,14 @@ _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('createdById', {
+            'name': 'createdById',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
         ('createdAt', {
             'name': 'createdAt',
             'is_list': False,
@@ -8591,6 +9181,14 @@ _Fixture_fields: Dict['types.FixtureKeys', PartialModelField] = OrderedDict(
             'optional': False,
             'type': 'datetime.datetime',
             'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdBy', {
+            'name': 'createdBy',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.User',
+            'is_relational': True,
             'documentation': None,
         }),
         ('product', {
@@ -9218,6 +9816,15 @@ _User_relational_fields: Set[str] = {
         'assetSets',
         'manufacturingSessions',
         'testRuns',
+        'releasedTestPackages',
+        'modemFirmwareUploads',
+        'createdProducts',
+        'createdBoards',
+        'createdBoardRevisions',
+        'createdStageConfigs',
+        'createdFixtureDesigns',
+        'createdFixtures',
+        'createdBuildRuns',
     }
 _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
     [
@@ -9378,6 +9985,78 @@ _User_fields: Dict['types.UserKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.TestRun\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('releasedTestPackages', {
+            'name': 'releasedTestPackages',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TestPackage\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('modemFirmwareUploads', {
+            'name': 'modemFirmwareUploads',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ModemFirmware\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('createdProducts', {
+            'name': 'createdProducts',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.Product\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('createdBoards', {
+            'name': 'createdBoards',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.Board\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('createdBoardRevisions', {
+            'name': 'createdBoardRevisions',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.BoardRevision\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('createdStageConfigs', {
+            'name': 'createdStageConfigs',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ProductStageConfig\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('createdFixtureDesigns', {
+            'name': 'createdFixtureDesigns',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.FixtureDesign\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('createdFixtures', {
+            'name': 'createdFixtures',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.Fixture\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('createdBuildRuns', {
+            'name': 'createdBuildRuns',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.BuildRun\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -10144,6 +10823,22 @@ _StageBuildMatrix_fields: Dict['types.StageBuildMatrixKeys', PartialModelField] 
             'is_relational': False,
             'documentation': None,
         }),
+        ('processor', {
+            'name': 'processor',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Target processor SoC: "nrf52840", "nrf9151"''',
+        }),
+        ('filenamePattern', {
+            'name': 'filenamePattern',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Expected filename pattern: "*_debug_nrf52840.hex"''',
+        }),
         ('stageConfig', {
             'name': 'stageConfig',
             'is_list': False,
@@ -10160,9 +10855,11 @@ _AssetSet_relational_fields: Set[str] = {
         'boardRevision',
         'buildRun',
         'recipeVersion',
+        'modemFirmware',
         'createdBy',
         'assets',
         'testRuns',
+        'manufacturingSessions',
     }
 _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
     [
@@ -10212,7 +10909,15 @@ _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
             'optional': True,
             'type': '_int',
             'is_relational': False,
-            'documentation': '''Validation stage (1-5) this asset set targets''',
+            'documentation': '''Stage number (1-5 for validation, 1 for manufacturing)''',
+        }),
+        ('stageType', {
+            'name': 'stageType',
+            'is_list': False,
+            'optional': True,
+            'type': 'enums.StageType',
+            'is_relational': False,
+            'documentation': '''VALIDATION or MANUFACTURING — disambiguates stage number''',
         }),
         ('source', {
             'name': 'source',
@@ -10269,6 +10974,14 @@ _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
             'type': 'enums.AssetSetStatus',
             'is_relational': False,
             'documentation': None,
+        }),
+        ('modemFirmwareId', {
+            'name': 'modemFirmwareId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Selected modem firmware for this asset set''',
         }),
         ('notes', {
             'name': 'notes',
@@ -10334,6 +11047,14 @@ _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
             'is_relational': True,
             'documentation': None,
         }),
+        ('modemFirmware', {
+            'name': 'modemFirmware',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.ModemFirmware',
+            'is_relational': True,
+            'documentation': None,
+        }),
         ('createdBy', {
             'name': 'createdBy',
             'is_list': False,
@@ -10355,6 +11076,14 @@ _AssetSet_fields: Dict['types.AssetSetKeys', PartialModelField] = OrderedDict(
             'is_list': True,
             'optional': True,
             'type': 'List[\'models.TestRun\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('manufacturingSessions', {
+            'name': 'manufacturingSessions',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.ManufacturingSession\']',
             'is_relational': True,
             'documentation': None,
         }),
@@ -10606,6 +11335,7 @@ _ManufacturingSession_relational_fields: Set[str] = {
         'product',
         'fixture',
         'operator',
+        'assetSet',
         'runs',
     }
 _ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialModelField] = OrderedDict(
@@ -10698,6 +11428,38 @@ _ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialMode
             'is_relational': False,
             'documentation': None,
         }),
+        ('runnerStatus', {
+            'name': 'runnerStatus',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''DEPLOYING | READY | RUNNING | ERROR''',
+        }),
+        ('runnerDeploymentName', {
+            'name': 'runnerDeploymentName',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''K8s deployment name for cleanup''',
+        }),
+        ('runnerLastHeartbeat', {
+            'name': 'runnerLastHeartbeat',
+            'is_list': False,
+            'optional': True,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('assetSetId', {
+            'name': 'assetSetId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Selected firmware AssetSet for this session''',
+        }),
         ('product', {
             'name': 'product',
             'is_list': False,
@@ -10722,6 +11484,14 @@ _ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialMode
             'is_relational': True,
             'documentation': None,
         }),
+        ('assetSet', {
+            'name': 'assetSet',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.AssetSet',
+            'is_relational': True,
+            'documentation': None,
+        }),
         ('runs', {
             'name': 'runs',
             'is_list': True,
@@ -10736,6 +11506,7 @@ _ManufacturingSession_fields: Dict['types.ManufacturingSessionKeys', PartialMode
 _TestRun_relational_fields: Set[str] = {
         'product',
         'fixture',
+        'boardRevision',
         'testPackage',
         'buildRun',
         'session',
@@ -10938,6 +11709,14 @@ _TestRun_fields: Dict['types.TestRunKeys', PartialModelField] = OrderedDict(
             'is_relational': False,
             'documentation': None,
         }),
+        ('boardRevisionId', {
+            'name': 'boardRevisionId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Board revision (populated from fixture at creation time)''',
+        }),
         ('product', {
             'name': 'product',
             'is_list': False,
@@ -10951,6 +11730,14 @@ _TestRun_fields: Dict['types.TestRunKeys', PartialModelField] = OrderedDict(
             'is_list': False,
             'optional': True,
             'type': 'models.Fixture',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('boardRevision', {
+            'name': 'boardRevision',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.BoardRevision',
             'is_relational': True,
             'documentation': None,
         }),
@@ -11524,6 +12311,7 @@ model_rebuild(TestPackage)
 model_rebuild(ProductTarget)
 model_rebuild(Board)
 model_rebuild(BoardRevision)
+model_rebuild(ModemFirmware)
 model_rebuild(FirmwareSet)
 model_rebuild(FirmwareBuild)
 model_rebuild(ProductStageConfig)

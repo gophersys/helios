@@ -181,12 +181,13 @@
             {config.boardRevision.ckBoardsName}
           </span>
         {/if}
-        {#if config?.enabled && config.assetSource === 'EXTERNAL_CI'}
+        {#if config?.enabled && config.assetSources?.includes('EXTERNAL_CI')}
           <span class="badge badge-info">External CI</span>
-        {:else if config?.enabled && config.assetSource === 'MANUAL_UPLOAD'}
+        {/if}
+        {#if config?.enabled && config.assetSources?.includes('MANUAL_UPLOAD')}
           <span class="badge badge-neutral">Manual</span>
         {/if}
-        {#if config?.enabled && (!config.assetSource || config.assetSource === 'BUILD_SERVICE')}
+        {#if config?.enabled && (!config.assetSources || config.assetSources.includes('BUILD_SERVICE'))}
           <span class="px-1.5 py-0.5 text-2xs rounded bg-accent/10 text-accent">
             {triggerSummary((config as any).triggerTypes || 'manual', config.watchBranch)}
           </span>
@@ -351,18 +352,21 @@
           <span class="block text-2xs text-text-tertiary">Revision</span>
           <span class="font-mono text-text-primary">{config.boardRevision?.ckBoardsName || '—'}</span>
         </div>
-        {#if config.assetSource && config.assetSource !== 'BUILD_SERVICE'}
-          <div>
-            <span class="block text-2xs text-text-tertiary">Asset Source</span>
-            <span class="text-text-primary">
-              {#if config.assetSource === 'EXTERNAL_CI'}
+        <div>
+          <span class="block text-2xs text-text-tertiary">Asset Sources</span>
+          <span class="flex flex-wrap gap-1">
+            {#each config.assetSources || ['BUILD_SERVICE'] as src}
+              {#if src === 'EXTERNAL_CI'}
                 <span class="badge badge-info">External CI</span>
-              {:else if config.assetSource === 'MANUAL_UPLOAD'}
+              {:else if src === 'MANUAL_UPLOAD'}
                 <span class="badge badge-neutral">Manual</span>
+              {:else}
+                <span class="badge badge-accent">Concord Builds</span>
               {/if}
-            </span>
-          </div>
-        {:else}
+            {/each}
+          </span>
+        </div>
+        {#if (!config.assetSources || config.assetSources.includes('BUILD_SERVICE'))}
           <div>
             <span class="block text-2xs text-text-tertiary">Trigger</span>
             <span class="text-text-primary">{triggerSummary((config as any).triggerTypes || 'manual', config.watchBranch)}</span>

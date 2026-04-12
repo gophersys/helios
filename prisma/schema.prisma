@@ -255,10 +255,12 @@ model TestPackage {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  boardRevisionId String? /// Board revision this package targets (from manifest product.board)
+  boardRevisionId  String? /// Board revision this package targets (from manifest product.board)
+  fixtureDesignId  String? /// FK — fixture design extracted/linked during upload
 
   product        Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
   boardRevision  BoardRevision?   @relation(fields: [boardRevisionId], references: [id], onDelete: SetNull)
+  fixtureDesign  FixtureDesign?   @relation(fields: [fixtureDesignId], references: [id], onDelete: SetNull)
   createdBy      User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
   releasedBy     User?            @relation("TestPackageReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
   testRuns       TestRun[]
@@ -271,6 +273,7 @@ model TestPackage {
   @@index([createdById])
   @@index([releasedById])
   @@index([boardRevisionId])
+  @@index([fixtureDesignId])
   @@map("test_packages")
 }
 
@@ -720,25 +723,29 @@ model BuildArtifact {
 ///
 /// Individual Fixture records can override specific fields via profileOverrides.
 model FixtureDesign {
-  id              String   @id @default(cuid())
-  name            String   @unique /// "alpha-fixture-v1.2"
+  id              String    @id @default(cuid())
+  name            String /// Human-readable name from fixture.yaml (e.g. "Alpha B0 Manufacturing Fixture")
   boardRevisionId String /// FK — which board revision this design targets
-  revision        String /// "1.2" — fixture hardware revision (NOT board revision)
-  capabilities    String[] /// ["button", "peltier", "charger_relay"]
-  profileTemplate Json /// Default fixture profile JSON (passed to test runner, not interpreted by Concord)
+  revision        String /// Fixture hardware revision from fixture.yaml (e.g. "1.0", "1.2")
+  type            NodeType? /// MANUFACTURING or VALIDATION — set from uploading test package type
+  capabilities    String[] /// ["power", "jlink", "button"] — from fixture.yaml capabilities list
+  profileTemplate Json /// Full fixture.yaml content (power config, thresholds, slot defaults)
   schematicUrl    String? /// Link to schematic PDF/CAD files
   bomUrl          String? /// Link to BOM spreadsheet
   assemblyGuide   String? /// Link to assembly instructions
   notes           String? /// Build notes, known issues, changelog
   createdById     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  createdBy     User?         @relation("FixtureDesignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
+  createdBy     User?          @relation("FixtureDesignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  boardRevision BoardRevision  @relation(fields: [boardRevisionId], references: [id], onDelete: Restrict)
   fixtures      Fixture[]
+  testPackages  TestPackage[]
 
+  @@unique([name, revision]) /// Same design name can have multiple revisions (v1.0, v1.2)
   @@index([boardRevisionId])
+  @@index([type])
   @@map("fixture_designs")
 }
 
@@ -1173,7 +1180,8 @@ model AssetSet {
   boardRevisionId String?
   version         String /// Firmware version, e.g. "0.5.2"
   variant         String         @default("debug") /// "debug", "release", "mfg"
-  stage           Int? /// Validation stage (1-5) this asset set targets
+  stage           Int? /// Stage number (1-5 for validation, 1 for manufacturing)
+  stageType       StageType? /// VALIDATION or MANUFACTURING — disambiguates stage number
 
   source          AssetSetSource /// How the assets entered the system
   buildRunId      String?        @unique /// 1:1 with BuildRun (if from build service)
@@ -1200,7 +1208,7 @@ model AssetSet {
   testRuns               TestRun[]
   manufacturingSessions  ManufacturingSession[]
 
-  @@index([productId, stage, status])
+  @@index([productId, stage, stageType, status])
   @@index([productId, version])
   @@map("asset_sets")
 }

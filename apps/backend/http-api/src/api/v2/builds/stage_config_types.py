@@ -34,7 +34,7 @@ class StageConfigCreateRequest:
     watchBranch: Optional[str] = None
     triggerTypes: Optional[list] = None
     signingKeyId: Optional[str] = None
-    assetSource: str = "BUILD_SERVICE"
+    assetSources: Optional[list] = None
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["StageConfigCreateRequest"], Optional[str]]:
@@ -69,9 +69,17 @@ class StageConfigCreateRequest:
         if not trigger_types:
             trigger_types = ["manual"]
 
-        asset_source = (data.get("assetSource") or "BUILD_SERVICE").strip().upper()
-        if asset_source not in VALID_ASSET_SOURCES:
-            return None, f"assetSource must be one of: {', '.join(sorted(VALID_ASSET_SOURCES))}"
+        asset_sources = data.get("assetSources", ["BUILD_SERVICE"])
+        if isinstance(asset_sources, str):
+            asset_sources = [asset_sources]
+        if not isinstance(asset_sources, list):
+            return None, "assetSources must be an array"
+        asset_sources = [s.strip().upper() for s in asset_sources]
+        invalid_sources = [s for s in asset_sources if s not in VALID_ASSET_SOURCES]
+        if invalid_sources:
+            return None, f"Invalid asset sources: {invalid_sources}. Valid: {sorted(VALID_ASSET_SOURCES)}"
+        if not asset_sources:
+            asset_sources = ["BUILD_SERVICE"]
 
         return cls(
             type=stage_type,
@@ -82,7 +90,7 @@ class StageConfigCreateRequest:
             watchBranch=(data.get("watchBranch") or "").strip() or None,
             triggerTypes=trigger_types,
             signingKeyId=data.get("signingKeyId"),
-            assetSource=asset_source,
+            assetSources=asset_sources,
         ), None
 
 
@@ -95,12 +103,12 @@ class StageConfigUpdateRequest:
     watchBranch: Optional[str] = None
     triggerTypes: Optional[list] = None
     signingKeyId: Optional[str] = None
-    assetSource: Optional[str] = None
+    assetSources: Optional[list] = None
     _has_board_revision_id: bool = False
     _has_watch_branch: bool = False
     _has_trigger_type: bool = False
     _has_signing_key_id: bool = False
-    _has_asset_source: bool = False
+    _has_asset_sources: bool = False
 
     @classmethod
     def from_json(cls, data: dict, stage: Optional[int] = None) -> Tuple[Optional["StageConfigUpdateRequest"], Optional[str]]:
@@ -134,12 +142,19 @@ class StageConfigUpdateRequest:
         signing_key_id = data.get("signingKeyId")
         has_sk = "signingKeyId" in data
 
-        asset_source = data.get("assetSource")
-        has_as = "assetSource" in data
-        if asset_source is not None:
-            asset_source = asset_source.strip().upper()
-            if asset_source not in VALID_ASSET_SOURCES:
-                return None, f"assetSource must be one of: {', '.join(sorted(VALID_ASSET_SOURCES))}"
+        asset_sources = data.get("assetSources")
+        has_as = "assetSources" in data
+        if asset_sources is not None:
+            if isinstance(asset_sources, str):
+                asset_sources = [asset_sources]
+            if not isinstance(asset_sources, list):
+                return None, "assetSources must be an array"
+            asset_sources = [s.strip().upper() for s in asset_sources]
+            invalid_sources = [s for s in asset_sources if s not in VALID_ASSET_SOURCES]
+            if invalid_sources:
+                return None, f"Invalid asset sources: {invalid_sources}. Valid: {sorted(VALID_ASSET_SOURCES)}"
+            if not asset_sources:
+                return None, "assetSources must contain at least one source"
 
         has_any = enabled is not None or has_brid or has_wb or has_tt or has_sk or has_as
         if not has_any:
@@ -151,12 +166,12 @@ class StageConfigUpdateRequest:
             watchBranch=watch_branch,
             triggerTypes=trigger_types,
             signingKeyId=signing_key_id,
-            assetSource=asset_source,
+            assetSources=asset_sources,
             _has_board_revision_id=has_brid,
             _has_watch_branch=has_wb,
             _has_trigger_type=has_tt,
             _has_signing_key_id=has_sk,
-            _has_asset_source=has_as,
+            _has_asset_sources=has_as,
         ), None
 
     def to_update_data(self) -> dict:
@@ -172,6 +187,6 @@ class StageConfigUpdateRequest:
             update_data["triggerTypes"] = self.triggerTypes
         if self._has_signing_key_id:
             update_data["signingKeyId"] = self.signingKeyId
-        if self._has_asset_source:
-            update_data["assetSource"] = self.assetSource
+        if self._has_asset_sources:
+            update_data["assetSources"] = self.assetSources
         return update_data

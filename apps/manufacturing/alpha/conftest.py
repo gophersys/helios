@@ -1,26 +1,33 @@
 """pytest fixtures for Alpha manufacturing tests.
 
-Provides multi-slot test context using corekinect's FixtureContext.
-Each slot has its own MTIB connection for parallel panel testing.
+Provides:
+  - Multi-slot test context via corekinect's FixtureContext
+  - Per-slot MTIB connection for parallel panel testing
+  - Shell fixtures (AlphaAppShell, CommsCoprocShell) for UART commands
+  - Firmware asset resolution from CI pipeline
+  - Mock mode for offline development
 
-Required environment variables:
-    MTIB_HOSTS: Comma-separated MTIB addresses (multi-slot)
+Required environment:
+    MTIB_HOSTS          Comma-separated MTIB addresses (multi-slot)
     — OR —
-    MTIB_HOST / MTIB_ADDRESS: Single MTIB address (single-slot)
+    MTIB_HOST           Single MTIB address (single-slot)
 
 Optional:
-    FIXTURE_CONFIG_PATH: Path to fixture config JSON (overrides env vars)
-    MOCK_MODE: Set to "1" for offline testing with mock hardware
-    ARTIFACTS_DIR: Directory for test artifacts (UART logs)
-    CONCORD_RUN_ID: Run ID (activates reporter plugin)
-    CONCORD_API_URL: Concord HTTP API base URL
-    CONCORD_API_KEY: API key for reporter auth
-    PRODUCT_SLUG: Product slug for API-based config loading (default: "alpha_b0")
-    PIPELINE_ID: Build pipeline for firmware resolution
+    FIXTURE_CONFIG_PATH Path to fixture config JSON (overrides env vars)
+    MOCK_MODE           Set to "1" for offline testing with mock hardware
+    ARTIFACTS_DIR       Directory for test artifacts
+    CONCORD_RUN_ID      Run ID (activates reporter plugin)
+    CONCORD_API_URL     Concord HTTP API base URL
+    CONCORD_API_KEY     API key for reporter auth
+    PRODUCT_SLUG        Product slug for API config (default: "alpha_b0")
+    PIPELINE_ID         Build pipeline for firmware resolution
+    PROXY_SERVER_URL    CoreOps proxy for personalization
 """
 
+import logging
 import os
 import time
+from collections import namedtuple
 from typing import Dict, List, Optional
 
 import pytest
@@ -30,7 +37,7 @@ from corekinect.utils import Logger
 
 log = Logger(log_name="manufacturing")
 
-# ── Mock mode ───────────────────────────────────────────────────────────────
+# ── Mock mode ──────────────────────────────────────────────────────────────
 
 MOCK_MODE = os.environ.get("MOCK_MODE", "").strip().lower() in ("1", "true", "yes")
 
@@ -42,7 +49,7 @@ if MOCK_MODE:
 pytest_plugins = ["corekinect.test.reporter"]
 
 
-# ── Product config ──────────────────────────────────────────────────────────
+# ── Product metadata ──────────────────────────────────────────────────────
 
 _DEFAULT_PRODUCT_METADATA = {
     "device_type": 2,
@@ -53,7 +60,7 @@ _DEFAULT_PRODUCT_METADATA = {
 
 
 def _load_product_metadata() -> Dict:
-    """Load product metadata from API or fall back to defaults."""
+    """Load product metadata from Concord API, fall back to defaults."""
     api_url = os.environ.get("CONCORD_API_URL")
     api_key = os.environ.get("CONCORD_API_KEY")
     slug = os.environ.get("PRODUCT_SLUG", "alpha_b0")
@@ -70,10 +77,10 @@ def _load_product_metadata() -> Dict:
                 product = body.get("data", body)
                 metadata = product.get("metadata")
                 if metadata:
-                    log.info("Loaded product config from API: %s", product.get("name"))
+                    log.info("Loaded product metadata from API: %s", product.get("name"))
                     return metadata
         except Exception as e:
-            log.warning("Failed to fetch product config from API: %s", e)
+            log.warning("Failed to fetch product metadata from API: %s", e)
 
     log.info("Using default product metadata for %s", slug)
     return dict(_DEFAULT_PRODUCT_METADATA)
@@ -89,27 +96,68 @@ def _get_product_metadata() -> Dict:
     return _product_metadata
 
 
-# ── Mock fixture ────────────────────────────────────────────────────────────
+# ── Mock hardware ─────────────────────────────────────────────────────────
+
+PowerReadResult = namedtuple("PowerReadResult", ["current_ma", "voltage_v", "power_mw"])
+
+
+class MockMtibClient:
+    """Minimal MTIB mock for offline testing.
+
+    Supports all APIs called by the manufacturing tests so they can
+    exercise the full code path without real hardware.
+    """
+
+    def connect(self):
+        return None
+
+    def disconnect(self):
+        return None
+
+    def HealthCheck(self):
+        return True, [], None
+
+    def PowerEnable(self, channel=0, voltage_v=0.0):
+        return None
+
+    def PowerDisable(self, channel=0):
+        return None
+
+    def PowerRead(self, channel=0):
+        return PowerReadResult(current_ma=25.0, voltage_v=4.5, power_mw=112.5), None
+
+    def GpioConfig(self, gpio=0, direction=None, resistor=None):
+        return None
+
+    def GpioWrite(self, gpio=0, state=False):
+        return None
+
+    def AdcRead(self, channel=0):
+        # Return plausible values per channel
+        adc_values = {0: 3.3, 1: 4.5, 2: 4.5, 3: 0.01, 7: 3.3}
+        return adc_values.get(channel, 0.0), None
+
+    def FlashFwFile(self, fw_info=None, sector_erase=False, recover=False):
+        return 1200, None
+
+    def UploadFwFile(self, filepath="", host_type=None):
+        return None
+
+    def DeleteFwFile(self, fw_info=None):
+        return None
+
+    def EnableAppProtect(self, target=None):
+        return True, None
+
+    def UartStream(self, target, request_iter):
+        """Yield nothing — shell commands detect mock via is_mock flag."""
+        return iter([])
+
 
 def _build_mock_context() -> FixtureContext:
     """Build a FixtureContext with mock MTIB clients for offline testing."""
-    from collections import namedtuple
-
-    class MockMtibClient:
-        def connect(self): return None
-        def disconnect(self): return None
-        def HealthCheck(self): return True, [], None
-        def PowerEnable(self, *a, **kw): return None
-        def PowerDisable(self, *a, **kw): return None
-        def GpioConfig(self, *a, **kw): return None
-        def GpioWrite(self, *a, **kw): return None
-        def PowerRead(self, *a, **kw):
-            R = namedtuple("R", ["current_ma", "voltage_v", "power_mw"])
-            return R(current_ma=25.0, voltage_v=4.5, power_mw=112.5), None
-
-    mock_snrs = ["MOCK0", "MOCK1", "MOCK2", "MOCK3"]
     slots = {}
-    for i, snr in enumerate(mock_snrs):
+    for i, snr in enumerate(["MOCK0", "MOCK1", "MOCK2", "MOCK3"]):
         slot_id = f"slot-{i}"
         slot = SlotContext(
             slot_id=slot_id,
@@ -127,7 +175,7 @@ def _build_mock_context() -> FixtureContext:
     )
 
 
-# ── Slot discovery ──────────────────────────────────────────────────────────
+# ── Slot discovery ────────────────────────────────────────────────────────
 
 def _get_slot_ids() -> List[str]:
     """Determine slot IDs at collection time for fixture parametrization."""
@@ -148,11 +196,10 @@ def _get_slot_ids() -> List[str]:
         if slot_count:
             return [f"slot-{i}" for i in range(slot_count)]
 
-    # Single-slot fallback
     return ["slot-0"]
 
 
-# ── pytest fixtures ─────────────────────────────────────────────────────────
+# ── pytest fixtures ───────────────────────────────────────────────────────
 
 @pytest.fixture(scope="session")
 def fixture_ctx() -> FixtureContext:
@@ -164,8 +211,6 @@ def fixture_ctx() -> FixtureContext:
 
     ctx = FixtureContext.from_env()
     ctx.connect_all()
-
-    # Merge product metadata into config
     ctx.config["product_metadata"] = _get_product_metadata()
 
     yield ctx
@@ -174,8 +219,14 @@ def fixture_ctx() -> FixtureContext:
 
 @pytest.fixture(scope="session")
 def config(fixture_ctx) -> Dict:
-    """Fixture configuration dict."""
+    """Fixture configuration dict (thresholds, test parameters)."""
     return fixture_ctx.config
+
+
+@pytest.fixture(scope="session")
+def is_mock() -> bool:
+    """Whether tests are running in mock mode (no real hardware)."""
+    return MOCK_MODE
 
 
 @pytest.fixture(scope="session")
@@ -191,6 +242,7 @@ def mfg_assets():
 
     if pipeline_id and api_url and api_key:
         from corekinect.test.stage_assets import StageAssets
+
         assets = StageAssets.from_pipeline(
             pipeline_id=pipeline_id,
             stage="manufacturing",
@@ -205,17 +257,11 @@ def mfg_assets():
         yield None
 
 
-@pytest.fixture(scope="session")
-def product_config() -> Dict:
-    """Product metadata (device_type, device_variant, app_ids, corecloud_env)."""
-    return _get_product_metadata()
-
-
 @pytest.fixture(params=_get_slot_ids())
 def slot(fixture_ctx, request) -> SlotContext:
-    """Per-slot fixture — parametrizes tests across all slots.
+    """Per-slot fixture — parametrizes tests across all panel slots.
 
-    Tests using this fixture run once per slot.
+    Each test using this fixture runs once per DUT.
     """
     slot_id = request.param
     if slot_id not in fixture_ctx.slots:
@@ -223,15 +269,14 @@ def slot(fixture_ctx, request) -> SlotContext:
     return fixture_ctx.slots[slot_id]
 
 
-# ── Test lifecycle ──────────────────────────────────────────────────────────
+# ── Test lifecycle ────────────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
 def _test_lifecycle(request, fixture_ctx):
-    """Per-test setup/teardown. Dumps UART logs to artifacts dir."""
+    """Per-test setup/teardown."""
     yield
 
     artifacts_dir = os.environ.get("ARTIFACTS_DIR")
     if not artifacts_dir:
         return
-
     os.makedirs(artifacts_dir, exist_ok=True)

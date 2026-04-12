@@ -1,17 +1,21 @@
-"""POST (Power-On Self-Test) — pytest implementation with sub-step reporting.
+"""POST (Power-On Self-Test) — boot, verify, personalize, rekey.
 
-Migrated from apps/manufacturing/alpha/src/tests/post/step_0.py through step_10.py.
+11 sub-steps matching the manufacturing test plan:
+  0. Boot device, lock manufacturing shells on both processors
+  1. Verify comms processor chip IDs (external flash = W25Q64)
+  2. Verify app processor chip IDs (ext flash + BLE MAC)
+  3. Verify BMS (MAX17263 gas gauge)
+  4. Verify battery charger (BQ25180)
+  5. Verify GPS module communication
+  6. Verify modem firmware version
+  7. Verify IMEI and ICCIDs (with modem warmup retry)
+  8. Verify external flash on both processors (write/read/verify)
+  9. Personalize device via CoreOps proxy
+ 10. Rekey IPC encryption
 
-Each old step_N.py handler becomes a ``with report.step("name"):`` block inside a
-single ``test_post()`` function.  The test exercises boot, chip ID verification,
-BMS, charger, GPS, modem FW, IMEI/ICCID, external flash, personalization, and
-IPC rekey — all reported as individually tracked sub-steps.
-
-The ``slot`` fixture (from conftest.py) provides a per-DUT ``SlotContext`` that
-is parametrized across panel slots so this test runs once per physical DUT.
-
-The ``report`` fixture (from ``corekinect.test.reporter``) provides the
-``report.step()`` context-manager for sub-step reporting to the Concord API.
+Uses AlphaAppShell (nRF52840) and CommsCoprocShell (nRF9151) for all
+UART-based hardware commands. In mock mode, shell operations are skipped
+and mock data is used instead.
 
 Run locally:
     cd apps/manufacturing/alpha
@@ -21,552 +25,480 @@ Run locally:
 
 import base64
 import concurrent.futures
-import json
 import logging
 import os
 import random
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Optional, Tuple
 
 import pytest
 
+from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig
+from corekinect.utils.device import CARRIER_PREFIXES, validate_iccid, validate_imei
+
 log = logging.getLogger("manufacturing.post")
 
-# ── IMEI / ICCID validation ──────────────────────────────────────────────
 
-from corekinect.utils.device import validate_imei as _validate_imei
-from corekinect.utils.device import validate_iccid as _validate_iccid
-from corekinect.utils.device import CARRIER_PREFIXES as _CARRIER_PREFIXES
+# ── External flash helpers ────────────────────────────────────────────────
 
-
-# ── External flash helpers (from step_8.py) ────────────────────────────────
-
-def _run_flash_test_operations(
-    test_data_b64: str,
-    random_middle_address: str,
+def _verify_ext_flash(
+    write_fn,
+    read_fn,
+    erase_fn,
+    test_pattern: str,
     start_addr: str,
     end_addr: str,
-    test_string: str,
-    write_func,
-    read_func,
+    middle_addr: str,
 ) -> Optional[str]:
-    """Run flash test write/read/verify operations for a single processor."""
-    # Write to start
-    success, err = write_func(start_addr, test_data_b64)
-    if not success or err:
-        return f"Failed to write to start: {err}"
+    """Write/read/verify test pattern at three flash addresses.
 
-    # Write to end
-    success, err = write_func(end_addr, test_data_b64)
-    if not success or err:
-        return f"Failed to write to end: {err}"
+    Returns None on success, error string on failure.
+    """
+    test_data_b64 = base64.b64encode(test_pattern.encode("utf-8")).decode("utf-8")
+    addresses = [("start", start_addr), ("end", end_addr), ("middle", middle_addr)]
 
-    # Write to middle
-    success, err = write_func(random_middle_address, test_data_b64)
-    if not success or err:
-        return f"Failed to write to middle: {err}"
+    # Write to all three addresses
+    for label, addr in addresses:
+        ok, err = write_fn(addr, test_data_b64)
+        if err or not ok:
+            return f"Write failed at {label} ({addr}): {err}"
 
-    # Verify start
-    read_data, err = read_func(start_addr, len(test_string))
-    if not read_data or err:
-        return f"Failed to read from start: {err}"
+    # Read back and verify
+    for label, addr in addresses:
+        hex_data, err = read_fn(addr, len(test_pattern))
+        if err or not hex_data:
+            return f"Read failed at {label} ({addr}): {err}"
+        try:
+            read_string = bytes.fromhex(hex_data).decode("utf-8", errors="ignore")
+            if read_string != test_pattern:
+                return f"Data mismatch at {label}: expected '{test_pattern}', got '{read_string}'"
+        except (ValueError, UnicodeDecodeError) as e:
+            return f"Parse error at {label}: {e}"
 
-    try:
-        hex_bytes = bytes.fromhex(read_data)
-        read_string = hex_bytes.decode("utf-8", errors="ignore")
-        if read_string != test_string:
-            return f"Data mismatch at start. Expected: {test_string}, Got: {read_string}"
-    except Exception as e:
-        return f"Failed to parse read data from start: {e}"
-
-    # Verify end
-    read_data, err = read_func(end_addr, len(test_string))
-    if not read_data or err:
-        return f"Failed to read from end: {err}"
-
-    try:
-        hex_bytes = bytes.fromhex(read_data)
-        read_string = hex_bytes.decode("utf-8", errors="ignore")
-        if read_string != test_string:
-            return f"Data mismatch at end. Expected: {test_string}, Got: {read_string}"
-    except Exception as e:
-        return f"Failed to parse read data from end: {e}"
-
-    # Verify middle
-    read_data, err = read_func(random_middle_address, len(test_string))
-    if not read_data or err:
-        return f"Failed to read from middle: {err}"
-
-    try:
-        hex_bytes = bytes.fromhex(read_data)
-        read_string = hex_bytes.decode("utf-8", errors="ignore")
-        if read_string != test_string:
-            return f"Data mismatch at middle. Expected: {test_string}, Got: {read_string}"
-    except Exception as e:
-        return f"Failed to parse read data from middle: {e}"
-
+    # Clean up
+    erase_fn()
     return None
 
 
-# ── CoreOps helpers (from step_9.py) ───────────────────────────────────────
+# ── CoreOps helpers ───────────────────────────────────────────────────────
 
-def _get_device_id(proxy_server_url: str, snr: str) -> Tuple[Optional[str], Optional[str]]:
-    """Get a device ID from CoreOps proxy server."""
+def _get_device_id(proxy_url: str, snr: str) -> Tuple[Optional[str], Optional[str]]:
+    """Assign a device ID from CoreOps proxy server."""
+    import requests
+
     try:
-        import requests as req_lib
-        get_device_id_url = f"{proxy_server_url}/v1/devices/ids/assign"
-        body = {"snr": snr}
-        response = req_lib.post(url=get_device_id_url, json=body, verify=False)
-
-        if response.status_code == 200:
-            response_data = response.json()
-            device_id = response_data.get("deviceId")
+        resp = requests.post(
+            f"{proxy_url}/v1/devices/ids/assign",
+            json={"snr": snr},
+            verify=False,
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            device_id = resp.json().get("deviceId")
             return device_id, None
-        else:
-            return None, (
-                f"Failed to get device ID for SNR {snr}: "
-                f"status={response.status_code}, body={response.content}"
-            )
+        return None, f"HTTP {resp.status_code}: {resp.content.decode()}"
     except Exception as e:
-        return None, f"Exception getting device ID: {str(e)}"
+        return None, str(e)
 
 
 def _save_device_info(
-    proxy_server_url: str,
+    proxy_url: str,
     device_id: str,
-    hex_key: str,
     base64_key: str,
     imei: str,
     iccids: list,
     snr: str,
 ) -> Optional[str]:
-    """Save device information to CoreOps proxy server."""
+    """Upload device keys and SIM info to CoreOps proxy."""
+    import requests
+
     try:
-        import requests as req_lib
+        # Upload public key
+        resp = requests.post(
+            f"{proxy_url}/v1/devices/keys/upload",
+            json={"deviceId": device_id, "pubKey": base64_key},
+            verify=False,
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            return f"Key upload failed: HTTP {resp.status_code}"
 
-        # Save Device Public Key
-        body = {"deviceId": device_id, "pubKey": base64_key}
-        upload_url = f"{proxy_server_url}/v1/devices/keys/upload"
-        response = req_lib.post(url=upload_url, json=body, verify=False)
-        if response.status_code != 200:
-            return f"Failed to upload public key: status={response.status_code}"
-
-        # Save Device IMEI and ICCIDs
+        # Save each ICCID with carrier lookup
         for iccid in iccids:
             carrier = ""
-            for prefix, name in _CARRIER_PREFIXES.items():
+            for prefix, name in CARRIER_PREFIXES.items():
                 if iccid.startswith(prefix):
                     carrier = name
                     break
             if not carrier:
-                return f"Unrecognized carrier for ICCID {iccid}"
+                return f"Unknown carrier for ICCID {iccid}"
 
-            body = {"iccid": iccid, "carrier": carrier, "snr": snr, "imei": imei}
-            save_url = f"{proxy_server_url}/v1/devices/iccids/save"
-            response = req_lib.post(url=save_url, json=body, verify=False)
-            if response.status_code != 200:
-                return f"Failed to save ICCID {iccid}: status={response.status_code}"
+            resp = requests.post(
+                f"{proxy_url}/v1/devices/iccids/save",
+                json={"iccid": iccid, "carrier": carrier, "snr": snr, "imei": imei},
+                verify=False,
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                return f"ICCID save failed for {iccid}: HTTP {resp.status_code}"
 
         return None
     except Exception as e:
-        return f"Exception saving device info: {str(e)}"
+        return str(e)
 
 
-# ── Test ───────────────────────────────────────────────────────────────────
+# ── Test ──────────────────────────────────────────────────────────────────
 
 @pytest.mark.post
 @pytest.mark.sequential
-def test_post(slot, config, report):
-    """Power-on self-test: boot, verify IDs, personalize, rekey.
-
-    Executes 11 sub-steps (step 0 through step 10) matching the original
-    gRPC manufacturing POST test. Each sub-step is individually reported
-    via ``report.step()``.
-    """
+def test_post(slot, config, report, is_mock):
+    """Power-on self-test: boot, verify all hardware, personalize, rekey."""
     mtib = slot.mtib
     snr = slot.serial_number
 
-    # Per-test shared state (replaces old usr_data dict)
-    imei = None
-    iccids = None
+    # Shell interfaces — only created for real hardware
+    comms = None
+    app = None
 
-    # Fixture config values
-    fixture_config = config
+    if not is_mock:
+        from corekinect.shells.alpha_app import AlphaAppShell
+        from corekinect.shells.comms_coproc import CommsCoprocShell
 
-    # ── Step 0: Boot device and lock shells ─────────────────────────────
-    with report.step("Boot device and lock shells"):
-        from corekinect.mtib_client.v1.client.types import GpioDirection, GpioResistorConfig
+        app = AlphaAppShell(mtib)
+        comms = CommsCoprocShell(mtib)
 
-        # Configure GPIO 0+1 as output LOW (required for DUT boot)
-        for gpio in (0, 1):
-            err = mtib.GpioConfig(
-                gpio=gpio,
-                direction=GpioDirection.OUTPUT,
-                resistor=GpioResistorConfig.NONE,
-            )
-            assert err is None, f"GPIO {gpio} config failed: {err}"
-            err = mtib.GpioWrite(gpio=gpio, state=False)
-            assert err is None, f"GPIO {gpio} write failed: {err}"
+    try:
+        # ── Step 0: Boot device and lock shells ────────────────────────
+        with report.step("Boot device and lock shells") as step:
+            if is_mock:
+                log.info("Mock mode — skipping boot and shell lock")
+            else:
+                # Power off both channels to ensure clean state
+                mtib.PowerDisable(channel=0)
+                mtib.PowerDisable(channel=1)
+                time.sleep(2)
 
-        # Power on DUT at 4.5V
-        err = mtib.PowerEnable(channel=0, voltage_v=4.5)
-        assert err is None, f"Failed to enable DUT power: {err}"
+                # Start UART streams BEFORE power-on (MTIB hardware rule)
+                comms.start()
+                app.start()
+                time.sleep(0.5)
 
-        # Wait for boot
-        time.sleep(3)
+                # Configure GPIO 0+1 as output LOW (required for DUT boot)
+                for gpio in (0, 1):
+                    err = mtib.GpioConfig(
+                        gpio=gpio,
+                        direction=GpioDirection.OUTPUT,
+                        resistor=GpioResistorConfig.NONE,
+                    )
+                    assert err is None, f"GPIO {gpio} config failed: {err}"
+                    err = mtib.GpioWrite(gpio=gpio, state=False)
+                    assert err is None, f"GPIO {gpio} write failed: {err}"
 
-        # Lock comms shell (nRF9151) with retry
-        comms_locked = False
-        for attempt in range(3):
-            # TODO: Replace with mtib.theta_cmd_lock_shell() equivalent
-            # once MtibV1Client exposes manufacturing shell commands.
-            # For now, use low-level UART send if available.
-            try:
-                success, lock_err = mtib.theta_cmd_lock_shell()
-                if success:
-                    comms_locked = True
-                    break
-            except AttributeError:
-                # MtibV1Client may not have theta_cmd_lock_shell — skip in mock
-                comms_locked = True
-                break
-            log.warning("Comms lock_shell attempt %d/3 failed: %s", attempt + 1, lock_err)
-            time.sleep(2)
+                # Power on at 4.5V (NOT 4.0V — BQ25180 won't enable system rail at 4.0V)
+                err = mtib.PowerEnable(channel=0, voltage_v=4.5)
+                assert err is None, f"Failed to enable DUT power: {err}"
+                step.record("boot_voltage", 4.5, unit="V")
 
-        assert comms_locked, "Failed to lock comms shell after 3 attempts"
+                time.sleep(0.5)  # Brief settle, then lock immediately
 
-        # Lock app shell (nRF52840) with retry
-        app_locked = False
-        for attempt in range(3):
-            try:
-                success, lock_err = mtib.theta_app_cmd_lock_shell()
-                if success:
-                    app_locked = True
-                    break
-            except AttributeError:
-                app_locked = True
-                break
-            log.warning("App lock_shell attempt %d/3 failed: %s", attempt + 1, lock_err)
-            time.sleep(2)
+                # Lock manufacturing shells (window is ~2-8s after boot)
+                comms_locked = comms.lock(timeout_s=120)
+                app_locked = app.lock(timeout_s=120)
 
-        assert app_locked, "Failed to lock app shell after 3 attempts"
+                assert comms_locked, "Failed to lock comms manufacturing shell"
+                assert app_locked, "Failed to lock app manufacturing shell"
 
-        # Silence debug output on both processors
-        try:
-            mtib.theta_cmd_debug_uart_disable()
-        except AttributeError:
-            pass
-        try:
-            mtib.theta_app_cmd_debug_uart_disable()
-        except AttributeError:
-            pass
+                # Silence debug output and reset streams
+                comms.debug_off()
+                app.debug_off()
+                comms.reset_stream()
+                app.reset_stream()
 
-        log.info("Step 0 PASS: Device booted and shells locked")
+                log.info("Both shells locked, debug disabled, streams reset")
 
-    # ── Step 1: Verify comms processor chip IDs ─────────────────────────
-    with report.step("Verify comms processor chip IDs"):
-        try:
-            lora_available, ext_flash_id, error = mtib.theta_cmd_get_chip_ids()
-        except AttributeError:
-            # Mock mode — skip actual verification
-            log.info("Step 1: Skipped (mock mode — no theta_cmd_get_chip_ids)")
-            ext_flash_id = "0xef 0x40 0x17"
-            error = None
+        # ── Step 1: Comms processor chip IDs ───────────────────────────
+        with report.step("Verify comms processor chip IDs") as step:
+            if is_mock:
+                step.record("ext_flash_id", "0xef 0x40 0x17")
+                log.info("Mock: comms chip IDs OK")
+            else:
+                ids, err = comms.get_chip_ids()
+                assert err is None, f"Failed to get comms chip IDs: {err}"
 
-        assert error is None, f"Failed to get comms chip IDs: {error}"
-        assert ext_flash_id, "External flash chip ID is empty"
-        assert ext_flash_id == "0xef 0x40 0x17", (
-            f"Unexpected flash chip ID: {ext_flash_id}, expected 0xef 0x40 0x17"
-        )
-        log.info("Step 1 PASS: Ext flash ID=%s", ext_flash_id)
+                expected_flash = "0xef 0x40 0x17"
+                step.record("ext_flash_id", ids.ext_flash_id or "")
+                assert ids.ext_flash_id == expected_flash, (
+                    f"Unexpected flash ID: {ids.ext_flash_id}, expected {expected_flash}"
+                )
+                log.info("Comms ext flash ID: %s", ids.ext_flash_id)
 
-    # ── Step 2: Verify app processor chip IDs ───────────────────────────
-    with report.step("Verify app processor chip IDs"):
-        try:
-            id_1, id_2, error = mtib.theta_app_cmd_get_chip_ids()
-        except AttributeError:
-            log.info("Step 2: Skipped (mock mode)")
-            id_1 = "mock_id"
-            error = None
+        # ── Step 2: App processor chip IDs ─────────────────────────────
+        with report.step("Verify app processor chip IDs") as step:
+            if is_mock:
+                step.record("ext_flash_id", "mock")
+                step.record("ble_mac", "AA:BB:CC:DD:EE:FF")
+                log.info("Mock: app chip IDs OK")
+            else:
+                ids, err = app.get_chip_ids()
+                assert err is None, f"Failed to get app chip IDs: {err}"
+                assert ids.ext_flash_id or ids.ble_mac, "No chip IDs returned"
 
-        assert error is None, f"Failed to get app chip IDs: {error}"
-        assert id_1, "Primary chip ID is missing"
-        log.info("Step 2 PASS: ID1=%s, ID2=%s", id_1, id_2 if "id_2" in dir() else "N/A")
+                step.record("ext_flash_id", ids.ext_flash_id or "")
+                step.record("ble_mac", ids.ble_mac or "")
+                log.info("App ext flash: %s, BLE MAC: %s", ids.ext_flash_id, ids.ble_mac)
 
-    # ── Step 3: Verify BMS (gas gauge) ──────────────────────────────────
-    with report.step("Verify BMS (gas gauge)"):
-        try:
-            bms_data, error = mtib.theta_app_cmd_test_bms()
-        except AttributeError:
-            log.info("Step 3: Skipped (mock mode)")
-            bms_data = {"connected": True, "chip_id": "0x4037"}
-            error = None
+        # ── Step 3: BMS (gas gauge) ────────────────────────────────────
+        with report.step("Verify BMS (gas gauge)") as step:
+            if is_mock:
+                step.record("connected", True)
+                step.record("chip_id", "0x4037")
+                log.info("Mock: BMS OK")
+            else:
+                bms, err = app.test_bms()
+                assert err is None, f"BMS test failed: {err}"
+                assert bms.connected, "BMS is not connected"
 
-        assert error is None, f"BMS test failed: {error}"
-        assert bms_data, "BMS test returned no data"
+                step.record("connected", bms.connected)
+                step.record("chip_id", bms.chip_id or "")
+                step.record("charge_percent", bms.charge_percent or 0)
+                step.record("temperature_c", bms.temperature_c or 0)
 
-        connected = bms_data.get("connected", False)
-        chip_id = bms_data.get("chip_id", "")
-        assert connected, "BMS is not connected"
+                if bms.chip_id and bms.chip_id != "0x4037":
+                    log.warning("Unexpected BMS chip ID: %s (expected 0x4037)", bms.chip_id)
+                log.info(
+                    "BMS: connected=%s, chip_id=%s, charge=%s%%",
+                    bms.connected, bms.chip_id, bms.charge_percent,
+                )
 
-        if chip_id != "0x4037":
-            log.warning("Unexpected BMS chip ID: %s, expected 0x4037", chip_id)
+        # ── Step 4: Battery charger ────────────────────────────────────
+        with report.step("Verify battery charger") as step:
+            if is_mock:
+                step.record("chip_id", "0x22")
+                step.record("battery_voltage_mv", 4200)
+                log.info("Mock: charger OK")
+            else:
+                charger, err = app.test_charger()
+                assert err is None, f"Charger test failed: {err}"
 
-        log.info(
-            "Step 3 PASS: BMS connected=%s, chip_id=%s, charge=%s%%",
-            connected, chip_id, bms_data.get("charge_percent", "?"),
-        )
+                step.record("chip_id", charger.chip_id or "")
+                step.record("battery_voltage_mv", charger.battery_voltage_mv or 0)
+                step.record("on_charger", charger.on_charger)
 
-    # ── Step 4: Verify battery charger ──────────────────────────────────
-    with report.step("Verify battery charger"):
-        try:
-            charger_data, error = mtib.theta_app_cmd_test_charger()
-        except AttributeError:
-            log.info("Step 4: Skipped (mock mode)")
-            charger_data = {"chip_id": "0x22", "voltage_mv": 4200}
-            error = None
+                if charger.chip_id and charger.chip_id not in ("0x00", "0x22"):
+                    log.warning("Unexpected charger chip ID: %s (expected 0x22)", charger.chip_id)
+                log.info(
+                    "Charger: chip_id=%s, voltage=%smV",
+                    charger.chip_id, charger.battery_voltage_mv,
+                )
 
-        assert error is None, f"Charger test failed: {error}"
-        assert charger_data, "Charger test returned no data"
+        # ── Step 5: GPS module ─────────────────────────────────────────
+        with report.step("Verify GPS module") as step:
+            if is_mock:
+                step.record("comms_ok", True)
+                log.info("Mock: GPS OK")
+            else:
+                gps, err = app.test_gps()
+                assert err is None, f"GPS test failed: {err}"
+                assert not gps.in_shutdown, "GPS is in shutdown — communication failed"
 
-        chip_id = charger_data.get("chip_id", "")
-        voltage_mv = charger_data.get("voltage_mv", 0)
+                step.record("in_shutdown", gps.in_shutdown)
+                step.record("comms_ok", gps.comms_ok)
+                log.info("GPS: shutdown=%s, comms=%s", gps.in_shutdown, gps.comms_ok)
 
-        if chip_id and chip_id not in ("0x00", "0x22"):
-            log.warning("Unexpected charger chip ID: %s, expected 0x22", chip_id)
+        # ── Step 6: Modem firmware version ─────────────────────────────
+        with report.step("Verify modem firmware version") as step:
+            if is_mock:
+                step.record("version", "mfw_nrf91x1_2.0.2")
+                log.info("Mock: modem FW OK")
+            else:
+                modem, err = comms.get_modem_fw()
+                assert err is None, f"Failed to get modem FW: {err}"
+                assert modem.version, "Modem firmware version is empty"
 
-        log.info("Step 4 PASS: Charger chip_id=%s, voltage=%dmV", chip_id, voltage_mv)
+                step.record("version", modem.version)
+                log.info("Modem FW: %s", modem.version)
 
-    # ── Step 5: Verify GPS module ───────────────────────────────────────
-    with report.step("Verify GPS module"):
-        try:
-            gps_data, error = mtib.theta_app_cmd_test_gps()
-        except AttributeError:
-            log.info("Step 5: Skipped (mock mode)")
-            gps_data = {"shutdown": False, "comms_ok": True}
-            error = None
-
-        assert error is None, f"GPS test failed: {error}"
-        assert gps_data, "GPS test returned no data"
-
-        in_shutdown = gps_data.get("shutdown", True)
-        assert not in_shutdown, "GPS is in shutdown mode — communication failed"
-
-        log.info("Step 5 PASS: GPS comms OK")
-
-    # ── Step 6: Verify modem firmware version ───────────────────────────
-    with report.step("Verify modem firmware version"):
-        try:
-            fw_version, error = mtib.theta_cmd_get_modem_fw_version()
-        except AttributeError:
-            log.info("Step 6: Skipped (mock mode)")
-            fw_version = "mfw_nrf91x1_2.0.1"
-            error = None
-
-        assert error is None, f"Failed to get modem FW version: {error}"
-        assert fw_version, "Modem firmware version is empty"
-
-        log.info("Step 6 PASS: Modem FW=%s", fw_version)
-
-    # ── Step 7: Verify IMEI and ICCIDs ──────────────────────────────────
-    with report.step("Verify IMEI and ICCIDs"):
-        max_retries = 5
-        retry_delay = 3
-
-        for attempt in range(max_retries):
-            try:
-                imei, iccids, error = mtib.theta_cmd_get_imei_iccid()
-            except AttributeError:
-                log.info("Step 7: Skipped (mock mode)")
+        # ── Step 7: IMEI and ICCIDs ────────────────────────────────────
+        with report.step("Verify IMEI and ICCIDs") as step:
+            if is_mock:
                 imei = "355025931735979"
                 iccids = ["89148000009808558441", "89457300000037582833"]
-                error = None
-                break
+                step.record("imei", imei)
+                step.record("iccid_count", len(iccids))
+                log.info("Mock: IMEI=%s, ICCIDs=%s", imei, iccids)
+            else:
+                # Modem needs warmup — retry up to 5 times with 3s delay
+                imei = None
+                iccids = []
+                for attempt in range(5):
+                    sim, err = comms.get_sim_info(timeout_s=15)
+                    if err is None and sim.imei and sim.iccids:
+                        imei = sim.imei
+                        iccids = sim.iccids
+                        break
+                    if attempt < 4:
+                        log.info("IMEI/ICCID retry %d/5 (modem warming up)...", attempt + 1)
+                        time.sleep(3)
 
-            assert error is None, f"IMEI/ICCID query failed: {error}"
+                assert imei, "No IMEI returned from device after 5 attempts"
+                imei_err = validate_imei(imei)
+                assert not imei_err, f"IMEI validation failed: {imei_err}"
 
-            if imei and iccids:
-                break
+                assert iccids, "No ICCIDs returned from device"
+                for iccid in iccids:
+                    iccid_err = validate_iccid(iccid)
+                    assert not iccid_err, f"ICCID validation failed for {iccid}: {iccid_err}"
 
-            if attempt < max_retries - 1:
-                log.debug(
-                    "IMEI/ICCID not ready, retrying in %ds (attempt %d/%d)...",
-                    retry_delay, attempt + 1, max_retries,
+                step.record("imei", imei)
+                step.record("iccid_count", len(iccids))
+                log.info("IMEI=%s, ICCIDs=%s", imei, iccids)
+
+            # Store for personalization step
+            slot.shared_data["imei"] = imei
+            slot.shared_data["iccids"] = iccids
+
+        # ── Step 8: External flash (comms + app) ───────────────────────
+        with report.step("Verify external flash (comms + app)") as step:
+            if is_mock:
+                step.record("comms_flash", "mock_pass")
+                step.record("app_flash", "mock_pass")
+                log.info("Mock: ext flash OK")
+            else:
+                test_pattern = config.get(
+                    "post_ext_flash_test_pattern", "ALPHA_POST_TEST_PATTERN_2024"
                 )
-                time.sleep(retry_delay)
+                start_addr = config.get("post_ext_flash_start_addr", "0x000000")
+                end_addr = config.get("post_ext_flash_end_addr", "0x100000")
+                middle_start = int(config.get("post_ext_flash_middle_start", "0x040000"), 16)
+                middle_end = int(config.get("post_ext_flash_middle_end", "0x080000"), 16)
+                middle_addr = f"0x{random.randint(middle_start, middle_end):06X}"
 
-        assert imei, "No IMEI returned from device"
-        imei_error = _validate_imei(imei)
-        assert not imei_error, f"IMEI validation failed: {imei_error}"
+                errors = []
 
-        assert iccids, "No ICCIDs returned from device"
-        for iccid in iccids:
-            iccid_error = _validate_iccid(iccid)
-            assert not iccid_error, f"ICCID validation failed: {iccid_error}"
+                def _test_comms():
+                    return _verify_ext_flash(
+                        comms.write_ext_flash, comms.read_ext_flash, comms.erase_ext_flash,
+                        test_pattern, start_addr, end_addr, middle_addr,
+                    )
 
-        # Store for personalization step
-        slot.shared_data["imei"] = imei
-        slot.shared_data["iccids"] = iccids
+                def _test_app():
+                    # App shell uses its own ext flash methods
+                    def _app_write(addr, data_b64):
+                        # AlphaAppShell.test_ext_flash is a single-shot test.
+                        # For multi-address verification, use the comms shell pattern
+                        # with the app shell's send() directly.
+                        lines, err = app._cmd.send(
+                            f"write_ext_flash {addr} {data_b64}",
+                            success_patterns=["Writing", "Mfg shell:"],
+                            timeout_s=15,
+                        )
+                        return (not err), err
 
-        log.info("Step 7 PASS: IMEI=%s, ICCIDs=%s", imei, iccids)
-
-    # ── Step 8: Verify external flash (comms + app) ─────────────────────
-    with report.step("Verify external flash (comms + app)"):
-        test_pattern = fixture_config.get(
-            "post_ext_flash_test_pattern", "ALPHA_POST_TEST_PATTERN_2024"
-        )
-        start_addr = fixture_config.get("post_ext_flash_start_addr", "0x000000")
-        end_addr = fixture_config.get("post_ext_flash_end_addr", "0x100000")
-        middle_start = fixture_config.get("post_ext_flash_middle_start", "0x040000")
-        middle_end = fixture_config.get("post_ext_flash_middle_end", "0x080000")
-
-        test_data_b64 = base64.b64encode(test_pattern.encode("utf-8")).decode("utf-8")
-        middle_start_int = int(middle_start, 16)
-        middle_end_int = int(middle_end, 16)
-        random_middle = f"0x{random.randint(middle_start_int, middle_end_int):06X}"
-
-        errors = []
-        _is_mock = type(mtib).__name__ == "MockMtibClient"
-
-        if _is_mock:
-            log.info("Step 8: Mock mode — skipping external flash verification")
-        else:
-            # Test comms flash
-            def _verify_comms_flash() -> Optional[str]:
-                write_func = lambda addr, data: mtib.theta_cmd_write_ext_flash(addr, data)
-                read_func = lambda addr, length: mtib.theta_cmd_read_ext_flash(addr, length)
-
-                err = _run_flash_test_operations(
-                    test_data_b64, random_middle, start_addr, end_addr,
-                    test_pattern, write_func, read_func,
-                )
-                if not err:
-                    try:
-                        mtib.theta_cmd_erase_ext_flash()
-                    except AttributeError:
-                        pass
-                    return None
-
-                # Erase and retry
-                try:
-                    mtib.theta_cmd_erase_ext_flash()
-                except AttributeError:
-                    pass
-                err = _run_flash_test_operations(
-                    test_data_b64, random_middle, start_addr, end_addr,
-                    test_pattern, write_func, read_func,
-                )
-                if err:
-                    return f"[Comms] Flash test failed after retry: {err}"
-                try:
-                    mtib.theta_cmd_erase_ext_flash()
-                except AttributeError:
-                    pass
-                return None
-
-            # Test app flash
-            def _verify_app_flash() -> Optional[str]:
-                write_func = lambda addr, data: mtib.theta_app_cmd_write_ext_flash(addr, data)
-                read_func = lambda addr, length: mtib.theta_app_cmd_read_ext_flash(addr, length)
-
-                err = _run_flash_test_operations(
-                    test_data_b64, random_middle, start_addr, end_addr,
-                    test_pattern, write_func, read_func,
-                )
-                if not err:
-                    try:
-                        mtib.theta_app_cmd_erase_ext_flash()
-                    except AttributeError:
-                        pass
-                    return None
-
-                # Erase and retry
-                try:
-                    mtib.theta_app_cmd_erase_ext_flash()
-                except AttributeError:
-                    pass
-                err = _run_flash_test_operations(
-                    test_data_b64, random_middle, start_addr, end_addr,
-                    test_pattern, write_func, read_func,
-                )
-                if err:
-                    return f"[App] Flash test failed after retry: {err}"
-                try:
-                    mtib.theta_app_cmd_erase_ext_flash()
-                except AttributeError:
-                    pass
-                return None
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                futures = {
-                    executor.submit(_verify_comms_flash): "comms",
-                    executor.submit(_verify_app_flash): "app",
-                }
-                for future in concurrent.futures.as_completed(futures):
-                    processor = futures[future]
-                    try:
-                        err = future.result()
+                    def _app_read(addr, num_bytes):
+                        lines, err = app._cmd.send(
+                            f"read_ext_flash {addr} {num_bytes}",
+                            success_patterns=["Reading", "Mfg shell:"],
+                            timeout_s=15,
+                        )
                         if err:
-                            errors.append(f"{processor}: {err}")
-                    except Exception as e:
-                        errors.append(f"{processor}: Exception - {str(e)}")
+                            return None, err
+                        hex_data = ""
+                        for line in lines:
+                            if ":" in line and "|" in line:
+                                hex_part = line.split("|")[0].strip()
+                                if ":" in hex_part:
+                                    hex_values = hex_part.split(":", 1)[1].strip()
+                                    hex_data += hex_values.replace(" ", "")
+                        return hex_data or None, None if hex_data else "no data"
 
-        assert not errors, f"External flash failed: {'; '.join(errors)}"
-        log.info("Step 8 PASS: External flash verified on both processors")
+                    def _app_erase():
+                        app._cmd.send(
+                            "erase_ext_flash",
+                            success_patterns=["Erasing flash"],
+                            timeout_s=30,
+                        )
 
-    # ── Step 9: Personalize device with CoreOps ─────────────────────────
-    with report.step("Personalize device with CoreOps"):
-        _is_mock = type(mtib).__name__ == "MockMtibClient"
-        proxy_url = os.environ.get("PROXY_SERVER_URL", "")
-        if _is_mock or not proxy_url:
-            log.warning("Step 9: PROXY_SERVER_URL not set — skipping CoreOps personalization")
-        else:
-            # Get SNR from fixture config
-            snrs = fixture_config.get("snrs", {})
-            device_snr = snrs.get(slot.slot_id, snr)
+                    return _verify_ext_flash(
+                        _app_write, _app_read, _app_erase,
+                        test_pattern, start_addr, end_addr, middle_addr,
+                    )
 
-            imei = slot.shared_data.get("imei")
-            iccids = slot.shared_data.get("iccids", [])
-            assert imei, "IMEI not available — Step 7 must have passed"
-            assert iccids, "ICCIDs not available — Step 7 must have passed"
+                # Run both in parallel
+                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                    future_comms = executor.submit(_test_comms)
+                    future_app = executor.submit(_test_app)
 
-            # Get device ID from CoreOps
-            device_id, error = _get_device_id(proxy_url, device_snr)
-            assert error is None, f"Failed to get device ID: {error}"
-            assert device_id, "CoreOps returned empty device ID"
-            log.info("Got device ID: %s for SNR: %s", device_id, device_snr)
+                    comms_err = future_comms.result()
+                    app_err = future_app.result()
 
-            # Personalize the device via UART
+                if comms_err:
+                    errors.append(f"comms: {comms_err}")
+                if app_err:
+                    errors.append(f"app: {app_err}")
+
+                step.record("comms_flash", "fail" if comms_err else "pass")
+                step.record("app_flash", "fail" if app_err else "pass")
+
+                assert not errors, f"External flash failed: {'; '.join(errors)}"
+                log.info("External flash verified on both processors")
+
+        # ── Step 9: Personalize device ─────────────────────────────────
+        with report.step("Personalize device with CoreOps") as step:
+            proxy_url = os.environ.get("PROXY_SERVER_URL", "")
+
+            if is_mock or not proxy_url:
+                log.info("Skipping personalization (mock=%s, proxy=%s)", is_mock, bool(proxy_url))
+                step.record("status", "skipped")
+            else:
+                imei = slot.shared_data.get("imei")
+                iccids = slot.shared_data.get("iccids", [])
+                assert imei, "IMEI not available — step 7 must pass first"
+                assert iccids, "ICCIDs not available — step 7 must pass first"
+
+                # Get device ID from CoreOps (deterministic — same SNR always returns same ID)
+                device_snr = config.get("snrs", {}).get(slot.slot_id, snr)
+                device_id, err = _get_device_id(proxy_url, device_snr)
+                assert err is None, f"Failed to get device ID: {err}"
+                assert device_id, "CoreOps returned empty device ID"
+
+                step.record("device_id", device_id)
+                log.info("Device ID: %s (SNR: %s)", device_id, device_snr)
+
+                # Personalize via UART — generates EC keypair on device
+                keys, err = comms.personalize(device_id)
+                assert err is None, f"Personalization failed: {err}"
+                assert keys.base64_key, "Personalization returned empty public key"
+
+                log.info("Device personalized, public key: %s...", keys.base64_key[:20])
+
+                # Upload keys + SIM info to CoreOps
+                err = _save_device_info(
+                    proxy_url, device_id, keys.base64_key, imei, iccids, device_snr,
+                )
+                assert err is None, f"Failed to save device info: {err}"
+                log.info("Device info saved to CoreOps")
+
+        # ── Step 10: Rekey IPC ─────────────────────────────────────────
+        with report.step("Rekey IPC") as step:
+            if is_mock:
+                step.record("status", "skipped")
+                log.info("Mock mode — skipping IPC rekey")
+            else:
+                success, err = comms.rekey_ipc()
+                assert err is None, f"IPC rekey failed: {err}"
+                assert success, "IPC rekey returned failure"
+                step.record("status", "success")
+                log.info("IPC rekey completed")
+
+    finally:
+        # Always stop UART streams
+        if comms:
             try:
-                hex_key, base64_key, error = mtib.theta_cmd_personalize(device_id)
-            except AttributeError:
-                log.warning("Step 9: Mock mode — skipping UART personalization")
-                hex_key = "mock_hex_key"
-                base64_key = "mock_base64_key"
-                error = None
-
-            assert error is None, f"Personalization failed: {error}"
-            assert hex_key and base64_key, "Personalization returned empty keys"
-            log.info("Device personalized, public key: %s...", base64_key[:20])
-
-            # Save device info to CoreOps
-            error = _save_device_info(
-                proxy_url, device_id, hex_key, base64_key, imei, iccids, device_snr,
-            )
-            assert error is None, f"Failed to save device info: {error}"
-
-            log.info("Step 9 PASS: Device %s personalized and saved", device_id)
-
-    # ── Step 10: Rekey IPC ──────────────────────────────────────────────
-    with report.step("Rekey IPC"):
-        try:
-            success, error = mtib.theta_cmd_rekey_ipc()
-        except AttributeError:
-            log.info("Step 10: Skipped (mock mode)")
-            success = True
-            error = None
-
-        assert error is None, f"IPC rekey failed: {error}"
-        assert success, "IPC rekey returned failure"
-
-        log.info("Step 10 PASS: IPC rekey completed")
+                comms.stop()
+            except Exception as e:
+                log.warning("Failed to stop comms stream: %s", e)
+        if app:
+            try:
+                app.stop()
+            except Exception as e:
+                log.warning("Failed to stop app stream: %s", e)

@@ -1,15 +1,7 @@
-"""pytest-based manufacturing tests.
+"""Alpha manufacturing tests — electrical, flash, POST.
 
-This module contains manufacturing tests migrated from the legacy
-Test/TestStep framework to pytest. Tests use session-scoped fixtures
-from conftest.py and stream results to Concord via the reporter plugin.
-
-Directory structure:
-    post/           - POST (Power-On Self Test) sequence
-    electrical/     - Electrical characterization tests
-    fw_flash/       - Firmware flash tests
-
-Run with:
-    cd apps/manufacturing/alpha
-    PYTHONPATH=.:../../../libs/python:../../../libs pytest tests_pytest/ -v
+Three sequential stages run per DUT slot:
+  1. test_electrical  — power rail validation (UVLO, regulation, charger)
+  2. test_fw_flash    — J-Link firmware programming + AP protect
+  3. test_post        — boot, hardware verification, personalization, IPC rekey
 """

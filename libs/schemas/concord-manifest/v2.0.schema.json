@@ -73,9 +73,18 @@
 
     "fixture": {
       "type": "object",
-      "required": ["controller", "profile"],
+      "required": ["design", "revision", "controller", "profile"],
       "additionalProperties": false,
       "properties": {
+        "design": {
+          "type": "string",
+          "description": "Fixture design name matching the 'name' field in fixture.yaml (e.g., 'Alpha B0 Manufacturing Fixture')."
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "description": "Fixture hardware revision matching the 'revision' field in fixture.yaml (e.g., '1.0', '1.2')."
+        },
         "controller": {
           "type": "string",
           "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*$",

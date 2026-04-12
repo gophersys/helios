@@ -88,7 +88,7 @@ log: logging.Logger = logging.getLogger(__name__)
 SCHEMA_PATH = Path('/workspaces/concord/prisma/schema.prisma')
 PACKAGED_SCHEMA_PATH = Path(__file__).parent.joinpath('schema.prisma')
 ENGINE_TYPE: EngineType = EngineType.binary
-BINARY_PATHS = model_parse(BinaryPaths, {'queryEngine': {'debian-openssl-3.0.x': '/workspaces/concord/node_modules/prisma/query-engine-debian-openssl-3.0.x'}, 'introspectionEngine': {}, 'migrationEngine': {}, 'libqueryEngine': {}, 'prismaFmt': {}})
+BINARY_PATHS = model_parse(BinaryPaths, {'queryEngine': {'debian-openssl-3.0.x': '/root/.cache/prisma-python/binaries/5.17.0/393aa359c9ad4a4bb28630fb5613f9c281cde053/node_modules/prisma/query-engine-debian-openssl-3.0.x'}, 'introspectionEngine': {}, 'migrationEngine': {}, 'libqueryEngine': {}, 'prismaFmt': {}})
 
 
 class Prisma(SyncBasePrisma):
@@ -99,6 +99,7 @@ class Prisma(SyncBasePrisma):
     producttarget: 'actions.ProductTargetActions[models.ProductTarget]'
     board: 'actions.BoardActions[models.Board]'
     boardrevision: 'actions.BoardRevisionActions[models.BoardRevision]'
+    modemfirmware: 'actions.ModemFirmwareActions[models.ModemFirmware]'
     firmwareset: 'actions.FirmwareSetActions[models.FirmwareSet]'
     firmwarebuild: 'actions.FirmwareBuildActions[models.FirmwareBuild]'
     productstageconfig: 'actions.ProductStageConfigActions[models.ProductStageConfig]'
@@ -139,6 +140,7 @@ class Prisma(SyncBasePrisma):
         'producttarget',
         'board',
         'boardrevision',
+        'modemfirmware',
         'firmwareset',
         'firmwarebuild',
         'productstageconfig',
@@ -207,6 +209,7 @@ class Prisma(SyncBasePrisma):
         self.producttarget = actions.ProductTargetActions[models.ProductTarget](self, models.ProductTarget)
         self.board = actions.BoardActions[models.Board](self, models.Board)
         self.boardrevision = actions.BoardRevisionActions[models.BoardRevision](self, models.BoardRevision)
+        self.modemfirmware = actions.ModemFirmwareActions[models.ModemFirmware](self, models.ModemFirmware)
         self.firmwareset = actions.FirmwareSetActions[models.FirmwareSet](self, models.FirmwareSet)
         self.firmwarebuild = actions.FirmwareBuildActions[models.FirmwareBuild](self, models.FirmwareBuild)
         self.productstageconfig = actions.ProductStageConfigActions[models.ProductStageConfig](self, models.ProductStageConfig)
@@ -395,6 +398,7 @@ class Batch:
     producttarget: 'ProductTargetBatchActions'
     board: 'BoardBatchActions'
     boardrevision: 'BoardRevisionBatchActions'
+    modemfirmware: 'ModemFirmwareBatchActions'
     firmwareset: 'FirmwareSetBatchActions'
     firmwarebuild: 'FirmwareBuildBatchActions'
     productstageconfig: 'ProductStageConfigBatchActions'
@@ -438,6 +442,7 @@ class Batch:
         self.producttarget = ProductTargetBatchActions(self)
         self.board = BoardBatchActions(self)
         self.boardrevision = BoardRevisionBatchActions(self)
+        self.modemfirmware = ModemFirmwareBatchActions(self)
         self.firmwareset = FirmwareSetBatchActions(self)
         self.firmwarebuild = FirmwareBuildBatchActions(self)
         self.productstageconfig = ProductStageConfigBatchActions(self)
@@ -1072,6 +1077,117 @@ class BoardRevisionBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.BoardRevision,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class ModemFirmwareBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.ModemFirmwareCreateInput,
+        include: Optional[types.ModemFirmwareInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.ModemFirmware,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.ModemFirmwareCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.ModemFirmware,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.ModemFirmwareWhereUniqueInput,
+        include: Optional[types.ModemFirmwareInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.ModemFirmware,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.ModemFirmwareUpdateInput,
+        where: types.ModemFirmwareWhereUniqueInput,
+        include: Optional[types.ModemFirmwareInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.ModemFirmware,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.ModemFirmwareWhereUniqueInput,
+        data: types.ModemFirmwareUpsertInput,
+        include: Optional[types.ModemFirmwareInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.ModemFirmware,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.ModemFirmwareUpdateManyMutationInput,
+        where: types.ModemFirmwareWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.ModemFirmware,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.ModemFirmwareWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.ModemFirmware,
             arguments={'where': where},
             root_selection=['count'],
         )

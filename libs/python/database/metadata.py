@@ -11,6 +11,7 @@ PRISMA_MODELS: set[str] = {
     'ProductTarget',
     'Board',
     'BoardRevision',
+    'ModemFirmware',
     'FirmwareSet',
     'FirmwareBuild',
     'ProductStageConfig',
@@ -48,6 +49,7 @@ PRISMA_MODELS: set[str] = {
 
 RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     'Product': {
+        'createdBy': 'User',
         'boards': 'Board',
         'firmwareSets': 'FirmwareSet',
         'fixtures': 'Fixture',
@@ -64,7 +66,10 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     },
     'TestPackage': {
         'product': 'Product',
+        'boardRevision': 'BoardRevision',
+        'fixtureDesign': 'FixtureDesign',
         'createdBy': 'User',
+        'releasedBy': 'User',
         'testRuns': 'TestRun',
         'packageStages': 'TestPackageStage',
     },
@@ -73,10 +78,12 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'firmwareBuilds': 'FirmwareBuild',
     },
     'Board': {
+        'createdBy': 'User',
         'product': 'Product',
         'revisions': 'BoardRevision',
     },
     'BoardRevision': {
+        'createdBy': 'User',
         'board': 'Board',
         'targets': 'ProductTarget',
         'firmwareSets': 'FirmwareSet',
@@ -85,6 +92,14 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'fixtureDesigns': 'FixtureDesign',
         'fixtures': 'Fixture',
         'manufacturingConfigs': 'ManufacturingConfig',
+        'testPackages': 'TestPackage',
+        'testRuns': 'TestRun',
+        'modemFirmwares': 'ModemFirmware',
+    },
+    'ModemFirmware': {
+        'boardRevision': 'BoardRevision',
+        'createdBy': 'User',
+        'assetSets': 'AssetSet',
     },
     'FirmwareSet': {
         'product': 'Product',
@@ -96,6 +111,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'target': 'ProductTarget',
     },
     'ProductStageConfig': {
+        'createdBy': 'User',
         'product': 'Product',
         'boardRevision': 'BoardRevision',
         'signingKey': 'Secret',
@@ -111,6 +127,7 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'testRun': 'TestRun',
     },
     'BuildRun': {
+        'createdBy': 'User',
         'product': 'Product',
         'stageConfig': 'ProductStageConfig',
         'recipeVersion': 'RecipeVersion',
@@ -131,10 +148,13 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'buildJob': 'BuildJob',
     },
     'FixtureDesign': {
+        'createdBy': 'User',
         'boardRevision': 'BoardRevision',
         'fixtures': 'Fixture',
+        'testPackages': 'TestPackage',
     },
     'Fixture': {
+        'createdBy': 'User',
         'product': 'Product',
         'boardRevision': 'BoardRevision',
         'design': 'FixtureDesign',
@@ -172,6 +192,15 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'assetSets': 'AssetSet',
         'manufacturingSessions': 'ManufacturingSession',
         'testRuns': 'TestRun',
+        'releasedTestPackages': 'TestPackage',
+        'modemFirmwareUploads': 'ModemFirmware',
+        'createdProducts': 'Product',
+        'createdBoards': 'Board',
+        'createdBoardRevisions': 'BoardRevision',
+        'createdStageConfigs': 'ProductStageConfig',
+        'createdFixtureDesigns': 'FixtureDesign',
+        'createdFixtures': 'Fixture',
+        'createdBuildRuns': 'BuildRun',
     },
     'ProductAccess': {
         'user': 'User',
@@ -210,9 +239,11 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'boardRevision': 'BoardRevision',
         'buildRun': 'BuildRun',
         'recipeVersion': 'RecipeVersion',
+        'modemFirmware': 'ModemFirmware',
         'createdBy': 'User',
         'assets': 'Asset',
         'testRuns': 'TestRun',
+        'manufacturingSessions': 'ManufacturingSession',
     },
     'Asset': {
         'assetSet': 'AssetSet',
@@ -225,11 +256,13 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'product': 'Product',
         'fixture': 'Fixture',
         'operator': 'User',
+        'assetSet': 'AssetSet',
         'runs': 'TestRun',
     },
     'TestRun': {
         'product': 'Product',
         'fixture': 'Fixture',
+        'boardRevision': 'BoardRevision',
         'testPackage': 'TestPackage',
         'buildRun': 'BuildRun',
         'session': 'ManufacturingSession',

@@ -8,7 +8,7 @@ export interface ProductStageConfig {
   stage: number;
   name: string;
   enabled: boolean;
-  assetSource: AssetSource;
+  assetSources: AssetSource[];
   boardRevisionId: string | null;
   boardRevision: { id: string; version: string; ckBoardsName: string } | null;
   watchBranch: string | null;

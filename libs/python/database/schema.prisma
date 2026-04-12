@@ -470,9 +470,6 @@ model ProductStageConfig {
   name      String /// Display name: "Smoke", "Driver", "Integration", "Regression", "FUOTA"
   enabled   Boolean   @default(false) /// Disabled by default
 
-  // Asset source — how firmware assets are provided for this stage
-  assetSource String @default("BUILD_SERVICE") /// BUILD_SERVICE | MANUAL_UPLOAD | EXTERNAL_CI
-
   // Target — which hardware revision to build and test against (required)
   boardRevisionId String /// FK to BoardRevision — every stage config is revision-scoped
 

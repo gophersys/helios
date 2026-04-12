@@ -1,0 +1,25 @@
+name: Alpha B0 Manufacturing Fixture
+revision: "1.0"
+product: alpha
+board: alpha_b0
+battery_installed: false
+
+capabilities:
+  - power
+  - jlink
+
+slots:
+  - index: 0
+    mtib_address: "10.4.45.33"
+    mtib_port: 50053
+    serial_number: "0964"
+
+power:
+  boot_voltage_v: 4.5
+  charger_voltage_v: 5.0
+
+thresholds:
+  electrical_uvlo_voltage_v: 3.4
+  electrical_nominal_voltage_v: 3.7
+  electrical_high_voltage_v: 4.5
+  electrical_stabilization_period_s: 30

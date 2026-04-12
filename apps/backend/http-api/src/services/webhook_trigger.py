@@ -73,7 +73,7 @@ def handle_repo_event(event: RepoEvent) -> List[Dict[str, Any]]:
         where={
             "productId": product.id,
             "enabled": True,
-            "assetSource": "BUILD_SERVICE",
+            "assetSources": {"has": "BUILD_SERVICE"},
             "triggerTypes": {"hasSome": trigger_types},
         },
     )

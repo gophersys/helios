@@ -2,7 +2,7 @@
 name = "concord-manufacturing-alpha"
 version = "1.0.0"
 requires-python = ">=3.10"
-description = "Manufacturing test suite for Alpha product"
+description = "Manufacturing test suite for Alpha product (electrical, flash, POST)"
 
 dependencies = [
     "corekinect-test>=0.1.0",
@@ -21,10 +21,10 @@ python_classes = "Test*"
 python_functions = "test_*"
 
 markers = [
-    "electrical: marks electrical tests (power rail validation)",
-    "post: marks POST tests (boot, chip ID, BMS, charger, GPS, personalization)",
-    "fw_flash: marks firmware flash tests (J-Link + AP protect)",
-    "sequential: marks tests that must run in order",
+    "electrical: Power rail validation (UVLO, regulation, charger load-sharing)",
+    "fw_flash: Firmware flash via J-Link + AP protect on both processors",
+    "post: Power-on self-test (boot, chip IDs, BMS, charger, GPS, modem, personalization)",
+    "sequential: Tests that must run in order (all manufacturing tests)",
 ]
 
 log_cli = true
@@ -32,4 +32,4 @@ log_cli_level = "INFO"
 log_cli_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 log_cli_date_format = "%H:%M:%S"
 addopts = "-v --tb=short"
-timeout = 300
+timeout = 600

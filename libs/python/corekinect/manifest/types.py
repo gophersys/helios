@@ -30,6 +30,8 @@ class ProductConfig:
 class FixtureConfig:
     controller: str  # dotted import path
     profile: str  # relative file path
+    design: str = ""  # fixture design name (matches fixture.yaml 'name')
+    revision: str = "1.0"  # fixture hardware revision (matches fixture.yaml 'revision')
     multi_slot: bool = False
 
 
@@ -142,6 +144,8 @@ class Manifest:
             fixture=FixtureConfig(
                 controller=fix["controller"],
                 profile=fix["profile"],
+                design=fix.get("design", ""),
+                revision=fix.get("revision", "1.0"),
                 multi_slot=fix.get("multi_slot", False),
             ),
             stages=stages,

@@ -43,7 +43,17 @@
   let currentStep = $state(1);
   let saving = $state(false);
   let error = $state<string | null>(null);
-  let formAssetSource = $state<'BUILD_SERVICE' | 'MANUAL_UPLOAD' | 'EXTERNAL_CI'>('BUILD_SERVICE');
+  let formAssetSources = $state<('BUILD_SERVICE' | 'MANUAL_UPLOAD' | 'EXTERNAL_CI')[]>(['BUILD_SERVICE']);
+
+  function toggleAssetSource(source: 'BUILD_SERVICE' | 'MANUAL_UPLOAD' | 'EXTERNAL_CI') {
+    if (formAssetSources.includes(source)) {
+      if (formAssetSources.length > 1) {
+        formAssetSources = formAssetSources.filter(s => s !== source);
+      }
+    } else {
+      formAssetSources = [...formAssetSources, source];
+    }
+  }
 
   // Disable confirmation
   let showDisableConfirm = $state(false);
@@ -186,15 +196,17 @@
   const selectedKey = $derived(liveSecrets.find((s) => s.id === formSigningKeyId));
   const hasSchedule = $derived(formTriggerTypes.includes('schedule'));
 
-  // Dynamic step sequence based on asset source
+  // Dynamic step sequence based on selected asset sources
   const stepSequence = $derived.by(() => {
-    if (formAssetSource === 'BUILD_SERVICE') {
-      return ['source', 'triggers', 'signing', 'recipe', 'review'];
+    const steps = ['source'];
+    if (formAssetSources.includes('BUILD_SERVICE')) {
+      steps.push('triggers', 'signing', 'recipe');
     }
-    if (formAssetSource === 'EXTERNAL_CI') {
-      return ['source', 'external', 'review'];
+    if (formAssetSources.includes('EXTERNAL_CI')) {
+      steps.push('external');
     }
-    return ['source', 'review']; // MANUAL_UPLOAD
+    steps.push('review');
+    return steps;
   });
   const totalSteps = $derived(stepSequence.length);
   const currentStepKey = $derived(stepSequence[currentStep - 1]);
@@ -245,7 +257,7 @@
         || revisions.find((r) => r.status === 'ACTIVE')?.id
         || '';
 
-      formAssetSource = (config as any)?.assetSource || 'BUILD_SERVICE';
+      formAssetSources = (config as any)?.assetSources?.length ? [...(config as any).assetSources] : ['BUILD_SERVICE'];
 
       if (config) {
         formBranch = config.watchBranch || 'main';
@@ -808,9 +820,9 @@
       const data: any = {
         enabled: true,
         boardRevisionId: formRevisionId || null,
-        assetSource: formAssetSource,
+        assetSources: [...formAssetSources],
       };
-      if (formAssetSource === 'BUILD_SERVICE') {
+      if (formAssetSources.includes('BUILD_SERVICE')) {
         data.watchBranch = formBranch?.trim() || null;
         data.triggerTypes = formTriggerTypes;
         data.signingKeyId = formSigningKeyId || null;
@@ -825,7 +837,7 @@
       }
 
       // Save recipe draft if modified (does NOT create a new version) — BUILD_SERVICE only
-      if (formAssetSource === 'BUILD_SERVICE' && recipeDirty && recipe.trim()) {
+      if (formAssetSources.includes('BUILD_SERVICE') && recipeDirty && recipe.trim()) {
         const recipeUrl = '/v2/products/' + productId + '/recipe?stage=' + stage;
         await api.put(recipeUrl, { content: recipe });
       }
@@ -882,7 +894,7 @@
       {#each steps as s}
         {@const isComplete = currentStep > s.num}
         {@const isCurrent = currentStep === s.num}
-        {@const isDisabled = (s.key === 'signing' && !step1Valid) || (s.key === 'recipe' && !step2Valid) || (s.key === 'review' && (formAssetSource === 'BUILD_SERVICE' ? !step2Valid : false))}
+        {@const isDisabled = (s.key === 'signing' && !step1Valid) || (s.key === 'recipe' && !step2Valid) || (s.key === 'review' && (formAssetSources.includes('BUILD_SERVICE') ? !step2Valid : false))}
         <button
           onclick={() => { if (!isDisabled && (isComplete || isCurrent)) currentStep = s.num; }}
           disabled={isDisabled && !isComplete}
@@ -912,12 +924,12 @@
 
       {#if currentStepKey === 'source'}
         <div class="max-w-3xl space-y-4">
-          <p class="text-sm text-text-secondary">How will firmware assets be provided for this stage?</p>
+          <p class="text-sm text-text-secondary">How will firmware assets be provided for this stage? Select one or more sources.</p>
           <div class="grid gap-3 sm:grid-cols-3">
             <!-- Concord Builds -->
             <button
-              onclick={() => formAssetSource = 'BUILD_SERVICE'}
-              class="card card-md text-left transition-all {formAssetSource === 'BUILD_SERVICE' ? 'border-accent bg-accent-muted' : 'hover:border-text-tertiary'}"
+              onclick={() => toggleAssetSource('BUILD_SERVICE')}
+              class="card card-md text-left transition-all {formAssetSources.includes('BUILD_SERVICE') ? 'border-accent bg-accent-muted' : 'hover:border-text-tertiary'}"
             >
               <div class="flex items-center gap-2 mb-2">
                 <Zap size={18} class="text-accent" />
@@ -928,8 +940,8 @@
 
             <!-- External CI -->
             <button
-              onclick={() => formAssetSource = 'EXTERNAL_CI'}
-              class="card card-md text-left transition-all {formAssetSource === 'EXTERNAL_CI' ? 'border-accent bg-accent-muted' : 'hover:border-text-tertiary'}"
+              onclick={() => toggleAssetSource('EXTERNAL_CI')}
+              class="card card-md text-left transition-all {formAssetSources.includes('EXTERNAL_CI') ? 'border-accent bg-accent-muted' : 'hover:border-text-tertiary'}"
             >
               <div class="flex items-center gap-2 mb-2">
                 <Cloud size={18} class="text-info" />
@@ -940,8 +952,8 @@
 
             <!-- Manual Upload -->
             <button
-              onclick={() => formAssetSource = 'MANUAL_UPLOAD'}
-              class="card card-md text-left transition-all {formAssetSource === 'MANUAL_UPLOAD' ? 'border-accent bg-accent-muted' : 'hover:border-text-tertiary'}"
+              onclick={() => toggleAssetSource('MANUAL_UPLOAD')}
+              class="card card-md text-left transition-all {formAssetSources.includes('MANUAL_UPLOAD') ? 'border-accent bg-accent-muted' : 'hover:border-text-tertiary'}"
             >
               <div class="flex items-center gap-2 mb-2">
                 <Upload size={18} class="text-warning" />
@@ -950,6 +962,7 @@
               <p class="text-2xs text-text-secondary">Upload firmware .zip files directly through the UI. No automation.</p>
             </button>
           </div>
+          <p class="text-2xs text-text-tertiary">At least one source must be selected. Multiple sources let your team use different paths to provide assets.</p>
         </div>
 
       {:else if currentStepKey === 'triggers'}
@@ -1415,12 +1428,16 @@
 
           <div class="rounded-lg border border-border overflow-hidden">
             <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle bg-surface-0/50">
-              <span class="text-sm text-text-secondary">Asset Source</span>
-              <span class="text-sm font-semibold text-text-primary">
-                {formAssetSource === 'BUILD_SERVICE' ? 'Concord Builds' : formAssetSource === 'EXTERNAL_CI' ? 'External CI' : 'Manual Upload'}
-              </span>
+              <span class="text-sm text-text-secondary">Asset Sources</span>
+              <div class="flex gap-1.5">
+                {#each formAssetSources as src}
+                  <span class="rounded-full bg-accent-muted px-2.5 py-0.5 text-2xs font-medium text-accent">
+                    {src === 'BUILD_SERVICE' ? 'Concord Builds' : src === 'EXTERNAL_CI' ? 'External CI' : 'Manual Upload'}
+                  </span>
+                {/each}
+              </div>
             </div>
-            {#if formAssetSource === 'BUILD_SERVICE'}
+            {#if formAssetSources.includes('BUILD_SERVICE')}
               <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle">
                 <span class="text-sm text-text-secondary">Target Revision</span>
                 <div class="flex items-center gap-2">
@@ -1461,15 +1478,17 @@
                   {/if}
                 </span>
               </div>
-            {:else if formAssetSource === 'EXTERNAL_CI'}
-              <div class="flex items-center justify-between px-4 py-3.5">
+            {/if}
+            {#if formAssetSources.includes('EXTERNAL_CI')}
+              <div class="flex items-center justify-between px-4 py-3.5 border-t border-border-subtle">
                 <span class="text-sm text-text-secondary">Upload Endpoint</span>
                 <code class="text-2xs font-mono text-text-tertiary">POST /v2/products/{productId}/asset-sets/upload-zip</code>
               </div>
-            {:else}
-              <div class="flex items-center justify-between px-4 py-3.5">
-                <span class="text-sm text-text-secondary">Method</span>
-                <span class="text-sm text-text-primary">Manual .zip upload via UI</span>
+            {/if}
+            {#if formAssetSources.includes('MANUAL_UPLOAD')}
+              <div class="flex items-center justify-between px-4 py-3.5 border-t border-border-subtle">
+                <span class="text-sm text-text-secondary">Manual Upload</span>
+                <span class="text-sm text-text-primary">Upload .zip files via UI</span>
               </div>
             {/if}
           </div>

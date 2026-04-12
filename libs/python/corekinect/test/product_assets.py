@@ -66,15 +66,25 @@ class StageAccessor:
         return self._assets
 
     def _default_hex_build(self):
-        """Find the default hex-producing build."""
-        # Try MFG_BASE first (most common), then first available
-        try:
-            return self._assets.by_label("MFG_BASE")
-        except Exception:
-            pass
+        """Find the default hex-producing build.
+
+        Searches available labels for one that produces hex files,
+        preferring common base labels (MFG_BASE, *_BASE) before
+        falling back to the first available label.
+        """
         labels = self._assets.labels
         if not labels:
             raise ConfigError("No builds available for this stage")
+
+        # Prefer known base labels in priority order
+        for candidate in labels:
+            if candidate == "MFG_BASE" or candidate.endswith("_BASE"):
+                try:
+                    return self._assets.by_label(candidate)
+                except Exception:
+                    continue
+
+        # Fall back to first available label
         return self._assets.by_label(labels[0])
 
     def _default_cfw_build(self):

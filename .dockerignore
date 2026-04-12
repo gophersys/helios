@@ -1,0 +1,42 @@
+# Security: exclude sensitive and unnecessary files from Docker build context
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Git metadata
+.git
+.gitignore
+
+# Python caches
+**/__pycache__
+**/*.pyc
+**/*.pyo
+
+# Node
+**/node_modules
+
+# IDE / editor
+.vscode
+.idea
+**/*.swp
+**/*.swo
+
+# Nx cache
+.nx/cache
+
+# Build artifacts
+**/dist
+**/.coverage
+**/*.egg-info
+
+# DevContainers (not needed in prod images)
+.devcontainer
+
+# Documentation internals
+docs/_internal
+docs/_archive
+
+# Test artifacts
+**/.pytest_cache
+**/htmlcov
