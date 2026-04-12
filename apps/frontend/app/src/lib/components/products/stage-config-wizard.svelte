@@ -8,7 +8,7 @@
     ChevronRight, ChevronLeft, Check, CircuitBoard, GitBranch, Key,
     Zap, Clock, Hand, GitPullRequest, GitMerge, Loader2, FlaskConical,
     FileCode, ShieldAlert, ChevronDown, RefreshCw, Power, AlertTriangle, X,
-    Play, Square, Terminal, Download, ChevronUp,
+    Play, Square, Terminal, Download, ChevronUp, Cloud, Upload,
   } from 'lucide-svelte';
   import { subscribeCiBuild, type CiBuildLogEvent } from '$lib/services/websocket';
   import type { ProductStageConfig, Secret } from '$lib/types/stages';
@@ -43,6 +43,7 @@
   let currentStep = $state(1);
   let saving = $state(false);
   let error = $state<string | null>(null);
+  let formAssetSource = $state<'BUILD_SERVICE' | 'MANUAL_UPLOAD' | 'EXTERNAL_CI'>('BUILD_SERVICE');
 
   // Disable confirmation
   let showDisableConfirm = $state(false);
@@ -185,6 +186,29 @@
   const selectedKey = $derived(liveSecrets.find((s) => s.id === formSigningKeyId));
   const hasSchedule = $derived(formTriggerTypes.includes('schedule'));
 
+  // Dynamic step sequence based on asset source
+  const stepSequence = $derived.by(() => {
+    if (formAssetSource === 'BUILD_SERVICE') {
+      return ['source', 'triggers', 'signing', 'recipe', 'review'];
+    }
+    if (formAssetSource === 'EXTERNAL_CI') {
+      return ['source', 'external', 'review'];
+    }
+    return ['source', 'review']; // MANUAL_UPLOAD
+  });
+  const totalSteps = $derived(stepSequence.length);
+  const currentStepKey = $derived(stepSequence[currentStep - 1]);
+
+  // Step labels for indicator
+  const stepLabels: Record<string, string> = {
+    source: 'Asset Source',
+    triggers: 'Target & Triggers',
+    signing: 'Signing Key',
+    recipe: 'Build Recipe',
+    review: 'Review & Save',
+    external: 'API Integration',
+  };
+
   // Revision is locked when the wizard was opened from a specific revision row
   const revisionLocked = $derived(!!targetRevision);
 
@@ -221,6 +245,8 @@
         || revisions.find((r) => r.status === 'ACTIVE')?.id
         || '';
 
+      formAssetSource = (config as any)?.assetSource || 'BUILD_SERVICE';
+
       if (config) {
         formBranch = config.watchBranch || 'main';
         formTriggerTypes = config.triggerTypes?.length ? [...config.triggerTypes] : defaultTriggers[stage] || ['manual'];
@@ -248,10 +274,10 @@
   // Keyboard shortcuts for wizard navigation
   function handleKeydown(e: KeyboardEvent) {
     if (!open) return;
-    // Ctrl+S saves recipe draft on step 3
+    // Ctrl+S saves recipe draft on recipe step
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
-      if (currentStep === 3 && recipeDirty) saveRecipe();
+      if (currentStepKey === 'recipe' && recipeDirty) saveRecipe();
       return;
     }
     if (e.key !== 'Enter') return;
@@ -259,15 +285,15 @@
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === 'TEXTAREA' || tag === 'SELECT') return;
     if ((e.target as HTMLElement)?.closest('.cm-editor')) return;
-    // Step 3 (recipe editor) — don't intercept
-    if (currentStep === 3) return;
-    // Step 4 — Enter saves
-    if (currentStep === 4) {
+    // Recipe editor — don't intercept
+    if (currentStepKey === 'recipe') return;
+    // Review step — Enter saves
+    if (currentStepKey === 'review') {
       e.preventDefault();
       if (!saving) handleSave();
       return;
     }
-    // Steps 1-2 — Enter advances
+    // Other steps — Enter advances
     e.preventDefault();
     nextStep();
   }
@@ -406,9 +432,9 @@
   }
 
   function nextStep() {
-    if (currentStep === 1 && !step1Valid) return;
-    if (currentStep === 2 && !step2Valid) return;
-    if (currentStep < 4) currentStep++;
+    if (currentStepKey === 'triggers' && !step1Valid) return;
+    if (currentStepKey === 'signing' && !step2Valid) return;
+    if (currentStep < totalSteps) currentStep++;
   }
 
   function prevStep() {
@@ -779,13 +805,18 @@
     saving = true;
     error = null;
     try {
-      const data = {
+      const data: any = {
         enabled: true,
         boardRevisionId: formRevisionId || null,
-        watchBranch: formBranch.trim() || null,
-        triggerTypes: formTriggerTypes,
-        signingKeyId: formSigningKeyId || null,
+        assetSource: formAssetSource,
       };
+      if (formAssetSource === 'BUILD_SERVICE') {
+        data.watchBranch = formBranch?.trim() || null;
+        data.triggerTypes = formTriggerTypes;
+        data.signingKeyId = formSigningKeyId || null;
+      } else {
+        data.triggerTypes = ['manual'];
+      }
 
       if (config) {
         await updateStageConfig(productId, stage, data);
@@ -793,8 +824,8 @@
         await createStageConfig(productId, { stage, name: displayStageName, ...data });
       }
 
-      // Save recipe draft if modified (does NOT create a new version)
-      if (recipeDirty && recipe.trim()) {
+      // Save recipe draft if modified (does NOT create a new version) — BUILD_SERVICE only
+      if (formAssetSource === 'BUILD_SERVICE' && recipeDirty && recipe.trim()) {
         const recipeUrl = '/v2/products/' + productId + '/recipe?stage=' + stage;
         await api.put(recipeUrl, { content: recipe });
       }
@@ -808,12 +839,7 @@
     }
   }
 
-  const steps = [
-    { num: 1, label: 'Target & Triggers' },
-    { num: 2, label: 'Signing Key' },
-    { num: 3, label: 'Build Recipe' },
-    { num: 4, label: 'Review & Save' },
-  ];
+  const steps = $derived(stepSequence.map((key, i) => ({ num: i + 1, label: stepLabels[key] || key, key })));
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -856,7 +882,7 @@
       {#each steps as s}
         {@const isComplete = currentStep > s.num}
         {@const isCurrent = currentStep === s.num}
-        {@const isDisabled = (s.num === 2 && !step1Valid) || (s.num === 3 && !step2Valid) || (s.num === 4 && !step2Valid)}
+        {@const isDisabled = (s.key === 'signing' && !step1Valid) || (s.key === 'recipe' && !step2Valid) || (s.key === 'review' && (formAssetSource === 'BUILD_SERVICE' ? !step2Valid : false))}
         <button
           onclick={() => { if (!isDisabled && (isComplete || isCurrent)) currentStep = s.num; }}
           disabled={isDisabled && !isComplete}
@@ -874,7 +900,7 @@
           {/if}
           {s.label}
         </button>
-        {#if s.num < steps.length}
+        {#if s.num < totalSteps}
           <div class="h-px flex-1 bg-border-subtle max-w-8"></div>
         {/if}
       {/each}
@@ -884,7 +910,49 @@
     <div class="flex-1 overflow-y-auto px-6 py-4">
       <ErrorAlert message={error} />
 
-      {#if currentStep === 1}
+      {#if currentStepKey === 'source'}
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm text-text-secondary">How will firmware assets be provided for this stage?</p>
+          <div class="grid gap-3 sm:grid-cols-3">
+            <!-- Concord Builds -->
+            <button
+              onclick={() => formAssetSource = 'BUILD_SERVICE'}
+              class="card card-md text-left transition-all {formAssetSource === 'BUILD_SERVICE' ? 'border-accent bg-accent-muted' : 'hover:border-text-tertiary'}"
+            >
+              <div class="flex items-center gap-2 mb-2">
+                <Zap size={18} class="text-accent" />
+                <span class="text-sm font-semibold text-text-primary">Concord Builds</span>
+              </div>
+              <p class="text-2xs text-text-secondary">Concord builds firmware from your Git repo. Configure triggers, signing, and build recipes.</p>
+            </button>
+
+            <!-- External CI -->
+            <button
+              onclick={() => formAssetSource = 'EXTERNAL_CI'}
+              class="card card-md text-left transition-all {formAssetSource === 'EXTERNAL_CI' ? 'border-accent bg-accent-muted' : 'hover:border-text-tertiary'}"
+            >
+              <div class="flex items-center gap-2 mb-2">
+                <Cloud size={18} class="text-info" />
+                <span class="text-sm font-semibold text-text-primary">External CI</span>
+              </div>
+              <p class="text-2xs text-text-secondary">Your CI system (TeamCity, Jenkins, GitHub Actions) pushes builds via API.</p>
+            </button>
+
+            <!-- Manual Upload -->
+            <button
+              onclick={() => formAssetSource = 'MANUAL_UPLOAD'}
+              class="card card-md text-left transition-all {formAssetSource === 'MANUAL_UPLOAD' ? 'border-accent bg-accent-muted' : 'hover:border-text-tertiary'}"
+            >
+              <div class="flex items-center gap-2 mb-2">
+                <Upload size={18} class="text-warning" />
+                <span class="text-sm font-semibold text-text-primary">Manual Upload</span>
+              </div>
+              <p class="text-2xs text-text-secondary">Upload firmware .zip files directly through the UI. No automation.</p>
+            </button>
+          </div>
+        </div>
+
+      {:else if currentStepKey === 'triggers'}
         <div class="max-w-3xl space-y-6">
           <!-- Target revision (read-only — implied by the subtab) -->
           {#if selectedRevision}
@@ -1003,8 +1071,8 @@
           </div>
         </div>
 
-      {:else if currentStep === 2}
-        <!-- Step 2: Signing Key (unchanged) -->
+      {:else if currentStepKey === 'signing'}
+        <!-- Signing Key -->
         <div class="max-w-3xl space-y-4">
           <div>
             <h3 class="text-sm font-semibold text-text-primary mb-1">Signing Key</h3>
@@ -1053,8 +1121,8 @@
           {/if}
         </div>
 
-      {:else if currentStep === 3}
-        <!-- Step 3: Build Recipe — IDE layout: editor + sidebar + terminal -->
+      {:else if currentStepKey === 'recipe'}
+        <!-- Build Recipe — IDE layout: editor + sidebar + terminal -->
         <div class="flex flex-col h-full -my-4 -mx-6">
           <div class="flex flex-1 min-h-0">
             <!-- Left: Editor -->
@@ -1316,52 +1384,94 @@
           </div>
         </div>
 
-      {:else if currentStep === 4}
-        <!-- Step 4: Review -->
+      {:else if currentStepKey === 'external'}
+        <!-- External CI Integration -->
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm text-text-secondary">Configure your external CI system to push firmware assets to Concord.</p>
+
+          <div class="card card-md space-y-3">
+            <h4 class="text-sm font-semibold text-text-primary">API Endpoint</h4>
+            <div class="flex items-center gap-2 rounded-lg bg-surface-0 px-3 py-2">
+              <code class="text-2xs font-mono text-text-primary flex-1">POST /v2/products/{productId}/asset-sets/upload-zip</code>
+              <button onclick={() => navigator.clipboard.writeText(`/v2/products/${productId}/asset-sets/upload-zip`)} class="btn btn-sm btn-ghost text-2xs">Copy</button>
+            </div>
+            <p class="text-2xs text-text-tertiary">Send a multipart form with the firmware .zip and required metadata (version, variant, stage).</p>
+          </div>
+
+          <div class="card card-md space-y-3">
+            <h4 class="text-sm font-semibold text-text-primary">Authentication</h4>
+            <p class="text-2xs text-text-secondary">Use an API key in the <code class="font-mono text-text-primary">Authorization</code> header:</p>
+            <div class="rounded-lg bg-surface-0 px-3 py-2">
+              <code class="text-2xs font-mono text-text-tertiary">Authorization: ApiKey &lt;your-key&gt;</code>
+            </div>
+            <p class="text-2xs text-text-tertiary">Generate API keys in Settings &rarr; API Keys.</p>
+          </div>
+        </div>
+
+      {:else if currentStepKey === 'review'}
+        <!-- Review -->
         <div class="max-w-3xl space-y-6">
           <h3 class="text-sm font-semibold text-text-primary">Review Configuration</h3>
 
           <div class="rounded-lg border border-border overflow-hidden">
             <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle bg-surface-0/50">
-              <span class="text-sm text-text-secondary">Target Revision</span>
-              <div class="flex items-center gap-2">
-                <CircuitBoard size={14} class="text-accent" />
-                <span class="text-sm font-semibold text-text-primary">
-                  {selectedRevision ? `${selectedRevision.version} (${selectedRevision.ckBoardsName})` : '—'}
-                </span>
-              </div>
-            </div>
-            <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle">
-              <span class="text-sm text-text-secondary">Watch Branch</span>
-              <span class="font-mono text-sm text-text-primary">{formBranch || '—'}</span>
-            </div>
-            <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle bg-surface-0/50">
-              <span class="text-sm text-text-secondary">Triggers</span>
-              <div class="flex gap-1.5">
-                {#each formTriggerTypes as t}
-                  <span class="rounded-full bg-accent-muted px-2.5 py-0.5 text-2xs font-medium text-accent">{t}</span>
-                {/each}
-              </div>
-            </div>
-            {#if hasSchedule}
-              <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle">
-                <span class="text-sm text-text-secondary">Cron Schedule</span>
-                <span class="font-mono text-sm text-text-primary">{formCronExpression}</span>
-              </div>
-            {/if}
-            <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle {hasSchedule ? 'bg-surface-0/50' : ''}">
-              <span class="text-sm text-text-secondary">Signing Key</span>
-              <span class="text-sm font-medium text-text-primary">{selectedKey?.name || 'None'}</span>
-            </div>
-            <div class="flex items-center justify-between px-4 py-3.5">
-              <span class="text-sm text-text-secondary">Build Recipe</span>
-              <span class="text-sm text-text-primary">
-                {recipe.trim() ? `${recipe.split('\n').length} lines` : 'Not configured (external CI)'}
-                {#if recipeDirty}
-                  <span class="text-warning ml-1">(modified)</span>
-                {/if}
+              <span class="text-sm text-text-secondary">Asset Source</span>
+              <span class="text-sm font-semibold text-text-primary">
+                {formAssetSource === 'BUILD_SERVICE' ? 'Concord Builds' : formAssetSource === 'EXTERNAL_CI' ? 'External CI' : 'Manual Upload'}
               </span>
             </div>
+            {#if formAssetSource === 'BUILD_SERVICE'}
+              <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle">
+                <span class="text-sm text-text-secondary">Target Revision</span>
+                <div class="flex items-center gap-2">
+                  <CircuitBoard size={14} class="text-accent" />
+                  <span class="text-sm font-semibold text-text-primary">
+                    {selectedRevision ? `${selectedRevision.version} (${selectedRevision.ckBoardsName})` : '—'}
+                  </span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle bg-surface-0/50">
+                <span class="text-sm text-text-secondary">Watch Branch</span>
+                <span class="font-mono text-sm text-text-primary">{formBranch || '—'}</span>
+              </div>
+              <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle">
+                <span class="text-sm text-text-secondary">Triggers</span>
+                <div class="flex gap-1.5">
+                  {#each formTriggerTypes as t}
+                    <span class="rounded-full bg-accent-muted px-2.5 py-0.5 text-2xs font-medium text-accent">{t}</span>
+                  {/each}
+                </div>
+              </div>
+              {#if hasSchedule}
+                <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle bg-surface-0/50">
+                  <span class="text-sm text-text-secondary">Cron Schedule</span>
+                  <span class="font-mono text-sm text-text-primary">{formCronExpression}</span>
+                </div>
+              {/if}
+              <div class="flex items-center justify-between px-4 py-3.5 border-b border-border-subtle {hasSchedule ? '' : 'bg-surface-0/50'}">
+                <span class="text-sm text-text-secondary">Signing Key</span>
+                <span class="text-sm font-medium text-text-primary">{selectedKey?.name || 'None'}</span>
+              </div>
+              <div class="flex items-center justify-between px-4 py-3.5">
+                <span class="text-sm text-text-secondary">Build Recipe</span>
+                <span class="text-sm text-text-primary">
+                  {recipe.trim() ? `${recipe.split('\n').length} lines` : 'Not configured'}
+                  {#if recipeDirty}
+                    <span class="text-warning ml-1">(modified)</span>
+                  {/if}
+                </span>
+              </div>
+            {:else if formAssetSource === 'EXTERNAL_CI'}
+              <div class="flex items-center justify-between px-4 py-3.5">
+                <span class="text-sm text-text-secondary">Upload Endpoint</span>
+                <code class="text-2xs font-mono text-text-tertiary">POST /v2/products/{productId}/asset-sets/upload-zip</code>
+              </div>
+            {:else}
+              <div class="flex items-center justify-between px-4 py-3.5">
+                <span class="text-sm text-text-secondary">Method</span>
+                <span class="text-sm text-text-primary">Manual .zip upload via UI</span>
+              </div>
+            {/if}
           </div>
 
           <!-- Build Matrix -->
@@ -1383,17 +1493,17 @@
       </button>
 
       <div class="flex items-center gap-3">
-        {#if currentStep === 1 && !step1Valid}
+        {#if currentStepKey === 'triggers' && !step1Valid}
           <span class="text-2xs text-text-tertiary">Select a branch to continue</span>
         {/if}
-        {#if currentStep === 2 && !step2Valid}
+        {#if currentStepKey === 'signing' && !step2Valid}
           <span class="text-2xs text-warning">A signing key is required</span>
         {/if}
 
-        {#if currentStep < 4}
+        {#if currentStep < totalSteps}
           <button
             onclick={nextStep}
-            disabled={(currentStep === 1 && !step1Valid) || (currentStep === 2 && !step2Valid)}
+            disabled={(currentStepKey === 'triggers' && !step1Valid) || (currentStepKey === 'signing' && !step2Valid)}
             class="flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Next <ChevronRight size={16} />

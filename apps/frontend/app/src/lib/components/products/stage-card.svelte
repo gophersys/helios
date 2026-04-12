@@ -181,7 +181,12 @@
             {config.boardRevision.ckBoardsName}
           </span>
         {/if}
-        {#if config?.enabled}
+        {#if config?.enabled && config.assetSource === 'EXTERNAL_CI'}
+          <span class="badge badge-info">External CI</span>
+        {:else if config?.enabled && config.assetSource === 'MANUAL_UPLOAD'}
+          <span class="badge badge-neutral">Manual</span>
+        {/if}
+        {#if config?.enabled && (!config.assetSource || config.assetSource === 'BUILD_SERVICE')}
           <span class="px-1.5 py-0.5 text-2xs rounded bg-accent/10 text-accent">
             {triggerSummary((config as any).triggerTypes || 'manual', config.watchBranch)}
           </span>
@@ -346,17 +351,30 @@
           <span class="block text-2xs text-text-tertiary">Revision</span>
           <span class="font-mono text-text-primary">{config.boardRevision?.ckBoardsName || '—'}</span>
         </div>
-        <div>
-          <span class="block text-2xs text-text-tertiary">Trigger</span>
-          <span class="text-text-primary">{triggerSummary((config as any).triggerTypes || 'manual', config.watchBranch)}</span>
-        </div>
-        {#if config.watchBranch}
-        <div>
-          <span class="block text-2xs text-text-tertiary">Branch</span>
-          <span class="font-mono text-text-primary flex items-center gap-1">
-            <GitBranch size={12} /> {config.watchBranch}
-          </span>
-        </div>
+        {#if config.assetSource && config.assetSource !== 'BUILD_SERVICE'}
+          <div>
+            <span class="block text-2xs text-text-tertiary">Asset Source</span>
+            <span class="text-text-primary">
+              {#if config.assetSource === 'EXTERNAL_CI'}
+                <span class="badge badge-info">External CI</span>
+              {:else if config.assetSource === 'MANUAL_UPLOAD'}
+                <span class="badge badge-neutral">Manual</span>
+              {/if}
+            </span>
+          </div>
+        {:else}
+          <div>
+            <span class="block text-2xs text-text-tertiary">Trigger</span>
+            <span class="text-text-primary">{triggerSummary((config as any).triggerTypes || 'manual', config.watchBranch)}</span>
+          </div>
+          {#if config.watchBranch}
+          <div>
+            <span class="block text-2xs text-text-tertiary">Branch</span>
+            <span class="font-mono text-text-primary flex items-center gap-1">
+              <GitBranch size={12} /> {config.watchBranch}
+            </span>
+          </div>
+          {/if}
         {/if}
         <div>
           <span class="block text-2xs text-text-tertiary">Signing Key</span>

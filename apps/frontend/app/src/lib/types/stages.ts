@@ -1,4 +1,5 @@
 export type StageType = 'VALIDATION' | 'MANUFACTURING';
+export type AssetSource = 'BUILD_SERVICE' | 'MANUAL_UPLOAD' | 'EXTERNAL_CI';
 
 export interface ProductStageConfig {
   id: string;
@@ -7,6 +8,7 @@ export interface ProductStageConfig {
   stage: number;
   name: string;
   enabled: boolean;
+  assetSource: AssetSource;
   boardRevisionId: string | null;
   boardRevision: { id: string; version: string; ckBoardsName: string } | null;
   watchBranch: string | null;
