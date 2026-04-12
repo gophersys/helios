@@ -61,6 +61,10 @@ def _parse_watch_targets(products: list[dict]) -> list[WatchTarget]:
             if not sc.get("enabled", False):
                 continue
 
+            # Only watch stages that use the build service for assets
+            if sc.get("assetSource", "BUILD_SERVICE") != "BUILD_SERVICE":
+                continue
+
             trigger_types: list[str] = [
                 t for t in (sc.get("triggerTypes") or [])
                 if t in _VALID_TRIGGER_TYPES

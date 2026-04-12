@@ -68,11 +68,12 @@ def handle_repo_event(event: RepoEvent) -> List[Dict[str, Any]]:
         logger.info("No product for repo: %s", event.repo_slug)
         return []
 
-    # Find enabled stages matching the trigger type
+    # Find enabled stages matching the trigger type (only BUILD_SERVICE stages)
     stages = db.productstageconfig.find_many(
         where={
             "productId": product.id,
             "enabled": True,
+            "assetSource": "BUILD_SERVICE",
             "triggerTypes": {"hasSome": trigger_types},
         },
     )

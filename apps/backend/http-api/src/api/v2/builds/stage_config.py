@@ -58,6 +58,7 @@ def _serialize_stage_config(cfg) -> dict:
         "watchBranch": cfg.watchBranch,
         "triggerTypes": getattr(cfg, "triggerTypes", "manual"),
         "signingKeyId": cfg.signingKeyId,
+        "assetSource": getattr(cfg, "assetSource", "BUILD_SERVICE"),
         "createdById": getattr(cfg, "createdById", None),
         "createdAt": cfg.createdAt.isoformat() if hasattr(cfg.createdAt, 'isoformat') else cfg.createdAt,
         "updatedAt": cfg.updatedAt.isoformat() if hasattr(cfg.updatedAt, 'isoformat') else cfg.updatedAt,
@@ -172,6 +173,7 @@ def create_stage_config(product_id: str):
         "watchBranch": req.watchBranch,
         "triggerTypes": req.triggerTypes,
         "signingKeyId": req.signingKeyId,
+        "assetSource": req.assetSource,
     }
     user = getattr(g, "current_user", None)
     if user and isinstance(user, dict):
@@ -181,8 +183,9 @@ def create_stage_config(product_id: str):
         data=stage_create_data,
         include=_INCLUDE,
     )
-    # Auto-populate build matrix from defaults
-    _auto_populate_build_matrix(db, config.id, req.type, req.stage)
+    # Auto-populate build matrix from defaults (only for BUILD_SERVICE stages)
+    if req.assetSource == "BUILD_SERVICE":
+        _auto_populate_build_matrix(db, config.id, req.type, req.stage)
     # Re-fetch with matrix included
     config = db.productstageconfig.find_unique(where={"id": config.id}, include=_INCLUDE)
     log_audit("stageConfig.create", "ProductStageConfig", config.id, {"stage": req.stage})
@@ -300,6 +303,14 @@ def update_stage_config(product_id: str, stage: str):
     if not update_data:
         return bad_request("No fields to update")
 
+    # When switching away from BUILD_SERVICE, clear build-specific fields
+    new_source = update_data.get("assetSource")
+    if new_source and new_source != "BUILD_SERVICE":
+        update_data.setdefault("watchBranch", None)
+        update_data.setdefault("triggerTypes", ["manual"])
+        update_data.setdefault("signingKeyId", None)
+        update_data.setdefault("recipeVersionId", None)
+
     rev_err = _check_revision_enabled(
         db, update_data.get("enabled", False),
         update_data.get("boardRevisionId", config.boardRevisionId),
@@ -312,8 +323,10 @@ def update_stage_config(product_id: str, stage: str):
 
     result = _serialize_stage_config(updated)
 
+    # Only trigger builds for BUILD_SERVICE stages
+    effective_source = getattr(updated, "assetSource", "BUILD_SERVICE")
     raw_data = request.get_json() or {}
-    if raw_data.get("buildNow") and updated.enabled:
+    if raw_data.get("buildNow") and updated.enabled and effective_source == "BUILD_SERVICE":
         _try_trigger_build(product_id, config.id, stage, result)
 
     return jsonify(ApiResponse.ok(result).to_dict()), 200
