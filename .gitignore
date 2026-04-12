@@ -107,6 +107,7 @@ Thumbs.db
 **/playwright-report/
 **/test-results/
 **/grade-reports/
+**/e2e-report/
 
 # ---------------------------------------------------------------------------
 # Misc
