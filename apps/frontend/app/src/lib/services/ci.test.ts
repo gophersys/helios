@@ -50,7 +50,7 @@ function makePipelineBase(overrides: Partial<BuildRunDetail> = {}): BuildRunDeta
     expectedBuilds: 1,
     completedBuilds: 0,
     validationRunId: null,
-    autoValidate: false,
+    autoRunStage: false,
     startedAt: '2024-01-01T00:00:00Z',
     finishedAt: null,
     createdAt: '2024-01-01T00:00:00Z',

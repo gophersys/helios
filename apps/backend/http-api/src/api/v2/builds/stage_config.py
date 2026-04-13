@@ -58,7 +58,7 @@ def _serialize_stage_config(cfg) -> dict:
         "watchBranch": cfg.watchBranch,
         "triggerTypes": getattr(cfg, "triggerTypes", "manual"),
         "signingKeyId": cfg.signingKeyId,
-        "assetSources": getattr(cfg, "assetSources", ["BUILD_SERVICE"]),
+        "assetSources": cfg.assetSources,
         "createdById": getattr(cfg, "createdById", None),
         "createdAt": cfg.createdAt.isoformat() if hasattr(cfg.createdAt, 'isoformat') else cfg.createdAt,
         "updatedAt": cfg.updatedAt.isoformat() if hasattr(cfg.updatedAt, 'isoformat') else cfg.updatedAt,
@@ -173,7 +173,7 @@ def create_stage_config(product_id: str):
         "watchBranch": req.watchBranch,
         "triggerTypes": req.triggerTypes,
         "signingKeyId": req.signingKeyId,
-        "assetSources": req.assetSources or ["BUILD_SERVICE"],
+        "assetSources": req.assetSources,
     }
     user = getattr(g, "current_user", None)
     if user and isinstance(user, dict):
@@ -184,7 +184,7 @@ def create_stage_config(product_id: str):
         include=_INCLUDE,
     )
     # Auto-populate build matrix from defaults (only for BUILD_SERVICE stages)
-    if "BUILD_SERVICE" in (req.assetSources or ["BUILD_SERVICE"]):
+    if "BUILD_SERVICE" in req.assetSources:
         _auto_populate_build_matrix(db, config.id, req.type, req.stage)
     # Re-fetch with matrix included
     config = db.productstageconfig.find_unique(where={"id": config.id}, include=_INCLUDE)
@@ -308,12 +308,14 @@ def update_stage_config(product_id: str, stage: str):
     if new_sources is not None and "BUILD_SERVICE" not in new_sources:
         update_data.setdefault("watchBranch", None)
         update_data.setdefault("triggerTypes", ["manual"])
-        update_data.setdefault("signingKeyId", None)
-        update_data.setdefault("recipeVersionId", None)
+        update_data.setdefault("signingKey", {"disconnect": True})
 
+    # Resolve revision ID for the enable check — may come from connect syntax or existing config
+    new_rev_connect = update_data.get("boardRevision")
+    effective_rev_id = new_rev_connect["connect"]["id"] if isinstance(new_rev_connect, dict) and "connect" in new_rev_connect else config.boardRevisionId
     rev_err = _check_revision_enabled(
         db, update_data.get("enabled", False),
-        update_data.get("boardRevisionId", config.boardRevisionId),
+        effective_rev_id,
     )
     if rev_err:
         return bad_request(rev_err)
@@ -324,9 +326,8 @@ def update_stage_config(product_id: str, stage: str):
     result = _serialize_stage_config(updated)
 
     # Only trigger builds for BUILD_SERVICE stages
-    effective_sources = getattr(updated, "assetSources", ["BUILD_SERVICE"])
     raw_data = request.get_json() or {}
-    if raw_data.get("buildNow") and updated.enabled and "BUILD_SERVICE" in effective_sources:
+    if raw_data.get("buildNow") and updated.enabled and "BUILD_SERVICE" in updated.assetSources:
         _try_trigger_build(product_id, config.id, stage, result)
 
     return jsonify(ApiResponse.ok(result).to_dict()), 200

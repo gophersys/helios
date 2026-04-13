@@ -243,7 +243,7 @@ class PipelineCreateRequest:
     matrix_mode: str = "fuota"
     main_commit: Optional[str] = None  # Main branch commit for comparison
     pr_branch: Optional[str] = None    # PR branch name
-    auto_validate: bool = False        # Auto-trigger validation on all builds passing
+    auto_run_stage: bool = False        # Auto-trigger stage run on all builds passing
 
     @classmethod
     def from_json(cls, data: dict) -> Tuple[Optional["PipelineCreateRequest"], Optional[str]]:
@@ -287,9 +287,9 @@ class PipelineCreateRequest:
         main_commit = (data.get("mainCommit") or "").strip() or None
         pr_branch = (data.get("prBranch") or "").strip() or None
 
-        auto_validate = data.get("autoValidate", False)
-        if not isinstance(auto_validate, bool):
-            return None, "autoValidate must be a boolean"
+        auto_run_stage = data.get("autoRunStage", False)
+        if not isinstance(auto_run_stage, bool):
+            return None, "autoRunStage must be a boolean"
 
         return cls(
             product=product,
@@ -307,7 +307,7 @@ class PipelineCreateRequest:
             matrix_mode=matrix_mode,
             main_commit=main_commit,
             pr_branch=pr_branch,
-            auto_validate=auto_validate,
+            auto_run_stage=auto_run_stage,
         ), None
 
 

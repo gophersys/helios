@@ -30,7 +30,7 @@ def _serialize_queue_entry(entry) -> dict:
     """Serialize a ValidationQueueEntry DB record to an API response dict."""
     data = {
         "id": entry.id,
-        "buildRunId": entry.buildRunId,
+        "assetSetId": entry.assetSetId,
         "stageConfigId": entry.stageConfigId,
         "stage": entry.stage,
         "priority": entry.priority,
@@ -47,19 +47,18 @@ def _serialize_queue_entry(entry) -> dict:
         "createdAt": entry.createdAt.isoformat(),
         "updatedAt": entry.updatedAt.isoformat(),
     }
-    if hasattr(entry, "buildRun") and entry.buildRun is not None:
-        p = entry.buildRun
+    if hasattr(entry, "assetSet") and entry.assetSet is not None:
+        a = entry.assetSet
         product_name = None
-        if hasattr(p, "product") and p.product and hasattr(p.product, "name"):
-            product_name = p.product.name
-        elif hasattr(p, "product") and isinstance(p.product, str):
-            product_name = p.product
-        data["buildRun"] = {
-            "id": p.id,
-            "name": p.name,
+        if hasattr(a, "product") and a.product and hasattr(a.product, "name"):
+            product_name = a.product.name
+        elif hasattr(a, "product") and isinstance(a.product, str):
+            product_name = a.product
+        data["assetSet"] = {
+            "id": a.id,
+            "name": getattr(a, "name", None),
             "product": product_name,
-            "branch": p.branch,
-            "status": p.status,
+            "status": a.status,
         }
     if hasattr(entry, "fixture") and entry.fixture is not None:
         f = entry.fixture
@@ -97,65 +96,95 @@ def process_queue(db=None) -> dict:
             {"priority": "desc"},
             {"requestedAt": "asc"},
         ],
-        include={"buildRun": {"include": {"builds": True}}},
+        include={"assetSet": {"include": {"product": True, "buildRun": {"include": {"builds": True}}}}},
     )
 
     if not entry:
         return {"processed": False, "reason": "No pending entries"}
 
-    # Verify the pipeline still exists and has builds
-    build_run = entry.buildRun
-    if not build_run:
+    # Verify the asset set still exists
+    asset_set = entry.assetSet
+    if not asset_set:
         db.validationqueueentry.update(
             where={"id": entry.id},
             data={
                 "status": "FAILED",
-                "errorMessage": "Pipeline no longer exists",
+                "errorMessage": "Asset set no longer exists",
                 "completedAt": datetime.now(timezone.utc),
             },
         )
-        return {"processed": False, "reason": "Pipeline deleted", "entryId": entry.id}
+        return {"processed": False, "reason": "Asset set not found", "entryId": entry.id}
 
-    builds = build_run.builds or []
-    if not builds:
+    if asset_set.status == "PENDING":
         db.validationqueueentry.update(
             where={"id": entry.id},
             data={
                 "status": "FAILED",
-                "errorMessage": "Build run has no builds",
+                "errorMessage": "Asset set is not ready (status: PENDING)",
                 "completedAt": datetime.now(timezone.utc),
             },
         )
-        return {"processed": False, "reason": "No builds", "entryId": entry.id}
+        return {"processed": False, "reason": "Asset set not ready", "entryId": entry.id}
 
-    # Re-fetch with full includes needed by trigger_pipeline_validation
-    build_run = db.buildrun.find_unique(
-        where={"id": entry.buildRunId},
-        include={"builds": {"include": {"product": True}}, "product": True},
-    )
-    if not build_run:
+    # Check if there's a build run attached (build-service origin)
+    build_run = asset_set.buildRun if hasattr(asset_set, "buildRun") else None
+
+    if build_run:
+        builds = build_run.builds or []
+        if not builds:
+            db.validationqueueentry.update(
+                where={"id": entry.id},
+                data={
+                    "status": "FAILED",
+                    "errorMessage": "Build run has no builds",
+                    "completedAt": datetime.now(timezone.utc),
+                },
+            )
+            return {"processed": False, "reason": "No builds", "entryId": entry.id}
+
+        # Re-fetch with full includes needed by trigger_pipeline_validation
+        build_run = db.buildrun.find_unique(
+            where={"id": build_run.id},
+            include={"builds": {"include": {"product": True}}, "product": True},
+        )
+        if not build_run:
+            db.validationqueueentry.update(
+                where={"id": entry.id},
+                data={
+                    "status": "FAILED",
+                    "errorMessage": "Build run not found on re-fetch",
+                    "completedAt": datetime.now(timezone.utc),
+                },
+            )
+            return {"processed": False, "reason": "Build run not found", "entryId": entry.id}
+
+        builds = build_run.builds or []
+
+        # Mark as RUNNING *before* triggering to prevent re-entry from the same entry
+        db.validationqueueentry.update(
+            where={"id": entry.id},
+            data={"status": "RUNNING", "startedAt": datetime.now(timezone.utc)},
+        )
+
+        # Attempt to trigger — this will find an available fixture (or return None/queued)
+        from src.services.build_run_service import trigger_pipeline_validation
+
+        result = trigger_pipeline_validation(build_run.id, build_run, builds)
+    else:
+        # External CI / manual upload — no build run attached
+        logger.warning(
+            "Queue entry %s has asset set %s with no build run — direct asset-set validation not yet implemented",
+            str(entry.id)[:8], str(entry.assetSetId)[:8],
+        )
         db.validationqueueentry.update(
             where={"id": entry.id},
             data={
                 "status": "FAILED",
-                "errorMessage": "Build run not found on re-fetch",
+                "errorMessage": "Direct asset-set validation triggering not yet implemented",
                 "completedAt": datetime.now(timezone.utc),
             },
         )
-        return {"processed": False, "reason": "Build run not found", "entryId": entry.id}
-
-    builds = build_run.builds or []
-
-    # Mark as RUNNING *before* triggering to prevent re-entry from the same entry
-    db.validationqueueentry.update(
-        where={"id": entry.id},
-        data={"status": "RUNNING", "startedAt": datetime.now(timezone.utc)},
-    )
-
-    # Attempt to trigger — this will find an available fixture (or return None/queued)
-    from src.services.build_run_service import trigger_pipeline_validation
-
-    result = trigger_pipeline_validation(entry.buildRunId, build_run, builds)
+        return {"processed": False, "reason": "No build run on asset set", "entryId": entry.id}
 
     if result is None or (isinstance(result, dict) and result.get("queued")):
         # Still no fixture available — revert to QUEUED
@@ -179,22 +208,23 @@ def process_queue(db=None) -> dict:
         },
     )
 
-    # Update pipeline status
-    db.buildrun.update(
-        where={"id": entry.buildRunId},
-        data={"status": "VALIDATING", "validationRunId": test_run_id},
-    )
+    # Update pipeline status (if build run exists)
+    if build_run:
+        db.buildrun.update(
+            where={"id": build_run.id},
+            data={"status": "VALIDATING", "validationRunId": test_run_id},
+        )
 
     logger.info(
-        "Queue entry %s started: pipeline=%s testRun=%s",
-        str(entry.id)[:8], str(entry.buildRunId)[:8], test_run_id[:8],
+        "Queue entry %s started: assetSet=%s testRun=%s",
+        str(entry.id)[:8], str(entry.assetSetId)[:8], test_run_id[:8],
     )
 
     return {
         "processed": True,
         "entryId": entry.id,
         "testRunId": test_run_id,
-        "buildRunId": entry.buildRunId,
+        "assetSetId": entry.assetSetId,
     }
 
 
@@ -227,7 +257,7 @@ def list_queue():
             {"requestedAt": "asc"},
         ],
         include={
-            "buildRun": {"include": {"product": True}},
+            "assetSet": {"include": {"product": True}},
             "fixture": True,
             "testRun": True,
         },
@@ -252,7 +282,7 @@ def get_queue_entry(entry_id: str):
     entry = db.validationqueueentry.find_unique(
         where={"id": entry_id},
         include={
-            "buildRun": {"include": {"product": True}},
+            "assetSet": {"include": {"product": True}},
             "fixture": True,
             "testRun": True,
         },
@@ -272,20 +302,20 @@ def create_queue_entry():
     if not data:
         return bad_request("Request body required")
 
-    build_run_id = (data.get("buildRunId") or "").strip()
-    if not build_run_id:
-        return bad_request("buildRunId is required")
+    asset_set_id = (data.get("assetSetId") or "").strip()
+    if not asset_set_id:
+        return bad_request("assetSetId is required")
 
-    build_run = db.buildrun.find_unique(where={"id": build_run_id})
-    if not build_run:
-        return not_found("Pipeline not found")
+    asset_set = db.assetset.find_unique(where={"id": asset_set_id})
+    if not asset_set:
+        return not_found("Asset set not found")
 
-    # Check for existing QUEUED entry for this pipeline
+    # Check for existing QUEUED entry for this asset set
     existing = db.validationqueueentry.find_first(
-        where={"buildRunId": build_run_id, "status": "QUEUED"},
+        where={"assetSetId": asset_set_id, "status": "QUEUED"},
     )
     if existing:
-        return conflict("Pipeline already has a pending queue entry")
+        return conflict("Asset set already has a pending queue entry")
 
     stage = data.get("stage", 4)
     priority = data.get("priority", 0)
@@ -293,18 +323,18 @@ def create_queue_entry():
 
     entry = db.validationqueueentry.create(
         data={
-            "buildRunId": build_run_id,
+            "assetSetId": asset_set_id,
             "stage": stage,
             "priority": priority,
             "status": "QUEUED",
             "reason": reason,
             "requestedAt": datetime.now(timezone.utc),
         },
-        include={"buildRun": True},
+        include={"assetSet": True},
     )
 
     log_audit("validation.queue.create", "ValidationQueueEntry", entry.id, {
-        "buildRunId": build_run_id,
+        "assetSetId": asset_set_id,
         "stage": stage,
         "priority": priority,
         "reason": reason,
@@ -338,7 +368,7 @@ def update_queue_entry(entry_id: str):
     entry = db.validationqueueentry.update(
         where={"id": entry_id},
         data=update_data,
-        include={"buildRun": True, "fixture": True, "testRun": True},
+        include={"assetSet": True, "fixture": True, "testRun": True},
     )
 
     log_audit("validation.queue.update", "ValidationQueueEntry", entry_id, update_data)
@@ -364,11 +394,11 @@ def cancel_queue_entry(entry_id: str):
             "status": "CANCELLED",
             "completedAt": datetime.now(timezone.utc),
         },
-        include={"buildRun": True, "fixture": True, "testRun": True},
+        include={"assetSet": True, "fixture": True, "testRun": True},
     )
 
     log_audit("validation.queue.cancel", "ValidationQueueEntry", entry_id, {
-        "buildRunId": entry.buildRunId,
+        "assetSetId": entry.assetSetId,
     })
 
     return jsonify(ApiResponse.ok(_serialize_queue_entry(entry)).to_dict()), 200
@@ -396,7 +426,7 @@ def promote_queue_entry(entry_id: str):
     entry = db.validationqueueentry.update(
         where={"id": entry_id},
         data={"priority": new_priority},
-        include={"buildRun": True, "fixture": True, "testRun": True},
+        include={"assetSet": True, "fixture": True, "testRun": True},
     )
 
     log_audit("validation.queue.promote", "ValidationQueueEntry", entry_id, {

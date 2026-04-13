@@ -228,20 +228,12 @@ class TestPollForChanges:
 # ---------------------------------------------------------------------------
 
 class TestAutoProgressEdgeCases:
-    @patch("src.services.webhook_trigger.trigger_stage_build")
-    @patch("src.services.webhook_trigger.get_db_client")
-    def test_stage_4_triggers_stage_5(self, mock_get_db, mock_trigger):
+    def test_stage_4_returns_none_disabled(self):
+        """handle_auto_progress is disabled and always returns None, even for stage 4->5."""
         from src.services.webhook_trigger import handle_auto_progress
 
-        db = MagicMock()
-        mock_get_db.return_value = db
-        next_config = make_obj(id="sc-5", stage=5)
-        db.productstageconfig.find_first.return_value = next_config
-        mock_trigger.return_value = {"buildRunId": "run-5"}
-
         result = handle_auto_progress("prod-1", completed_stage=4)
-        assert result is not None
-        mock_trigger.assert_called_once_with("prod-1", "sc-5")
+        assert result is None
 
     @patch("src.services.webhook_trigger.get_db_client")
     def test_no_auto_stage_returns_none(self, mock_get_db):

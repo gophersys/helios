@@ -45,7 +45,7 @@ export async function getQueueEntry(entryId: string): Promise<ValidationQueueEnt
 }
 
 export async function createQueueEntry(data: {
-  buildRunId: string;
+  assetSetId: string;
   stage: number;
   priority?: number;
   reason?: string;

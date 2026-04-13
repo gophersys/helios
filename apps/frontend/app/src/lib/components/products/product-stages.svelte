@@ -3,16 +3,15 @@
   import type { ProductStageConfig, Secret, StageType } from '$lib/types/stages';
   import { stageName, stageDescription } from '$lib/types/stages';
   import type { BoardRevision } from '$lib/types/models';
-  import { listStageConfigs, initializeStages, createStageConfig, updateStageConfig, deleteStageConfig } from '$lib/services/stages';
+  import { listStageConfigs, updateStageConfig } from '$lib/services/stages';
   import { apiFetch } from '$lib/api';
   import type { ApiResponse } from '$lib/types';
   import StageConfigWizard from './stage-config-wizard.svelte';
+  import StageTriggerDialog from './stage-trigger-dialog.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
-  import StatusBadge from '$lib/components/ui/status-badge.svelte';
-  import ConfirmDeleteDialog from '$lib/components/ui/confirm-delete-dialog.svelte';
   import {
-    Loader2, Settings, CircuitBoard, GitBranch, Zap, Clock, Hand,
-    GitPullRequest, GitMerge, Plus, Trash2,
+    Loader2, Settings, GitBranch, Zap, Clock, Hand,
+    GitPullRequest, GitMerge, Play,
   } from 'lucide-svelte';
 
   interface Props {
@@ -22,8 +21,6 @@
     boardRevisionId?: string;
     fwRepoSlug?: string;
     stageType?: StageType;
-    emptyLabel?: string;
-    enableLabel?: string;
     canManage?: boolean;
     onRefresh?: () => void;
   }
@@ -35,8 +32,6 @@
     boardRevisionId,
     fwRepoSlug = '',
     stageType = 'VALIDATION' as StageType,
-    emptyLabel = 'Validation not configured',
-    enableLabel = 'Enable Validation',
     canManage = false,
     onRefresh,
   }: Props = $props();
@@ -49,26 +44,19 @@
   let secrets = $state<Secret[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let initializing = $state(false);
 
-  // Wizard state
+  // Wizard
   let wizardOpen = $state(false);
   let wizardStage = $state(1);
   let wizardConfig = $state<ProductStageConfig | undefined>(undefined);
   let wizardRevision = $state<BoardRevision | null>(null);
 
-  // Delete state
-  let deleteTarget = $state<{ stage: number; name: string } | null>(null);
+  // Trigger dialog
+  let triggerDialogOpen = $state(false);
+  let triggerStageNum = $state(1);
 
-  /** Configs filtered to the current board revision (used for empty-state check) */
-  const filteredConfigs = $derived(
-    boardRevisionId ? configs.filter((c) => c.boardRevisionId === boardRevisionId) : configs
-  );
-
-  const activeRevisions = $derived(
-    revisions
-      .filter((r) => r.status === 'ACTIVE')
-      .filter((r) => !boardRevisionId || r.id === boardRevisionId)
+  const activeRevision = $derived(
+    revisions.find((r) => r.status === 'ACTIVE' && (!boardRevisionId || r.id === boardRevisionId))
   );
 
   onMount(async () => {
@@ -79,8 +67,7 @@
     loading = true;
     error = null;
     try {
-      const all = await listStageConfigs(productId, stageType);
-      configs = all;
+      configs = await listStageConfigs(productId, stageType);
     } catch (e: unknown) {
       error = e instanceof Error ? e.message : 'Failed to load stage configs';
     } finally {
@@ -97,39 +84,31 @@
     }
   }
 
-  async function handleInitialize() {
-    initializing = true;
-    error = null;
-    try {
-      if (stageType === 'MANUFACTURING') {
-        const cfg = await createStageConfig(productId, { type: 'MANUFACTURING', stage: 1, name: 'Manufacturing', boardRevisionId });
-        configs = [cfg];
-      } else {
-        configs = await initializeStages(productId, boardRevisionId);
-      }
-      onRefresh?.();
-    } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Failed to enable';
-    } finally {
-      initializing = false;
-    }
-  }
-
-  /** Get all configs for a given stage number, filtered by boardRevisionId when set */
-  function getConfigsForStage(stageNum: number): ProductStageConfig[] {
-    return configs.filter((c) => c.stage === stageNum && (!boardRevisionId || c.boardRevisionId === boardRevisionId));
-  }
-
-  /** Get a specific config for stage + revision */
   function getConfig(stageNum: number, revId: string): ProductStageConfig | undefined {
     return configs.find((c) => c.stage === stageNum && c.boardRevisionId === revId);
   }
 
-  function openWizard(stageNum: number, rev: BoardRevision | null, existingConfig?: ProductStageConfig) {
+  function openWizard(stageNum: number, rev: BoardRevision, existingConfig?: ProductStageConfig) {
     wizardStage = stageNum;
     wizardRevision = rev;
     wizardConfig = existingConfig;
     wizardOpen = true;
+  }
+
+  function openTriggerDialog(stageNum: number) {
+    triggerStageNum = stageNum;
+    triggerDialogOpen = true;
+  }
+
+  async function handleDisable(cfg: ProductStageConfig) {
+    error = null;
+    try {
+      await updateStageConfig(productId, cfg.stage, { enabled: false });
+      await loadConfigs();
+      onRefresh?.();
+    } catch (e: unknown) {
+      error = e instanceof Error ? e.message : 'Failed to disable stage';
+    }
   }
 
   function triggerIcon(type: string) {
@@ -141,192 +120,97 @@
       default: return Hand;
     }
   }
-
-  function revisionLabel(revId: string | null | undefined): string {
-    if (!revId) return '—';
-    const rev = revisions.find((r) => r.id === revId);
-    return rev ? rev.version : '—';
-  }
-
-  async function handleDisableConfig(cfg: ProductStageConfig) {
-    error = null;
-    try {
-      await updateStageConfig(productId, cfg.stage, { enabled: false });
-      await loadConfigs();
-      onRefresh?.();
-    } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Failed to disable stage';
-    }
-  }
-
-  async function handleEnableConfig(cfg: ProductStageConfig) {
-    error = null;
-    try {
-      await updateStageConfig(productId, cfg.stage, { enabled: true });
-      await loadConfigs();
-      onRefresh?.();
-    } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Failed to enable stage';
-    }
-  }
-
-  async function handleDeleteConfig(stageNum: number) {
-    error = null;
-    try {
-      await deleteStageConfig(productId, stageNum);
-      await loadConfigs();
-      onRefresh?.();
-    } catch (e: unknown) {
-      error = e instanceof Error ? e.message : 'Failed to delete stage config';
-    }
-  }
 </script>
 
-<div class="space-y-4">
+<div class="space-y-3">
   <ErrorAlert message={error} />
 
   {#if loading}
     <div class="flex items-center gap-2 py-8 text-sm text-text-tertiary justify-center">
       <Loader2 size={16} class="animate-spin" /> Loading stages...
     </div>
-  {:else if filteredConfigs.length === 0}
+  {:else if !activeRevision}
     <div class="text-center py-8">
-      <Settings size={32} class="mx-auto text-text-tertiary mb-3 opacity-50" />
-      <p class="text-sm text-text-secondary mb-2">{emptyLabel}</p>
-      <p class="text-2xs text-text-tertiary mb-4 max-w-sm mx-auto">
-        {stageType === 'MANUFACTURING'
-          ? 'Creates a manufacturing stage config for this revision. Define firmware sources and build matrix after initialization.'
-          : 'Creates stage configs (Smoke, Driver, Integration, Regression, FUOTA) for this revision. Configure watch branches and build matrices after initialization.'}
-      </p>
-      <button class="btn btn-primary" disabled={initializing} onclick={handleInitialize}>
-        {initializing ? 'Enabling...' : enableLabel}
-      </button>
+      <p class="text-sm text-text-secondary">No active board revision.</p>
+      <p class="text-2xs text-text-tertiary mt-1">Add a revision in the Hardware tab first.</p>
     </div>
   {:else}
-    <!-- Stage list — grouped by stage number, showing per-revision configs -->
     {#each stageNumbers as stageNum}
-      {@const stageConfigs = getConfigsForStage(stageNum)}
+      {@const cfg = getConfig(stageNum, activeRevision.id)}
       {@const name = stageName(stageType, stageNum)}
       {@const desc = stageDescription(stageType, stageNum)}
-      {@const hasAnyEnabled = stageConfigs.some((c) => c.enabled)}
+      {@const enabled = cfg?.enabled === true}
 
-      <div class="rounded-lg border border-border overflow-hidden">
-        <!-- Stage header -->
-        <div class="flex items-center gap-4 px-4 py-3 bg-surface-0/50">
+      <div class="rounded-lg border {enabled ? 'border-accent/30' : 'border-border'} overflow-hidden">
+        <div class="flex items-center gap-4 px-4 py-3 {enabled ? 'bg-accent/5' : 'bg-surface-0/50'}">
+          <!-- Stage number -->
           <div class="w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold shrink-0
-            {hasAnyEnabled ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
+            {enabled ? 'bg-accent text-white' : 'bg-surface-2 text-text-tertiary'}">
             {stageNum}
           </div>
+
+          <!-- Name + description -->
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-semibold text-text-primary">{name}</span>
-              {#if hasAnyEnabled}
-                <StatusBadge status="ACTIVE" />
-              {/if}
-            </div>
+            <span class="text-sm font-semibold text-text-primary">{name}</span>
             <p class="text-2xs text-text-tertiary truncate">{desc}</p>
           </div>
+
+          <!-- Actions -->
+          {#if enabled}
+            {#if stageType === 'VALIDATION' && canManage}
+              <button onclick={() => openTriggerDialog(stageNum)} class="btn btn-sm btn-primary">
+                <Play size={12} /> Run
+              </button>
+            {/if}
+            <button onclick={() => openWizard(stageNum, activeRevision, cfg)} class="btn btn-sm btn-ghost">
+              <Settings size={12} /> Edit
+            </button>
+            {#if canManage}
+              <button onclick={() => handleDisable(cfg)} class="btn btn-sm btn-ghost text-warning hover:bg-warning-muted">
+                Disable
+              </button>
+            {/if}
+          {:else}
+            <button onclick={() => openWizard(stageNum, activeRevision, cfg)} class="btn btn-sm btn-primary">
+              Enable
+            </button>
+          {/if}
         </div>
 
-        <!-- Stage config (single revision — subtabs handle revision selection) -->
-        {#if activeRevisions.length > 0}
-          {@const rev = activeRevisions[0]}
-          {@const cfg = getConfig(stageNum, rev.id)}
-          <div class="px-4 py-3">
-            {#if cfg && cfg.enabled}
-              <!-- Enabled — show config summary + actions -->
-              <div class="flex items-center gap-4">
-                <div class="flex-1 flex flex-wrap items-center gap-2 text-2xs text-text-tertiary">
-                  {#if cfg.watchBranch}
-                    <span class="flex items-center gap-1 font-mono bg-surface-0 rounded px-2 py-0.5">
-                      <GitBranch size={10} /> {cfg.watchBranch}
-                    </span>
-                  {/if}
-                  {#if cfg.triggerTypes?.length}
-                    {#each cfg.triggerTypes as t}
-                      {@const TIcon = triggerIcon(t)}
-                      <span class="flex items-center gap-1 bg-surface-0 rounded px-2 py-0.5">
-                        <TIcon size={10} /> {t.replace('_', ' ')}
-                      </span>
-                    {/each}
-                  {/if}
-                  {#if cfg.buildMatrix?.length}
-                    <span class="flex items-center gap-1 bg-accent-muted text-accent rounded px-2 py-0.5 font-medium">
-                      {cfg.buildMatrix.length} label{cfg.buildMatrix.length !== 1 ? 's' : ''}
-                    </span>
-                  {:else}
-                    <span class="bg-warning-muted text-warning rounded px-2 py-0.5 font-medium">No build labels</span>
-                  {/if}
-                </div>
-                <button
-                  onclick={() => openWizard(stageNum, rev, cfg)}
-                  class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs font-medium text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors"
-                >
-                  <Settings size={12} /> Edit
-                </button>
-                {#if canManage}
-                  <button
-                    onclick={() => handleDisableConfig(cfg)}
-                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs font-medium text-text-tertiary hover:bg-warning-muted hover:text-warning transition-colors"
-                    title="Disable this stage"
-                  >
-                    Disable
-                  </button>
-                  <button
-                    onclick={() => deleteTarget = { stage: cfg.stage, name: `${stageName(stageType, cfg.stage)}` }}
-                    class="flex items-center justify-center rounded-lg p-1.5 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
-                    title="Delete stage config"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                {/if}
-              </div>
-            {:else if cfg && !cfg.enabled}
-              <!-- Exists but disabled -->
-              <div class="flex items-center gap-4">
-                <div class="flex-1">
-                  <span class="text-2xs text-text-tertiary">Disabled</span>
-                </div>
-                {#if canManage}
-                  <button
-                    onclick={() => handleEnableConfig(cfg)}
-                    class="flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-muted px-3 py-1.5 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors"
-                  >
-                    Enable
-                  </button>
-                {/if}
-                <button
-                  onclick={() => openWizard(stageNum, rev, cfg)}
-                  class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs font-medium text-text-secondary hover:bg-surface-2 hover:text-text-primary transition-colors"
-                >
-                  <Settings size={12} /> Edit
-                </button>
-                {#if canManage}
-                  <button
-                    onclick={() => deleteTarget = { stage: cfg.stage, name: `${stageName(stageType, cfg.stage)}` }}
-                    class="flex items-center justify-center rounded-lg p-1.5 text-text-tertiary hover:bg-error-muted hover:text-error transition-colors"
-                    title="Delete stage config"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                {/if}
-              </div>
-            {:else}
-              <!-- Not configured -->
-              <div class="flex items-center gap-4">
-                <div class="flex-1">
-                  <span class="text-2xs text-text-tertiary">Not configured</span>
-                </div>
-                <button
-                  onclick={() => openWizard(stageNum, rev, cfg)}
-                  class="flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-muted px-3 py-1.5 text-2xs font-medium text-accent hover:bg-accent/15 transition-colors"
-                >
-                  <Plus size={12} /> Configure
-                </button>
-              </div>
+        <!-- Config summary — always rendered for uniform height -->
+        <div class="px-4 py-2 border-t {enabled ? 'border-accent/10' : 'border-border-subtle'} min-h-8 flex flex-wrap items-center gap-2 text-2xs text-text-tertiary">
+          {#if enabled && cfg}
+            {#if cfg.assetSources?.length}
+              {#each cfg.assetSources as src}
+                <span class="rounded bg-surface-2 px-2 py-0.5 font-medium">
+                  {src === 'BUILD_SERVICE' ? 'Concord Builds' : src === 'EXTERNAL_CI' ? 'External CI' : 'Manual'}
+                </span>
+              {/each}
             {/if}
-          </div>
-        {/if}
+            {#if cfg.watchBranch}
+              <span class="flex items-center gap-1 font-mono bg-surface-0 rounded px-2 py-0.5">
+                <GitBranch size={10} /> {cfg.watchBranch}
+              </span>
+            {/if}
+            {#if cfg.triggerTypes?.length}
+              {#each cfg.triggerTypes as t}
+                {@const TIcon = triggerIcon(t)}
+                <span class="flex items-center gap-1 bg-surface-0 rounded px-2 py-0.5">
+                  <TIcon size={10} /> {t.replace('_', ' ')}
+                </span>
+              {/each}
+            {/if}
+            {#if cfg.buildMatrix?.length}
+              <span class="flex items-center gap-1 bg-accent-muted text-accent rounded px-2 py-0.5 font-medium">
+                {cfg.buildMatrix.length} build label{cfg.buildMatrix.length !== 1 ? 's' : ''}
+              </span>
+            {:else if cfg.assetSources?.includes('BUILD_SERVICE')}
+              <span class="bg-warning-muted text-warning rounded px-2 py-0.5 font-medium">No build labels</span>
+            {/if}
+          {:else}
+            <span class="text-text-tertiary opacity-50">Not enabled</span>
+          {/if}
+        </div>
       </div>
     {/each}
   {/if}
@@ -342,13 +226,14 @@
   {revisions}
   {secrets}
   onClose={() => (wizardOpen = false)}
-  onSaved={loadConfigs}
+  onSaved={() => { loadConfigs(); onRefresh?.(); }}
 />
 
-<ConfirmDeleteDialog
-  open={!!deleteTarget}
-  entityType="stage config"
-  entityName={deleteTarget?.name || ''}
-  onConfirm={() => { handleDeleteConfig(deleteTarget!.stage); deleteTarget = null; }}
-  onCancel={() => (deleteTarget = null)}
+<StageTriggerDialog
+  open={triggerDialogOpen}
+  stage={triggerStageNum}
+  {stageType}
+  {productId}
+  onClose={() => (triggerDialogOpen = false)}
+  onTriggered={() => { loadConfigs(); onRefresh?.(); }}
 />

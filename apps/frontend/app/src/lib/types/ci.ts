@@ -250,7 +250,7 @@ export interface BuildRunDetail {
   expectedBuilds: number;
   completedBuilds: number;
   validationRunId: string | null;
-  autoValidate: boolean;
+  autoRunStage: boolean;
   // PR context (first-class fields for filtering/grouping)
   prNumber?: number | null;
   prTitle?: string | null;

@@ -66,15 +66,13 @@
     if (!searchQuery.trim()) return entries;
     const q = searchQuery.toLowerCase().trim();
     return entries.filter((entry) => {
-      const pipelineName = entry.buildRun?.name?.toLowerCase() ?? '';
-      const product = entry.buildRun?.product?.toLowerCase() ?? '';
-      const branch = entry.buildRun?.branch?.toLowerCase() ?? '';
+      const assetSetName = entry.assetSet?.name?.toLowerCase() ?? '';
+      const product = entry.assetSet?.product?.toLowerCase() ?? '';
       const fixtureName = entry.fixture?.name?.toLowerCase() ?? '';
       const reason = entry.reason?.toLowerCase() ?? '';
       return (
-        pipelineName.includes(q) ||
+        assetSetName.includes(q) ||
         product.includes(q) ||
-        branch.includes(q) ||
         fixtureName.includes(q) ||
         reason.includes(q) ||
         entry.id.toLowerCase().includes(q)
@@ -282,7 +280,7 @@
             <tr class="border-b border-border bg-surface-2">
               <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Priority</th>
               <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Stage</th>
-              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Pipeline</th>
+              <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Asset Set</th>
               <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Status</th>
               <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Bench</th>
               <th class="px-4 py-2.5 text-left text-2xs font-medium uppercase tracking-wider text-text-tertiary">Requested</th>
@@ -312,20 +310,17 @@
                   </div>
                 </td>
 
-                <!-- Pipeline -->
+                <!-- Asset Set -->
                 <td class="px-4 py-3">
-                  {#if entry.buildRun}
-                    <a
-                      href="/builds/runs/{entry.buildRunId}"
-                      class="text-sm font-medium text-accent hover:underline"
-                    >
-                      {entry.buildRun.name ?? entry.buildRunId.slice(0, 8)}
-                    </a>
+                  {#if entry.assetSet}
+                    <span class="text-sm font-medium text-text-primary">
+                      {entry.assetSet.name ?? entry.assetSetId.slice(0, 8)}
+                    </span>
                     <div class="mt-0.5 text-2xs text-text-tertiary">
-                      {entry.buildRun.product} / {entry.buildRun.branch}
+                      {entry.assetSet.product} · <StatusBadge status={entry.assetSet.status} />
                     </div>
                   {:else}
-                    <span class="font-mono text-sm text-text-tertiary">{entry.buildRunId.slice(0, 12)}</span>
+                    <span class="font-mono text-sm text-text-tertiary">{entry.assetSetId.slice(0, 12)}</span>
                   {/if}
                 </td>
 

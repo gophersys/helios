@@ -785,7 +785,7 @@
         <div class="flex items-center gap-3">
           <FlaskConical size={16} class="text-accent" />
           <span class="text-sm font-medium text-text-primary">Validation</span>
-          {#if buildRun.autoValidate}
+          {#if buildRun.autoRunStage}
             <span class="inline-flex items-center rounded bg-accent-muted px-1.5 py-0.5 text-2xs font-medium text-accent">
               Auto
             </span>
@@ -827,7 +827,7 @@
               <StatusBadge status={vr.status} />
               <span class="text-xs font-medium text-text-primary truncate flex-1 min-w-0">{vr.name}</span>
               <span class="inline-flex items-center rounded bg-surface-2 px-1.5 py-0.5 text-2xs text-text-tertiary shrink-0">
-                {buildRun.autoValidate ? 'Auto' : 'Manual'}
+                {buildRun.autoRunStage ? 'Auto' : 'Manual'}
               </span>
               {#if vr.passedCount > 0}
                 <span class="flex items-center gap-1 text-2xs text-success shrink-0">

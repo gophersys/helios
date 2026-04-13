@@ -59,12 +59,15 @@ def _make_fixture(**overrides):
 def _make_queue_entry(**overrides):
     defaults = dict(
         id="entry-1",
-        buildRunId="run-1",
+        assetSetId="as-1",
         stage=4,
         priority=50,
         status="QUEUED",
         fixtureId=None,
-        buildRun=_make_build_run(),
+        assetSet=make_obj(id="as-1", buildRunId="run-1", status="COMPLETE",
+                          productId="prod-1",
+                          product=make_obj(id="prod-1", name="Alpha", slug="alpha"),
+                          buildRun=_make_build_run()),
         stageConfig=_make_stage_config(),
     )
     defaults.update(overrides)
@@ -208,6 +211,7 @@ class TestOnBuildComplete:
         run = _make_build_run(builds=[success_build], stageConfig=_make_stage_config())
         existing_entry = make_obj(id="entry-existing", status="QUEUED")
         mock_db.buildrun.find_unique.return_value = run
+        mock_db.assetset.find_first.return_value = make_obj(id="as-1", buildRunId="run-1")
         mock_db.validationqueueentry.find_first.return_value = existing_entry
 
         from src.api.v2.runs.scheduler import on_build_complete
@@ -221,6 +225,7 @@ class TestOnBuildComplete:
         success_build = make_obj(id="build-1", status="SUCCESS")
         run = _make_build_run(builds=[success_build], stageConfig=_make_stage_config())
         mock_db.buildrun.find_unique.return_value = run
+        mock_db.assetset.find_first.return_value = make_obj(id="as-1", buildRunId="run-1")
         mock_db.validationqueueentry.find_first.return_value = None  # not yet queued
         new_entry = make_obj(id="entry-new", status="QUEUED")
         mock_db.validationqueueentry.create.return_value = new_entry

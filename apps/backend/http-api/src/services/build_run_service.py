@@ -71,7 +71,7 @@ def serialize_build_run(p) -> Dict[str, Any]:
         "completedBuilds": p.completedBuilds,
         "validationRunId": p.validationRunId,
         "matrixMode": getattr(p, "matrixMode", None),
-        "autoValidate": getattr(p, "autoValidate", False),
+        "autoRunStage": p.autoRunStage,
         "recipeVersionId": getattr(p, "recipeVersionId", None),
         "buildMatrix": p.buildMatrix if hasattr(p, "buildMatrix") else None,
         "triggerData": p.triggerData if hasattr(p, "triggerData") else None,
@@ -131,7 +131,7 @@ def serialize_build_run_summary(p) -> Dict[str, Any]:
         "expectedBuilds": p.expectedBuilds,
         "completedBuilds": p.completedBuilds,
         "matrixMode": getattr(p, "matrixMode", None),
-        "autoValidate": getattr(p, "autoValidate", False),
+        "autoRunStage": p.autoRunStage,
         "recipeVersionId": getattr(p, "recipeVersionId", None),
         "validationRunId": getattr(p, "validationRunId", None),
         # PR context
@@ -351,7 +351,7 @@ def create_build_run_record(db, data, ctx: Dict[str, Any]):
         "triggerTypes": data.trigger_type,
         "expectedBuilds": len(build_specs),
         "matrixMode": data.matrix_mode,
-        "autoValidate": data.auto_validate,
+        "autoRunStage": data.auto_run_stage,
         "triggerData": Json(trigger_data),
         "startedAt": datetime.now(timezone.utc),
         "buildMatrix": Json(matrix_config),
@@ -723,7 +723,7 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
         except Exception as asset_err:
             logger.error("BuildRun %s AssetSet creation failed (non-blocking): %s", run_id, asset_err)
 
-        if getattr(pipeline, "autoValidate", False):
+        if pipeline.autoRunStage:
             new_status = "VALIDATING"
             db.buildrun.update(
                 where={"id": run_id},
@@ -750,26 +750,26 @@ def check_pipeline_completion(run_id: str) -> Optional[str]:
                     where={"id": run_id},
                     data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
                 )
-                logger.warning("Pipeline %s auto-validate failed (no bench?), set to SUCCESS", run_id)
+                logger.warning("Pipeline %s auto-run-stage failed (no bench?), set to SUCCESS", run_id)
         else:
             new_status = "SUCCESS"
             db.buildrun.update(
                 where={"id": run_id},
                 data={"status": new_status, "finishedAt": datetime.now(timezone.utc)},
             )
-            logger.info("Pipeline %s builds complete (autoValidate=false), set to SUCCESS", run_id)
+            logger.info("Pipeline %s builds complete (autoRunStage=false), set to SUCCESS", run_id)
 
-        # Auto-progress: trigger next stage if current succeeded and next has "auto" trigger
-        if new_status == "SUCCESS" and pipeline.stage and pipeline.productId:
-            try:
-                from src.services.webhook_trigger import handle_auto_progress
-                auto_result = handle_auto_progress(pipeline.productId, pipeline.stage)
-                if auto_result:
-                    logger.info("Auto-progress: stage %d → %d for product %s, buildRun=%s",
-                                pipeline.stage, pipeline.stage + 1, pipeline.productId,
-                                auto_result.get("buildRunId", "?")[:8])
-            except Exception as e:
-                logger.warning("Auto-progress failed for pipeline %s: %s", run_id, e)
+        # Auto-progress: DISABLED — uncomment when cross-stage auto-trigger is ready
+        # if new_status == "SUCCESS" and pipeline.stage and pipeline.productId:
+        #     try:
+        #         from src.services.webhook_trigger import handle_auto_progress
+        #         auto_result = handle_auto_progress(pipeline.productId, pipeline.stage)
+        #         if auto_result:
+        #             logger.info("Auto-progress: stage %d → %d for product %s, buildRun=%s",
+        #                         pipeline.stage, pipeline.stage + 1, pipeline.productId,
+        #                         auto_result.get("buildRunId", "?")[:8])
+        #     except Exception as e:
+        #         logger.warning("Auto-progress failed for pipeline %s: %s", run_id, e)
 
         return new_status
 
@@ -845,17 +845,25 @@ def _analyze_unavailability(db, fixtures) -> dict:
 def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
     """Create or return an existing validation queue entry.
 
+    Resolves the AssetSet for the given BuildRun, then queues by assetSetId.
     Returns {"queued": True, "entryId": "...", "reason": "..."}.
     """
+    # Resolve the AssetSet for this build run
+    asset_set = db.assetset.find_first(where={"buildRunId": run_id})
+    if not asset_set:
+        logger.warning("No AssetSet for pipeline %s, cannot queue", run_id[:8])
+        return {"queued": False, "reason": "No asset set found for build run"}
+
     locked = unavailability["locked"]
     offline = unavailability["offline"]
     no_slot = unavailability["unconfigured"]
 
     existing = db.validationqueueentry.find_first(
-        where={"buildRunId": run_id, "status": "QUEUED"},
+        where={"assetSetId": asset_set.id, "status": "QUEUED"},
     )
     if existing:
-        logger.info("Queue entry already exists for pipeline %s: %s", run_id[:8], existing.id[:8])
+        logger.info("Queue entry already exists for pipeline %s (assetSet %s): %s",
+                     run_id[:8], asset_set.id[:8], existing.id[:8])
         return {"queued": True, "entryId": existing.id, "reason": f"Fixture locked: {locked}"}
 
     reason_parts = []
@@ -868,7 +876,7 @@ def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
     reason = f"No fixture available: {'; '.join(reason_parts)}"
 
     queue_entry = db.validationqueueentry.create(data={
-        "buildRunId": run_id,
+        "assetSetId": asset_set.id,
         "stage": 4,
         "priority": 0,
         "status": "QUEUED",
@@ -877,8 +885,8 @@ def _queue_validation(db, run_id: str, unavailability: dict) -> dict:
     })
 
     logger.info(
-        "Queued validation for pipeline %s: entry=%s reason=%s",
-        run_id[:8], queue_entry.id[:8], reason,
+        "Queued validation for pipeline %s (assetSet %s): entry=%s reason=%s",
+        run_id[:8], asset_set.id[:8], queue_entry.id[:8], reason,
     )
     return {"queued": True, "entryId": queue_entry.id, "reason": reason}
 

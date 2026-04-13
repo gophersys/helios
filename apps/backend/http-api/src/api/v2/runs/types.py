@@ -344,7 +344,7 @@ class ValidationTestsRunRequest:
 class QueueEntryCreateRequest:
     """Create a validation queue entry."""
 
-    buildRunId: str
+    assetSetId: str
     stage: int
     priority: Optional[int] = None
     reason: Optional[str] = None
@@ -354,9 +354,9 @@ class QueueEntryCreateRequest:
         if not data:
             return None, "Request body must contain JSON data"
 
-        build_run_id = (data.get("buildRunId") or "").strip()
-        if not build_run_id:
-            return None, "buildRunId is required"
+        asset_set_id = (data.get("assetSetId") or "").strip()
+        if not asset_set_id:
+            return None, "assetSetId is required"
 
         stage = data.get("stage")
         if stage is None:
@@ -379,7 +379,7 @@ class QueueEntryCreateRequest:
 
         reason = (data.get("reason") or "").strip() or None
 
-        return cls(buildRunId=build_run_id, stage=stage, priority=priority, reason=reason), None
+        return cls(assetSetId=asset_set_id, stage=stage, priority=priority, reason=reason), None
 
 
 @dataclass

@@ -29,6 +29,7 @@ def _pipeline_obj(**overrides):
         "expectedBuilds": 2,
         "completedBuilds": 0,
         "validationRunId": None,
+        "autoRunStage": False,
         "matrixMode": "smoke",
         "buildMatrix": {"mode": "smoke", "product": "alpha"},
         "triggerData": None,

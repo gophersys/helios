@@ -86,15 +86,20 @@ def _create_validation_run(
     stage_name: str,
     test_package_id: Optional[str] = None,
     asset_set_id: Optional[str] = None,
+    product_id: Optional[str] = None,
 ) -> Optional[str]:
     """Create a TestRun and RunTarget records for the queue entry.
 
     Returns the test run ID if successful, None otherwise.
     """
-    # Look up product by slug
-    product_obj = db.product.find_first(where={"slug": build_run.product})
+    # Look up product — prefer explicit product_id, fall back to build_run.product slug
+    product_obj = None
+    if product_id:
+        product_obj = db.product.find_unique(where={"id": product_id})
+    if not product_obj and build_run:
+        product_obj = db.product.find_first(where={"slug": build_run.product})
     if not product_obj:
-        logger.error(f"Product not found for slug: {build_run.product}")
+        logger.error("Product not found for validation run (entry %s)", entry_id[:8])
         return None
 
     # Get system user ID
@@ -122,7 +127,7 @@ def _create_validation_run(
         "productId": product_obj.id,
         "fixtureId": fixture.id,
         "testPackageId": test_package_id,
-        "buildRunId": build_run.id,
+        "buildRunId": build_run.id if build_run else None,
         "assetSetId": asset_set_id,
         "status": "ACTIVE",
         "operatorId": system_user.id,
@@ -182,7 +187,7 @@ def _trigger_validation_job(
     entry = db.validationqueueentry.find_unique(
         where={"id": entry_id},
         include={
-            "buildRun": True,
+            "assetSet": {"include": {"product": True, "buildRun": True}},
             "fixture": {
                 "include": {
                     "slots": {
@@ -196,8 +201,8 @@ def _trigger_validation_job(
         },
     )
 
-    if not entry or not entry.buildRun:
-        logger.error(f"Queue entry {entry_id} not found or missing build run")
+    if not entry or not entry.assetSet:
+        logger.error(f"Queue entry {entry_id} not found or missing asset set")
         return None
 
     fixture = entry.fixture
@@ -205,7 +210,8 @@ def _trigger_validation_job(
         logger.error(f"Queue entry {entry_id} has no fixture assigned")
         return None
 
-    build_run = entry.buildRun
+    asset_set = entry.assetSet
+    build_run = asset_set.buildRun if hasattr(asset_set, "buildRun") else None
     stage_name = STAGE_NAMES.get(stage, "validation")
 
     # Resolve all active slots
@@ -215,8 +221,9 @@ def _trigger_validation_job(
     test_package_id = None
     test_package_version = "latest"
     product_slug = None
+    product_id = asset_set.productId
     try:
-        product_record = db.product.find_unique(where={"id": build_run.productId})
+        product_record = db.product.find_unique(where={"id": product_id})
         if product_record:
             product_slug = product_record.slug or product_record.name.lower()
             latest_tp = db.testpackage.find_first(
@@ -258,22 +265,15 @@ def _trigger_validation_job(
     except Exception as e:
         logger.warning("Failed to look up test package: %s", e)
 
-    # Look up AssetSet linked to this build run (created when build completes)
-    asset_set = db.assetset.find_first(
-        where={"buildRunId": build_run.id, "status": "READY"},
-    )
-    asset_set_id = asset_set.id if asset_set else None
-    if not asset_set_id:
-        logger.warning(
-            "No READY AssetSet found for build run %s — modem firmware won't resolve in K8s job",
-            build_run.id,
-        )
+    # AssetSet is already resolved from the queue entry
+    asset_set_id = asset_set.id
 
     # Create TestRun + RunTargets
     run_id = _create_validation_run(
         db, entry_id, build_run, fixture, stage, stage_name,
         test_package_id=test_package_id,
         asset_set_id=asset_set_id,
+        product_id=product_id,
     )
     if not run_id:
         logger.error(f"Failed to create validation run for queue entry {entry_id}")
@@ -299,9 +299,9 @@ def _trigger_validation_job(
     dut_device_id = first_slot.get("dutDeviceId")
     dut_snr = first_slot.get("dutSnr")
 
-    # Use product slug from build_run if available
-    if not product_slug and hasattr(build_run, "product") and build_run.product:
-        product_slug = build_run.product
+    # Use product slug from asset set's product relation
+    if not product_slug and asset_set.product:
+        product_slug = asset_set.product.slug or asset_set.product.name.lower()
 
     # Compute fixture profile path from design
     fixture_profile_path = None
@@ -310,7 +310,7 @@ def _trigger_validation_job(
 
     # Create the K8s job with multi-slot env vars
     job_name = create_kubernetes_job(
-        product=product,
+        product=product_slug,
         job_id=entry_id,
         firmware_path="",  # Pipeline-based tests fetch from MinIO
         test_type="validation",
@@ -324,7 +324,7 @@ def _trigger_validation_job(
         device_id=dut_device_id,
         device_snr=dut_snr,
         fixture_profile_path=fixture_profile_path,
-        pipeline_id=build_run.id,
+        pipeline_id=build_run.id if build_run else None,
         product_slug=product_slug,
         stage=stage_name,
         test_package_version=test_package_version,
@@ -357,7 +357,7 @@ def _trigger_validation_job(
         "queue.trigger",
         "ValidationQueueEntry",
         entry_id,
-        {"jobName": job_name, "stage": stage_name, "pipelineId": build_run.id, "testRunId": run_id},
+        {"jobName": job_name, "stage": stage_name, "assetSetId": asset_set_id, "testRunId": run_id},
     )
 
     return job_name
@@ -385,7 +385,7 @@ def schedule_queue() -> List[Dict[str, Any]]:
             {"requestedAt": "asc"},
         ],
         include={
-            "buildRun": True,
+            "assetSet": {"include": {"product": True}},
             "stageConfig": True,
         },
     )
@@ -406,17 +406,19 @@ def schedule_queue() -> List[Dict[str, Any]]:
     assigned_fixture_ids: set = set()
 
     for entry in queued:
-        if not entry.buildRun:
+        if not entry.assetSet:
             continue
 
-        product = entry.buildRun.product
+        asset_set = entry.assetSet
+        product_slug = asset_set.product.slug if asset_set.product else None
+        product_id = asset_set.productId
 
         # Look up the test package for revision matching
         test_package = None
-        if entry.buildRun and entry.buildRun.productId:
+        if product_id:
             test_package = db.testpackage.find_first(
                 where={
-                    "productId": entry.buildRun.productId,
+                    "productId": product_id,
                     "type": "VALIDATION",
                     "status": "RELEASED",
                 },
@@ -425,7 +427,7 @@ def schedule_queue() -> List[Dict[str, Any]]:
             if not test_package:
                 test_package = db.testpackage.find_first(
                     where={
-                        "productId": entry.buildRun.productId,
+                        "productId": product_id,
                         "type": "VALIDATION",
                     },
                     order={"createdAt": "desc"},
@@ -437,7 +439,7 @@ def schedule_queue() -> List[Dict[str, Any]]:
             if f.id in assigned_fixture_ids:
                 continue
             # Match by product slug via product relation
-            if not (hasattr(f, "product") and f.product and f.product.slug == product):
+            if not (hasattr(f, "product") and f.product and f.product.slug == product_slug):
                 continue
             # If test package specifies a board revision, ensure fixture matches
             tp_revision_id = getattr(test_package, "boardRevisionId", None) if test_package else None
@@ -477,7 +479,7 @@ def schedule_queue() -> List[Dict[str, Any]]:
                 "entryId": entry.id,
                 "fixtureId": fixture.id,
                 "stage": entry.stage,
-                "product": product,
+                "product": product_slug,
             })
 
             log_audit(
@@ -550,10 +552,16 @@ def on_build_complete(build_run_id: str) -> Optional[str]:
     if stage_config and not stage_config.requiresBench:
         return None  # Stage 1 (Smoke) doesn't need queue
 
+    # Resolve the AssetSet for this build run
+    asset_set = db.assetset.find_first(where={"buildRunId": build_run_id})
+    if not asset_set:
+        logger.warning("No AssetSet for build run %s, cannot queue", build_run_id[:8])
+        return None
+
     # Check if already queued
     existing = db.validationqueueentry.find_first(
         where={
-            "buildRunId": build_run_id,
+            "assetSetId": asset_set.id,
             "status": {"in": ["QUEUED", "ASSIGNED", "RUNNING"]},
         },
     )
@@ -567,7 +575,7 @@ def on_build_complete(build_run_id: str) -> Optional[str]:
     try:
         entry = db.validationqueueentry.create(
             data={
-                "buildRunId": build_run_id,
+                "assetSetId": asset_set.id,
                 "stageConfigId": getattr(build_run, "stageConfigId", None),
                 "stage": stage,
                 "priority": priority,
@@ -579,7 +587,7 @@ def on_build_complete(build_run_id: str) -> Optional[str]:
             "queue.create",
             "ValidationQueueEntry",
             entry.id,
-            {"buildRunId": build_run_id, "stage": stage, "priority": priority},
+            {"assetSetId": asset_set.id, "stage": stage, "priority": priority},
         )
 
         # Try to immediately assign

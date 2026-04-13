@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Modal from '$lib/components/ui/modal.svelte';
   import StatusBadge from '$lib/components/ui/status-badge.svelte';
   import ErrorAlert from '$lib/components/ui/error-alert.svelte';
@@ -243,37 +244,43 @@
   // Selectable revisions (ACTIVE or DRAFT)
   const selectableRevisions = $derived(revisions.filter((r) => r.status === 'ACTIVE' || r.status === 'DRAFT'));
 
-  // Initialize when wizard opens
+  // Initialize when wizard opens — only track `open`, read everything else
+  // inside untrack() so prop changes while the wizard is open don't reset it.
+  let prevOpen = $state(false);
   $effect(() => {
-    if (open) {
-      currentStep = 1;
-      error = null;
-      recipeDirty = false;
+    const isOpen = open;
+    if (isOpen && !prevOpen) {
+      untrack(() => {
+        currentStep = 1;
+        error = null;
+        recipeDirty = false;
 
-      // Lock to target revision if provided, or auto-select if only 1 option
-      formRevisionId = targetRevision?.id
-        || config?.boardRevisionId
-        || (selectableRevisions.length === 1 ? selectableRevisions[0].id : '')
-        || revisions.find((r) => r.status === 'ACTIVE')?.id
-        || '';
+        // Lock to target revision if provided, or auto-select if only 1 option
+        formRevisionId = targetRevision?.id
+          || config?.boardRevisionId
+          || (selectableRevisions.length === 1 ? selectableRevisions[0].id : '')
+          || revisions.find((r) => r.status === 'ACTIVE')?.id
+          || '';
 
-      formAssetSources = (config as any)?.assetSources?.length ? [...(config as any).assetSources] : ['BUILD_SERVICE'];
+        formAssetSources = (config as any)?.assetSources?.length ? [...(config as any).assetSources] : ['BUILD_SERVICE'];
 
-      if (config) {
-        formBranch = config.watchBranch || 'main';
-        formTriggerTypes = config.triggerTypes?.length ? [...config.triggerTypes] : defaultTriggers[stage] || ['manual'];
-        formSigningKeyId = config.signingKeyId || '';
-      } else {
-        formBranch = 'main';
-        formTriggerTypes = defaultTriggers[stage] || ['manual'];
-        formSigningKeyId = '';
-      }
+        if (config) {
+          formBranch = config.watchBranch || 'main';
+          formTriggerTypes = config.triggerTypes?.length ? [...config.triggerTypes] : defaultTriggers[stage] || ['manual'];
+          formSigningKeyId = config.signingKeyId || '';
+        } else {
+          formBranch = 'main';
+          formTriggerTypes = defaultTriggers[stage] || ['manual'];
+          formSigningKeyId = '';
+        }
 
-      loadBranches();
-      loadRecipe();
-      loadSecrets();
-      loadLastTestBuild();
+        loadBranches();
+        loadRecipe();
+        loadSecrets();
+        loadLastTestBuild();
+      });
     }
+    prevOpen = isOpen;
   });
 
   // Auto-select signing key when only 1 exists
@@ -1018,7 +1025,13 @@
           <!-- Triggers -->
           <div>
             <h3 class="text-sm font-semibold text-text-primary mb-1">Triggers</h3>
-            <p class="text-2xs text-text-tertiary mb-3">What events start this stage. Select all that apply.</p>
+            <p class="text-2xs text-text-tertiary mb-3">
+              {#if stageType === 'MANUFACTURING'}
+                When these events occur, Concord builds firmware. Manufacturing sessions use these assets but run independently.
+              {:else}
+                When these events occur, Concord builds firmware and automatically starts a validation run for this stage.
+              {/if}
+            </p>
             <div class="space-y-2 max-w-2xl">
               {#each triggerOptions as opt}
                 {@const TIcon = opt.icon}
@@ -1493,9 +1506,9 @@
             {/if}
           </div>
 
-          <!-- Build Matrix -->
+          <!-- Build Matrix (read-only — matrix is managed by the build system) -->
           {#if config}
-            <BuildMatrixView {productId} {stage} canManage={true} />
+            <BuildMatrixView {productId} {stage} canManage={false} />
           {/if}
         </div>
       {/if}

@@ -175,18 +175,28 @@ class StageConfigUpdateRequest:
         ), None
 
     def to_update_data(self) -> dict:
-        """Build a dict of changed fields for the Prisma update call."""
+        """Build a dict of changed fields for the Prisma update call.
+
+        Relation FKs (boardRevisionId, signingKeyId) use connect/disconnect
+        syntax required by Prisma Python for updates.
+        """
         update_data: Dict[str, Any] = {}
         if self.enabled is not None:
             update_data["enabled"] = self.enabled
         if self._has_board_revision_id:
-            update_data["boardRevisionId"] = self.boardRevisionId
+            if self.boardRevisionId:
+                update_data["boardRevision"] = {"connect": {"id": self.boardRevisionId}}
+            else:
+                update_data["boardRevision"] = {"disconnect": True}
         if self._has_watch_branch:
             update_data["watchBranch"] = self.watchBranch
         if self._has_trigger_type:
             update_data["triggerTypes"] = self.triggerTypes
         if self._has_signing_key_id:
-            update_data["signingKeyId"] = self.signingKeyId
+            if self.signingKeyId:
+                update_data["signingKey"] = {"connect": {"id": self.signingKeyId}}
+            else:
+                update_data["signingKey"] = {"disconnect": True}
         if self._has_asset_sources:
             update_data["assetSources"] = self.assetSources
         return update_data

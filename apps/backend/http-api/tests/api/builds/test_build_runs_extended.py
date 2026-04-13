@@ -31,6 +31,7 @@ def _pipeline_obj(**overrides):
         expectedBuilds=2,
         completedBuilds=2,
         validationRunId=None,
+        autoRunStage=False,
         stageConfigId=None,
         prNumber=None,
         prTitle=None,

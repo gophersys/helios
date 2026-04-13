@@ -405,7 +405,7 @@ class TestCheckPipelineCompletion:
 
     @patch("src.services.build_run_service.get_db_client")
     def test_all_success_sets_success(self, mock_get_db):
-        """Sets pipeline to SUCCESS when all builds succeed and autoValidate=False."""
+        """Sets pipeline to SUCCESS when all builds succeed and autoRunStage=False."""
         from src.services.build_run_service import check_pipeline_completion
 
         db = MagicMock()
@@ -414,7 +414,7 @@ class TestCheckPipelineCompletion:
         builds = [make_obj(status="SUCCESS", versionString="0.8.1", variant="release")]
         pipeline = make_obj(
             id="run-1", status="PENDING", completedBuilds=0,
-            builds=builds, autoValidate=False, stage=None, productId=None,
+            builds=builds, autoRunStage=False, stage=None, productId=None,
         )
         db.buildrun.find_unique.return_value = pipeline
 
@@ -443,7 +443,7 @@ class TestCheckPipelineCompletion:
         ]
         pipeline = make_obj(
             id="run-1", status="BUILDING", completedBuilds=0,
-            builds=builds, autoValidate=False, stage=None, productId=None,
+            builds=builds, autoRunStage=False, stage=None, productId=None,
         )
         db.buildrun.find_unique.return_value = pipeline
 
@@ -686,7 +686,7 @@ class TestCreateBuildRunRecord:
 
         data = make_obj(
             name=None, board="alpha_b0", branch="main", commit_sha="abc123",
-            trigger_type="manual", matrix_mode="fuota", auto_validate=False,
+            trigger_type="manual", matrix_mode="fuota", auto_run_stage=False,
             pr_branch=None, main_commit=None, repo_slug="alpha_fw",
             mfg_repo_slug=None, validation_config=None,
         )

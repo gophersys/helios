@@ -33,6 +33,18 @@ export async function deleteStageConfig(productId: string, stage: number): Promi
   await apiFetch(`/v2/products/${productId}/stages/${stage}`, { method: 'DELETE' });
 }
 
+export async function triggerStageRun(
+  productId: string,
+  stage: number,
+  assetSetId: string,
+): Promise<any> {
+  const res = await apiFetch<ApiResponse<any>>(`/v2/products/${productId}/stages/${stage}/trigger-run`, {
+    method: 'POST',
+    body: JSON.stringify({ assetSetId }),
+  });
+  return res.data;
+}
+
 export async function initializeStages(productId: string, boardRevisionId?: string): Promise<ProductStageConfig[]> {
   const body: Record<string, string> = {};
   if (boardRevisionId) body.boardRevisionId = boardRevisionId;

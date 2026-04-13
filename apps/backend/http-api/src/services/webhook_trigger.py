@@ -283,6 +283,8 @@ def handle_auto_progress(product_id: str, completed_stage: int) -> Optional[Dict
 
     Called when a validation run passes.
     """
+    return None  # Disabled: auto-progress turned off (not deleted)
+
     db = get_db_client()
 
     next_stage_num = completed_stage + 1

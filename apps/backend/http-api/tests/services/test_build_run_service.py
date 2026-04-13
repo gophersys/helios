@@ -44,7 +44,7 @@ def _build_run(**overrides):
         completedBuilds=0,
         validationRunId=None,
         matrixMode="fuota",
-        autoValidate=False,
+        autoRunStage=False,
         recipeVersionId=None,
         buildMatrix=None,
         triggerData=None,

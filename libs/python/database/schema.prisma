@@ -357,17 +357,17 @@ model BoardRevision {
 /// A modem firmware version uploaded for a specific board revision.
 /// Multiple versions can coexist — AssetSets reference a specific version.
 model ModemFirmware {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   boardRevisionId String
   version         String /// "2.0.2", "1.3.6"
   filename        String /// Original filename: "mfw_nrf91x1_2.0.2.zip"
   storageKey      String /// MinIO key
-  sizeBytes       Int       @default(0)
+  sizeBytes       Int      @default(0)
   checksum        String? /// SHA-256
   notes           String?
   createdById     String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime? @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Cascade)
   createdBy     User?         @relation("ModemFirmwareUploader", fields: [createdById], references: [id], onDelete: SetNull)
@@ -479,6 +479,9 @@ model ProductStageConfig {
   // Triggers — what events start this stage (multiple allowed)
   triggerTypes String[] /// ["pr_push", "pr_merge", "auto", "schedule", "manual"]
 
+  // Asset sources — where firmware assets come from (multiple allowed)
+  assetSources String[] @default(["BUILD_SERVICE"]) /// Which asset sources this stage accepts
+
   // Signing — which key set to use for builds
   signingKeyId String? /// FK to Secret (signing key for this stage's builds)
 
@@ -509,7 +512,7 @@ model ValidationQueueEntry {
   id String @id @default(cuid())
 
   // What triggered this
-  buildRunId    String
+  assetSetId    String
   stageConfigId String?
   stage         Int /// Validation stage (1-5)
   priority      Int     @default(50) /// From stage config, but overridable
@@ -524,7 +527,7 @@ model ValidationQueueEntry {
   testRunId String? @unique
 
   // Context
-  reason       String? /// "PR #42", "regression 2026-03-11", "manual"
+  reason       String? /// "PR #42", "manual trigger", "external CI upload"
   errorMessage String?
   jobName      String? /// K8s job name when triggered
 
@@ -536,13 +539,13 @@ model ValidationQueueEntry {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  buildRun    BuildRun            @relation(fields: [buildRunId], references: [id], onDelete: Restrict)
-  stageConfig ProductStageConfig? @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
-  fixture     Fixture?            @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
-  testRun     TestRun?            @relation(fields: [testRunId], references: [id], onDelete: SetNull)
+  assetSet    AssetSet             @relation(fields: [assetSetId], references: [id], onDelete: Restrict)
+  stageConfig ProductStageConfig?  @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  fixture     Fixture?             @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+  testRun     TestRun?             @relation(fields: [testRunId], references: [id], onDelete: SetNull)
 
   @@index([status, priority])
-  @@index([buildRunId])
+  @@index([assetSetId])
   @@index([fixtureId])
   @@map("validation_queue_entries")
 }
@@ -588,7 +591,7 @@ model BuildRun {
   prUrl        String? /// Link to Bitbucket PR page
 
   // Validation tracking
-  autoValidate    Boolean @default(false) /// Auto-trigger validation when all builds pass
+  autoRunStage    Boolean @default(false) /// Auto-trigger stage run when all builds pass
   validationRunId String? /// Links to Session when validation starts
 
   // Timing
@@ -606,7 +609,6 @@ model BuildRun {
   stageConfig   ProductStageConfig?    @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
   recipeVersion RecipeVersion?         @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
   builds        BuildJob[]
-  queueEntries  ValidationQueueEntry[]
   assetSet      AssetSet?
   testRuns      TestRun[]
 
@@ -1207,6 +1209,7 @@ model AssetSet {
   assets                Asset[]
   testRuns              TestRun[]
   manufacturingSessions ManufacturingSession[]
+  queueEntries          ValidationQueueEntry[]
 
   @@index([productId, stage, stageType, status])
   @@index([productId, version])

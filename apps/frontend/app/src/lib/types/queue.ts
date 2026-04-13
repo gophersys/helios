@@ -4,7 +4,7 @@ export type QueueEntryStatus = 'QUEUED' | 'ASSIGNED' | 'RUNNING' | 'COMPLETED' |
 
 export interface ValidationQueueEntry {
   id: string;
-  buildRunId: string;
+  assetSetId: string;
   stageConfigId: string | null;
   stage: number;
   priority: number;
@@ -21,11 +21,10 @@ export interface ValidationQueueEntry {
   createdAt: string;
   updatedAt: string;
   // Populated relations
-  buildRun?: {
+  assetSet?: {
     id: string;
     name: string | null;
     product: string | null;
-    branch: string;
     status: string;
   };
   fixture?: {

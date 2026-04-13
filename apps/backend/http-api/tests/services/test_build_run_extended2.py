@@ -76,7 +76,7 @@ class TestCheckPipelineCompletion:
         ]
         db.buildrun.find_unique.return_value = make_obj(
             id="run-1", status="BUILDING", builds=builds,
-            completedBuilds=1, autoValidate=False, productId="prod-1",
+            completedBuilds=1, autoRunStage=False, productId="prod-1",
             stage=None, product=None,
         )
 
@@ -100,7 +100,7 @@ class TestCheckPipelineCompletion:
         ]
         db.buildrun.find_unique.return_value = make_obj(
             id="run-1", status="BUILDING", builds=builds,
-            completedBuilds=0, autoValidate=False, productId=None,
+            completedBuilds=0, autoRunStage=False, productId=None,
             stage=None, product=None,
         )
 
@@ -118,7 +118,7 @@ class TestCheckPipelineCompletion:
         builds = [make_obj(id="b-1", status="SUCCESS")]
         db.buildrun.find_unique.return_value = make_obj(
             id="run-1", status="BUILDING", builds=builds,
-            completedBuilds=0, autoValidate=False, productId="prod-1",
+            completedBuilds=0, autoRunStage=False, productId="prod-1",
             stage=None, product=None,
         )
 

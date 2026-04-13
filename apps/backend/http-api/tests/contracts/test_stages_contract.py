@@ -62,6 +62,7 @@ def _make_stage_config(**kwargs):
         boardRevisionId="rev-1",
         watchBranch="main",
         triggerTypes="pr",
+        assetSources=["BUILD_SERVICE"],
         signingKeyId=None,
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),

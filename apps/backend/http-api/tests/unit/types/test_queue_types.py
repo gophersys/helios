@@ -6,31 +6,31 @@ from api.v2.runs.types import QueueEntryCreateRequest, QueueEntryUpdateRequest
 class TestQueueEntryCreateRequest:
     def test_valid_create(self):
         req, err = QueueEntryCreateRequest.from_json({
-            "buildRunId": "pipe-123",
+            "assetSetId": "pipe-123",
             "stage": 5,
         })
         assert err is None
-        assert req.buildRunId == "pipe-123"
+        assert req.assetSetId == "pipe-123"
         assert req.stage == 5
         assert req.priority is None
 
-    def test_missing_pipeline_run_id(self):
+    def test_missing_asset_set_id(self):
         _, err = QueueEntryCreateRequest.from_json({"stage": 1})
         assert err is not None
-        assert "buildRunId" in err
+        assert "assetSetId" in err
 
     def test_missing_stage(self):
-        _, err = QueueEntryCreateRequest.from_json({"buildRunId": "p1"})
+        _, err = QueueEntryCreateRequest.from_json({"assetSetId": "p1"})
         assert err is not None
         assert "stage" in err.lower()
 
     def test_invalid_stage(self):
-        _, err = QueueEntryCreateRequest.from_json({"buildRunId": "p1", "stage": 6})
+        _, err = QueueEntryCreateRequest.from_json({"assetSetId": "p1", "stage": 6})
         assert err is not None
 
     def test_with_priority(self):
         req, err = QueueEntryCreateRequest.from_json({
-            "buildRunId": "p1",
+            "assetSetId": "p1",
             "stage": 4,
             "priority": 75,
             "reason": "regression run",
@@ -41,7 +41,7 @@ class TestQueueEntryCreateRequest:
 
     def test_invalid_priority(self):
         _, err = QueueEntryCreateRequest.from_json({
-            "buildRunId": "p1", "stage": 1, "priority": 300,
+            "assetSetId": "p1", "stage": 1, "priority": 300,
         })
         assert err is not None
 

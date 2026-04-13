@@ -367,7 +367,7 @@ model ModemFirmware {
   notes           String?
   createdById     String?
   createdAt       DateTime @default(now())
-  updatedAt       DateTime? @updatedAt
+  updatedAt       DateTime @updatedAt
 
   boardRevision BoardRevision @relation(fields: [boardRevisionId], references: [id], onDelete: Cascade)
   createdBy     User?         @relation("ModemFirmwareUploader", fields: [createdById], references: [id], onDelete: SetNull)
@@ -478,6 +478,9 @@ model ProductStageConfig {
 
   // Triggers — what events start this stage (multiple allowed)
   triggerTypes String[] /// ["pr_push", "pr_merge", "auto", "schedule", "manual"]
+
+  // Asset sources — where firmware assets come from (multiple allowed)
+  assetSources String[] @default(["BUILD_SERVICE"]) /// Which asset sources this stage accepts
 
   // Signing — which key set to use for builds
   signingKeyId String? /// FK to Secret (signing key for this stage's builds)

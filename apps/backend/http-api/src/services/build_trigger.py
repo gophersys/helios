@@ -255,6 +255,7 @@ def trigger_stage_build(
             }),
             "matrixMode": stage_enum.value,
             "recipeVersionId": recipe_version_id,
+            "autoRunStage": True,
         },
     )
 
