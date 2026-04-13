@@ -256,11 +256,21 @@ def _get_config():
     }
 
 
+_shutdown = False
+
+
+def stop_scheduler():
+    """Signal the scheduler to exit its loop."""
+    global _shutdown
+    _shutdown = True
+    _wake_event.set()
+
+
 def _scheduler_loop():
     """Main scheduler loop — runs every interval or on wake event."""
     time.sleep(15)  # Initial delay to let services start
 
-    while True:
+    while not _shutdown:
         try:
             cfg = _get_config()
 

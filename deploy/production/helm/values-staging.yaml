@@ -12,15 +12,15 @@ infrastructure:
     user: concord
     password: OVERRIDE-IN-SECRETS-OVERLAY
     database: concord
-    storage: 5Gi
+    storage: 10Gi
   minio:
     enabled: true
     rootUser: minioadmin
     rootPassword: minioadmin-staging
-    storage: 5Gi
+    storage: 15Gi
   pypi:
     enabled: true
-    storage: "2Gi"
+    storage: "3Gi"
     auth:
       enabled: true
       # htpasswd content stored in concord-pypi-htpasswd Secret (secrets overlay)
@@ -116,8 +116,8 @@ networkPolicies:
 
 resourceQuotas:
   enabled: true
-  cpu: "6"
-  memory: "8Gi"
+  cpu: "12"
+  memory: "16Gi"
 
 backups:
   postgres:
@@ -138,6 +138,7 @@ secrets:
   STORAGE_ACCESS_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
   STORAGE_SECRET_ACCESS_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
   JWT_SECRET_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
+  BITBUCKET_API_TOKEN: "OVERRIDE-IN-SECRETS-OVERLAY"
   AUTH_SERVER_API_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
   DELETE_ALL_KEY: "OVERRIDE-IN-SECRETS-OVERLAY"
   BITBUCKET_WEBHOOK_SECRET: "OVERRIDE-IN-SECRETS-OVERLAY"
