@@ -240,8 +240,8 @@ def _auto_populate_build_matrix(db, config_id: str, stage_type: str, stage_num: 
                 "processor": processor,
                 "filenamePattern": build_def.filename_pattern or None,
             })
-    except Exception:
-        pass  # Non-critical — user can reset manually via UI
+    except Exception as e:
+        logger.warning("Failed to auto-populate build matrix for config %s: %s", config_id, e)
 
 
 def _check_revision_enabled(db, enabling: bool, rev_id: str | None):
@@ -323,6 +323,13 @@ def update_stage_config(product_id: str, stage: str):
         return bad_request(rev_err)
 
     updated = db.productstageconfig.update(where={"id": config.id}, data=update_data, include=_INCLUDE)
+
+    # Auto-populate build matrix if empty (catches stages created before auto-populate was universal)
+    matrix = updated.buildMatrix if hasattr(updated, "buildMatrix") else []
+    if not matrix:
+        _auto_populate_build_matrix(db, config.id, updated.type, stage_num)
+        updated = db.productstageconfig.find_unique(where={"id": config.id}, include=_INCLUDE)
+
     log_audit("stageConfig.update", "ProductStageConfig", config.id, update_data)
 
     result = _serialize_stage_config(updated)
