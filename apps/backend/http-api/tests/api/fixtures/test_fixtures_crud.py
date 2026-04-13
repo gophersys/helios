@@ -299,10 +299,11 @@ class TestDeleteFixture:
         assert resp.status_code == 200
         assert resp.get_json()["data"]["deleted"] is True
 
-    def test_delete_with_sessions_returns_409(self, authed_client, mock_db):
-        """Delete fixture with linked sessions returns 409."""
-        session = make_obj(id="sess-1")
-        mock_db.fixture.find_unique.return_value = _fixture_obj(manufacturingSessions=[session], deployments=[])
+    def test_delete_with_active_sessions_returns_409(self, authed_client, mock_db):
+        """Delete fixture with active manufacturing sessions returns 409."""
+        mock_db.fixture.find_unique.return_value = _fixture_obj()
+        # Only active sessions block deletion
+        mock_db.manufacturingsession.count.return_value = 1
 
         resp = authed_client.delete("/v2/fixtures/fix-1")
         assert resp.status_code == 409

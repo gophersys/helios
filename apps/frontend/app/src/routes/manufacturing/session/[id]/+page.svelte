@@ -2,10 +2,10 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { ArrowLeft } from 'lucide-svelte';
+  import { ArrowLeft, Archive, Trash2 } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
-  import { ErrorAlert, EmptyState, LoadingState } from '$lib/components/ui';
+  import { ErrorAlert, EmptyState, LoadingState, Modal, ConfirmDeleteDialog } from '$lib/components/ui';
   import SessionHeader from '$lib/components/manufacturing/session-header.svelte';
   import PanelRunner from '$lib/components/manufacturing/panel-runner.svelte';
   import PanelResultsGrid from '$lib/components/manufacturing/panel-results-grid.svelte';
@@ -334,6 +334,40 @@
     }
   }
 
+  // ── Archive / Delete ───────────────────────────────────────
+  let showArchiveConfirm = $state(false);
+  let showDeleteConfirm = $state(false);
+  let archiving = $state(false);
+  let deleting = $state(false);
+
+  async function handleArchive() {
+    archiving = true;
+    error = null;
+    try {
+      await api.post(`/v2/manufacturing/sessions/${sessionId}/archive`);
+      showArchiveConfirm = false;
+      await fetchSession();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to archive session';
+    } finally {
+      archiving = false;
+    }
+  }
+
+  async function handleDelete() {
+    deleting = true;
+    error = null;
+    try {
+      await api.delete(`/v2/manufacturing/sessions/${sessionId}`);
+      showDeleteConfirm = false;
+      goto('/manufacturing');
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to delete session';
+    } finally {
+      deleting = false;
+    }
+  }
+
   function handleSelectUnit(run: TestRun, target: RunTarget) {
     openSlotDetail(run, target.slotIndex);
   }
@@ -420,12 +454,42 @@
     {:else}
       <SessionHeader {session} />
 
+      {#if session.status === 'ARCHIVED'}
+        <div class="mb-4 rounded-lg border border-warning/30 bg-warning-muted px-4 py-3 text-sm text-warning">
+          This session is archived.
+        </div>
+      {/if}
+
       <PanelRunner
         {session}
         {canRun}
         onRunPanel={handleRunPanel}
         onEndSession={handleEndSession}
       />
+
+      {#if canRun && (session.status === 'COMPLETED' || session.status === 'CANCELLED')}
+        <div class="mb-4 flex items-center gap-2">
+          <button
+            onclick={() => { showArchiveConfirm = true; }}
+            class="btn btn-sm bg-warning-muted text-warning hover:bg-warning/20"
+          >
+            <Archive size={14} />
+            Archive Session
+          </button>
+        </div>
+      {/if}
+
+      {#if canRun && session.status === 'ARCHIVED'}
+        <div class="mb-4 flex items-center gap-2">
+          <button
+            onclick={() => { showDeleteConfirm = true; }}
+            class="btn btn-sm btn-danger"
+          >
+            <Trash2 size={14} />
+            Delete Session
+          </button>
+        </div>
+      {/if}
 
       {#if activeRun}
         <div class="mb-6">
@@ -452,3 +516,36 @@
     {/if}
   {/if}
 </div>
+
+<!-- Archive confirmation modal -->
+<Modal open={showArchiveConfirm} title="Archive Session?" onclose={() => { showArchiveConfirm = false; }} size="sm">
+  <p class="text-sm text-text-secondary">
+    Archiving hides this session from default views. You can still find it using the Archived status filter.
+  </p>
+  {#snippet footer()}
+    <button
+      onclick={() => { showArchiveConfirm = false; }}
+      disabled={archiving}
+      class="btn btn-sm btn-ghost"
+    >
+      Cancel
+    </button>
+    <button
+      onclick={handleArchive}
+      disabled={archiving}
+      class="btn btn-sm bg-warning-muted text-warning hover:bg-warning/20"
+    >
+      {archiving ? 'Archiving...' : 'Archive Session'}
+    </button>
+  {/snippet}
+</Modal>
+
+<!-- Delete confirmation dialog (type-to-confirm) -->
+<ConfirmDeleteDialog
+  open={showDeleteConfirm}
+  resourceType="session"
+  resourceName={session?.id || ''}
+  loading={deleting}
+  onConfirm={handleDelete}
+  onCancel={() => { showDeleteConfirm = false; }}
+/>

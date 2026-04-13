@@ -453,10 +453,12 @@ def delete_product(product_id: str):
     if run_ref:
         return conflict("Cannot delete product: it has associated test runs")
 
-    # Check if product has manufacturing sessions
-    mfg_ref = db.manufacturingsession.find_first(where={"productId": product_id})
-    if mfg_ref:
-        return conflict("Cannot delete product: it has associated manufacturing sessions")
+    # Check if product has active manufacturing sessions (archived/completed don't block)
+    active_mfg = db.manufacturingsession.find_first(
+        where={"productId": product_id, "status": "ACTIVE"}
+    )
+    if active_mfg:
+        return conflict("Cannot delete product: it has active manufacturing sessions")
 
     db.product.delete(where={"id": product_id})
     log_audit("product.delete", "Product", product_id, {"name": existing.name})

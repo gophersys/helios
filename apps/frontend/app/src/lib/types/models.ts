@@ -976,7 +976,7 @@ export interface ManufacturingSession {
   id: string;
   productId: string;
   fixtureId: string;
-  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'ARCHIVED';
   operatorId: string;
   assetSetId?: string;
   assetSet?: { id: string; version: string; variant: string; status: string };

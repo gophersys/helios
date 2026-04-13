@@ -24,6 +24,7 @@
 <button
   onclick={() => goto(`/manufacturing/session/${session.id}`)}
   class="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-surface-2/50"
+  class:opacity-60={session.status === 'ARCHIVED'}
 >
   <!-- Left: Session info -->
   <div class="min-w-0 flex-1">

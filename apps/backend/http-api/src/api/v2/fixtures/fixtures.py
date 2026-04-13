@@ -471,16 +471,16 @@ def update_fixture(fixture_id: str):
 def delete_fixture(fixture_id: str):
     """Delete a fixture if it has no slots with assigned nodes."""
     db = get_db_client()
-    existing = db.fixture.find_unique(
-        where={"id": fixture_id},
-        include={"manufacturingSessions": True},
-    )
+    existing = db.fixture.find_unique(where={"id": fixture_id})
     if not existing:
         return not_found("Fixture not found")
 
-    # Check for associated manufacturing sessions
-    if hasattr(existing, "manufacturingSessions") and existing.manufacturingSessions:
-        return conflict("Cannot delete fixture: it has associated manufacturing sessions")
+    # Check for active manufacturing sessions (archived/completed don't block)
+    active_sessions = db.manufacturingsession.count(
+        where={"fixtureId": fixture_id, "status": "ACTIVE"}
+    )
+    if active_sessions > 0:
+        return conflict(f"Cannot delete fixture: {active_sessions} active manufacturing session(s)")
 
     # Check for associated test runs
     test_runs = db.testrun.count(where={"fixtureId": fixture_id})

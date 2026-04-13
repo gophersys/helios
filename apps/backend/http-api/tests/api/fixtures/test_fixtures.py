@@ -89,14 +89,15 @@ def test_delete_fixture(authed_client, mock_db):
     assert data["data"]["deleted"] is True
 
 
-def test_delete_fixture_with_sessions(authed_client, mock_db):
+def test_delete_fixture_with_active_sessions(authed_client, mock_db):
     mock_db.fixture.find_unique.return_value = make_obj(
         id="fix-active", name="Active", productId="prod-1", type="MANUFACTURING",
         description=None, active=True, metadata=None,
-        manufacturingSessions=[make_obj(id="sess-1")],
         createdAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
         updatedAt=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
+    # Only active sessions block deletion
+    mock_db.manufacturingsession.count.return_value = 1
 
     response = authed_client.delete("/v2/fixtures/fix-active")
     assert response.status_code == 409

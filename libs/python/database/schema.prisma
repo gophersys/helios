@@ -777,8 +777,8 @@ model Fixture {
   designId        String? /// FK to FixtureDesign (optional — design can be assigned later)
 
   // Panel layout — defines the physical grid of DUT positions
-  panelRows  Int @default(1) /// Number of rows in the panel grid
-  panelCols  Int @default(1) /// Number of columns in the panel grid
+  panelRows Int @default(1) /// Number of rows in the panel grid
+  panelCols Int @default(1) /// Number of columns in the panel grid
 
   status   FixtureStatus @default(AVAILABLE)
   lockedBy String? /// Build run/job ID holding the lock
@@ -1262,6 +1262,7 @@ enum ManufacturingSessionStatus {
   ACTIVE
   COMPLETED
   CANCELLED
+  ARCHIVED
 }
 
 /// Manufacturing configuration for a product + board revision combination.

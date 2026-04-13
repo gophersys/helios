@@ -55,6 +55,7 @@
     { value: 'ACTIVE', label: 'Active' },
     { value: 'COMPLETED', label: 'Completed' },
     { value: 'CANCELLED', label: 'Cancelled' },
+    { value: 'ARCHIVED', label: 'Archived' },
   ];
 
   async function fetchSessions(): Promise<void> {

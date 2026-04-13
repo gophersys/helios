@@ -86,8 +86,14 @@ from ..manufacturing.sessions import (
     get_manufacturing_session,
     add_manufacturing_run,
     end_manufacturing_session,
+    archive_session,
+    delete_session,
     get_manufacturing_results,
     set_manufacturing_socketio as set_mfg_v2_socketio,
+)
+from ..manufacturing.runner import (
+    runner_heartbeat,
+    set_runner_socketio,
 )
 
 
@@ -103,6 +109,7 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
     init_socketio(socketio)
     register_runs_ws_handlers(socketio)
     set_mfg_v2_socketio(socketio)
+    set_runner_socketio(socketio)
 
     # ─────────────────────────────────────────────────────────────
     #  Run CRUD
@@ -408,8 +415,26 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
         methods=["POST"],
     )
     api.add_url_rule(
+        "/manufacturing/sessions/<session_id>/archive",
+        endpoint="archive_mfg_session",
+        view_func=archive_session,
+        methods=["POST"],
+    )
+    api.add_url_rule(
+        "/manufacturing/sessions/<session_id>",
+        endpoint="delete_mfg_session",
+        view_func=delete_session,
+        methods=["DELETE"],
+    )
+    api.add_url_rule(
         "/manufacturing/sessions/<session_id>/results",
         endpoint="get_mfg_results",
         view_func=get_manufacturing_results,
         methods=["GET"],
+    )
+    api.add_url_rule(
+        "/manufacturing/sessions/<session_id>/runner-heartbeat",
+        endpoint="mfg_runner_heartbeat",
+        view_func=runner_heartbeat,
+        methods=["POST"],
     )

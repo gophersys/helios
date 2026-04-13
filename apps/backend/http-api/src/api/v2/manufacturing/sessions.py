@@ -180,6 +180,13 @@ def _serialize_session(s, include_runs=False) -> dict:
             else None
         ),
         "runCount": len(s.runs) if hasattr(s, "runs") and s.runs else 0,
+        "runnerStatus": getattr(s, "runnerStatus", None),
+        "runnerDeploymentName": getattr(s, "runnerDeploymentName", None),
+        "runnerLastHeartbeat": (
+            s.runnerLastHeartbeat.isoformat()
+            if getattr(s, "runnerLastHeartbeat", None)
+            else None
+        ),
     }
     if include_runs and hasattr(s, "runs") and s.runs:
         d["runs"] = [_serialize_run(r) for r in s.runs]
@@ -400,6 +407,37 @@ def create_manufacturing_session():
         "fixtureId": fixture_id,
     })
 
+    # Deploy persistent manufacturing runner
+    # Re-fetch fixture with slot→node relations for MTIB address resolution
+    fixture_with_slots = db.fixture.find_unique(
+        where={"id": fixture_id},
+        include={
+            "slots": {
+                "where": {"active": True},
+                "order_by": {"slotIndex": "asc"},
+                "include": {"node": True},
+            },
+        },
+    )
+    if fixture_with_slots:
+        from src.api.v2.manufacturing.runner import deploy_manufacturing_runner
+        runner_name = deploy_manufacturing_runner(db, session, fixture_with_slots, product)
+        if not runner_name:
+            logger.warning("Failed to deploy runner for session %s", session.id)
+        # Re-fetch session to include updated runner fields
+        refreshed = db.manufacturingsession.find_unique(
+            where={"id": session.id},
+            include={
+                "product": True,
+                "fixture": True,
+                "operator": True,
+                "assetSet": True,
+                "runs": True,
+            },
+        )
+        if refreshed:
+            session = refreshed
+
     payload = _serialize_session(session, include_runs=True)
     _emit("manufacturing_session_start", payload, f"mfg-session:{session.id}")
     return jsonify(ApiResponse.ok(payload).to_dict()), 201
@@ -609,6 +647,10 @@ def end_manufacturing_session(session_id: str):
     if session.status != "ACTIVE":
         return bad_request("Session is not active")
 
+    # Teardown the persistent manufacturing runner
+    from src.api.v2.manufacturing.runner import teardown_manufacturing_runner
+    teardown_manufacturing_runner(db, session)
+
     now = datetime.now(timezone.utc)
     updated = db.manufacturingsession.update(
         where={"id": session_id},
@@ -635,6 +677,60 @@ def end_manufacturing_session(session_id: str):
     payload = _serialize_session(updated)
     _emit("manufacturing_session_end", payload, f"mfg-session:{session_id}")
     return jsonify(ApiResponse.ok(payload).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/<id>/archive — archive session
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_MANAGE)
+def archive_session(session_id: str):
+    """Archive a completed manufacturing session."""
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(where={"id": session_id})
+    if not session:
+        return not_found("Session not found")
+    if session.status == "ARCHIVED":
+        return bad_request("Session is already archived")
+    if session.status == "ACTIVE":
+        return bad_request("Cannot archive an active session. End it first.")
+
+    updated = db.manufacturingsession.update(
+        where={"id": session_id},
+        data={"status": "ARCHIVED"},
+        include={"product": True, "fixture": True, "operator": True},
+    )
+    log_audit("manufacturing.session.archive", "ManufacturingSession", session_id, {})
+    return jsonify(ApiResponse.ok(_serialize_session(updated)).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# DELETE /v2/manufacturing/sessions/<id> — delete session
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_MANAGE)
+def delete_session(session_id: str):
+    """Delete an archived manufacturing session and its cascaded test runs."""
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(where={"id": session_id})
+    if not session:
+        return not_found("Session not found")
+    if session.status != "ARCHIVED":
+        return bad_request("Session must be archived before it can be deleted")
+
+    # Check no active runs
+    active_runs = db.testrun.count(
+        where={"manufacturingSessionId": session_id, "status": {"in": ["PENDING", "ACTIVE"]}}
+    )
+    if active_runs > 0:
+        return conflict(f"Cannot delete — {active_runs} test run(s) still active")
+
+    # Delete session (TestRuns cascade via schema onDelete)
+    db.manufacturingsession.delete(where={"id": session_id})
+    log_audit("manufacturing.session.delete", "ManufacturingSession", session_id, {})
+    return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
 
 
 # ---------------------------------------------------------------------------
