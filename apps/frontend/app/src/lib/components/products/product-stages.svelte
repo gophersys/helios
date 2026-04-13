@@ -59,15 +59,20 @@
     revisions.find((r) => r.status === 'ACTIVE' && (!boardRevisionId || r.id === boardRevisionId))
   );
 
-  onMount(async () => {
-    await Promise.all([loadConfigs(), loadSecrets()]);
+  onMount(() => { loadSecrets(); });
+
+  // Reload configs when productId, stageType, or boardRevisionId changes
+  $effect(() => {
+    // Touch reactive deps
+    productId; stageType; boardRevisionId;
+    loadConfigs();
   });
 
   async function loadConfigs() {
     loading = true;
     error = null;
     try {
-      configs = await listStageConfigs(productId, stageType);
+      configs = await listStageConfigs(productId, stageType, boardRevisionId);
     } catch (e: unknown) {
       error = e instanceof Error ? e.message : 'Failed to load stage configs';
     } finally {

@@ -98,6 +98,9 @@ def list_stage_configs(product_id: str):
     type_filter = request.args.get("type", "").strip().upper()
     if type_filter in ("VALIDATION", "MANUFACTURING"):
         where["type"] = type_filter
+    rev_filter = request.args.get("boardRevisionId", "").strip()
+    if rev_filter:
+        where["boardRevisionId"] = rev_filter
     configs = db.productstageconfig.find_many(
         where=where,
         order=[{"type": "asc"}, {"stage": "asc"}],
