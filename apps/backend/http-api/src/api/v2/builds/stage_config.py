@@ -295,6 +295,8 @@ def update_stage_config(product_id: str, stage: str):
     product, config, stage_num, err = _resolve_stage_config(db, product_id, stage)
     if err:
         return err
+    if product.status == "ARCHIVED":
+        return conflict("Cannot modify stages for archived products")
 
     req, err = StageConfigUpdateRequest.from_json(request.get_json())
     if err or req is None:

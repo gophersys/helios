@@ -195,9 +195,9 @@ enum AccessLevel {
 /// A hardware product that Concord tests: Sigma5, Theta, Alpha, etc.
 /// Everything flows from here -- fixtures, tests, sessions, builds.
 model Product {
-  id            String  @id @default(cuid())
-  name          String  @unique /// "Alpha B0", "Sigma5 C0"
-  slug          String? @unique /// "alpha_b0", "sigma5_c0" -- URL-safe identifier
+  id            String        @id @default(cuid())
+  name          String        @unique /// "Alpha B0", "Sigma5 C0"
+  slug          String?       @unique /// "alpha_b0", "sigma5_c0" -- URL-safe identifier
   description   String?
   status        ProductStatus @default(ACTIVE)
   fwRepoSlug    String? /// Bitbucket slug for production firmware repo, e.g. "alpha_fw"
@@ -517,7 +517,7 @@ model ValidationQueueEntry {
   id String @id @default(cuid())
 
   // What triggered this
-  buildRunId    String
+  assetSetId    String
   stageConfigId String?
   stage         Int /// Validation stage (1-5)
   priority      Int     @default(50) /// From stage config, but overridable
@@ -532,7 +532,7 @@ model ValidationQueueEntry {
   testRunId String? @unique
 
   // Context
-  reason       String? /// "PR #42", "regression 2026-03-11", "manual"
+  reason       String? /// "PR #42", "manual trigger", "external CI upload"
   errorMessage String?
   jobName      String? /// K8s job name when triggered
 
@@ -544,13 +544,13 @@ model ValidationQueueEntry {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  buildRun    BuildRun            @relation(fields: [buildRunId], references: [id], onDelete: Restrict)
-  stageConfig ProductStageConfig? @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
-  fixture     Fixture?            @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
-  testRun     TestRun?            @relation(fields: [testRunId], references: [id], onDelete: SetNull)
+  assetSet    AssetSet             @relation(fields: [assetSetId], references: [id], onDelete: Restrict)
+  stageConfig ProductStageConfig?  @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
+  fixture     Fixture?             @relation(fields: [fixtureId], references: [id], onDelete: SetNull)
+  testRun     TestRun?             @relation(fields: [testRunId], references: [id], onDelete: SetNull)
 
   @@index([status, priority])
-  @@index([buildRunId])
+  @@index([assetSetId])
   @@index([fixtureId])
   @@map("validation_queue_entries")
 }
@@ -596,7 +596,7 @@ model BuildRun {
   prUrl        String? /// Link to Bitbucket PR page
 
   // Validation tracking
-  autoValidate    Boolean @default(false) /// Auto-trigger validation when all builds pass
+  autoRunStage    Boolean @default(false) /// Auto-trigger stage run when all builds pass
   validationRunId String? /// Links to Session when validation starts
 
   // Timing
@@ -614,7 +614,6 @@ model BuildRun {
   stageConfig   ProductStageConfig?    @relation(fields: [stageConfigId], references: [id], onDelete: SetNull)
   recipeVersion RecipeVersion?         @relation("BuildRunRecipe", fields: [recipeVersionId], references: [id], onDelete: SetNull)
   builds        BuildJob[]
-  queueEntries  ValidationQueueEntry[]
   assetSet      AssetSet?
   testRuns      TestRun[]
 
@@ -1215,6 +1214,7 @@ model AssetSet {
   assets                Asset[]
   testRuns              TestRun[]
   manufacturingSessions ManufacturingSession[]
+  queueEntries          ValidationQueueEntry[]
 
   @@index([productId, stage, stageType, status])
   @@index([productId, version])

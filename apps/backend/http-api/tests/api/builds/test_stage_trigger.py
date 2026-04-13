@@ -4,7 +4,7 @@ from tests.conftest import make_obj
 
 
 def _product(**overrides):
-    defaults = dict(id="prod-1", name="Alpha", slug="alpha")
+    defaults = dict(id="prod-1", name="Alpha", slug="alpha", status="ACTIVE")
     defaults.update(overrides)
     return make_obj(**defaults)
 

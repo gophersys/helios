@@ -5,7 +5,7 @@ from flask import jsonify, request
 
 from src.lib.audit import log_audit
 from src.lib.decorators import require_permissions
-from src.lib.errors import bad_request, not_found
+from src.lib.errors import bad_request, conflict, not_found
 from src.lib.permissions import Permissions
 from src.lib.types import ApiResponse
 from src.services.database.prisma import get_db_client
@@ -31,6 +31,8 @@ def trigger_stage_run(product_id: str, stage: str):
     product = db.product.find_unique(where={"id": product_id})
     if not product:
         return not_found("Product not found")
+    if product.status == "ARCHIVED":
+        return conflict("Product is archived and cannot trigger new runs")
 
     # --- Parse stage number ---
     try:
