@@ -85,6 +85,7 @@ from ..manufacturing.sessions import (
     list_manufacturing_sessions,
     get_manufacturing_session,
     add_manufacturing_run,
+    resolve_panel,
     end_manufacturing_session,
     archive_session,
     delete_session,
@@ -406,6 +407,12 @@ def register_run_routes(api: Blueprint, socketio: SocketIO):
         "/manufacturing/sessions/<session_id>/runs",
         endpoint="add_mfg_run",
         view_func=add_manufacturing_run,
+        methods=["POST"],
+    )
+    api.add_url_rule(
+        "/manufacturing/sessions/<session_id>/resolve-panel",
+        endpoint="resolve_mfg_panel",
+        view_func=resolve_panel,
         methods=["POST"],
     )
     api.add_url_rule(

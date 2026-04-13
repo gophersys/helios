@@ -989,7 +989,7 @@ export interface ManufacturingSession {
   createdAt: string;
   // Relations
   product?: { id: string; name: string; slug?: string };
-  fixture?: { id: string; name: string };
+  fixture?: { id: string; name: string; panelRows: number; panelCols: number; metadata: Record<string, unknown> | null };
   operator?: { id: string; name: string; email: string };
   runs?: TestRun[];
 }

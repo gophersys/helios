@@ -36,6 +36,9 @@ def _fixture(**overrides):
         lockedBy=None,
         lockedAt=None,
         active=True,
+        panelRows=2,
+        panelCols=2,
+        metadata=None,
         product=_product(),
     )
     defaults.update(overrides)
@@ -64,6 +67,20 @@ def _session(**overrides):
         runCount=0,
         passedCount=0,
         failedCount=0,
+    )
+    defaults.update(overrides)
+    return make_obj(**defaults)
+
+
+def _slot(**overrides):
+    defaults = dict(
+        id="s10-slot-0",
+        fixtureId="s10-fix-1",
+        slotIndex=0,
+        name="Slot 1",
+        active=True,
+        dutSnr=None,
+        dutDeviceId=None,
     )
     defaults.update(overrides)
     return make_obj(**defaults)
@@ -325,3 +342,240 @@ class TestGetResults:
         assert resp.status_code == 200
         data = resp.get_json()["data"]
         assert len(data["runs"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# _derive_panel_snrs — unit tests for SNR derivation logic
+# ---------------------------------------------------------------------------
+
+class TestDerivePanelSnrs:
+    def test_numeric_snr(self):
+        from api.v2.manufacturing.sessions import _derive_panel_snrs
+        result = _derive_panel_snrs("0964", 4)
+        assert len(result) == 4
+        assert result[0] == {"slotIndex": 0, "snr": "0964"}
+        assert result[1] == {"slotIndex": 1, "snr": "0965"}
+        assert result[2] == {"slotIndex": 2, "snr": "0966"}
+        assert result[3] == {"slotIndex": 3, "snr": "0967"}
+
+    def test_prefixed_snr(self):
+        from api.v2.manufacturing.sessions import _derive_panel_snrs
+        result = _derive_panel_snrs("DUT-0964", 3)
+        assert result[0] == {"slotIndex": 0, "snr": "DUT-0964"}
+        assert result[1] == {"slotIndex": 1, "snr": "DUT-0965"}
+        assert result[2] == {"slotIndex": 2, "snr": "DUT-0966"}
+
+    def test_zero_padding_preserved(self):
+        from api.v2.manufacturing.sessions import _derive_panel_snrs
+        result = _derive_panel_snrs("0001", 3)
+        assert result[0]["snr"] == "0001"
+        assert result[1]["snr"] == "0002"
+        assert result[2]["snr"] == "0003"
+
+    def test_single_slot(self):
+        from api.v2.manufacturing.sessions import _derive_panel_snrs
+        result = _derive_panel_snrs("100", 1)
+        assert len(result) == 1
+        assert result[0] == {"slotIndex": 0, "snr": "100"}
+
+    def test_non_numeric_snr(self):
+        from api.v2.manufacturing.sessions import _derive_panel_snrs
+        result = _derive_panel_snrs("ABCDEF", 3)
+        assert result[0]["snr"] == "ABCDEF"
+        assert result[1]["snr"] is None
+        assert result[2]["snr"] is None
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/<id>/resolve-panel
+# ---------------------------------------------------------------------------
+
+class TestResolvePanel:
+    def _four_slots(self):
+        return [
+            _slot(id=f"s10-slot-{i}", slotIndex=i, name=f"Slot {i + 1}")
+            for i in range(4)
+        ]
+
+    def test_resolves_panel_snrs(self, authed_client, mock_db):
+        slots = self._four_slots()
+        fixture = _fixture(slots=slots)
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/resolve-panel",
+            data=json.dumps({"snr": "0964"}),
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()["data"]
+        assert data["primarySnr"] == "0964"
+        assert len(data["slots"]) == 4
+        assert data["slots"][0]["snr"] == "0964"
+        assert data["slots"][1]["snr"] == "0965"
+        assert data["slots"][2]["snr"] == "0966"
+        assert data["slots"][3]["snr"] == "0967"
+
+    def test_returns_slot_labels(self, authed_client, mock_db):
+        slots = self._four_slots()
+        fixture = _fixture(slots=slots)
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/resolve-panel",
+            data=json.dumps({"snr": "0964"}),
+        )
+        data = resp.get_json()["data"]
+        assert data["slots"][0]["label"] == "Slot 1"
+        assert data["slots"][3]["label"] == "Slot 4"
+
+    def test_returns_404_missing_session(self, authed_client, mock_db):
+        mock_db.manufacturingsession.find_unique.return_value = None
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-missing/resolve-panel",
+            data=json.dumps({"snr": "0964"}),
+        )
+        assert resp.status_code == 404
+
+    def test_returns_400_inactive_session(self, authed_client, mock_db):
+        mock_db.manufacturingsession.find_unique.return_value = _session(status="COMPLETED")
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/resolve-panel",
+            data=json.dumps({"snr": "0964"}),
+        )
+        assert resp.status_code == 400
+
+    def test_returns_400_missing_snr(self, authed_client, mock_db):
+        fixture = _fixture(slots=self._four_slots())
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/resolve-panel",
+            data=json.dumps({}),
+        )
+        assert resp.status_code == 400
+
+    def test_returns_400_no_active_slots(self, authed_client, mock_db):
+        fixture = _fixture(slots=[])
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/resolve-panel",
+            data=json.dumps({"snr": "0964"}),
+        )
+        assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/<id>/runs — add run with slotSnrs / runType
+# ---------------------------------------------------------------------------
+
+class TestAddRunWithSlotSnrs:
+    def _four_slots(self):
+        return [
+            _slot(id=f"s10-slot-{i}", slotIndex=i, name=f"Slot {i + 1}")
+            for i in range(4)
+        ]
+
+    def test_uses_slot_snrs_when_provided(self, authed_client, mock_db):
+        slots = self._four_slots()
+        fixture = _fixture(slots=slots)
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
+        created = _run()
+        mock_db.testrun.create.return_value = created
+        mock_db.testrun.find_unique.return_value = created
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({
+                "qrCode": "0964",
+                "slotSnrs": [
+                    {"slotIndex": 0, "snr": "0964"},
+                    {"slotIndex": 1, "snr": "0965"},
+                    {"slotIndex": 2, "snr": "0966"},
+                    {"slotIndex": 3, "snr": "0967"},
+                ],
+            }),
+        )
+        assert resp.status_code == 201
+        # Verify runtarget.create was called 4 times with correct SNRs
+        calls = mock_db.runtarget.create.call_args_list
+        assert len(calls) == 4
+        assert calls[0].kwargs["data"]["serialNumber"] == "0964"
+        assert calls[1].kwargs["data"]["serialNumber"] == "0965"
+        assert calls[2].kwargs["data"]["serialNumber"] == "0966"
+        assert calls[3].kwargs["data"]["serialNumber"] == "0967"
+
+    def test_standalone_creates_one_target(self, authed_client, mock_db):
+        slots = self._four_slots()
+        fixture = _fixture(slots=slots)
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
+        created = _run(targetCount=1)
+        mock_db.testrun.create.return_value = created
+        mock_db.testrun.find_unique.return_value = created
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({
+                "qrCode": "0964",
+                "runType": "standalone",
+            }),
+        )
+        assert resp.status_code == 201
+        assert mock_db.runtarget.create.call_count == 1
+
+    def test_invalid_run_type(self, authed_client, mock_db):
+        fixture = _fixture(slots=self._four_slots())
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({
+                "qrCode": "0964",
+                "runType": "invalid",
+            }),
+        )
+        assert resp.status_code == 400
+
+    def test_invalid_slot_snrs_format(self, authed_client, mock_db):
+        fixture = _fixture(slots=self._four_slots())
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({
+                "qrCode": "0964",
+                "slotSnrs": "not-an-array",
+            }),
+        )
+        assert resp.status_code == 400
+
+    def test_slot_snrs_missing_fields(self, authed_client, mock_db):
+        fixture = _fixture(slots=self._four_slots())
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({
+                "qrCode": "0964",
+                "slotSnrs": [{"slotIndex": 0}],
+            }),
+        )
+        assert resp.status_code == 400
+
+    def test_defaults_to_panel_run_type(self, authed_client, mock_db):
+        slots = self._four_slots()
+        fixture = _fixture(slots=slots)
+        mock_db.manufacturingsession.find_unique.return_value = _session(fixture=fixture)
+        created = _run()
+        mock_db.testrun.create.return_value = created
+        mock_db.testrun.find_unique.return_value = created
+
+        resp = authed_client.post(
+            "/v2/manufacturing/sessions/s10-sess-1/runs",
+            data=json.dumps({"qrCode": "0964"}),
+        )
+        assert resp.status_code == 201
+        # All 4 slots should have targets
+        assert mock_db.runtarget.create.call_count == 4

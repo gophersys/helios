@@ -2,13 +2,13 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { ArrowLeft, Archive, Trash2 } from 'lucide-svelte';
+  import { ArrowLeft, Archive, Trash2, QrCode } from 'lucide-svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
   import { apiFetch, api } from '$lib/api';
-  import { ErrorAlert, EmptyState, LoadingState, Modal, ConfirmDeleteDialog } from '$lib/components/ui';
+  import { ErrorAlert, EmptyState, LoadingState, Modal, ConfirmDeleteDialog, StatusBadge } from '$lib/components/ui';
   import SessionHeader from '$lib/components/manufacturing/session-header.svelte';
-  import PanelRunner from '$lib/components/manufacturing/panel-runner.svelte';
-  import PanelResultsGrid from '$lib/components/manufacturing/panel-results-grid.svelte';
+  import PanelGridView from '$lib/components/manufacturing/panel-grid-view.svelte';
+  import ScanPanelModal from '$lib/components/manufacturing/scan-panel-modal.svelte';
   import PanelHistory from '$lib/components/manufacturing/panel-history.svelte';
   import SlotNavigator from '$lib/components/execution/slot-navigator.svelte';
   import SlotExecutionView from '$lib/components/execution/slot-execution-view.svelte';
@@ -32,16 +32,16 @@
   let unsubscribeRun: (() => void) | null = null;
   let unsubscribeRunnerStatus: (() => void) | null = null;
 
+  // ── Scan modal state ───────────────────────────────────────
+  let scanModalOpen = $state(false);
+  let scanRunType = $state<'panel' | 'standalone'>('panel');
+
   // ── Detail view state ──────────────────────────────────────
-  // When a user clicks a unit card, we open the full execution view
-  // for that run's slots. The test keeps running in K8s regardless
-  // of whether this view is open.
   let detailRunId = $state<string | null>(null);
   let detailSlots = $state<SlotContext[]>([]);
   let detailActiveSlot = $state(0);
   let detailUnsubscribe: (() => void) | null = null;
 
-  // Hardware info for dynamic UART labels
   let detailSocLabels = $state<string[]>([]);
   let detailProductName = $state('');
   let detailBoardRevision = $state('');
@@ -56,9 +56,22 @@
     status: s.status,
   })));
 
+  // ── Fixture-derived values ─────────────────────────────────
+  const panelRows = $derived(session?.fixture?.panelRows ?? 1);
+  const panelCols = $derived(session?.fixture?.panelCols ?? 1);
+  const hasStandaloneSlot = $derived(
+    !!(session?.fixture?.metadata as Record<string, unknown> | null)?.hasStandaloneSlot
+  );
+
   // ── Session-level computed values ──────────────────────────
   const activeRun = $derived(
     (session?.runs || []).find((r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING')
+  );
+
+  const latestRun = $derived(
+    (session?.runs || []).length > 0
+      ? (session?.runs || [])[(session?.runs || []).length - 1]
+      : undefined
   );
 
   const completedRuns = $derived(
@@ -93,28 +106,42 @@
     }
   }
 
+  // ── Scan modal ─────────────────────────────────────────────
+
+  function openScanModal(type: 'panel' | 'standalone') {
+    scanRunType = type;
+    scanModalOpen = true;
+  }
+
+  async function handleRunStarted(runId: string) {
+    scanModalOpen = false;
+    await fetchSession();
+    const newRun = (session?.runs || []).find(
+      (r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING'
+    );
+    if (newRun) {
+      subscribeToRun(newRun.id);
+    }
+  }
+
   // ── Detail view: open/close ────────────────────────────────
 
   async function openSlotDetail(run: TestRun, targetSlotIndex: number = 0) {
-    // Clean up previous detail subscription
     closeSlotDetail();
 
     detailRunId = run.id;
     detailActiveSlot = 0;
 
-    // Extract hardware info from run or session
-    const boardRev = run.boardRevision || session?.fixture?.boardRevision;
-    detailSocLabels = boardRev?.socs || [];
+    const boardRev = run.boardRevision || session?.fixture;
+    detailSocLabels = (boardRev as any)?.socs || [];
     detailProductName = run.product?.name || session?.product?.name || '';
-    detailBoardRevision = boardRev?.version || '';
+    detailBoardRevision = (boardRev as any)?.version || '';
     detailFirmwareVersion = run.assetSet?.version || session?.assetSet?.version || '';
 
-    // Fetch full run detail to get targets with executions and steps
     try {
       const res = await apiFetch<ApiResponse<TestRun>>(`/v2/runs/${run.id}`);
       const fullRun = res.data;
 
-      // Create SlotContext per target
       const targets = fullRun.targets || [];
       const slots: SlotContext[] = [];
       for (const target of targets) {
@@ -125,11 +152,9 @@
       }
       detailSlots = slots;
 
-      // Set active slot to the one the user clicked
       const clickedIdx = slots.findIndex(s => s.slotIndex === targetSlotIndex);
       if (clickedIdx >= 0) detailActiveSlot = clickedIdx;
 
-      // Subscribe to live events if run is active
       if (fullRun.status === 'ACTIVE' || fullRun.status === 'PENDING') {
         detailUnsubscribe = subscribeRunWithLogs(run.id, {
           onTestStart: (data) => {
@@ -141,18 +166,15 @@
             if (slot) slot.handleTestResult(data);
           },
           onLogChunk: (data) => {
-            // Route to active slot (UART data doesn't have targetId)
             if (activeSlot) activeSlot.handleLogChunk(data);
           },
           onTelemetry: (data) => {
-            // Route telemetry to active slot
             if (activeSlot) activeSlot.handleTelemetry(data);
           },
           onRunFinish: () => {
             for (const slot of detailSlots) {
               slot.handleRunFinish();
             }
-            // Refresh session data
             fetchSession();
           },
         });
@@ -308,22 +330,6 @@
     unsubscribeRunnerStatus = () => { socket.off('manufacturing_runner_status', handler); };
   }
 
-  async function handleRunPanel(qrCode: string) {
-    error = null;
-    try {
-      await api.post(`/v2/manufacturing/sessions/${sessionId}/runs`, { qrCode });
-      await fetchSession();
-      const newRun = (session?.runs || []).find(
-        (r: TestRun) => r.status === 'ACTIVE' || r.status === 'PENDING'
-      );
-      if (newRun) {
-        subscribeToRun(newRun.id);
-      }
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to run panel';
-    }
-  }
-
   async function handleEndSession() {
     error = null;
     try {
@@ -337,6 +343,7 @@
   // ── Archive / Delete ───────────────────────────────────────
   let showArchiveConfirm = $state(false);
   let showDeleteConfirm = $state(false);
+  let showEndConfirm = $state(false);
   let archiving = $state(false);
   let deleting = $state(false);
 
@@ -370,6 +377,14 @@
 
   function handleSelectUnit(run: TestRun, target: RunTarget) {
     openSlotDetail(run, target.slotIndex);
+  }
+
+  function handleSlotClick(slotIndex: number) {
+    if (!activeRun) return;
+    const target = (activeRun.targets || []).find((t: RunTarget) => t.slotIndex === slotIndex);
+    if (target) {
+      openSlotDetail(activeRun, slotIndex);
+    }
   }
 
   // Svelte action: remove max-w constraint for full-width layout
@@ -450,7 +465,7 @@
         isLive={!activeSlot.liveFinished}
       />
 
-    <!-- ── Session View (panels + unit grid) ─────────────── -->
+    <!-- ── Session View ──────────────────────────────────── -->
     {:else}
       <SessionHeader {session} />
 
@@ -460,13 +475,43 @@
         </div>
       {/if}
 
-      <PanelRunner
-        {session}
-        {canRun}
-        onRunPanel={handleRunPanel}
-        onEndSession={handleEndSession}
-      />
+      <!-- Panel Grid + Scan Controls -->
+      <div class="mb-6 space-y-4">
+        <!-- Scan action buttons -->
+        {#if canRun && session.status === 'ACTIVE'}
+          <div class="flex items-center gap-2">
+            <button onclick={() => openScanModal('panel')} class="btn btn-md btn-primary">
+              <QrCode size={16} />
+              Scan Panel
+            </button>
+            {#if hasStandaloneSlot}
+              <button onclick={() => openScanModal('standalone')} class="btn btn-md btn-ghost">
+                Scan Standalone
+              </button>
+            {/if}
+            <div class="ml-auto">
+              <button
+                onclick={() => { showEndConfirm = true; }}
+                disabled={!!activeRun}
+                class="btn btn-sm btn-secondary"
+              >
+                End Session
+              </button>
+            </div>
+          </div>
+        {/if}
 
+        <!-- Live panel grid -->
+        <PanelGridView
+          {panelRows}
+          {panelCols}
+          {hasStandaloneSlot}
+          targets={activeRun?.targets ?? latestRun?.targets ?? []}
+          onSlotClick={handleSlotClick}
+        />
+      </div>
+
+      <!-- Archive / Delete buttons -->
       {#if canRun && (session.status === 'COMPLETED' || session.status === 'CANCELLED')}
         <div class="mb-4 flex items-center gap-2">
           <button
@@ -491,31 +536,81 @@
         </div>
       {/if}
 
-      {#if activeRun}
-        <div class="mb-6">
-          <h2 class="text-sm font-semibold text-text-primary mb-3">Active Panel</h2>
-          <PanelResultsGrid
-            panel={activeRun}
-            onSelectUnit={(target) => handleSelectUnit(activeRun, target)}
-          />
-        </div>
-      {/if}
-
-      {#if completedRuns.length > 0}
+      <!-- Run History -->
+      {#if (session.runs || []).length > 0}
         <div>
           <h2 class="text-sm font-semibold text-text-primary mb-3">
-            Panel History ({completedRuns.length})
+            Run History ({(session.runs || []).length})
           </h2>
-          <PanelHistory panels={completedRuns} onSelectUnit={(panel, target) => handleSelectUnit(panel, target)} />
+          <div class="space-y-2">
+            {#each (session.runs || []) as run (run.id)}
+              <a
+                href="/manufacturing/session/{session.id}/run/{run.id}"
+                class="card card-sm block transition-colors hover:bg-surface-2/50"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs font-medium text-text-primary">
+                      {run.panelIdentifier || run.name || run.id.slice(0, 8)}
+                    </span>
+                    <span class="text-2xs text-text-tertiary">
+                      {run.passedCount}/{run.targetCount} passed
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    {#if run.durationMs}
+                      <span class="text-2xs tabular-nums text-text-tertiary">
+                        {Math.round(run.durationMs / 1000)}s
+                      </span>
+                    {/if}
+                    <StatusBadge status={run.status} />
+                  </div>
+                </div>
+              </a>
+            {/each}
+          </div>
         </div>
-      {/if}
-
-      {#if !activeRun && completedRuns.length === 0}
-        <EmptyState message={session.status === 'ACTIVE' ? 'Scan a panel QR code to begin manufacturing.' : 'No panels were run during this session.'} />
+      {:else if session.status === 'ACTIVE'}
+        <EmptyState message="Scan a panel QR code to begin manufacturing." />
+      {:else}
+        <EmptyState message="No runs were recorded during this session." />
       {/if}
     {/if}
   {/if}
 </div>
+
+<!-- Scan Panel Modal -->
+<ScanPanelModal
+  open={scanModalOpen}
+  {sessionId}
+  {panelRows}
+  {panelCols}
+  {hasStandaloneSlot}
+  runType={scanRunType}
+  onClose={() => { scanModalOpen = false; }}
+  onStarted={handleRunStarted}
+/>
+
+<!-- End session confirmation -->
+<Modal open={showEndConfirm} title="End Manufacturing Session?" onclose={() => { showEndConfirm = false; }} size="sm">
+  <p class="text-sm text-text-secondary">
+    This will finalize the session. No more panels can be run after ending.
+  </p>
+  {#snippet footer()}
+    <button
+      onclick={() => { showEndConfirm = false; }}
+      class="btn btn-sm btn-ghost"
+    >
+      Cancel
+    </button>
+    <button
+      onclick={() => { showEndConfirm = false; handleEndSession(); }}
+      class="btn btn-sm btn-danger"
+    >
+      End Session
+    </button>
+  {/snippet}
+</Modal>
 
 <!-- Archive confirmation modal -->
 <Modal open={showArchiveConfirm} title="Archive Session?" onclose={() => { showArchiveConfirm = false; }} size="sm">

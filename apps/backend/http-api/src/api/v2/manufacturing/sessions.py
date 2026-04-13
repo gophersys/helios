@@ -10,6 +10,7 @@ records (one per fixture slot) and each target has TestExecution records
 
 import logging
 import math
+import re
 from datetime import datetime, timezone
 
 from flask import g, jsonify, request
@@ -170,7 +171,13 @@ def _serialize_session(s, include_runs=False) -> dict:
             else None
         ),
         "fixture": (
-            {"id": s.fixture.id, "name": s.fixture.name}
+            {
+                "id": s.fixture.id,
+                "name": s.fixture.name,
+                "panelRows": s.fixture.panelRows,
+                "panelCols": s.fixture.panelCols,
+                "metadata": s.fixture.metadata,
+            }
             if hasattr(s, "fixture") and s.fixture
             else None
         ),
@@ -536,6 +543,95 @@ def get_manufacturing_session(session_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Panel SNR resolution helpers
+# ---------------------------------------------------------------------------
+
+_SNR_PATTERN = re.compile(r"^(.*?)(\d+)$")
+
+
+def _derive_panel_snrs(primary_snr: str, slot_count: int) -> list[dict]:
+    """Derive sequential SNRs from a primary SNR for panel slots.
+
+    If the SNR ends with digits (e.g., "0964" or "DUT-0964"), increment the
+    numeric suffix for each subsequent slot. Zero-pads to the original width.
+
+    Returns a list of dicts: [{"slotIndex": 0, "snr": "0964"}, ...].
+    """
+    m = _SNR_PATTERN.match(primary_snr)
+    if not m:
+        # Non-numeric SNR — use as-is for slot 0, leave others empty
+        return [{"slotIndex": i, "snr": primary_snr if i == 0 else None} for i in range(slot_count)]
+
+    prefix = m.group(1)
+    num_str = m.group(2)
+    num_width = len(num_str)
+    base_num = int(num_str)
+
+    return [
+        {"slotIndex": i, "snr": f"{prefix}{str(base_num + i).zfill(num_width)}"}
+        for i in range(slot_count)
+    ]
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/<id>/resolve-panel
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def resolve_panel(session_id: str):
+    """Resolve panel SNRs from a primary SNR based on fixture slot layout."""
+    db = get_db_client()
+
+    session = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={
+            "fixture": {
+                "include": {
+                    "slots": {"order_by": {"slotIndex": "asc"}},
+                },
+            },
+        },
+    )
+    if not session:
+        return not_found("Manufacturing session not found")
+    if session.status != "ACTIVE":
+        return bad_request("Session is not active")
+
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body must contain JSON data")
+
+    snr = (body.get("snr") or "").strip()
+    if not snr:
+        return bad_request("snr is required")
+
+    fixture = session.fixture
+    slots = [
+        s for s in (fixture.slots if hasattr(fixture, "slots") and fixture.slots else [])
+        if s.active
+    ]
+
+    if not slots:
+        return bad_request("Fixture has no active slots")
+
+    derived = _derive_panel_snrs(snr, len(slots))
+
+    result_slots = []
+    for slot, d in zip(slots, derived):
+        result_slots.append({
+            "slotIndex": slot.slotIndex,
+            "snr": d["snr"],
+            "label": slot.name if hasattr(slot, "name") and slot.name else f"Slot {slot.slotIndex + 1}",
+        })
+
+    return jsonify(ApiResponse.ok({
+        "primarySnr": snr,
+        "slots": result_slots,
+    }).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
 # POST /v2/manufacturing/sessions/<id>/runs — add a run (panel scan)
 # ---------------------------------------------------------------------------
 
@@ -562,6 +658,18 @@ def add_manufacturing_run(session_id: str):
     if not qr_code:
         return bad_request("qrCode is required")
 
+    run_type = (body.get("runType") or "panel").strip().lower()
+    if run_type not in ("panel", "standalone"):
+        return bad_request("runType must be 'panel' or 'standalone'")
+
+    slot_snrs = body.get("slotSnrs")  # optional pre-resolved SNRs
+    if slot_snrs is not None:
+        if not isinstance(slot_snrs, list):
+            return bad_request("slotSnrs must be an array")
+        for entry in slot_snrs:
+            if not isinstance(entry, dict) or "slotIndex" not in entry or "snr" not in entry:
+                return bad_request("Each slotSnrs entry must have 'slotIndex' and 'snr'")
+
     # Resolve test package
     explicit_version = body.get("testPackageVersion")
     tp, tp_error = _resolve_test_package(
@@ -575,7 +683,18 @@ def add_manufacturing_run(session_id: str):
     # Determine active slots from the fixture
     fixture = session.fixture
     slots = [s for s in (fixture.slots if hasattr(fixture, "slots") and fixture.slots else []) if s.active]
+
+    # For standalone runs, only create one target (slot 0)
+    if run_type == "standalone":
+        slots = slots[:1] if slots else []
+
     target_count = len(slots)
+
+    # Build a lookup for pre-resolved SNRs by slotIndex
+    snr_lookup: dict[int, str] = {}
+    if slot_snrs:
+        for entry in slot_snrs:
+            snr_lookup[entry["slotIndex"]] = entry["snr"]
 
     # Create the TestRun
     run_data: dict = {
@@ -601,12 +720,17 @@ def add_manufacturing_run(session_id: str):
 
     # Auto-create RunTarget records (one per active fixture slot)
     for slot in slots:
+        # Use pre-resolved SNR if provided, otherwise fall back to fixture's dutSnr
+        serial_number = snr_lookup.get(
+            slot.slotIndex,
+            slot.dutSnr if hasattr(slot, "dutSnr") else None,
+        )
         db.runtarget.create(
             data={
                 "runId": run.id,
                 "slotIndex": slot.slotIndex,
                 "slotId": slot.id,
-                "serialNumber": slot.dutSnr if hasattr(slot, "dutSnr") else None,
+                "serialNumber": serial_number,
                 "deviceId": slot.dutDeviceId if hasattr(slot, "dutDeviceId") else None,
             },
         )
