@@ -16,7 +16,7 @@ and manufacturing stages:
     assets.manufacturing.hex("comms")
 
 Each stage accessor lazily resolves artifacts from the backend API.
-The test author never deals with pipeline IDs, labels, or storage keys.
+The test author never deals with build run IDs, labels, or storage keys.
 """
 
 from __future__ import annotations
@@ -159,7 +159,7 @@ class ProductAssets:
         assets.manufacturing.hex("app")
 
     The loader function takes a Stage enum and returns a StageAssets instance.
-    This is typically bound to a session/pipeline context by the test runner.
+    This is typically bound to a session/build run context by the test runner.
     """
 
     def __init__(self, loader):

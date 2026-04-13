@@ -37,7 +37,7 @@ class FixtureConfig:
 
 @dataclass(frozen=True)
 class StageConfig:
-    """A validation pipeline stage (unordered, independently triggerable)."""
+    """A validation stage (unordered, independently triggerable)."""
 
     name: str  # stage key from YAML (e.g. "smoke")
     directory: str  # relative test directory

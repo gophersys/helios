@@ -22,7 +22,7 @@ No-op conditions:
 
 Environment variables:
     MOCK_MODE / MOCK_CLOUD   "1" to enable mock mode (no hardware)
-    PIPELINE_ID              Pipeline ID for firmware artifact resolution
+    BUILD_RUN_ID             Build run ID for firmware artifact resolution
     CONCORD_RUN_ID           Activates the Concord reporter plugin
     CONCORD_API_URL          Concord HTTP API base URL
     CONCORD_API_KEY          API key for reporter + artifact access
@@ -168,10 +168,10 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Run in mock mode (no hardware/cloud required). Same as MOCK_MODE=1.",
     )
     group.addoption(
-        "--pipeline-id",
+        "--build-run-id",
         action="store",
         default=None,
-        help="Pipeline ID for firmware artifact resolution (overrides PIPELINE_ID)",
+        help="Build run ID for firmware artifact resolution (overrides BUILD_RUN_ID)",
     )
 
 
@@ -327,7 +327,7 @@ def _apply_cli_overrides(config: pytest.Config) -> None:
         "--device-snr": "DEVICE_SNR",
         "--artifacts-dir": "ARTIFACTS_DIR",
         "--db-env": "CORECLOUD_DB_ENV",
-        "--pipeline-id": "PIPELINE_ID",
+        "--build-run-id": "BUILD_RUN_ID",
     }
     for option, env_var in _overrides.items():
         try:
@@ -499,20 +499,20 @@ def slot(fixture_ctx, request):
 
 @pytest.fixture(scope="session")
 def stage_assets():
-    """Session-scoped firmware assets resolved from the build pipeline.
+    """Session-scoped firmware assets resolved from the build run.
 
-    When PIPELINE_ID is set (injected by K8s Job), provides typed
+    When BUILD_RUN_ID is set (injected by K8s Job), provides typed
     access to firmware artifacts via StageAssets and BuildAsset:
 
         hex_path = stage_assets.hex("app", "debug")
         app, comms = stage_assets.hex_pair("debug")
         version = stage_assets.by_label("SMOKE_APP_DEBUG").version()
 
-    Returns None if PIPELINE_ID is not set (manual run).
+    Returns None if BUILD_RUN_ID is not set (manual run).
     """
-    pipeline_id = os.environ.get("PIPELINE_ID")
-    if not pipeline_id:
-        log.info("PIPELINE_ID not set — stage_assets returning None")
+    build_run_id = os.environ.get("BUILD_RUN_ID")
+    if not build_run_id:
+        log.info("BUILD_RUN_ID not set — stage_assets returning None")
         yield None
         return
 
@@ -523,16 +523,16 @@ def stage_assets():
     try:
         from corekinect.test.stage_assets import StageAssets
 
-        assets = StageAssets.from_pipeline(
-            pipeline_id=pipeline_id,
+        assets = StageAssets.from_build_run(
+            build_run_id=build_run_id,
             stage=stage,
             api_url=api_url,
             api_key=api_key,
             strict=False,
         )
         log.info(
-            "StageAssets loaded: pipeline=%s, stage=%s, labels=%s",
-            pipeline_id, stage, assets.labels,
+            "StageAssets loaded: build_run=%s, stage=%s, labels=%s",
+            build_run_id, stage, assets.labels,
         )
         yield assets
         assets.cleanup()

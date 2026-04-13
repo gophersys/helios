@@ -3,7 +3,7 @@
 Provides FirmwareAssetManager: Downloads firmware from MinIO and uploads to
 MTIB server.
 
-For pipeline artifact resolution, use ArtifactResolver from
+For build run artifact resolution, use ArtifactResolver from
 corekinect.test.artifact_resolver instead.
 
 Storage layout in MinIO (firmware/builds prefix):

@@ -218,7 +218,7 @@ class TestStageValidation:
             StageAssets(resolver, stage="fuota", strict=True)
 
     def test_smoke_stage_needs_fewer_builds(self):
-        """Smoke stage only needs 3 builds — simpler pipeline."""
+        """Smoke stage only needs 3 builds — simpler build run."""
         resolver = StubArtifactResolver()
         resolver.add_build("SMOKE_APP_DEBUG", version="0.5.0", variant="debug", track="BM")
         resolver.add_build("SMOKE_COMMS_DEBUG", version="0.5.0", variant="debug", track="BM")

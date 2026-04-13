@@ -3,7 +3,7 @@
 Typed layer on ArtifactResolver so tests access build artifacts by
 label + role instead of ad-hoc string lookups.
 
-    assets = StageAssets.from_pipeline("run-42", "fuota", api_url, api_key)
+    assets = StageAssets.from_build_run("run-42", "fuota", api_url, api_key)
     app_hex = assets.hex("app", "debug")           # downloads lazily from MinIO
     app, comms = assets.hex_pair("debug")           # both processors at once
     cfws = assets.by_label("FUT_APP_BASE_B").cfws() # escape hatch
@@ -200,7 +200,7 @@ class StageAssets:
         if label not in self._assets:
             available = sorted(self._assets.keys())
             raise KeyError(
-                f"Build label '{label}' not found in pipeline. "
+                f"Build label '{label}' not found in build run. "
                 f"Available: {available}"
             )
         return self._assets[label]
@@ -304,7 +304,7 @@ class StageAssets:
 
         Resolution order:
         1. AssetSet.modemFirmware (new model — preferred)
-        2. Build manifest modem firmware (legacy — from build pipeline)
+        2. Build manifest modem firmware (legacy — from build run)
         3. Deprecated: trigger data modem firmware
 
         Returns:
@@ -315,7 +315,7 @@ class StageAssets:
         if modem_path:
             return modem_path
 
-        # 2. Try from build manifest (legacy) — use any available label
+        # 2. Try from build manifest (legacy — from build run) — use any available label
         for label in sorted(self._assets.keys()):
             if label == "MODEM_FW":
                 continue
@@ -330,7 +330,7 @@ class StageAssets:
 
     @property
     def labels(self) -> List[str]:
-        """All available build labels in this pipeline."""
+        """All available build labels in this build run."""
         return sorted(self._assets.keys())
 
     @property
@@ -361,7 +361,7 @@ class StageAssets:
             raise ConfigError(
                 f"Stage '{self._stage}' is missing required builds: {missing}. "
                 f"Available: {self.labels}. "
-                f"The pipeline may not have been created with matrix_mode='{self._stage}'."
+                f"The build run may not have been created with matrix_mode='{self._stage}'."
             )
 
         failed = self.failed_labels()
@@ -378,27 +378,27 @@ class StageAssets:
     # ── Factory ──
 
     @classmethod
-    def from_pipeline(
+    def from_build_run(
         cls,
-        pipeline_id: str,
+        build_run_id: str,
         stage: str,
         api_url: str,
         api_key: str,
         strict: bool = True,
         required_labels: Optional[List[str]] = None,
     ) -> "StageAssets":
-        """Create from a pipeline ID. Fetches builds and validates labels."""
+        """Create from a build run ID. Fetches builds and validates labels."""
         from corekinect.test.artifact_resolver import ArtifactResolver
 
         resolver = ArtifactResolver(
-            pipeline_id=pipeline_id,
+            build_run_id=build_run_id,
             api_url=api_url,
             api_key=api_key,
         )
 
         log.info(
-            "StageAssets loaded: pipeline=%s, stage=%s, builds=%d",
-            pipeline_id, stage, len(resolver.builds),
+            "StageAssets loaded: build_run=%s, stage=%s, builds=%d",
+            build_run_id, stage, len(resolver.builds),
         )
 
         return cls(

@@ -4,7 +4,7 @@ Provides:
   - Multi-slot test context via corekinect's FixtureContext
   - Per-slot MTIB connection for parallel panel testing
   - Shell fixtures (AlphaAppShell, CommsCoprocShell) for UART commands
-  - Firmware asset resolution from CI pipeline
+  - Firmware asset resolution from CI build run
   - Mock mode for offline development
 
 Required environment:
@@ -243,8 +243,8 @@ def mfg_assets():
     if build_run_id and api_url and api_key:
         from corekinect.test.stage_assets import StageAssets
 
-        assets = StageAssets.from_pipeline(
-            pipeline_id=build_run_id,
+        assets = StageAssets.from_build_run(
+            build_run_id=build_run_id,
             stage="manufacturing",
             api_url=api_url,
             api_key=api_key,

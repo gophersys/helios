@@ -6,7 +6,7 @@ no hardcoded App IDs, chip names, or filename conventions.
 All artifact downloads go through the Concord HTTP API — this library
 NEVER accesses storage (MinIO/S3) directly.
 
-    resolver = ArtifactResolver("build-42", api_url, api_key)
+    resolver = ArtifactResolver("run-42", api_url, api_key)
     app_hex = resolver.get_artifact("MFG_BASE", role="app", artifact_type="plaintextHex")
     cfws = resolver.get_artifacts("MFG_BASE", artifact_type="encryptedCfw")
 """
@@ -273,7 +273,7 @@ class ResolvedArtifact:
 
 
 class ArtifactResolver:
-    """Fetch pipeline builds and resolve artifacts by role + type.
+    """Fetch build run builds and resolve artifacts by role + type.
 
     All artifact discovery goes through build.json manifests --
     no hardcoded filenames or app IDs.
@@ -283,7 +283,7 @@ class ArtifactResolver:
 
     def __init__(
         self,
-        pipeline_id: str,
+        build_run_id: str,
         api_url: str,
         api_key: str,
         logger: Optional[Logger] = None,
@@ -299,7 +299,7 @@ class ArtifactResolver:
                 stacklevel=2,
             )
 
-        self._pipeline_id = pipeline_id
+        self._build_run_id = build_run_id
         self._api_url = api_url.rstrip("/")
         self._api_key = api_key
         self._log = logger.from_parent("artifact_resolver") if logger else log
@@ -312,28 +312,28 @@ class ArtifactResolver:
         # Lazy state
         self._builds: Dict[str, _BuildInfo] = {}
         self._manifests: Dict[str, BuildManifest] = {}
-        self._pipeline_fetched = False
+        self._builds_fetched = False
 
         # Temp file tracking for cleanup
         self._temp_files: List[str] = []
         self._temp_dirs: List[str] = []
 
     # ─────────────────────────────────────────────────────────────────────
-    # Pipeline + build fetching
+    # Build run + build fetching
     # ─────────────────────────────────────────────────────────────────────
 
-    def _ensure_pipeline(self) -> None:
-        """Fetch pipeline builds if not yet loaded."""
-        if self._pipeline_fetched:
+    def _ensure_builds(self) -> None:
+        """Fetch build run builds if not yet loaded."""
+        if self._builds_fetched:
             return
 
-        url = f"{self._api_url}/v2/builds/runs/{self._pipeline_id}"
-        self._log.info("Fetching pipeline %s", self._pipeline_id)
+        url = f"{self._api_url}/v2/builds/runs/{self._build_run_id}"
+        self._log.info("Fetching build run %s", self._build_run_id)
 
         resp = self._session.get(url, timeout=30)
         if resp.status_code != 200:
             raise RuntimeError(
-                f"Failed to fetch pipeline: {resp.status_code} {resp.text[:200]}"
+                f"Failed to fetch build run: {resp.status_code} {resp.text[:200]}"
             )
 
         data = resp.json()
@@ -370,7 +370,7 @@ class ArtifactResolver:
                 len(artifacts), build.has_manifest,
             )
 
-        self._pipeline_fetched = True
+        self._builds_fetched = True
 
     def _parse_artifacts(self, build_data: dict) -> List[_ArtifactInfo]:
         """Parse inline artifacts from build data."""
@@ -414,7 +414,7 @@ class ArtifactResolver:
 
     def _get_build(self, label: str) -> _BuildInfo:
         """Get a build by label, raising KeyError if not found."""
-        self._ensure_pipeline()
+        self._ensure_builds()
         if label not in self._builds:
             available = list(self._builds.keys())
             raise KeyError(
@@ -537,14 +537,14 @@ class ArtifactResolver:
     # ─────────────────────────────────────────────────────────────────────
 
     @property
-    def pipeline_id(self) -> str:
-        """Pipeline id."""
-        return self._pipeline_id
+    def build_run_id(self) -> str:
+        """Build run id."""
+        return self._build_run_id
 
     @property
     def builds(self) -> Dict[str, _BuildInfo]:
         """All builds indexed by matrix label."""
-        self._ensure_pipeline()
+        self._ensure_builds()
         return self._builds
 
     def get_manifest(self, label: str) -> BuildManifest:
@@ -658,8 +658,8 @@ class ArtifactResolver:
     def modem_firmware_info(self) -> Optional[Dict[str, Any]]:
         """Return modem firmware metadata without downloading. None if unavailable."""
         # Try triggerData first
-        self._ensure_pipeline()
-        url = f"{self._api_url}/v2/builds/runs/{self._pipeline_id}"
+        self._ensure_builds()
+        url = f"{self._api_url}/v2/builds/runs/{self._build_run_id}"
         try:
             resp = self._session.get(url, timeout=30)
             if resp.status_code == 200:
@@ -671,7 +671,7 @@ class ArtifactResolver:
                 if modem:
                     return modem
         except Exception as exc:
-            self._log.warning("Failed to fetch modem firmware info from pipeline: %s", exc)
+            self._log.warning("Failed to fetch modem firmware info from build run: %s", exc)
 
         # Fall back to build manifests
         for label in self._builds:
@@ -754,7 +754,7 @@ class ArtifactResolver:
         return None
 
     def has_all_builds(self) -> bool:
-        """Return True if all pipeline builds are SUCCESS or CACHED."""
+        """Return True if all build run builds are SUCCESS or CACHED."""
         builds = self.builds
         if len(builds) < 2:
             return False
@@ -766,8 +766,8 @@ class ArtifactResolver:
         return True
 
     def summary(self) -> str:
-        """Return human-readable summary of pipeline builds."""
-        lines = [f"Pipeline: {self._pipeline_id}"]
+        """Return human-readable summary of build run builds."""
+        lines = [f"Build run: {self._build_run_id}"]
         for label, build in sorted(self.builds.items(), key=lambda x: x[1].matrix_index):
             status_icon = "OK" if build.status in ("SUCCESS", "CACHED") else "FAIL"
             manifest_flag = " [manifest]" if build.has_manifest else " [NO MANIFEST]"

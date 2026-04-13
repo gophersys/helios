@@ -17,7 +17,7 @@ Environment variables:
     MTIB_HOSTS: Comma-separated MTIB addresses (multi-slot)
     DEVICE_SNR: J-Link probe serial number
     FIXTURE_PROFILE_PATH: Path to fixture profile JSON
-    PIPELINE_ID: CI pipeline ID (for fuota stage)
+    BUILD_RUN_ID: Build run ID (for fuota stage)
     ARTIFACTS_DIR: Directory for test artifacts
     PRODUCT_SLUG: Product slug for catalog API lookup (e.g., "alpha_b0")
 """
@@ -446,14 +446,14 @@ class PreflightChecker:
 
     def _check_firmware(self) -> Tuple[bool, str]:
         """Verify firmware artifacts are available."""
-        pipeline_id = os.environ.get("PIPELINE_ID")
-        if not pipeline_id:
-            # For fuota, PIPELINE_ID is required
+        build_run_id = os.environ.get("BUILD_RUN_ID")
+        if not build_run_id:
+            # For fuota, BUILD_RUN_ID is required
             if self.config.stage == "fuota":
-                return False, "PIPELINE_ID required for fuota tests"
+                return False, "BUILD_RUN_ID required for fuota tests"
             return True, "Not required for this stage"
 
-        return True, f"Pipeline: {pipeline_id[:12]}..."
+        return True, f"Build run: {build_run_id[:12]}..."
 
     def _check_corecloud(self) -> Tuple[bool, str]:
         """Verify CoreCloud API authentication."""

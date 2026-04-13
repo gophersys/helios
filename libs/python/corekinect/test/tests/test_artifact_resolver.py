@@ -96,11 +96,11 @@ SIGMA5_MANIFEST = {
 }
 
 
-def _make_pipeline_response(builds_data):
-    """Create a mock pipeline API response."""
+def _make_build_run_response(builds_data):
+    """Create a mock build run API response."""
     return {
         "data": {
-            "id": "pipeline-42",
+            "id": "build-run-42",
             "builds": builds_data,
         }
     }
@@ -258,12 +258,12 @@ class TestArtifactResolverManifest:
 
     def _make_resolver(self, builds, manifest_dict=None, download_side_effect=None):
         """Create resolver with mocked API + storage."""
-        pipeline_resp = _make_pipeline_response(builds)
+        build_run_resp = _make_build_run_response(builds)
 
         def mock_get(url, **kwargs):
             """Mock get."""
             if "/builds/runs/" in url:
-                return MockResponse(pipeline_resp)
+                return MockResponse(build_run_resp)
             if "/artifacts" in url:
                 # Return artifacts for a build
                 for b in builds:
@@ -278,7 +278,7 @@ class TestArtifactResolverManifest:
             mock_session.get.side_effect = mock_get
 
             resolver = ArtifactResolver(
-                pipeline_id="pipeline-42",
+                build_run_id="build-run-42",
                 api_url="http://localhost:9001",
                 api_key="ck_test_key",
             )
@@ -440,12 +440,12 @@ class TestArtifactResolverNoManifest:
 
     def _make_resolver_no_manifest(self, builds):
         """Create resolver with builds that have no manifest artifact."""
-        pipeline_resp = _make_pipeline_response(builds)
+        build_run_resp = _make_build_run_response(builds)
 
         def mock_get(url, **kwargs):
             """Mock get."""
             if "/builds/runs/" in url:
-                return MockResponse(pipeline_resp)
+                return MockResponse(build_run_resp)
             if "/artifacts" in url:
                 for b in builds:
                     if b["id"] in url:
@@ -459,7 +459,7 @@ class TestArtifactResolverNoManifest:
             mock_session.get.side_effect = mock_get
 
             resolver = ArtifactResolver(
-                pipeline_id="pipeline-42",
+                build_run_id="build-run-42",
                 api_url="http://localhost:9001",
                 api_key="ck_test_key",
             )
@@ -512,12 +512,12 @@ class TestArtifactResolverErrors:
 
     def _make_resolver_with_builds(self, builds):
         """ make resolver with builds."""
-        pipeline_resp = _make_pipeline_response(builds)
+        build_run_resp = _make_build_run_response(builds)
 
         def mock_get(url, **kwargs):
             """Mock get."""
             if "/builds/runs/" in url:
-                return MockResponse(pipeline_resp)
+                return MockResponse(build_run_resp)
             return MockResponse(None, 404)
 
         with patch("corekinect.test.artifact_resolver.requests") as mock_requests:
@@ -526,7 +526,7 @@ class TestArtifactResolverErrors:
             mock_session.get.side_effect = mock_get
 
             resolver = ArtifactResolver(
-                pipeline_id="pipeline-42",
+                build_run_id="build-run-42",
                 api_url="http://localhost:9001",
                 api_key="ck_test_key",
             )
@@ -566,8 +566,8 @@ class TestArtifactResolverErrors:
         with pytest.raises(ValueError, match="No target.*role='modem'"):
             resolver.get_artifact("MFG_BASE", role="modem", artifact_type="plaintextHex")
 
-    def test_empty_pipeline(self):
-        """Test empty pipeline."""
+    def test_empty_build_run(self):
+        """Test empty build run."""
         resolver = self._make_resolver_with_builds([])
 
         with pytest.raises(KeyError, match="MFG_BASE"):
@@ -606,7 +606,7 @@ class TestArtifactResolverCleanup:
         """Test cleanup removes temp files."""
         with patch("corekinect.test.artifact_resolver.requests"):
             resolver = ArtifactResolver(
-                pipeline_id="p1",
+                build_run_id="p1",
                 api_url="http://localhost",
                 api_key="ck_test",
             )

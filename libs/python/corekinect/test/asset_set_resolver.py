@@ -1,7 +1,7 @@
 """AssetSet-based artifact resolution.
 
-Resolves firmware assets from Concord AssetSets instead of BuildRun
-pipelines. Used when assets are uploaded manually or via external CI
+Resolves firmware assets from Concord AssetSets instead of BuildRuns.
+Used when assets are uploaded manually or via external CI
 rather than built by Concord's build service.
 
     resolver = AssetSetResolver.from_stage_config(
