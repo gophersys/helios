@@ -26,7 +26,7 @@
   type Step = 'stage' | 'upload' | 'complete';
   type UploadMode = 'files' | 'zip';
   let currentStep = $state<Step>('stage');
-  let uploadMode = $state<UploadMode>('files');
+  let uploadMode = $state<UploadMode>('zip');
 
   let selectedConfigId = $state<string | null>(null);
 
@@ -567,31 +567,10 @@
           </div>
 
           <!-- Mode toggle -->
-          <div class="flex rounded-lg border border-border-subtle overflow-hidden">
-            <button
-              onclick={() => switchMode('files')}
-              class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-2xs font-medium transition-colors
-                {uploadMode === 'files'
-                  ? 'bg-accent text-white'
-                  : 'bg-surface-0 text-text-secondary hover:bg-surface-2'}"
-            >
-              <FileIcon size={12} />
-              Upload files
-            </button>
-            <button
-              onclick={() => switchMode('zip')}
-              class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-2xs font-medium transition-colors
-                {uploadMode === 'zip'
-                  ? 'bg-accent text-white'
-                  : 'bg-surface-0 text-text-secondary hover:bg-surface-2'}"
-            >
-              <FileArchive size={12} />
-              Upload zip
-            </button>
-          </div>
+          <!-- Zip upload only -->
 
-          <!-- ============ FILES MODE ============ -->
-          {#if uploadMode === 'files'}
+          <!-- ============ FILES MODE (hidden — zip only) ============ -->
+          {#if false}
 
             <!-- Expected labels (before analysis) -->
             {#if selectedConfig?.buildMatrix?.length && analyzedFiles.length === 0}
